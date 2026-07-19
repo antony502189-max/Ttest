@@ -143,6 +143,10 @@ const translations: Record<string, Translation> = {
   'Personas en la vivienda': { ru: 'Жильцов в доме', en: 'People in the home' },
   '5 o más': { ru: '5 и больше', en: '5 or more' },
   'Mapa aproximado de habitaciones': { ru: 'Примерная карта комнат', en: 'Approximate room map' },
+  'Mapa satelital interactivo de Tenerife': { ru: 'Интерактивная спутниковая карта Тенерифе', en: 'Interactive satellite map of Tenerife' },
+  'Ubicaciones disponibles': { ru: 'Доступные локации', en: 'Available locations' },
+  'Abrir en Google Maps': { ru: 'Открыть в Google Maps', en: 'Open in Google Maps' },
+  'Ver anuncio': { ru: 'Открыть объявление', en: 'View listing' },
   'Buscar en esta zona': { ru: 'Искать в этой области', en: 'Search this area' },
   'Resultados actualizados en esta zona': { ru: 'Результаты в этой области обновлены', en: 'Results updated in this area' },
   'Usar mi ubicación': { ru: 'Использовать моё местоположение', en: 'Use my location' },
@@ -717,6 +721,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
   if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
   if ((match = source.match(/^(\d+) euros, (.+), ubicación aproximada$/))) return target(`${match[1]} евро, ${match[2]}, примерное местоположение`, `${match[1]} euros, ${match[2]}, approximate location`)
+  if ((match = source.match(/^Centrar mapa en (.+), (\d+) euros$/))) return target(`Показать на карте: ${match[1]}, ${match[2]} евро`, `Center map on ${match[1]}, ${match[2]} euros`)
   if ((match = source.match(/^(\d+) euros, (.+)$/))) return target(`${match[1]} евро, ${match[2]}`, `${match[1]} euros, ${match[2]}`)
   return source
 }

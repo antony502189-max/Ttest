@@ -27,7 +27,7 @@ export interface Listing {
   kitchen: string
   furnished: boolean
   occupants: number
-  coordinates: { x: number; y: number; lat: number; lng: number }
+  coordinates: { lat: number; lng: number }
   restrictions: string[]
   amenities: string[]
   description: string

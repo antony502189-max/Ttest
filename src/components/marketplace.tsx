@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bath, BedDouble, CalendarDays, ChevronLeft, ChevronRight, CigaretteOff, CircleAlert, Euro, Expand, Heart, Home, LocateFixed, Map as MapIcon, MapPin, MessageCircle, Minus, PawPrint, Phone, Plus, Satellite, Search, ShieldCheck, SlidersHorizontal, Sparkles, UsersRound, X } from 'lucide-react'
+import { Bath, BedDouble, CalendarDays, ChevronLeft, ChevronRight, CigaretteOff, CircleAlert, Euro, Expand, ExternalLink, Heart, Home, MapPin, MessageCircle, PawPrint, Phone, Search, ShieldCheck, SlidersHorizontal, Sparkles, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { areas, listings } from '@/data/listings'
 import type { Filters, Listing, RentalMode } from '@/types'
@@ -164,28 +163,43 @@ export function FilterButton({ resultCount }: { resultCount: number }) {
   )
 }
 
-export interface MapAdapter { getListings(): Listing[]; select(id: string): void }
+type MapCenter = Pick<Listing['coordinates'], 'lat' | 'lng'>
+
+export interface MapAdapter {
+  getEmbedUrl(center: MapCenter, zoom: number, language: string): string
+  getExternalUrl(center: MapCenter, zoom: number): string
+}
+
+export const googleSatelliteMapAdapter: MapAdapter = {
+  getEmbedUrl: ({ lat, lng }, zoom, language) => `https://www.google.com/maps?ll=${lat},${lng}&t=k&z=${zoom}&output=embed&hl=${language}`,
+  getExternalUrl: ({ lat, lng }, zoom) => `https://www.google.com/maps/@?api=1&map_action=map&center=${lat}%2C${lng}&zoom=${zoom}&basemap=satellite`,
+}
+
+const tenerifeCenter: MapCenter = { lat: 28.2915637, lng: -16.6291304 }
 
 export function MapView({ items, selectedId, onSelect, fullScreen = false, showPreview = true }: { items: Listing[]; selectedId?: string; onSelect: (id: string) => void; fullScreen?: boolean; showPreview?: boolean }) {
+  const { language, locale } = useI18n()
   const selected = items.find((item) => item.id === selectedId)
-  const [zoom, setZoom] = useState(1)
-  const [layer, setLayer] = useState<'map' | 'satellite'>('map')
+  const center = selected?.coordinates ?? tenerifeCenter
+  const zoom = selected ? 14 : 10
+  const price = (item: Listing) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.price)
   return (
-    <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} data-layer={layer} aria-label="Mapa aproximado de habitaciones">
-      <div className="map-surface" style={{ transform: `scale(${zoom})` }}>
-        <div className="map-island" aria-hidden="true"><span className="map-terrain" /><span className="map-road map-road--one" /><span className="map-road map-road--two" /><span className="map-road map-road--three" /><span className="map-road map-road--four" /></div>
-        <div aria-hidden="true"><span className="map-label map-label--laguna">LA LAGUNA</span><span className="map-label map-label--santa-cruz">SANTA CRUZ</span><span className="map-label map-label--adeje">COSTA ADEJE</span><span className="map-label map-label--cristianos">LOS CRISTIANOS</span><span className="map-label map-label--medano">EL MÉDANO</span><span className="map-label map-label--teide">TEIDE</span></div>
-        {items.map((item, index) => <button key={item.id} type="button" className={cn('map-marker', item.id === selectedId && 'is-active')} style={{ left: `${item.coordinates.x}%`, top: `${item.coordinates.y}%` }} onClick={() => onSelect(item.id)} aria-label={`${item.price} euros, ${item.area}, ubicación aproximada`} aria-pressed={item.id === selectedId}>{index === 3 ? <span className="marker-cluster" aria-label="2 habitaciones">2</span> : `${item.price} €`}</button>)}
+    <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} aria-label="Mapa aproximado de habitaciones">
+      <div className="google-map-frame-wrap">
+        <iframe key={`${center.lat}-${center.lng}-${language}`} className="google-map-frame" src={googleSatelliteMapAdapter.getEmbedUrl(center, zoom, language)} title="Mapa satelital interactivo de Tenerife" loading={fullScreen ? 'eager' : 'lazy'} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       </div>
-      <ToggleGroup type="single" value={layer} onValueChange={(value) => { if (value === 'map' || value === 'satellite') setLayer(value) }} variant="outline" size="sm" spacing={0} className="map-layer-switch" aria-label="Capa del mapa">
-        <ToggleGroupItem value="map" aria-label="Vista de mapa"><MapIcon data-icon="inline-start" />Mapa</ToggleGroupItem>
-        <ToggleGroupItem value="satellite" aria-label="Vista satélite"><Satellite data-icon="inline-start" />Satélite</ToggleGroupItem>
-      </ToggleGroup>
-      <div className="map-top-actions"><Button size="sm" onClick={() => toast.success('Resultados actualizados en esta zona')}>Buscar en esta zona</Button></div>
-      <div className="map-controls" role="group" aria-label="Controles del mapa"><Button variant="outline" size="icon" aria-label="Usar mi ubicación" onClick={() => toast('Ubicación aproximada activada')}><LocateFixed /></Button><Button variant="outline" size="icon" aria-label="Acercar mapa" disabled={zoom >= 1.3} onClick={() => setZoom((value) => Math.min(1.3, value + .1))}><Plus /></Button><span className="map-zoom-readout" aria-live="polite">{Math.round(zoom * 100)}%</span><Button variant="outline" size="icon" aria-label="Alejar mapa" disabled={zoom <= .8} onClick={() => setZoom((value) => Math.max(.8, value - .1))}><Minus /></Button></div>
-      <p className="map-privacy"><ShieldCheck aria-hidden="true" />La posición es aproximada para proteger la privacidad.</p>
-      <div className="map-legend" aria-label="Leyenda del mapa"><span><i className="map-legend__price" />Habitación</span><span><i className="map-legend__cluster" />Grupo</span></div>
-      {selected && showPreview ? <div className="map-preview"><button type="button" aria-label="Cerrar vista previa" onClick={() => onSelect('')}><X /></button><PropertyCard listing={selected} compact selected /></div> : null}
+      <div className="map-location-dock">
+        <div className="map-location-list" role="group" aria-label="Ubicaciones disponibles">
+          {items.map((item) => <button key={item.id} type="button" className={cn('map-location-button', item.id === selectedId && 'is-active')} onClick={() => onSelect(item.id)} aria-label={`Centrar mapa en ${item.area}, ${item.price} euros`} aria-pressed={item.id === selectedId}><MapPin aria-hidden="true" /><span><strong>{item.area}</strong><small>{price(item)}/{item.cadence}</small></span></button>)}
+        </div>
+        <div className="map-location-meta">
+          <p><ShieldCheck aria-hidden="true" />La posición es aproximada para proteger la privacidad.</p>
+          <div className="map-location-actions">
+            <Button asChild variant="outline" size="sm"><a href={googleSatelliteMapAdapter.getExternalUrl(center, zoom)} target="_blank" rel="noreferrer">Abrir en Google Maps<ExternalLink data-icon="inline-end" /></a></Button>
+            {selected && showPreview ? <Button asChild size="sm"><Link to={`/habitacion/${selected.id}`}>Ver anuncio</Link></Button> : null}
+          </div>
+        </div>
+      </div>
     </section>
   )
 }
