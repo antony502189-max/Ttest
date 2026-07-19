@@ -1,0 +1,828 @@
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+
+export type Language = 'es' | 'ru' | 'en'
+
+type Translation = { ru: string; en: string }
+
+const translations: Record<string, Translation> = {
+  'Cargando 112233.es…': { ru: 'Загрузка 112233.es…', en: 'Loading 112233.es…' },
+  'Saltar al contenido': { ru: 'Перейти к содержимому', en: 'Skip to content' },
+  'inicio': { ru: 'главная', en: 'home' },
+  '112233.es — inicio': { ru: '112233.es — главная', en: '112233.es — home' },
+  'Idioma': { ru: 'Язык', en: 'Language' },
+  'Seleccionar idioma': { ru: 'Выбрать язык', en: 'Select language' },
+  'Español': { ru: 'Испанский', en: 'Spanish' },
+  'Inglés': { ru: 'Английский', en: 'English' },
+  'Ruso': { ru: 'Русский', en: 'Russian' },
+  'Navegación principal': { ru: 'Основная навигация', en: 'Main navigation' },
+  'Navegación móvil': { ru: 'Мобильная навигация', en: 'Mobile navigation' },
+  'Menú principal': { ru: 'Главное меню', en: 'Main menu' },
+  'Abrir menú': { ru: 'Открыть меню', en: 'Open menu' },
+  'Abrir menú de perfil': { ru: 'Открыть меню профиля', en: 'Open profile menu' },
+  'Buscar habitaciones': { ru: 'Найти комнату', en: 'Find rooms' },
+  'Buscar': { ru: 'Поиск', en: 'Search' },
+  'Cómo funciona': { ru: 'Как это работает', en: 'How it works' },
+  'Ayuda': { ru: 'Помощь', en: 'Help' },
+  'Acceder': { ru: 'Войти', en: 'Sign in' },
+  'Publicar habitación': { ru: 'Разместить комнату', en: 'List a room' },
+  'Publicar': { ru: 'Разместить', en: 'List' },
+  'Cuenta de demostración': { ru: 'Демо-аккаунт', en: 'Demo account' },
+  'Mi perfil': { ru: 'Мой профиль', en: 'My profile' },
+  'Perfil': { ru: 'Профиль', en: 'Profile' },
+  'Favoritos': { ru: 'Избранное', en: 'Favorites' },
+  'Mis anuncios': { ru: 'Мои объявления', en: 'My listings' },
+  'Cerrar sesión': { ru: 'Выйти', en: 'Sign out' },
+  'Administración': { ru: 'Администрирование', en: 'Administration' },
+  'Habitaciones en Tenerife, sin rodeos.': { ru: 'Комнаты на Тенерифе — без лишнего.', en: 'Rooms in Tenerife, without the runaround.' },
+  'Ver favoritos': { ru: 'Открыть избранное', en: 'View favorites' },
+  'Mapa': { ru: 'Карта', en: 'Map' },
+  'El marketplace especializado en habitaciones de Tenerife.': { ru: 'Маркетплейс комнат на Тенерифе.', en: 'The marketplace dedicated to rooms in Tenerife.' },
+  'Sobre nosotros': { ru: 'О нас', en: 'About us' },
+  'Contacto': { ru: 'Контакты', en: 'Contact' },
+  'Centro de ayuda': { ru: 'Центр помощи', en: 'Help center' },
+  'Normas de publicación': { ru: 'Правила публикации', en: 'Listing rules' },
+  'Legal': { ru: 'Правовая информация', en: 'Legal' },
+  'Términos': { ru: 'Условия', en: 'Terms' },
+  'Privacidad': { ru: 'Конфиденциальность', en: 'Privacy' },
+  'Cookies': { ru: 'Файлы cookie', en: 'Cookies' },
+  'Información': { ru: 'Информация', en: 'Information' },
+  'Hecho para encontrar habitación, no para perder tiempo.': { ru: 'Создано, чтобы найти комнату, а не терять время.', en: 'Made to find a room, not waste time.' },
+
+  'Solo habitaciones · Tenerife': { ru: 'Только комнаты · Тенерифе', en: 'Rooms only · Tenerife' },
+  'Encuentra una habitación que encaje contigo.': { ru: 'Найдите комнату, которая вам подходит.', en: 'Find a room that fits your life.' },
+  'Precio, gastos y condiciones de convivencia claros antes de contactar.': { ru: 'Цена, расходы и условия проживания понятны до первого контакта.', en: 'Clear price, bills and house rules before you make contact.' },
+  'Larga estancia': { ru: 'Долгосрочная аренда', en: 'Long-term rental' },
+  'Alquiler vacacional': { ru: 'Краткосрочная аренда', en: 'Holiday rental' },
+  'Ciudad, barrio o zona': { ru: 'Город, район или зона', en: 'City, district or area' },
+  'Ej. Los Cristianos': { ru: 'Напр. Los Cristianos', en: 'E.g. Los Cristianos' },
+  'Entrada': { ru: 'Заезд', en: 'Move-in' },
+  'Anuncios revisados': { ru: 'Проверенные объявления', en: 'Reviewed listings' },
+  'Ubicación aproximada': { ru: 'Примерное местоположение', en: 'Approximate location' },
+  'Contacto directo': { ru: 'Прямой контакт', en: 'Direct contact' },
+  'Explora por zona': { ru: 'Поиск по районам', en: 'Explore by area' },
+  'Habitaciones donde quieres vivir': { ru: 'Комнаты там, где хочется жить', en: 'Rooms where you want to live' },
+  'Ver todas': { ru: 'Смотреть все', en: 'View all' },
+  'Recién publicadas': { ru: 'Недавно опубликованы', en: 'Just listed' },
+  'Nuevas habitaciones': { ru: 'Новые комнаты', en: 'New rooms' },
+  'Ver resultados': { ru: 'Смотреть результаты', en: 'View results' },
+  'El foco importa': { ru: 'Фокус имеет значение', en: 'Focus matters' },
+  'No vendemos pisos. No mostramos oficinas. Solo habitaciones.': { ru: 'Не продаём квартиры. Не показываем офисы. Только комнаты.', en: 'No flats for sale. No offices. Rooms only.' },
+  '112233.es organiza la información que de verdad afecta a una convivencia: quién vive en casa, duración mínima, gastos, fianza, mascotas, tabaco y empadronamiento.': { ru: '112233.es структурирует всё, что действительно важно для совместного проживания: кто живёт в доме, минимальный срок, расходы, депозит, животные, курение и регистрация.', en: '112233.es structures what really matters when sharing a home: who lives there, minimum stay, bills, deposit, pets, smoking and registration.' },
+  'Compara sin abrir diez pestañas': { ru: 'Сравнивайте без десятка вкладок', en: 'Compare without ten open tabs' },
+  'Las condiciones importantes aparecen en cada tarjeta.': { ru: 'Важные условия видны в каждой карточке.', en: 'The important conditions appear on every card.' },
+  'Información estructurada': { ru: 'Структурированная информация', en: 'Structured information' },
+  'Precio, fianza y gastos no se esconden en la descripción.': { ru: 'Цена, депозит и расходы не спрятаны в описании.', en: 'Price, deposit and bills are not hidden in the description.' },
+  'Habla directamente': { ru: 'Общайтесь напрямую', en: 'Talk directly' },
+  'WhatsApp, teléfono o mensaje interno, tú eliges.': { ru: 'WhatsApp, телефон или внутреннее сообщение — выбор за вами.', en: 'WhatsApp, phone or an internal message — you choose.' },
+  '¿Tienes una habitación libre?': { ru: 'Есть свободная комната?', en: 'Have a spare room?' },
+  'Publícala paso a paso.': { ru: 'Разместите её шаг за шагом.', en: 'List it step by step.' },
+  'Un anuncio completo recibe contactos más compatibles y ahorra conversaciones innecesarias.': { ru: 'Полное объявление привлекает подходящих арендаторов и сокращает лишние переписки.', en: 'A complete listing attracts better-matched contacts and avoids unnecessary conversations.' },
+
+  'Vista de resultados': { ru: 'Вид результатов', en: 'Results view' },
+  'Lista': { ru: 'Список', en: 'List' },
+  'Habitaciones en': { ru: 'Комнаты в', en: 'Rooms in' },
+  'anuncios encontrados': { ru: 'объявлений найдено', en: 'listings found' },
+  'Ordenar por': { ru: 'Сортировать', en: 'Sort by' },
+  'Relevancia': { ru: 'По релевантности', en: 'Relevance' },
+  'Más recientes': { ru: 'Сначала новые', en: 'Newest' },
+  'Precio más bajo': { ru: 'Сначала дешевле', en: 'Lowest price' },
+  'Ver mapa': { ru: 'Открыть карту', en: 'View map' },
+  'Ver lista': { ru: 'Открыть список', en: 'View list' },
+  'Abrir filtros': { ru: 'Открыть фильтры', en: 'Open filters' },
+  'Filtros rápidos': { ru: 'Быстрые фильтры', en: 'Quick filters' },
+  'Hasta 500 €': { ru: 'До 500 €', en: 'Up to €500' },
+  'Gastos incluidos': { ru: 'Расходы включены', en: 'Bills included' },
+  'Baño privado': { ru: 'Собственная ванная', en: 'Private bathroom' },
+  'Empadronamiento': { ru: 'Регистрация', en: 'Registration' },
+  'Todos los filtros': { ru: 'Все фильтры', en: 'All filters' },
+  'Filtros': { ru: 'Фильтры', en: 'Filters' },
+  'Ajusta las condiciones que realmente importan para convivir.': { ru: 'Выберите условия, которые действительно важны для совместной жизни.', en: 'Set the conditions that really matter when sharing a home.' },
+  'Limpiar filtros': { ru: 'Сбросить фильтры', en: 'Clear filters' },
+  'Precio mensual': { ru: 'Цена в месяц', en: 'Monthly price' },
+  'Rango de precio': { ru: 'Диапазон цены', en: 'Price range' },
+  'Zona': { ru: 'Район', en: 'Area' },
+  'Tipo de habitación': { ru: 'Тип комнаты', en: 'Room type' },
+  'Cualquiera': { ru: 'Любой', en: 'Any' },
+  'Habitación individual': { ru: 'Отдельная комната', en: 'Private room' },
+  'Habitación compartida': { ru: 'Общая комната', en: 'Shared room' },
+  'Estudio': { ru: 'Студия', en: 'Studio' },
+  'Disponibilidad y estancia': { ru: 'Доступность и срок проживания', en: 'Availability and stay' },
+  'Disponible desde': { ru: 'Доступно с', en: 'Available from' },
+  'Estancia mínima': { ru: 'Минимальный срок', en: 'Minimum stay' },
+  '1 mes': { ru: '1 месяц', en: '1 month' },
+  '2 meses': { ru: '2 месяца', en: '2 months' },
+  '3 meses': { ru: '3 месяца', en: '3 months' },
+  '6 meses': { ru: '6 месяцев', en: '6 months' },
+  'Curso académico': { ru: 'Учебный год', en: 'Academic year' },
+  'Convivencia y condiciones': { ru: 'Совместная жизнь и условия', en: 'Household and conditions' },
+  'Solo hombre': { ru: 'Только мужчина', en: 'Men only' },
+  'Solo mujer': { ru: 'Только женщина', en: 'Women only' },
+  'Parejas permitidas': { ru: 'Можно парам', en: 'Couples allowed' },
+  'Sin preferencia de género': { ru: 'Без ограничений по полу', en: 'No gender preference' },
+  'Niños permitidos': { ru: 'Можно с детьми', en: 'Children allowed' },
+  'Mascotas permitidas': { ru: 'Можно с животными', en: 'Pets allowed' },
+  'Empadronamiento posible': { ru: 'Регистрация возможна', en: 'Registration possible' },
+  'No fumar': { ru: 'Не курить', en: 'No smoking' },
+  'Sin mascotas': { ru: 'Без животных', en: 'No pets' },
+  'Sin empadronamiento': { ru: 'Без регистрации', en: 'No registration' },
+  'Solo estudiante': { ru: 'Только студент', en: 'Students only' },
+  'Máximo 2 personas': { ru: 'Не более 2 человек', en: 'Maximum 2 people' },
+  'Mascota pequeña valorable': { ru: 'Небольшое животное обсуждается', en: 'Small pet considered' },
+  'Espacios y equipamiento': { ru: 'Помещения и оснащение', en: 'Spaces and equipment' },
+  'Baño': { ru: 'Ванная', en: 'Bathroom' },
+  'Baño compartido': { ru: 'Общая ванная', en: 'Shared bathroom' },
+  'Cocina': { ru: 'Кухня', en: 'Kitchen' },
+  'Cocina privada': { ru: 'Собственная кухня', en: 'Private kitchen' },
+  'Cocina compartida': { ru: 'Общая кухня', en: 'Shared kitchen' },
+  'Amueblada': { ru: 'С мебелью', en: 'Furnished' },
+  'Fianza y vivienda': { ru: 'Депозит и жильё', en: 'Deposit and home' },
+  'Depósito': { ru: 'Депозит', en: 'Deposit' },
+  'Sin fianza': { ru: 'Без депозита', en: 'No deposit' },
+  'Hasta 1 mes': { ru: 'До 1 месяца', en: 'Up to 1 month' },
+  'Más de 1 mes': { ru: 'Больше 1 месяца', en: 'More than 1 month' },
+  'Personas en la vivienda': { ru: 'Жильцов в доме', en: 'People in the home' },
+  '5 o más': { ru: '5 и больше', en: '5 or more' },
+  'Mapa aproximado de habitaciones': { ru: 'Примерная карта комнат', en: 'Approximate room map' },
+  'Buscar en esta zona': { ru: 'Искать в этой области', en: 'Search this area' },
+  'Resultados actualizados en esta zona': { ru: 'Результаты в этой области обновлены', en: 'Results updated in this area' },
+  'Usar mi ubicación': { ru: 'Использовать моё местоположение', en: 'Use my location' },
+  'Ubicación aproximada activada': { ru: 'Примерное местоположение включено', en: 'Approximate location enabled' },
+  'Acercar mapa': { ru: 'Увеличить карту', en: 'Zoom in' },
+  'Alejar mapa': { ru: 'Уменьшить карту', en: 'Zoom out' },
+  'La posición es aproximada para proteger la privacidad.': { ru: 'Положение указано приблизительно для защиты конфиденциальности.', en: 'The position is approximate to protect privacy.' },
+  'Cerrar vista previa': { ru: 'Закрыть просмотр', en: 'Close preview' },
+  'Verificado': { ru: 'Проверено', en: 'Verified' },
+  'Cargando habitaciones': { ru: 'Загрузка комнат', en: 'Loading rooms' },
+  'Aún no has guardado habitaciones': { ru: 'У вас пока нет сохранённых комнат', en: 'You have not saved any rooms yet' },
+  'No hay habitaciones con estos filtros': { ru: 'По этим фильтрам комнат нет', en: 'No rooms match these filters' },
+  'Guarda las que te gusten para compararlas aquí.': { ru: 'Сохраняйте понравившиеся комнаты, чтобы сравнить их здесь.', en: 'Save the rooms you like to compare them here.' },
+  'Prueba a ampliar el precio o quitar alguna condición.': { ru: 'Попробуйте расширить диапазон цены или убрать одно из условий.', en: 'Try widening the price range or removing a condition.' },
+  'Explorar habitaciones': { ru: 'Смотреть комнаты', en: 'Explore rooms' },
+  'Limpiar y buscar': { ru: 'Сбросить и искать', en: 'Clear and search' },
+  'No hemos podido cargar los resultados': { ru: 'Не удалось загрузить результаты', en: 'We could not load the results' },
+  'Comprueba tu conexión y vuelve a intentarlo. Tus filtros siguen guardados.': { ru: 'Проверьте подключение и попробуйте снова. Фильтры сохранены.', en: 'Check your connection and try again. Your filters are still saved.' },
+  'Reintentar': { ru: 'Повторить', en: 'Try again' },
+
+  'Volver a resultados': { ru: 'Вернуться к результатам', en: 'Back to results' },
+  'Habitaciones': { ru: 'Комнаты', en: 'Rooms' },
+  'habitaciones': { ru: 'комнат', en: 'rooms' },
+  'Habitaciones /': { ru: 'Комнаты /', en: 'Rooms /' },
+  'personas en casa': { ru: 'жильцов в доме', en: 'people in the home' },
+  'Referencia': { ru: 'Номер', en: 'Reference' },
+  'Foto anterior': { ru: 'Предыдущее фото', en: 'Previous photo' },
+  'Foto siguiente': { ru: 'Следующее фото', en: 'Next photo' },
+  'Disponible': { ru: 'Доступно', en: 'Available' },
+  'Anunciante verificado': { ru: 'Владелец проверен', en: 'Verified advertiser' },
+  'Sobre la habitación': { ru: 'О комнате', en: 'About the room' },
+  'La vivienda': { ru: 'Жильё', en: 'The home' },
+  'Vivienda compartida': { ru: 'Совместное жильё', en: 'Shared home' },
+  'residentes': { ru: 'жильцов', en: 'residents' },
+  'Equipada': { ru: 'Оборудована', en: 'Equipped' },
+  'Uso indicado': { ru: 'Указанный тип', en: 'As specified' },
+  'Habitación amueblada': { ru: 'Комната с мебелью', en: 'Furnished room' },
+  'Sí': { ru: 'Да', en: 'Yes' },
+  'No': { ru: 'Нет', en: 'No' },
+  'Antes de contactar': { ru: 'Перед обращением', en: 'Before contacting' },
+  'Condiciones de convivencia': { ru: 'Условия проживания', en: 'House rules' },
+  'Comprueba que encajas con las condiciones indicadas por el anunciante.': { ru: 'Убедитесь, что вам подходят условия, указанные владельцем.', en: 'Check that you meet the conditions set by the advertiser.' },
+  'Precio y disponibilidad': { ru: 'Цена и доступность', en: 'Price and availability' },
+  'Renta': { ru: 'Аренда', en: 'Rent' },
+  'Gastos': { ru: 'Расходы', en: 'Bills' },
+  'Fianza': { ru: 'Залог', en: 'Deposit' },
+  'Estancia': { ru: 'Срок проживания', en: 'Stay' },
+  'El punto se desplaza ligeramente para no revelar la dirección exacta.': { ru: 'Точка немного смещена, чтобы не раскрывать точный адрес.', en: 'The marker is slightly offset so the exact address is not revealed.' },
+  'Anunciante': { ru: 'Владелец', en: 'Advertiser' },
+  'Identidad y teléfono verificados por 112233.es.': { ru: 'Личность и телефон проверены 112233.es.', en: 'Identity and phone verified by 112233.es.' },
+  'Identidad pendiente de verificación.': { ru: 'Проверка личности ещё не завершена.', en: 'Identity verification pending.' },
+  'También pueden encajarte': { ru: 'Вам также может подойти', en: 'You may also like' },
+  'Habitaciones similares': { ru: 'Похожие комнаты', en: 'Similar rooms' },
+  'Ver más': { ru: 'Показать ещё', en: 'View more' },
+  'Contactar con el anunciante': { ru: 'Связаться с владельцем', en: 'Contact the advertiser' },
+  'Identidad verificada': { ru: 'Личность подтверждена', en: 'Identity verified' },
+  'Confirmo que cumplo las condiciones principales del anuncio.': { ru: 'Подтверждаю, что соответствую основным условиям объявления.', en: 'I confirm that I meet the listing’s main conditions.' },
+  'Abriendo conversación de WhatsApp': { ru: 'Открываем чат WhatsApp', en: 'Opening WhatsApp conversation' },
+  'Mostrar teléfono': { ru: 'Показать телефон', en: 'Show phone number' },
+  'Mensaje': { ru: 'Сообщение', en: 'Message' },
+  'Cuéntale brevemente quién eres y cuándo quieres entrar.': { ru: 'Коротко расскажите о себе и желаемой дате заезда.', en: 'Briefly say who you are and when you would like to move in.' },
+  'Tu mensaje': { ru: 'Ваше сообщение', en: 'Your message' },
+  'Enviar mensaje': { ru: 'Отправить сообщение', en: 'Send message' },
+  'Mensaje enviado. Te avisaremos cuando respondan.': { ru: 'Сообщение отправлено. Мы сообщим, когда вам ответят.', en: 'Message sent. We will notify you when they reply.' },
+  'Denunciar anuncio': { ru: 'Пожаловаться', en: 'Report listing' },
+  'Denunciar este anuncio': { ru: 'Пожаловаться на объявление', en: 'Report this listing' },
+  'Motivo': { ru: 'Причина', en: 'Reason' },
+  'El anuncio ya no está disponible': { ru: 'Объявление больше недоступно', en: 'The listing is no longer available' },
+  'Datos incorrectos': { ru: 'Неверные данные', en: 'Incorrect information' },
+  'Posible fraude': { ru: 'Возможное мошенничество', en: 'Possible fraud' },
+  'Contenido prohibido': { ru: 'Запрещённый контент', en: 'Prohibited content' },
+  'Contenido discriminatorio': { ru: 'Дискриминационный контент', en: 'Discriminatory content' },
+  'Otro motivo': { ru: 'Другая причина', en: 'Other reason' },
+  'Comentario opcional': { ru: 'Комментарий (необязательно)', en: 'Optional comment' },
+  'Enviar denuncia': { ru: 'Отправить жалобу', en: 'Submit report' },
+  'Denuncia enviada. Gracias por ayudarnos a cuidar la comunidad.': { ru: 'Жалоба отправлена. Спасибо, что помогаете поддерживать безопасность сообщества.', en: 'Report submitted. Thank you for helping us protect the community.' },
+  'Paginación': { ru: 'Навигация по страницам', en: 'Pagination' },
+  'Página anterior': { ru: 'Предыдущая страница', en: 'Previous page' },
+  'Página siguiente': { ru: 'Следующая страница', en: 'Next page' },
+
+  'Tu selección': { ru: 'Ваша подборка', en: 'Your selection' },
+  'habitaciones guardadas': { ru: 'сохранённых комнат', en: 'saved rooms' },
+  'Seguir buscando': { ru: 'Продолжить поиск', en: 'Keep searching' },
+  'Tu cuenta': { ru: 'Ваш аккаунт', en: 'Your account' },
+  'Controla cómo te ven anunciantes y futuros inquilinos.': { ru: 'Настройте, как вас видят владельцы и будущие жильцы.', en: 'Control how advertisers and future housemates see you.' },
+  'Cancelar': { ru: 'Отмена', en: 'Cancel' },
+  'Editar perfil': { ru: 'Редактировать профиль', en: 'Edit profile' },
+  'Busco habitación': { ru: 'Ищу комнату', en: 'Looking for a room' },
+  'Identidad básica verificada': { ru: 'Базовая личность подтверждена', en: 'Basic identity verified' },
+  'Cambiar foto': { ru: 'Изменить фото', en: 'Change photo' },
+  'Nombre': { ru: 'Имя', en: 'Name' },
+  'Teléfono': { ru: 'Телефон', en: 'Phone' },
+  'Sobre mí': { ru: 'Обо мне', en: 'About me' },
+  'Una breve presentación ayuda a iniciar la conversación.': { ru: 'Короткое представление помогает начать разговор.', en: 'A short introduction helps start the conversation.' },
+  'Trabajo en remoto y busco una habitación tranquila en el sur de Tenerife. Soy ordenada, no fumo y valoro una convivencia respetuosa.': { ru: 'Работаю удалённо и ищу тихую комнату на юге Тенерифе. Люблю порядок, не курю и ценю уважительное совместное проживание.', en: 'I work remotely and am looking for a quiet room in southern Tenerife. I am tidy, do not smoke and value respectful shared living.' },
+  'Privacidad de contacto': { ru: 'Конфиденциальность контактов', en: 'Contact privacy' },
+  'Mostrar teléfono a anunciantes': { ru: 'Показывать телефон владельцам', en: 'Show phone to advertisers' },
+  'Solo después de iniciar contacto': { ru: 'Только после начала общения', en: 'Only after contact is started' },
+  'Permitir contacto por WhatsApp': { ru: 'Разрешить связь через WhatsApp', en: 'Allow contact via WhatsApp' },
+  'Los anunciantes verán tu número': { ru: 'Владельцы увидят ваш номер', en: 'Advertisers will see your number' },
+  'Cambios guardados correctamente.': { ru: 'Изменения сохранены.', en: 'Changes saved successfully.' },
+  'Guardar cambios': { ru: 'Сохранить изменения', en: 'Save changes' },
+  'Cuenta': { ru: 'Аккаунт', en: 'Account' },
+  'Eliminar cuenta': { ru: 'Удалить аккаунт', en: 'Delete account' },
+  '¿Eliminar tu cuenta?': { ru: 'Удалить аккаунт?', en: 'Delete your account?' },
+  'Se borrarán favoritos, mensajes y anuncios. Esta acción no se puede deshacer.': { ru: 'Избранное, сообщения и объявления будут удалены. Это действие нельзя отменить.', en: 'Favorites, messages and listings will be deleted. This action cannot be undone.' },
+  'Eliminar definitivamente': { ru: 'Удалить навсегда', en: 'Delete permanently' },
+  'Perfil actualizado': { ru: 'Профиль обновлён', en: 'Profile updated' },
+  'Cuenta marcada para eliminación (demo)': { ru: 'Аккаунт помечен для удаления (демо)', en: 'Account marked for deletion (demo)' },
+  'Área del anunciante': { ru: 'Кабинет владельца', en: 'Advertiser area' },
+  'Gestiona el estado, la vigencia y el rendimiento de tus habitaciones.': { ru: 'Управляйте статусом, сроком и результатами своих объявлений.', en: 'Manage the status, validity and performance of your rooms.' },
+  'Nuevo anuncio': { ru: 'Новое объявление', en: 'New listing' },
+  'publicados': { ru: 'опубликовано', en: 'published' },
+  'visualizaciones': { ru: 'просмотров', en: 'views' },
+  'contactos esta semana': { ru: 'контакта на этой неделе', en: 'contacts this week' },
+  'vistas': { ru: 'просмотров', en: 'views' },
+  'Finaliza': { ru: 'Завершается', en: 'Ends' },
+  'Editar': { ru: 'Редактировать', en: 'Edit' },
+  'Mostrar': { ru: 'Показать', en: 'Show' },
+  'Ocultar': { ru: 'Скрыть', en: 'Hide' },
+  'Renovar': { ru: 'Продлить', en: 'Renew' },
+  'Eliminar': { ru: 'Удалить', en: 'Delete' },
+  'Anuncio eliminado': { ru: 'Объявление удалено', en: 'Listing deleted' },
+  'Anuncio publicado': { ru: 'Объявление опубликовано', en: 'Listing published' },
+  'Anuncio ocultado': { ru: 'Объявление скрыто', en: 'Listing hidden' },
+  'Anuncio renovado 30 días': { ru: 'Объявление продлено на 30 дней', en: 'Listing renewed for 30 days' },
+  'Aún no tienes anuncios': { ru: 'У вас пока нет объявлений', en: 'You have no listings yet' },
+  'Crea tu primer anuncio y guárdalo como borrador cuando quieras.': { ru: 'Создайте первое объявление и сохраните его как черновик в любой момент.', en: 'Create your first listing and save it as a draft whenever you like.' },
+  'Crear anuncio': { ru: 'Создать объявление', en: 'Create listing' },
+  'Borrador': { ru: 'Черновик', en: 'Draft' },
+  'Pendiente': { ru: 'На проверке', en: 'Pending' },
+  'Pendientes': { ru: 'На проверке', en: 'Pending' },
+  'Publicado': { ru: 'Опубликовано', en: 'Published' },
+  'Oculto': { ru: 'Скрыто', en: 'Hidden' },
+  'Finalizado': { ru: 'Завершено', en: 'Ended' },
+  'Rechazado': { ru: 'Отклонено', en: 'Rejected' },
+
+  'Tu próxima habitación empieza con información clara.': { ru: 'Ваша следующая комната начинается с понятной информации.', en: 'Your next room starts with clear information.' },
+  'Condiciones visibles antes de contactar': { ru: 'Условия видны до обращения', en: 'Conditions visible before contact' },
+  'Anunciantes con señales de confianza': { ru: 'Проверяемые признаки надёжности владельца', en: 'Trust signals for advertisers' },
+  'Sin cargos por registrarte': { ru: 'Регистрация бесплатна', en: 'No fee to register' },
+  'Cuenta creada': { ru: 'Аккаунт создан', en: 'Account created' },
+  'Ya puedes guardar habitaciones y contactar con anunciantes.': { ru: 'Теперь можно сохранять комнаты и связываться с владельцами.', en: 'You can now save rooms and contact advertisers.' },
+  'Revisa tu correo': { ru: 'Проверьте почту', en: 'Check your email' },
+  'Hemos enviado un enlace de confirmación a tu dirección de email.': { ru: 'Мы отправили ссылку подтверждения на вашу электронную почту.', en: 'We sent a confirmation link to your email address.' },
+  'Empezar a buscar': { ru: 'Начать поиск', en: 'Start searching' },
+  'Crea tu cuenta': { ru: 'Создайте аккаунт', en: 'Create your account' },
+  'Tardarás menos de dos minutos.': { ru: 'Это займёт меньше двух минут.', en: 'It takes less than two minutes.' },
+  'Contraseña': { ru: 'Пароль', en: 'Password' },
+  'Mínimo 8 caracteres.': { ru: 'Минимум 8 символов.', en: 'At least 8 characters.' },
+  'Repite la contraseña': { ru: 'Повторите пароль', en: 'Repeat password' },
+  '¿Qué quieres hacer?': { ru: 'Что вы хотите делать?', en: 'What would you like to do?' },
+  'Guardar, comparar y contactar': { ru: 'Сохранять, сравнивать и связываться', en: 'Save, compare and contact' },
+  'Publico habitaciones': { ru: 'Сдаю комнаты', en: 'I list rooms' },
+  'Crear y gestionar anuncios': { ru: 'Создавать объявления и управлять ими', en: 'Create and manage listings' },
+  'Acepto los': { ru: 'Я принимаю', en: 'I accept the' },
+  ', la': { ru: ',', en: ', the' },
+  'y las': { ru: 'и', en: 'and the' },
+  'términos': { ru: 'условия', en: 'terms' },
+  'privacidad': { ru: 'политику конфиденциальности', en: 'privacy policy' },
+  'normas de publicación': { ru: 'правила публикации', en: 'listing rules' },
+  'Crear cuenta': { ru: 'Создать аккаунт', en: 'Create account' },
+  '¿Ya tienes cuenta?': { ru: 'Уже есть аккаунт?', en: 'Already have an account?' },
+  'Accede': { ru: 'Войти', en: 'Sign in' },
+  'Escribe tu nombre.': { ru: 'Введите имя.', en: 'Enter your name.' },
+  'Introduce un email válido.': { ru: 'Введите корректный email.', en: 'Enter a valid email.' },
+  'Usa al menos 8 caracteres.': { ru: 'Используйте не менее 8 символов.', en: 'Use at least 8 characters.' },
+  'Las contraseñas no coinciden.': { ru: 'Пароли не совпадают.', en: 'Passwords do not match.' },
+  'Debes aceptar las normas para continuar.': { ru: 'Для продолжения примите правила.', en: 'You must accept the rules to continue.' },
+  'Bienvenido de nuevo': { ru: 'С возвращением', en: 'Welcome back' },
+  'Accede para continuar donde lo dejaste.': { ru: 'Войдите, чтобы продолжить с того места, где остановились.', en: 'Sign in to continue where you left off.' },
+  'Recuérdame': { ru: 'Запомнить меня', en: 'Remember me' },
+  '¿Has olvidado la contraseña?': { ru: 'Забыли пароль?', en: 'Forgot your password?' },
+  '¿No tienes cuenta?': { ru: 'Нет аккаунта?', en: 'Do not have an account?' },
+  'Mostrar contraseña': { ru: 'Показать пароль', en: 'Show password' },
+  'Ocultar contraseña': { ru: 'Скрыть пароль', en: 'Hide password' },
+  'Revisa el email y vuelve a intentarlo.': { ru: 'Проверьте email и попробуйте снова.', en: 'Check the email and try again.' },
+  'Recupera tu contraseña': { ru: 'Восстановите пароль', en: 'Recover your password' },
+  'Te enviaremos un enlace seguro para crear una nueva.': { ru: 'Мы отправим безопасную ссылку для создания нового пароля.', en: 'We will send a secure link to create a new one.' },
+  'Correo enviado': { ru: 'Письмо отправлено', en: 'Email sent' },
+  'Si existe una cuenta con ese email, recibirás el enlace en unos minutos.': { ru: 'Если аккаунт с таким email существует, ссылка придёт через несколько минут.', en: 'If an account exists for that email, the link will arrive in a few minutes.' },
+  'Volver al acceso': { ru: 'Вернуться ко входу', en: 'Back to sign in' },
+  'Email de tu cuenta': { ru: 'Email аккаунта', en: 'Account email' },
+  'Enviar enlace': { ru: 'Отправить ссылку', en: 'Send link' },
+  'Contraseña actualizada': { ru: 'Пароль обновлён', en: 'Password updated' },
+  'Crea una nueva contraseña': { ru: 'Создайте новый пароль', en: 'Create a new password' },
+  'Ya puedes acceder con tu nueva contraseña.': { ru: 'Теперь можно войти с новым паролем.', en: 'You can now sign in with your new password.' },
+  'Usa al menos 8 caracteres y evita datos fáciles de adivinar.': { ru: 'Используйте не менее 8 символов и избегайте очевидных данных.', en: 'Use at least 8 characters and avoid easy-to-guess information.' },
+  'Todo listo': { ru: 'Всё готово', en: 'All set' },
+  'El cambio se ha guardado correctamente.': { ru: 'Изменение успешно сохранено.', en: 'The change was saved successfully.' },
+  'Nueva contraseña': { ru: 'Новый пароль', en: 'New password' },
+  'Guardar contraseña': { ru: 'Сохранить пароль', en: 'Save password' },
+
+  'Paso': { ru: 'Шаг', en: 'Step' },
+  'Progreso de publicación': { ru: 'Прогресс публикации', en: 'Listing progress' },
+  'Confirmar': { ru: 'Подтвердить', en: 'Confirm' },
+  'Añade fotos luminosas y horizontales': { ru: 'Добавьте светлые горизонтальные фотографии', en: 'Add bright landscape photos' },
+  'JPG o PNG · hasta 10 MB por foto': { ru: 'JPG или PNG · до 10 МБ на фото', en: 'JPG or PNG · up to 10 MB per photo' },
+  'Portada': { ru: 'Обложка', en: 'Cover' },
+  'Añadir': { ru: 'Добавить', en: 'Add' },
+  'Tipo de alquiler': { ru: 'Тип аренды', en: 'Rental type' },
+  'Datos de la habitación': { ru: 'Данные комнаты', en: 'Room details' },
+  'Precio y gastos': { ru: 'Цена и расходы', en: 'Price and bills' },
+  'Disponibilidad': { ru: 'Доступность', en: 'Availability' },
+  'Convivencia': { ru: 'Совместная жизнь', en: 'Household' },
+  'Fotografías': { ru: 'Фотографии', en: 'Photos' },
+  'Descripción': { ru: 'Описание', en: 'Description' },
+  'Vista previa': { ru: 'Предпросмотр', en: 'Preview' },
+  'Ubicación': { ru: 'Расположение', en: 'Location' },
+  '¿Qué tipo de estancia ofreces?': { ru: 'Какой тип аренды вы предлагаете?', en: 'What type of stay do you offer?' },
+  'Esto cambia cómo mostramos el precio, las fechas y la duración.': { ru: 'От этого зависит отображение цены, дат и срока.', en: 'This changes how we show price, dates and duration.' },
+  'Alquiler mensual para vivir durante varios meses.': { ru: 'Помесячная аренда на несколько месяцев.', en: 'Monthly rental for living several months.' },
+  'Estancias cortas con precio por noche.': { ru: 'Короткие заезды с оплатой за ночь.', en: 'Short stays priced per night.' },
+  'Información clara desde el principio': { ru: 'Понятная информация с самого начала', en: 'Clear information from the start' },
+  'Podrás indicar una estancia mínima y fechas concretas más adelante.': { ru: 'Минимальный срок и точные даты можно указать позже.', en: 'You can specify a minimum stay and exact dates later.' },
+  'Sitúa la habitación': { ru: 'Укажите расположение комнаты', en: 'Locate the room' },
+  'Publicaremos una zona aproximada. La dirección exacta nunca aparece en el mapa público.': { ru: 'Мы покажем примерную область. Точный адрес не появится на публичной карте.', en: 'We will publish an approximate area. The exact address never appears on the public map.' },
+  'Municipio': { ru: 'Муниципалитет', en: 'Municipality' },
+  'Zona o barrio': { ru: 'Район или квартал', en: 'Area or district' },
+  'Calle': { ru: 'Улица', en: 'Street' },
+  'Solo para verificación interna': { ru: 'Только для внутренней проверки', en: 'For internal verification only' },
+  'Código postal': { ru: 'Почтовый индекс', en: 'Postcode' },
+  'Mostraremos un punto aproximado en un radio de 300 m.': { ru: 'Покажем примерную точку в радиусе 300 м.', en: 'We will show an approximate point within a 300 m radius.' },
+  'Describe la habitación y la vivienda': { ru: 'Опишите комнату и жильё', en: 'Describe the room and home' },
+  'Estos datos ayudan a comparar sin tener que preguntar lo básico.': { ru: 'Эти данные помогают сравнивать варианты без лишних вопросов.', en: 'These details help people compare without asking the basics.' },
+  'Individual': { ru: 'Отдельная', en: 'Private' },
+  'Para una persona.': { ru: 'Для одного человека.', en: 'For one person.' },
+  'Compartida': { ru: 'Общая', en: 'Shared' },
+  'Dos o más camas.': { ru: 'Две или больше кроватей.', en: 'Two or more beds.' },
+  'Espacio autónomo.': { ru: 'Отдельное пространство.', en: 'Self-contained space.' },
+  'Tamaño aproximado': { ru: 'Примерная площадь', en: 'Approximate size' },
+  'Personas que viven en casa': { ru: 'Людей проживает в доме', en: 'People living in the home' },
+  'Compartido': { ru: 'Общий', en: 'Shared' },
+  'Privado': { ru: 'Собственный', en: 'Private' },
+  'Privada': { ru: 'Собственная', en: 'Private' },
+  'Equipamiento': { ru: 'Оснащение', en: 'Equipment' },
+  'Escritorio': { ru: 'Рабочий стол', en: 'Desk' },
+  'Armario': { ru: 'Шкаф', en: 'Wardrobe' },
+  'Ventana exterior': { ru: 'Окно на улицу', en: 'Exterior window' },
+  'Cerradura privada': { ru: 'Собственный замок', en: 'Private lock' },
+  'Aire acondicionado': { ru: 'Кондиционер', en: 'Air conditioning' },
+  'Precio, gastos y fianza': { ru: 'Цена, расходы и депозит', en: 'Price, bills and deposit' },
+  'Separa cada concepto. Los anuncios transparentes reciben contactos más útiles.': { ru: 'Укажите каждую сумму отдельно. Прозрачные объявления получают больше подходящих откликов.', en: 'Separate each amount. Transparent listings receive more useful contacts.' },
+  'Alquiler mensual': { ru: 'Аренда в месяц', en: 'Monthly rent' },
+  'Agua': { ru: 'Вода', en: 'Water' },
+  'Electricidad': { ru: 'Электричество', en: 'Electricity' },
+  'Internet': { ru: 'Интернет', en: 'Internet' },
+  'Limpieza de zonas comunes': { ru: 'Уборка общих зон', en: 'Cleaning of shared areas' },
+  'Límite o aclaración sobre gastos': { ru: 'Лимит или пояснение по расходам', en: 'Limit or note about bills' },
+  'Todo incluido con uso responsable': { ru: 'Всё включено при разумном использовании', en: 'Everything included with responsible use' },
+  'Indica cuándo puede entrar la próxima persona y cuánto tiempo debe quedarse.': { ru: 'Укажите дату заезда и минимальный срок проживания.', en: 'State when the next person can move in and how long they must stay.' },
+  'Fecha límite del anuncio': { ru: 'Дата окончания объявления', en: 'Listing expiry date' },
+  'Exprésalas de forma neutral, concreta y visible. Evita criterios que puedan resultar ilegales o discriminatorios.': { ru: 'Формулируйте условия нейтрально, конкретно и открыто. Избегайте незаконных или дискриминационных критериев.', en: 'State them neutrally, clearly and visibly. Avoid criteria that may be illegal or discriminatory.' },
+  'Una persona': { ru: 'Один человек', en: 'One person' },
+  'Se puede fumar': { ru: 'Курение разрешено', en: 'Smoking allowed' },
+  'Visitas ocasionales': { ru: 'Редкие гости', en: 'Occasional guests' },
+  'Teletrabajo permitido': { ru: 'Удалённая работа разрешена', en: 'Remote work allowed' },
+  'Normas de la vivienda': { ru: 'Правила дома', en: 'House rules' },
+  'No incluyas datos personales ni criterios discriminatorios.': { ru: 'Не указывайте личные данные или дискриминационные критерии.', en: 'Do not include personal data or discriminatory criteria.' },
+  'Buscamos una convivencia tranquila. Se respetan los horarios de descanso y se organizan turnos de limpieza semanales.': { ru: 'Ищем спокойное совместное проживание. Соблюдаем часы тишины и еженедельный график уборки.', en: 'We want a calm shared home. Quiet hours are respected and weekly cleaning turns are organised.' },
+  'Empieza por la habitación. Añade después baño, cocina y zonas comunes.': { ru: 'Начните с комнаты, затем добавьте ванную, кухню и общие зоны.', en: 'Start with the room, then add the bathroom, kitchen and shared spaces.' },
+  'Cuenta cómo es vivir aquí': { ru: 'Расскажите, как здесь живётся', en: 'Describe what it is like to live here' },
+  'Un buen título es específico; una buena descripción responde las dudas habituales.': { ru: 'Хороший заголовок конкретен, а описание отвечает на частые вопросы.', en: 'A good title is specific; a good description answers common questions.' },
+  'Título del anuncio': { ru: 'Заголовок объявления', en: 'Listing title' },
+  'Máximo 80 caracteres.': { ru: 'Не более 80 символов.', en: 'Maximum 80 characters.' },
+  'Incluye ambiente, conexiones y cómo es la convivencia.': { ru: 'Опишите атмосферу, транспорт и совместное проживание.', en: 'Include the atmosphere, connections and household setup.' },
+  'Datos de contacto': { ru: 'Контактные данные', en: 'Contact details' },
+  'Elige cómo pueden hablar contigo las personas interesadas.': { ru: 'Выберите способы связи для заинтересованных арендаторов.', en: 'Choose how interested people can contact you.' },
+  'Nombre público': { ru: 'Публичное имя', en: 'Public name' },
+  'Canales disponibles': { ru: 'Доступные каналы', en: 'Available channels' },
+  'Mensajes de 112233.es': { ru: 'Сообщения 112233.es', en: '112233.es messages' },
+  'Revisa antes de publicar': { ru: 'Проверьте перед публикацией', en: 'Review before publishing' },
+  'Así verá tu anuncio una persona que esté comparando habitaciones.': { ru: 'Так объявление увидит человек, сравнивающий комнаты.', en: 'This is how your listing will look to someone comparing rooms.' },
+  'El anuncio está completo': { ru: 'Объявление заполнено', en: 'The listing is complete' },
+  'Revisa sobre todo el precio, las condiciones y la fecha de entrada.': { ru: 'Особенно внимательно проверьте цену, условия и дату заезда.', en: 'Pay special attention to the price, conditions and move-in date.' },
+  'Condiciones visibles': { ru: 'Видимые условия', en: 'Visible conditions' },
+  'Vista previa completa': { ru: 'Полный предпросмотр', en: 'Full preview' },
+  'Vista previa del anuncio': { ru: 'Предпросмотр объявления', en: 'Listing preview' },
+  'Versión de escritorio de tu página pública.': { ru: 'Версия публичной страницы для компьютера.', en: 'Desktop version of your public page.' },
+  'Anuncio enviado': { ru: 'Объявление отправлено', en: 'Listing submitted' },
+  'Cambios guardados': { ru: 'Изменения сохранены', en: 'Changes saved' },
+  'Tu habitación está en revisión': { ru: 'Комната отправлена на проверку', en: 'Your room is under review' },
+  'Te avisaremos cuando pase la revisión. Mientras tanto puedes seguir editando el borrador.': { ru: 'Мы сообщим о завершении проверки. Пока можно продолжать редактировать черновик.', en: 'We will notify you when the review is complete. You can keep editing the draft meanwhile.' },
+  'Ver mis anuncios': { ru: 'Мои объявления', en: 'View my listings' },
+  'Ir a buscar': { ru: 'Перейти к поиску', en: 'Go to search' },
+  'Editar habitación': { ru: 'Редактировать комнату', en: 'Edit room' },
+  'Publicar una habitación': { ru: 'Разместить комнату', en: 'List a room' },
+  'Salir': { ru: 'Выйти', en: 'Exit' },
+  'Guardar borrador': { ru: 'Сохранить черновик', en: 'Save draft' },
+  'Borrador guardado': { ru: 'Черновик сохранён', en: 'Draft saved' },
+  'Atrás': { ru: 'Назад', en: 'Back' },
+  'Continuar': { ru: 'Продолжить', en: 'Continue' },
+  'Enviar a revisión': { ru: 'Отправить на проверку', en: 'Submit for review' },
+
+  'Sobre 112233.es': { ru: 'О 112233.es', en: 'About 112233.es' },
+  'Una plataforma hecha solo para habitaciones.': { ru: 'Платформа, созданная только для комнат.', en: 'A platform made just for rooms.' },
+  'Nacimos en Tenerife para ordenar un mercado disperso y hacer visibles las condiciones que suelen aparecer demasiado tarde.': { ru: 'Мы появились на Тенерифе, чтобы упорядочить разрозненный рынок и заранее показывать условия, о которых часто узнают слишком поздно.', en: 'We started in Tenerife to organise a fragmented market and make visible the conditions that often appear too late.' },
+  'Nuestro propósito': { ru: 'Наша цель', en: 'Our purpose' },
+  'Reducir conversaciones incompatibles y ayudar a que inquilinos y anunciantes tomen decisiones con mejor información.': { ru: 'Сократить неподходящие обращения и помочь арендаторам и владельцам принимать более обоснованные решения.', en: 'Reduce mismatched conversations and help tenants and advertisers make better-informed decisions.' },
+  'Qué hacemos diferente': { ru: 'Что мы делаем иначе', en: 'What we do differently' },
+  'Estructuramos precio, gastos, fianza, disponibilidad y convivencia desde el primer vistazo.': { ru: 'Сразу структурируем цену, расходы, депозит, доступность и условия проживания.', en: 'We structure price, bills, deposit, availability and household conditions at first glance.' },
+  'Solo habitaciones y estudios compactos': { ru: 'Только комнаты и компактные студии', en: 'Rooms and compact studios only' },
+  'Ubicación aproximada por privacidad': { ru: 'Примерное местоположение для конфиденциальности', en: 'Approximate location for privacy' },
+  'Contacto directo y condiciones confirmadas': { ru: 'Прямой контакт и подтверждённые условия', en: 'Direct contact and confirmed conditions' },
+  'Ámbito actual': { ru: 'Текущий охват', en: 'Current scope' },
+  'La experiencia de demostración se centra en Tenerife. La arquitectura permite ampliar a otras islas y ciudades.': { ru: 'Демонстрационная версия сосредоточена на Тенерифе. Архитектура позволяет расширить сервис на другие острова и города.', en: 'The demo experience focuses on Tenerife. The architecture can expand to other islands and cities.' },
+  'Guía rápida': { ru: 'Краткое руководство', en: 'Quick guide' },
+  'De la búsqueda al primer mensaje.': { ru: 'От поиска до первого сообщения.', en: 'From search to the first message.' },
+  'Tres pasos claros para encontrar una habitación compatible o publicar la que tienes libre.': { ru: 'Три понятных шага, чтобы найти подходящую комнату или разместить свободную.', en: 'Three clear steps to find a compatible room or list the one you have available.' },
+  '1. Busca y filtra': { ru: '1. Найдите и отфильтруйте', en: '1. Search and filter' },
+  'Elige zona, presupuesto, fecha y condiciones de convivencia.': { ru: 'Выберите район, бюджет, дату и условия проживания.', en: 'Choose an area, budget, date and household conditions.' },
+  '2. Compara con contexto': { ru: '2. Сравните с учётом деталей', en: '2. Compare with context' },
+  'Revisa gastos, fianza, disponibilidad, vivienda y perfil del anunciante.': { ru: 'Проверьте расходы, депозит, доступность, жильё и профиль владельца.', en: 'Review bills, deposit, availability, the home and the advertiser profile.' },
+  '3. Contacta': { ru: '3. Свяжитесь', en: '3. Make contact' },
+  'Confirma que cumples las condiciones y habla por WhatsApp, teléfono o mensaje interno.': { ru: 'Подтвердите соответствие условиям и свяжитесь через WhatsApp, телефон или внутреннее сообщение.', en: 'Confirm you meet the conditions and talk via WhatsApp, phone or internal message.' },
+  'Respuestas para avanzar sin atascarte.': { ru: 'Ответы, которые помогают двигаться дальше.', en: 'Answers to keep you moving.' },
+  'Encuentra ayuda sobre búsquedas, contactos, anuncios, seguridad y cuenta.': { ru: 'Помощь по поиску, контактам, объявлениям, безопасности и аккаунту.', en: 'Find help with searches, contacts, listings, safety and your account.' },
+  'Buscar habitación': { ru: 'Поиск комнаты', en: 'Find a room' },
+  'Usa filtros de precio, zona, disponibilidad y convivencia. Puedes guardar resultados como favoritos.': { ru: 'Используйте фильтры цены, района, доступности и проживания. Результаты можно сохранять в избранное.', en: 'Use price, area, availability and household filters. You can save results as favorites.' },
+  'Contactar con un anuncio': { ru: 'Связь по объявлению', en: 'Contact a listing' },
+  'Antes de escribir, confirma que cumples las condiciones principales. Nunca envíes dinero sin verificar la vivienda y las condiciones.': { ru: 'Перед сообщением подтвердите, что соответствуете основным условиям. Никогда не отправляйте деньги без проверки жилья и условий.', en: 'Before writing, confirm that you meet the main conditions. Never send money without checking the property and terms.' },
+  'Publicar y moderar': { ru: 'Публикация и модерация', en: 'Listing and moderation' },
+  'Los anuncios pasan por revisión básica. Los estados aparecen en Mis anuncios.': { ru: 'Объявления проходят базовую проверку. Статусы видны в разделе «Мои объявления».', en: 'Listings undergo a basic review. Statuses appear in My listings.' },
+  'Problemas y denuncias': { ru: 'Проблемы и жалобы', en: 'Problems and reports' },
+  'Usa “Denunciar anuncio” para informar de datos incorrectos, fraude o contenido prohibido.': { ru: 'Используйте «Пожаловаться», чтобы сообщить о неверных данных, мошенничестве или запрещённом контенте.', en: 'Use “Report listing” to flag incorrect information, fraud or prohibited content.' },
+  'Términos de uso': { ru: 'Условия использования', en: 'Terms of use' },
+  'Condiciones generales de la demostración de 112233.es.': { ru: 'Общие условия демонстрационной версии 112233.es.', en: 'General terms for the 112233.es demo.' },
+  'Uso del servicio': { ru: 'Использование сервиса', en: 'Use of the service' },
+  'La plataforma facilita el contacto entre personas interesadas. No es parte del contrato de alquiler ni garantiza la identidad, solvencia o disponibilidad.': { ru: 'Платформа помогает заинтересованным людям связаться. Она не является стороной договора аренды и не гарантирует личность, платёжеспособность или доступность.', en: 'The platform helps interested people make contact. It is not part of the rental contract and does not guarantee identity, solvency or availability.' },
+  'Contenido de usuarios': { ru: 'Пользовательский контент', en: 'User content' },
+  'Quien publica es responsable de la exactitud, legalidad y actualización de su anuncio.': { ru: 'Автор объявления отвечает за его точность, законность и актуальность.', en: 'The publisher is responsible for the accuracy, legality and currency of their listing.' },
+  'Moderación': { ru: 'Модерация', en: 'Moderation' },
+  'Podemos ocultar o retirar contenido que incumpla las normas o genere un riesgo razonable para la comunidad.': { ru: 'Мы можем скрыть или удалить контент, нарушающий правила или создающий разумный риск для сообщества.', en: 'We may hide or remove content that breaks the rules or creates a reasonable risk to the community.' },
+  'Qué datos serían necesarios y cómo deberían protegerse al conectar el backend.': { ru: 'Какие данные понадобятся и как их следует защищать после подключения backend.', en: 'What data would be needed and how it should be protected when the backend is connected.' },
+  'Datos de cuenta': { ru: 'Данные аккаунта', en: 'Account data' },
+  'Nombre, email, teléfono y preferencias se usarían para operar la cuenta y facilitar contactos solicitados.': { ru: 'Имя, email, телефон и настройки будут использоваться для работы аккаунта и запрошенных контактов.', en: 'Name, email, phone and preferences would be used to operate the account and enable requested contacts.' },
+  'Las direcciones exactas no se muestran públicamente. El mapa usa una posición aproximada.': { ru: 'Точные адреса не показываются публично. На карте используется примерное положение.', en: 'Exact addresses are not shown publicly. The map uses an approximate position.' },
+  'Tus derechos': { ru: 'Ваши права', en: 'Your rights' },
+  'La versión productiva deberá ofrecer acceso, rectificación, portabilidad y eliminación mediante procesos verificables.': { ru: 'В рабочей версии должны быть предусмотрены проверяемые процедуры доступа, исправления, переноса и удаления данных.', en: 'The production version must offer access, correction, portability and deletion through verifiable processes.' },
+  'Política de cookies': { ru: 'Политика cookie', en: 'Cookie policy' },
+  'La demo solo usa almacenamiento local para favoritos y estado de interfaz.': { ru: 'Демо использует только локальное хранилище для избранного и состояния интерфейса.', en: 'The demo only uses local storage for favorites and interface state.' },
+  'Necesarias': { ru: 'Необходимые', en: 'Necessary' },
+  'Mantienen preferencias y permiten que la experiencia funcione.': { ru: 'Сохраняют настройки и обеспечивают работу интерфейса.', en: 'They preserve preferences and allow the experience to work.' },
+  'Analítica': { ru: 'Аналитика', en: 'Analytics' },
+  'No está conectada en esta demo. En producción requeriría configuración, minimización y consentimiento cuando corresponda.': { ru: 'В демо аналитика не подключена. В рабочей версии потребуется настройка, минимизация данных и согласие, где это необходимо.', en: 'It is not connected in this demo. Production would require configuration, minimisation and consent where applicable.' },
+  'Control': { ru: 'Управление', en: 'Control' },
+  'La versión final deberá incluir un gestor de consentimiento compatible con la configuración real.': { ru: 'Финальная версия должна включать управление согласием, соответствующее реальной конфигурации.', en: 'The final version must include consent management compatible with the real configuration.' },
+  'Calidad y convivencia': { ru: 'Качество и совместная жизнь', en: 'Quality and household' },
+  'Anuncios claros, actuales y respetuosos generan mejores contactos.': { ru: 'Понятные, актуальные и уважительные объявления дают более качественные отклики.', en: 'Clear, current and respectful listings generate better contacts.' },
+  'Información obligatoria': { ru: 'Обязательная информация', en: 'Required information' },
+  'Precio, gastos, fianza, disponibilidad, estancia mínima, tipo de habitación y condiciones.': { ru: 'Цена, расходы, депозит, доступность, минимальный срок, тип комнаты и условия.', en: 'Price, bills, deposit, availability, minimum stay, room type and conditions.' },
+  'Deben mostrar la habitación ofrecida y no incluir marcas de agua, datos personales ni imágenes engañosas.': { ru: 'Фотографии должны показывать предлагаемую комнату и не содержать водяных знаков, личных данных или вводящих в заблуждение изображений.', en: 'They must show the room offered and must not include watermarks, personal data or misleading images.' },
+  'Contenido no permitido': { ru: 'Запрещённый контент', en: 'Content not allowed' },
+  'Fraude, duplicados, contenido sexual, direcciones públicas y criterios discriminatorios contrarios a la normativa aplicable.': { ru: 'Мошенничество, дубликаты, сексуальный контент, публичные адреса и дискриминационные критерии, противоречащие закону.', en: 'Fraud, duplicates, sexual content, public addresses and discriminatory criteria contrary to applicable law.' },
+  'Actualización': { ru: 'Актуализация', en: 'Keeping listings current' },
+  'Oculta o finaliza el anuncio cuando la habitación deje de estar disponible.': { ru: 'Скройте или завершите объявление, когда комната станет недоступна.', en: 'Hide or end the listing when the room is no longer available.' },
+  '¿En qué podemos ayudarte?': { ru: 'Чем мы можем помочь?', en: 'How can we help?' },
+  'Cuéntanos el problema con suficiente detalle. Respondemos en horario de Canarias.': { ru: 'Опишите проблему достаточно подробно. Мы отвечаем по канарскому времени.', en: 'Tell us about the problem in enough detail. We reply during Canary Islands business hours.' },
+  'Respuesta habitual en 1 día laborable': { ru: 'Обычно отвечаем в течение 1 рабочего дня', en: 'Typical response within 1 business day' },
+  'Ayuda con anuncios': { ru: 'Помощь с объявлениями', en: 'Listing help' },
+  'Incluye la referencia del anuncio': { ru: 'Укажите номер объявления', en: 'Include the listing reference' },
+  'No envíes documentación sensible': { ru: 'Не отправляйте конфиденциальные документы', en: 'Do not send sensitive documents' },
+  'Mensaje recibido': { ru: 'Сообщение получено', en: 'Message received' },
+  'Te responderemos en el email indicado. Tu referencia es 112-260719.': { ru: 'Мы ответим на указанный email. Номер обращения: 112-260719.', en: 'We will reply to the email provided. Your reference is 112-260719.' },
+  'Duda sobre una habitación': { ru: 'Вопрос о комнате', en: 'Question about a room' },
+  'Problema con mi anuncio': { ru: 'Проблема с моим объявлением', en: 'Problem with my listing' },
+  'Seguridad o fraude': { ru: 'Безопасность или мошенничество', en: 'Safety or fraud' },
+  'Cuenta y acceso': { ru: 'Аккаунт и вход', en: 'Account and access' },
+  'Otro': { ru: 'Другое', en: 'Other' },
+  'Enviar consulta': { ru: 'Отправить запрос', en: 'Send enquiry' },
+  'En esta sección': { ru: 'В этом разделе', en: 'In this section' },
+  '¿Necesitas una respuesta concreta?': { ru: 'Нужен конкретный ответ?', en: 'Need a specific answer?' },
+  'El centro de ayuda reúne preguntas habituales y nuestro equipo puede revisar casos específicos.': { ru: 'В центре помощи собраны частые вопросы, а наша команда может рассмотреть конкретный случай.', en: 'The help center covers common questions, and our team can review specific cases.' },
+  'Ir a ayuda': { ru: 'Перейти в помощь', en: 'Go to help' },
+  'Contactar': { ru: 'Связаться', en: 'Contact us' },
+
+  'Dashboard': { ru: 'Обзор', en: 'Dashboard' },
+  'Anuncios': { ru: 'Объявления', en: 'Listings' },
+  'Anuncio': { ru: 'Объявление', en: 'Listing' },
+  'Usuarios': { ru: 'Пользователи', en: 'Users' },
+  'Denuncias': { ru: 'Жалобы', en: 'Reports' },
+  'Acciones para': { ru: 'Действия для', en: 'Actions for' },
+  'Aprobar': { ru: 'Одобрить', en: 'Approve' },
+  'Rechazar': { ru: 'Отклонить', en: 'Reject' },
+  'Anuncio aprobado': { ru: 'Объявление одобрено', en: 'Listing approved' },
+  'Anuncio rechazado': { ru: 'Объявление отклонено', en: 'Listing rejected' },
+  'Elemento eliminado (demo)': { ru: 'Элемент удалён (демо)', en: 'Item deleted (demo)' },
+  'Inquilina': { ru: 'Арендатор', en: 'Tenant' },
+  'Profesional': { ru: 'Профессионал', en: 'Professional' },
+  'Activa': { ru: 'Активна', en: 'Active' },
+  'Verificada': { ru: 'Проверена', en: 'Verified' },
+  'Revisión': { ru: 'Проверка', en: 'Review' },
+  '¿Bloquear esta cuenta?': { ru: 'Заблокировать аккаунт?', en: 'Block this account?' },
+  'La cuenta no podrá acceder ni publicar hasta que se revise el caso.': { ru: 'Аккаунт не сможет войти или публиковать объявления до рассмотрения случая.', en: 'The account will not be able to sign in or publish until the case is reviewed.' },
+  'Bloquear': { ru: 'Заблокировать', en: 'Block' },
+  'Cuenta bloqueada (demo)': { ru: 'Аккаунт заблокирован (демо)', en: 'Account blocked (demo)' },
+  'Alta': { ru: 'Высокий', en: 'High' },
+  'Media': { ru: 'Средний', en: 'Medium' },
+  'Hace 12 min': { ru: '12 мин назад', en: '12 min ago' },
+  'Hace 1 h': { ru: '1 ч назад', en: '1 hour ago' },
+  'Hace 3 h': { ru: '3 ч назад', en: '3 hours ago' },
+  'Panel interno': { ru: 'Внутренняя панель', en: 'Internal panel' },
+  'Buscar en administración': { ru: 'Поиск в админ-панели', en: 'Search administration' },
+  'Buscar usuarios o referencias': { ru: 'Поиск пользователей или номеров', en: 'Search users or references' },
+  'Anuncios activos': { ru: 'Активные объявления', en: 'Active listings' },
+  '+12 esta semana': { ru: '+12 на этой неделе', en: '+12 this week' },
+  '5 con más de 24 h': { ru: '5 ожидают больше 24 ч', en: '5 older than 24 h' },
+  '+4,8% este mes': { ru: '+4,8% в этом месяце', en: '+4.8% this month' },
+  'Denuncias abiertas': { ru: 'Открытые жалобы', en: 'Open reports' },
+  '2 prioridad alta': { ru: '2 высокого приоритета', en: '2 high priority' },
+  'Pendientes de moderación': { ru: 'Ожидают модерации', en: 'Pending moderation' },
+  'Anuncios ordenados por tiempo de espera y riesgo.': { ru: 'Объявления отсортированы по времени ожидания и риску.', en: 'Listings sorted by wait time and risk.' },
+  'Ver cola completa': { ru: 'Открыть всю очередь', en: 'View full queue' },
+  'Estado': { ru: 'Статус', en: 'Status' },
+  'Precio': { ru: 'Цена', en: 'Price' },
+  'Denuncias recientes': { ru: 'Недавние жалобы', en: 'Recent reports' },
+  'Casos que requieren revisión.': { ru: 'Случаи, требующие проверки.', en: 'Cases requiring review.' },
+  'Ref.': { ru: 'Номер', en: 'Ref.' },
+  'Prioridad': { ru: 'Приоритет', en: 'Priority' },
+  'Fecha': { ru: 'Дата', en: 'Date' },
+  'Estado del marketplace': { ru: 'Состояние маркетплейса', en: 'Marketplace health' },
+  'Anuncios completos': { ru: 'Полные объявления', en: 'Complete listings' },
+  'Respuesta <24 h': { ru: 'Ответ <24 ч', en: 'Reply <24 h' },
+  'Tasa de denuncia': { ru: 'Доля жалоб', en: 'Report rate' },
+  'Usuarios registrados': { ru: 'Зарегистрированные пользователи', en: 'Registered users' },
+  'Anuncios y moderación': { ru: 'Объявления и модерация', en: 'Listings and moderation' },
+  'Datos de demostración listos para conectar a la API de administración.': { ru: 'Демонстрационные данные готовы к подключению административного API.', en: 'Demo data ready to connect to the administration API.' },
+  'Exportar CSV': { ru: 'Экспорт CSV', en: 'Export CSV' },
+  'Usuario': { ru: 'Пользователь', en: 'User' },
+  'Tipo': { ru: 'Тип', en: 'Type' },
+  'Registro': { ru: 'Регистрация', en: 'Registered' },
+}
+
+const listingTranslations: Record<string, Translation> = {
+  'Habitación luminosa con escritorio y gastos incluidos': { ru: 'Светлая комната с рабочим столом, расходы включены', en: 'Bright room with desk and bills included' },
+  'Habitación doble a 8 min de Playa de Las Vistas': { ru: 'Двухместная комната в 8 минутах от Playa de Las Vistas', en: 'Double room 8 minutes from Playa de Las Vistas' },
+  'Habitación con baño privado para teletrabajo': { ru: 'Комната с собственной ванной для удалённой работы', en: 'Room with private bathroom for remote work' },
+  'Habitación para curso universitario junto al tranvía': { ru: 'Комната на учебный год рядом с трамваем', en: 'Room for the university year near the tram' },
+  'Habitación exterior en piso reformado del centro': { ru: 'Светлая комната в отремонтированной квартире в центре', en: 'Exterior room in a renovated central flat' },
+  'Estudio privado cerca de la playa y zona comercial': { ru: 'Отдельная студия рядом с пляжем и магазинами', en: 'Private studio near the beach and shopping area' },
+  'Habitación amplia con terraza en Costa Adeje': { ru: 'Просторная комната с террасой в Costa Adeje', en: 'Spacious room with terrace in Costa Adeje' },
+  'Habitación amueblada cerca de todos los servicios': { ru: 'Меблированная комната рядом со всей инфраструктурой', en: 'Furnished room close to all services' },
+  'Disponible ahora': { ru: 'Доступно сейчас', en: 'Available now' },
+  'Disponible desde 1 agosto': { ru: 'Доступно с 1 августа', en: 'Available from 1 August' },
+  'Disponible desde 15 agosto': { ru: 'Доступно с 15 августа', en: 'Available from 15 August' },
+  'Disponible desde 1 septiembre': { ru: 'Доступно с 1 сентября', en: 'Available from 1 September' },
+  'Disponible del 5 al 24 agosto': { ru: 'Доступно с 5 по 24 августа', en: 'Available from 5 to 24 August' },
+  'Disponible desde 20 julio': { ru: 'Доступно с 20 июля', en: 'Available from 20 July' },
+  'Mínimo 3 meses': { ru: 'Минимум 3 месяца', en: 'Minimum 3 months' },
+  'Mínimo 6 meses': { ru: 'Минимум 6 месяцев', en: 'Minimum 6 months' },
+  'Mínimo 2 meses': { ru: 'Минимум 2 месяца', en: 'Minimum 2 months' },
+  'Mínimo 4 meses': { ru: 'Минимум 4 месяца', en: 'Minimum 4 months' },
+  'Mínimo 5 noches': { ru: 'Минимум 5 ночей', en: 'Minimum 5 nights' },
+  'Septiembre a junio': { ru: 'С сентября по июнь', en: 'September to June' },
+  '1 mes de fianza': { ru: 'Депозит за 1 месяц', en: '1 month deposit' },
+  'Agua e internet incluidos': { ru: 'Вода и интернет включены', en: 'Water and internet included' },
+  'Gastos incluidos hasta 60 €': { ru: 'Расходы включены до 60 €', en: 'Bills included up to €60' },
+  'Gastos aparte: aprox. 35 €': { ru: 'Расходы отдельно: около 35 €', en: 'Bills extra: approx. €35' },
+  'Todo incluido': { ru: 'Всё включено', en: 'Everything included' },
+  'Luz aparte': { ru: 'Электричество отдельно', en: 'Electricity extra' },
+  'mes': { ru: 'мес.', en: 'month' },
+  'noche': { ru: 'ночь', en: 'night' },
+  'Publica desde 2023': { ru: 'Размещает с 2023 года', en: 'Listing since 2023' },
+  'Suele responder en menos de 1 hora': { ru: 'Обычно отвечает меньше чем за час', en: 'Usually replies in under 1 hour' },
+  'Anunciante profesional': { ru: 'Профессиональный владелец', en: 'Professional advertiser' },
+  'Publicado hoy': { ru: 'Опубликовано сегодня', en: 'Published today' },
+  'Publicado ayer': { ru: 'Опубликовано вчера', en: 'Published yesterday' },
+  'Actualizado hoy': { ru: 'Обновлено сегодня', en: 'Updated today' },
+  'Publicado hace 2 días': { ru: 'Опубликовано 2 дня назад', en: 'Published 2 days ago' },
+  'Publicado hace 4 días': { ru: 'Опубликовано 4 дня назад', en: 'Published 4 days ago' },
+  'Publicado hace 5 días': { ru: 'Опубликовано 5 дней назад', en: 'Published 5 days ago' },
+  'Publicado hace 6 horas': { ru: 'Опубликовано 6 часов назад', en: 'Published 6 hours ago' },
+  'Habitación exterior y tranquila en una casa compartida bien cuidada. Dispone de cama individual, armario amplio y zona de trabajo. Buscamos una convivencia respetuosa y estable.': { ru: 'Тихая светлая комната в ухоженном общем доме. Есть односпальная кровать, большой шкаф и рабочая зона. Ищем уважительное и стабильное совместное проживание.', en: 'A quiet exterior room in a well-kept shared house. It has a single bed, large wardrobe and work area. We are looking for respectful, stable housemates.' },
+  'Casa de 4 dormitorios con cocina equipada, patio interior y dos baños. A pocos minutos de supermercado y paradas de guagua.': { ru: 'Дом с 4 спальнями, оборудованной кухней, внутренним двориком и двумя ванными. Супермаркет и автобусные остановки в нескольких минутах.', en: 'Four-bedroom house with equipped kitchen, inner patio and two bathrooms. A few minutes from a supermarket and bus stops.' },
+  'Dormitorio amplio con balcón lateral y mucha luz natural. La vivienda tiene un ambiente tranquilo, ideal para una persona trabajadora o una pareja.': { ru: 'Просторная спальня с боковым балконом и большим количеством естественного света. Спокойная атмосфера, идеально для работающего человека или пары.', en: 'Spacious bedroom with a side balcony and plenty of natural light. The home has a calm atmosphere, ideal for a working person or a couple.' },
+  'Suite privada preparada para trabajar desde casa, con baño propio y escritorio de 140 cm. Ambiente sereno y mucha ventilación.': { ru: 'Отдельная комната для работы из дома с собственной ванной и столом 140 см. Спокойная атмосфера и хорошая вентиляция.', en: 'Private suite set up for working from home, with its own bathroom and 140 cm desk. Calm atmosphere and excellent ventilation.' },
+  'Habitación equipada para estudiante en piso compartido de ambiente organizado. Contrato por curso académico y zonas comunes amplias.': { ru: 'Оборудованная комната для студента в организованной общей квартире. Договор на учебный год и просторные общие зоны.', en: 'Equipped student room in an organised shared flat. Academic-year contract and spacious shared areas.' },
+  'Habitación exterior en una vivienda reformada y silenciosa. Bien conectada con intercambiador, tranvía y zona comercial.': { ru: 'Светлая комната в тихой отремонтированной квартире. Удобное сообщение с автовокзалом, трамваем и торговой зоной.', en: 'Exterior room in a quiet renovated home. Well connected to the transport hub, tram and shopping area.' },
+  'Estudio independiente, compacto y bien resuelto para una estancia corta en el sur de Tenerife. Check-in autónomo.': { ru: 'Отдельная компактная студия для короткого проживания на юге Тенерифе. Самостоятельное заселение.', en: 'Independent, compact and well-designed studio for a short stay in southern Tenerife. Self check-in.' },
+  'Habitación amplia con acceso directo a terraza compartida y vistas parciales al mar. Zona residencial con servicios próximos.': { ru: 'Просторная комната с прямым выходом на общую террасу и частичным видом на море. Жилой район, вся инфраструктура рядом.', en: 'Spacious room with direct access to a shared terrace and partial sea views. Residential area with nearby services.' },
+  'Dormitorio funcional y luminoso en el centro de San Isidro. Ideal para una persona trabajadora que valore el orden y la buena comunicación.': { ru: 'Удобная светлая спальня в центре San Isidro. Подойдёт работающему человеку, который ценит порядок и хорошее общение.', en: 'Functional, bright bedroom in central San Isidro. Ideal for a working person who values order and good communication.' },
+  'Cerca de la plaza de Armeñime · ubicación aproximada': { ru: 'Рядом с площадью Armeñime · примерное местоположение', en: 'Near Armeñime square · approximate location' },
+  'Zona centro · ubicación aproximada': { ru: 'Центральный район · примерное местоположение', en: 'Central area · approximate location' },
+  'Avenida principal · ubicación aproximada': { ru: 'Главный проспект · примерное местоположение', en: 'Main avenue · approximate location' },
+  'Casco histórico · ubicación aproximada': { ru: 'Исторический центр · примерное местоположение', en: 'Historic center · approximate location' },
+  'Zona La Salle · ubicación aproximada': { ru: 'Район La Salle · примерное местоположение', en: 'La Salle area · approximate location' },
+  'Cerca de Av. Rafael Puig · ubicación aproximada': { ru: 'Рядом с проспектом Rafael Puig · примерное местоположение', en: 'Near Rafael Puig avenue · approximate location' },
+  'Torviscas Alto · ubicación aproximada': { ru: 'Torviscas Alto · примерное местоположение', en: 'Torviscas Alto · approximate location' },
+  'Zona Mercado · ubicación aproximada': { ru: 'Район рынка · примерное местоположение', en: 'Market area · approximate location' },
+  'Fibra 600 Mb': { ru: 'Оптика 600 Мбит/с', en: '600 Mbps fiber' },
+  'Fibra 1 Gb': { ru: 'Оптика 1 Гбит/с', en: '1 Gbps fiber' },
+  'Fibra': { ru: 'Оптоволоконный интернет', en: 'Fiber internet' },
+  'Lavadora': { ru: 'Стиральная машина', en: 'Washing machine' },
+  'Limpieza zonas comunes': { ru: 'Уборка общих зон', en: 'Shared-area cleaning' },
+  'Balcón': { ru: 'Балкон', en: 'Balcony' },
+  'Ascensor': { ru: 'Лифт', en: 'Lift' },
+  'Ventilador de techo': { ru: 'Потолочный вентилятор', en: 'Ceiling fan' },
+  'Cama doble': { ru: 'Двуспальная кровать', en: 'Double bed' },
+  'Cerca de la playa': { ru: 'Рядом с пляжем', en: 'Close to the beach' },
+  'Escritorio grande': { ru: 'Большой рабочий стол', en: 'Large desk' },
+  'Terraza': { ru: 'Терраса', en: 'Terrace' },
+  'Lavavajillas': { ru: 'Посудомоечная машина', en: 'Dishwasher' },
+  'Tranvía a 3 min': { ru: 'Трамвай в 3 минутах', en: 'Tram 3 minutes away' },
+  'Mesa de estudio': { ru: 'Учебный стол', en: 'Study desk' },
+  'Patio': { ru: 'Внутренний двор', en: 'Patio' },
+  'Smart TV': { ru: 'Smart TV', en: 'Smart TV' },
+  'Limpieza quincenal': { ru: 'Уборка раз в две недели', en: 'Fortnightly cleaning' },
+  'Cocina equipada': { ru: 'Оборудованная кухня', en: 'Equipped kitchen' },
+  'Piscina comunitaria': { ru: 'Общий бассейн', en: 'Shared pool' },
+  'Caja de seguridad': { ru: 'Сейф', en: 'Safe' },
+  'Piscina': { ru: 'Бассейн', en: 'Pool' },
+  'Armario empotrado': { ru: 'Встроенный шкаф', en: 'Built-in wardrobe' },
+  'Aparcamiento fácil': { ru: 'Удобная парковка', en: 'Easy parking' },
+  'Guagua cercana': { ru: 'Автобус рядом', en: 'Nearby bus' },
+  'Cerradura': { ru: 'Замок', en: 'Lock' },
+  'Guaguas 24 h': { ru: 'Автобусы 24 часа', en: '24-hour buses' },
+  'Piso en tercera planta con ascensor, salón con balcón, cocina independiente y un baño compartido entre tres habitaciones.': { ru: 'Квартира на третьем этаже с лифтом, гостиной с балконом, отдельной кухней и одной общей ванной на три комнаты.', en: 'Third-floor flat with lift, living room with balcony, separate kitchen and one bathroom shared by three rooms.' },
+  'Apartamento moderno de dos dormitorios con terraza común orientada al sur, cocina abierta y acceso sin escalones.': { ru: 'Современная двухкомнатная квартира с общей террасой на южную сторону, открытой кухней и безбарьерным доступом.', en: 'Modern two-bedroom apartment with a south-facing shared terrace, open kitchen and step-free access.' },
+  'Vivienda de 105 m² con cuatro dormitorios, dos baños, cocina independiente y patio interior.': { ru: 'Жильё площадью 105 м² с четырьмя спальнями, двумя ванными, отдельной кухней и внутренним двориком.', en: '105 m² home with four bedrooms, two bathrooms, separate kitchen and inner patio.' },
+  'Piso de tres dormitorios, salón comedor, cocina equipada y baño renovado. Convivencia tranquila entre profesionales.': { ru: 'Квартира с тремя спальнями, гостиной-столовой, оборудованной кухней и обновлённой ванной. Спокойное совместное проживание работающих людей.', en: 'Three-bedroom flat with living-dining room, equipped kitchen and renovated bathroom. Calm shared living among professionals.' },
+  'Unidad privada en complejo residencial con piscina. La posición del mapa es aproximada hasta confirmar la reserva.': { ru: 'Отдельная студия в жилом комплексе с бассейном. Положение на карте приблизительное до подтверждения бронирования.', en: 'Private unit in a residential complex with a pool. The map position is approximate until the booking is confirmed.' },
+  'Piso de tres dormitorios en urbanización con piscina. Cocina renovada y amplio salón compartido.': { ru: 'Трёхкомнатная квартира в комплексе с бассейном. Обновлённая кухня и просторная общая гостиная.', en: 'Three-bedroom flat in a development with a pool. Renovated kitchen and spacious shared living room.' },
+  'Vivienda de cuatro dormitorios con dos baños, cocina comedor y azotea comunitaria.': { ru: 'Жильё с четырьмя спальнями, двумя ванными, кухней-столовой и общей террасой на крыше.', en: 'Four-bedroom home with two bathrooms, kitchen-diner and shared roof terrace.' },
+}
+
+Object.assign(translations, listingTranslations)
+
+const localeByLanguage: Record<Language, string> = { es: 'es-ES', ru: 'ru-RU', en: 'en-GB' }
+const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русский', en: 'English' }
+
+const translatePattern = (source: string, language: Exclude<Language, 'es'>) => {
+  const target = (ru: string, en: string) => language === 'ru' ? ru : en
+  let match: RegExpMatchArray | null
+  if ((match = source.match(/^(\d+) habitaciones$/))) return target(`${match[1]} комнат`, `${match[1]} rooms`)
+  if ((match = source.match(/^(\d+) habitaciones guardadas$/))) return target(`Сохранено комнат: ${match[1]}`, `${match[1]} saved rooms`)
+  if ((match = source.match(/^(\d+) anuncios encontrados$/))) return target(`Найдено объявлений: ${match[1]}`, `${match[1]} listings found`)
+  if ((match = source.match(/^Mostrar (\d+) habitaciones$/))) return target(`Показать комнат: ${match[1]}`, `Show ${match[1]} rooms`)
+  if ((match = source.match(/^(\d+) habitaciones encontradas$/))) return target(`Найдено комнат: ${match[1]}`, `${match[1]} rooms found`)
+  if ((match = source.match(/^(\d+) activos$/))) return target(`Активных фильтров: ${match[1]}`, `${match[1]} active`)
+  if ((match = source.match(/^(\d+) personas en casa$/))) return target(`Жильцов в доме: ${match[1]}`, `${match[1]} people in the home`)
+  if ((match = source.match(/^(\d+) residentes$/))) return target(`${match[1]} жильцов`, `${match[1]} residents`)
+  if ((match = source.match(/^(\d+) vistas$/))) return target(`${match[1]} просмотров`, `${match[1]} views`)
+  if ((match = source.match(/^Paso (\d+) de (\d+)(?:: (.*))?$/))) return target(`Шаг ${match[1]} из ${match[2]}${match[3] ? `: ${translateCore(match[3], language)}` : ''}`, `Step ${match[1]} of ${match[2]}${match[3] ? `: ${translateCore(match[3], language)}` : ''}`)
+  if ((match = source.match(/^Progreso de publicación: paso (\d+) de (\d+)$/))) return target(`Прогресс публикации: шаг ${match[1]} из ${match[2]}`, `Listing progress: step ${match[1]} of ${match[2]}`)
+  if ((match = source.match(/^Habitación en (.+), foto (\d+) de (\d+)$/))) return target(`Комната в ${match[1]}, фото ${match[2]} из ${match[3]}`, `Room in ${match[1]}, photo ${match[2]} of ${match[3]}`)
+  if ((match = source.match(/^Habitaciones en (.+)$/))) return target(`Комнаты: ${match[1]}`, `Rooms in ${match[1]}`)
+  if ((match = source.match(/^Habitación en (.+)$/))) return target(`Комната: ${match[1]}`, `Room in ${match[1]}`)
+  if ((match = source.match(/^Estudio en (.+)$/))) return target(`Студия: ${match[1]}`, `Studio in ${match[1]}`)
+  if ((match = source.match(/^Galería de (.+)$/))) return target(`Галерея: ${translateCore(match[1], language)}`, `Gallery: ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^Ver foto (\d+)$/))) return target(`Открыть фото ${match[1]}`, `View photo ${match[1]}`)
+  if ((match = source.match(/^Foto del anuncio (\d+)$/))) return target(`Фото объявления ${match[1]}`, `Listing photo ${match[1]}`)
+  if ((match = source.match(/^Mover foto (\d+)$/))) return target(`Переместить фото ${match[1]}`, `Move photo ${match[1]}`)
+  if ((match = source.match(/^Eliminar foto (\d+)$/))) return target(`Удалить фото ${match[1]}`, `Delete photo ${match[1]}`)
+  if ((match = source.match(/^Ver (.+)$/))) return target(`Открыть: ${translateCore(match[1], language)}`, `View ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^Guardar (.+) en favoritos$/))) return target(`Добавить «${translateCore(match[1], language)}» в избранное`, `Save ${translateCore(match[1], language)} to favorites`)
+  if ((match = source.match(/^Quitar (.+) de favoritos$/))) return target(`Убрать «${translateCore(match[1], language)}» из избранного`, `Remove ${translateCore(match[1], language)} from favorites`)
+  if ((match = source.match(/^Escribir a (.+)$/))) return target(`Написать: ${match[1]}`, `Write to ${match[1]}`)
+  if ((match = source.match(/^Hola, me interesa la habitación de (.+)\. ¿Sigue disponible\?$/))) return target(`Здравствуйте! Меня интересует комната в ${match[1]}. Она ещё доступна?`, `Hello, I am interested in the room in ${match[1]}. Is it still available?`)
+  if ((match = source.match(/^Revisaremos el anuncio «(.+)»\. No compartiremos tu identidad con el anunciante\.$/))) return target(`Мы проверим объявление «${translateCore(match[1], language)}». Ваша личность не будет раскрыта владельцу.`, `We will review “${translateCore(match[1], language)}”. We will not share your identity with the advertiser.`)
+  if ((match = source.match(/^Referencia (.+)$/))) return target(`Номер ${match[1]}`, `Reference ${match[1]}`)
+  if ((match = source.match(/^Editando (.+)$/))) return target(`Редактирование ${match[1]}`, `Editing ${match[1]}`)
+  if ((match = source.match(/^Más acciones para (.+)$/))) return target(`Дополнительные действия: ${translateCore(match[1], language)}`, `More actions for ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^Acciones para (.+)$/))) return target(`Действия: ${translateCore(match[1], language)}`, `Actions for ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
+  if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
+  if ((match = source.match(/^(\d+) euros, (.+)$/))) return target(`${match[1]} евро, ${match[2]}`, `${match[1]} euros, ${match[2]}`)
+  return source
+}
+
+function translateCore(source: string, language: Language): string {
+  if (language === 'es' || !source) return source
+  const exact = translations[source]?.[language]
+  if (exact) return exact
+  const patterned = translatePattern(source, language)
+  if (patterned !== source) return patterned
+  return source
+}
+
+export function translateText(value: string, language: Language): string {
+  if (language === 'es' || !value.trim()) return value
+  const match = value.match(/^(\s*)(.*?)(\s*)$/s)
+  if (!match) return translateCore(value, language)
+  return `${match[1]}${translateCore(match[2], language)}${match[3]}`
+}
+
+type I18nState = {
+  language: Language
+  locale: string
+  languageName: string
+  setLanguage: (language: Language) => void
+  t: (source: string) => string
+}
+
+const I18nContext = createContext<I18nState | null>(null)
+const textOriginals = new WeakMap<Text, string>()
+const textApplied = new WeakMap<Text, string>()
+const attributeOriginals = new WeakMap<Element, Map<string, string>>()
+const attributeApplied = new WeakMap<Element, Map<string, string>>()
+const translatedAttributes = ['aria-label', 'placeholder', 'title', 'alt'] as const
+
+const readLanguage = (): Language => {
+  try {
+    const stored = localStorage.getItem('112233:language:v1')
+    return stored === 'ru' || stored === 'en' || stored === 'es' ? stored : 'es'
+  } catch {
+    return 'es'
+  }
+}
+
+function I18nDocumentSync({ language }: { language: Language }) {
+  useLayoutEffect(() => {
+    document.documentElement.lang = language
+    document.title = language === 'ru' ? '112233.es — аренда комнат на Тенерифе' : language === 'en' ? '112233.es — rooms for rent in Tenerife' : '112233.es — habitaciones en Tenerife'
+
+    const translateTextNode = (node: Text) => {
+      const lastApplied = textApplied.get(node)
+      if (!textOriginals.has(node) || (lastApplied !== undefined && node.data !== lastApplied)) textOriginals.set(node, node.data)
+      const original = textOriginals.get(node) ?? node.data
+      const next = translateText(original, language)
+      textApplied.set(node, next)
+      if (node.data !== next) node.data = next
+    }
+
+    const translateElement = (element: Element) => {
+      let originals = attributeOriginals.get(element)
+      let applied = attributeApplied.get(element)
+      if (!originals) { originals = new Map(); attributeOriginals.set(element, originals) }
+      if (!applied) { applied = new Map(); attributeApplied.set(element, applied) }
+      translatedAttributes.forEach((attribute) => {
+        const current = element.getAttribute(attribute)
+        if (current === null) return
+        const lastApplied = applied?.get(attribute)
+        if (!originals?.has(attribute) || (lastApplied !== undefined && current !== lastApplied)) originals?.set(attribute, current)
+        const original = originals?.get(attribute) ?? current
+        const next = translateText(original, language)
+        applied?.set(attribute, next)
+        if (current !== next) element.setAttribute(attribute, next)
+      })
+    }
+
+    const translateSubtree = (root: Node) => {
+      if (root.nodeType === Node.TEXT_NODE) { translateTextNode(root as Text); return }
+      if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return
+      if (root.nodeType === Node.ELEMENT_NODE) translateElement(root as Element)
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT)
+      let node = walker.nextNode()
+      while (node) {
+        if (node.nodeType === Node.TEXT_NODE) translateTextNode(node as Text)
+        else translateElement(node as Element)
+        node = walker.nextNode()
+      }
+    }
+
+    translateSubtree(document.body)
+    const observer = new MutationObserver((records) => {
+      records.forEach((record) => {
+        if (record.type === 'characterData') translateTextNode(record.target as Text)
+        else if (record.type === 'attributes') translateElement(record.target as Element)
+        else record.addedNodes.forEach(translateSubtree)
+      })
+    })
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: [...translatedAttributes] })
+    return () => observer.disconnect()
+  }, [language])
+  return null
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(readLanguage)
+  const setLanguage = useCallback((next: Language) => {
+    setLanguageState(next)
+    try { localStorage.setItem('112233:language:v1', next) } catch { /* Storage may be unavailable in private browsing. */ }
+  }, [])
+  const t = useCallback((source: string) => translateText(source, language), [language])
+  const value = useMemo(() => ({ language, locale: localeByLanguage[language], languageName: languageNames[language], setLanguage, t }), [language, setLanguage, t])
+  return <I18nContext.Provider value={value}><I18nDocumentSync language={language} />{children}</I18nContext.Provider>
+}
+
+export function useI18n() {
+  const context = useContext(I18nContext)
+  if (!context) throw new Error('useI18n must be used inside I18nProvider')
+  return context
+}
