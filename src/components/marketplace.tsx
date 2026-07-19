@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bath, BedDouble, CalendarDays, ChevronLeft, ChevronRight, CigaretteOff, CircleAlert, Euro, Expand, Heart, Home, LocateFixed, MapPin, MessageCircle, Minus, PawPrint, Phone, Plus, Search, ShieldCheck, SlidersHorizontal, Sparkles, UsersRound, X } from 'lucide-react'
+import { Bath, BedDouble, CalendarDays, ChevronLeft, ChevronRight, CigaretteOff, CircleAlert, Euro, Expand, Heart, Home, LocateFixed, Map as MapIcon, MapPin, MessageCircle, Minus, PawPrint, Phone, Plus, Satellite, Search, ShieldCheck, SlidersHorizontal, Sparkles, UsersRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { areas, listings } from '@/data/listings'
 import type { Filters, Listing, RentalMode } from '@/types'
@@ -168,13 +169,22 @@ export interface MapAdapter { getListings(): Listing[]; select(id: string): void
 export function MapView({ items, selectedId, onSelect, fullScreen = false, showPreview = true }: { items: Listing[]; selectedId?: string; onSelect: (id: string) => void; fullScreen?: boolean; showPreview?: boolean }) {
   const selected = items.find((item) => item.id === selectedId)
   const [zoom, setZoom] = useState(1)
+  const [layer, setLayer] = useState<'map' | 'satellite'>('map')
   return (
-    <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} aria-label="Mapa aproximado de habitaciones">
-      <div className="map-island" aria-hidden="true"><span className="map-label map-label--north">LA LAGUNA</span><span className="map-label map-label--east">SANTA CRUZ</span><span className="map-label map-label--south">TENERIFE SUR</span><span className="map-road map-road--one" /><span className="map-road map-road--two" /></div>
-      {items.map((item, index) => <button key={item.id} type="button" className={cn('map-marker', item.id === selectedId && 'is-active')} style={{ left: `${item.coordinates.x}%`, top: `${item.coordinates.y}%`, transform: `scale(${zoom})` }} onClick={() => onSelect(item.id)} aria-label={`${item.price} euros, ${item.area}`} aria-pressed={item.id === selectedId}>{index === 3 ? <span className="marker-cluster">2</span> : `${item.price} €`}</button>)}
+    <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} data-layer={layer} aria-label="Mapa aproximado de habitaciones">
+      <div className="map-surface" style={{ transform: `scale(${zoom})` }}>
+        <div className="map-island" aria-hidden="true"><span className="map-terrain" /><span className="map-road map-road--one" /><span className="map-road map-road--two" /><span className="map-road map-road--three" /><span className="map-road map-road--four" /></div>
+        <div aria-hidden="true"><span className="map-label map-label--laguna">LA LAGUNA</span><span className="map-label map-label--santa-cruz">SANTA CRUZ</span><span className="map-label map-label--adeje">COSTA ADEJE</span><span className="map-label map-label--cristianos">LOS CRISTIANOS</span><span className="map-label map-label--medano">EL MÉDANO</span><span className="map-label map-label--teide">TEIDE</span></div>
+        {items.map((item, index) => <button key={item.id} type="button" className={cn('map-marker', item.id === selectedId && 'is-active')} style={{ left: `${item.coordinates.x}%`, top: `${item.coordinates.y}%` }} onClick={() => onSelect(item.id)} aria-label={`${item.price} euros, ${item.area}, ubicación aproximada`} aria-pressed={item.id === selectedId}>{index === 3 ? <span className="marker-cluster" aria-label="2 habitaciones">2</span> : `${item.price} €`}</button>)}
+      </div>
+      <ToggleGroup type="single" value={layer} onValueChange={(value) => { if (value === 'map' || value === 'satellite') setLayer(value) }} variant="outline" size="sm" spacing={0} className="map-layer-switch" aria-label="Capa del mapa">
+        <ToggleGroupItem value="map" aria-label="Vista de mapa"><MapIcon data-icon="inline-start" />Mapa</ToggleGroupItem>
+        <ToggleGroupItem value="satellite" aria-label="Vista satélite"><Satellite data-icon="inline-start" />Satélite</ToggleGroupItem>
+      </ToggleGroup>
       <div className="map-top-actions"><Button size="sm" onClick={() => toast.success('Resultados actualizados en esta zona')}>Buscar en esta zona</Button></div>
-      <div className="map-controls"><Button variant="outline" size="icon" aria-label="Usar mi ubicación" onClick={() => toast('Ubicación aproximada activada')}><LocateFixed /></Button><Button variant="outline" size="icon" aria-label="Acercar mapa" onClick={() => setZoom((value) => Math.min(1.25, value + .05))}><Plus /></Button><Button variant="outline" size="icon" aria-label="Alejar mapa" onClick={() => setZoom((value) => Math.max(.8, value - .05))}><Minus /></Button></div>
+      <div className="map-controls" role="group" aria-label="Controles del mapa"><Button variant="outline" size="icon" aria-label="Usar mi ubicación" onClick={() => toast('Ubicación aproximada activada')}><LocateFixed /></Button><Button variant="outline" size="icon" aria-label="Acercar mapa" disabled={zoom >= 1.3} onClick={() => setZoom((value) => Math.min(1.3, value + .1))}><Plus /></Button><span className="map-zoom-readout" aria-live="polite">{Math.round(zoom * 100)}%</span><Button variant="outline" size="icon" aria-label="Alejar mapa" disabled={zoom <= .8} onClick={() => setZoom((value) => Math.max(.8, value - .1))}><Minus /></Button></div>
       <p className="map-privacy"><ShieldCheck aria-hidden="true" />La posición es aproximada para proteger la privacidad.</p>
+      <div className="map-legend" aria-label="Leyenda del mapa"><span><i className="map-legend__price" />Habitación</span><span><i className="map-legend__cluster" />Grupo</span></div>
       {selected && showPreview ? <div className="map-preview"><button type="button" aria-label="Cerrar vista previa" onClick={() => onSelect('')}><X /></button><PropertyCard listing={selected} compact selected /></div> : null}
     </section>
   )

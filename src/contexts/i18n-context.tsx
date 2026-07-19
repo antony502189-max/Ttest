@@ -149,6 +149,14 @@ const translations: Record<string, Translation> = {
   'Ubicación aproximada activada': { ru: 'Примерное местоположение включено', en: 'Approximate location enabled' },
   'Acercar mapa': { ru: 'Увеличить карту', en: 'Zoom in' },
   'Alejar mapa': { ru: 'Уменьшить карту', en: 'Zoom out' },
+  'Capa del mapa': { ru: 'Слой карты', en: 'Map layer' },
+  'Vista de mapa': { ru: 'Обычная карта', en: 'Map view' },
+  'Vista satélite': { ru: 'Спутниковая карта', en: 'Satellite view' },
+  'Satélite': { ru: 'Спутник', en: 'Satellite' },
+  'Controles del mapa': { ru: 'Управление картой', en: 'Map controls' },
+  'Leyenda del mapa': { ru: 'Условные обозначения карты', en: 'Map legend' },
+  'Habitación': { ru: 'Комната', en: 'Room' },
+  'Grupo': { ru: 'Группа', en: 'Cluster' },
   'La posición es aproximada para proteger la privacidad.': { ru: 'Положение указано приблизительно для защиты конфиденциальности.', en: 'The position is approximate to protect privacy.' },
   'Cerrar vista previa': { ru: 'Закрыть просмотр', en: 'Close preview' },
   'Verificado': { ru: 'Проверено', en: 'Verified' },
@@ -708,6 +716,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Acciones para (.+)$/))) return target(`Действия: ${translateCore(match[1], language)}`, `Actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
   if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
+  if ((match = source.match(/^(\d+) euros, (.+), ubicación aproximada$/))) return target(`${match[1]} евро, ${match[2]}, примерное местоположение`, `${match[1]} euros, ${match[2]}, approximate location`)
   if ((match = source.match(/^(\d+) euros, (.+)$/))) return target(`${match[1]} евро, ${match[2]}`, `${match[1]} euros, ${match[2]}`)
   return source
 }
