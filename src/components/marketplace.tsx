@@ -166,13 +166,18 @@ export function FilterButton({ resultCount }: { resultCount: number }) {
 type MapCenter = Pick<Listing['coordinates'], 'lat' | 'lng'>
 
 export interface MapAdapter {
-  getEmbedUrl(center: MapCenter, zoom: number, language: string): string
-  getExternalUrl(center: MapCenter, zoom: number): string
+  getEmbedUrl(center: MapCenter, zoom: number, language: string, marker?: MapCenter): string
+  getExternalUrl(center: MapCenter, zoom: number, marker?: MapCenter): string
 }
 
 export const googleSatelliteMapAdapter: MapAdapter = {
-  getEmbedUrl: ({ lat, lng }, zoom, language) => `https://www.google.com/maps?ll=${lat},${lng}&t=k&z=${zoom}&output=embed&hl=${language}`,
-  getExternalUrl: ({ lat, lng }, zoom) => `https://www.google.com/maps/@?api=1&map_action=map&center=${lat}%2C${lng}&zoom=${zoom}&basemap=satellite`,
+  getEmbedUrl: ({ lat, lng }, zoom, language, marker) => {
+    const location = marker ? `q=${marker.lat},${marker.lng}` : `ll=${lat},${lng}`
+    return `https://www.google.com/maps?${location}&t=k&z=${zoom}&output=embed&hl=${language}`
+  },
+  getExternalUrl: ({ lat, lng }, zoom, marker) => marker
+    ? `https://www.google.com/maps?q=${marker.lat},${marker.lng}&t=k&z=${zoom}`
+    : `https://www.google.com/maps/@?api=1&map_action=map&center=${lat}%2C${lng}&zoom=${zoom}&basemap=satellite`,
 }
 
 const tenerifeCenter: MapCenter = { lat: 28.2915637, lng: -16.6291304 }
@@ -181,21 +186,22 @@ export function MapView({ items, selectedId, onSelect, fullScreen = false, showP
   const { language, locale } = useI18n()
   const selected = items.find((item) => item.id === selectedId)
   const center = selected?.coordinates ?? tenerifeCenter
+  const marker = selected?.coordinates
   const zoom = selected ? 14 : 10
   const price = (item: Listing) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.price)
   return (
-    <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} aria-label="Mapa aproximado de habitaciones">
+    <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} aria-label="Mapa de habitaciones">
       <div className="google-map-frame-wrap">
-        <iframe key={`${center.lat}-${center.lng}-${language}`} className="google-map-frame" src={googleSatelliteMapAdapter.getEmbedUrl(center, zoom, language)} title="Mapa satelital interactivo de Tenerife" loading={fullScreen ? 'eager' : 'lazy'} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+        <iframe key={`${center.lat}-${center.lng}-${language}-${selectedId ?? 'island'}`} className="google-map-frame" src={googleSatelliteMapAdapter.getEmbedUrl(center, zoom, language, marker)} title="Mapa satelital interactivo de Tenerife" loading={fullScreen ? 'eager' : 'lazy'} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       </div>
       <div className="map-location-dock">
         <div className="map-location-list" role="group" aria-label="Ubicaciones disponibles">
           {items.map((item) => <button key={item.id} type="button" className={cn('map-location-button', item.id === selectedId && 'is-active')} onClick={() => onSelect(item.id)} aria-label={`Centrar mapa en ${item.area}, ${item.price} euros`} aria-pressed={item.id === selectedId}><MapPin aria-hidden="true" /><span><strong>{item.area}</strong><small>{price(item)}/{item.cadence}</small></span></button>)}
         </div>
         <div className="map-location-meta">
-          <p><ShieldCheck aria-hidden="true" />La posición es aproximada para proteger la privacidad.</p>
+          <p><ShieldCheck aria-hidden="true" />El marcador corresponde a las coordenadas del anuncio.</p>
           <div className="map-location-actions">
-            <Button asChild variant="outline" size="sm"><a href={googleSatelliteMapAdapter.getExternalUrl(center, zoom)} target="_blank" rel="noreferrer">Abrir en Google Maps<ExternalLink data-icon="inline-end" /></a></Button>
+            <Button asChild variant="outline" size="sm"><a href={googleSatelliteMapAdapter.getExternalUrl(center, zoom, marker)} target="_blank" rel="noreferrer">Abrir en Google Maps<ExternalLink data-icon="inline-end" /></a></Button>
             {selected && showPreview ? <Button asChild size="sm"><Link to={`/habitacion/${selected.id}`}>Ver anuncio</Link></Button> : null}
           </div>
         </div>
