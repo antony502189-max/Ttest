@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider } from '@/contexts/app-context'
+import { useApp } from '@/contexts/app-context'
 import { I18nProvider } from '@/contexts/i18n-context'
 import { AppLayout } from '@/components/layout'
 
@@ -31,6 +32,21 @@ function ScrollToTop() {
   return null
 }
 
+function ProtectedRoute({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
+  const { currentUser } = useApp()
+  const location = useLocation()
+  if (!currentUser) return <Navigate to="/acceso" state={{ returnTo: `${location.pathname}${location.search}` }} replace />
+  if (admin && currentUser.role !== 'admin') return <Navigate to="/" replace />
+  return children
+}
+
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Route error', error, info) }
+  render() { return this.state.failed ? <div className="route-error" role="alert"><h1>No pudimos abrir esta página</h1><p>Recarga la aplicación. Tus datos locales permanecen guardados.</p><button type="button" onClick={() => location.reload()}>Recargar</button></div> : this.props.children }
+}
+
 export default function App() {
-  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<SavedSearchesPage />} /><Route path="perfil" element={<ProfilePage />} /><Route path="mis-anuncios" element={<MyListingsPage />} /><Route path="publicar" element={<PublishPage />} /><Route path="mis-anuncios/:id/editar" element={<PublishPage editing />}/>{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<AdminPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></AppProvider></I18nProvider></HashRouter>
+  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></AppProvider></I18nProvider></HashRouter>
 }

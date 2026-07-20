@@ -1,5 +1,9 @@
 export type RentalMode = 'long' | 'holiday'
 export type ListingStatus = 'Borrador' | 'Pendiente' | 'Publicado' | 'Oculto' | 'Finalizado' | 'Rechazado'
+export type UserRole = 'tenant' | 'host' | 'admin'
+export type AdvertiserType = 'Particular' | 'Profesional'
+export type GenderPreference = 'Cualquiera' | 'Solo hombre' | 'Solo mujer' | 'Sin preferencia de género'
+export type YesNoAny = 'Cualquiera' | 'Sí' | 'No'
 
 export interface Owner {
   name: string
@@ -7,6 +11,11 @@ export interface Owner {
   since: string
   response: string
   verified: boolean
+}
+
+export interface Coordinates {
+  lat: number
+  lng: number
 }
 
 export interface Listing {
@@ -20,25 +29,39 @@ export interface Listing {
   rentalMode: RentalMode
   roomType: 'Habitación individual' | 'Habitación compartida' | 'Estudio'
   available: string
+  availableFrom: string
   minimumStay: string
+  minimumStayMonths: number
   deposit: string
+  depositAmount: number
   bills: string
-  bathroom: string
-  kitchen: string
+  billsIncluded: boolean
+  bathroom: 'Baño privado' | 'Baño compartido'
+  kitchen: 'Cocina privada' | 'Cocina compartida'
   furnished: boolean
   occupants: number
-  coordinates: { lat: number; lng: number }
+  coordinates: Coordinates
+  genderPreference: GenderPreference
+  smokingAllowed: boolean
+  petsAllowed: boolean
+  couplesAllowed: boolean
+  childrenAllowed: boolean
+  empadronamientoAllowed: boolean
   restrictions: string[]
   amenities: string[]
   description: string
   homeDescription: string
   images: string[]
   owner: Owner
+  advertiserType: AdvertiserType
   source?: string
   status: ListingStatus
   publishedAt: string
   views: number
   expiresAt: string
+  userCreated?: boolean
+  contactPhone?: string
+  contactEmail?: string
 }
 
 export interface Filters {
@@ -49,11 +72,84 @@ export interface Filters {
   available: string
   minStay: string
   conditions: string[]
+  gender: GenderPreference
   bathroom: string
   kitchen: string
   furnished: boolean
   billsIncluded: boolean
   deposit: string
   occupants: string
+  smoking: YesNoAny
+  pets: YesNoAny
+  couples: YesNoAny
+  children: YesNoAny
+  empadronamiento: YesNoAny
+  publicationDate: string
+  advertiserType: string
+  amenities: string[]
   sort: string
+}
+
+export interface MapPolygonPoint extends Coordinates {}
+
+export interface DemoUser {
+  id: string
+  name: string
+  email: string
+  password: string
+  role: UserRole
+  phone: string
+  whatsapp: string
+  telegram: string
+  about: string
+  initials: string
+  showPhone: boolean
+  allowMessaging: boolean
+  blocked?: boolean
+}
+
+export interface ListingDraft {
+  rentalMode: RentalMode
+  city: string
+  area: string
+  street: string
+  postcode: string
+  roomType: Listing['roomType']
+  size: number
+  occupants: number
+  bathroom: Listing['bathroom']
+  kitchen: Listing['kitchen']
+  furnished: boolean
+  amenities: string[]
+  price: number
+  depositAmount: number
+  billsIncluded: boolean
+  billsNote: string
+  availableFrom: string
+  minimumStayMonths: number
+  expiresAt: string
+  genderPreference: GenderPreference
+  smokingAllowed: boolean
+  petsAllowed: boolean
+  couplesAllowed: boolean
+  childrenAllowed: boolean
+  empadronamientoAllowed: boolean
+  rules: string
+  images: string[]
+  title: string
+  description: string
+  contactName: string
+  contactPhone: string
+  contactWhatsapp: string
+  contactEmail: string
+  status: ListingStatus
+}
+
+export interface ReportRecord {
+  id: string
+  listingId: string
+  reason: string
+  comment: string
+  createdAt: string
+  status: 'Abierta' | 'Resuelta'
 }

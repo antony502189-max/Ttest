@@ -1,16 +1,17 @@
 import { ArrowRight, Bell, Map, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { areas, listings } from '@/data/listings'
+import { areas } from '@/data/listings'
 import { PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
-
-const areaCounts: Record<string, number> = { 'Costa Adeje': 24, 'Armeñime': 12, 'Playa de las Américas': 19, 'Los Cristianos': 31, 'San Isidro': 17, 'El Médano': 15, 'Santa Cruz de Tenerife': 68, 'La Laguna': 74 }
+import { useApp } from '@/contexts/app-context'
 
 export function HomePage() {
+  const { allListings } = useApp()
+  const featured = allListings.filter((listing) => listing.status === 'Publicado').slice(0, 3)
   return (
     <div className="home-page idealista-home">
       <section className="idealista-home-hero" aria-labelledby="home-title">
-        <img className="idealista-home-hero__image" src={listings[1].images[1]} alt="Habitación luminosa preparada para alquilar" width="1600" height="900" />
+        <img className="idealista-home-hero__image" src={featured[1]?.images[1] ?? featured[0]?.images[0]} alt="Habitación luminosa preparada para alquilar" width="1600" height="900" />
         <div className="idealista-home-hero__shade" />
         <div className="container idealista-home-hero__content">
           <h1 id="home-title">Tu próxima habitación está más cerca de lo que imaginas</h1>
@@ -37,13 +38,13 @@ export function HomePage() {
       <section className="home-results-preview">
         <div className="container">
           <div className="section-heading idealista-section-heading"><div><h2>Habitaciones destacadas en Tenerife</h2><p>Anuncios recientes de larga estancia y alquiler vacacional.</p></div><Button asChild variant="ghost"><Link to="/buscar">Ver todas <ArrowRight data-icon="inline-end" /></Link></Button></div>
-          <div className="property-grid">{listings.slice(0, 3).map((listing) => <PropertyCard key={listing.id} listing={listing} compact />)}</div>
+          <div className="property-grid">{featured.map((listing) => <PropertyCard key={listing.id} listing={listing} compact />)}</div>
         </div>
       </section>
 
       <section className="container home-area-links">
         <div><h2>Alquiler de habitaciones por zona</h2><p>Encuentra una habitación cerca del trabajo, la universidad o la playa.</p></div>
-        <div className="home-area-links__grid">{areas.map((area) => <Link key={area} to={`/buscar?q=${encodeURIComponent(area)}`}><span>Habitaciones en {area}</span><strong>{areaCounts[area]}</strong></Link>)}</div>
+        <div className="home-area-links__grid">{areas.map((area) => <Link key={area} to={`/buscar?q=${encodeURIComponent(area)}`}><span>Habitaciones en {area}</span><strong>{allListings.filter((listing) => listing.area === area).length}</strong></Link>)}</div>
       </section>
 
       <section className="home-alert-strip">
