@@ -147,7 +147,7 @@ test("04 every visible filter is wired to data and URL", async ({ page }) => {
     /gastos=1/,
   );
   await changed(() => select(/Depósito/i, "Sin fianza"), /fianza=/);
-  await changed(() => select(/Personas en la vivienda/i, "1–2"), /ocupantes=/);
+  await changed(() => select(/Personas en la vivienda/i, "1"), /residentes=1/);
   await changed(() => select(/Se puede fumar/i, "Sí"), /fumar=/);
   await changed(() => select(/^Mascotas$/, "Sí"), /mascotas=/);
   await changed(() => select(/^Parejas$/, "No"), /parejas=/);

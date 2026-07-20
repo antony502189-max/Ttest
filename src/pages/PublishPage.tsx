@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +50,7 @@ import {
 import { useApp } from "@/contexts/app-context";
 import { areaCenters, createDefaultDraft } from "@/data/listings";
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
+import { removeMedia, removeMediaReferences } from "@/lib/media-storage";
 import type { DemoUser, Listing, ListingDraft } from "@/types";
 
 const steps = [
@@ -258,6 +259,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [published, setPublished] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+  const pendingMediaRemovals = useRef(new Set<string>());
   const isDirty = JSON.stringify(draft) !== baseline;
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -292,8 +294,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     const next: Record<string, string> = {};
     if (step === 1 && !draft.area.trim())
       next.area = "Indica la zona o barrio.";
-    if (step === 2 && draft.currentResidents < 1)
-      next.occupants = "Indica al menos una persona.";
+    if (step === 2 && draft.currentResidents < 0)
+      next.occupants = "El número de residentes no puede ser negativo.";
     if (step === 3 && getPrimaryPrice(preview) < 1)
       next.price = "El precio debe ser mayor que cero.";
     if (step === 4 && !draft.availableFrom)
@@ -336,12 +338,27 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       updateListing(existing.id, listing);
       toast.success("Cambios publicados");
     } else createListing(listing);
+    const obsoleteMedia = [...pendingMediaRemovals.current].filter(
+      (reference) => !draft.images.includes(reference),
+    );
+    pendingMediaRemovals.current.clear();
+    void removeMediaReferences(obsoleteMedia).catch((error) =>
+      toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes locales."),
+    );
     localStorage.removeItem(draftKey);
     setBaseline(JSON.stringify(draft));
     setPublished(true);
   };
   const resetDraft = () => {
-    const fresh = withProfileDefaults(currentUser);
+    const fresh = existing ? toDraft(existing) : withProfileDefaults(currentUser);
+    const retained = new Set(fresh.images);
+    const transientMedia = draft.images.filter(
+      (reference) => !retained.has(reference) && !existing?.images.includes(reference),
+    );
+    pendingMediaRemovals.current.clear();
+    void removeMediaReferences(transientMedia).catch((error) =>
+      toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes locales."),
+    );
     setDraft(fresh);
     setStep(0);
     setMaxVisited(0);
@@ -538,7 +555,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                 <Input
                   id="publish-occupants"
                   type="number"
-                  min="1"
+                  min="0"
                   value={draft.currentResidents}
                   aria-invalid={Boolean(errors.occupants)}
                   onChange={(e) => set("currentResidents", Number(e.target.value))}
@@ -756,6 +773,12 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <ImageUploader
               images={draft.images}
               onChange={(images) => set("images", images)}
+              onRemove={(image) => {
+                if (existing?.images.includes(image)) pendingMediaRemovals.current.add(image);
+                else void removeMedia(image).catch((error) =>
+                  toast.error(error instanceof Error ? error.message : "No se pudo limpiar la imagen local."),
+                );
+              }}
               error={errors.images}
             />
           </WizardSection>

@@ -32,6 +32,19 @@ async function continueWizard(page: Page, count: number) {
   for (let index = 0; index < count; index += 1) await page.getByRole('button', { name: 'Continuar' }).click()
 }
 
+async function mediaExists(page: Page, reference: string) {
+  return page.evaluate((mediaReference) => new Promise<boolean>((resolve, reject) => {
+    const open = indexedDB.open('112233-media', 1)
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const database = open.result
+      const request = database.transaction('media', 'readonly').objectStore('media').get(mediaReference.slice('idb-media:'.length))
+      request.onerror = () => { database.close(); reject(request.error) }
+      request.onsuccess = () => { database.close(); resolve(request.result instanceof Blob) }
+    }
+  }), reference)
+}
+
 test.beforeEach(async ({ page }) => clearLocalState(page))
 
 test('USR-03..05 history, discarded listings and guest data stay in separate scopes', async ({ page }) => {
@@ -86,9 +99,22 @@ test('STORE-05 validator rejects incomplete listing payloads instead of acceptin
   await expect.poll(() => storedListings(page).then((items) => items.length)).toBe(32)
 })
 
-test('MEDIA-05..07 exact MIME, IndexedDB quota feedback and missing-blob fallback work', async ({ page }) => {
+test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback work', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
   await continueWizard(page, 6)
+  await page.locator('#publish-images').setInputFiles({ name: 'temporary.png', mimeType: 'image/png', buffer: png })
+  await expect.poll(() => page.evaluate(() => {
+    const payload = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}') as { data?: { images?: string[] } }
+    return payload.data?.images?.find((image) => image.startsWith('idb-media:')) ?? ''
+  })).toMatch(/^idb-media:/)
+  const temporaryMedia = await page.evaluate(() => {
+    const payload = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}') as { data: { images: string[] } }
+    return payload.data.images.find((image) => image.startsWith('idb-media:')) ?? ''
+  })
+  expect(await mediaExists(page, temporaryMedia)).toBe(true)
+  await page.getByRole('button', { name: 'Eliminar foto 7' }).click()
+  await expect.poll(() => mediaExists(page, temporaryMedia)).toBe(false)
+
   await page.locator('#publish-images').setInputFiles({ name: 'room.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') })
   await expect(page.locator('.image-uploader').getByRole('status')).toContainText('JPEG, PNG o WebP')
 
@@ -209,10 +235,10 @@ test('FILTER-02..06 new filters have chips, reset, reload and history navigation
   await expect(page).toHaveURL(/tamanoMin=18/)
   await expect.poll(() => resultCount(page)).toBeLessThan(baseline)
   await sidebar.getByLabel('Ducha').selectOption('Ducha privada')
-  await sidebar.getByLabel('Residentes actuales (exacto)').selectOption('1')
+  await sidebar.getByLabel('Personas en la vivienda').selectOption('0')
   await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')
   await expect(page).toHaveURL(/ducha=Ducha/)
-  await expect(page).toHaveURL(/residentes=1/)
+  await expect(page).toHaveURL(/residentes=0/)
   await expect(page).toHaveURL(/capacidad=1/)
   await expect(page.locator('.applied-filters')).toContainText('18–50 m²')
   await expect(page.locator('.applied-filters')).toContainText('Ducha')
@@ -230,7 +256,7 @@ test('FILTER-02..06 new filters have chips, reset, reload and history navigation
   await expect(page).not.toHaveURL(/tamanoMin|ducha|residentes|capacidad/)
 
   await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
-  await sidebar.getByLabel('Máximo de noches mínimas').fill('4')
+  await sidebar.getByLabel('Estancia mínima: hasta (noches)').fill('4')
   await sidebar.getByLabel('Disponible hasta al menos').fill('2026-11-01')
   await expect(page).toHaveURL(/nochesMin=4/)
   await expect(page).toHaveURL(/hasta=2026-11-01/)

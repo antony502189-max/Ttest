@@ -71,8 +71,8 @@ export function SearchPage() {
     );
     if (!parsed.areas.length && exactArea) parsed.areas = [exactArea];
     if (rentalMode === "holiday") {
-      parsed.minPrice = Math.min(parsed.minPrice, 300);
-      parsed.maxPrice = Math.min(parsed.maxPrice, 300);
+      parsed.minPrice = Math.min(parsed.minPrice, 350);
+      parsed.maxPrice = Math.min(parsed.maxPrice, 350);
     }
     return parsed;
     // paramString captures the complete serialized filter state.
@@ -269,7 +269,7 @@ export function SearchPage() {
     if (filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax)
       chips.push({ key: "roomSize", label: `${filters.roomSizeMin}–${filters.roomSizeMax} m²`, clear: () => commitFilters({ ...filters, roomSizeMin: defaultFilters.roomSizeMin, roomSizeMax: defaultFilters.roomSizeMax }) });
     if (filters.minimumNights !== defaultFilters.minimumNights)
-      chips.push({ key: "minimumNights", label: `Hasta ${filters.minimumNights} noches mínimas`, clear: () => setOne("minimumNights", defaultFilters.minimumNights) });
+      chips.push({ key: "minimumNights", label: `Estancia mínima: hasta ${filters.minimumNights} noches`, clear: () => setOne("minimumNights", defaultFilters.minimumNights) });
     (["furnished", "billsIncluded"] as const).forEach((key) => {
       if (filters[key])
         chips.push({

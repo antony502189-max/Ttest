@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { acceptedImageTypes, MediaStorageError, saveMediaFile } from "@/lib/media-storage";
+import { acceptedImageTypes, MediaStorageError, removeMediaReferences, saveMediaFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 
@@ -175,10 +175,12 @@ export function Stepper({
 export function ImageUploader({
   images,
   onChange,
+  onRemove,
   error,
 }: {
   images: string[];
   onChange: (images: string[]) => void;
+  onRemove?: (image: string) => void;
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -194,7 +196,13 @@ export function ImageUploader({
         : "",
     );
     try {
-      const references = await Promise.all(accepted.map(saveMediaFile));
+      const saved = await Promise.allSettled(accepted.map(saveMediaFile));
+      const references = saved.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+      const failed = saved.find((result) => result.status === "rejected");
+      if (failed?.status === "rejected") {
+        await removeMediaReferences(references).catch(() => undefined);
+        throw failed.reason;
+      }
       onChange([...images, ...references]);
     } catch (uploadError) {
       setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar una de las imágenes.");
@@ -285,9 +293,10 @@ export function ImageUploader({
             <button
               type="button"
               aria-label={`Eliminar foto ${index + 1}`}
-              onClick={() =>
-                onChange(images.filter((_, itemIndex) => itemIndex !== index))
-              }
+              onClick={() => {
+                onChange(images.filter((_, itemIndex) => itemIndex !== index));
+                onRemove?.(image);
+              }}
             >
               <Trash2 />
             </button>

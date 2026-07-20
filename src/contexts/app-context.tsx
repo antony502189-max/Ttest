@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys } from '@/lib/search'
+import { removeMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
 import type { DemoUser, Filters, Listing, ListingStatus, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
 
@@ -156,8 +157,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (rentalMode !== 'holiday') return
     setFilters((current) => ({
       ...current,
-      minPrice: Math.min(current.minPrice, 300),
-      maxPrice: Math.min(current.maxPrice, 300),
+      minPrice: Math.min(current.minPrice, 350),
+      maxPrice: Math.min(current.maxPrice, 350),
     }))
   }, [rentalMode])
 
@@ -228,7 +229,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return next ? [next] : []
   })), [canManageListing])
   const updateListing = useCallback((id: string, listing: Listing) => mutateOwned(id, (current) => ({ ...listing, id: current.id, ownerUserId: current.ownerUserId })), [mutateOwned])
-  const deleteListing = useCallback((id: string) => mutateOwned(id, () => null), [mutateOwned])
+  const deleteListing = useCallback((id: string) => {
+    const listing = allListings.find((item) => item.id === id)
+    if (!listing) return
+    if (!canManageListing(listing)) {
+      toast.error('No puedes gestionar un anuncio de otra cuenta.')
+      return
+    }
+    setAllListings((current) => current.filter((item) => item.id !== id))
+    void removeMediaReferences(listing.images).catch((error) =>
+      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
+    )
+  }, [allListings, canManageListing])
   const setListingStatus = useCallback((id: string, status: ListingStatus) => mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason : undefined })), [mutateOwned])
   const renewListing = useCallback((id: string) => mutateOwned(id, (listing) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)

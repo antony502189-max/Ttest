@@ -92,3 +92,10 @@ export async function removeMedia(reference: string) {
     database.close()
   }
 }
+
+export async function removeMediaReferences(references: string[]) {
+  const results = await Promise.allSettled([...new Set(references)].map(removeMedia))
+  if (results.some((result) => result.status === 'rejected')) {
+    throw new MediaStorageError('unavailable', 'No se pudieron limpiar algunas imágenes locales.')
+  }
+}

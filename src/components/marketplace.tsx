@@ -837,7 +837,7 @@ function FilterPanel({
         ) : (
           <>
             <label className="field-label">
-              Máximo de noches mínimas
+              Estancia mínima: hasta (noches)
               <Input type="number" min="0" value={value.minimumNights} onChange={(event) => update("minimumNights", Number(event.target.value))} />
             </label>
             <label className="field-label">
@@ -962,15 +962,9 @@ function FilterPanel({
           onChange={(next) => update("deposit", next)}
         />
         <NativeSelect
-          label="Personas en la vivienda — residentes actuales"
-          value={value.occupants}
-          options={["Cualquiera", "1–2", "3–4", "5 o más"]}
-          onChange={(next) => update("occupants", next)}
-        />
-        <NativeSelect
-          label="Residentes actuales (exacto)"
+          label="Personas en la vivienda"
           value={value.currentResidents}
-          options={["Cualquiera", "1", "2", "3", "4", "5", "6"]}
+          options={["Cualquiera", "0", "1", "2", "3", "4", "5", "6"]}
           onChange={(next) => update("currentResidents", next)}
         />
         <NativeSelect

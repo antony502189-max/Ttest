@@ -37,7 +37,7 @@ import { useApp } from "@/contexts/app-context";
 import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
-import { MediaStorageError, saveMediaFile } from "@/lib/media-storage";
+import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
 import type { DemoUser } from "@/types";
 
 function AccountHeader({
@@ -235,7 +235,13 @@ export function ProfilePage() {
   if (!currentUser) return null;
   const profileDraft = draft ?? currentUser;
   const updateDraft = <K extends keyof DemoUser>(key: K, value: DemoUser[K]) => setDraft((current) => ({ ...(current ?? currentUser), [key]: value }));
-  const cancelEditing = () => { setDraft(currentUser); setEditing(false); };
+  const cancelEditing = () => {
+    if (draft?.avatarRef && draft.avatarRef !== currentUser.avatarRef) {
+      void removeMedia(draft.avatarRef).catch(() => toast.error("No se pudo limpiar el avatar temporal."));
+    }
+    setDraft(currentUser);
+    setEditing(false);
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -255,6 +261,7 @@ export function ProfilePage() {
       focusField("phone");
       return;
     }
+    const previousAvatar = currentUser.avatarRef;
     updateProfile({
       name,
       phone,
@@ -266,6 +273,9 @@ export function ProfilePage() {
       allowContactForm: profileDraft.allowContactForm,
       avatarRef: profileDraft.avatarRef,
     });
+    if (previousAvatar && previousAvatar !== profileDraft.avatarRef) {
+      void removeMedia(previousAvatar).catch(() => toast.error("No se pudo limpiar el avatar anterior."));
+    }
     setEditing(false);
   };
   return (
@@ -307,9 +317,21 @@ export function ProfilePage() {
             <input id="profile-avatar-upload" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file) return;
-              void saveMediaFile(file).then((avatarRef) => updateDraft("avatarRef", avatarRef)).catch((error) => toast.error(error instanceof MediaStorageError ? error.message : "No se pudo guardar el avatar."));
+              void saveMediaFile(file).then((avatarRef) => {
+                const transientAvatar = profileDraft.avatarRef;
+                if (transientAvatar && transientAvatar !== currentUser.avatarRef) {
+                  void removeMedia(transientAvatar).catch(() => toast.error("No se pudo limpiar el avatar temporal."));
+                }
+                updateDraft("avatarRef", avatarRef);
+              }).catch((error) => toast.error(error instanceof MediaStorageError ? error.message : "No se pudo guardar el avatar."));
             }} />
-            {profileDraft.avatarRef ? <Button type="button" variant="ghost" size="sm" onClick={() => updateDraft("avatarRef", undefined)}>Eliminar foto</Button> : null}
+            {profileDraft.avatarRef ? <Button type="button" variant="ghost" size="sm" onClick={() => {
+              const avatarReference = profileDraft.avatarRef;
+              if (avatarReference && avatarReference !== currentUser.avatarRef) {
+                void removeMedia(avatarReference).catch(() => toast.error("No se pudo limpiar el avatar temporal."));
+              }
+              updateDraft("avatarRef", undefined);
+            }}>Eliminar foto</Button> : null}
           </div> : null}
         </aside>
         <form className="profile-form" onSubmit={submit}>

@@ -33,6 +33,19 @@ async function advanceWizard(page: Page, count: number) {
   }
 }
 
+async function mediaExists(page: Page, reference: string) {
+  return page.evaluate((mediaReference) => new Promise<boolean>((resolve, reject) => {
+    const open = indexedDB.open('112233-media', 1)
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const database = open.result
+      const request = database.transaction('media', 'readonly').objectStore('media').get(mediaReference.slice('idb-media:'.length))
+      request.onerror = () => { database.close(); reject(request.error) }
+      request.onsuccess = () => { database.close(); resolve(request.result instanceof Blob) }
+    }
+  }), reference)
+}
+
 test.beforeEach(async ({ page }) => clearLocalState(page))
 
 test('OWN-01..04 owner isolation and foreign edit/actions are blocked', async ({ page }) => {
@@ -74,19 +87,20 @@ test('USR-01..03 favorites, saved searches and history are user scoped', async (
 test('STORE-01..02 versioned payload survives mass deletion and migrates legacy v2', async ({ page }) => {
   await page.goto('/#/buscar')
   await expect.poll(() => storedListings(page).then((items) => items.length)).toBe(32)
-  await page.evaluate(() => {
+  const legacySample = await page.evaluate(() => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}') as { version: number; data: unknown[] }
-    localStorage.setItem('112233:listings:v3', JSON.stringify({ ...payload, data: payload.data.slice(0, 2) }))
+    localStorage.setItem('112233:listings:v3', JSON.stringify({ ...payload, data: [] }))
+    return payload.data.slice(0, 2)
   })
   await page.reload()
-  await expect.poll(() => storedListings(page).then((items) => items.length)).toBe(2)
-  await page.evaluate(() => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}') as { data: unknown[] }
-    localStorage.setItem('112233:listings:v2', JSON.stringify(payload.data))
+  await expect.poll(() => storedListings(page).then((items) => items.length)).toBe(0)
+  await page.evaluate((items) => {
+    localStorage.setItem('112233:listings:v2', JSON.stringify(items))
     localStorage.removeItem('112233:listings:v3')
-  })
+  }, legacySample)
   await page.reload()
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}').version)).toBe(3)
+  await expect.poll(() => storedListings(page).then((items) => items.length)).toBe(2)
 })
 
 test('STORE-03..04 corrupted JSON falls back and quota errors are visible', async ({ page }) => {
@@ -136,7 +150,15 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await page.reload()
   const edited = await storedListings(page)
-  expect(edited.find((item) => item.id === createdId)?.images[0]).toMatch(/^idb-media:/)
+  const createdMedia = String(edited.find((item) => item.id === createdId)?.images[0])
+  expect(createdMedia).toMatch(/^idb-media:/)
+  expect(await mediaExists(page, createdMedia)).toBe(true)
+  await page.goto('/#/mis-anuncios')
+  const createdCard = page.locator('.manage-card').first()
+  await createdCard.getByRole('button', { name: /Más acciones/ }).click()
+  await page.getByRole('menuitem', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
+  await expect.poll(() => mediaExists(page, createdMedia)).toBe(false)
 })
 
 test('MEDIA-04 avatar upload/remove persists and profile cancel restores values', async ({ page }) => {
@@ -150,11 +172,21 @@ test('MEDIA-04 avatar upload/remove persists and profile cancel restores values'
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
   await page.locator('#profile-avatar-upload').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: png })
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect.poll(() => page.evaluate(() => {
+    const users = JSON.parse(localStorage.getItem('112233:users:v1') ?? '[]') as Array<{ id: string; avatarRef?: string }>
+    return users.find((user) => user.id === 'host-demo')?.avatarRef ?? ''
+  })).toMatch(/^idb-media:/)
+  const avatarMedia = await page.evaluate(() => {
+    const users = JSON.parse(localStorage.getItem('112233:users:v1') ?? '[]') as Array<{ id: string; avatarRef?: string }>
+    return users.find((user) => user.id === 'host-demo')?.avatarRef ?? ''
+  })
+  expect(await mediaExists(page, avatarMedia)).toBe(true)
   await page.reload()
   await expect(page.locator('.profile-avatar img')).toBeVisible()
   await page.getByRole('button', { name: 'Editar perfil' }).click()
   await page.getByRole('button', { name: 'Eliminar foto' }).click()
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect.poll(() => mediaExists(page, avatarMedia)).toBe(false)
   await page.reload()
   await expect(page.locator('.profile-avatar img')).toHaveCount(0)
 })
