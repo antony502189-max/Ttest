@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/app-context";
 import { cn } from "@/lib/utils";
+import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
+import { MediaImage } from "@/components/media-image";
 import type { Listing, MapPolygonPoint } from "@/types";
 
 export interface MapBounds {
@@ -39,7 +41,7 @@ interface MapViewProps {
 }
 
 const tenerifeCenter: L.LatLngExpression = [28.2916, -16.6291];
-const priceLabel = (listing: Listing) => `${listing.price} €`;
+const priceLabel = (listing: Listing) => `${getPrimaryPrice(listing)} €`;
 const markerIcon = (listing: Listing, selected = false) =>
   L.divIcon({
     className: "price-marker-shell",
@@ -73,6 +75,7 @@ export function LeafletMapView({
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [boundsDirty, setBoundsDirty] = useState(false);
   const selected = items.find((item) => item.id === selectedId);
 
   useEffect(() => {
@@ -91,11 +94,13 @@ export function LeafletMapView({
       markerZoomAnimation: false,
     }).setView(tenerifeCenter, 9);
     mapRef.current = map;
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
+    });
+    tiles.on("tileerror", () => setError("Las teselas de OpenStreetMap no respondieron. Puedes usar la lista textual."));
+    tiles.addTo(map);
     const cluster = L.markerClusterGroup({
       showCoverageOnHover: false,
       maxClusterRadius: 48,
@@ -154,11 +159,15 @@ export function LeafletMapView({
       ]);
     };
     map.on("moveend", updateBounds);
+    map.on("dragend", () => setBoundsDirty(true));
+    map.on("zoomend", () => { if (mapRef.current) setBoundsDirty(true); });
     map.on("click", addPoint);
     updateBounds();
+    setBoundsDirty(false);
     setReady(true);
-    window.setTimeout(() => map.invalidateSize(), 0);
+    const invalidateTimer = window.setTimeout(() => map.invalidateSize(), 0);
     return () => {
+      window.clearTimeout(invalidateTimer);
       setReady(false);
       map.off();
       map.remove();
@@ -176,9 +185,7 @@ export function LeafletMapView({
     const marker = selectedId ? markersRef.current.get(selectedId) : undefined;
     if (marker && mapRef.current) {
       marker.setZIndexOffset(1000);
-      clusterRef.current?.zoomToShowLayer(marker, () =>
-        marker.setZIndexOffset(1000),
-      );
+      clusterRef.current?.zoomToShowLayer(marker, () => marker.setZIndexOffset(1000));
     }
   }, [items, selectedId]);
 
@@ -258,6 +265,7 @@ export function LeafletMapView({
   const searchBounds = () => {
     if (!bounds || !onBoundsSearch) return;
     onBoundsSearch(bounds);
+    setBoundsDirty(false);
     toast.success("Resultados actualizados para el área visible");
   };
 
@@ -292,7 +300,7 @@ export function LeafletMapView({
           aria-label="Herramientas de búsqueda en mapa"
         >
           {onBoundsSearch ? (
-            <Button onClick={searchBounds}>
+            <Button onClick={searchBounds} data-dirty={boundsDirty || undefined} variant={boundsDirty ? "default" : "outline"}>
               <Search data-icon="inline-start" />
               Buscar en esta zona
             </Button>
@@ -353,13 +361,14 @@ export function LeafletMapView({
           className="map-selected-card"
           aria-label={`Habitación seleccionada en ${selected.area}`}
         >
-          <img src={selected.images[0]} alt="" width="176" height="120" />
+          <MediaImage src={selected.images[0]} alt="" width="176" height="120" />
           <div>
             <span>{selected.area}</span>
             <strong>
-              {priceLabel(selected)}/{selected.cadence}
+              {priceLabel(selected)}/{getPrimaryCadence(selected)}
             </strong>
             <Link to={`/habitacion/${selected.id}`}>{selected.title}</Link>
+            <small>{getCriticalRestrictions(selected).slice(0, 2).join(" · ")}</small>
           </div>
           <button
             type="button"
@@ -387,7 +396,7 @@ export function LeafletMapView({
             <span>
               <strong>{item.area}</strong>
               <small>
-                {priceLabel(item)}/{item.cadence}
+                {priceLabel(item)}/{getPrimaryCadence(item)}
               </small>
             </span>
           </button>

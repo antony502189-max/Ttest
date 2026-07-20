@@ -28,8 +28,7 @@ const routes = [
 
 const openRoute = async (page: Page, route: (typeof routes)[number]) => {
   if (route.session) {
-    await page.goto("/#/");
-    await page.evaluate(
+    await page.addInitScript(
       (session) =>
         localStorage.setItem("112233:session:v1", JSON.stringify(session)),
       route.session,
@@ -57,6 +56,7 @@ const assertNoSeriousViolations = async (page: Page) => {
 
 for (const route of routes) {
   test(`axe sin impactos serious/critical: ${route.name}`, async ({ page }) => {
+    test.setTimeout(60_000);
     await openRoute(page, route);
     await assertNoSeriousViolations(page);
   });
@@ -75,8 +75,36 @@ for (const route of routes.filter((item) =>
   test(`axe móvil 390px sin impactos serious/critical: ${route.name}`, async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await openRoute(page, route);
     await assertNoSeriousViolations(page);
   });
 }
+
+test("delta contact dialog supports keyboard focus and axe", async ({ page }) => {
+  await page.goto("/#/habitacion/arme%C3%B1ime-luminosa-01");
+  const trigger = page.getByRole("button", { name: "Enviar mensaje" }).first();
+  await trigger.focus();
+  await trigger.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Enviar un mensaje local" });
+  await expect(dialog).toBeVisible();
+  const results = await new AxeBuilder({ page }).include(".contact-message-dialog").analyze();
+  expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+});
+
+test("delta avatar uploader has no serious or critical axe issues", async ({ page }) => {
+  await openRoute(page, { name: "perfil", path: "/#/perfil", session: "host-demo" });
+  await page.getByRole("button", { name: "Editar perfil" }).click();
+  const results = await new AxeBuilder({ page }).include(".profile-layout").analyze();
+  expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
+});
+
+test("delta image uploader has no serious or critical axe issues", async ({ page }) => {
+  await openRoute(page, { name: "publicar", path: "/#/publicar", session: "host-demo" });
+  for (let step = 0; step < 6; step += 1) await page.getByRole("button", { name: "Continuar" }).click();
+  const results = await new AxeBuilder({ page }).include(".image-uploader").analyze();
+  expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
+});

@@ -29,6 +29,7 @@ export function Footer() { return <footer className="site-footer"><div className
 
 export function AppLayout() {
   const { pathname } = useLocation()
+  const { storageError, clearStorageError } = useApp()
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader /><main id="main-content" tabIndex={-1}><Outlet /></main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><Outlet /></main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
 }

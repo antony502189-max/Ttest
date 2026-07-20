@@ -4,6 +4,8 @@ export type UserRole = 'tenant' | 'host' | 'admin'
 export type AdvertiserType = 'Particular' | 'Profesional'
 export type GenderPreference = 'Cualquiera' | 'Solo hombre' | 'Solo mujer' | 'Sin preferencia de género'
 export type YesNoAny = 'Cualquiera' | 'Sí' | 'No'
+export type TenantRequirement = 'single-man' | 'single-woman' | 'single-person' | 'couple' | 'any'
+export type ShowerType = 'Ducha privada' | 'Ducha compartida'
 
 export interface Owner {
   name: string
@@ -26,12 +28,17 @@ export interface Listing {
   approximateAddress: string
   price: number
   cadence: 'mes' | 'noche'
+  monthlyPrice?: number
+  nightlyPrice?: number
+  weeklyPrice?: number
   rentalMode: RentalMode
   roomType: 'Habitación individual' | 'Habitación compartida' | 'Estudio'
   available: string
   availableFrom: string
+  availableUntil?: string
   minimumStay: string
   minimumStayMonths: number
+  minimumNights?: number
   deposit: string
   depositAmount: number
   bills: string
@@ -40,8 +47,13 @@ export interface Listing {
   kitchen: 'Cocina privada' | 'Cocina compartida'
   furnished: boolean
   occupants: number
+  roomSizeM2: number
+  currentResidents: number
+  roomCapacity: 1 | 2
+  shower: ShowerType
   coordinates: Coordinates
   genderPreference: GenderPreference
+  tenantRequirement: TenantRequirement
   smokingAllowed: boolean
   petsAllowed: boolean
   couplesAllowed: boolean
@@ -60,8 +72,14 @@ export interface Listing {
   views: number
   expiresAt: string
   userCreated?: boolean
+  ownerUserId?: string
   contactPhone?: string
+  contactWhatsapp?: string
   contactEmail?: string
+  showPhone: boolean
+  showWhatsApp: boolean
+  allowContactForm: boolean
+  closedReason?: 'expired' | 'owner'
 }
 
 export interface Filters {
@@ -79,6 +97,13 @@ export interface Filters {
   billsIncluded: boolean
   deposit: string
   occupants: string
+  roomSizeMin: number
+  roomSizeMax: number
+  shower: string
+  currentResidents: string
+  roomCapacity: string
+  minimumNights: number
+  availableUntil: string
   smoking: YesNoAny
   pets: YesNoAny
   couples: YesNoAny
@@ -104,7 +129,10 @@ export interface DemoUser {
   about: string
   initials: string
   showPhone: boolean
-  allowMessaging: boolean
+  showWhatsApp: boolean
+  allowContactForm: boolean
+  avatarRef?: string
+  allowMessaging?: boolean
   blocked?: boolean
 }
 
@@ -114,21 +142,29 @@ export interface ListingDraft {
   area: string
   street: string
   postcode: string
+  coordinates: Coordinates
   roomType: Listing['roomType']
-  size: number
-  occupants: number
+  roomSizeM2: number
+  currentResidents: number
+  roomCapacity: 1 | 2
   bathroom: Listing['bathroom']
+  shower: ShowerType
   kitchen: Listing['kitchen']
   furnished: boolean
   amenities: string[]
-  price: number
+  monthlyPrice: number
+  nightlyPrice: number
+  weeklyPrice?: number
   depositAmount: number
   billsIncluded: boolean
   billsNote: string
   availableFrom: string
+  availableUntil?: string
   minimumStayMonths: number
+  minimumNights: number
   expiresAt: string
   genderPreference: GenderPreference
+  tenantRequirement: TenantRequirement
   smokingAllowed: boolean
   petsAllowed: boolean
   couplesAllowed: boolean
@@ -142,6 +178,9 @@ export interface ListingDraft {
   contactPhone: string
   contactWhatsapp: string
   contactEmail: string
+  showPhone: boolean
+  showWhatsApp: boolean
+  allowContactForm: boolean
   status: ListingStatus
 }
 

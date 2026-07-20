@@ -28,6 +28,10 @@ const places = [
   ['Arona', 'Arona', 28.0996, -16.6809],
 ] as const
 
+export const areaCenters = Object.fromEntries(
+  places.map((place) => [place[1], { lat: place[2], lng: place[3] }]),
+) as Record<string, Listing['coordinates']>
+
 const titles = [
   'Habitación luminosa con escritorio y gastos incluidos',
   'Habitación doble cerca de la playa y la guagua',
@@ -72,6 +76,8 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
   const rentalMode: Listing['rentalMode'] = index % 5 === 2 || index % 7 === 5 ? 'holiday' : 'long'
   const minimumStayMonths = rentalMode === 'holiday' ? 0 : [1, 2, 3, 6][index % 4]
   const price = rentalMode === 'holiday' ? 44 + (index % 8) * 7 : 350 + (index % 10) * 45
+  const tenantRequirement: Listing['tenantRequirement'] = index % 5 === 0 ? 'single-woman' : index % 7 === 0 ? 'single-man' : index % 3 === 0 ? 'couple' : 'any'
+  const roomCapacity: Listing['roomCapacity'] = tenantRequirement === 'couple' || (tenantRequirement === 'any' && index % 4 === 1) ? 2 : 1
   const publishedDate = new Date(Date.UTC(2026, 6, 20 - (index % 31), 12 - (index % 8)))
   const restrictions = buildRestrictions(index, rentalMode)
   const [ownerName, initials] = owners[index % owners.length]
@@ -83,12 +89,17 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     approximateAddress: `${['Zona centro', 'Cerca de la plaza', 'A 8 min de la costa', 'Junto a la parada principal'][index % 4]} · ubicación aproximada`,
     price,
     cadence: rentalMode === 'holiday' ? 'noche' : 'mes',
+    monthlyPrice: rentalMode === 'long' ? price : price * 24,
+    nightlyPrice: rentalMode === 'holiday' ? price : undefined,
+    weeklyPrice: rentalMode === 'holiday' ? price * 6 : undefined,
     rentalMode,
     roomType: index % 9 === 5 ? 'Estudio' : index % 8 === 3 ? 'Habitación compartida' : 'Habitación individual',
     available: index % 4 === 0 ? 'Disponible ahora' : `Disponible desde ${1 + (index % 27)} agosto`,
     availableFrom: `2026-${index % 4 === 0 ? '07' : '08'}-${String(1 + (index % 27)).padStart(2, '0')}`,
+    availableUntil: rentalMode === 'holiday' ? '2026-12-20' : undefined,
     minimumStay: rentalMode === 'holiday' ? `Mínimo ${3 + (index % 5)} noches` : `Mínimo ${minimumStayMonths} ${minimumStayMonths === 1 ? 'mes' : 'meses'}`,
     minimumStayMonths,
+    minimumNights: rentalMode === 'holiday' ? 3 + (index % 5) : undefined,
     deposit: index % 6 === 0 ? 'Sin fianza' : `${price} €`,
     depositAmount: index % 6 === 0 ? 0 : price,
     bills: index % 3 === 1 ? 'Gastos aparte: aprox. 45 €' : 'Gastos incluidos',
@@ -97,8 +108,13 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     kitchen: index % 9 === 5 ? 'Cocina privada' : 'Cocina compartida',
     furnished: index % 11 !== 0,
     occupants: 1 + (index % 6),
+    roomSizeM2: 9 + (index % 10),
+    currentResidents: 1 + (index % 6),
+    roomCapacity,
+    shower: index % 4 === 2 ? 'Ducha privada' : 'Ducha compartida',
     coordinates: { lat: place[2] + ((index % 3) - 1) * 0.0045, lng: place[3] + ((index % 4) - 1.5) * 0.004 },
     genderPreference: restrictions[0] as Listing['genderPreference'],
+    tenantRequirement,
     smokingAllowed: restrictions.includes('Se puede fumar'),
     petsAllowed: restrictions.includes('Mascotas permitidas'),
     couplesAllowed: restrictions.includes('Parejas permitidas'),
@@ -117,6 +133,13 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     views: 90 + index * 37,
     expiresAt: `2026-10-${String(1 + (index % 27)).padStart(2, '0')}`,
     userCreated: index < 3,
+    ownerUserId: index < 3 ? 'host-demo' : undefined,
+    contactPhone: '+34 600 112 233',
+    contactWhatsapp: '+34 611 223 344',
+    contactEmail: 'anuncios@example.es',
+    showPhone: true,
+    showWhatsApp: true,
+    allowContactForm: true,
   }
 })
 
@@ -137,6 +160,13 @@ export const defaultFilters: Filters = {
   billsIncluded: false,
   deposit: 'Cualquiera',
   occupants: 'Cualquiera',
+  roomSizeMin: 0,
+  roomSizeMax: 50,
+  shower: 'Cualquiera',
+  currentResidents: 'Cualquiera',
+  roomCapacity: 'Cualquiera',
+  minimumNights: 0,
+  availableUntil: '',
   smoking: 'Cualquiera',
   pets: 'Cualquiera',
   couples: 'Cualquiera',
@@ -149,11 +179,11 @@ export const defaultFilters: Filters = {
 }
 
 export const createDefaultDraft = (): ListingDraft => ({
-  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', roomType: 'Habitación individual', size: 12, occupants: 4,
-  bathroom: 'Baño compartido', kitchen: 'Cocina compartida', furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario'], price: 450, depositAmount: 450,
-  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-01', minimumStayMonths: 3, expiresAt: '2026-10-01',
-  genderPreference: 'Sin preferencia de género', smokingAllowed: false, petsAllowed: false, couplesAllowed: true, childrenAllowed: false, empadronamientoAllowed: true,
+  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], roomType: 'Habitación individual', roomSizeM2: 12, currentResidents: 4, roomCapacity: 1,
+  bathroom: 'Baño compartido', shower: 'Ducha compartida', kitchen: 'Cocina compartida', furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 450,
+  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-01', availableUntil: '2026-12-20', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
+  genderPreference: 'Sin preferencia de género', tenantRequirement: 'single-person', smokingAllowed: false, petsAllowed: false, couplesAllowed: false, childrenAllowed: false, empadronamientoAllowed: true,
   rules: 'Buscamos una convivencia tranquila. Se respetan los horarios de descanso y se organizan turnos de limpieza.', images: rotatePhotos(0),
   title: 'Habitación luminosa con escritorio y gastos incluidos', description: 'Habitación exterior y tranquila en una casa compartida bien cuidada. Dispone de cama, armario y zona de trabajo.',
-  contactName: 'Equipo Casa Norte', contactPhone: '+34 600 112 233', contactWhatsapp: '+34 600 112 233', contactEmail: 'anuncios@example.es', status: 'Publicado',
+  contactName: 'Equipo Casa Norte', contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344', contactEmail: 'anuncios@example.es', showPhone: true, showWhatsApp: true, allowContactForm: true, status: 'Publicado',
 })

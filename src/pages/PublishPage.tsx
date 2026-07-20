@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
@@ -38,8 +48,9 @@ import {
   PropertyGallery,
 } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
-import { createDefaultDraft } from "@/data/listings";
-import type { Listing, ListingDraft } from "@/types";
+import { areaCenters, createDefaultDraft } from "@/data/listings";
+import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
+import type { DemoUser, Listing, ListingDraft } from "@/types";
 
 const steps = [
   "Tipo de alquiler",
@@ -53,7 +64,8 @@ const steps = [
   "Contacto",
   "Vista previa",
 ];
-const draftKey = "112233:listing-draft:v2";
+const draftKey = "112233:listing-draft:v3";
+const legacyDraftKey = "112233:listing-draft:v2";
 
 const toDraft = (listing: Listing): ListingDraft => ({
   rentalMode: listing.rentalMode,
@@ -61,21 +73,29 @@ const toDraft = (listing: Listing): ListingDraft => ({
   area: listing.area,
   street: "",
   postcode: "",
+  coordinates: listing.coordinates,
   roomType: listing.roomType,
-  size: 12,
-  occupants: listing.occupants,
+  roomSizeM2: listing.roomSizeM2,
+  currentResidents: listing.currentResidents,
+  roomCapacity: listing.roomCapacity,
   bathroom: listing.bathroom,
+  shower: listing.shower,
   kitchen: listing.kitchen,
   furnished: listing.furnished,
   amenities: listing.amenities,
-  price: listing.price,
+  monthlyPrice: listing.monthlyPrice ?? (listing.rentalMode === "long" ? listing.price : 0),
+  nightlyPrice: listing.nightlyPrice ?? (listing.rentalMode === "holiday" ? listing.price : 0),
+  weeklyPrice: listing.weeklyPrice,
   depositAmount: listing.depositAmount,
   billsIncluded: listing.billsIncluded,
   billsNote: listing.bills,
   availableFrom: listing.availableFrom,
+  availableUntil: listing.availableUntil,
   minimumStayMonths: listing.minimumStayMonths,
+  minimumNights: listing.minimumNights ?? 1,
   expiresAt: listing.expiresAt,
   genderPreference: listing.genderPreference,
+  tenantRequirement: listing.tenantRequirement,
   smokingAllowed: listing.smokingAllowed,
   petsAllowed: listing.petsAllowed,
   couplesAllowed: listing.couplesAllowed,
@@ -87,25 +107,21 @@ const toDraft = (listing: Listing): ListingDraft => ({
   description: listing.description,
   contactName: listing.owner.name,
   contactPhone: listing.contactPhone ?? "",
-  contactWhatsapp: listing.contactPhone ?? "",
+  contactWhatsapp: listing.contactWhatsapp ?? "",
   contactEmail: listing.contactEmail ?? "",
+  showPhone: listing.showPhone,
+  showWhatsApp: listing.showWhatsApp,
+  allowContactForm: listing.allowContactForm,
   status: listing.status,
 });
 
-const toListing = (draft: ListingDraft, previous?: Listing): Listing => {
-  const restrictions = [
-    draft.genderPreference,
-    draft.couplesAllowed ? "Parejas permitidas" : "No parejas",
-    draft.petsAllowed ? "Mascotas permitidas" : "Sin mascotas",
-    draft.smokingAllowed ? "Se puede fumar" : "No fumar",
-    draft.empadronamientoAllowed
-      ? "Empadronamiento posible"
-      : "Sin empadronamiento",
-    draft.rentalMode === "holiday"
-      ? "Mínimo 3 noches"
-      : `Mínimo ${draft.minimumStayMonths} ${draft.minimumStayMonths === 1 ? "mes" : "meses"}`,
-  ];
-  if (draft.billsIncluded) restrictions.push("Gastos incluidos");
+const withProfileDefaults = (user: DemoUser | null) => {
+  const base = createDefaultDraft();
+  if (!user) return base;
+  return { ...base, contactName: user.name, contactPhone: user.phone, contactWhatsapp: user.whatsapp, contactEmail: user.email, showPhone: user.showPhone, showWhatsApp: user.showWhatsApp, allowContactForm: user.allowContactForm };
+};
+
+const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string): Listing => {
   const id =
     previous?.id ??
     `${draft.area
@@ -113,23 +129,29 @@ const toListing = (draft: ListingDraft, previous?: Listing): Listing => {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-6)}`;
-  return {
+  const primaryPrice = draft.rentalMode === "holiday" ? draft.nightlyPrice : draft.monthlyPrice;
+  const listing: Listing = {
     id,
     title: draft.title,
     city: draft.city,
     area: draft.area,
     approximateAddress: `${draft.area} · ubicación aproximada`,
-    price: draft.price,
+    price: primaryPrice,
     cadence: draft.rentalMode === "holiday" ? "noche" : "mes",
+    monthlyPrice: draft.monthlyPrice,
+    nightlyPrice: draft.rentalMode === "holiday" ? draft.nightlyPrice : undefined,
+    weeklyPrice: draft.rentalMode === "holiday" ? draft.weeklyPrice : undefined,
     rentalMode: draft.rentalMode,
     roomType: draft.roomType,
     available: `Disponible desde ${new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(new Date(`${draft.availableFrom}T12:00:00`))}`,
     availableFrom: draft.availableFrom,
+    availableUntil: draft.rentalMode === "holiday" ? draft.availableUntil : undefined,
     minimumStay:
       draft.rentalMode === "holiday"
-        ? "Mínimo 3 noches"
+        ? `Mínimo ${draft.minimumNights} ${draft.minimumNights === 1 ? "noche" : "noches"}`
         : `Mínimo ${draft.minimumStayMonths} ${draft.minimumStayMonths === 1 ? "mes" : "meses"}`,
     minimumStayMonths: draft.minimumStayMonths,
+    minimumNights: draft.rentalMode === "holiday" ? draft.minimumNights : undefined,
     deposit: draft.depositAmount ? `${draft.depositAmount} €` : "Sin fianza",
     depositAmount: draft.depositAmount,
     bills:
@@ -139,15 +161,20 @@ const toListing = (draft: ListingDraft, previous?: Listing): Listing => {
     bathroom: draft.bathroom,
     kitchen: draft.kitchen,
     furnished: draft.furnished,
-    occupants: draft.occupants,
-    coordinates: previous?.coordinates ?? { lat: 28.1227, lng: -16.7244 },
+    occupants: draft.currentResidents,
+    roomSizeM2: draft.roomSizeM2,
+    currentResidents: draft.currentResidents,
+    roomCapacity: draft.roomCapacity,
+    shower: draft.shower,
+    coordinates: draft.coordinates,
     genderPreference: draft.genderPreference,
+    tenantRequirement: draft.tenantRequirement,
     smokingAllowed: draft.smokingAllowed,
     petsAllowed: draft.petsAllowed,
     couplesAllowed: draft.couplesAllowed,
     childrenAllowed: draft.childrenAllowed,
     empadronamientoAllowed: draft.empadronamientoAllowed,
-    restrictions,
+    restrictions: [],
     amenities: draft.amenities,
     description: draft.description,
     homeDescription: draft.rules,
@@ -171,9 +198,16 @@ const toListing = (draft: ListingDraft, previous?: Listing): Listing => {
     views: previous?.views ?? 0,
     expiresAt: draft.expiresAt,
     userCreated: true,
+    ownerUserId: previous?.ownerUserId ?? ownerUserId,
     contactPhone: draft.contactPhone,
+    contactWhatsapp: draft.contactWhatsapp,
     contactEmail: draft.contactEmail,
+    showPhone: draft.showPhone,
+    showWhatsApp: draft.showWhatsApp,
+    allowContactForm: draft.allowContactForm,
   };
+  listing.restrictions = getCriticalRestrictions(listing);
+  return listing;
 };
 
 function WizardSection({
@@ -199,47 +233,68 @@ function WizardSection({
 export function PublishPage({ editing = false }: { editing?: boolean }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { allListings, createListing, updateListing, currentUser } = useApp();
+  const { allListings, createListing, updateListing, currentUser, canManageListing } = useApp();
   const existing = editing
     ? allListings.find((listing) => listing.id === id)
     : undefined;
   const [draft, setDraft] = useState<ListingDraft>(() => {
     if (existing) return toDraft(existing);
+    const defaults = withProfileDefaults(currentUser);
     try {
       const saved = localStorage.getItem(draftKey);
-      return saved
-        ? { ...createDefaultDraft(), ...(JSON.parse(saved) as ListingDraft) }
-        : createDefaultDraft();
+      if (saved) {
+        const parsed = JSON.parse(saved) as { version?: number; data?: Partial<ListingDraft> };
+        if (parsed.version === 3 && parsed.data) return { ...defaults, ...parsed.data };
+      }
+      const legacy = localStorage.getItem(legacyDraftKey);
+      return legacy ? { ...defaults, ...(JSON.parse(legacy) as Partial<ListingDraft>) } : defaults;
     } catch {
-      return createDefaultDraft();
+      return defaults;
     }
   });
+  const [baseline, setBaseline] = useState(() => JSON.stringify(draft));
   const [step, setStep] = useState(0);
   const [maxVisited, setMaxVisited] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [published, setPublished] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+  const isDirty = JSON.stringify(draft) !== baseline;
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
-  const preview = useMemo(() => toListing(draft, existing), [draft, existing]);
+  const preview = useMemo(() => toListing(draft, existing, currentUser?.id), [draft, existing, currentUser?.id]);
   useEffect(() => {
-    localStorage.setItem(draftKey, JSON.stringify(draft));
+    try { localStorage.setItem(draftKey, JSON.stringify({ version: 3, data: draft })); }
+    catch { toast.error("No se pudo guardar el borrador. Revisa el espacio disponible.", { id: "draft-storage-error" }); }
   }, [draft]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (!published) event.preventDefault();
+      if (isDirty && !published) event.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [published]);
-  if (editing && !existing) return <Navigate to="/mis-anuncios" replace />;
+  }, [isDirty, published]);
+  useEffect(() => {
+    if (!isDirty || published) return;
+    const intercept = (event: MouseEvent) => {
+      const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+      if (!anchor || anchor.target === "_blank") return;
+      const url = new URL(anchor.href, location.href);
+      if (url.origin !== location.origin || url.hash === location.hash) return;
+      event.preventDefault();
+      setPendingRoute(url.hash.replace(/^#/, "") || "/");
+    };
+    document.addEventListener("click", intercept, true);
+    return () => document.removeEventListener("click", intercept, true);
+  }, [isDirty, published]);
+  if (editing && (!existing || !canManageListing(existing))) return <Navigate to="/mis-anuncios" replace />;
 
   const validate = () => {
     const next: Record<string, string> = {};
     if (step === 1 && !draft.area.trim())
       next.area = "Indica la zona o barrio.";
-    if (step === 2 && draft.occupants < 1)
+    if (step === 2 && draft.currentResidents < 1)
       next.occupants = "Indica al menos una persona.";
-    if (step === 3 && draft.price < 1)
+    if (step === 3 && getPrimaryPrice(preview) < 1)
       next.price = "El precio debe ser mayor que cero.";
     if (step === 4 && !draft.availableFrom)
       next.availableFrom = "Selecciona una fecha.";
@@ -251,9 +306,13 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       next.description = "La descripción debe tener al menos 40 caracteres.";
     if (step === 8 && !draft.contactName.trim())
       next.contactName = "Indica un nombre público.";
-    if (step === 8 && !/^\+?[\d\s-]{7,}$/.test(draft.contactPhone))
+    if (step === 8 && !draft.showPhone && !draft.showWhatsApp && !draft.allowContactForm)
+      next.contactMethods = "Activa al menos una forma de contacto.";
+    if (step === 8 && draft.showPhone && !/^\+?[\d\s-]{7,}$/.test(draft.contactPhone))
       next.contactPhone = "Introduce un teléfono válido.";
-    if (step === 8 && !/^\S+@\S+\.\S+$/.test(draft.contactEmail))
+    if (step === 8 && draft.showWhatsApp && !/^\+?[\d\s-]{7,}$/.test(draft.contactWhatsapp))
+      next.contactWhatsapp = "Introduce un WhatsApp válido.";
+    if (step === 8 && draft.allowContactForm && !/^\S+@\S+\.\S+$/.test(draft.contactEmail))
       next.contactEmail = "Introduce un email válido.";
     setErrors(next);
     if (Object.keys(next).length)
@@ -272,21 +331,23 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const finish = () => {
-    const listing = toListing(draft, existing);
+    const listing = toListing(draft, existing, currentUser?.id);
     if (existing) {
       updateListing(existing.id, listing);
       toast.success("Cambios publicados");
     } else createListing(listing);
     localStorage.removeItem(draftKey);
+    setBaseline(JSON.stringify(draft));
     setPublished(true);
   };
   const resetDraft = () => {
-    const fresh = createDefaultDraft();
+    const fresh = withProfileDefaults(currentUser);
     setDraft(fresh);
     setStep(0);
     setMaxVisited(0);
     setErrors({});
-    localStorage.setItem(draftKey, JSON.stringify(fresh));
+    setBaseline(JSON.stringify(fresh));
+    localStorage.setItem(draftKey, JSON.stringify({ version: 3, data: fresh }));
     toast.success("Borrador restablecido");
   };
 
@@ -386,7 +447,10 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                   aria-describedby={
                     errors.area ? "publish-area-error" : undefined
                   }
-                  onChange={(event) => set("area", event.target.value)}
+                  onChange={(event) => {
+                    const area = event.target.value;
+                    setDraft((current) => ({ ...current, area, coordinates: areaCenters[area] ?? current.coordinates }));
+                  }}
                 />
               </FormField>
               <FormField label="Calle" htmlFor="publish-street">
@@ -414,6 +478,18 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                 <span>Mostraremos un punto aproximado.</span>
               </div>
             </div>
+            <fieldset className="approximate-location-selector">
+              <legend>Selecciona un punto aproximado</legend>
+              <p>El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.</p>
+              <div className="approximate-location-selector__grid" aria-label={`Punto aproximado: ${draft.coordinates.lat.toFixed(4)}, ${draft.coordinates.lng.toFixed(4)}`}>
+                <Button type="button" variant="outline" aria-label="Mover punto al norte" onClick={() => set("coordinates", { ...draft.coordinates, lat: draft.coordinates.lat + 0.002 })}>Norte</Button>
+                <Button type="button" variant="outline" aria-label="Mover punto al oeste" onClick={() => set("coordinates", { ...draft.coordinates, lng: draft.coordinates.lng - 0.002 })}>Oeste</Button>
+                <span className="approximate-location-selector__marker"><MapPin aria-hidden="true" /></span>
+                <Button type="button" variant="outline" aria-label="Mover punto al este" onClick={() => set("coordinates", { ...draft.coordinates, lng: draft.coordinates.lng + 0.002 })}>Este</Button>
+                <Button type="button" variant="outline" aria-label="Mover punto al sur" onClick={() => set("coordinates", { ...draft.coordinates, lat: draft.coordinates.lat - 0.002 })}>Sur</Button>
+              </div>
+              <output aria-live="polite">Coordenadas aproximadas: {draft.coordinates.lat.toFixed(4)}, {draft.coordinates.lng.toFixed(4)}</output>
+            </fieldset>
           </WizardSection>
         );
       case 2:
@@ -450,8 +526,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                   id="publish-size"
                   type="number"
                   min="1"
-                  value={draft.size}
-                  onChange={(e) => set("size", Number(e.target.value))}
+                  value={draft.roomSizeM2}
+                  onChange={(e) => set("roomSizeM2", Number(e.target.value))}
                 />
               </FormField>
               <FormField
@@ -463,10 +539,15 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                   id="publish-occupants"
                   type="number"
                   min="1"
-                  value={draft.occupants}
+                  value={draft.currentResidents}
                   aria-invalid={Boolean(errors.occupants)}
-                  onChange={(e) => set("occupants", Number(e.target.value))}
+                  onChange={(e) => set("currentResidents", Number(e.target.value))}
                 />
+              </FormField>
+              <FormField label="Capacidad de la habitación" htmlFor="publish-capacity">
+                <select id="publish-capacity" value={draft.roomCapacity} disabled={draft.tenantRequirement !== "any"} onChange={(e) => set("roomCapacity", Number(e.target.value) as 1 | 2)}>
+                  <option value="1">1 persona</option><option value="2">2 personas</option>
+                </select>
               </FormField>
               <FormField label="Baño" htmlFor="publish-bathroom">
                 <select
@@ -490,6 +571,11 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                 >
                   <option>Cocina compartida</option>
                   <option>Cocina privada</option>
+                </select>
+              </FormField>
+              <FormField label="Ducha" htmlFor="publish-shower">
+                <select id="publish-shower" value={draft.shower} onChange={(e) => set("shower", e.target.value as ListingDraft["shower"])}>
+                  <option>Ducha compartida</option><option>Ducha privada</option>
                 </select>
               </FormField>
             </div>
@@ -521,24 +607,20 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             description="Separa cada concepto."
           >
             <div className="form-grid">
-              <FormField
-                label={
-                  draft.rentalMode === "holiday"
-                    ? "Precio por noche"
-                    : "Alquiler mensual"
-                }
-                htmlFor="publish-price"
-                error={errors.price}
-              >
+              {draft.rentalMode === "long" ? <FormField label="Alquiler mensual" htmlFor="publish-price" error={errors.price}>
                 <Input
                   id="publish-price"
                   type="number"
                   min="1"
-                  value={draft.price}
+                  value={draft.monthlyPrice}
                   aria-invalid={Boolean(errors.price)}
-                  onChange={(e) => set("price", Number(e.target.value))}
+                  onChange={(e) => set("monthlyPrice", Number(e.target.value))}
                 />
-              </FormField>
+              </FormField> : <>
+                <FormField label="Precio por noche" htmlFor="publish-price" error={errors.price}><Input id="publish-price" type="number" min="1" value={draft.nightlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set("nightlyPrice", Number(e.target.value))} /></FormField>
+                <FormField label="Precio por semana" htmlFor="publish-weekly-price"><Input id="publish-weekly-price" type="number" min="0" value={draft.weeklyPrice ?? ""} onChange={(e) => set("weeklyPrice", e.target.value ? Number(e.target.value) : undefined)} /></FormField>
+                <FormField label="Precio por mes" htmlFor="publish-monthly-price"><Input id="publish-monthly-price" type="number" min="0" value={draft.monthlyPrice} onChange={(e) => set("monthlyPrice", Number(e.target.value))} /></FormField>
+              </>}
               <FormField label="Fianza" htmlFor="publish-deposit">
                 <Input
                   id="publish-deposit"
@@ -587,10 +669,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                   onChange={(e) => set("availableFrom", e.target.value)}
                 />
               </FormField>
-              <FormField
-                label="Estancia mínima (meses)"
-                htmlFor="publish-min-stay"
-              >
+              {draft.rentalMode === "long" ? <FormField label="Estancia mínima (meses)" htmlFor="publish-min-stay">
                 <Input
                   id="publish-min-stay"
                   type="number"
@@ -600,7 +679,10 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                     set("minimumStayMonths", Number(e.target.value))
                   }
                 />
-              </FormField>
+              </FormField> : <>
+                <FormField label="Estancia mínima (noches)" htmlFor="publish-min-nights"><Input id="publish-min-nights" type="number" min="1" value={draft.minimumNights} onChange={(e) => set("minimumNights", Number(e.target.value))} /></FormField>
+                <FormField label="Disponible hasta" htmlFor="publish-available-until"><Input id="publish-available-until" type="date" value={draft.availableUntil ?? ""} onChange={(e) => set("availableUntil", e.target.value)} /></FormField>
+              </>}
               <FormField label="Fecha límite" htmlFor="publish-expiry">
                 <Input
                   id="publish-expiry"
@@ -618,28 +700,28 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             title="Condiciones de convivencia"
             description="Exprésalas de forma concreta y neutral."
           >
-            <FormField label="Preferencia" htmlFor="publish-gender">
+            <FormField label="Requisito para la persona inquilina" htmlFor="publish-tenant-requirement">
               <select
-                id="publish-gender"
-                value={draft.genderPreference}
-                onChange={(e) =>
-                  set(
-                    "genderPreference",
-                    e.target.value as ListingDraft["genderPreference"],
-                  )
-                }
+                id="publish-tenant-requirement"
+                value={draft.tenantRequirement}
+                onChange={(e) => {
+                  const requirement = e.target.value as ListingDraft["tenantRequirement"];
+                  const roomCapacity = requirement === "couple" ? 2 : requirement === "any" ? draft.roomCapacity : 1;
+                  const genderPreference = requirement === "single-man" ? "Solo hombre" : requirement === "single-woman" ? "Solo mujer" : "Sin preferencia de género";
+                  setDraft((current) => ({ ...current, tenantRequirement: requirement, roomCapacity, couplesAllowed: requirement === "couple", genderPreference }));
+                }}
               >
-                <option>Cualquiera</option>
-                <option>Sin preferencia de género</option>
-                <option>Solo hombre</option>
-                <option>Solo mujer</option>
+                <option value="single-man">Solo un hombre</option>
+                <option value="single-woman">Solo una mujer</option>
+                <option value="single-person">Una persona</option>
+                <option value="couple">Solo pareja</option>
+                <option value="any">Sin restricción</option>
               </select>
             </FormField>
             <fieldset className="checks-panel checks-panel--columns">
               <legend>Convivencia</legend>
               {(
                 [
-                  ["couplesAllowed", "Parejas permitidas"],
                   ["petsAllowed", "Mascotas permitidas"],
                   ["smokingAllowed", "Se puede fumar"],
                   ["childrenAllowed", "Niños permitidos"],
@@ -733,7 +815,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                 />
               </FormField>
               <FormField
-                label="Teléfono / WhatsApp"
+                label="Teléfono"
                 htmlFor="publish-contact-phone"
                 error={errors.contactPhone}
               >
@@ -744,9 +826,11 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                   aria-invalid={Boolean(errors.contactPhone)}
                   onChange={(e) => {
                     set("contactPhone", e.target.value);
-                    set("contactWhatsapp", e.target.value);
                   }}
                 />
+              </FormField>
+              <FormField label="WhatsApp" htmlFor="publish-contact-whatsapp" error={errors.contactWhatsapp}>
+                <Input id="publish-contact-whatsapp" type="tel" value={draft.contactWhatsapp} aria-invalid={Boolean(errors.contactWhatsapp)} onChange={(e) => set("contactWhatsapp", e.target.value)} />
               </FormField>
               <FormField
                 label="Email"
@@ -762,6 +846,13 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                 />
               </FormField>
             </div>
+            <fieldset className="checks-panel contact-methods" aria-describedby={errors.contactMethods ? "contact-methods-error" : undefined}>
+              <legend>Canales disponibles</legend>
+              <label><Checkbox checked={draft.showPhone} onCheckedChange={(value) => set("showPhone", value === true)} />Mostrar teléfono tras confirmar</label>
+              <label><Checkbox checked={draft.showWhatsApp} onCheckedChange={(value) => set("showWhatsApp", value === true)} />Permitir WhatsApp tras confirmar</label>
+              <label><Checkbox checked={draft.allowContactForm} onCheckedChange={(value) => set("allowContactForm", value === true)} />Permitir mensaje local</label>
+            </fieldset>
+            {errors.contactMethods ? <p id="contact-methods-error" className="field-error" role="alert">{errors.contactMethods}</p> : null}
           </WizardSection>
         );
       default:
@@ -779,6 +870,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             </Alert>
             <div className="preview-card-wrap">
               <PropertyCard listing={preview} />
+            </div>
+            <div className="preview-contact-methods" aria-label="Canales de contacto visibles">
+              <h3>Canales tras confirmar condiciones</h3>
+              <div className="badge-row">
+                {preview.showPhone ? <PropertyBadge>Teléfono</PropertyBadge> : null}
+                {preview.showWhatsApp ? <PropertyBadge>WhatsApp</PropertyBadge> : null}
+                {preview.allowContactForm ? <PropertyBadge>Mensaje local</PropertyBadge> : null}
+              </div>
             </div>
             <div className="preview-conditions">
               <h3>Condiciones visibles</h3>
@@ -836,6 +935,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                     <PropertyBadge key={item}>{item}</PropertyBadge>
                   ))}
                 </div>
+                <div className="preview-contact-methods" aria-label="Canales de contacto visibles">
+                  <h3>Canales tras confirmar condiciones</h3>
+                  <div className="badge-row">
+                    {preview.showPhone ? <PropertyBadge>Teléfono</PropertyBadge> : null}
+                    {preview.showWhatsApp ? <PropertyBadge>WhatsApp</PropertyBadge> : null}
+                    {preview.allowContactForm ? <PropertyBadge>Mensaje local</PropertyBadge> : null}
+                  </div>
+                </div>
               </DialogContent>
             </Dialog>
           </WizardSection>
@@ -866,9 +973,10 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       </div>
     );
   return (
+    <>
     <div className="publish-page">
       <div className="container publish-header">
-        <ConfirmDialog
+        {isDirty ? <ConfirmDialog
           trigger={
             <Button variant="ghost">
               <ArrowLeft data-icon="inline-start" />
@@ -879,7 +987,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           description="El borrador automático seguirá guardado para que puedas continuar después."
           confirmLabel="Salir y conservar borrador"
           onConfirm={() => navigate("/mis-anuncios")}
-        />
+        /> : <Button variant="ghost" onClick={() => navigate("/mis-anuncios")}><ArrowLeft data-icon="inline-start" />Salir</Button>}
         <div>
           <span className="eyebrow">
             {editing
@@ -905,13 +1013,19 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <Button
             variant="outline"
             onClick={() => {
-              localStorage.setItem(draftKey, JSON.stringify(draft));
-              toast.success("Borrador guardado");
+              try {
+                localStorage.setItem(draftKey, JSON.stringify({ version: 3, data: draft }));
+                setBaseline(JSON.stringify(draft));
+                toast.success("Borrador guardado");
+              } catch {
+                toast.error("No se pudo guardar el borrador. Revisa el espacio disponible.");
+              }
             }}
           >
             <Save data-icon="inline-start" />
             Guardar borrador
           </Button>
+          <span className="dirty-state" aria-live="polite">{isDirty ? "Cambios sin guardar" : "Borrador guardado"}</span>
         </div>
       </div>
       <div className="container wizard-layout">
@@ -947,5 +1061,12 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
         </section>
       </div>
     </div>
+    <AlertDialog open={Boolean(pendingRoute)} onOpenChange={(open) => { if (!open) setPendingRoute(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>¿Salir del editor?</AlertDialogTitle><AlertDialogDescription>Hay cambios sin guardar. El borrador automático se conserva, pero puedes guardar manualmente antes de salir.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Seguir editando</AlertDialogCancel><AlertDialogAction onClick={() => { const route = pendingRoute; setPendingRoute(null); if (route) navigate(route); }}>Salir y conservar borrador</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -40,14 +40,13 @@ const PAGE_SIZE = 9;
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const paramString = params.toString();
-  const applyingUrl = useRef(false);
   const {
-    rentalMode,
+    rentalMode: storedRentalMode,
     setRentalMode,
-    filters,
+    filters: storedFilters,
     setFilters,
     resetFilters,
-    query,
+    query: storedQuery,
     setQuery,
     saveCurrentSearch,
     activeFilterCount,
@@ -62,20 +61,29 @@ export function SearchPage() {
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const view = params.get("vista") === "mapa" ? "map" : "list";
   const page = Math.max(1, Number(params.get("pagina") || 1));
-
-  useEffect(() => {
-    applyingUrl.current = true;
-    const nextQuery = params.get("q")?.trim() || "Tenerife";
-    const exactArea = areas.find(
-      (area) => area.toLocaleLowerCase() === nextQuery.toLocaleLowerCase(),
-    );
+  const query = params.get("q")?.trim() || "Tenerife";
+  const rentalMode: RentalMode =
+    params.get("alquiler") === "holiday" ? "holiday" : "long";
+  const filters = useMemo(() => {
     const parsed = filtersFromParams(params);
+    const exactArea = areas.find(
+      (area) => area.toLocaleLowerCase() === query.toLocaleLowerCase(),
+    );
     if (!parsed.areas.length && exactArea) parsed.areas = [exactArea];
-    const nextMode: RentalMode =
-      params.get("alquiler") === "holiday" ? "holiday" : "long";
-    if (nextQuery !== query) setQuery(nextQuery);
-    if (nextMode !== rentalMode) setRentalMode(nextMode);
-    if (JSON.stringify(parsed) !== JSON.stringify(filters)) setFilters(parsed);
+    if (rentalMode === "holiday") {
+      parsed.minPrice = Math.min(parsed.minPrice, 300);
+      parsed.maxPrice = Math.min(parsed.maxPrice, 300);
+    }
+    return parsed;
+    // paramString captures the complete serialized filter state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramString]);
+
+  useLayoutEffect(() => {
+    if (query !== storedQuery) setQuery(query);
+    if (rentalMode !== storedRentalMode) setRentalMode(rentalMode);
+    if (JSON.stringify(filters) !== JSON.stringify(storedFilters))
+      setFilters(filters);
     const polygonParam = params.get("poligono");
     if (polygonParam) {
       const points = polygonParam
@@ -85,40 +93,19 @@ export function SearchPage() {
         .map(([lat, lng]) => ({ lat, lng }));
       if (JSON.stringify(points) !== JSON.stringify(mapPolygon))
         setMapPolygon(points);
-    }
-    const timer = window.setTimeout(() => {
-      applyingUrl.current = false;
-    }, 0);
-    return () => window.clearTimeout(timer);
+    } else if (mapPolygon.length) setMapPolygon([]);
     // Search params are the source of truth for direct URLs and browser navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramString]);
 
-  useEffect(() => {
-    if (applyingUrl.current) return;
-    const next = filtersToParams(filters, new URLSearchParams(params));
-    next.set("q", query || "Tenerife");
-    next.set("alquiler", rentalMode);
-    if (mapPolygon.length >= 3)
-      next.set(
-        "poligono",
-        mapPolygon
-          .map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`)
-          .join(";"),
-      );
-    else next.delete("poligono");
-    if (next.toString() !== paramString) setParams(next);
-  }, [filters, mapPolygon, paramString, params, query, rentalMode, setParams]);
-
-  const deferredFilters = useDeferredValue(filters);
   const filteredItems = useMemo(
     () =>
       filterListings(
         allListings.filter((listing) => !discarded.has(listing.id)),
         rentalMode,
-        deferredFilters,
+        filters,
       ),
-    [allListings, deferredFilters, discarded, rentalMode],
+    [allListings, discarded, filters, rentalMode],
   );
   const spatialItems = useMemo(
     () =>
@@ -174,15 +161,25 @@ export function SearchPage() {
     mutate(next);
     setParams(next, { replace });
   };
+  const commitPolygon = (polygon: MapPolygonPoint[]) => {
+    setMapPolygon(polygon);
+    updateParams((next) => {
+      next.delete("pagina");
+      if (polygon.length >= 3)
+        next.set(
+          "poligono",
+          polygon
+            .map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`)
+            .join(";"),
+        );
+      else next.delete("poligono");
+    }, true);
+  };
   const commitFilters = (nextFilters: Filters) => {
-    applyingUrl.current = true;
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.delete("pagina");
     setParams(next);
-    window.setTimeout(() => {
-      applyingUrl.current = false;
-    }, 0);
   };
   const changeView = (nextView: "list" | "map") =>
     updateParams((next) =>
@@ -204,16 +201,12 @@ export function SearchPage() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const clearAll = () => {
-    applyingUrl.current = true;
     resetFilters();
     setMapBounds(null);
     setMapPolygon([]);
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
     ["pagina", "poligono", "zonas"].forEach((name) => next.delete(name));
     setParams(next);
-    window.setTimeout(() => {
-      applyingUrl.current = false;
-    }, 0);
   };
 
   const setOne = <K extends keyof Filters>(key: K, value: Filters[K]) => {
@@ -238,7 +231,7 @@ export function SearchPage() {
         key: "price",
         label: `${filters.minPrice}–${filters.maxPrice} €`,
         clear: () =>
-          setFilters({
+          commitFilters({
             ...filters,
             minPrice: defaultFilters.minPrice,
             maxPrice: defaultFilters.maxPrice,
@@ -253,6 +246,10 @@ export function SearchPage() {
       ["kitchen", "Cocina"],
       ["deposit", "Fianza"],
       ["occupants", "Ocupantes"],
+      ["shower", "Ducha"],
+      ["currentResidents", "Residentes"],
+      ["roomCapacity", "Capacidad"],
+      ["availableUntil", "Disponible hasta"],
       ["smoking", "Fumar"],
       ["pets", "Mascotas"],
       ["couples", "Parejas"],
@@ -269,6 +266,10 @@ export function SearchPage() {
           clear: () => setOne(key, defaultFilters[key]),
         });
     });
+    if (filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax)
+      chips.push({ key: "roomSize", label: `${filters.roomSizeMin}–${filters.roomSizeMax} m²`, clear: () => commitFilters({ ...filters, roomSizeMin: defaultFilters.roomSizeMin, roomSizeMax: defaultFilters.roomSizeMax }) });
+    if (filters.minimumNights !== defaultFilters.minimumNights)
+      chips.push({ key: "minimumNights", label: `Hasta ${filters.minimumNights} noches mínimas`, clear: () => setOne("minimumNights", defaultFilters.minimumNights) });
     (["furnished", "billsIncluded"] as const).forEach((key) => {
       if (filters[key])
         chips.push({
@@ -303,7 +304,7 @@ export function SearchPage() {
       chips.push({
         key: "polygon",
         label: "Zona dibujada",
-        clear: () => setMapPolygon([]),
+        clear: () => commitPolygon([]),
       });
     if (mapBounds)
       chips.push({
@@ -326,7 +327,12 @@ export function SearchPage() {
     >
       <div className="search-toolbar">
         <div className="container">
-          <RentalTypeSwitch compact />
+          <RentalTypeSwitch
+            compact
+            onChange={(mode) =>
+              updateParams((next) => next.set("alquiler", mode))
+            }
+          />
           <SearchBar compact />
         </div>
       </div>
@@ -477,8 +483,7 @@ export function SearchPage() {
                     updateParams((next) => next.delete("pagina"), true);
                   }}
                   onPolygonSearch={(polygon: MapPolygonPoint[]) => {
-                    setMapPolygon(polygon);
-                    updateParams((next) => next.delete("pagina"), true);
+                    commitPolygon(polygon);
                   }}
                 />
               </div>

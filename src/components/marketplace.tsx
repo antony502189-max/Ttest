@@ -4,6 +4,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -25,6 +26,7 @@ import {
   Home,
   MapPin,
   MessageCircle,
+  MoreHorizontal,
   PawPrint,
   Phone,
   Search,
@@ -65,6 +67,13 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -74,6 +83,7 @@ import {
 } from "@/components/ui/empty";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { MediaImage } from "@/components/media-image";
 import {
   amenityOptions,
   areas,
@@ -85,6 +95,12 @@ import {
   filtersToParams,
   formatPublishedAt,
 } from "@/lib/search";
+import {
+  buildContactConfirmationText,
+  getCriticalRestrictions,
+  getPrimaryCadence,
+  getPrimaryPrice,
+} from "@/lib/listings";
 import type {
   Filters,
   Listing,
@@ -107,14 +123,23 @@ const imageFallback = (event: SyntheticEvent<HTMLImageElement>) => {
   event.currentTarget.src = fallbackImage;
 };
 
-export function RentalTypeSwitch({ compact = false }: { compact?: boolean }) {
+export function RentalTypeSwitch({
+  compact = false,
+  onChange,
+}: {
+  compact?: boolean;
+  onChange?: (mode: RentalMode) => void;
+}) {
   const { rentalMode, setRentalMode } = useApp();
   return (
     <ToggleGroup
       type="single"
       value={rentalMode}
       onValueChange={(value) => {
-        if (value) setRentalMode(value as RentalMode);
+        if (!value) return;
+        const mode = value as RentalMode;
+        setRentalMode(mode);
+        onChange?.(mode);
       }}
       className={cn("rental-switch", compact && "rental-switch--compact")}
       aria-label="Tipo de alquiler"
@@ -393,9 +418,9 @@ export function PriceBlock({
           style: "currency",
           currency: "EUR",
           maximumFractionDigits: 0,
-        }).format(listing.price)}
+        }).format(getPrimaryPrice(listing))}
       </strong>
-      <span>/{listing.cadence}</span>
+      <span>/{getPrimaryCadence(listing)}</span>
     </div>
   );
 }
@@ -425,7 +450,8 @@ export function PropertyCard({
         .then(() => toast.success("Enlace copiado"))
         .catch(() => toast.info(url));
   };
-  const visibleRestrictions = listing.restrictions.slice(0, compact ? 2 : 3);
+  const criticalRestrictions = getCriticalRestrictions(listing);
+  const visibleRestrictions = criticalRestrictions.slice(0, compact ? 2 : 3);
   return (
     <article
       className={cn(
@@ -442,7 +468,7 @@ export function PropertyCard({
           to={`/habitacion/${listing.id}`}
           aria-label={`Ver ${listing.title}`}
         >
-          <img
+          <MediaImage
             src={listing.images[imageIndex] || fallbackImage}
             onError={imageFallback}
             alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${listing.images.length}`}
@@ -500,7 +526,7 @@ export function PropertyCard({
             <BedDouble aria-hidden="true" />
             {listing.roomType}
           </span>
-          <span>{listing.occupants} residentes</span>
+          <span>{listing.currentResidents} residentes · {listing.roomSizeM2} m²</span>
           <span>
             <CalendarDays aria-hidden="true" />
             {listing.available}
@@ -513,9 +539,9 @@ export function PropertyCard({
           {visibleRestrictions.map((item) => (
             <PropertyBadge key={item}>{item}</PropertyBadge>
           ))}
-          {listing.restrictions.length > visibleRestrictions.length ? (
+          {criticalRestrictions.length > visibleRestrictions.length ? (
             <Badge variant="secondary">
-              +{listing.restrictions.length - visibleRestrictions.length}{" "}
+              +{criticalRestrictions.length - visibleRestrictions.length}{" "}
               condiciones
             </Badge>
           ) : null}
@@ -532,30 +558,19 @@ export function PropertyCard({
                 Contactar
               </Link>
             </Button>
-            <Button
-              variant="outline"
-              onClick={() =>
-                toast.info(listing.contactPhone || "+34 600 112 233")
-              }
-            >
-              <Phone data-icon="inline-start" />
-              Ver teléfono
-            </Button>
-            <button
-              type="button"
-              className="card-text-action"
-              onClick={() => {
-                discardListing(listing.id);
-                toast.success("Anuncio descartado de la búsqueda");
-              }}
-            >
-              <Trash2 aria-hidden="true" />
-              Descartar
-            </button>
-            <button type="button" className="card-text-action" onClick={share}>
-              <Share2 aria-hidden="true" />
-              Compartir
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" aria-label={`Más opciones para ${listing.title}`}>
+                  <MoreHorizontal data-icon="inline-start" />Más opciones
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onSelect={() => void share()}><Share2 />Compartir</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => { discardListing(listing.id); toast.success("Anuncio descartado de la búsqueda"); }}><Trash2 />Descartar</DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
@@ -789,6 +804,17 @@ function FilterPanel({
           ]}
           onChange={(next) => update("gender", next as Filters["gender"])}
         />
+        <div className="form-grid form-grid--compact">
+          <label className="field-label">
+            Tamaño mínimo (m²)
+            <Input type="number" min="0" max="50" value={value.roomSizeMin} onChange={(event) => update("roomSizeMin", Number(event.target.value))} />
+          </label>
+          <label className="field-label">
+            Tamaño máximo (m²)
+            <Input type="number" min="1" max="50" value={value.roomSizeMax} onChange={(event) => update("roomSizeMax", Number(event.target.value))} />
+          </label>
+        </div>
+        <NativeSelect label="Capacidad de la habitación" value={value.roomCapacity} options={["Cualquiera", "1", "2"]} onChange={(next) => update("roomCapacity", next)} />
       </section>
       <Separator />
       <section className="filter-section">
@@ -803,12 +829,23 @@ function FilterPanel({
         </label>
         {rentalMode === "long" ? (
           <NativeSelect
-            label="Estancia máxima aceptada"
+            label="Estancia mínima aceptada"
             value={value.minStay}
             options={["Cualquiera", "1", "2", "3", "6"]}
             onChange={(next) => update("minStay", next)}
           />
-        ) : null}
+        ) : (
+          <>
+            <label className="field-label">
+              Máximo de noches mínimas
+              <Input type="number" min="0" value={value.minimumNights} onChange={(event) => update("minimumNights", Number(event.target.value))} />
+            </label>
+            <label className="field-label">
+              Disponible hasta al menos
+              <Input type="date" value={value.availableUntil} onChange={(event) => update("availableUntil", event.target.value)} />
+            </label>
+          </>
+        )}
         <NativeSelect
           label="Publicado"
           value={value.publicationDate}
@@ -876,6 +913,12 @@ function FilterPanel({
           onChange={(next) => update("bathroom", next)}
         />
         <NativeSelect
+          label="Ducha"
+          value={value.shower}
+          options={["Cualquiera", "Ducha privada", "Ducha compartida"]}
+          onChange={(next) => update("shower", next)}
+        />
+        <NativeSelect
           label="Cocina"
           value={value.kitchen}
           options={["Cualquiera", "Cocina privada", "Cocina compartida"]}
@@ -919,10 +962,16 @@ function FilterPanel({
           onChange={(next) => update("deposit", next)}
         />
         <NativeSelect
-          label="Personas en la vivienda"
+          label="Personas en la vivienda — residentes actuales"
           value={value.occupants}
           options={["Cualquiera", "1–2", "3–4", "5 o más"]}
           onChange={(next) => update("occupants", next)}
+        />
+        <NativeSelect
+          label="Residentes actuales (exacto)"
+          value={value.currentResidents}
+          options={["Cualquiera", "1", "2", "3", "4", "5", "6"]}
+          onChange={(next) => update("currentResidents", next)}
         />
         <NativeSelect
           label="Tipo de anunciante"
@@ -1099,7 +1148,7 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
         tabIndex={0}
       >
         <div className="gallery-main">
-          <img
+          <MediaImage
             src={listing.images[index] || fallbackImage}
             onError={imageFallback}
             alt={`Habitación en ${listing.area}, foto ${index + 1} de ${listing.images.length}`}
@@ -1140,7 +1189,7 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
                   : `Ver foto ${thumbIndex + 2}`
               }
             >
-              <img
+              <MediaImage
                 src={image}
                 onError={imageFallback}
                 alt=""
@@ -1184,7 +1233,7 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
                 }}
                 aria-label={`Abrir foto ${imageIndex + 1}`}
               >
-                <img
+                <MediaImage
                   src={image}
                   onError={imageFallback}
                   alt={`Habitación en ${listing.area}, foto ${imageIndex + 1}`}
@@ -1201,6 +1250,8 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
   );
 }
 
+const contactSubmissions = new Map<string, { time: number; signature: string }>();
+
 export function ContactPanel({
   listing,
   mobile = false,
@@ -1210,10 +1261,47 @@ export function ContactPanel({
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [phone, setPhone] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageStatus, setMessageStatus] = useState("");
+  const [messageErrors, setMessageErrors] = useState<Record<string, string>>({});
+  const [messageForm, setMessageForm] = useState({ name: "", contact: "", message: "", website: "", confirmed: false });
+  const messageStartedAt = useRef(Date.now());
+  const messageFormRef = useRef<HTMLFormElement>(null);
   const checkboxId = useId();
+  const confirmationText = buildContactConfirmationText(listing);
+  useEffect(() => {
+    setConfirmed(false);
+    setPhone(false);
+    setMessageOpen(false);
+    setMessageStatus("");
+  }, [listing.id]);
   const contactText = encodeURIComponent(
     `Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`,
   );
+  const updateMessage = (key: keyof typeof messageForm, value: string | boolean) => setMessageForm((current) => ({ ...current, [key]: value }));
+  const submitMessage = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const next: Record<string, string> = {};
+    if (messageForm.website) next.form = "No se pudo enviar este formulario.";
+    if (Date.now() - messageStartedAt.current < 700) next.form = "Revisa los datos antes de enviar.";
+    if (messageForm.name.trim().length < 2) next.name = "Escribe al menos 2 caracteres.";
+    if (!messageForm.contact.trim()) next.contact = "Indica un email o teléfono.";
+    if (messageForm.message.trim().length < 10) next.message = "Escribe al menos 10 caracteres.";
+    if (messageForm.message.length > 1000) next.message = "El mensaje no puede superar 1000 caracteres.";
+    if (!messageForm.confirmed) next.confirmed = "Confirma las condiciones del anuncio.";
+    const signature = `${messageForm.contact.trim().toLocaleLowerCase()}|${messageForm.message.trim().toLocaleLowerCase()}`;
+    const previous = contactSubmissions.get(listing.id);
+    if (previous && Date.now() - previous.time < 30_000) next.form = previous.signature === signature ? "Este mismo mensaje ya se ha registrado. Espera 30 segundos." : "Espera 30 segundos antes de enviar otro mensaje.";
+    setMessageErrors(next);
+    if (Object.keys(next).length) {
+      setMessageStatus("Corrige los campos indicados.");
+      requestAnimationFrame(() => messageFormRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      return;
+    }
+    contactSubmissions.set(listing.id, { time: Date.now(), signature });
+    setMessageStatus("Mensaje guardado solo en esta demo local. No se ha enviado por internet.");
+    setMessageForm((current) => ({ ...current, message: "", website: "", confirmed: false }));
+  };
   return (
     <aside
       id="contacto"
@@ -1247,13 +1335,13 @@ export function ContactPanel({
           checked={confirmed}
           onCheckedChange={(value) => setConfirmed(value === true)}
         />
-        <span>Confirmo que he leído y cumplo las condiciones principales.</span>
+        <span>{confirmationText}</span>
       </label>
       <div className="contact-actions">
-        <Button asChild={confirmed} disabled={!confirmed}>
+        {listing.showWhatsApp ? <Button asChild={confirmed} disabled={!confirmed}>
           {confirmed ? (
             <a
-              href={`https://wa.me/${(listing.contactPhone || "34600112233").replace(/\D/g, "")}?text=${contactText}`}
+              href={`https://wa.me/${(listing.contactWhatsapp || "34600112233").replace(/\D/g, "")}?text=${contactText}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -1266,8 +1354,8 @@ export function ContactPanel({
               WhatsApp
             </>
           )}
-        </Button>
-        {mobile ? null : (
+        </Button> : null}
+        {listing.showPhone ? (
           <Button
             variant="outline"
             disabled={!confirmed}
@@ -1278,7 +1366,46 @@ export function ContactPanel({
               ? listing.contactPhone || "+34 600 112 233"
               : "Mostrar teléfono"}
           </Button>
-        )}
+        ) : null}
+        {listing.allowContactForm ? <Dialog open={messageOpen} onOpenChange={(open) => {
+          setMessageOpen(open);
+          if (open) messageStartedAt.current = Date.now();
+          else {
+            setMessageErrors({});
+            setMessageStatus("");
+            setMessageForm((current) => ({ ...current, website: "", confirmed: false }));
+          }
+        }}>
+          <DialogTrigger asChild><Button variant="outline"><MessageCircle data-icon="inline-start" />Enviar mensaje</Button></DialogTrigger>
+          <DialogContent className="contact-message-dialog">
+            <DialogHeader>
+              <DialogTitle>Enviar un mensaje local</DialogTitle>
+              <DialogDescription>La demo valida y guarda el envío en esta sesión, pero no lo entrega por internet.</DialogDescription>
+            </DialogHeader>
+            <form ref={messageFormRef} className="contact-message-form" onSubmit={submitMessage} noValidate>
+              <label className="field-label">Nombre
+                <Input value={messageForm.name} aria-invalid={Boolean(messageErrors.name)} aria-describedby={messageErrors.name ? "contact-name-error" : undefined} onChange={(event) => updateMessage("name", event.target.value)} />
+                {messageErrors.name ? <span id="contact-name-error" className="field-error">{messageErrors.name}</span> : null}
+              </label>
+              <label className="field-label">Email o teléfono
+                <Input value={messageForm.contact} aria-invalid={Boolean(messageErrors.contact)} aria-describedby={messageErrors.contact ? "contact-detail-error" : undefined} onChange={(event) => updateMessage("contact", event.target.value)} />
+                {messageErrors.contact ? <span id="contact-detail-error" className="field-error">{messageErrors.contact}</span> : null}
+              </label>
+              <label className="field-label">Mensaje
+                <Textarea minLength={10} maxLength={1000} rows={5} value={messageForm.message} aria-invalid={Boolean(messageErrors.message)} aria-describedby={messageErrors.message ? "contact-message-error" : undefined} onChange={(event) => updateMessage("message", event.target.value)} />
+                {messageErrors.message ? <span id="contact-message-error" className="field-error">{messageErrors.message}</span> : <span className="field-hint">{messageForm.message.length}/1000</span>}
+              </label>
+              <label className="honeypot-field" aria-hidden="true">Sitio web<Input tabIndex={-1} autoComplete="off" value={messageForm.website} onChange={(event) => updateMessage("website", event.target.value)} /></label>
+              <label className="condition-confirm">
+                <Checkbox checked={messageForm.confirmed} aria-invalid={Boolean(messageErrors.confirmed)} onCheckedChange={(value) => updateMessage("confirmed", value === true)} />
+                <span>{confirmationText}</span>
+              </label>
+              {messageErrors.confirmed ? <span className="field-error">{messageErrors.confirmed}</span> : null}
+              <div className="contact-message-status" role={messageStatus.startsWith("Mensaje guardado") ? "status" : "alert"} aria-live="polite">{messageErrors.form || messageStatus}</div>
+              <DialogFooter><Button type="submit">Registrar mensaje</Button></DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog> : null}
       </div>
     </aside>
   );

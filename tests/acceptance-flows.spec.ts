@@ -173,7 +173,7 @@ test("05–08 filter count, individual chips, clear, URL reload and history navi
   await expect(page.locator(".applied-filters__clear")).toContainText("(2)");
   const filtered = await resultCount(page);
   await page.reload();
-  expect(await resultCount(page)).toBe(filtered);
+  await expect.poll(() => resultCount(page)).toBe(filtered);
   await page
     .locator(".applied-filters button")
     .filter({ hasText: "Costa Adeje" })

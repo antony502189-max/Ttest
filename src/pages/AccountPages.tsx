@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   Bell,
   BellOff,
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,6 +35,10 @@ import { ConfirmDialog, FormField, StatusBadge } from "@/components/forms";
 import { EmptyState, PropertyCard } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
 import { filtersToParams } from "@/lib/search";
+import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
+import { MediaImage, useMediaUrl } from "@/components/media-image";
+import { MediaStorageError, saveMediaFile } from "@/lib/media-storage";
+import type { DemoUser } from "@/types";
 
 function AccountHeader({
   eyebrow,
@@ -225,13 +229,18 @@ export function ProfilePage() {
   const { currentUser, updateProfile, logout, deleteAccount } = useApp();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<DemoUser | null>(currentUser);
+  const avatarUrl = useMediaUrl(draft?.avatarRef);
+  useEffect(() => { if (!editing) setDraft(currentUser); }, [currentUser, editing]);
   if (!currentUser) return null;
+  const profileDraft = draft ?? currentUser;
+  const updateDraft = <K extends keyof DemoUser>(key: K, value: DemoUser[K]) => setDraft((current) => ({ ...(current ?? currentUser), [key]: value }));
+  const cancelEditing = () => { setDraft(currentUser); setEditing(false); };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
-    const data = new FormData(form);
-    const name = String(data.get("name")).trim();
-    const phone = String(data.get("phone")).trim();
+    const name = profileDraft.name.trim();
+    const phone = profileDraft.phone.trim();
     const focusField = (field: string) => {
       const control = form.elements.namedItem(field);
       if (control instanceof HTMLElement) control.focus();
@@ -249,11 +258,13 @@ export function ProfilePage() {
     updateProfile({
       name,
       phone,
-      whatsapp: String(data.get("whatsapp")),
-      telegram: String(data.get("telegram")),
-      about: String(data.get("about")),
-      showPhone: data.get("showPhone") === "on",
-      allowMessaging: data.get("allowMessaging") === "on",
+      whatsapp: profileDraft.whatsapp,
+      telegram: profileDraft.telegram,
+      about: profileDraft.about,
+      showPhone: profileDraft.showPhone,
+      showWhatsApp: profileDraft.showWhatsApp,
+      allowContactForm: profileDraft.allowContactForm,
+      avatarRef: profileDraft.avatarRef,
     });
     setEditing(false);
   };
@@ -266,7 +277,10 @@ export function ProfilePage() {
         action={
           <Button
             variant={editing ? "outline" : "default"}
-            onClick={() => setEditing((value) => !value)}
+            onClick={() => {
+              if (editing) cancelEditing();
+              else { setDraft(currentUser); setEditing(true); }
+            }}
           >
             <Edit3 data-icon="inline-start" />
             {editing ? "Cancelar" : "Editar perfil"}
@@ -276,9 +290,10 @@ export function ProfilePage() {
       <div className="profile-layout">
         <aside className="profile-card">
           <Avatar className="profile-avatar">
+            {avatarUrl ? <AvatarImage src={avatarUrl} alt={`Foto de ${profileDraft.name}`} /> : null}
             <AvatarFallback>{currentUser.initials}</AvatarFallback>
           </Avatar>
-          <h2>{currentUser.name}</h2>
+          <h2>{profileDraft.name}</h2>
           <p>
             {currentUser.role === "host"
               ? "Anunciante"
@@ -287,6 +302,15 @@ export function ProfilePage() {
                 : "Busca habitación"}
           </p>
           <span className="profile-verified">Cuenta demo verificada</span>
+          {editing ? <div className="avatar-actions">
+            <label className="button-like" htmlFor="profile-avatar-upload">Cambiar foto</label>
+            <input id="profile-avatar-upload" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              void saveMediaFile(file).then((avatarRef) => updateDraft("avatarRef", avatarRef)).catch((error) => toast.error(error instanceof MediaStorageError ? error.message : "No se pudo guardar el avatar."));
+            }} />
+            {profileDraft.avatarRef ? <Button type="button" variant="ghost" size="sm" onClick={() => updateDraft("avatarRef", undefined)}>Eliminar foto</Button> : null}
+          </div> : null}
         </aside>
         <form className="profile-form" onSubmit={submit}>
           <div className="form-grid">
@@ -294,7 +318,8 @@ export function ProfilePage() {
               <Input
                 id="profile-name"
                 name="name"
-                defaultValue={currentUser.name}
+                value={profileDraft.name}
+                onChange={(event) => updateDraft("name", event.target.value)}
                 disabled={!editing}
               />
             </FormField>
@@ -305,7 +330,8 @@ export function ProfilePage() {
               <Input
                 id="profile-phone"
                 name="phone"
-                defaultValue={currentUser.phone}
+                value={profileDraft.phone}
+                onChange={(event) => updateDraft("phone", event.target.value)}
                 disabled={!editing}
               />
             </FormField>
@@ -313,7 +339,8 @@ export function ProfilePage() {
               <Input
                 id="profile-whatsapp"
                 name="whatsapp"
-                defaultValue={currentUser.whatsapp}
+                value={profileDraft.whatsapp}
+                onChange={(event) => updateDraft("whatsapp", event.target.value)}
                 disabled={!editing}
               />
             </FormField>
@@ -321,7 +348,8 @@ export function ProfilePage() {
               <Input
                 id="profile-telegram"
                 name="telegram"
-                defaultValue={currentUser.telegram}
+                value={profileDraft.telegram}
+                onChange={(event) => updateDraft("telegram", event.target.value)}
                 disabled={!editing}
               />
             </FormField>
@@ -330,7 +358,8 @@ export function ProfilePage() {
             <Textarea
               id="profile-about"
               name="about"
-              defaultValue={currentUser.about}
+              value={profileDraft.about}
+              onChange={(event) => updateDraft("about", event.target.value)}
               disabled={!editing}
               rows={4}
             />
@@ -343,19 +372,30 @@ export function ProfilePage() {
                 <span>Solo después de iniciar contacto</span>
               </div>
               <Switch
-                name="showPhone"
-                defaultChecked={currentUser.showPhone}
+                checked={profileDraft.showPhone}
+                onCheckedChange={(value) => updateDraft("showPhone", value)}
                 disabled={!editing}
               />
             </label>
             <label>
               <div>
-                <strong>Permitir mensajería</strong>
-                <span>WhatsApp y Telegram</span>
+                <strong>Permitir WhatsApp</strong>
+                <span>Se muestra solo tras confirmar las condiciones</span>
               </div>
               <Switch
-                name="allowMessaging"
-                defaultChecked={currentUser.allowMessaging}
+                checked={profileDraft.showWhatsApp}
+                onCheckedChange={(value) => updateDraft("showWhatsApp", value)}
+                disabled={!editing}
+              />
+            </label>
+            <label>
+              <div>
+                <strong>Permitir formulario local</strong>
+                <span>Registra mensajes solo en la demo</span>
+              </div>
+              <Switch
+                checked={profileDraft.allowContactForm}
+                onCheckedChange={(value) => updateDraft("allowContactForm", value)}
                 disabled={!editing}
               />
             </label>
@@ -402,10 +442,11 @@ export function ProfilePage() {
 }
 
 export function MyListingsPage() {
-  const { allListings, deleteListing, setListingStatus, renewListing } =
+  const { allListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
   const [status, setStatus] = useState("Todos");
-  const mine = allListings.filter((listing) => listing.userCreated);
+  useEffect(() => refreshListingLifecycle(), [refreshListingLifecycle]);
+  const mine = allListings.filter((listing) => listing.ownerUserId === currentUser?.id);
   const items =
     status === "Todos"
       ? mine
@@ -464,7 +505,7 @@ export function MyListingsPage() {
           </div>
           {items.map((listing) => (
             <article className="manage-card" key={listing.id}>
-              <img
+              <MediaImage
                 src={listing.images[0]}
                 alt={`Habitación en ${listing.area}`}
               />
@@ -475,8 +516,10 @@ export function MyListingsPage() {
                 </div>
                 <h2>{listing.title}</h2>
                 <p>
-                  {listing.area} · {listing.price} €/{listing.cadence}
+                  {listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}
                 </p>
+                <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
+                {listing.status === "Finalizado" ? <p className="listing-ended-reason">{listing.closedReason === "expired" ? "Finalizado automáticamente por vencimiento." : "Cerrado por el anunciante."}</p> : null}
                 <div className="manage-metrics">
                   <span>
                     <Eye />
@@ -507,7 +550,9 @@ export function MyListingsPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
-                      <DropdownMenuItem
+                      {listing.status === "Finalizado" ? <DropdownMenuItem
+                        onClick={() => { renewListing(listing.id); toast.success("Anuncio publicado de nuevo durante 30 días"); }}
+                      ><RotateCcw />Volver a publicar</DropdownMenuItem> : <DropdownMenuItem
                         onClick={() => {
                           setListingStatus(
                             listing.id,
@@ -524,7 +569,7 @@ export function MyListingsPage() {
                       >
                         {listing.status === "Oculto" ? <Eye /> : <EyeOff />}
                         {listing.status === "Oculto" ? "Mostrar" : "Ocultar"}
-                      </DropdownMenuItem>
+                      </DropdownMenuItem>}
                       <DropdownMenuItem
                         onClick={() => {
                           renewListing(listing.id);
@@ -534,6 +579,7 @@ export function MyListingsPage() {
                         <RotateCcw />
                         Renovar
                       </DropdownMenuItem>
+                      {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={() => { closeListing(listing.id); toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
                       <ConfirmDialog
                         trigger={
                           <DropdownMenuItem

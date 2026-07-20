@@ -31,7 +31,7 @@ test('01–03 inicio, navegación y dataset completo', async ({ page }) => {
   await page.getByRole('button', { name: /^buscar$/i }).click()
   await expect(page).toHaveURL(/buscar/)
   await expect(page.getByRole('heading', { name: /habitaciones en/i })).toContainText('23')
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings:v2') || '[]').length)).toBe(32)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings:v3') || '{"data":[]}').data.length)).toBe(32)
 })
 
 test('04–07 filtros, chips, URL y restauración al recargar', async ({ page }) => {

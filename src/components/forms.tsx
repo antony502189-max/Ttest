@@ -29,6 +29,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { acceptedImageTypes, MediaStorageError, saveMediaFile } from "@/lib/media-storage";
+import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 
 export function FormField({
@@ -184,27 +186,19 @@ export function ImageUploader({
   const readFiles = async (files: FileList | null) => {
     if (!files) return;
     const accepted = [...files]
-      .filter(
-        (file) => file.type.startsWith("image/") && file.size <= 2_000_000,
-      )
+      .filter((file) => acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number]) && file.size <= 12_000_000)
       .slice(0, Math.max(0, 8 - images.length));
     setLocalError(
       accepted.length !== files.length
-        ? "Algunas fotos se omitieron: usa JPG/PNG de hasta 2 MB (máximo 8)."
+        ? "Algunas fotos se omitieron: usa JPEG, PNG o WebP de hasta 12 MB (máximo 8)."
         : "",
     );
-    const urls = await Promise.all(
-      accepted.map(
-        (file) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result));
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          }),
-      ),
-    );
-    onChange([...images, ...urls]);
+    try {
+      const references = await Promise.all(accepted.map(saveMediaFile));
+      onChange([...images, ...references]);
+    } catch (uploadError) {
+      setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar una de las imágenes.");
+    }
   };
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -233,13 +227,14 @@ export function ImageUploader({
       >
         <UploadCloud />
         <strong>Añade fotos luminosas y horizontales</strong>
-        <span>Arrastra o selecciona JPG/PNG · hasta 2 MB · máximo 8</span>
+        <span>Arrastra o selecciona JPEG, PNG o WebP · máximo 8</span>
       </button>
       <input
         id="publish-images"
         ref={inputRef}
         className="sr-only"
         type="file"
+        aria-label="Añadir fotos del anuncio"
         accept="image/jpeg,image/png,image/webp"
         multiple
         onChange={(event) => void readFiles(event.target.files)}
@@ -257,7 +252,7 @@ export function ImageUploader({
       <div className="upload-grid">
         {images.map((image, index) => (
           <div key={`${image}-${index}`}>
-            <img src={image} alt={`Foto del anuncio ${index + 1}`} />
+            <MediaImage src={image} alt={`Foto del anuncio ${index + 1}`} />
             {index === 0 ? (
               <span className="cover-label">Portada</span>
             ) : (

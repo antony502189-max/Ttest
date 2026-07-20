@@ -4,14 +4,16 @@ import { Button } from '@/components/ui/button'
 import { areas } from '@/data/listings'
 import { PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
+import { MediaImage } from '@/components/media-image'
+import { isPublicListing } from '@/lib/listings'
 
 export function HomePage() {
   const { allListings } = useApp()
-  const featured = allListings.filter((listing) => listing.status === 'Publicado').slice(0, 3)
+  const featured = allListings.filter(isPublicListing).slice(0, 3)
   return (
     <div className="home-page idealista-home">
       <section className="idealista-home-hero" aria-labelledby="home-title">
-        <img className="idealista-home-hero__image" src={featured[1]?.images[1] ?? featured[0]?.images[0]} alt="Habitación luminosa preparada para alquilar" width="1600" height="900" />
+        <MediaImage className="idealista-home-hero__image" src={featured[1]?.images[1] ?? featured[0]?.images[0]} alt="Habitación luminosa preparada para alquilar" width="1600" height="900" />
         <div className="idealista-home-hero__shade" />
         <div className="container idealista-home-hero__content">
           <h1 id="home-title">Tu próxima habitación está más cerca de lo que imaginas</h1>

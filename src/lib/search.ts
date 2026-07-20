@@ -1,4 +1,5 @@
 import { defaultFilters } from '@/data/listings'
+import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
 import type { Filters, Listing, MapPolygonPoint, RentalMode, YesNoAny } from '@/types'
 
 const boolMatches = (value: boolean, filter: YesNoAny) => filter === 'Cualquiera' || value === (filter === 'Sí')
@@ -6,8 +7,9 @@ const boolMatches = (value: boolean, filter: YesNoAny) => filter === 'Cualquiera
 export function filterListings(items: Listing[], mode: RentalMode, filters: Filters) {
   const today = Date.now()
   return items.filter((listing) => {
-    if (listing.status !== 'Publicado' || listing.rentalMode !== mode) return false
-    if (listing.price < filters.minPrice || listing.price > filters.maxPrice) return false
+    if (!isPublicListing(listing) || listing.rentalMode !== mode) return false
+    const primaryPrice = getPrimaryPrice(listing)
+    if (primaryPrice < filters.minPrice || primaryPrice > filters.maxPrice) return false
     if (filters.areas.length && !filters.areas.includes(listing.area)) return false
     if (filters.roomType !== 'Cualquiera' && listing.roomType !== filters.roomType) return false
     if (filters.available && listing.availableFrom > filters.available) return false
@@ -22,11 +24,17 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     if (filters.furnished && !listing.furnished) return false
     if (filters.billsIncluded && !listing.billsIncluded) return false
     if (filters.deposit === 'Sin fianza' && listing.depositAmount !== 0) return false
-    if (filters.deposit === 'Hasta 1 mes' && listing.depositAmount > listing.price) return false
-    if (filters.deposit === 'Más de 1 mes' && listing.depositAmount <= listing.price) return false
-    if (filters.occupants === '1–2' && listing.occupants > 2) return false
-    if (filters.occupants === '3–4' && (listing.occupants < 3 || listing.occupants > 4)) return false
-    if (filters.occupants === '5 o más' && listing.occupants < 5) return false
+    if (filters.deposit === 'Hasta 1 mes' && listing.depositAmount > primaryPrice) return false
+    if (filters.deposit === 'Más de 1 mes' && listing.depositAmount <= primaryPrice) return false
+    if (filters.occupants === '1–2' && listing.currentResidents > 2) return false
+    if (filters.occupants === '3–4' && (listing.currentResidents < 3 || listing.currentResidents > 4)) return false
+    if (filters.occupants === '5 o más' && listing.currentResidents < 5) return false
+    if (listing.roomSizeM2 < filters.roomSizeMin || listing.roomSizeM2 > filters.roomSizeMax) return false
+    if (filters.shower !== 'Cualquiera' && listing.shower !== filters.shower) return false
+    if (filters.currentResidents !== 'Cualquiera' && listing.currentResidents !== Number(filters.currentResidents)) return false
+    if (filters.roomCapacity !== 'Cualquiera' && listing.roomCapacity !== Number(filters.roomCapacity)) return false
+    if (mode === 'holiday' && filters.minimumNights > 0 && (listing.minimumNights ?? 1) > filters.minimumNights) return false
+    if (mode === 'holiday' && filters.availableUntil && (!listing.availableUntil || listing.availableUntil < filters.availableUntil)) return false
     if (!boolMatches(listing.smokingAllowed, filters.smoking)) return false
     if (!boolMatches(listing.petsAllowed, filters.pets)) return false
     if (!boolMatches(listing.couplesAllowed, filters.couples)) return false
@@ -47,8 +55,8 @@ export function sortListings(items: Listing[], sort: string) {
   return items.map((listing, index) => ({ listing, index })).sort((a, b) => {
     if (sort === 'Más recientes') return new Date(b.listing.publishedAt).getTime() - new Date(a.listing.publishedAt).getTime() || a.index - b.index
     if (sort === 'Más antiguos') return new Date(a.listing.publishedAt).getTime() - new Date(b.listing.publishedAt).getTime() || a.index - b.index
-    if (sort === 'Precio más bajo') return a.listing.price - b.listing.price || a.index - b.index
-    if (sort === 'Precio más alto') return b.listing.price - a.listing.price || a.index - b.index
+    if (sort === 'Precio más bajo') return getPrimaryPrice(a.listing) - getPrimaryPrice(b.listing) || a.index - b.index
+    if (sort === 'Precio más alto') return getPrimaryPrice(b.listing) - getPrimaryPrice(a.listing) || a.index - b.index
     return a.index - b.index
   }).map(({ listing }) => listing)
 }
@@ -68,6 +76,12 @@ export function getActiveFilterKeys(filters: Filters) {
   if (filters.billsIncluded) keys.push('billsIncluded')
   if (filters.deposit !== defaultFilters.deposit) keys.push('deposit')
   if (filters.occupants !== defaultFilters.occupants) keys.push('occupants')
+  if (filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax) keys.push('roomSize')
+  if (filters.shower !== defaultFilters.shower) keys.push('shower')
+  if (filters.currentResidents !== defaultFilters.currentResidents) keys.push('currentResidents')
+  if (filters.roomCapacity !== defaultFilters.roomCapacity) keys.push('roomCapacity')
+  if (filters.minimumNights !== defaultFilters.minimumNights) keys.push('minimumNights')
+  if (filters.availableUntil !== defaultFilters.availableUntil) keys.push('availableUntil')
   if (filters.smoking !== defaultFilters.smoking) keys.push('smoking')
   if (filters.pets !== defaultFilters.pets) keys.push('pets')
   if (filters.couples !== defaultFilters.couples) keys.push('couples')
@@ -81,10 +95,12 @@ export function getActiveFilterKeys(filters: Filters) {
 
 const listFields: (keyof Filters)[] = ['areas', 'conditions', 'amenities']
 const booleanFields: (keyof Filters)[] = ['furnished', 'billsIncluded']
+const numericFields: (keyof Filters)[] = ['minPrice', 'maxPrice', 'roomSizeMin', 'roomSizeMax', 'minimumNights']
 const paramNames: Partial<Record<keyof Filters, string>> = {
   minPrice: 'precioMin', maxPrice: 'precioMax', areas: 'zonas', roomType: 'habitacion', available: 'fecha', minStay: 'estancia', conditions: 'condiciones', gender: 'genero',
   bathroom: 'bano', kitchen: 'cocina', furnished: 'amueblada', billsIncluded: 'gastos', deposit: 'fianza', occupants: 'ocupantes', smoking: 'fumar', pets: 'mascotas',
   couples: 'parejas', children: 'ninos', empadronamiento: 'padron', publicationDate: 'publicado', advertiserType: 'anunciante', amenities: 'servicios', sort: 'orden',
+  roomSizeMin: 'tamanoMin', roomSizeMax: 'tamanoMax', shower: 'ducha', currentResidents: 'residentes', roomCapacity: 'capacidad', minimumNights: 'nochesMin', availableUntil: 'hasta',
 }
 
 export function filtersFromParams(params: URLSearchParams): Filters {
@@ -94,7 +110,7 @@ export function filtersFromParams(params: URLSearchParams): Filters {
     if (raw === null) return
     if (listFields.includes(key)) (next[key] as string[]) = raw.split('|').filter(Boolean)
     else if (booleanFields.includes(key)) (next[key] as boolean) = raw === '1'
-    else if (key === 'minPrice' || key === 'maxPrice') (next[key] as number) = Number(raw)
+    else if (numericFields.includes(key)) (next[key] as number) = Number(raw)
     else (next[key] as string) = raw
   })
   return next
