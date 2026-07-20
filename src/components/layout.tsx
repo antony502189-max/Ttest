@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Bell, ChevronDown, Globe2, Heart, Menu, Plus, Search, UserRound } from 'lucide-react'
+import { ChevronDown, Globe2, Heart, Map, Menu, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -79,9 +79,9 @@ export function MobileHeader() {
 
 const bottomItems = [
   { to: '/buscar', label: 'Buscar', icon: Search },
-  { to: '/favoritos', label: 'Favoritos', icon: Heart },
-  { to: '/busquedas-guardadas', label: 'Alertas', icon: Bell },
+  { to: '/buscar?vista=mapa', label: 'Mapa', icon: Map },
   { to: '/publicar', label: 'Publicar', icon: Plus },
+  { to: '/favoritos', label: 'Favoritos', icon: Heart },
   { to: '/perfil', label: 'Mi cuenta', icon: UserRound },
 ]
 
@@ -90,8 +90,10 @@ export function BottomNavigation() {
   return (
     <nav className="bottom-nav" aria-label="Navegación móvil">
       {bottomItems.map(({ to, label, icon: Icon }) => {
-        const active = location.pathname === to
-        return <Link key={label} to={to} aria-current={active ? 'page' : undefined} className={cn('bottom-nav__item', active && 'is-active')}><Icon /><span>{label}</span></Link>
+        const [pathname, search = ''] = to.split('?')
+        const isMapItem = search.includes('vista=mapa')
+        const active = location.pathname === pathname && (isMapItem ? location.search.includes('vista=mapa') : pathname !== '/buscar' || !location.search.includes('vista=mapa'))
+        return <Link key={label} to={to} aria-current={active ? 'page' : undefined} className={cn('bottom-nav__item', label === 'Publicar' && 'bottom-nav__item--featured', active && 'is-active')}><Icon /><span>{label}</span></Link>
       })}
     </nav>
   )
@@ -116,7 +118,7 @@ export function AppLayout() {
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
   return (
     <>
-      <a className="skip-link" href="#main-content">Saltar al contenido</a>
+      <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a>
       <Header /><MobileHeader />
       <main id="main-content" tabIndex={-1}><Outlet /></main>
       {hideFooter ? null : <Footer />}
