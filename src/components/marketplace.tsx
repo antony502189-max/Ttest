@@ -1,6 +1,6 @@
-import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bath, BedDouble, CalendarDays, ChevronLeft, ChevronRight, CigaretteOff, CircleAlert, Euro, Expand, ExternalLink, Heart, Home, MapPin, MessageCircle, PawPrint, Phone, Search, ShieldCheck, SlidersHorizontal, Sparkles, UsersRound } from 'lucide-react'
+import { Bath, BedDouble, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CigaretteOff, CircleAlert, Euro, Expand, ExternalLink, Heart, Home, MapPin, MessageCircle, PawPrint, Pencil, Phone, Search, Send, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, UsersRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,18 +33,21 @@ export function RentalTypeSwitch({ compact = false }: { compact?: boolean }) {
 
 export function SearchLocationInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const id = useId()
+  const listId = useId()
+  const { searchHistory } = useApp()
+  const suggestions = [...new Set([...searchHistory, 'Tenerife', ...areas])]
   return (
     <div className="search-location">
       <label htmlFor={id}>Ciudad, barrio o zona</label>
-      <div><MapPin aria-hidden="true" /><Input id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Ej. Los Cristianos" /></div>
+      <div><MapPin aria-hidden="true" /><Input id={id} list={listId} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Ej. Los Cristianos" /><datalist id={listId}>{suggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}</datalist></div>
     </div>
   )
 }
 
 export function SearchBar({ compact = false }: { compact?: boolean }) {
-  const { query, setQuery } = useApp()
+  const { query, setQuery, addSearchHistory } = useApp()
   const navigate = useNavigate()
-  const submit = (event: FormEvent) => { event.preventDefault(); navigate(`/buscar?q=${encodeURIComponent(query)}`) }
+  const submit = (event: FormEvent) => { event.preventDefault(); addSearchHistory(query); navigate(`/buscar?q=${encodeURIComponent(query)}`) }
   return (
     <form className={cn('search-bar', compact && 'search-bar--compact')} onSubmit={submit} role="search">
       <SearchLocationInput value={query} onChange={setQuery} />
@@ -86,21 +89,29 @@ export function PriceBlock({ listing, large = false }: { listing: Listing; large
 }
 
 export function PropertyCard({ listing, compact = false, selected = false, onFocus }: { listing: Listing; compact?: boolean; selected?: boolean; onFocus?: () => void }) {
+  const { favorites, toggleFavorite } = useApp()
+  const [imageIndex, setImageIndex] = useState(0)
+  const saved = favorites.has(listing.id)
+  const previousImage = () => setImageIndex((current) => (current - 1 + listing.images.length) % listing.images.length)
+  const nextImage = () => setImageIndex((current) => (current + 1) % listing.images.length)
   return (
     <article className={cn('property-card', compact && 'property-card--compact', selected && 'is-selected')} onMouseEnter={onFocus} onFocus={onFocus}>
       <div className="property-card__media">
-        <Link to={`/habitacion/${listing.id}`} aria-label={`Ver ${listing.title}`}><img src={listing.images[0]} alt={`Habitación en ${listing.area}`} width="720" height="480" loading="eager" /></Link>
-        <span className="image-counter">1/{listing.images.length}</span><FavoriteButton listing={listing} />
-        {listing.status === 'Publicado' ? <span className="listing-status">Verificado</span> : null}
+        <Link to={`/habitacion/${listing.id}`} aria-label={`Ver ${listing.title}`}><img src={listing.images[imageIndex]} alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${listing.images.length}`} width="720" height="480" loading="lazy" /></Link>
+        <button type="button" className="card-gallery-arrow card-gallery-arrow--previous" onClick={previousImage} aria-label={`Foto anterior de ${listing.title}`}><ChevronLeft /></button>
+        <button type="button" className="card-gallery-arrow card-gallery-arrow--next" onClick={nextImage} aria-label={`Foto siguiente de ${listing.title}`}><ChevronRight /></button>
+        <span className="image-counter"><Camera aria-hidden="true" />{imageIndex + 1}/{listing.images.length}</span><FavoriteButton listing={listing} />
+        {listing.status === 'Publicado' && listing.source ? <span className="listing-status">Destacado</span> : null}
       </div>
       <div className="property-card__content">
-        <div className="card-topline"><PriceBlock listing={listing} /><span>{listing.bills}</span></div>
         <h3><Link to={`/habitacion/${listing.id}`}>{listing.title}</Link></h3>
+        <div className="card-topline"><PriceBlock listing={listing} /><span>{listing.bills}</span></div>
         <p className="property-location"><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
-        <div className="property-facts"><span><BedDouble aria-hidden="true" />{listing.roomType}</span><span><CalendarDays aria-hidden="true" />{listing.available}</span></div>
+        <div className="property-facts"><span><BedDouble aria-hidden="true" />{listing.roomType}</span><span>{listing.occupants} personas</span><span><CalendarDays aria-hidden="true" />{listing.available}</span></div>
         {compact ? null : <p className="property-description">{listing.description}</p>}
         <div className="badge-row">{listing.restrictions.slice(0, compact ? 2 : 4).map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div>
         {listing.source ? <p className="property-source">{listing.source}</p> : null}
+        {compact ? null : <div className="property-card__actions"><Button onClick={() => toast.success('Abriendo WhatsApp con el anunciante')}><MessageCircle data-icon="inline-start" />Contactar</Button><Button variant="outline" onClick={() => toast.info('+34 600 112 233')}><Phone data-icon="inline-start" />Ver teléfono</Button><button type="button" className="card-text-action" onClick={() => toast.success('Anuncio descartado')}><Trash2 aria-hidden="true" />Descartar</button><button type="button" className={cn('card-text-action', saved && 'is-saved')} onClick={() => toggleFavorite(listing.id)} aria-pressed={saved}><Heart aria-hidden="true" fill={saved ? 'currentColor' : 'none'} />{saved ? 'Guardado' : 'Guardar'}</button></div>}
       </div>
     </article>
   )
@@ -121,7 +132,7 @@ export function ErrorState() {
 const filterConditions = ['Solo hombre', 'Solo mujer', 'Parejas permitidas', 'Sin preferencia de género', 'Niños permitidos', 'Mascotas permitidas', 'Empadronamiento posible', 'No fumar']
 
 function CheckOption({ label, checked, onCheckedChange }: { label: string; checked: boolean; onCheckedChange: (checked: boolean) => void }) {
-  const id = `filter-${label.toLowerCase().replaceAll(' ', '-')}`
+  const id = useId()
   return <label className="check-option" htmlFor={id}><Checkbox id={id} checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} /><span>{label}</span></label>
 }
 
@@ -147,19 +158,32 @@ function FilterPanel({ value, onChange }: { value: Filters; onChange: (value: Fi
 }
 
 export function FilterButton({ resultCount }: { resultCount: number }) {
-  const { filters, setFilters, resetFilters, activeFilterCount } = useApp()
+  const { filters, setFilters, resetFilters, activeFilterCount, rentalMode } = useApp()
   const [draft, setDraft] = useState(filters)
   const [open, setOpen] = useState(false)
+  const draftResultCount = useMemo(() => getFilteredListings(rentalMode, draft).length, [rentalMode, draft])
   useEffect(() => { if (open) setDraft(filters) }, [open, filters])
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild><Button variant="outline"><SlidersHorizontal data-icon="inline-start" />Todos los filtros{activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}</Button></SheetTrigger>
+      <SheetTrigger asChild><Button variant="outline" aria-label={`Todos los filtros. ${resultCount} habitaciones actuales`}><SlidersHorizontal data-icon="inline-start" />Todos los filtros{activeFilterCount ? <span className="filter-count">{activeFilterCount}</span> : null}</Button></SheetTrigger>
       <SheetContent className="filter-drawer">
         <SheetHeader><SheetTitle>Filtros</SheetTitle><SheetDescription>Ajusta las condiciones que realmente importan para convivir.</SheetDescription></SheetHeader>
         <FilterPanel value={draft} onChange={setDraft} />
-        <SheetFooter className="filter-footer"><Button variant="ghost" onClick={() => { setDraft({ ...filters, ...{ minPrice: 0, maxPrice: 1000, areas: [], roomType: 'Cualquiera', available: '', minStay: 'Cualquiera', conditions: [], bathroom: 'Cualquiera', kitchen: 'Cualquiera', furnished: false, billsIncluded: false, deposit: 'Cualquiera', occupants: 'Cualquiera' } }); resetFilters() }}>Limpiar filtros</Button><Button onClick={() => { setFilters(draft); setOpen(false); toast.success(`${resultCount} habitaciones encontradas`) }}>Mostrar {resultCount} habitaciones</Button></SheetFooter>
+        <SheetFooter className="filter-footer"><Button variant="ghost" onClick={() => { setDraft({ ...filters, ...{ minPrice: 0, maxPrice: 1000, areas: [], roomType: 'Cualquiera', available: '', minStay: 'Cualquiera', conditions: [], bathroom: 'Cualquiera', kitchen: 'Cualquiera', furnished: false, billsIncluded: false, deposit: 'Cualquiera', occupants: 'Cualquiera' } }); resetFilters() }}>Limpiar filtros</Button><Button onClick={() => { setFilters(draft); setOpen(false); toast.success(`${draftResultCount} habitaciones encontradas`) }}>Mostrar {draftResultCount} habitaciones</Button></SheetFooter>
       </SheetContent>
     </Sheet>
+  )
+}
+
+export function FilterSidebar({ resultCount }: { resultCount: number }) {
+  const { filters, setFilters, resetFilters, activeFilterCount, saveCurrentSearch } = useApp()
+  return (
+    <aside className="filter-sidebar" aria-label="Filtros de búsqueda">
+      <div className="filter-sidebar__save"><Button className="w-full" onClick={saveCurrentSearch}><Heart data-icon="inline-start" />Guardar búsqueda</Button><p>Recibe avisos cuando haya habitaciones nuevas.</p></div>
+      <div className="filter-sidebar__head"><h2>Filtrar resultados</h2>{activeFilterCount ? <button type="button" onClick={resetFilters}>Borrar filtros ({activeFilterCount})</button> : null}</div>
+      <FilterPanel value={filters} onChange={setFilters} />
+      <div className="filter-sidebar__result"><strong>{resultCount}</strong> habitaciones</div>
+    </aside>
   )
 }
 
@@ -181,18 +205,56 @@ export const googleSatelliteMapAdapter: MapAdapter = {
 }
 
 const tenerifeCenter: MapCenter = { lat: 28.2915637, lng: -16.6291304 }
+type DrawPoint = { x: number; y: number }
+const readSavedZone = (): DrawPoint[] => {
+  try {
+    const raw = localStorage.getItem('112233:map-zone:v1')
+    return raw ? JSON.parse(raw) as DrawPoint[] : []
+  } catch { return [] }
+}
 
 export function MapView({ items, selectedId, onSelect, fullScreen = false, showPreview = true }: { items: Listing[]; selectedId?: string; onSelect: (id: string) => void; fullScreen?: boolean; showPreview?: boolean }) {
   const { language, locale } = useI18n()
+  const [drawing, setDrawing] = useState(false)
+  const [drawnPoints, setDrawnPoints] = useState<DrawPoint[]>(readSavedZone)
+  const [zoneReady, setZoneReady] = useState(() => readSavedZone().length >= 3)
+  const [mapLoaded, setMapLoaded] = useState(false)
   const selected = items.find((item) => item.id === selectedId)
   const center = selected?.coordinates ?? tenerifeCenter
   const marker = selected?.coordinates
   const zoom = selected ? 14 : 10
+  useEffect(() => { setMapLoaded(false) }, [center.lat, center.lng, language, selectedId])
   const price = (item: Listing) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.price)
+  const addDrawPoint = (event: MouseEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    setDrawnPoints((current) => [...current, { x: ((event.clientX - bounds.left) / bounds.width) * 100, y: ((event.clientY - bounds.top) / bounds.height) * 100 }])
+  }
+  const addKeyboardPoint = () => {
+    const accessiblePoints = [{ x: 32, y: 35 }, { x: 65, y: 28 }, { x: 72, y: 67 }, { x: 38, y: 73 }]
+    setDrawnPoints((current) => [...current, accessiblePoints[current.length % accessiblePoints.length]])
+  }
+  const startDrawing = () => { setDrawnPoints([]); setZoneReady(false); setDrawing(true) }
+  const cancelDrawing = () => { setDrawing(false); setDrawnPoints(readSavedZone()); setZoneReady(readSavedZone().length >= 3) }
+  const finishDrawing = () => { setDrawing(false); setZoneReady(true); toast.success('Área de búsqueda creada') }
+  const saveZone = () => {
+    try { localStorage.setItem('112233:map-zone:v1', JSON.stringify(drawnPoints)) } catch { /* The selected zone still works for the current session. */ }
+    toast.success('Zona guardada en tus búsquedas')
+  }
+  const clearZone = () => {
+    setDrawing(false)
+    setZoneReady(false)
+    setDrawnPoints([])
+    try { localStorage.removeItem('112233:map-zone:v1') } catch { /* Storage can be unavailable in private mode. */ }
+    toast.success('Zona eliminada')
+  }
+  const polygonPoints = drawnPoints.map((point) => `${point.x},${point.y}`).join(' ')
   return (
     <section className={cn('mock-map', fullScreen && 'mock-map--fullscreen')} aria-label="Mapa de habitaciones">
       <div className="google-map-frame-wrap">
-        <iframe key={`${center.lat}-${center.lng}-${language}-${selectedId ?? 'island'}`} className="google-map-frame" src={googleSatelliteMapAdapter.getEmbedUrl(center, zoom, language, marker)} title="Mapa satelital interactivo de Tenerife" loading={fullScreen ? 'eager' : 'lazy'} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+        <iframe key={`${center.lat}-${center.lng}-${language}-${selectedId ?? 'island'}`} className="google-map-frame" src={googleSatelliteMapAdapter.getEmbedUrl(center, zoom, language, marker)} title="Mapa satelital interactivo de Tenerife" loading={fullScreen ? 'eager' : 'lazy'} allowFullScreen referrerPolicy="strict-origin-when-cross-origin" onLoad={() => setMapLoaded(true)} />
+        {!mapLoaded ? <div className="map-loading" role="status" aria-live="polite"><span aria-hidden="true" /><strong>Cargando mapa interactivo</strong></div> : null}
+        {fullScreen ? <div key={drawing ? 'drawing' : zoneReady ? 'ready' : 'idle'} className="map-search-tools" aria-label="Herramientas de búsqueda en mapa"><Button onClick={() => toast.success(`${items.length} habitaciones actualizadas en esta zona`)}><Search data-icon="inline-start" />Buscar en esta zona</Button>{drawing ? <><Button variant="outline" onClick={addKeyboardPoint}><MapPin data-icon="inline-start" />Añadir punto</Button><Button variant="outline" onClick={cancelDrawing}><X data-icon="inline-start" />Cancelar</Button><Button disabled={drawnPoints.length < 3} onClick={finishDrawing}><Check data-icon="inline-start" />Finalizar área</Button></> : zoneReady ? <><Button variant="outline" onClick={saveZone}><Heart data-icon="inline-start" />Guardar zona</Button><Button variant="outline" onClick={clearZone}><Trash2 data-icon="inline-start" />Eliminar zona</Button></> : <Button variant="outline" onClick={startDrawing}><Pencil data-icon="inline-start" />Dibujar zona</Button>}</div> : null}
+        {fullScreen && (drawing || zoneReady) ? <div className={cn('map-draw-layer', drawing && 'is-drawing')} onClick={drawing ? addDrawPoint : undefined} aria-label={drawing ? 'Pulsa sobre el mapa para añadir puntos al área de búsqueda' : 'Área de búsqueda seleccionada'}><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{drawnPoints.length >= 3 ? <polygon points={polygonPoints} /> : null}<polyline points={polygonPoints} />{drawnPoints.map((point) => <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r="1.1" />)}</svg>{drawing ? <span>Marca al menos 3 puntos sobre el mapa</span> : null}</div> : null}
       </div>
       <div className="map-location-dock">
         <div className="map-location-list" role="group" aria-label="Ubicaciones disponibles">
@@ -225,19 +287,16 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
 export function ContactPanel({ listing, mobile = false }: { listing: Listing; mobile?: boolean }) {
   const [confirmed, setConfirmed] = useState(false)
   const [phone, setPhone] = useState(false)
-  const [messageOpen, setMessageOpen] = useState(false)
   const checkboxId = useId()
+  const contactText = encodeURIComponent(`Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`)
   return (
     <aside className={cn('contact-panel', mobile && 'contact-panel--mobile')} aria-label="Contactar con el anunciante">
       {mobile ? null : <><PriceBlock listing={listing} large /><p>{listing.bills} · {listing.deposit}</p><Separator /><div className="owner-row"><Avatar><AvatarFallback>{listing.owner.initials}</AvatarFallback></Avatar><div><strong>{listing.owner.name}</strong><span>{listing.owner.response}</span></div>{listing.owner.verified ? <ShieldCheck aria-label="Identidad verificada" /> : null}</div></>}
       <label className="condition-confirm" htmlFor={checkboxId}><Checkbox id={checkboxId} checked={confirmed} onCheckedChange={(value) => setConfirmed(value === true)} /><span>Confirmo que cumplo las condiciones principales del anuncio.</span></label>
       <div className="contact-actions">
-        <Button disabled={!confirmed} onClick={() => toast.success('Abriendo conversación de WhatsApp')}><MessageCircle data-icon="inline-start" />WhatsApp</Button>
+        <Button asChild={confirmed} disabled={!confirmed}>{confirmed ? <a href={`https://wa.me/34600112233?text=${contactText}`} target="_blank" rel="noreferrer"><MessageCircle data-icon="inline-start" />WhatsApp</a> : <><MessageCircle data-icon="inline-start" />WhatsApp</>}</Button>
         {mobile ? null : <Button variant="outline" disabled={!confirmed} onClick={() => setPhone(true)}><Phone data-icon="inline-start" />{phone ? '+34 600 112 233' : 'Mostrar teléfono'}</Button>}
-        <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
-          <DialogTrigger asChild><Button variant="outline" disabled={!confirmed}><MessageCircle data-icon="inline-start" />Mensaje</Button></DialogTrigger>
-          <DialogContent><DialogHeader><DialogTitle>Escribir a {listing.owner.name}</DialogTitle><DialogDescription>Cuéntale brevemente quién eres y cuándo quieres entrar.</DialogDescription></DialogHeader><label className="field-label">Tu mensaje<Textarea defaultValue={`Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`} rows={5} /></label><DialogFooter><Button onClick={() => { setMessageOpen(false); toast.success('Mensaje enviado. Te avisaremos cuando respondan.') }}>Enviar mensaje</Button></DialogFooter></DialogContent>
-        </Dialog>
+        <Button asChild={confirmed} variant="outline" disabled={!confirmed}>{confirmed ? <a href={`https://t.me/share/url?url=${encodeURIComponent(location.href)}&text=${contactText}`} target="_blank" rel="noreferrer"><Send data-icon="inline-start" />Telegram</a> : <><Send data-icon="inline-start" />Telegram</>}</Button>
       </div>
     </aside>
   )

@@ -1,44 +1,53 @@
-import { ArrowRight, BadgeCheck, DoorOpen, MapPinned, MessageCircle, SearchCheck } from 'lucide-react'
+import { ArrowRight, Bell, Map, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { areas, listings } from '@/data/listings'
-import { FeatureIcon, PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
+import { PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
 
 const areaCounts: Record<string, number> = { 'Costa Adeje': 24, 'Armeñime': 12, 'Playa de las Américas': 19, 'Los Cristianos': 31, 'San Isidro': 17, 'El Médano': 15, 'Santa Cruz de Tenerife': 68, 'La Laguna': 74 }
 
 export function HomePage() {
   return (
-    <div className="home-page">
-      <section className="search-hero">
-        <div className="container search-hero__inner">
-          <div className="hero-kicker"><DoorOpen />Solo habitaciones · Tenerife</div>
-          <h1>Encuentra una habitación que encaje contigo.</h1>
-          <p>Precio, gastos y condiciones de convivencia claros antes de contactar.</p>
-          <RentalTypeSwitch />
-          <SearchBar />
-          <div className="hero-meta"><span><BadgeCheck />Anuncios revisados</span><span><MapPinned />Ubicación aproximada</span><span><MessageCircle />Contacto directo</span></div>
+    <div className="home-page idealista-home">
+      <section className="idealista-home-hero" aria-labelledby="home-title">
+        <img className="idealista-home-hero__image" src={listings[1].images[1]} alt="Habitación luminosa preparada para alquilar" width="1600" height="900" />
+        <div className="idealista-home-hero__shade" />
+        <div className="container idealista-home-hero__content">
+          <h1 id="home-title">Tu próxima habitación está más cerca de lo que imaginas</h1>
+          <div className="idealista-search-box">
+            <RentalTypeSwitch />
+            <div className="idealista-search-box__type" aria-label="Tipo de inmueble"><span>Tipo de inmueble</span><strong>Habitación</strong></div>
+            <SearchBar />
+            <Button asChild variant="ghost" className="draw-zone-link"><Link to="/buscar?vista=mapa"><Map data-icon="inline-start" />Seleccionar zona en el mapa</Link></Button>
+          </div>
         </div>
       </section>
 
-      <section className="section container">
-        <div className="section-heading"><div><span className="eyebrow">Explora por zona</span><h2>Habitaciones donde quieres vivir</h2></div><Button asChild variant="ghost"><Link to="/buscar">Ver todas <ArrowRight data-icon="inline-end" /></Link></Button></div>
-        <div className="area-grid">{areas.map((area, index) => <Link key={area} to={`/buscar?q=${encodeURIComponent(area)}`} className={index < 2 ? 'area-card area-card--wide' : 'area-card'}><span>{String(index + 1).padStart(2, '0')}</span><strong>{area}</strong><small>{areaCounts[area]} habitaciones</small><ArrowRight /></Link>)}</div>
+      <section className="container home-primary-actions" aria-label="Acciones principales">
+        <article>
+          <div className="home-action-visual home-action-visual--map"><Map aria-hidden="true" /></div>
+          <div><h2>Selecciona la zona donde quieres vivir</h2><p>Busca habitaciones en una o varias zonas directamente sobre el mapa.</p><Button asChild variant="outline"><Link to="/buscar?vista=mapa">Empezar a buscar</Link></Button></div>
+        </article>
+        <article>
+          <div className="home-action-visual home-action-visual--publish"><Plus aria-hidden="true" /></div>
+          <div><h2>Publica tu habitación</h2><p>Los primeros anuncios de habitaciones son gratuitos.</p><Button asChild><Link to="/publicar">Poner tu anuncio</Link></Button></div>
+        </article>
       </section>
 
-      <section className="section section--surface">
+      <section className="home-results-preview">
         <div className="container">
-          <div className="section-heading"><div><span className="eyebrow">Recién publicadas</span><h2>Nuevas habitaciones</h2></div><Button asChild variant="outline"><Link to="/buscar">Ver resultados</Link></Button></div>
+          <div className="section-heading idealista-section-heading"><div><h2>Habitaciones destacadas en Tenerife</h2><p>Anuncios recientes de larga estancia y alquiler vacacional.</p></div><Button asChild variant="ghost"><Link to="/buscar">Ver todas <ArrowRight data-icon="inline-end" /></Link></Button></div>
           <div className="property-grid">{listings.slice(0, 3).map((listing) => <PropertyCard key={listing.id} listing={listing} compact />)}</div>
         </div>
       </section>
 
-      <section className="section container">
-        <div className="split-intro"><div><span className="eyebrow">El foco importa</span><h2>No vendemos pisos. No mostramos oficinas. Solo habitaciones.</h2></div><div><p>112233.es organiza la información que de verdad afecta a una convivencia: quién vive en casa, duración mínima, gastos, fianza, mascotas, tabaco y empadronamiento.</p><Button asChild><Link to="/como-funciona">Cómo funciona <ArrowRight data-icon="inline-end" /></Link></Button></div></div>
-        <div className="features-grid"><FeatureIcon icon={SearchCheck} title="Compara sin abrir diez pestañas">Las condiciones importantes aparecen en cada tarjeta.</FeatureIcon><FeatureIcon icon={BadgeCheck} title="Información estructurada">Precio, fianza y gastos no se esconden en la descripción.</FeatureIcon><FeatureIcon icon={MessageCircle} title="Habla directamente">WhatsApp, teléfono o mensaje interno, tú eliges.</FeatureIcon></div>
+      <section className="container home-area-links">
+        <div><h2>Alquiler de habitaciones por zona</h2><p>Encuentra una habitación cerca del trabajo, la universidad o la playa.</p></div>
+        <div className="home-area-links__grid">{areas.map((area) => <Link key={area} to={`/buscar?q=${encodeURIComponent(area)}`}><span>Habitaciones en {area}</span><strong>{areaCounts[area]}</strong></Link>)}</div>
       </section>
 
-      <section className="section container">
-        <div className="owner-banner"><div><span className="eyebrow">¿Tienes una habitación libre?</span><h2>Publícala paso a paso.</h2><p>Un anuncio completo recibe contactos más compatibles y ahorra conversaciones innecesarias.</p></div><Button asChild size="lg"><Link to="/publicar">Publicar habitación <ArrowRight data-icon="inline-end" /></Link></Button></div>
+      <section className="home-alert-strip">
+        <div className="container"><Bell aria-hidden="true" /><div><h2>¿Quieres enterarte antes?</h2><p>Guarda tu búsqueda y recibe avisos cuando aparezcan habitaciones nuevas.</p></div><Button asChild variant="outline"><Link to="/buscar">Crear una alerta</Link></Button></div>
       </section>
     </div>
   )

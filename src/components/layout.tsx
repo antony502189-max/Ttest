@@ -1,8 +1,7 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Building2, ChevronDown, Globe2, Heart, LogIn, Map, Menu, Plus, Search, UserRound } from 'lucide-react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Bell, ChevronDown, Globe2, Heart, Menu, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
@@ -42,45 +41,16 @@ export function LanguageSwitcher() {
   )
 }
 
-function ProfileMenu() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label="Abrir menú de perfil">
-          <Avatar className="size-7"><AvatarFallback>LM</AvatarFallback></Avatar>
-          <span className="desktop-only">Lucía</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Cuenta de demostración</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild><Link to="/perfil"><UserRound />Mi perfil</Link></DropdownMenuItem>
-          <DropdownMenuItem asChild><Link to="/favoritos"><Heart />Favoritos</Link></DropdownMenuItem>
-          <DropdownMenuItem asChild><Link to="/mis-anuncios"><Building2 />Mis anuncios</Link></DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup><DropdownMenuItem asChild><Link to="/acceso"><LogIn />Cerrar sesión</Link></DropdownMenuItem></DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 export function Header() {
   return (
     <header className="site-header">
       <div className="site-header__inner">
         <Logo />
         <LanguageSwitcher />
-        <nav className="desktop-nav" aria-label="Navegación principal">
-          <NavLink to="/buscar">Buscar habitaciones</NavLink>
-          <NavLink to="/como-funciona">Cómo funciona</NavLink>
-          <NavLink to="/ayuda">Ayuda</NavLink>
-        </nav>
         <div className="header-actions">
-          <Button asChild variant="outline" className="desktop-only"><Link to="/acceso">Acceder</Link></Button>
-          <Button asChild><Link to="/publicar"><Plus data-icon="inline-start" />Publicar habitación</Link></Button>
-          <ProfileMenu />
+          <Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>
+          <Button asChild variant="ghost" className="desktop-only"><Link to="/acceso">Acceder</Link></Button>
+          <Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button>
         </div>
       </div>
     </header>
@@ -96,32 +66,32 @@ export function MobileHeader() {
           <SheetHeader><SheetTitle><Logo /></SheetTitle><SheetDescription>Habitaciones en Tenerife, sin rodeos.</SheetDescription></SheetHeader>
           <nav className="mobile-menu" aria-label="Menú principal">
             {[
-              ['/buscar', 'Buscar habitaciones'], ['/publicar', 'Publicar habitación'], ['/favoritos', 'Favoritos'], ['/mis-anuncios', 'Mis anuncios'], ['/perfil', 'Mi perfil'], ['/como-funciona', 'Cómo funciona'], ['/ayuda', 'Ayuda'], ['/admin', 'Administración'],
+              ['/buscar', 'Buscar habitaciones'], ['/publicar', 'Publicar habitación'], ['/favoritos', 'Favoritos'], ['/busquedas-guardadas', 'Búsquedas guardadas'], ['/mis-anuncios', 'Mis anuncios'], ['/perfil', 'Mi perfil'], ['/como-funciona', 'Cómo funciona'], ['/ayuda', 'Ayuda'], ['/admin', 'Administración'],
             ].map(([to, label]) => <Link key={to} to={to}>{label}</Link>)}
           </nav>
         </SheetContent>
       </Sheet>
       <div className="mobile-brand-group"><Logo compact /><LanguageSwitcher /></div>
-      <Link to="/favoritos" className="mobile-icon-link" aria-label="Ver favoritos"><Heart /></Link>
+      <Link to="/perfil" className="mobile-icon-link" aria-label="Abrir mi cuenta"><UserRound /></Link>
     </header>
   )
 }
 
 const bottomItems = [
   { to: '/buscar', label: 'Buscar', icon: Search },
-  { to: '/buscar?vista=mapa', label: 'Mapa', icon: Map },
-  { to: '/publicar', label: 'Publicar', icon: Plus, featured: true },
   { to: '/favoritos', label: 'Favoritos', icon: Heart },
-  { to: '/perfil', label: 'Perfil', icon: UserRound },
+  { to: '/busquedas-guardadas', label: 'Alertas', icon: Bell },
+  { to: '/publicar', label: 'Publicar', icon: Plus },
+  { to: '/perfil', label: 'Mi cuenta', icon: UserRound },
 ]
 
 export function BottomNavigation() {
   const location = useLocation()
   return (
     <nav className="bottom-nav" aria-label="Navegación móvil">
-      {bottomItems.map(({ to, label, icon: Icon, featured }) => {
-        const active = location.pathname === to.split('?')[0] && (label === 'Mapa' ? location.search.includes('mapa') : label === 'Buscar' ? !location.search.includes('mapa') : true)
-        return <Link key={label} to={to} aria-current={active ? 'page' : undefined} className={cn('bottom-nav__item', featured && 'bottom-nav__item--featured', active && 'is-active')}><Icon /><span>{label}</span></Link>
+      {bottomItems.map(({ to, label, icon: Icon }) => {
+        const active = location.pathname === to
+        return <Link key={label} to={to} aria-current={active ? 'page' : undefined} className={cn('bottom-nav__item', active && 'is-active')}><Icon /><span>{label}</span></Link>
       })}
     </nav>
   )
