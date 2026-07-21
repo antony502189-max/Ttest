@@ -1,7 +1,7 @@
 import { ArrowRight, Clock3, Map, Plus, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
+import { CriticalRestrictionOverlay, PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
 import { useApp, type SavedSearch } from '@/contexts/app-context'
 import { MediaImage } from '@/components/media-image'
 import { filterListings, filtersToParams } from '@/lib/search'
@@ -35,6 +35,7 @@ export function HomePage() {
       <h1 id="home-title" className="sr-only">Tu próxima habitación está más cerca de lo que imaginas</h1>
       {promoted && placement.active ? <Link className="promoted-listing" to={`/habitacion/${promoted.id}`} aria-label={`Ver anuncio destacado: ${promoted.title}`}>
         <MediaImage src={promoted.images[0]} alt={`Habitación destacada en ${promoted.area}`} width="1600" height="900" />
+        <CriticalRestrictionOverlay listing={promoted} compact />
         <span className="promoted-listing__label">{placement.label}</span>
         <span className="promoted-listing__caption"><strong>{promoted.area}</strong><span>{promoted.monthlyPrice || promoted.nightlyPrice} €/{promoted.rentalMode === 'holiday' ? 'noche' : 'mes'}</span></span>
       </Link> : null}

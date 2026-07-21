@@ -6,7 +6,7 @@ import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
-import type { DemoUser, Filters, Listing, ListingStatus, LocalMessageThread, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
+import type { DemoUser, Filters, Listing, ListingStatus, LocalListingComment, LocalMessageThread, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
 
 export interface SavedSearch {
   id: string
@@ -60,6 +60,10 @@ interface AppState {
   addReport: (listingId: string, reason: string, comment: string) => void
   localThreads: LocalMessageThread[]
   addLocalMessage: (thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'>) => void
+  localComments: LocalListingComment[]
+  addLocalComment: (listingId: string, text: string) => void
+  updateLocalComment: (id: string, text: string) => void
+  deleteLocalComment: (id: string) => void
   users: DemoUser[]
   currentUser: DemoUser | null
   login: (email: string, password: string) => string | null
@@ -112,6 +116,8 @@ const isSavedSearch = (value: unknown): value is SavedSearch => Boolean(value) &
 const isScopedSavedSearches = (value: unknown): value is UserScopedState<SavedSearch[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isSavedSearch))
 const isLocalThread = (value: unknown): value is LocalMessageThread => Boolean(value) && typeof value === 'object' && typeof (value as LocalMessageThread).listingId === 'string' && typeof (value as LocalMessageThread).messagePreview === 'string'
 const isScopedLocalThreads = (value: unknown): value is UserScopedState<LocalMessageThread[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isLocalThread))
+const isLocalComment = (value: unknown): value is LocalListingComment => Boolean(value) && typeof value === 'object' && typeof (value as LocalListingComment).id === 'string' && typeof (value as LocalListingComment).userId === 'string' && typeof (value as LocalListingComment).listingId === 'string' && typeof (value as LocalListingComment).text === 'string' && typeof (value as LocalListingComment).createdAt === 'string'
+const isScopedLocalComments = (value: unknown): value is UserScopedState<LocalListingComment[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isLocalComment))
 const isListingArray = (value: unknown): value is Listing[] => Array.isArray(value) && value.every(isListingLike)
 
 function readListings() {
@@ -142,6 +148,10 @@ function readScopedStrings(key: string, legacyKey: string) {
 
 function readScopedLocalThreads() {
   return readVersioned('112233:message-threads:v1', 1, {} as UserScopedState<LocalMessageThread[]>, isScopedLocalThreads).data
+}
+
+function readScopedLocalComments() {
+  return readVersioned('112233:listing-comments:v1', 1, {} as UserScopedState<LocalListingComment[]>, isScopedLocalComments).data
 }
 
 function readScopedSavedSearches() {
@@ -181,6 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [threadScopes, setThreadScopes] = useState<UserScopedState<LocalMessageThread[]>>(readScopedLocalThreads)
+  const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<DemoUser[]>(() => normalizeUsers(readJson<DemoUser[]>('112233:users:v1', demoUsers).data))
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => readJson<string | null>('112233:session:v1', null).data)
   const [storageError, setStorageError] = useState<string | null>(() => listingLoad.failure ? storageMessage(listingLoad.failure) : null)
@@ -193,6 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const searchHistory = useMemo(() => historyScopes[scopeKey] ?? [], [historyScopes, scopeKey])
   const savedSearches = useMemo(() => savedSearchScopes[scopeKey] ?? [], [savedSearchScopes, scopeKey])
   const localThreads = useMemo(() => threadScopes[scopeKey] ?? [], [scopeKey, threadScopes])
+  const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
 
   useEffect(() => {
     if (rentalMode !== 'holiday') return
@@ -218,6 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => reportStorageFailure(persistVersioned(LISTINGS_KEY, LISTINGS_VERSION, allListings)), [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:message-threads:v1', 1, threadScopes)), [threadScopes, reportStorageFailure])
+  useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:users:v1', users)), [users, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:session:v1', currentUserId)), [currentUserId, reportStorageFailure])
   useEffect(() => {
@@ -320,6 +333,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
   const addReport = useCallback((listingId: string, reason: string, comment: string) => setReports((current) => [{ id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }, ...current]), [])
   const addLocalMessage = useCallback((thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'>) => updateScope(setThreadScopes, (current) => [{ ...thread, id: `local-${Date.now()}`, createdAt: new Date().toISOString(), status: 'Demo local' as const }, ...(current ?? [])]), [updateScope])
+  const addLocalComment = useCallback((listingId: string, text: string) => updateScope(setCommentScopes, (current) => [{ id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, userId: scopeKey, listingId, text: text.trim(), createdAt: new Date().toISOString() }, ...(current ?? [])]), [scopeKey, updateScope])
+  const updateLocalComment = useCallback((id: string, text: string) => updateScope(setCommentScopes, (current) => (current ?? []).map((comment) => comment.id === id ? { ...comment, text: text.trim(), updatedAt: new Date().toISOString() } : comment)), [updateScope])
+  const deleteLocalComment = useCallback((id: string) => updateScope(setCommentScopes, (current) => (current ?? []).filter((comment) => comment.id !== id)), [updateScope])
 
   const login = useCallback((email: string, password: string) => {
     const user = users.find((item) => item.email.toLocaleLowerCase() === email.trim().toLocaleLowerCase())
@@ -366,6 +382,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHistoryScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setSavedSearchScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setThreadScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
+    setCommentScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setReports((current) => current.filter((report) => !ownedListings.some((listing) => listing.id === report.listingId)))
     if (deleteDraft) {
       localStorage.removeItem(DRAFT_KEY)
@@ -379,7 +396,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleUserBlocked = useCallback((id: string) => setUsers((current) => current.map((user) => user.id === id ? { ...user, blocked: !user.blocked } : user)), [])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, users, currentUser, login, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, users, currentUser, login, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

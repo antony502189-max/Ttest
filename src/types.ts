@@ -197,3 +197,12 @@ export interface LocalMessageThread {
   createdAt: string
   status: 'Demo local'
 }
+
+export interface LocalListingComment {
+  id: string
+  userId: string
+  listingId: string
+  text: string
+  createdAt: string
+  updatedAt?: string
+}

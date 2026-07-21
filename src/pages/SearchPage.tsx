@@ -380,6 +380,7 @@ export function SearchPage() {
       <header className="mobile-map-screen__header">
         <Button type="button" variant="ghost" size="icon" onClick={() => changeView('list')} aria-label="Volver a la lista"><ArrowLeft /></Button>
         <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
+        <Button type="button" variant="ghost" size="icon" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /></Button>
       </header>
       <div className="mobile-map-screen__canvas">
         <MapView
@@ -408,6 +409,7 @@ export function SearchPage() {
       <header className="mobile-results-topbar">
         <Button asChild variant="ghost" size="icon"><Link to="/" aria-label="Volver al inicio"><ArrowLeft /></Link></Button>
         <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
+        <Button type="button" variant="ghost" size="icon" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /></Button>
       </header>
       <div className="search-toolbar">
         <div className="container">

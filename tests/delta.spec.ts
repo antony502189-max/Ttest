@@ -336,8 +336,8 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
       expect(contact && navigation && contact.y + contact.height <= navigation.y + 1).toBeTruthy()
       await page.goto('/#/publicar')
       const actions = await page.locator('.wizard-actions').boundingBox()
-      const wizardNavigation = await page.locator('.bottom-nav').boundingBox()
-      expect(actions && wizardNavigation && actions.y + actions.height <= wizardNavigation.y + 1).toBeTruthy()
+      await expect(page.locator('.bottom-nav:visible')).toHaveCount(0)
+      expect(actions && actions.y + actions.height <= height + 1).toBeTruthy()
     }
   }
 })

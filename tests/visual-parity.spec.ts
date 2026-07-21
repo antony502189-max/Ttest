@@ -133,10 +133,6 @@ test('publish room, images and preview visual states', async ({ page }) => {
   await open(page, '/#/publicar')
   const next = page.getByRole('button', { name: 'Continuar' })
   await next.click()
-  const locationMarker = page.locator('.approximate-location-marker')
-  await expect(locationMarker).toBeVisible()
-  await locationMarker.scrollIntoViewIfNeeded()
-  await shot(page, 'publish-location-390x844', [page.locator('.leaflet-tile-pane')])
   await next.click()
   await shot(page, 'publish-room-390x844')
 
@@ -154,12 +150,4 @@ test('Russian home and search visual states', async ({ page }) => {
   await shot(page, 'home-ru-390x844', [page.locator('.promoted-listing img')])
   await open(page, '/#/buscar?q=Tenerife')
   await shot(page, 'search-ru-390x844', [page.locator('.property-card__media img')])
-
-  await setState(page, { session: 'host-demo', language: 'ru' })
-  await open(page, '/#/publicar')
-  await page.getByRole('button', { name: 'Продолжить' }).click()
-  const locationMarker = page.locator('.approximate-location-marker')
-  await expect(locationMarker).toBeVisible()
-  await locationMarker.scrollIntoViewIfNeeded()
-  await shot(page, 'publish-location-ru-390x844', [page.locator('.leaflet-tile-pane')])
 })

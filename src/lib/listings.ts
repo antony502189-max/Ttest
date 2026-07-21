@@ -35,6 +35,16 @@ export function getCriticalRestrictions(listing: Listing): string[] {
   return [...new Set(restrictions.filter(Boolean))]
 }
 
+export function getImageCriticalRestrictions(listing: Listing): string[] {
+  const conditions: string[] = []
+  if (listing.tenantRequirement !== 'any') conditions.push(tenantRequirementLabels[listing.tenantRequirement])
+  if (!listing.petsAllowed) conditions.push('Sin mascotas')
+  if (!listing.childrenAllowed) conditions.push('Sin niños')
+  if (!listing.smokingAllowed) conditions.push('No fumar')
+  if (!conditions.length && listing.roomCapacity === 1) conditions.push('Solo una persona')
+  return [...new Set(conditions)].slice(0, 2)
+}
+
 export function buildContactConfirmationText(listing: Listing) {
   const conditions = getCriticalRestrictions(listing)
     .slice(0, 5)

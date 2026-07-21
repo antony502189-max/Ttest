@@ -119,7 +119,7 @@ test('DELTA-RESULTS-01 compact result cards and dedicated headers expose only in
 test('DELTA-DETAIL-01 listing has icon bar, edge-to-edge gallery and non-overlapping contact/navigation', async ({ page }) => {
   await page.setViewportSize(mobile)
   await page.goto('/#/buscar?q=Tenerife')
-  const href = await page.locator('.property-card h3 a').first().getAttribute('href')
+  const href = await page.locator('.property-card__body-link').first().getAttribute('href')
   await page.goto(href ?? '/#/habitacion/room-1')
   const actionbar = page.locator('.listing-actionbar')
   await expect(actionbar.getByRole('link', { name: 'Volver al listado' })).toBeVisible()
@@ -139,7 +139,7 @@ test('DELTA-LOCAL-01 local contact creates an honest user-scoped message row', a
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('tenant-demo')))
   await page.reload()
   await page.goto('/#/buscar?q=Tenerife')
-  const href = await page.locator('.property-card h3 a').first().getAttribute('href')
+  const href = await page.locator('.property-card__body-link').first().getAttribute('href')
   await page.goto(href ?? '/#/habitacion/room-1')
   await page.getByRole('button', { name: 'Enviar mensaje' }).click()
   const dialog = page.getByRole('dialog')

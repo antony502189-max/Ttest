@@ -12,6 +12,7 @@ import {
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   Bath,
   BedDouble,
   CalendarDays,
@@ -39,6 +40,7 @@ import {
   Sparkles,
   Trash2,
   UsersRound,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,7 @@ import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -62,6 +65,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -102,6 +106,7 @@ import {
 import {
   buildContactConfirmationText,
   getCriticalRestrictions,
+  getImageCriticalRestrictions,
   getPrimaryCadence,
   getPrimaryPrice,
 } from "@/lib/listings";
@@ -276,6 +281,7 @@ export function LocationSelector({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
   const [term, setTerm] = useState("");
+  const [showZoneList, setShowZoneList] = useState(false);
   const filteredAreas = areas.filter((area) =>
     area.toLocaleLowerCase().includes(term.trim().toLocaleLowerCase()),
   );
@@ -285,7 +291,11 @@ export function LocationSelector({
     return [location.label, ...(location.aliases ?? [])].some((value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(needle))
   }).slice(0, 8);
   useEffect(() => {
-    if (open) setDraft(selected);
+    if (open) {
+      setDraft(selected);
+      setTerm("");
+      setShowZoneList(false);
+    }
   }, [open, selected]);
   const toggle = (area: string) =>
     setDraft((current) =>
@@ -309,81 +319,52 @@ export function LocationSelector({
           <span className="location-trigger-desktop-copy">Zonas{selected.length ? ` (${selected.length})` : ""}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="location-selector-dialog">
-        <DialogHeader>
-          <DialogTitle>¿Dónde buscas?</DialogTitle>
-          <DialogDescription>
-            Busca en Tenerife por municipio, barrio o zona.
-          </DialogDescription>
+      <DialogContent className="location-selector-dialog" showCloseButton={false}>
+        <DialogHeader className="location-selector-dialog__header">
+          {showZoneList ? <Button type="button" variant="ghost" size="icon" onClick={() => setShowZoneList(false)} aria-label="Volver a las opciones de ubicación"><ArrowLeft /></Button> : <DialogClose asChild><Button type="button" variant="ghost" size="icon" aria-label="Volver"><ArrowLeft /></Button></DialogClose>}
+          <div>
+            <DialogTitle>{showZoneList ? "Seleccionar zonas" : "¿Dónde buscas?"}</DialogTitle>
+            <DialogDescription>{showZoneList ? "Elige uno o varios municipios o barrios de Tenerife." : "Busca en Tenerife por municipio, barrio o zona."}</DialogDescription>
+          </div>
         </DialogHeader>
-        <div className="location-market-row"><span>Buscar en</span><strong>Tenerife</strong></div>
-        <label className="location-selector-search">
-          <span className="sr-only">Buscar zona</span>
-          <Search aria-hidden="true" />
-          <Input
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            placeholder="Municipio, barrio, zona o dirección"
-            autoComplete="off"
-            autoFocus
-          />
-        </label>
-        <div className="location-catalog-list" aria-label="Lugares de Tenerife">
-          {catalogResults.map((location) => <button type="button" key={`${location.type}-${location.label}`} onClick={() => {
-            onLocationSelect?.(location.normalizedValue);
-            setDraft(location.type === 'area' || location.type === 'district' ? [location.normalizedValue] : []);
-            setOpen(false);
-          }}><MapPin aria-hidden="true" /><span><strong>{location.label}</strong><small>{location.type === 'island' ? 'Isla' : location.type === 'municipality' ? 'Municipio' : location.type === 'district' ? 'Distrito' : 'Zona'}</small></span></button>)}
-        </div>
-        <div className="location-action-list" aria-label="También puedes">
-          <span>También puedes:</span>
-          <Link to="/buscar?vista=mapa"><MapIcon aria-hidden="true" /><strong>Seleccionar zonas en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
-          <Link to="/buscar?vista=mapa&dibujar=1"><Pencil aria-hidden="true" /><strong>Dibujar tu zona</strong><ChevronRight aria-hidden="true" /></Link>
-          <Link to="/buscar?vista=mapa&cerca=1"><Crosshair aria-hidden="true" /><strong>Buscar alrededor de ti</strong><ChevronRight aria-hidden="true" /></Link>
-        </div>
-        <div className="location-selector-summary">
-          <strong>Tenerife</strong>
-          <button type="button" onClick={() => setDraft([])}>
-            Toda la isla
-          </button>
-        </div>
-        <div
-          className="location-selector-list"
-          role="group"
-          aria-label="Zonas de Tenerife"
-        >
-          {filteredAreas.map((area) => (
-            <label className="location-selector-option" key={area}>
-              <Checkbox
-                checked={draft.includes(area)}
-                onCheckedChange={() => toggle(area)}
-              />
-              <span>
-                <strong>{area}</strong>
-                <small>
-                  {
-                    initialListings.filter((listing) => listing.area === area)
-                      .length
-                  }{" "}
-                  habitaciones demo
-                </small>
-              </span>
-            </label>
-          ))}
-        </div>
-        <DialogFooter className="location-selector-footer">
-          <Button variant="ghost" onClick={() => setDraft([])}>
-            Borrar
-          </Button>
-          <Button
-            onClick={() => {
-              onApply(draft);
+        <div className={cn("location-dialog-primary", showZoneList && "is-hidden")}>
+          <div className="location-market-row"><span>Buscar en</span><strong>Tenerife</strong></div>
+          <label className="location-selector-search">
+            <span className="sr-only">Buscar zona</span>
+            <Search aria-hidden="true" />
+            <Input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Municipio, barrio, zona o dirección" autoComplete="off" autoFocus />
+          </label>
+          {term.trim() ? <div className="location-catalog-list" aria-label="Lugares de Tenerife">
+            {catalogResults.map((location) => <button type="button" key={`${location.type}-${location.label}`} onClick={() => {
+              onLocationSelect?.(location.normalizedValue);
+              setDraft(location.type === 'area' || location.type === 'district' ? [location.normalizedValue] : []);
               setOpen(false);
-            }}
-          >
-            Aplicar{draft.length ? ` ${draft.length} zonas` : ""}
-          </Button>
-        </DialogFooter>
+            }}><MapPin aria-hidden="true" /><span><strong>{location.label}</strong><small>{location.type === 'island' ? 'Isla' : location.type === 'municipality' ? 'Municipio' : location.type === 'district' ? 'Distrito' : 'Zona'}</small></span></button>)}
+          </div> : null}
+          <div className="location-action-list" aria-label="También puedes">
+            <span>También puedes:</span>
+            <Link to="/buscar?vista=mapa"><MapIcon aria-hidden="true" /><strong>Seleccionar zonas en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
+            <Link to="/buscar?vista=mapa&dibujar=1"><Pencil aria-hidden="true" /><strong>Dibujar tu zona</strong><ChevronRight aria-hidden="true" /></Link>
+            <Link to="/buscar?vista=mapa"><MapPin aria-hidden="true" /><strong>Buscar en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
+            <Link to="/buscar?vista=mapa&cerca=1"><Crosshair aria-hidden="true" /><strong>Buscar alrededor de ti</strong><ChevronRight aria-hidden="true" /></Link>
+          </div>
+          <Button type="button" variant="ghost" className="location-zones-toggle" onClick={() => setShowZoneList(true)}>Seleccionar municipios y barrios <ChevronRight data-icon="inline-end" /></Button>
+        </div>
+        <div className={cn("location-zones-panel", showZoneList && "is-open")}>
+          <div className="location-selector-summary"><strong>Tenerife</strong><button type="button" onClick={() => setDraft([])}>Toda la isla</button></div>
+          <div className="location-selector-list" role="group" aria-label="Zonas de Tenerife">
+            {filteredAreas.map((area) => (
+              <label className="location-selector-option" key={area}>
+                <Checkbox checked={draft.includes(area)} onCheckedChange={() => toggle(area)} />
+                <span><strong>{area}</strong><small>{initialListings.filter((listing) => listing.area === area).length} habitaciones demo</small></span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter className="location-selector-footer">
+            <Button variant="ghost" onClick={() => setDraft([])}>Borrar</Button>
+            <Button onClick={() => { onApply(draft); setOpen(false); }}>Aplicar{draft.length ? ` ${draft.length} zonas` : ""}</Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -446,6 +427,16 @@ export function FavoriteButton({ listing }: { listing: Listing }) {
     >
       <Heart aria-hidden="true" fill={saved ? "currentColor" : "none"} />
     </button>
+  );
+}
+
+export function CriticalRestrictionOverlay({ listing, compact = false }: { listing: Listing; compact?: boolean }) {
+  const restrictions = getImageCriticalRestrictions(listing);
+  if (!restrictions.length) return null;
+  return (
+    <div className={cn("critical-restriction-overlay", compact && "critical-restriction-overlay--compact")} role="note" aria-label={`Condiciones importantes: ${restrictions.join(", ")}`}>
+      {restrictions.map((restriction) => <span key={restriction}>{restriction}</span>)}
+    </div>
   );
 }
 
@@ -550,51 +541,31 @@ export function PropertyCard({
           {imageIndex + 1}/{listing.images.length}
         </span>
         <FavoriteButton listing={listing} />
+        {imageIndex === 0 ? <CriticalRestrictionOverlay listing={listing} /> : null}
         {listing.advertiserType === "Profesional" ? (
           <span className="listing-status">Profesional</span>
         ) : null}
       </div>
       <div className="property-card__content">
-        <h3>
-          <Link to={`/habitacion/${listing.id}`}>{listing.title}</Link>
-        </h3>
-        <div className="card-topline">
-          <PriceBlock listing={listing} />
-          <span>{listing.bills}</span>
-        </div>
-        <p className="property-location">
-          <MapPin aria-hidden="true" />
-          {listing.area}, {listing.city}
-        </p>
-        <div className="property-facts">
-          <span>
-            <BedDouble aria-hidden="true" />
-            {listing.roomType}
-          </span>
-          <span>{listing.currentResidents} residentes · {listing.roomSizeM2} m²</span>
-          <span>
-            <CalendarDays aria-hidden="true" />
-            {listing.available}
-          </span>
-        </div>
-        {compact ? null : (
-          <p className="property-description">{listing.description}</p>
-        )}
-        <div className="badge-row">
-          {visibleRestrictions.map((item) => (
-            <PropertyBadge key={item}>{item}</PropertyBadge>
-          ))}
-          {criticalRestrictions.length > visibleRestrictions.length ? (
-            <Badge variant="secondary">
-              +{criticalRestrictions.length - visibleRestrictions.length}{" "}
-              condiciones
-            </Badge>
-          ) : null}
-        </div>
-        <div className="property-card__meta">
-          <span>{formatPublishedAt(listing.publishedAt)}</span>
-          <span>{listing.advertiserType}</span>
-        </div>
+        <Link className="property-card__body-link" to={`/habitacion/${listing.id}`} aria-label={`Abrir ${listing.title}`}>
+          <h3>{listing.title}</h3>
+          <div className="card-topline">
+            <PriceBlock listing={listing} />
+            <span>{listing.bills}</span>
+          </div>
+          <p className="property-location"><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
+          <div className="property-facts">
+            <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
+            <span>{listing.currentResidents} residentes · {listing.roomSizeM2} m²</span>
+            <span><CalendarDays aria-hidden="true" />{listing.available}</span>
+          </div>
+          {compact ? null : <p className="property-description">{listing.description}</p>}
+          <div className="badge-row">
+            {visibleRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}
+            {criticalRestrictions.length > visibleRestrictions.length ? <Badge variant="secondary">+{criticalRestrictions.length - visibleRestrictions.length} condiciones</Badge> : null}
+          </div>
+          <div className="property-card__meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>{listing.advertiserType}</span></div>
+        </Link>
         {compact ? null : (
           <div className="property-card__actions">
             <Button asChild>
@@ -1066,8 +1037,9 @@ export function FilterButton({
           ) : null}
         </Button>
       </SheetTrigger>
-      <SheetContent className="filter-drawer">
+      <SheetContent className="filter-drawer" showCloseButton={false}>
         <SheetHeader>
+          <SheetClose asChild><Button type="button" variant="ghost" size="icon" className="filter-drawer__back" aria-label="Cerrar filtros"><X /></Button></SheetClose>
           <SheetTitle>Filtros</SheetTitle>
           <SheetDescription>
             Ajusta las condiciones y revisa cuántas habitaciones coinciden.
@@ -1195,6 +1167,7 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
             width="1200"
             height="800"
           />
+          {index === 0 ? <CriticalRestrictionOverlay listing={listing} /> : null}
           <button
             type="button"
             className="gallery-prev"
@@ -1440,7 +1413,7 @@ export function ContactPanel({
             setMessageForm({ name: "", contact: "", message: "", website: "", confirmed: false });
           }
         }}>
-          <DialogTrigger asChild><Button variant="outline"><MessageCircle data-icon="inline-start" />Enviar mensaje</Button></DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" aria-label="Enviar mensaje"><MessageCircle data-icon="inline-start" />{mobile ? "Contactar" : "Enviar mensaje"}</Button></DialogTrigger>
           <DialogContent className="contact-message-dialog">
             <DialogHeader>
               <DialogTitle>Enviar un mensaje local</DialogTitle>

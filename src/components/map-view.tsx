@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MediaImage } from "@/components/media-image";
 import { useApp } from "@/contexts/app-context";
-import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
+import { getCriticalRestrictions, getImageCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM, isInsideTenerife } from "@/lib/tenerife";
 import { cn } from "@/lib/utils";
 import type { Coordinates, Listing, MapPolygonPoint } from "@/types";
@@ -39,12 +39,6 @@ const tenerifeBounds = L.latLngBounds(
   [TENERIFE_BOUNDS.north, TENERIFE_BOUNDS.east],
 );
 const priceLabel = (listing: Listing) => `${getPrimaryPrice(listing)} €`;
-const approximateLocationIcon = L.divIcon({
-  className: "approximate-location-marker-shell",
-  html: '<span class="approximate-location-marker" aria-hidden="true"><span /></span>',
-  iconSize: [44, 48],
-  iconAnchor: [22, 44],
-});
 const markerIcon = (listing: Listing, selected = false) => L.divIcon({
   className: "price-marker-shell",
   html: `<span class="price-marker${selected ? " is-selected" : ""}">${priceLabel(listing)}</span>`,
@@ -77,7 +71,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
-    const marker = L.marker([initial.lat, initial.lng], { icon: approximateLocationIcon, draggable: true, keyboard: true, title: "Ubicación pública aproximada" }).addTo(map);
+    const marker = L.marker([initial.lat, initial.lng], { draggable: true, keyboard: true, title: "Ubicación pública aproximada" }).addTo(map);
     const handleDragEnd = () => {
       const point = marker.getLatLng();
       onChangeRef.current({ lat: point.lat, lng: point.lng });
@@ -386,7 +380,7 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
       ) : null}
       {selected && showPreview ? (
         <article className="map-selected-card" aria-label={`Habitación seleccionada en ${selected.area}`}>
-          <MediaImage src={selected.images[0]} alt="" width="176" height="120" />
+          <div className="map-selected-card__media"><MediaImage src={selected.images[0]} alt="" width="176" height="120" />{getImageCriticalRestrictions(selected).length ? <span>{getImageCriticalRestrictions(selected).join(" · ")}</span> : null}</div>
           <div><span>{selected.area}</span><strong>{priceLabel(selected)}/{getPrimaryCadence(selected)}</strong><Link to={`/habitacion/${selected.id}`}>{selected.title}</Link><small>{getCriticalRestrictions(selected).slice(0, 2).join(" · ")}</small></div>
           <button type="button" onClick={() => onSelect("")} aria-label="Cerrar vista previa"><X /></button>
         </article>

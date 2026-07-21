@@ -147,7 +147,7 @@ test('ACCOUNT-01 deletion clears owned local data, draft and unused media after 
   await openAsHost(page, '/#/perfil')
   await page.getByRole('button', { name: 'Eliminar cuenta' }).click()
   const dialog = page.getByRole('alertdialog', { name: '¿Eliminar tu cuenta?' })
-  await expect(dialog).toContainText('anuncios, borrador, búsquedas, favoritos, historial y archivos multimedia')
+  await expect(dialog).toContainText('anuncios, borrador, búsquedas, favoritos, historial, comentarios y archivos multimedia')
   await dialog.getByRole('button', { name: 'Eliminar definitivamente' }).click()
   await expect(page).toHaveURL(/#\/acceso/)
   await expect.poll(() => page.evaluate(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
+  ArrowLeft,
   Bell,
   BellOff,
   CalendarClock,
@@ -444,7 +445,7 @@ export function ProfilePage() {
                 </Button>
               }
               title="¿Eliminar tu cuenta?"
-              description="Se eliminarán esta cuenta local, su sesión, anuncios, borrador, búsquedas, favoritos, historial y archivos multimedia sin uso. Esta acción no se puede deshacer."
+              description="Se eliminarán esta cuenta local, su sesión, anuncios, borrador, búsquedas, favoritos, historial, comentarios y archivos multimedia sin uso. Esta acción no se puede deshacer."
               confirmLabel="Eliminar definitivamente"
               destructive
               onConfirm={() => {
@@ -471,7 +472,9 @@ export function MyListingsPage() {
       ? mine
       : mine.filter((listing) => visibleStatus(listing.status) === status);
   return (
-    <div className="container account-page">
+    <div className="owner-listings-page">
+      <header className="owner-mobile-appbar"><Button asChild variant="ghost" size="icon"><Link to="/menu" aria-label="Volver al menú"><ArrowLeft /></Link></Button><strong>Tus anuncios</strong></header>
+      <div className="container account-page">
       <AccountHeader
         eyebrow="Área del anunciante"
         title="Mis anuncios"
@@ -630,6 +633,7 @@ export function MyListingsPage() {
           </Button>
         </div>
       )}
+      </div>
     </div>
   );
 }
