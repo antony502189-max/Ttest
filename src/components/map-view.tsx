@@ -39,6 +39,12 @@ const tenerifeBounds = L.latLngBounds(
   [TENERIFE_BOUNDS.north, TENERIFE_BOUNDS.east],
 );
 const priceLabel = (listing: Listing) => `${getPrimaryPrice(listing)} €`;
+const approximateLocationIcon = L.divIcon({
+  className: "approximate-location-marker-shell",
+  html: '<span class="approximate-location-marker" aria-hidden="true"><span /></span>',
+  iconSize: [44, 48],
+  iconAnchor: [22, 44],
+});
 const markerIcon = (listing: Listing, selected = false) => L.divIcon({
   className: "price-marker-shell",
   html: `<span class="price-marker${selected ? " is-selected" : ""}">${priceLabel(listing)}</span>`,
@@ -71,7 +77,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
-    const marker = L.marker([initial.lat, initial.lng], { draggable: true, keyboard: true, title: "Ubicación pública aproximada" }).addTo(map);
+    const marker = L.marker([initial.lat, initial.lng], { icon: approximateLocationIcon, draggable: true, keyboard: true, title: "Ubicación pública aproximada" }).addTo(map);
     const handleDragEnd = () => {
       const point = marker.getLatLng();
       onChangeRef.current({ lat: point.lat, lng: point.lng });
