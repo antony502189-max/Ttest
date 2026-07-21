@@ -33,6 +33,10 @@ interface MapViewProps {
 }
 
 const tenerifeCenter: L.LatLngExpression = [28.2916, -16.6291];
+const tenerifeBounds = L.latLngBounds(
+  [27.92, -17.02],
+  [28.68, -16.01],
+);
 const priceLabel = (listing: Listing) => `${getPrimaryPrice(listing)} €`;
 const markerIcon = (listing: Listing, selected = false) => L.divIcon({
   className: "price-marker-shell",
@@ -54,7 +58,13 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   useEffect(() => {
     if (!containerRef.current) return;
     const initial = initialCoordinatesRef.current;
-    const map = L.map(containerRef.current, { zoomControl: true, minZoom: 10, maxZoom: 18 }).setView([initial.lat, initial.lng], 14);
+    const map = L.map(containerRef.current, {
+      zoomControl: true,
+      minZoom: 10,
+      maxZoom: 18,
+      maxBounds: tenerifeBounds,
+      maxBoundsViscosity: 1,
+    }).setView([initial.lat, initial.lng], 14);
     const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -123,6 +133,7 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
     setError("");
     const map = L.map(containerRef.current, {
       zoomControl: true, preferCanvas: true, minZoom: 8,
+      maxBounds: tenerifeBounds, maxBoundsViscosity: 1,
       zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
     }).setView(tenerifeCenter, 9);
     containerRef.current.dataset.mapInstance = String((map as L.Map & { _leaflet_id?: number })._leaflet_id ?? "ready");

@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:a11y": "playwright test tests/a11y.spec.ts"
+    "test:a11y": "playwright test tests/a11y.spec.ts",
+    "test:visual": "playwright test tests/visual-parity.spec.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

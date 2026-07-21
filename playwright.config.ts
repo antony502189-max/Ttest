@@ -2,9 +2,11 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 30_000,
+  timeout: 60_000,
   expect: { timeout: 7_000 },
+  snapshotPathTemplate: '{testDir}/visual-snapshots/{projectName}/{arg}{ext}',
   fullyParallel: false,
+  workers: 1,
   reporter: [['list'], ['html', { outputFolder: 'output/playwright/report', open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:4173',

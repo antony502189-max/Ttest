@@ -20,15 +20,18 @@ import {
   ChevronRight,
   CigaretteOff,
   CircleAlert,
+  Crosshair,
   Euro,
   Expand,
   Heart,
   Home,
+  Map as MapIcon,
   MapPin,
   MessageCircle,
   MoreHorizontal,
   PawPrint,
   Phone,
+  Pencil,
   Search,
   Share2,
   ShieldCheck,
@@ -41,6 +44,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
@@ -144,8 +148,8 @@ export function RentalTypeSwitch({
       className={cn("rental-switch", compact && "rental-switch--compact")}
       aria-label="Tipo de alquiler"
     >
-      <ToggleGroupItem value="long">Larga estancia</ToggleGroupItem>
-      <ToggleGroupItem value="holiday">Alquiler vacacional</ToggleGroupItem>
+      <ToggleGroupItem value="long" aria-label="Larga estancia">Habitaciones Vivienda</ToggleGroupItem>
+      <ToggleGroupItem value="holiday" aria-label="Alquiler vacacional">Habitaciones Turísticas</ToggleGroupItem>
     </ToggleGroup>
   );
 }
@@ -190,7 +194,7 @@ export function SearchLocationInput({
   );
 }
 
-export function SearchBar({ compact = false }: { compact?: boolean }) {
+export function SearchBar({ compact = false, home = false }: { compact?: boolean; home?: boolean }) {
   const { query, setQuery, addSearchHistory, filters, setFilters, rentalMode } =
     useApp();
   const navigate = useNavigate();
@@ -214,12 +218,13 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   };
   return (
     <form
-      className={cn("search-bar", compact && "search-bar--compact")}
+      className={cn("search-bar", compact && "search-bar--compact", home && "search-bar--home")}
       onSubmit={submit}
       role="search"
     >
+      {home && rentalMode === "long" ? <FieldGroup className="home-tenant-field"><Field><FieldLabel htmlFor="home-tenant-requirement">Para quién</FieldLabel><select id="home-tenant-requirement" value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}><option value="Cualquiera">Cualquiera</option><option value="single-man">Solo un hombre</option><option value="single-woman">Solo una mujer</option><option value="single-person">Una persona</option><option value="couple">Solo pareja</option><option value="any">Sin restricción</option></select></Field></FieldGroup> : null}
       <SearchLocationInput value={query} onChange={setQuery} />
-      {compact ? null : (
+      {compact || (home && rentalMode === "long") ? null : (
         <div className="search-date">
           <label htmlFor="move-date">Entrada</label>
           <div>
@@ -281,21 +286,29 @@ export function LocationSelector({
       </DialogTrigger>
       <DialogContent className="location-selector-dialog">
         <DialogHeader>
-          <DialogTitle>¿Dónde quieres buscar?</DialogTitle>
+          <DialogTitle>¿Dónde buscas?</DialogTitle>
           <DialogDescription>
-            Selecciona una o varias zonas de Tenerife.
+            Busca en Tenerife por municipio, barrio o zona.
           </DialogDescription>
         </DialogHeader>
+        <button type="button" className="location-market-row"><span>Buscar en</span><strong>Tenerife</strong></button>
         <label className="location-selector-search">
           <span className="sr-only">Buscar zona</span>
           <Search aria-hidden="true" />
           <Input
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            placeholder="Buscar municipio o barrio"
+            placeholder="Municipio, barrio, zona o dirección"
             autoComplete="off"
+            autoFocus
           />
         </label>
+        <div className="location-action-list" aria-label="También puedes">
+          <span>También puedes:</span>
+          <Link to="/buscar?vista=mapa"><MapIcon aria-hidden="true" /><strong>Seleccionar zonas en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
+          <Link to="/buscar?vista=mapa&dibujar=1"><Pencil aria-hidden="true" /><strong>Dibujar tu zona</strong><ChevronRight aria-hidden="true" /></Link>
+          <Link to="/buscar?vista=mapa&cerca=1"><Crosshair aria-hidden="true" /><strong>Buscar alrededor de ti</strong><ChevronRight aria-hidden="true" /></Link>
+        </div>
         <div className="location-selector-summary">
           <strong>Tenerife</strong>
           <button type="button" onClick={() => setDraft([])}>
@@ -978,9 +991,11 @@ function FilterPanel({
 export function FilterButton({
   resultCount,
   onFiltersChange,
+  onRentalModeChange,
 }: {
   resultCount: number;
   onFiltersChange?: (filters: Filters) => void;
+  onRentalModeChange?: (mode: RentalMode) => void;
 }) {
   const {
     filters,
@@ -1026,6 +1041,7 @@ export function FilterButton({
             Todos los controles cambian el resultado y se guardan en la URL.
           </SheetDescription>
         </SheetHeader>
+        {onRentalModeChange ? <div className="filter-mode-switch"><span>Tipo de estancia</span><RentalTypeSwitch compact onChange={onRentalModeChange} /></div> : null}
         <FilterPanel
           value={draft}
           onChange={setDraft}

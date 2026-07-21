@@ -6,10 +6,14 @@ import {
   Heart,
   List,
   Map,
+  ArrowUpDown,
   X,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApp } from "@/contexts/app-context";
 import { areas, defaultFilters } from "@/data/listings";
 import { tenantRequirementLabels } from "@/lib/listings";
@@ -37,6 +41,11 @@ import {
 import type { Filters, MapPolygonPoint, RentalMode } from "@/types";
 
 const PAGE_SIZE = 9;
+const sortOptions = ["Relevancia", "Más recientes", "Más antiguos", "Precio más bajo", "Precio más alto"];
+
+function SortControl({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <Drawer><DrawerTrigger asChild><Button variant="outline" className="mobile-sort-control"><ArrowUpDown data-icon="inline-start" />Ordenar</Button></DrawerTrigger><DrawerContent className="sort-drawer"><DrawerHeader><DrawerTitle>Ordenar resultados</DrawerTitle><DrawerDescription>Elige cómo quieres ver las habitaciones.</DrawerDescription></DrawerHeader><RadioGroup value={value} onValueChange={onChange} className="sort-options">{sortOptions.map((option) => { const id = `sort-${option.replace(/\s+/g, '-').toLocaleLowerCase()}`; return <Field key={option} orientation="horizontal"><RadioGroupItem id={id} value={option} /><FieldLabel htmlFor={id}>{option}</FieldLabel></Field> })}</RadioGroup><DrawerFooter><DrawerClose asChild><Button>Aplicar orden</Button></DrawerClose></DrawerFooter></DrawerContent></Drawer>
+}
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -430,9 +439,10 @@ export function SearchPage() {
           ) : null}
           <div className="idealista-results-toolbar">
             <div className="mobile-filter-control">
-              <FilterButton resultCount={items.length} />
+              <FilterButton resultCount={items.length} onRentalModeChange={(mode) => updateParams((next) => next.set("alquiler", mode))} />
             </div>
-            <label>
+            <SortControl value={filters.sort} onChange={changeSort} />
+            <label className="desktop-sort-control">
               <span>Ordenar:</span>
               <select
                 aria-label="Ordenar resultados"
@@ -447,9 +457,11 @@ export function SearchPage() {
               </select>
             </label>
             <Button
+              className="results-map-button"
               variant={view === "map" ? "default" : "outline"}
               onClick={() => changeView(view === "map" ? "list" : "map")}
               aria-pressed={view === "map"}
+              aria-label={view === "map" ? "Mostrar lista de habitaciones" : "Mostrar habitaciones en el mapa"}
             >
               {view === "map" ? (
                 <List data-icon="inline-start" />
@@ -550,7 +562,7 @@ export function SearchPage() {
         ) : (
           <Map data-icon="inline-start" />
         )}
-        {view === "map" ? "Ver lista" : "Ver mapa"}
+        {view === "map" ? `Mostrar ${items.length} habitaciones` : "Ver mapa"}
       </Button>
     </div>
   );

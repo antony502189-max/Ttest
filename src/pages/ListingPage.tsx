@@ -38,7 +38,7 @@ export function ListingPage() {
       <div className="container listing-layout">
         <div className="listing-main">
           <header className="listing-title"><div><h1>Habitación en {listing.area}, {listing.city}</h1><p>{listing.title}</p><span className="listing-address"><MapPin aria-hidden="true" />{listing.approximateAddress}</span></div><PriceBlock listing={listing} large /></header>
-          <div className="listing-keyfacts"><span>{listing.roomType}</span><span>{listing.currentResidents} residentes · para {listing.roomCapacity}</span><span>{listing.roomSizeM2} m²</span><span>{listing.shower}</span></div>
+          <div className="listing-keyfacts" tabIndex={0} role="region" aria-label="Resumen de la habitación"><span>{listing.roomType}</span><span>{listing.currentResidents} residentes · para {listing.roomCapacity}</span><span>{listing.roomSizeM2} m²</span><span>{listing.shower}</span></div>
           {primaryRestriction ? <section className="listing-restriction-notice" aria-labelledby="restriction-title"><UsersRound aria-hidden="true" /><div><span>Condición principal</span><h2 id="restriction-title">{preferenceTitle(primaryRestriction)}</h2><p>Comprueba esta preferencia visible del anunciante antes de contactar. Puedes seguir consultando el anuncio sin interrupciones.</p></div></section> : null}
           <Separator />
           <section className="listing-section"><h2>Descripción</h2><p className="prose">{listing.description}</p><p className="prose">{listing.homeDescription}</p></section>
