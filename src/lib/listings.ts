@@ -1,4 +1,5 @@
 import type { Listing, TenantRequirement } from '@/types'
+import { TENERIFE_CENTER } from '@/lib/tenerife'
 
 export const tenantRequirementLabels: Record<TenantRequirement, string> = {
   'single-man': 'Solo un hombre',
@@ -124,7 +125,7 @@ export function normalizeListing(value: unknown): Listing | null {
     shower: legacy.shower === 'Ducha privada' ? 'Ducha privada' : 'Ducha compartida',
     coordinates: legacy.coordinates && typeof legacy.coordinates.lat === 'number' && typeof legacy.coordinates.lng === 'number'
       ? legacy.coordinates
-      : { lat: 28.2916, lng: -16.6291 },
+      : { ...TENERIFE_CENTER },
     tenantRequirement,
     smokingAllowed: Boolean(legacy.smokingAllowed),
     petsAllowed: Boolean(legacy.petsAllowed),

@@ -186,3 +186,14 @@ export interface ReportRecord {
   createdAt: string
   status: 'Abierta' | 'Resuelta'
 }
+
+export interface LocalMessageThread {
+  id: string
+  listingId: string
+  listingTitle: string
+  imageRef: string
+  contactName: string
+  messagePreview: string
+  createdAt: string
+  status: 'Demo local'
+}

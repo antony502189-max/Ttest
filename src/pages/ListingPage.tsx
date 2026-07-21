@@ -1,9 +1,11 @@
-import { ArrowLeft, Bath, BedDouble, CalendarDays, Check, CookingPot, Heart, Home, MapPin, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, Bath, BedDouble, CalendarDays, Check, CircleAlert, CookingPot, Heart, Home, MapPin, MoreHorizontal, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ContactPanel, MapView, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
 import { formatPublishedAt } from '@/lib/search'
@@ -15,6 +17,7 @@ export function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { allListings, favorites, toggleFavorite, discardListing } = useApp()
+  const [reportOpen, setReportOpen] = useState(false)
   const listing = allListings.find((item) => item.id === id && isPublicListing(item))
   if (!listing) return <Navigate to="/buscar" replace />
   const criticalRestrictions = getCriticalRestrictions(listing)
@@ -31,10 +34,12 @@ export function ListingPage() {
       else { await navigator.clipboard.writeText(window.location.href); toast.success('Enlace copiado') }
     } catch (error) { if ((error as DOMException).name !== 'AbortError') toast.error('No se pudo compartir el anuncio') }
   }
+  const discard = () => { discardListing(listing.id); toast.success('Anuncio descartado'); navigate('/buscar') }
   return (
     <article className="listing-page idealista-listing-page">
-      <div className="container listing-actionbar"><Button asChild variant="ghost" size="sm"><Link to="/buscar"><ArrowLeft data-icon="inline-start" />Volver al listado</Link></Button><div><Button variant="ghost" size="sm" onClick={share}><Share2 data-icon="inline-start" />Compartir</Button><Button variant="ghost" size="sm" onClick={() => { discardListing(listing.id); toast.success('Anuncio descartado'); navigate('/buscar') }}><Trash2 data-icon="inline-start" />Descartar</Button><Button variant="ghost" size="sm" onClick={() => toggleFavorite(listing.id)} aria-pressed={saved}><Heart data-icon="inline-start" fill={saved ? 'currentColor' : 'none'} />{saved ? 'Guardado' : 'Guardar'}</Button></div></div>
-      <div className="container"><PropertyGallery listing={listing} /></div>
+      <div className="container listing-actionbar"><Button asChild variant="ghost" size="icon"><Link to="/buscar" aria-label="Volver al listado"><ArrowLeft /></Link></Button><div><Button variant="ghost" size="icon" onClick={share} aria-label="Compartir"><Share2 /></Button><Button variant="ghost" size="icon" onClick={() => toggleFavorite(listing.id)} aria-label={saved ? 'Guardado' : 'Guardar'} aria-pressed={saved}><Heart fill={saved ? 'currentColor' : 'none'} /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Más acciones del anuncio"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuItem onSelect={discard}><Trash2 />Descartar</DropdownMenuItem><DropdownMenuItem onSelect={() => setReportOpen(true)}><CircleAlert />Denunciar anuncio</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu></div></div>
+      <ReportDialog listing={listing} open={reportOpen} onOpenChange={setReportOpen} trigger={false} />
+      <div className="container listing-gallery-container"><PropertyGallery listing={listing} /></div>
       <div className="container listing-layout">
         <div className="listing-main">
           <header className="listing-title"><div><h1>Habitación en {listing.area}, {listing.city}</h1><p>{listing.title}</p><span className="listing-address"><MapPin aria-hidden="true" />{listing.approximateAddress}</span></div><PriceBlock listing={listing} large /></header>
@@ -54,11 +59,11 @@ export function ListingPage() {
           <section className="listing-section"><h2>Ubicación aproximada</h2><p className="map-intro">El marcador protege la dirección exacta.</p><div className="detail-map"><MapView items={[listing]} selectedId={listing.id} onSelect={() => undefined} showPreview={false} /></div></section>
           <Separator />
           <section className="listing-section owner-detail"><div className="owner-monogram">{listing.owner.initials}</div><div><span>Anunciante</span><h2>{listing.owner.name}</h2><p>{listing.owner.since} · {listing.owner.response}</p><p>{listing.owner.verified ? 'Identidad y teléfono verificados por 112233.es.' : 'Identidad pendiente de verificación.'}</p></div>{listing.owner.verified ? <Badge variant="outline"><ShieldCheck />Anunciante verificado</Badge> : null}</section>
-          <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span>{listing.source ?? 'Anuncio directo'}</span><ReportDialog listing={listing} /></div>
+          <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span>{listing.source ?? 'Anuncio directo'}</span></div>
         </div>
         <div className="listing-aside"><ContactPanel listing={listing} /></div>
       </div>
-      <section className="section section--surface"><div className="container"><div className="section-heading idealista-section-heading"><div><h2>También te puede interesar</h2><p>Primero mostramos zona y precio parecidos.</p></div><Button asChild variant="outline"><Link to="/buscar">Ver más</Link></Button></div><div className="property-grid">{similar.map((item) => <PropertyCard key={item.id} listing={item} compact />)}</div></div></section>
+      <section className="section section--surface listing-similar"><div className="container"><div className="section-heading idealista-section-heading"><div><h2>También te puede interesar</h2><p>Primero mostramos zona y precio parecidos.</p></div><Button asChild variant="outline"><Link to="/buscar">Ver más</Link></Button></div><div className="property-grid">{similar.map((item) => <PropertyCard key={item.id} listing={item} compact />)}</div></div></section>
       <div className="mobile-contact-bar"><ContactPanel listing={listing} mobile /></div>
     </article>
   )

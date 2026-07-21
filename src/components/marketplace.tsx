@@ -105,6 +105,7 @@ import {
   getPrimaryCadence,
   getPrimaryPrice,
 } from "@/lib/listings";
+import { TENERIFE_LOCATIONS, resolveTenerifeLocation } from "@/lib/tenerife";
 import type {
   Filters,
   Listing,
@@ -157,25 +158,29 @@ export function RentalTypeSwitch({
 export function SearchLocationInput({
   value,
   onChange,
+  error,
 }: {
   value: string;
   onChange: (value: string) => void;
+  error?: string;
 }) {
   const id = useId();
   const listId = useId();
   const { searchHistory, filters, setFilters } = useApp();
-  const suggestions = [...new Set([...searchHistory, "Tenerife", ...areas])];
+  const suggestions = [...new Set([...searchHistory, ...TENERIFE_LOCATIONS.map((location) => location.normalizedValue)])];
   return (
     <div className="search-location">
       <label htmlFor={id}>Ciudad, barrio o zona</label>
-      <div>
-        <MapPin aria-hidden="true" />
+      <div className="search-location-row">
+        <MapPin className="search-location-row__icon" aria-hidden="true" />
         <Input
           id={id}
           list={listId}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Ej. Los Cristianos"
+          placeholder="Municipio, barrio o zona de Tenerife"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
         />
         <datalist id={listId}>
           {suggestions.map((suggestion) => (
@@ -184,12 +189,15 @@ export function SearchLocationInput({
         </datalist>
         <LocationSelector
           selected={filters.areas}
+          currentQuery={value}
+          onLocationSelect={onChange}
           onApply={(selected) => {
             setFilters({ ...filters, areas: selected });
             onChange(selected.length === 1 ? selected[0] : "Tenerife");
           }}
         />
       </div>
+      {error ? <span id={`${id}-error`} className="location-validation" role="alert">{error}</span> : null}
     </div>
   );
 }
@@ -198,16 +206,22 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
   const { query, setQuery, addSearchHistory, filters, setFilters, rentalMode } =
     useApp();
   const navigate = useNavigate();
+  const [locationError, setLocationError] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const normalized = query.trim() || "Tenerife";
-    const exactArea = areas.find(
-      (area) => area.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
-    );
+    const location = resolveTenerifeLocation(query.trim() || "Tenerife");
+    if (!location) {
+      setLocationError("En esta versión solo puedes buscar habitaciones en Tenerife.");
+      return;
+    }
+    setLocationError("");
+    const normalized = location.normalizedValue;
+    const exactArea = location.type === "area" || location.type === "district" ? location.normalizedValue : undefined;
     const nextFilters = {
       ...filters,
-      areas: exactArea ? [exactArea] : filters.areas,
+      areas: exactArea ? [exactArea] : location.type === "island" && filters.areas.length > 1 ? filters.areas : [],
     };
+    setQuery(normalized);
     setFilters(nextFilters);
     addSearchHistory(normalized);
     const params = filtersToParams(
@@ -222,9 +236,9 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
       onSubmit={submit}
       role="search"
     >
-      {home && rentalMode === "long" ? <FieldGroup className="home-tenant-field"><Field><FieldLabel htmlFor="home-tenant-requirement">Para quién</FieldLabel><select id="home-tenant-requirement" value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}><option value="Cualquiera">Cualquiera</option><option value="single-man">Solo un hombre</option><option value="single-woman">Solo una mujer</option><option value="single-person">Una persona</option><option value="couple">Solo pareja</option><option value="any">Sin restricción</option></select></Field></FieldGroup> : null}
-      <SearchLocationInput value={query} onChange={setQuery} />
-      {compact || (home && rentalMode === "long") ? null : (
+      {home ? <FieldGroup className="home-tenant-field"><Field><FieldLabel className="sr-only" htmlFor="home-tenant-requirement">Para quién</FieldLabel><select id="home-tenant-requirement" aria-label="Para quién" value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}><option value="Cualquiera">Para quién: cualquiera</option><option value="single-man">Para quién: solo un hombre</option><option value="single-woman">Para quién: solo una mujer</option><option value="single-person">Para quién: una persona</option><option value="couple">Para quién: solo pareja</option><option value="any">Para quién: sin restricción</option></select></Field></FieldGroup> : null}
+      <SearchLocationInput value={query} error={locationError} onChange={(value) => { setQuery(value); if (locationError) setLocationError(""); }} />
+      {compact ? null : (
         <div className="search-date">
           <label htmlFor="move-date">Entrada</label>
           <div>
@@ -251,9 +265,13 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
 export function LocationSelector({
   selected,
   onApply,
+  currentQuery = "Tenerife",
+  onLocationSelect,
 }: {
   selected: string[];
   onApply: (selectedAreas: string[]) => void;
+  currentQuery?: string;
+  onLocationSelect?: (query: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
@@ -261,6 +279,11 @@ export function LocationSelector({
   const filteredAreas = areas.filter((area) =>
     area.toLocaleLowerCase().includes(term.trim().toLocaleLowerCase()),
   );
+  const catalogResults = TENERIFE_LOCATIONS.filter((location) => {
+    if (!term.trim()) return location.type === "island" || location.type === "municipality" && ['Adeje', 'Arona', 'Granadilla de Abona', 'San Cristóbal de La Laguna', 'Santa Cruz de Tenerife'].includes(location.label)
+    const needle = term.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
+    return [location.label, ...(location.aliases ?? [])].some((value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(needle))
+  }).slice(0, 8);
   useEffect(() => {
     if (open) setDraft(selected);
   }, [open, selected]);
@@ -278,10 +301,12 @@ export function LocationSelector({
           variant="ghost"
           size="sm"
           className="location-selector-trigger"
-          aria-label={`Elegir zonas. ${selected.length || "Ninguna"} seleccionadas`}
+          aria-label={`Abrir selección de ubicación. ${currentQuery || "Tenerife"}`}
         >
-          <SlidersHorizontal data-icon="inline-start" />
-          <span>Zonas{selected.length ? ` (${selected.length})` : ""}</span>
+          <MapPin className="location-trigger-mobile-icon" aria-hidden="true" />
+          <span className="location-trigger-mobile-copy">{currentQuery || "Municipio, barrio o zona de Tenerife"}</span>
+          <SlidersHorizontal className="location-trigger-desktop-icon" data-icon="inline-start" />
+          <span className="location-trigger-desktop-copy">Zonas{selected.length ? ` (${selected.length})` : ""}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="location-selector-dialog">
@@ -291,7 +316,7 @@ export function LocationSelector({
             Busca en Tenerife por municipio, barrio o zona.
           </DialogDescription>
         </DialogHeader>
-        <button type="button" className="location-market-row"><span>Buscar en</span><strong>Tenerife</strong></button>
+        <div className="location-market-row"><span>Buscar en</span><strong>Tenerife</strong></div>
         <label className="location-selector-search">
           <span className="sr-only">Buscar zona</span>
           <Search aria-hidden="true" />
@@ -303,6 +328,13 @@ export function LocationSelector({
             autoFocus
           />
         </label>
+        <div className="location-catalog-list" aria-label="Lugares de Tenerife">
+          {catalogResults.map((location) => <button type="button" key={`${location.type}-${location.label}`} onClick={() => {
+            onLocationSelect?.(location.normalizedValue);
+            setDraft(location.type === 'area' || location.type === 'district' ? [location.normalizedValue] : []);
+            setOpen(false);
+          }}><MapPin aria-hidden="true" /><span><strong>{location.label}</strong><small>{location.type === 'island' ? 'Isla' : location.type === 'municipality' ? 'Municipio' : location.type === 'district' ? 'Distrito' : 'Zona'}</small></span></button>)}
+        </div>
         <div className="location-action-list" aria-label="También puedes">
           <span>También puedes:</span>
           <Link to="/buscar?vista=mapa"><MapIcon aria-hidden="true" /><strong>Seleccionar zonas en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
@@ -573,8 +605,8 @@ export function PropertyCard({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" aria-label={`Más opciones para ${listing.title}`}>
-                  <MoreHorizontal data-icon="inline-start" />Más opciones
+                <Button variant="outline" size="icon" aria-label={`Más opciones para ${listing.title}`}>
+                  <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -1038,7 +1070,7 @@ export function FilterButton({
         <SheetHeader>
           <SheetTitle>Filtros</SheetTitle>
           <SheetDescription>
-            Todos los controles cambian el resultado y se guardan en la URL.
+            Ajusta las condiciones y revisa cuántas habitaciones coinciden.
           </SheetDescription>
         </SheetHeader>
         {onRentalModeChange ? <div className="filter-mode-switch"><span>Tipo de estancia</span><RentalTypeSwitch compact onChange={onRentalModeChange} /></div> : null}
@@ -1053,7 +1085,6 @@ export function FilterButton({
             onClick={() => {
               const cleared = { ...defaultFilters };
               setDraft(cleared);
-              commit(cleared);
             }}
           >
             Limpiar
@@ -1121,6 +1152,7 @@ export function MapView(props: {
   onBoundsSearch?: (bounds: import("@/components/map-view").MapBounds) => void;
   onPolygonSearch?: (polygon: MapPolygonPoint[]) => void;
   fitResultsKey?: number;
+  initialAction?: 'draw' | 'near' | null;
 }) {
   return (
     <Suspense
@@ -1267,6 +1299,7 @@ export function ContactPanel({
   listing: Listing;
   mobile?: boolean;
 }) {
+  const { addLocalMessage } = useApp();
   const [confirmed, setConfirmed] = useState(false);
   const [phone, setPhone] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
@@ -1314,6 +1347,13 @@ export function ContactPanel({
       return;
     }
     contactSubmissions.set(contactKey, { time: Date.now(), signature });
+    addLocalMessage({
+      listingId: listing.id,
+      listingTitle: listing.title,
+      imageRef: listing.images[0] ?? '',
+      contactName: messageForm.name.trim(),
+      messagePreview: messageForm.message.trim().slice(0, 160),
+    });
     setMessageSending(true);
     setMessageStatus("Registrando el mensaje local…");
     messageTimerRef.current = window.setTimeout(() => {
@@ -1435,19 +1475,21 @@ export function ContactPanel({
   );
 }
 
-export function ReportDialog({ listing }: { listing: Listing }) {
+export function ReportDialog({ listing, open: controlledOpen, onOpenChange, trigger }: { listing: Listing; open?: boolean; onOpenChange?: (open: boolean) => void; trigger?: ReactNode | false }) {
   const { addReport } = useApp();
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => { setInternalOpen(next); onOpenChange?.(next); };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" className="report-trigger">
+      {trigger === false ? null : <DialogTrigger asChild>
+        {trigger ?? <Button variant="ghost" className="report-trigger">
           <CircleAlert data-icon="inline-start" />
           Denunciar anuncio
-        </Button>
-      </DialogTrigger>
+        </Button>}
+      </DialogTrigger>}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Denunciar este anuncio</DialogTitle>

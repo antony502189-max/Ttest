@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
   Bell,
   CalendarDays,
   ChevronRight,
@@ -15,8 +16,9 @@ import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, Dr
 import { Field, FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApp } from "@/contexts/app-context";
-import { areas, defaultFilters } from "@/data/listings";
+import { defaultFilters } from "@/data/listings";
 import { tenantRequirementLabels } from "@/lib/listings";
+import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
 import {
   filterListings,
   filtersFromParams,
@@ -30,6 +32,7 @@ import {
   FilterButton,
   FilterSidebar,
   LoadingSkeleton,
+  LocationSelector,
   MapView,
   Pagination,
   PropertyCard,
@@ -69,17 +72,19 @@ export function SearchPage() {
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [initialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null);
+  const actionConsumedRef = useRef(false);
   const view = params.get("vista") === "mapa" ? "map" : "list";
   const page = Math.max(1, Number(params.get("pagina") || 1));
-  const query = params.get("q")?.trim() || "Tenerife";
+  const requestedQuery = params.get("q")?.trim() || "Tenerife";
+  const location = resolveTenerifeLocation(requestedQuery);
+  const invalidLocation = !location;
+  const query = location?.normalizedValue ?? "Tenerife";
   const rentalMode: RentalMode =
     params.get("alquiler") === "holiday" ? "holiday" : "long";
   const filters = useMemo(() => {
     const parsed = filtersFromParams(params);
-    const exactArea = areas.find(
-      (area) => area.toLocaleLowerCase() === query.toLocaleLowerCase(),
-    );
-    if (!parsed.areas.length && exactArea) parsed.areas = [exactArea];
     if (rentalMode === "holiday") {
       parsed.minPrice = Math.min(parsed.minPrice, 350);
       parsed.maxPrice = Math.min(parsed.maxPrice, 350);
@@ -112,14 +117,30 @@ export function SearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramString]);
 
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (!initialMapAction || actionConsumedRef.current) return;
+    actionConsumedRef.current = true;
+    const next = new URLSearchParams(params);
+    next.delete('dibujar');
+    next.delete('cerca');
+    setParams(next, { replace: true });
+  }, [initialMapAction, params, setParams]);
+
   const filteredItems = useMemo(
     () =>
       filterListings(
         allListings.filter((listing) => !discarded.has(listing.id)),
         rentalMode,
         filters,
-      ),
-    [allListings, discarded, filters, rentalMode],
+      ).filter((listing) => !invalidLocation && listingMatchesTenerifeLocation(listing, location)),
+    [allListings, discarded, filters, invalidLocation, location, rentalMode],
   );
   const spatialItems = useMemo(
     () =>
@@ -195,6 +216,30 @@ export function SearchPage() {
     next.delete("pagina");
     setParams(next);
   };
+  const selectLocation = (nextQuery: string) => {
+    const nextLocation = resolveTenerifeLocation(nextQuery);
+    if (!nextLocation) return;
+    const nextFilters = {
+      ...filters,
+      areas: nextLocation.type === 'area' || nextLocation.type === 'district' ? [nextLocation.normalizedValue] : [],
+    };
+    setQuery(nextLocation.normalizedValue);
+    setFilters(nextFilters);
+    const next = filtersToParams(nextFilters, new URLSearchParams(params));
+    next.set('q', nextLocation.normalizedValue);
+    next.delete('pagina');
+    setParams(next);
+  };
+  const applyLocationAreas = (selectedAreas: string[]) => {
+    const nextFilters = { ...filters, areas: selectedAreas };
+    const nextQuery = selectedAreas.length === 1 ? selectedAreas[0] : 'Tenerife';
+    setQuery(nextQuery);
+    setFilters(nextFilters);
+    const next = filtersToParams(nextFilters, new URLSearchParams(params));
+    next.set('q', nextQuery);
+    next.delete('pagina');
+    setParams(next);
+  };
   const changeView = (nextView: "list" | "map") =>
     updateParams((next) =>
       nextView === "map" ? next.set("vista", "mapa") : next.delete("vista"),
@@ -220,6 +265,7 @@ export function SearchPage() {
     setMapPolygon([]);
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
     ["pagina", "poligono", "zonas"].forEach((name) => next.delete(name));
+    next.set('q', 'Tenerife');
     setParams(next);
   };
 
@@ -329,6 +375,28 @@ export function SearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, mapBounds, mapPolygon]);
 
+  if (view === 'map' && isMobile) {
+    return <div className="mobile-map-screen" aria-label="Mapa de habitaciones en Tenerife">
+      <header className="mobile-map-screen__header">
+        <Button type="button" variant="ghost" size="icon" onClick={() => changeView('list')} aria-label="Volver a la lista"><ArrowLeft /></Button>
+        <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
+      </header>
+      <div className="mobile-map-screen__canvas">
+        <MapView
+          items={items}
+          selectedId={selected}
+          onSelect={setSelected}
+          fullScreen
+          initialAction={initialMapAction}
+          fitResultsKey={mapBounds ? 1 : 0}
+          onBoundsSearch={(bounds) => { setMapBounds(bounds); updateParams((next) => next.delete('pagina'), true); }}
+          onPolygonSearch={commitPolygon}
+        />
+      </div>
+      <div className="mobile-map-screen__footer"><Button onClick={() => changeView('list')}><List data-icon="inline-start" />Mostrar {items.length} habitaciones</Button></div>
+    </div>;
+  }
+
   return (
     <div
       className={
@@ -337,6 +405,10 @@ export function SearchPage() {
           : "search-page idealista-search-page"
       }
     >
+      <header className="mobile-results-topbar">
+        <Button asChild variant="ghost" size="icon"><Link to="/" aria-label="Volver al inicio"><ArrowLeft /></Link></Button>
+        <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
+      </header>
       <div className="search-toolbar">
         <div className="container">
           <RentalTypeSwitch
@@ -365,6 +437,7 @@ export function SearchPage() {
           onFiltersChange={commitFilters}
         />
         <section className="idealista-results" aria-labelledby="results-title">
+          {invalidLocation ? <div className="location-search-error" role="alert"><strong>Solo buscamos en Tenerife</strong><span>En esta versión solo puedes buscar habitaciones en Tenerife. Prueba Tenerife, Adeje, Arona, Santa Cruz o La Laguna.</span></div> : null}
           {params.get("alertas") === "1" ? (
             <div className="search-alert-panel">
               <Bell aria-hidden="true" />
@@ -439,7 +512,7 @@ export function SearchPage() {
           ) : null}
           <div className="idealista-results-toolbar">
             <div className="mobile-filter-control">
-              <FilterButton resultCount={items.length} onRentalModeChange={(mode) => updateParams((next) => next.set("alquiler", mode))} />
+              <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={(mode) => updateParams((next) => next.set("alquiler", mode))} />
             </div>
             <SortControl value={filters.sort} onChange={changeSort} />
             <label className="desktop-sort-control">
@@ -493,6 +566,7 @@ export function SearchPage() {
                   selectedId={selected}
                   onSelect={setSelected}
                   fullScreen
+                  initialAction={initialMapAction}
                   fitResultsKey={mapBounds ? 1 : 0}
                   onBoundsSearch={(bounds) => {
                     setMapBounds(bounds);

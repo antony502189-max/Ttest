@@ -16,6 +16,14 @@ interface FeaturedPlacement {
 
 const searchHref = (search: SavedSearch) => `/buscar?${filtersToParams(search.filters, new URLSearchParams({ q: search.query, alquiler: search.rentalMode })).toString()}`
 
+function TenerifeMapPreview() {
+  return <svg className="tenerife-outline" viewBox="0 0 360 190" role="img" aria-label="Silueta ilustrada de Tenerife">
+    <path className="tenerife-outline__roads" d="M38 130C88 112 111 91 150 83s72-3 108-22m-174 71c40 3 72 12 106 6 38-7 69-31 106-52M121 110l-5-62m78 65 25-76" />
+    <path className="tenerife-outline__island" d="M21 137c27-14 42-32 60-49 21-20 41-31 69-34 33-3 57-21 92-27 25-4 49 7 76 15-18 10-31 25-48 38-23 18-50 24-78 37-26 12-50 30-80 36-33 7-62-2-91-16Z" />
+    <circle cx="83" cy="116" r="5" /><circle cx="151" cy="82" r="5" /><circle cx="244" cy="61" r="5" /><circle cx="287" cy="49" r="5" />
+  </svg>
+}
+
 export function HomePage() {
   const { allListings, savedSearches } = useApp()
   const publicListings = allListings.filter(isPublicListing)
@@ -48,7 +56,7 @@ export function HomePage() {
       </section>
 
       <section className="container home-map-section" aria-labelledby="map-section-title">
-        <div className="home-map-visual" aria-hidden="true"><span /><Map /></div>
+        <div className="home-map-visual"><TenerifeMapPreview /></div>
         <div><span className="eyebrow">Tenerife por zonas</span><h2 id="map-section-title">Seleccionar zonas en el mapa</h2><p>Busca en varios municipios o dibuja el área que te interesa.</p><Button asChild><Link to="/buscar?vista=mapa"><Map data-icon="inline-start" />Abrir mapa</Link></Button></div>
       </section>
 

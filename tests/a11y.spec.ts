@@ -95,6 +95,23 @@ test("delta contact dialog supports keyboard focus and axe", async ({ page }) =>
   await expect(trigger).toBeFocused();
 });
 
+test("delta fullscreen location flow has no serious or critical axe issues", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/");
+  await page.getByRole("button", { name: /Abrir selección de ubicación/ }).first().click();
+  await expect(page.getByRole("dialog", { name: "¿Dónde buscas?" })).toBeVisible();
+  const results = await new AxeBuilder({ page }).include(".location-selector-dialog").analyze();
+  expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
+});
+
+test("delta drawing announcement and controls have no serious or critical axe issues", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/buscar?q=Tenerife&vista=mapa&dibujar=1");
+  await expect(page.locator(".leaflet-map-shell")).toHaveAttribute("data-drawing", "true", { timeout: 15_000 });
+  const results = await new AxeBuilder({ page }).include(".mobile-map-screen").exclude(".leaflet-map-canvas").analyze();
+  expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
+});
+
 test("delta avatar uploader has no serious or critical axe issues", async ({ page }) => {
   await openRoute(page, { name: "perfil", path: "/#/perfil", session: "host-demo" });
   await page.getByRole("button", { name: "Editar perfil" }).click();

@@ -56,7 +56,7 @@ test("01–03 rental mode, búsqueda por fecha y selección de varias zonas", as
   await page.getByRole("radio", { name: "Alquiler vacacional" }).click();
   await page.getByLabel("Ciudad, barrio o zona").fill("Tenerife");
   await page.getByLabel("Entrada").fill("2026-08-10");
-  await page.getByRole("button", { name: /elegir zonas/i }).click();
+  await page.getByRole("button", { name: /abrir selección de ubicación/i }).click();
   for (const area of ["El Médano", "Playa de las Américas"])
     await page
       .locator(".location-selector-option")
@@ -336,7 +336,8 @@ test("16–18 listing gallery keyboard, contact, share and report mutate state",
   await expect(
     contact.getByRole("link", { name: /whatsapp/i }),
   ).toHaveAttribute("href", /^https:\/\/wa\.me\//);
-  await page.getByRole("button", { name: /denunciar anuncio/i }).click();
+  await page.getByRole("button", { name: /más acciones del anuncio/i }).click();
+  await page.getByRole("menuitem", { name: /denunciar anuncio/i }).click();
   await page.getByLabel("Posible fraude").check();
   await page.getByRole("button", { name: /enviar denuncia/i }).click();
   expect(
@@ -502,10 +503,14 @@ test("28–29 mobile navigation and keyboard-only critical path", async ({
   await skipLink.focus();
   await expect(skipLink).toBeFocused();
   await page.keyboard.press("Enter");
-  const search = page.getByLabel("Ciudad, barrio o zona");
-  await search.focus();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.type("Los Cristianos");
+  const location = page.getByRole("button", { name: /abrir selección de ubicación/i }).first();
+  await location.focus();
+  await page.keyboard.press("Enter");
+  const search = page.getByPlaceholder("Municipio, barrio, zona o dirección");
+  await search.fill("Los Cristianos");
+  await page.getByRole("button", { name: /Los Cristianos/i }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: /^buscar$/i }).focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/buscar/);
   await expect(page.locator(".bottom-nav")).toBeVisible();

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { MediaImage } from "@/components/media-image";
 import { useApp } from "@/contexts/app-context";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
+import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM, isInsideTenerife } from "@/lib/tenerife";
 import { cn } from "@/lib/utils";
 import type { Coordinates, Listing, MapPolygonPoint } from "@/types";
 
@@ -30,12 +31,12 @@ interface MapViewProps {
   onBoundsSearch?: (bounds: MapBounds) => void;
   onPolygonSearch?: (polygon: MapPolygonPoint[]) => void;
   fitResultsKey?: number;
+  initialAction?: 'draw' | 'near' | null;
 }
 
-const tenerifeCenter: L.LatLngExpression = [28.2916, -16.6291];
 const tenerifeBounds = L.latLngBounds(
-  [27.92, -17.02],
-  [28.68, -16.01],
+  [TENERIFE_BOUNDS.south, TENERIFE_BOUNDS.west],
+  [TENERIFE_BOUNDS.north, TENERIFE_BOUNDS.east],
 );
 const priceLabel = (listing: Listing) => `${getPrimaryPrice(listing)} €`;
 const markerIcon = (listing: Listing, selected = false) => L.divIcon({
@@ -57,7 +58,8 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => {
     if (!containerRef.current) return;
-    const initial = initialCoordinatesRef.current;
+    const requestedInitial = initialCoordinatesRef.current;
+    const initial = isInsideTenerife(requestedInitial) ? requestedInitial : TENERIFE_CENTER;
     const map = L.map(containerRef.current, {
       zoomControl: true,
       minZoom: 10,
@@ -95,7 +97,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   return <div ref={containerRef} className="approximate-location-map" aria-label="Mapa para mover el punto público aproximado" />;
 }
 
-export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, fitResultsKey = 0 }: MapViewProps) {
+export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, fitResultsKey = 0, initialAction = null }: MapViewProps) {
   const { mapPolygon, setMapPolygon, clearMapPolygon, saveCurrentSearch } = useApp();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -114,12 +116,16 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
   const lastSearchedBoundsRef = useRef<MapBounds | null>(null);
   const previousFitResultsKeyRef = useRef(fitResultsKey);
   const programmaticTimerRef = useRef<number | null>(null);
+  const actionHandledRef = useRef(false);
+  const geolocationPendingRef = useRef(false);
+  const announcementRef = useRef<HTMLDivElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [draftPolygon, setDraftPolygon] = useState<MapPolygonPoint[]>(mapPolygon);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [boundsDirty, setBoundsDirty] = useState(false);
+  const [actionAnnouncement, setActionAnnouncement] = useState("");
   const selected = items.find((item) => item.id === selectedId);
   const itemSignature = items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}:${item.area}:${item.title}`).join("|");
   itemsRef.current = items;
@@ -135,7 +141,7 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
       zoomControl: true, preferCanvas: true, minZoom: 8,
       maxBounds: tenerifeBounds, maxBoundsViscosity: 1,
       zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
-    }).setView(tenerifeCenter, 9);
+    }).setView([TENERIFE_CENTER.lat, TENERIFE_CENTER.lng], TENERIFE_DEFAULT_ZOOM);
     containerRef.current.dataset.mapInstance = String((map as L.Map & { _leaflet_id?: number })._leaflet_id ?? "ready");
     mapRef.current = map;
     const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -297,7 +303,7 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
     };
   }, [draftPolygon]);
 
-  const startDrawing = () => { setDraftPolygon([]); setDrawing(true); toast.info("Pulsa en el mapa para añadir al menos 3 puntos"); };
+  const startDrawing = () => { setDraftPolygon([]); setDrawing(true); setActionAnnouncement("Modo dibujo activado. Pulsa en el mapa para añadir al menos 3 puntos."); toast.info("Pulsa en el mapa para añadir al menos 3 puntos"); };
   const cancelDrawing = () => { setDraftPolygon(mapPolygon); setDrawing(false); };
   const addKeyboardPoint = () => {
     const map = mapRef.current;
@@ -313,13 +319,27 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
     toast.success(`Zona aplicada: ${draftPolygon.length} puntos`);
   };
   const deletePolygon = () => { setDraftPolygon([]); clearMapPolygon(); onPolygonSearch?.([]); toast.success("Zona eliminada"); };
-  const useCurrentLocation = () => {
+  const locateCurrentPosition = () => {
     if (!navigator.geolocation) { toast.error("Tu navegador no ofrece geolocalización"); return; }
+    if (geolocationPendingRef.current) return;
+    geolocationPendingRef.current = true;
     navigator.geolocation.getCurrentPosition(({ coords }) => {
+      geolocationPendingRef.current = false;
+      const current = { lat: coords.latitude, lng: coords.longitude };
+      if (!isInsideTenerife(current)) {
+        setActionAnnouncement("Tu ubicación está fuera de Tenerife. El mapa permanece en la isla.");
+        toast.error("Tu ubicación está fuera de Tenerife. En esta versión solo buscamos habitaciones en Tenerife.");
+        return;
+      }
       mapRef.current?.setView([coords.latitude, coords.longitude], 13);
       manualViewportRef.current = true;
       setBoundsDirty(true);
-    }, () => toast.error("No pudimos obtener tu ubicación. Puedes mover el mapa manualmente."), { timeout: 7000 });
+      setActionAnnouncement("Ubicación encontrada en Tenerife.");
+    }, () => {
+      geolocationPendingRef.current = false;
+      setActionAnnouncement("No pudimos obtener tu ubicación. Puedes mover el mapa manualmente.");
+      toast.error("No pudimos obtener tu ubicación. Puedes mover el mapa manualmente.");
+    }, { timeout: 7000 });
   };
   const searchBounds = () => {
     if (!bounds || !onBoundsSearch || !boundsDirty) return;
@@ -330,15 +350,24 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
     toast.success("Resultados actualizados para el área visible");
   };
 
+  useEffect(() => {
+    if (!ready || !initialAction || actionHandledRef.current) return;
+    actionHandledRef.current = true;
+    if (initialAction === 'draw') startDrawing();
+    else locateCurrentPosition();
+    requestAnimationFrame(() => announcementRef.current?.focus());
+  }, [initialAction, ready]);
+
   return (
-    <section className={cn("leaflet-map-shell", fullScreen && "leaflet-map-shell--fullscreen")} aria-label="Mapa de habitaciones">
+    <section className={cn("leaflet-map-shell", fullScreen && "leaflet-map-shell--fullscreen")} aria-label="Mapa de habitaciones" data-drawing={drawing || undefined}>
       <div className="leaflet-map-canvas" ref={containerRef} aria-label="Mapa OpenStreetMap con precios aproximados" />
+      {actionAnnouncement ? <div ref={announcementRef} className="map-action-announcement" role="status" aria-live="polite" tabIndex={-1}>{actionAnnouncement}</div> : null}
       {!ready && !error ? <div className="map-loading" role="status" aria-live="polite"><span aria-hidden="true" /><strong>Cargando mapa</strong></div> : null}
       {error ? <div className="map-error" role="alert"><strong>No se pudo cargar el mapa</strong><p>{error}</p></div> : null}
       {fullScreen ? (
         <div className="map-search-tools" aria-label="Herramientas de búsqueda en mapa">
           {onBoundsSearch ? <Button onClick={searchBounds} disabled={!boundsDirty || !bounds} aria-disabled={!boundsDirty || !bounds} data-dirty={boundsDirty || undefined} variant={boundsDirty ? "default" : "outline"}><Search data-icon="inline-start" />Buscar en esta zona</Button> : null}
-          <Button variant="outline" size="icon" onClick={useCurrentLocation} aria-label="Usar mi ubicación"><Crosshair /></Button>
+          <Button variant="outline" size="icon" onClick={locateCurrentPosition} aria-label="Usar mi ubicación"><Crosshair /></Button>
           {drawing ? <>
             <Button variant="outline" onClick={addKeyboardPoint}><MapPin data-icon="inline-start" />Añadir punto</Button>
             <Button variant="outline" onClick={cancelDrawing}><X data-icon="inline-start" />Cancelar</Button>

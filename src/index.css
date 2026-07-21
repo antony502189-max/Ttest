@@ -288,6 +288,10 @@
 .gallery-thumbs button { position: relative; min-width: 0; overflow: hidden; }
 .gallery-thumbs button span { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; background: rgb(25 30 25 / .65); color: white; font-weight: 650; }
 .gallery-thumbs button span svg { width: 1.25rem; }
+.gallery-dialog { width: min(calc(100% - 1.5rem), 64rem); max-height: min(92dvh, 58rem); }
+.gallery-dialog__grid { min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: .5rem; overflow-y: auto; }
+.gallery-dialog__grid button { aspect-ratio: 4 / 3; width: 100%; height: auto; min-width: 0; align-self: start; overflow: hidden; background: var(--surface-muted); }
+.gallery-dialog__grid img { width: 100%; height: 100%; object-fit: cover; }
 .listing-layout { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: clamp(2rem, 5vw, 5rem); padding-block: 2.25rem 5rem; }
 .listing-title { display: flex; align-items: start; justify-content: space-between; gap: 2rem; }
 .listing-title h1 { max-width: 48rem; margin-top: .7rem; font-size: clamp(2rem, 3vw, 3rem); }
@@ -567,49 +571,10 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 .footer-grid nav a:hover { color: var(--market-link); text-decoration: underline; }
 .footer-bottom { margin-top: 2.5rem; border-top-color: var(--line); }
 
-/* Home: search is the main product action */
-.idealista-home-hero { position: relative; min-height: 31rem; display: grid; place-items: center; overflow: hidden; background: #333; }
-.idealista-home-hero__image, .idealista-home-hero__shade { position: absolute; inset: 0; width: 100%; height: 100%; }
-.idealista-home-hero__image { object-fit: cover; }
-.idealista-home-hero__shade { background: linear-gradient(90deg, rgb(13 22 22 / .58), rgb(13 22 22 / .18) 70%, rgb(13 22 22 / .32)); }
-.idealista-home-hero__content { position: relative; z-index: 1; padding-block: 4rem; }
-.idealista-home-hero h1 { width: min(100%, 58rem); margin: 0 auto 1.4rem; color: #fff; text-align: center; text-shadow: 0 1px 3px rgb(0 0 0 / .35); }
-.idealista-search-box { width: min(100%, 64rem); margin-inline: auto; display: grid; grid-template-columns: 12rem minmax(0, 1fr); align-items: end; gap: 0 .65rem; padding: 1rem 1.1rem .75rem; border-radius: var(--radius-lg); background: #fff; box-shadow: 0 4px 18px rgb(0 0 0 / .24); }
-.idealista-search-box .rental-switch { grid-column: 1 / -1; width: max-content; margin: 0 0 .85rem; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.idealista-search-box .rental-switch button { min-height: 2.4rem; padding-inline: 1rem; border: 1px solid var(--line-strong); border-radius: 0; }
-.idealista-search-box .rental-switch button + button { margin-left: -1px; }
-.idealista-search-box .rental-switch button[aria-pressed="true"] { z-index: 1; background: var(--brand); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.idealista-search-box__type { min-height: var(--control-lg); display: flex; flex-direction: column; justify-content: center; padding: .35rem .75rem; border: 1px solid var(--line-strong); }
-.idealista-search-box__type span { color: var(--ink-muted); font-size: .68rem; }
-.idealista-search-box__type strong { font-size: .93rem; }
-.idealista-search-box .search-bar { width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
-.idealista-search-box .search-bar > button { border-radius: var(--radius-sm); }
-.draw-zone-link { grid-column: 1 / -1; width: max-content; margin-top: .55rem; padding-inline: 0; color: var(--market-link); }
-.draw-zone-link:hover { color: var(--market-link-hover); text-decoration: underline; }
-.home-primary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding-block: 2.5rem; }
-.home-primary-actions article { min-height: 14rem; display: grid; grid-template-columns: 10rem 1fr; align-items: stretch; border: 1px solid var(--line); background: #fff; }
-.home-primary-actions article > div:last-child { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 1.5rem; }
-.home-primary-actions h2 { font-size: 1.25rem; }
-.home-primary-actions p { margin: .55rem 0 1rem; color: var(--ink-muted); font-size: .9rem; }
-.home-action-visual { display: grid; place-items: center; background: var(--brand-soft); }
-.home-action-visual svg { width: 3rem; height: 3rem; stroke-width: 1.3; }
-.home-action-visual--publish { background: var(--surface-strong); }
 .home-results-preview { padding-block: 2.75rem 3.25rem; background: var(--surface-muted); border-block: 1px solid var(--line); }
 .idealista-section-heading { align-items: end; margin-bottom: 1.35rem; }
 .idealista-section-heading p { margin-top: .35rem; color: var(--ink-muted); }
 .idealista-section-heading a { color: var(--market-link); }
-.home-area-links { display: grid; grid-template-columns: 19rem 1fr; gap: 4rem; padding-block: 3rem; }
-.home-area-links > div:first-child p { margin-top: .55rem; color: var(--ink-muted); }
-.home-area-links__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2rem; }
-.home-area-links__grid a { min-height: 3rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); color: var(--market-link); }
-.home-area-links__grid a:hover span { text-decoration: underline; }
-.home-area-links__grid strong { color: var(--ink-muted); font-size: .8rem; }
-.home-alert-strip { padding-block: 1.5rem; background: var(--brand-soft); border-block: 1px solid #d7df97; }
-.home-alert-strip > div { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; }
-.home-alert-strip svg { width: 1.5rem; }
-.home-alert-strip h2 { font-size: 1.1rem; }
-.home-alert-strip p { color: var(--ink-soft); font-size: .86rem; }
-
 /* Search results, desktop filters, list/map switch */
 .idealista-search-page { min-height: calc(100vh - 3.75rem); }
 .search-toolbar { padding-block: .55rem; background: var(--surface-muted); }
@@ -777,8 +742,6 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 
 @media (max-width: 1023px) {
   .idealista-results-layout, .idealista-results-layout.is-map-view { grid-template-columns: 15rem minmax(0, 1fr); gap: 1.25rem; }
-  .home-primary-actions article { grid-template-columns: 7rem 1fr; }
-  .home-area-links { grid-template-columns: 15rem 1fr; gap: 2rem; }
   .listing-layout { grid-template-columns: minmax(0, 1fr); }
   .listing-aside { display: none; }
 }
@@ -798,28 +761,9 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
   .site-footer { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 1.75rem 1rem; }
 
-  .idealista-home-hero { min-height: 29rem; align-items: end; }
-  .idealista-home-hero__shade { background: linear-gradient(0deg, rgb(13 22 22 / .7), rgb(13 22 22 / .18)); }
-  .idealista-home-hero__content { padding-block: 3rem 1.25rem; }
-  .idealista-home-hero h1 { margin-bottom: 1rem; text-align: left; font-size: 1.8rem; }
-  .idealista-search-box { display: flex; flex-direction: column; align-items: stretch; gap: .55rem; padding: .85rem; }
-  .idealista-search-box .rental-switch { width: 100%; margin-bottom: .1rem; }
-  .idealista-search-box .rental-switch button { flex: 1; padding-inline: .4rem; }
-  .idealista-search-box__type { min-height: 3rem; }
-  .idealista-search-box .search-bar { display: grid; grid-template-columns: 1fr; gap: .35rem; }
-  .idealista-search-box .search-bar .search-date { display: none; }
-  .draw-zone-link { margin-top: 0; }
-  .home-primary-actions { grid-template-columns: 1fr; gap: .75rem; padding-block: 1.25rem; }
-  .home-primary-actions article { min-height: 9rem; grid-template-columns: 5.5rem 1fr; }
-  .home-primary-actions article > div:last-child { padding: 1rem; }
-  .home-action-visual svg { width: 2rem; height: 2rem; }
   .home-results-preview { padding-block: 2rem; }
   .idealista-section-heading { align-items: flex-start; }
   .idealista-section-heading p { font-size: .82rem; }
-  .home-area-links { grid-template-columns: 1fr; gap: 1.2rem; padding-block: 2rem; }
-  .home-area-links__grid { grid-template-columns: 1fr; }
-  .home-alert-strip > div { grid-template-columns: auto 1fr; }
-  .home-alert-strip .button { grid-column: 1 / -1; width: 100%; }
 
   .search-toolbar { position: static; top: auto; z-index: 24; }
   .search-toolbar > .container { width: min(100% - .75rem, 74rem); }
@@ -932,10 +876,6 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 }
 
 @media (max-width: 389px) {
-  .idealista-home h1 { font-size: 1.65rem; }
-  .idealista-search-box .rental-switch button { font-size: .78rem; }
-  .home-primary-actions article { grid-template-columns: 4.5rem 1fr; }
-  .home-primary-actions article > div:last-child { padding: .85rem; }
   .property-card__actions .button:nth-child(2) { display: none; }
   .listing-actionbar > div .button:first-child { display: none; }
   .search-bar--compact > button { width: 2.75rem; padding: 0; font-size: 0; }
@@ -961,7 +901,7 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 .market-search-panel > .rental-switch button { min-height: 3rem; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; color: var(--ink); }
 .market-search-panel > .rental-switch button + button { margin-left: -1px; }
 .market-search-panel > .rental-switch button[aria-pressed="true"] { z-index: 1; border-color: var(--market-magenta); background: #fff; color: var(--market-magenta); box-shadow: inset 0 -3px 0 var(--market-magenta); }
-.search-bar--home { width: 100%; margin: 0; grid-template-columns: minmax(12rem, .7fr) minmax(0, 1.4fr) auto; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.search-bar--home { width: 100%; margin: 0; grid-template-columns: minmax(12rem, .7fr) minmax(0, 1.4fr) minmax(10rem, .55fr) auto; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .search-bar--home .home-tenant-field { gap: 0; }
 .search-bar--home [data-slot="field-label"], .search-bar--home .search-location > label { margin: 0 0 .18rem .2rem; color: var(--ink); font-size: .69rem; font-weight: 720; letter-spacing: .04em; text-transform: uppercase; }
 .search-bar--home select, .search-bar--home .search-location > div { min-height: 3.15rem; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; }
@@ -1193,4 +1133,117 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
   .home-map-section { grid-template-columns: 5rem minmax(0, 1fr); }
   .idealista-results-toolbar .button { padding-inline: .25rem; font-size: .72rem; }
   .mobile-header .brand-logo { font-size: 1.08rem; }
+}
+
+/* Final Tenerife mobile delta */
+.location-trigger-mobile-icon, .location-trigger-mobile-copy { display: none; }
+.location-validation { display: block; margin-top: .35rem; color: var(--error); font-size: .78rem; font-weight: 620; }
+.location-catalog-list { max-height: 12rem; overflow-y: auto; border: 1px solid var(--line); }
+.location-catalog-list > button { width: 100%; min-height: 3.25rem; display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); align-items: center; gap: .65rem; padding: .45rem .65rem; border-bottom: 1px solid var(--line); background: var(--surface); text-align: left; }
+.location-catalog-list > button:last-child { border-bottom: 0; }
+.location-catalog-list > button:hover { background: var(--surface-muted); }
+.location-catalog-list svg { width: 1rem; color: var(--market-magenta); }
+.location-catalog-list span { min-width: 0; display: grid; }
+.location-catalog-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.location-catalog-list small { color: var(--ink-muted); font-size: .7rem; text-transform: capitalize; }
+.location-search-error { display: grid; gap: .15rem; margin-bottom: .75rem; padding: .75rem; border: 1px solid #d58a76; background: var(--restriction-soft); }
+.location-search-error span { color: var(--ink-soft); font-size: .8rem; }
+.mobile-results-topbar, .mobile-map-screen { display: none; }
+.map-action-announcement { position: absolute; top: .55rem; left: 50%; z-index: 6; max-width: min(24rem, calc(100% - 8rem)); translate: -50% 0; padding: .45rem .65rem; border: 1px solid var(--line-strong); background: rgb(255 255 255 / .96); box-shadow: var(--shadow-1); font-size: .75rem; }
+.tenerife-outline { width: 90%; max-width: 25rem; overflow: visible; }
+.tenerife-outline__island { fill: #d9ecd9; stroke: var(--market-magenta); stroke-width: 3; }
+.tenerife-outline__roads { fill: none; stroke: #88ad98; stroke-width: 2; stroke-dasharray: 5 5; }
+.tenerife-outline circle { fill: var(--market-magenta); stroke: #fff; stroke-width: 2; }
+.message-thread-list { display: flex; flex-direction: column; }
+.message-thread-row { min-height: 6.25rem; display: grid; grid-template-columns: 5rem minmax(0, 1fr) 1rem; align-items: center; gap: .75rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.message-thread-row > img { width: 5rem; height: 4.25rem; object-fit: cover; }
+.message-thread-row > span { min-width: 0; display: flex; flex-direction: column; }
+.message-thread-row strong, .message-thread-row > span > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message-thread-row small, .message-thread-row em { color: var(--ink-muted); font-size: .72rem; font-style: normal; }
+.message-thread-row em { margin-top: .18rem; color: var(--market-link); }
+
+@media (max-width: 767px) {
+  body:has(.idealista-search-page) .mobile-header, body:has(.idealista-listing-page) .mobile-header { display: none; }
+  body:has(.mobile-map-screen) { height: 100dvh; padding-bottom: 0; overflow: hidden; }
+  body:has(.mobile-map-screen) .site-header, body:has(.mobile-map-screen) .mobile-header, body:has(.mobile-map-screen) .bottom-nav, body:has(.mobile-map-screen) .site-footer { display: none; }
+
+  .promoted-listing { height: clamp(9.7rem, 44vw, 11rem); }
+  .promoted-listing__caption { right: .5rem; bottom: .5rem; left: auto; min-height: 0; gap: .5rem; padding: .3rem .5rem; border: 0; background: rgb(255 255 255 / .92); box-shadow: var(--shadow-1); font-size: .7rem; }
+  .market-search-panel { padding-block: .55rem .65rem; }
+  .market-search-panel > .rental-switch { margin-bottom: .4rem; }
+  .market-search-panel > .rental-switch button { min-height: 2.75rem; }
+  .search-bar--home { gap: .35rem; }
+  .search-bar--home [data-slot="field-label"], .search-bar--home .search-location > label { position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; }
+  .search-bar--home .search-date { display: none; }
+  .search-bar--home select, .search-bar--home .search-location > div, .search-bar--home > .button { min-height: 2.85rem; height: 2.85rem; }
+  .search-location-row > .search-location-row__icon, .search-location-row > input { display: none; }
+  .search-bar--home .search-location-row { border: 0; }
+  .search-bar--home .location-selector-trigger { width: 100%; min-height: 2.85rem; justify-content: flex-start; gap: .55rem; padding-inline: .65rem; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; color: var(--ink); }
+  .search-bar--home .location-selector-trigger .location-trigger-mobile-icon,
+  .search-bar--home .location-selector-trigger .location-trigger-mobile-copy { display: inline-flex; }
+  .location-trigger-mobile-copy { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .location-trigger-desktop-icon, .location-trigger-desktop-copy { display: none; }
+  .home-publish-action { padding-block: .6rem .75rem; }
+  .home-publish-action .button { min-height: 2.85rem; }
+  .home-map-visual { background: #edf5ee; }
+  .home-map-visual span, .home-map-visual > svg:not(.tenerife-outline) { display: none; }
+
+  .mobile-results-topbar { position: sticky; top: 0; z-index: 32; min-height: 3.4rem; display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); align-items: center; gap: .25rem; padding: .3rem .5rem; border-bottom: 1px solid var(--line); background: #fff; }
+  .mobile-results-topbar > .button { min-height: 2.75rem; }
+  .mobile-results-topbar .location-selector-trigger, .mobile-map-screen__header .location-selector-trigger { width: 100%; min-width: 0; min-height: 2.75rem; justify-content: flex-start; border: 0; color: var(--ink); }
+  .search-toolbar { display: none; }
+  .idealista-results-head { order: 1; margin: .4rem auto .25rem; }
+  .idealista-results-head h1 { font-size: 1rem; }
+  .idealista-results-head p, .save-search-button { display: none; }
+  .idealista-results-toolbar { order: 2; top: 3.4rem; }
+  .idealista-results > .quick-filters { order: 3; }
+  .location-search-error { order: 0; margin: .5rem .625rem; }
+  .applied-filters { order: 4; }
+  .results-list, .map-results-split, .empty-state, .skeleton-list, .idealista-results > [data-slot="alert"] { order: 5; }
+  .idealista-results > .quick-filters .button:last-of-type { display: none; }
+
+  .results-list { padding: .3rem .4rem 1rem; }
+  .property-card:not(.property-card--compact) .property-card__media { aspect-ratio: 16 / 9; }
+  .property-card__content { padding: .7rem .75rem; }
+  .property-card h3 { order: 1; margin-top: .2rem; line-height: 1.2; }
+  .card-topline { order: 0; margin-top: 0; }
+  .property-location { order: 2; }
+  .property-facts { order: 3; margin-top: .4rem; gap: .25rem .7rem; }
+  .property-description, .property-card__meta { display: none; }
+  .badge-row { order: 4; margin-top: .5rem; gap: .25rem; }
+  .property-badge { min-height: 1.45rem; padding-inline: .4rem; font-size: .64rem; }
+  .property-card .property-badge svg { display: none; }
+  .property-card__actions { order: 5; margin: .55rem -.75rem -.7rem; padding: .5rem .75rem; }
+  .property-card__actions [data-slot="button"]:first-child { min-width: 0; min-height: 2.75rem; flex: 1; }
+  .property-card__actions [aria-label^="Más opciones"] { width: 2.75rem !important; min-width: 2.75rem; min-height: 2.75rem; flex: none; padding: 0; }
+
+  .listing-actionbar { position: sticky; top: 0; z-index: 25; width: 100%; min-height: 3.25rem; padding: .25rem .5rem; background: #fff; }
+  .listing-actionbar > div { margin-left: auto; }
+  .listing-actionbar .button { width: 2.75rem; min-width: 2.75rem; min-height: 2.75rem; padding: 0; }
+  .listing-gallery-container { width: 100%; }
+  .listing-gallery-container .property-gallery { width: 100%; height: 15.75rem; margin-left: 0; border-inline: 0; border-radius: 0; }
+  .gallery-dialog__grid { grid-template-columns: minmax(0, 1fr); }
+  .listing-layout { padding-top: .75rem; }
+  .listing-section { padding-block: 1rem; }
+  .listing-similar { padding-block: 1.35rem; }
+  .listing-restriction-notice { padding: .75rem; }
+  .mobile-contact-bar { z-index: 35; }
+
+  .mobile-map-screen { position: fixed; inset: 0; z-index: 60; height: 100dvh; display: grid; grid-template-rows: 3.5rem minmax(0, 1fr) auto; background: #fff; }
+  .mobile-map-screen__header { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); align-items: center; gap: .25rem; padding: .3rem .5rem; border-bottom: 1px solid var(--line); }
+  .mobile-map-screen__header > .button { width: 2.75rem; min-height: 2.75rem; }
+  .mobile-map-screen__canvas, .mobile-map-screen__canvas .leaflet-map-shell, .mobile-map-screen__canvas .leaflet-map-canvas { min-height: 0; height: 100%; }
+  .mobile-map-screen__footer { padding: .55rem .625rem calc(.55rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line-strong); background: #fff; }
+  .mobile-map-screen__footer [data-slot="button"] { width: 100%; min-height: 3rem; }
+  .mobile-map-screen .map-search-tools { top: .55rem; right: .55rem; }
+  .mobile-map-screen .map-selected-card { bottom: .75rem; }
+  .mobile-map-screen .map-action-announcement { top: .55rem; left: .55rem; max-width: calc(100% - 5rem); translate: 0 0; }
+
+  .mobile-app-page__header { min-height: 3.5rem; align-items: center; }
+  .menu-page .mobile-app-page__header { display: grid; grid-template-columns: 2.75rem 1fr auto; gap: .5rem; }
+  .menu-page .mobile-app-page__header h1 { font-size: 1.35rem; }
+  .menu-page .mobile-app-page__header .brand-logo { justify-self: end; font-size: 1rem; }
+  .menu-account-block { min-height: 6.25rem; padding-block: .75rem; }
+  .message-thread-row { grid-template-columns: 4.5rem minmax(0, 1fr) 1rem; }
+  .message-thread-row > img { width: 4.5rem; height: 4rem; }
 }
