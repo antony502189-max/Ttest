@@ -1,25 +1,39 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Heart, LayoutDashboard, Map, Menu, Plus, Search, UserRound } from 'lucide-react'
+import { ChevronDown, Globe2, Heart, LayoutDashboard, Map, Menu, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
+import { useI18n, type Language } from '@/contexts/i18n-context'
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return <Link to="/" className="brand-logo" aria-label="112233.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small>.es</small>}</Link>
 }
 
+const languageOptions: { value: Language; code: string; label: string }[] = [
+  { value: 'es', code: 'ES', label: 'Español' },
+  { value: 'en', code: 'EN', label: 'English' },
+  { value: 'ru', code: 'RU', label: 'Русский' },
+]
+
+export function LanguageSwitcher() {
+  const { language, setLanguage } = useI18n()
+  const current = languageOptions.find((option) => option.value === language) ?? languageOptions[0]
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="language-switcher" aria-label="Seleccionar idioma"><Globe2 data-icon="inline-start" /><span>{current.code}</span><ChevronDown aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start" className="language-menu"><DropdownMenuLabel>Idioma</DropdownMenuLabel><DropdownMenuRadioGroup value={language} onValueChange={(value) => setLanguage(value as Language)}>{languageOptions.map((option) => <DropdownMenuRadioItem key={option.value} value={option.value}><span className="language-code">{option.code}</span>{option.label}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
+}
+
 export function Header() {
   const { currentUser } = useApp()
-  return <header className="site-header"><div className="site-header__inner"><Logo /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser?.role === 'admin' ? <Button asChild variant="ghost" className="desktop-only"><Link to="/admin"><LayoutDashboard data-icon="inline-start" />Administración</Link></Button> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
+  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser?.role === 'admin' ? <Button asChild variant="ghost" className="desktop-only"><Link to="/admin"><LayoutDashboard data-icon="inline-start" />Administración</Link></Button> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
 }
 
 export function MobileHeader() {
   const { currentUser } = useApp()
   const items = [['/buscar', 'Buscar habitaciones'], ['/publicar', 'Publicar habitación'], ['/favoritos', 'Favoritos'], ['/busquedas-guardadas', 'Búsquedas guardadas'], ['/mis-anuncios', 'Mis anuncios'], ['/perfil', 'Mi perfil'], ['/como-funciona', 'Cómo funciona'], ['/ayuda', 'Ayuda']]
   if (currentUser?.role === 'admin') items.push(['/admin', 'Administración'])
-  return <header className="mobile-header"><Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Abrir menú"><Menu /></Button></SheetTrigger><SheetContent side="left" className="w-[88vw] max-w-sm"><SheetHeader><SheetTitle><Logo /></SheetTitle><SheetDescription>Habitaciones en Tenerife, sin rodeos.</SheetDescription></SheetHeader><nav className="mobile-menu" aria-label="Menú principal">{items.map(([to, label]) => <Link key={to} to={to}>{label}</Link>)}</nav></SheetContent></Sheet><Logo compact /><Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link></header>
+  return <header className="mobile-header"><Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Abrir menú"><Menu /></Button></SheetTrigger><SheetContent side="left" className="w-[88vw] max-w-sm"><SheetHeader><SheetTitle><Logo /></SheetTitle><SheetDescription>Habitaciones en Tenerife, sin rodeos.</SheetDescription></SheetHeader><nav className="mobile-menu" aria-label="Menú principal">{items.map(([to, label]) => <Link key={to} to={to}>{label}</Link>)}</nav></SheetContent></Sheet><div className="mobile-brand-group"><Logo compact /><LanguageSwitcher /></div><Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link></header>
 }
 
 const bottomItems = [{ to: '/buscar', label: 'Buscar', icon: Search }, { to: '/buscar?vista=mapa', label: 'Mapa', icon: Map }, { to: '/publicar', label: 'Publicar', icon: Plus }, { to: '/favoritos', label: 'Favoritos', icon: Heart }, { to: '/perfil', label: 'Mi cuenta', icon: UserRound }]

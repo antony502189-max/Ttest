@@ -266,3 +266,22 @@ test('RESP-06 short mobile dialogs and critical map/uploader targets remain reac
   const searchArea = await page.getByRole('button', { name: 'Buscar en esta zona' }).boundingBox()
   expect(searchArea && searchArea.height >= 44).toBeTruthy()
 })
+
+test('I18N-01 Russian and English versions switch and persist without changing routes', async ({ page }) => {
+  await page.goto('/#/')
+
+  await page.getByRole('button', { name: 'Seleccionar idioma' }).first().click()
+  await page.getByRole('menuitemradio', { name: 'RU Русский' }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
+  await expect(page.getByRole('heading', { level: 1, name: 'Ваша следующая комната ближе, чем кажется' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Выбрать язык' }).first().click()
+  await page.getByRole('menuitemradio', { name: 'EN English' }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await expect(page.getByRole('heading', { level: 1, name: 'Your next room is closer than you think' })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:language:v1'))).toBe('en')
+
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await expect(page.getByRole('heading', { level: 1, name: 'Your next room is closer than you think' })).toBeVisible()
+})
