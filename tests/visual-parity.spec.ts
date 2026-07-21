@@ -18,7 +18,10 @@ async function shot(page: Page, name: string, mask: Locator[] = []) {
     caret: 'hide',
     mask,
     maskColor: '#c9c9c9',
-    maxDiffPixelRatio: 0.02,
+    // Chromium text and SVG antialiasing differs slightly between the Windows
+    // review workstation and the Ubuntu Actions runner. Keep a bounded visual
+    // gate while allowing that platform rasterisation noise.
+    maxDiffPixelRatio: 0.04,
   })
 }
 
@@ -76,7 +79,7 @@ test('location, list, filters and sort visual states', async ({ page }) => {
   await open(page, '/#/buscar?q=Tenerife')
   await page.locator('.mobile-sort-control').click()
   await expect(page.getByRole('dialog')).toBeVisible()
-  await shot(page, 'sort-390x844')
+  await shot(page, 'sort-390x844', [page.locator('.property-card__media img')])
 })
 
 test('dedicated map visual states', async ({ page }) => {
@@ -134,6 +137,7 @@ test('publish room, images and preview visual states', async ({ page }) => {
   await shot(page, 'publish-room-390x844')
 
   for (let step = 0; step < 4; step += 1) await next.click()
+  await settleImages(page, '.upload-grid img')
   await shot(page, 'publish-images-390x844')
 
   for (let step = 0; step < 3; step += 1) await next.click()
