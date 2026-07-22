@@ -56,7 +56,7 @@ async function settle(page: Page, map = false) {
     })),
     new Promise<void>((resolve) => window.setTimeout(resolve, 4_000)),
   ])).catch(() => undefined)
-  if (map) await expect(page.locator('.leaflet-map-canvas')).toBeVisible({ timeout: 15_000 })
+  if (map) await expect(page.locator('.google-map-canvas')).toBeVisible({ timeout: 15_000 })
   await page.waitForTimeout(180)
 }
 

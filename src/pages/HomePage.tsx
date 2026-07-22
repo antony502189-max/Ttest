@@ -1,18 +1,17 @@
-import { ArrowRight, Clock3, Map, Plus, Search } from 'lucide-react'
+import { ArrowRight, CigaretteOff, Clock3, Heart, Map, MessageCircle, PawPrint, Plus, Search, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { CriticalRestrictionOverlay, PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { PropertyCard, RentalTypeSwitch, SearchBar } from '@/components/marketplace'
 import { useApp, type SavedSearch } from '@/contexts/app-context'
 import { MediaImage } from '@/components/media-image'
 import { filterListings, filtersToParams } from '@/lib/search'
 import { isPublicListing, tenantRequirementLabels } from '@/lib/listings'
+import '@/home.css'
 
-interface FeaturedPlacement {
-  listingId: string
-  active: boolean
-  label: 'Destacado' | 'Publicidad'
-  priority: number
-}
+const homeHeroImage = 'https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=1920&q=88'
 
 const searchHref = (search: SavedSearch) => `/buscar?${filtersToParams(search.filters, new URLSearchParams({ q: search.query, alquiler: search.rentalMode })).toString()}`
 
@@ -28,21 +27,39 @@ export function HomePage() {
   const { allListings, savedSearches } = useApp()
   const publicListings = allListings.filter(isPublicListing)
   const featured = publicListings.slice(0, 2)
-  const placement: FeaturedPlacement = { listingId: publicListings[1]?.id ?? publicListings[0]?.id ?? '', active: true, label: 'Destacado', priority: 1 }
-  const promoted = publicListings.find((listing) => listing.id === placement.listingId) ?? publicListings[0]
   return (
     <div className="home-page market-home">
-      <h1 id="home-title" className="sr-only">Tu próxima habitación está más cerca de lo que imaginas</h1>
-      {promoted && placement.active ? <Link className="promoted-listing" to={`/habitacion/${promoted.id}`} aria-label={`Ver anuncio destacado: ${promoted.title}`}>
-        <MediaImage src={promoted.images[0]} alt={`Habitación destacada en ${promoted.area}`} width="1600" height="900" />
-        <CriticalRestrictionOverlay listing={promoted} compact />
-        <span className="promoted-listing__label">{placement.label}</span>
-        <span className="promoted-listing__caption"><strong>{promoted.area}</strong><span>{promoted.monthlyPrice || promoted.nightlyPrice} €/{promoted.rentalMode === 'holiday' ? 'noche' : 'mes'}</span></span>
-      </Link> : null}
+      <section className="home-hero" aria-labelledby="home-title">
+        <MediaImage src={homeHeroImage} alt="Habitación luminosa con cama, escritorio y ventana" width="1920" height="1080" />
+        <div className="home-hero__overlay" />
+        <div className="home-hero__content">
+          <h1 id="home-title">Solo habitaciones</h1>
+          <p>Larga estancia y turística</p>
+          <div className="home-hero__chips" aria-label="Condiciones habituales">
+            <Badge variant="secondary" className="hero-condition-chip"><PawPrint aria-hidden="true" />Sin mascotas</Badge>
+            <Badge variant="secondary" className="hero-condition-chip"><CigaretteOff aria-hidden="true" />No fumar</Badge>
+          </div>
+        </div>
+      </section>
 
-      <section className="market-search-panel" aria-label="Buscar habitaciones">
-        <RentalTypeSwitch />
-        <SearchBar home />
+      <section className="home-search-stage" aria-label="Buscar habitaciones">
+        <Card className="market-search-panel">
+          <CardHeader className="sr-only">
+            <CardTitle>Encuentra una habitación</CardTitle>
+            <CardDescription>Elige el tipo de alquiler, quién vivirá y la zona.</CardDescription>
+          </CardHeader>
+          <CardContent className="market-search-panel__content">
+            <RentalTypeSwitch home />
+            <SearchBar home />
+          </CardContent>
+        </Card>
+        <div className="home-trust-strip" aria-label="Ventajas de 112233.es">
+          <div><ShieldCheck aria-hidden="true" /><span>Anuncios verificados</span></div>
+          <Separator orientation="vertical" />
+          <div><Heart aria-hidden="true" /><span>Guarda tus favoritos</span></div>
+          <Separator orientation="vertical" />
+          <div><MessageCircle aria-hidden="true" /><span>Contacta sin comisión</span></div>
+        </div>
       </section>
 
       <div className="home-publish-action"><Button asChild variant="outline"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio</Link></Button></div>

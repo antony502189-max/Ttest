@@ -298,7 +298,11 @@ test('FILTER-01 and MAP-01..03 new filters serialize and map preview shows restr
   await expect(page).toHaveURL(/ducha=Ducha/)
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   await page.locator('.map-results-cards .property-card').first().getByRole('link').first().focus()
-  await page.locator('.price-marker.is-selected').click()
+  for (let attempt = 0; attempt < 4 && await page.locator('.price-marker.is-highlighted').count() === 0; attempt += 1) {
+    await page.locator('.room-cluster.is-highlighted').click()
+    await page.locator('.map-results-cards .property-card').first().getByRole('link').first().focus()
+  }
+  await page.locator('.price-marker.is-highlighted').click()
   await expect(page.locator('.map-selected-card')).toContainText(/Solo una mujer|Habitación para/)
 })
 
@@ -318,7 +322,7 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
     for (const route of routes) {
       await page.goto(route)
       await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
-      if (route.includes('vista=mapa')) await page.locator('.leaflet-map-canvas').waitFor({ state: 'visible' })
+      if (route.includes('vista=mapa')) await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), `${route} at ${width}x${height}`).toBeTruthy()
     }
     await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify(null)))

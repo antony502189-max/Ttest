@@ -28,7 +28,7 @@ test.afterEach(async ({ page }) => expect(runtimeErrors.get(page) ?? [], 'Errore
 
 test('01–03 inicio, navegación y dataset completo', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await page.getByRole('button', { name: /^buscar$/i }).click()
+  await page.getByRole('button', { name: /encontrar habitación/i }).click()
   await expect(page).toHaveURL(/buscar/)
   await expect(page.getByRole('heading', { name: /habitaciones en/i })).toContainText('23')
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings:v3') || '{"data":[]}').data.length)).toBe(32)
@@ -60,11 +60,11 @@ test('08–10 ordenación, paginación y back/forward', async ({ page }) => {
   await expect(page).toHaveURL(/pagina=2/)
 })
 
-test('11–15 mapa Leaflet, кластер, выбор, границы и полигон', async ({ page }) => {
+test('11–15 Google Maps, кластер, выбор, границы и полигон', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await expect(page.locator('.leaflet-map-canvas')).toBeVisible()
-  await expect(page.locator('.leaflet-tile')).not.toHaveCount(0)
-  await expect(page.locator('.leaflet-marker-icon')).not.toHaveCount(0)
+  await expect(page.locator('.google-map-canvas')).toBeVisible()
+  await expect(page.locator('.gm-style img[role="presentation"]')).not.toHaveCount(0)
+  await expect(page.locator('.map-price-marker-shell, .map-cluster-marker-shell')).not.toHaveCount(0)
   await page.getByRole('button', { name: /dibujar zona/i }).click()
   await page.getByRole('button', { name: /añadir punto/i }).click()
   await page.getByRole('button', { name: /añadir punto/i }).click()
@@ -72,9 +72,10 @@ test('11–15 mapa Leaflet, кластер, выбор, границы и пол
   await page.getByRole('button', { name: /finalizar/i }).click()
   await expect(page).toHaveURL(/poligono=/)
   const searchArea = page.getByRole('button', { name: /buscar en esta zona/i })
-  await expect(searchArea).toBeDisabled()
-  await page.locator('.leaflet-control-zoom-in').focus()
-  await page.locator('.leaflet-control-zoom-in').press('Enter')
+  await expect(searchArea).toHaveCount(0)
+  await page.locator('.google-map-canvas').hover()
+  await page.mouse.wheel(0, -600)
+  await expect(searchArea).toBeVisible()
   await expect(searchArea).toBeEnabled()
   await searchArea.click()
   await expect(page.getByRole('button', { name: /eliminar zona/i })).toBeVisible()
@@ -156,5 +157,5 @@ test('31 responsive móvil sin desbordamiento y navegación inferior', async ({ 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await expect(page.locator('.bottom-nav')).toBeVisible()
   await page.getByRole('button', { name: /mostrar habitaciones en el mapa/i }).click()
-  await expect(page.locator('.leaflet-map-canvas')).toBeVisible()
+  await expect(page.locator('.google-map-canvas')).toBeVisible()
 })
