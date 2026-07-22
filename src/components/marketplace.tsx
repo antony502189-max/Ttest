@@ -119,6 +119,7 @@ import type {
   YesNoAny,
 } from "@/types";
 import { useApp } from "@/contexts/app-context";
+import { useI18n } from "@/contexts/i18n-context";
 
 const LazyLeafletMap = lazy(() =>
   import("@/components/map-view").then((module) => ({
@@ -210,8 +211,26 @@ export function SearchLocationInput({
 export function SearchBar({ compact = false, home = false }: { compact?: boolean; home?: boolean }) {
   const { query, setQuery, addSearchHistory, filters, setFilters, rentalMode } =
     useApp();
+  const { language, t } = useI18n();
   const navigate = useNavigate();
   const [locationError, setLocationError] = useState("");
+  const tenantOptions = language === "ru"
+    ? [
+        ["Cualquiera", "Для кого: любой"], ["single-man", "Для кого: только мужчина"],
+        ["single-woman", "Для кого: только женщина"], ["single-person", "Для кого: один человек"],
+        ["couple", "Для кого: только пара"], ["any", "Для кого: без ограничений"],
+      ]
+    : language === "en"
+      ? [
+          ["Cualquiera", "Who is it for: anyone"], ["single-man", "Who is it for: men only"],
+          ["single-woman", "Who is it for: women only"], ["single-person", "Who is it for: one person"],
+          ["couple", "Who is it for: couples only"], ["any", "Who is it for: no restriction"],
+        ]
+      : [
+          ["Cualquiera", "Para quién: cualquiera"], ["single-man", "Para quién: solo un hombre"],
+          ["single-woman", "Para quién: solo una mujer"], ["single-person", "Para quién: una persona"],
+          ["couple", "Para quién: solo pareja"], ["any", "Para quién: sin restricción"],
+        ];
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const location = resolveTenerifeLocation(query.trim() || "Tenerife");
@@ -241,7 +260,7 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
       onSubmit={submit}
       role="search"
     >
-      {home ? <FieldGroup className="home-tenant-field"><Field><FieldLabel className="sr-only" htmlFor="home-tenant-requirement">Para quién</FieldLabel><select id="home-tenant-requirement" aria-label="Para quién" value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}><option value="Cualquiera">Para quién: cualquiera</option><option value="single-man">Para quién: solo un hombre</option><option value="single-woman">Para quién: solo una mujer</option><option value="single-person">Para quién: una persona</option><option value="couple">Para quién: solo pareja</option><option value="any">Para quién: sin restricción</option></select></Field></FieldGroup> : null}
+      {home ? <FieldGroup className="home-tenant-field"><Field><FieldLabel className="sr-only" htmlFor="home-tenant-requirement">{t("Para quién")}</FieldLabel><select id="home-tenant-requirement" aria-label={t("Para quién")} value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}>{tenantOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></FieldGroup> : null}
       <SearchLocationInput value={query} error={locationError} onChange={(value) => { setQuery(value); if (locationError) setLocationError(""); }} />
       {compact ? null : (
         <div className="search-date">
@@ -755,8 +774,18 @@ function FilterPanel({
   const max = rentalMode === "holiday" ? 350 : 1200;
   return (
     <div className="filter-panel">
+      <label className="field-label filter-room-only">
+        Tipo de propiedad
+        <select aria-label="Tipo de propiedad" value="Habitaciones" disabled>
+          <option>Habitaciones</option>
+        </select>
+      </label>
       <section className="filter-section">
         <h3>Precio por {rentalMode === "holiday" ? "noche" : "mes"}</h3>
+        <div className="filter-price-fields">
+          <label>Desde<Input aria-label="Precio mínimo" type="number" min="0" max={max} step={rentalMode === "holiday" ? 5 : 25} value={value.minPrice} onChange={(event) => update("minPrice", Number(event.target.value))} /></label>
+          <label>Hasta<Input aria-label="Precio máximo" type="number" min="0" max={max} step={rentalMode === "holiday" ? 5 : 25} value={value.maxPrice} onChange={(event) => update("maxPrice", Number(event.target.value))} /></label>
+        </div>
         <div className="range-values">
           <span>{value.minPrice} €</span>
           <span>
@@ -1392,13 +1421,13 @@ export function ContactPanel({
         {listing.showPhone ? (
           <Button
             variant="outline"
-            disabled={!confirmed}
+            disabled={!confirmed && !mobile}
             onClick={() => setPhone(true)}
           >
             <Phone data-icon="inline-start" />
             {phone
               ? listing.contactPhone || "+34 600 112 233"
-              : "Mostrar teléfono"}
+              : mobile ? "Llamar" : "Mostrar teléfono"}
           </Button>
         ) : null}
         {listing.allowContactForm ? <Dialog open={messageOpen} onOpenChange={(open) => {
@@ -1413,7 +1442,7 @@ export function ContactPanel({
             setMessageForm({ name: "", contact: "", message: "", website: "", confirmed: false });
           }
         }}>
-          <DialogTrigger asChild><Button variant="outline" aria-label="Enviar mensaje"><MessageCircle data-icon="inline-start" />{mobile ? "Contactar" : "Enviar mensaje"}</Button></DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" aria-label="Enviar mensaje"><MessageCircle data-icon="inline-start" />{mobile ? "Chat" : "Enviar mensaje"}</Button></DialogTrigger>
           <DialogContent className="contact-message-dialog">
             <DialogHeader>
               <DialogTitle>Enviar un mensaje local</DialogTitle>

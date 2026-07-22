@@ -173,6 +173,12 @@ test('DELTA-I18N-01 new mobile routes remain usable in ES, EN and RU', async ({ 
   await page.setViewportSize({ width: 320, height: 568 })
   for (const language of ['es', 'en', 'ru']) {
     await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)
+    await page.goto('/#/')
+    await page.reload()
+    await expect(page.locator('#home-tenant-requirement')).toHaveValue('Cualquiera')
+    await expect(page.locator('#home-tenant-requirement option:checked')).toHaveText(
+      language === 'ru' ? 'Для кого: любой' : language === 'en' ? 'Who is it for: anyone' : 'Para quién: cualquiera',
+    )
     await page.goto('/#/buscar?q=Tenerife')
     await expect(page.locator('.mobile-results-topbar')).toBeVisible()
     await expect(page.locator('.bottom-nav')).toBeVisible()

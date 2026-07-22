@@ -1000,7 +1000,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     );
   return (
     <>
-    <div className="publish-page">
+    <div className={`publish-page${editing ? " publish-page--editing" : ""}`}>
       <div className="container publish-header">
         {isDirty ? <ConfirmDialog
           trigger={
@@ -1020,7 +1020,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
               ? `Editando ${id?.slice(-5).toUpperCase()}`
               : "Nuevo anuncio"}
           </span>
-          <h1>{editing ? "Editar habitación" : "Publicar una habitación"}</h1>
+          <h1 aria-label={editing ? "Editar habitación" : undefined}>{editing ? "Editar anuncio" : "Publicar una habitación"}</h1>
         </div>
         <div className="publish-header__actions">
           <ConfirmDialog

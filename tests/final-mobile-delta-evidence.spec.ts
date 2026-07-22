@@ -1,9 +1,19 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 const phase = process.env.FINAL_DELTA_PHASE === 'before' ? 'before' : 'after'
 const output = path.join(process.cwd(), 'artifacts', 'final-mobile-delta', phase)
+
+async function screenshot(page: Page, destination: string) {
+  const image = await page.screenshot({ animations: 'disabled' })
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try { await writeFile(destination, image); return } catch (error) {
+      if (attempt === 4) throw error
+      await page.waitForTimeout(200 * (attempt + 1))
+    }
+  }
+}
 
 async function settle(page: Page) {
   await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
@@ -24,7 +34,7 @@ async function capture(page: Page, name: string, route: string, width = 390, hei
       .map((element) => ({ tag: element.tagName, className: String(element.className), right: element.getBoundingClientRect().right })),
   }))
   expect(overflow.documentWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.viewportWidth + 1)
-  await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' })
+  await screenshot(page, path.join(output, `${name}.png`))
 }
 
 async function setLocalState(page: Page, state: { language?: 'es' | 'en' | 'ru'; session?: string | null }) {
@@ -52,14 +62,14 @@ test('capture unmasked final mobile delta evidence', async ({ page }) => {
   await settle(page)
   await page.getByRole('button', { name: /Todos los filtros/ }).click()
   await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible()
-  await page.screenshot({ path: path.join(output, 'filters-390x700.png'), animations: 'disabled' })
+  await screenshot(page, path.join(output, 'filters-390x700.png'))
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/')
   await settle(page)
   await page.getByRole('button', { name: /Abrir selección de ubicación/ }).first().click()
   await expect(page.getByRole('heading', { name: '¿Dónde buscas?' })).toBeVisible()
-  await page.screenshot({ path: path.join(output, 'location-390x844.png'), animations: 'disabled' })
+  await screenshot(page, path.join(output, 'location-390x844.png'))
 
   await capture(page, 'listing-390x844', '/#/habitacion/arme%C3%B1ime-luminosa-01')
   await capture(page, 'menu-390x844', '/#/menu')

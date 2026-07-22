@@ -1,0 +1,8 @@
+{
+  "consoleErrors": [],
+  "pageErrors": [],
+  "failedRequests": [
+    "GET http://127.0.0.1:4173/src/components/media-image.tsx :: net::ERR_ABORTED",
+    "GET http://127.0.0.1:4173/src/components/marketplace.tsx :: net::ERR_ABORTED"
+  ]
+}

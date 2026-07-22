@@ -294,7 +294,7 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
     polygonLayerRef.current = null;
     if (draftPolygon.length >= 2) {
       polygonLayerRef.current = L.polygon(draftPolygon.map((point) => [point.lat, point.lng]), {
-        color: "#006b72", fillColor: "#d7f20b", fillOpacity: 0.22, weight: 3,
+        color: "#c51a84", fillColor: "#c51a84", fillOpacity: 0.28, weight: 2,
       }).addTo(map);
     }
     return () => {
@@ -309,7 +309,7 @@ export function LeafletMapView({ items, selectedId, onSelect, fullScreen = false
     const map = mapRef.current;
     if (!map) return;
     const center = map.getCenter();
-    const offsets = [[-0.08, -0.1], [0.07, -0.08], [0.08, 0.1], [-0.06, 0.11]];
+    const offsets = [[-0.34, -0.27], [0.36, -0.27], [0.01, 0.33], [-0.34, 0.27]];
     const offset = offsets[draftPolygon.length % offsets.length];
     setDraftPolygon((current) => [...current, { lat: center.lat + offset[0], lng: center.lng + offset[1] }]);
   };

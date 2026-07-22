@@ -1,0 +1,64 @@
+{
+  "name": "024-home-property-control",
+  "url": "http://127.0.0.1:4173/#/",
+  "overflow": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "viewportHeight": 844,
+    "documentHeight": 1599
+  },
+  "geometry": {
+    "body": null,
+    ".mobile-header": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 94.39,
+      "position": "sticky",
+      "display": "flex"
+    },
+    ".bottom-nav": null,
+    ".promoted-listing": {
+      "x": 0,
+      "y": 94.39,
+      "width": 390,
+      "height": 167.19,
+      "position": "relative",
+      "display": "block"
+    },
+    ".market-search-panel": {
+      "x": 0,
+      "y": 261.58,
+      "width": 390,
+      "height": 312.8,
+      "position": "static",
+      "display": "flex"
+    },
+    ".home-publish-action": {
+      "x": 0,
+      "y": 574.38,
+      "width": 390,
+      "height": 114.39,
+      "position": "static",
+      "display": "flex"
+    },
+    ".mobile-results-topbar": null,
+    ".idealista-results-toolbar": null,
+    ".property-card": null,
+    ".filter-drawer": null,
+    ".filter-footer": null,
+    ".mobile-map-screen__header": null,
+    ".mobile-map-screen__footer": null,
+    ".map-selected-card": null,
+    ".listing-actionbar": null,
+    ".property-gallery": null,
+    ".listing-title": null,
+    ".listing-comments": null,
+    ".mobile-contact-bar": null,
+    ".menu-page": null,
+    ".owner-mobile-appbar": null,
+    ".manage-card": null,
+    ".publish-header": null,
+    ".wizard-actions": null
+  }
+}

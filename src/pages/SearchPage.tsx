@@ -45,6 +45,7 @@ import type { Filters, MapPolygonPoint, RentalMode } from "@/types";
 
 const PAGE_SIZE = 9;
 const sortOptions = ["Relevancia", "Más recientes", "Más antiguos", "Precio más bajo", "Precio más alto"];
+const MOBILE_MAP_MEDIA = "(max-width: 767px), (max-height: 480px) and (max-width: 900px)";
 
 function SortControl({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return <Drawer><DrawerTrigger asChild><Button variant="outline" className="mobile-sort-control"><ArrowUpDown data-icon="inline-start" />Ordenar</Button></DrawerTrigger><DrawerContent className="sort-drawer"><DrawerHeader><DrawerTitle>Ordenar resultados</DrawerTitle><DrawerDescription>Elige cómo quieres ver las habitaciones.</DrawerDescription></DrawerHeader><RadioGroup value={value} onValueChange={onChange} className="sort-options">{sortOptions.map((option) => { const id = `sort-${option.replace(/\s+/g, '-').toLocaleLowerCase()}`; return <Field key={option} orientation="horizontal"><RadioGroupItem id={id} value={option} /><FieldLabel htmlFor={id}>{option}</FieldLabel></Field> })}</RadioGroup><DrawerFooter><DrawerClose asChild><Button>Aplicar orden</Button></DrawerClose></DrawerFooter></DrawerContent></Drawer>
@@ -72,7 +73,7 @@ export function SearchPage() {
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
-  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_MAP_MEDIA).matches);
   const [initialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null);
   const actionConsumedRef = useRef(false);
   const view = params.get("vista") === "mapa" ? "map" : "list";
@@ -118,7 +119,7 @@ export function SearchPage() {
   }, [paramString]);
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)');
+    const media = window.matchMedia(MOBILE_MAP_MEDIA);
     const update = () => setIsMobile(media.matches);
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
@@ -380,7 +381,7 @@ export function SearchPage() {
       <header className="mobile-map-screen__header">
         <Button type="button" variant="ghost" size="icon" onClick={() => changeView('list')} aria-label="Volver a la lista"><ArrowLeft /></Button>
         <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
-        <Button type="button" variant="ghost" size="icon" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /></Button>
+        <Button type="button" className="mobile-save-search" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /><span>Guardar</span></Button>
       </header>
       <div className="mobile-map-screen__canvas">
         <MapView
@@ -409,7 +410,7 @@ export function SearchPage() {
       <header className="mobile-results-topbar">
         <Button asChild variant="ghost" size="icon"><Link to="/" aria-label="Volver al inicio"><ArrowLeft /></Link></Button>
         <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
-        <Button type="button" variant="ghost" size="icon" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /></Button>
+        <Button type="button" className="mobile-save-search" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /><span>Guardar</span></Button>
       </header>
       <div className="search-toolbar">
         <div className="container">

@@ -419,6 +419,129 @@
   .admin-page { min-height: calc(100vh - 3.75rem); display: block; }.admin-sidebar { position: sticky; z-index: 30; top: 3.75rem; display: block; padding: .35rem .4rem; }.admin-brand, .admin-user { display: none; }.admin-sidebar nav { flex-direction: row; gap: .2rem; overflow-x: auto; scrollbar-width: none; }.admin-sidebar nav::-webkit-scrollbar { display: none; }.admin-sidebar nav button, .admin-sidebar nav button:not([aria-current="page"]) { min-height: 2.55rem; flex: none; justify-content: center; gap: .35rem; padding-inline: .65rem; font-size: .7rem; }.admin-sidebar nav button > span { margin-left: .15rem; }.admin-main { padding: 1rem .625rem 5rem; }.admin-header { grid-template-columns: 1fr auto; }.admin-header > button { width: 2.5rem; overflow: hidden; padding: 0; font-size: 0; }.admin-header > button svg { width: 1rem; flex: none; }.stats-grid { grid-template-columns: 1fr 1fr; gap: .6rem; }.stats-grid > div { padding: 1rem; }.stats-grid strong { font-size: 1.65rem; }.admin-panel__head { align-items: flex-start; flex-direction: column; }.admin-panel__head > div:last-child { width: 100%; }.admin-panel__head > div:last-child button { flex: 1; }
 }
 
+/* V4 exact-design lock: target corpus geometry, density and hierarchy. */
+.filter-room-only, .filter-price-fields { display: none; }
+
+@media (max-width: 767px) {
+  :root { --market-header-height: 4.1rem; --market-bottom-nav-height: 4rem; --market-lime: #e4fb5f; --market-magenta: #c51a84; --market-magenta-hover: #aa126f; }
+  body { font-family: Arial, Helvetica, sans-serif; }
+  h1, h2, h3 { letter-spacing: 0; text-wrap: wrap; }
+  [data-slot="button"], input, select, textarea { border-radius: 0; }
+
+  /* Home: target first-fold rhythm. */
+  .mobile-header { height: 5.9rem; min-height: 5.9rem; padding: .6rem .75rem; border-bottom: 0; }
+  .mobile-header .brand-logo { font-size: 1.75rem; }
+  .mobile-header__actions { gap: 0; }
+  .mobile-header .language-switcher, .mobile-icon-link { min-width: 2.55rem; min-height: 2.55rem; }
+  .mobile-header .language-switcher svg:first-child { display: none; }
+  .promoted-listing { height: 10.45rem; }
+  .promoted-listing__label, .promoted-listing__caption { display: none; }
+  .market-search-panel { min-height: 19.55rem; display: flex; flex-direction: column; gap: 1rem; padding: 1rem 1.1rem 1.05rem; }
+  .market-search-panel > .rental-switch { flex: none; margin: 0; }
+  .market-search-panel > .rental-switch button { min-height: 3.5rem; font-size: .9rem; }
+  .search-bar--home { flex: 1; gap: 1rem; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .search-bar--home select, .search-bar--home .search-location > div, .search-bar--home > .button { min-height: 3.45rem; height: 3.45rem; font-size: 1rem; }
+  .search-bar--home > .button { font-size: 1.05rem; }
+  .home-publish-action { min-height: 7.15rem; display: flex; align-items: center; padding: 1.05rem 1.1rem 1.35rem; }
+  .home-publish-action .button { min-height: 3.55rem; font-size: 1rem; }
+  .home-saved-searches { padding: .8rem 1.1rem 1.25rem; }
+  .home-saved-searches .eyebrow { display: none; }
+  .home-saved-searches .market-section-heading { margin-bottom: .55rem; }
+  .home-saved-searches h2 { font-size: 1.25rem; }
+  .home-map-section, .home-results-preview { display: none; }
+
+  /* Shared app bars and the search hierarchy. */
+  .mobile-results-topbar, .mobile-map-screen__header { min-height: 4.1rem; height: 4.1rem; grid-template-columns: 2.75rem minmax(0, 1fr) auto; padding: .35rem .55rem; border-bottom: 1px solid #b2c33c; }
+  .mobile-results-topbar .mobile-save-search, .mobile-map-screen__header .mobile-save-search { min-width: 6.3rem; min-height: 2.9rem; gap: .35rem; padding: 0 .7rem; border: 0; background: var(--market-magenta); color: #fff; font-size: .94rem; font-weight: 700; }
+  .mobile-save-search svg { width: 1.15rem; }
+  .mobile-results-topbar .location-selector-trigger, .mobile-map-screen__header .location-selector-trigger { font-size: .95rem; }
+  .idealista-results-toolbar { order: 1; top: 4.1rem; min-height: 3.35rem; height: 3.35rem; padding: 0; border-top: 0; }
+  .idealista-results-toolbar .button { min-height: 3.3rem; height: 3.3rem; border: 0; border-right: 1px solid var(--line); background: #fff; font-size: .91rem; }
+  .idealista-results-head { order: 2; width: 100%; margin: 0; padding: .65rem .65rem .55rem; border-bottom: 1px solid var(--line); }
+  .idealista-results-head h1 { font-size: .98rem; font-weight: 500; }
+  .idealista-results > .quick-filters { display: none; }
+  .applied-filters { order: 3; padding: .2rem .65rem .65rem; }
+  .applied-filters > button:not(.applied-filters__clear) { display: none; }
+  .applied-filters__clear { color: var(--market-magenta); font-size: .95rem; font-weight: 700; }
+  .results-list { order: 5; gap: .8rem; padding: 0 .5rem 1rem; background: #fff; }
+  .property-card:not(.property-card--compact) { border: 1px solid var(--line); }
+  .property-card:not(.property-card--compact) .property-card__media { aspect-ratio: 4 / 3; }
+  .property-card__content { padding: .55rem .65rem; }
+  .property-card h3 { order: 0; margin: .15rem 0 .35rem; font-size: 1.05rem; line-height: 1.27; }
+  .card-topline { order: 1; }
+  .card-topline .price-block strong { font-size: 1.7rem; }
+  .property-location { order: 2; }
+  .property-facts { order: 3; }
+  .badge-row { order: 4; }
+  .property-card__actions { order: 5; }
+  .listing-status { display: none; }
+
+  /* Filter sheet follows the dense native target form rather than card geometry. */
+  .filter-drawer [data-slot="sheet-header"] { min-height: 4.1rem; height: 4.1rem; padding: .35rem .55rem; }
+  .filter-drawer [data-slot="sheet-title"] { font-size: 1.05rem; }
+  .filter-mode-switch { padding: .85rem 1.1rem .55rem; }
+  .filter-mode-switch > span { display: none; }
+  .filter-mode-switch .rental-switch button { min-height: 3.5rem; font-size: .9rem; }
+  .filter-drawer .filter-panel { padding: .55rem 1.1rem 4.7rem; font-size: .92rem; }
+  .filter-room-only { display: grid; gap: .4rem; margin: 0 0 .65rem; font-weight: 700; }
+  .filter-room-only select { min-height: 3.45rem; color: var(--ink); opacity: 1; }
+  .filter-price-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+  .filter-price-fields label { display: grid; gap: .3rem; font-size: .78rem; font-weight: 600; }
+  .filter-price-fields input { min-height: 3.35rem; }
+  .filter-drawer .filter-panel > .filter-section:first-of-type .range-values,
+  .filter-drawer .filter-panel > .filter-section:first-of-type [data-slot="slider"] { display: none; }
+  .filter-drawer .filter-panel > fieldset.filter-section:first-of-type,
+  .filter-drawer .filter-panel > fieldset.filter-section:first-of-type + [data-slot="separator"] { display: none; }
+  .filter-drawer .filter-section { padding-block: .55rem; }
+  .filter-drawer .filter-section h3, .filter-drawer .filter-section legend { margin-bottom: .55rem; font-size: 1rem; }
+  .filter-drawer .field-label { gap: .3rem; }
+  .filter-drawer input, .filter-drawer select { min-height: 3.25rem; }
+  .filter-footer { grid-template-columns: 1fr; padding: .55rem 1.1rem .7rem; }
+  .filter-footer .button { min-height: 3.2rem; }
+  .filter-footer .button:first-child { position: fixed; top: .55rem; right: 3.4rem; z-index: 5; width: auto; min-height: 3rem; color: var(--market-magenta); background: transparent; }
+
+  /* Listing: lime bar, deep edge-to-edge gallery and target content order. */
+  body:has(.idealista-listing-page) { padding-bottom: 3.7rem; }
+  body:has(.idealista-listing-page) .bottom-nav { display: none; }
+  .listing-actionbar { min-height: 4.1rem; height: 4.1rem; padding: .35rem .5rem; border-bottom-color: #b2c33c; background: var(--market-lime); }
+  .listing-actionbar .button { min-height: 3.1rem; }
+  .listing-gallery-container .property-gallery { height: 21.8rem; }
+  .listing-layout { padding-top: .7rem; }
+  .listing-title { flex-direction: column; gap: .35rem; }
+  .listing-title h1 { font-size: 1.22rem; line-height: 1.25; }
+  .listing-title p, .listing-address { display: none; }
+  .listing-title .price-block { order: 2; }
+  .listing-title .price-block strong { font-size: 1.85rem; }
+  .listing-keyfacts { gap: .2rem; margin-top: .35rem; }
+  .listing-keyfacts span { padding: .15rem .55rem; font-size: .86rem; }
+  .listing-inline-actions { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: .45rem; }
+  .listing-inline-actions .button { min-width: 0; min-height: 3.7rem; flex-direction: column; gap: .15rem; padding: .25rem; color: var(--market-magenta); font-size: .72rem; }
+  .listing-inline-actions svg { width: 1.2rem; }
+  .listing-restriction-notice { display: none; }
+  .listing-comments { margin-top: .35rem; }
+  .listing-comment-add { width: 100%; min-height: 3rem; justify-content: flex-start; background: #fffceb; color: var(--market-magenta); }
+  .advertiser-comment { padding-block: .85rem; }
+  .advertiser-comment h2 { font-size: 1.05rem; }
+  .mobile-contact-bar { right: 0; bottom: 0; left: 0; padding: .35rem .55rem; }
+  .contact-panel--mobile .contact-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
+  .contact-panel--mobile .contact-actions > [data-slot="button"],
+  .contact-panel--mobile .contact-actions > [data-slot="dialog-trigger"] { width: 100%; min-height: 3rem; display: inline-flex; border: 0; background: var(--market-magenta); color: #fff; }
+  .contact-panel--mobile .contact-actions > [data-slot="button"]:first-child { display: none; }
+
+  /* Owner and publish surfaces use target's flat, compact form language. */
+  .owner-mobile-appbar, .publish-page .publish-header { min-height: 4.1rem; height: 4.1rem; }
+  .owner-listings-page .manage-card { grid-template-columns: 6.4rem minmax(0, 1fr) 2.75rem; padding: .55rem 0; }
+  .owner-listings-page .manage-card > img { width: 6.4rem; height: 5.1rem; }
+  .publish-page .wizard-layout { padding-top: .45rem; }
+  .publish-page .wizard-section { gap: .7rem; }
+  .publish-page .wizard-section > header { margin-bottom: .35rem; }
+  .publish-page .wizard-section > header h2 { font-size: 1.2rem; }
+  .publish-page .wizard-section > header p { margin-top: .2rem; font-size: .85rem; }
+  .publish-page .wizard-choice-grid { gap: .35rem; }
+  .publish-page .wizard-choice-grid label > span { min-height: 4.1rem; padding: .65rem .8rem; border-radius: 0; }
+  .publish-page .wizard-actions { bottom: 0; margin-top: .75rem; padding: .55rem .625rem; }
+}
+
 /* Screenshot-locked Idealista parity pass */
 .critical-restriction-overlay { position: absolute; left: .6rem; bottom: .6rem; z-index: 4; max-width: min(14rem, calc(100% - 5.5rem)); display: flex; flex-direction: column; align-items: flex-start; gap: .08rem; padding: .42rem .58rem; background: rgb(37 42 43 / .9); color: #fff; box-shadow: var(--shadow-1); pointer-events: none; }
 .critical-restriction-overlay span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 760; line-height: 1.25; }
@@ -472,7 +595,7 @@
   .location-action-list { gap: .45rem; }
   .location-action-list > span { margin-top: .1rem; }
   .location-action-list > a { min-height: 3.45rem; }
-  .location-zones-toggle { width: 100%; min-height: 2.75rem; display: inline-flex; justify-content: space-between; padding-inline: .1rem; color: var(--market-link); }
+  .location-zones-toggle { width: 100%; min-height: 3.45rem; display: inline-flex; justify-content: space-between; padding-inline: .75rem; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; color: var(--ink); }
   .location-zones-panel { display: none; }
   .location-zones-panel.is-open { display: flex; }
   .location-zones-panel .location-selector-list { flex: 1 1 auto; }
@@ -531,6 +654,100 @@
   .publish-header > div:nth-child(2) h1 { overflow: hidden; font-size: 1rem; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
   .publish-header__actions { display: none; }
   .publish-page .wizard-layout { padding-top: .65rem; }
+}
+
+/* V4 terminal cascade: keep corpus-locked measurements after legacy mobile passes. */
+@media (max-width: 767px) {
+  .home-page + *, .home-page { --market-header-height: 5.9rem; }
+  body:not(:has(.idealista-search-page)):not(:has(.idealista-listing-page)):not(:has(.menu-page)):not(:has(.publish-page)):not(:has(.owner-listings-page)) .mobile-header { height: 5.9rem; min-height: 5.9rem; padding: .6rem .75rem; border-bottom: 0; }
+  .mobile-header .brand-logo { font-size: 1.75rem; }
+  .promoted-listing { height: 10.45rem; }
+  .promoted-listing__label, .promoted-listing__caption { display: none; }
+  .market-search-panel { min-height: 19.55rem; display: flex; flex-direction: column; gap: 1rem; padding: 1rem 1.1rem 1.05rem; }
+  .market-search-panel > .rental-switch { margin: 0; }
+  .market-search-panel > .rental-switch button { min-height: 3.5rem; font-size: .9rem; }
+  .search-bar--home { flex: 1; gap: 1rem; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .search-bar--home select, .search-bar--home .search-location > div, .search-bar--home > .button { min-height: 3.45rem; height: 3.45rem; }
+  .home-publish-action { min-height: 7.15rem; display: flex; align-items: center; padding: 1.05rem 1.1rem 1.35rem; }
+  .home-publish-action .button { min-height: 3.55rem; }
+  .home-map-section, .home-results-preview { display: none; }
+
+  .mobile-results-topbar, .mobile-map-screen__header { position: relative; min-height: 4.1rem; height: 4.1rem; grid-template-columns: 2.75rem minmax(0, 1fr); padding: .35rem 7.35rem .35rem .55rem; }
+  .mobile-results-topbar .mobile-save-search, .mobile-map-screen__header .mobile-save-search { position: absolute; top: .6rem; right: .55rem; width: 6.3rem; }
+  .idealista-results-toolbar { order: 1; top: 4.1rem; min-height: 3.35rem; height: 3.35rem; padding: 0; }
+  .idealista-results-head { order: 2; width: 100%; margin: 0; padding: .65rem; }
+  .idealista-results > .quick-filters { display: none; }
+  .property-card:not(.property-card--compact) .property-card__media { aspect-ratio: 4 / 3; }
+  .property-card h3 { order: 0; }
+  .card-topline { order: 1; }
+
+  .filter-drawer [data-slot="sheet-header"] { min-height: 4.1rem; height: 4.1rem; padding: .35rem .55rem; }
+  .filter-mode-switch { padding: .85rem 1.1rem .55rem; }
+  .filter-mode-switch > span { display: none; }
+  .filter-drawer .filter-panel { padding: .55rem 1.1rem 4.7rem; }
+  .filter-room-only, .filter-price-fields { display: grid; }
+
+  .listing-actionbar { min-height: 4.1rem; height: 4.1rem; background: var(--market-lime); }
+  .listing-gallery-container .property-gallery { height: 21.8rem; }
+  .listing-title { flex-direction: column; }
+  .listing-title p, .listing-address, .listing-restriction-notice { display: none; }
+  .contact-panel--mobile .contact-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
+  .contact-panel--mobile .contact-actions > [data-slot="button"], .contact-panel--mobile .contact-actions > [data-slot="dialog-trigger"] { width: 100%; min-height: 3rem; display: inline-flex; }
+  .contact-panel--mobile .contact-actions > [data-slot="button"]:first-child { display: none; }
+  body .contact-panel--mobile .contact-actions > [data-slot="button"]:nth-child(2) { grid-column: 1; grid-row: 1; }
+  body .contact-panel--mobile .contact-actions > [data-slot="dialog-trigger"]:last-child:nth-child(3) { grid-column: 2; grid-row: 1; width: auto; }
+  body .mobile-contact-bar { bottom: 0; }
+  body .mobile-map-screen .map-search-tools { top: .55rem; right: .55rem; gap: .35rem; padding: 0; background: transparent; box-shadow: none; }
+  body .mobile-map-screen .map-search-tools > [data-slot="button"] { width: 2.75rem; min-width: 2.75rem; height: 2.75rem; min-height: 2.75rem; padding: 0; overflow: hidden; font-size: 0; }
+  body .mobile-map-screen .map-search-tools > [data-slot="button"] svg { width: 1rem; margin: 0; }
+  body .mobile-map-screen .map-action-announcement { right: auto; left: .55rem; width: 14.5rem; max-width: calc(100% - 5rem); min-height: 6.8rem; padding: .9rem; translate: 0 0; font-size: 1rem; line-height: 1.35; }
+  body .mobile-map-screen .map-selected-card { min-height: 9.75rem; grid-template-columns: 7.25rem minmax(0, 1fr) auto; }
+  body .mobile-map-screen .price-marker { background: var(--market-magenta); }
+  body .mobile-map-screen .room-cluster { background: var(--market-lime); color: var(--ink); }
+  body .publish-page--editing .stepper { display: none; }
+  body .publish-page--editing .wizard-layout { grid-template-columns: minmax(0, 44rem); }
+  body .owner-listings-page .account-heading > [data-slot="button"] { position: fixed; right: .7rem; bottom: .65rem; left: .7rem; z-index: 55; width: auto; min-height: 3.2rem; }
+  body .owner-listings-page .manage-card { min-height: 11.5rem; grid-template-columns: 8.7rem minmax(0, 1fr) 2.75rem; align-items: start; }
+  body .owner-listings-page .manage-card > img { width: 8.7rem; height: 8.7rem; }
+
+  .owner-mobile-appbar, .publish-page .publish-header { min-height: 4.1rem; height: 4.1rem; }
+  .publish-page .wizard-layout { padding-top: .45rem; }
+}
+
+/* V4 landscape mobile map must follow the legacy base declaration that hides mobile shells. */
+@media (max-height: 480px) and (max-width: 900px) {
+  body:has(.mobile-map-screen) { height: 100dvh; padding-bottom: 0; overflow: hidden; }
+  body:has(.mobile-map-screen) .site-header,
+  body:has(.mobile-map-screen) .mobile-header,
+  body:has(.mobile-map-screen) .bottom-nav,
+  body:has(.mobile-map-screen) .site-footer { display: none; }
+  body .mobile-map-screen { position: fixed; inset: 0; z-index: 60; height: 100dvh; display: grid; grid-template-rows: 3.5rem minmax(0, 1fr) auto; background: #fff; }
+  body .mobile-map-screen__header { position: relative; display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); align-items: center; gap: .25rem; padding: .3rem 7.2rem .3rem .5rem; border-bottom: 1px solid #a9bb2b; background: var(--market-lime); }
+  body .mobile-map-screen__header .mobile-save-search { position: absolute; top: .3rem; right: .5rem; width: 6.2rem; min-height: 2.75rem; display: inline-flex; }
+  body .mobile-map-screen__canvas,
+  body .mobile-map-screen__canvas .leaflet-map-shell,
+  body .mobile-map-screen__canvas .leaflet-map-canvas { min-height: 0; height: 100%; }
+  body .mobile-map-screen__footer { padding: .4rem .55rem; border-top: 1px solid var(--line-strong); background: #fff; }
+  body .mobile-map-screen__footer [data-slot="button"] { width: 100%; min-height: 2.8rem; }
+}
+
+@media (max-width: 767px) {
+  body:has(.idealista-listing-page) .bottom-nav { display: flex; visibility: hidden; }
+  body .mobile-contact-bar { bottom: calc(3.7rem + env(safe-area-inset-bottom)); }
+}
+
+@media (max-height: 480px) and (max-width: 900px) {
+  body:has(.mobile-map-screen) { height: 100dvh; padding-bottom: 0; overflow: hidden; }
+  body:has(.mobile-map-screen) .site-header, body:has(.mobile-map-screen) .mobile-header, body:has(.mobile-map-screen) .bottom-nav, body:has(.mobile-map-screen) .site-footer { display: none; }
+  .mobile-map-screen { position: fixed; inset: 0; z-index: 60; height: 100dvh; display: grid; grid-template-rows: 3.5rem minmax(0, 1fr) auto; background: #fff; }
+  .mobile-map-screen__header { position: relative; display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); align-items: center; gap: .25rem; padding: .3rem 7.2rem .3rem .5rem; border-bottom: 1px solid #a9bb2b; background: var(--market-lime); }
+  .mobile-map-screen__header > .button { width: 2.75rem; min-height: 2.75rem; }
+  .mobile-map-screen__header .mobile-save-search { position: absolute; top: .3rem; right: .5rem; width: 6.2rem; min-height: 2.75rem; display: inline-flex; background: var(--market-magenta); color: #fff; }
+  .mobile-map-screen__canvas, .mobile-map-screen__canvas .leaflet-map-shell, .mobile-map-screen__canvas .leaflet-map-canvas { min-height: 0; height: 100%; }
+  .mobile-map-screen__footer { padding: .4rem .55rem; border-top: 1px solid var(--line-strong); background: #fff; }
+  .mobile-map-screen__footer [data-slot="button"] { width: 100%; min-height: 2.8rem; }
+  body .mobile-map-screen .map-search-tools { top: .45rem; right: .45rem; }
+  body .mobile-map-screen .map-selected-card { bottom: .55rem; min-height: 7.5rem; }
 }
 
 @media (max-width: 389px) {
@@ -1401,4 +1618,49 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
   .publish-page .publish-header > div:nth-child(2) h1 { overflow: hidden; font-size: 1rem; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
   .publish-page .publish-header > .publish-header__actions { display: none; }
   .publish-page .wizard-layout { padding-top: .65rem; }
+}
+
+/* V4 final measurements — intentionally last in the legacy cascade. */
+@media (max-width: 767px) {
+  body:not(:has(.idealista-search-page)):not(:has(.idealista-listing-page)):not(:has(.menu-page)):not(:has(.publish-page)):not(:has(.owner-listings-page)) .mobile-header { height: 5.9rem; min-height: 5.9rem; padding: .6rem .75rem; border-bottom: 0; }
+  .mobile-header .brand-logo { font-size: 1.75rem; }
+  .promoted-listing { height: 10.45rem; }
+  .promoted-listing__label, .promoted-listing__caption { display: none; }
+  .market-search-panel { min-height: 19.55rem; display: flex; flex-direction: column; gap: 1rem; padding: 1rem 1.1rem 1.05rem; }
+  .market-search-panel > .rental-switch { margin: 0; }
+  .market-search-panel > .rental-switch button { min-height: 3.5rem; }
+  .search-bar--home { flex: 1; justify-content: space-between; gap: 1rem; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .search-bar--home select, .search-bar--home .search-location > div, .search-bar--home > .button { min-height: 3.45rem; height: 3.45rem; }
+  .home-publish-action { min-height: 7.15rem; display: flex; align-items: center; padding: 1.05rem 1.1rem 1.35rem; }
+  .home-publish-action .button { min-height: 3.55rem; }
+  .home-map-section, .home-results-preview { display: none; }
+
+  .mobile-results-topbar, .mobile-map-screen__header { position: relative; min-height: 4.1rem; height: 4.1rem; grid-template-columns: 2.75rem minmax(0, 1fr); padding: .35rem 7.35rem .35rem .55rem; }
+  .mobile-results-topbar .mobile-save-search, .mobile-map-screen__header .mobile-save-search { position: absolute; top: .6rem; right: .55rem; width: 6.3rem; min-height: 2.9rem; display: inline-flex; }
+  .idealista-results-toolbar { order: 1; top: 4.1rem; min-height: 3.35rem; height: 3.35rem; padding: 0; }
+  .idealista-results-toolbar .button { min-height: 3.3rem; height: 3.3rem; border: 0; border-right: 1px solid var(--line); }
+  .idealista-results-head { order: 2; width: 100%; margin: 0; padding: .65rem; }
+  .idealista-results > .quick-filters { display: none; }
+  .property-card:not(.property-card--compact) .property-card__media { aspect-ratio: 4 / 3; }
+  .property-card h3 { order: 0; }
+  .card-topline { order: 1; }
+
+  .filter-drawer [data-slot="sheet-header"] { min-height: 4.1rem; height: 4.1rem; padding: .35rem .55rem; }
+  .filter-mode-switch { padding: .85rem 1.1rem .55rem; }
+  .filter-mode-switch > span { display: none; }
+  .filter-drawer .filter-panel { padding: .55rem 1.1rem 4.7rem; }
+  .filter-room-only, .filter-price-fields { display: grid; }
+
+  .listing-actionbar { min-height: 4.1rem; height: 4.1rem; background: var(--market-lime); }
+  .listing-gallery-container .property-gallery { height: 21.8rem; }
+  .listing-title { flex-direction: column; }
+  .listing-title p, .listing-address, .listing-restriction-notice { display: none; }
+  .contact-panel--mobile .contact-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
+  .contact-panel--mobile .contact-actions > [data-slot="button"], .contact-panel--mobile .contact-actions > [data-slot="dialog-trigger"] { width: 100%; min-height: 3rem; display: inline-flex; }
+  .contact-panel--mobile .contact-actions > [data-slot="button"]:first-child { display: none; }
+  body:has(.idealista-listing-page) .bottom-nav { display: grid; visibility: hidden; }
+  body .mobile-contact-bar { bottom: calc(var(--market-bottom-nav-height) + env(safe-area-inset-bottom)) !important; }
+
+  .owner-mobile-appbar, .publish-page .publish-header { min-height: 4.1rem; height: 4.1rem; }
+  .publish-page .wizard-layout { padding-top: .45rem; }
 }

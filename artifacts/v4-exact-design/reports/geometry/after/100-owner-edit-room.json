@@ -1,0 +1,50 @@
+{
+  "name": "100-owner-edit-room",
+  "url": "http://127.0.0.1:4173/#/mis-anuncios/arme%C3%B1ime-luminosa-01/editar",
+  "overflow": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "viewportHeight": 844,
+    "documentHeight": 1231
+  },
+  "geometry": {
+    "body": null,
+    ".mobile-header": null,
+    ".bottom-nav": null,
+    ".promoted-listing": null,
+    ".market-search-panel": null,
+    ".home-publish-action": null,
+    ".mobile-results-topbar": null,
+    ".idealista-results-toolbar": null,
+    ".property-card": null,
+    ".filter-drawer": null,
+    ".filter-footer": null,
+    ".mobile-map-screen__header": null,
+    ".mobile-map-screen__footer": null,
+    ".map-selected-card": null,
+    ".listing-actionbar": null,
+    ".property-gallery": null,
+    ".listing-title": null,
+    ".listing-comments": null,
+    ".mobile-contact-bar": null,
+    ".menu-page": null,
+    ".owner-mobile-appbar": null,
+    ".manage-card": null,
+    ".publish-header": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 65.59,
+      "position": "sticky",
+      "display": "grid"
+    },
+    ".wizard-actions": {
+      "x": 0,
+      "y": 793.41,
+      "width": 390,
+      "height": 50.59,
+      "position": "sticky",
+      "display": "flex"
+    }
+  }
+}

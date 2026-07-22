@@ -1,0 +1,71 @@
+{
+  "name": "084-listing-favorite-feedback",
+  "url": "http://127.0.0.1:4173/#/habitacion/arme%C3%B1ime-luminosa-01",
+  "overflow": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "viewportHeight": 844,
+    "documentHeight": 4645
+  },
+  "geometry": {
+    "body": null,
+    ".mobile-header": null,
+    ".bottom-nav": null,
+    ".promoted-listing": null,
+    ".market-search-panel": null,
+    ".home-publish-action": null,
+    ".mobile-results-topbar": null,
+    ".idealista-results-toolbar": null,
+    ".property-card": {
+      "x": 10,
+      "y": 2418.14,
+      "width": 370,
+      "height": 454.31,
+      "position": "static",
+      "display": "flex"
+    },
+    ".filter-drawer": null,
+    ".filter-footer": null,
+    ".mobile-map-screen__header": null,
+    ".mobile-map-screen__footer": null,
+    ".map-selected-card": null,
+    ".listing-actionbar": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 65.59,
+      "position": "sticky",
+      "display": "flex"
+    },
+    ".property-gallery": {
+      "x": 0,
+      "y": -536.41,
+      "width": 390,
+      "height": 348.8,
+      "position": "static",
+      "display": "block"
+    },
+    ".listing-title": {
+      "x": 10,
+      "y": -175.61,
+      "width": 370,
+      "height": 76.97,
+      "position": "static",
+      "display": "flex"
+    },
+    ".listing-comments": {
+      "x": 10,
+      "y": 0.06,
+      "width": 370,
+      "height": 187.77,
+      "position": "static",
+      "display": "block"
+    },
+    ".mobile-contact-bar": null,
+    ".menu-page": null,
+    ".owner-mobile-appbar": null,
+    ".manage-card": null,
+    ".publish-header": null,
+    ".wizard-actions": null
+  }
+}

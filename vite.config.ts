@@ -7,6 +7,11 @@ import path from 'node:path'
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
+  server: {
+    watch: {
+      ignored: ['**/artifacts/**', '**/test-results/**'],
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
