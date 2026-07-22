@@ -30,6 +30,16 @@ const resultCount = async (page: Page) =>
     (await page.locator("#results-title").innerText()).replace(/\D/g, ""),
   );
 
+const clickFirstMapFeatureInViewport = async (page: Page, selector: string) => {
+  const elements = page.locator(selector);
+  const index = await elements.evaluateAll((nodes) => nodes.findIndex((node) => {
+    const rect = node.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
+  }));
+  expect(index, `No visible ${selector}`).toBeGreaterThanOrEqual(0);
+  await elements.nth(index).click();
+};
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
   runtimeErrors.set(page, errors);
@@ -37,8 +47,8 @@ test.beforeEach(async ({ page }) => {
     if (message.type() !== "error") return;
     const url = message.location().url;
     const externalMediaFailure = message.text().startsWith("Failed to load resource:")
-      && ["images.unsplash.com", "tile.openstreetmap.org"].some((host) => url.includes(host));
-    if (!externalMediaFailure) errors.push(message.text());
+      && ["images.unsplash.com", "maps.googleapis.com", "maps.gstatic.com"].some((host) => url.includes(host));
+    if (!externalMediaFailure) errors.push(message.text().replace(/([?&]key=)[^&\s]+/gi, '$1[redacted]'));
   });
   page.on("pageerror", (error) => errors.push(error.message));
   await clean(page);
@@ -242,23 +252,26 @@ test("09 sorting by date and both prices plus real disjoint pagination", async (
 test("10–13 map marker/card sync, marker preview, bounds and polygon filtering", async ({
   page,
 }) => {
-  await page.goto("/#/buscar?q=Tenerife&alquiler=long&vista=mapa");
-  await expect(page.locator(".leaflet-map-canvas")).toBeVisible();
+  await page.goto("/#/buscar?q=Adeje&alquiler=long&vista=mapa");
+  const googleMap = page.locator(".google-map-canvas");
+  await expect(googleMap).toBeVisible();
+  await expect(googleMap).toHaveAttribute('data-map-center', /-16\.7/);
   const before = await page
     .locator(".map-results-cards .property-card")
     .count();
   const firstCard = page.locator(".map-results-cards .property-card").first();
   await firstCard.getByRole("link").first().focus();
+  await expect(page.locator(".price-marker.is-highlighted, .room-cluster.is-highlighted")).toHaveCount(1);
+  await expect.poll(() => page.locator('.price-marker-shell').count()).toBeGreaterThan(0);
+  await clickFirstMapFeatureInViewport(page, '.price-marker-shell');
   await expect(page.locator(".price-marker.is-selected")).toHaveCount(1);
-  const marker = page.locator(".price-marker.is-selected");
-  await marker.click();
   await expect(page.locator(".map-selected-card")).toBeVisible();
   await expect(page.locator(".map-selected-card a")).toHaveAttribute(
     "href",
     /habitacion/,
   );
-  await page.locator(".leaflet-control-zoom-in").click();
-  await page.locator(".leaflet-control-zoom-in").click();
+  await page.locator(".google-map-canvas").hover();
+  await page.mouse.wheel(0, -900);
   await page.getByRole("button", { name: /buscar en esta zona/i }).click();
   await expect
     .poll(() => page.locator(".map-results-cards .property-card").count())

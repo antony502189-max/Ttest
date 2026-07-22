@@ -1,5 +1,6 @@
 import { defaultFilters } from '@/data/listings'
 import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
+import { listingMatchesSelectedAreas } from '@/lib/map/zones'
 import type { Filters, Listing, MapPolygonPoint, RentalMode, YesNoAny } from '@/types'
 
 const boolMatches = (value: boolean, filter: YesNoAny) => filter === 'Cualquiera' || value === (filter === 'Sí')
@@ -31,7 +32,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     if (!isPublicListing(listing) || listing.rentalMode !== mode) return false
     const primaryPrice = getPrimaryPrice(listing)
     if (primaryPrice < filters.minPrice || primaryPrice > filters.maxPrice) return false
-    if (filters.areas.length && !filters.areas.includes(listing.area)) return false
+    if (!listingMatchesSelectedAreas(listing, filters.areas)) return false
     if (filters.roomType !== 'Cualquiera' && listing.roomType !== filters.roomType) return false
     if (filters.available && listing.availableFrom > filters.available) return false
     if (filters.minStay !== 'Cualquiera') {
@@ -124,7 +125,7 @@ export function filtersFromParams(params: URLSearchParams): Filters {
   ;(Object.keys(paramNames) as (keyof Filters)[]).forEach((key) => {
     const raw = params.get(paramNames[key] ?? key)
     if (raw === null) return
-    if (listFields.includes(key)) (next[key] as string[]) = raw.split('|').filter(Boolean)
+    if (listFields.includes(key)) (next[key] as string[]) = raw.split(key === 'areas' ? /[,|]/ : '|').filter(Boolean)
     else if (booleanFields.includes(key)) (next[key] as boolean) = raw === '1'
     else if (numericFields.includes(key)) (next[key] as number) = Number(raw)
     else (next[key] as string) = raw
@@ -151,7 +152,7 @@ export function filtersToParams(filters: Filters, params = new URLSearchParams()
     const fallback = defaultFilters[key]
     const isDefault = Array.isArray(value) ? value.length === 0 : value === fallback
     if (isDefault) params.delete(name)
-    else if (Array.isArray(value)) params.set(name, value.join('|'))
+    else if (Array.isArray(value)) params.set(name, value.join(key === 'areas' ? ',' : '|'))
     else if (typeof value === 'boolean') params.set(name, value ? '1' : '0')
     else params.set(name, String(value))
   })

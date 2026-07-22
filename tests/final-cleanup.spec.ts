@@ -239,11 +239,15 @@ test('LISTING-STATUS-01 user-facing status filter excludes moderation-only value
 
 test('MAP-06 selecting a card or marker preserves viewport and map instance', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  const map = page.locator('.leaflet-map-canvas')
+  const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-center', /,/)
   const before = await map.evaluate((element) => ({ instance: element.getAttribute('data-map-instance'), center: element.getAttribute('data-map-center'), zoom: element.getAttribute('data-map-zoom') }))
   await page.locator('.map-results-cards .property-card').first().getByRole('link').first().focus()
-  await page.locator('.price-marker.is-selected').click()
+  for (let attempt = 0; attempt < 4 && await page.locator('.price-marker.is-highlighted').count() === 0; attempt += 1) {
+    await page.locator('.room-cluster.is-highlighted').click()
+    await page.locator('.map-results-cards .property-card').first().getByRole('link').first().focus()
+  }
+  await page.locator('.price-marker.is-highlighted').click()
   await expect(page.locator('.map-selected-card')).toBeVisible()
   const after = await map.evaluate((element) => ({ instance: element.getAttribute('data-map-instance'), center: element.getAttribute('data-map-center'), zoom: element.getAttribute('data-map-zoom') }))
   expect(after).toEqual(before)

@@ -40,12 +40,12 @@ const openRoute = async (page: Page, route: (typeof routes)[number]) => {
     .waitFor({ state: "detached" })
     .catch(() => undefined);
   if (route.name === "mapa")
-    await page.locator(".leaflet-map-canvas").waitFor({ state: "visible" });
+    await page.locator(".google-map-canvas").waitFor({ state: "visible" });
 };
 
 const assertNoSeriousViolations = async (page: Page) => {
   const results = await new AxeBuilder({ page })
-    .exclude(".leaflet-map-canvas")
+    .exclude(".google-map-canvas")
     .analyze();
   expect(
     results.violations.filter(
@@ -107,8 +107,8 @@ test("delta fullscreen location flow has no serious or critical axe issues", asy
 test("delta drawing announcement and controls have no serious or critical axe issues", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/buscar?q=Tenerife&vista=mapa&dibujar=1");
-  await expect(page.locator(".leaflet-map-shell")).toHaveAttribute("data-drawing", "true", { timeout: 15_000 });
-  const results = await new AxeBuilder({ page }).include(".mobile-map-screen").exclude(".leaflet-map-canvas").analyze();
+  await expect(page.locator(".google-map-shell")).toHaveAttribute("data-drawing", "true", { timeout: 15_000 });
+  const results = await new AxeBuilder({ page }).include(".mobile-map-screen").exclude(".google-map-canvas").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
 });
 

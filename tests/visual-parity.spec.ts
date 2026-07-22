@@ -13,6 +13,13 @@ async function open(page: Page, route: string, width = 390, height = 844) {
 }
 
 async function shot(page: Page, name: string, mask: Locator[] = []) {
+  await page.evaluate(() => {
+    if (document.querySelector('#google-raster-visual-mask')) return
+    const style = document.createElement('style')
+    style.id = 'google-raster-visual-mask'
+    style.textContent = '.gm-style img[role="presentation"]{visibility:hidden!important}'
+    document.head.append(style)
+  })
   await expect(page).toHaveScreenshot(`${name}.png`, {
     animations: 'disabled',
     caret: 'hide',
@@ -56,6 +63,7 @@ test('home responsive visual matrix', async ({ page }) => {
     ['home-1440x900', 1440, 900],
   ] as const) {
     await open(page, '/#/', width, height)
+    await settleImages(page, '.home-hero img')
     await shot(page, name, [page.locator('.promoted-listing img')])
   }
 })
@@ -86,11 +94,11 @@ test('dedicated map visual states', async ({ page }) => {
   test.setTimeout(120_000)
   await open(page, '/#/buscar?q=Tenerife&vista=mapa')
   await expect(page.locator('.mobile-map-screen')).toBeVisible()
-  await shot(page, 'search-map-390x844', [page.locator('.leaflet-tile-pane')])
+  await shot(page, 'search-map-390x844')
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa', 667, 375)
   await expect(page.locator('.mobile-map-screen')).toBeVisible()
-  await shot(page, 'search-map-667x375', [page.locator('.leaflet-tile-pane')])
+  await shot(page, 'search-map-667x375')
 })
 
 test('listing, gallery and contact visual states', async ({ page }) => {

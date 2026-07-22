@@ -18,7 +18,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApp } from "@/contexts/app-context";
 import { defaultFilters } from "@/data/listings";
 import { tenantRequirementLabels } from "@/lib/listings";
+import { getMunicipalityLabel } from "@/lib/map/zones";
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
+import { ListMapSwitcher } from "@/components/map/list-map-switcher";
 import {
   filterListings,
   filtersFromParams,
@@ -71,10 +73,11 @@ export function SearchPage() {
     setMapPolygon,
   } = useApp();
   const [selected, setSelected] = useState("");
+  const [highlighted, setHighlighted] = useState("");
   const [loading, setLoading] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_MAP_MEDIA).matches);
-  const [initialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null);
+  const [initialMapAction, setInitialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null);
   const actionConsumedRef = useRef(false);
   const view = params.get("vista") === "mapa" ? "map" : "list";
   const page = Math.max(1, Number(params.get("pagina") || 1));
@@ -124,6 +127,13 @@ export function SearchPage() {
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
+
+  useEffect(() => {
+    const requestedAction = params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null;
+    if (!requestedAction) return;
+    actionConsumedRef.current = false;
+    setInitialMapAction(requestedAction);
+  }, [paramString, params]);
 
   useEffect(() => {
     if (!initialMapAction || actionConsumedRef.current) return;
@@ -198,18 +208,14 @@ export function SearchPage() {
     setParams(next, { replace });
   };
   const commitPolygon = (polygon: MapPolygonPoint[]) => {
+    const nextFilters = polygon.length >= 3 && filters.areas.length ? { ...filters, areas: [] } : filters;
     setMapPolygon(polygon);
-    updateParams((next) => {
-      next.delete("pagina");
-      if (polygon.length >= 3)
-        next.set(
-          "poligono",
-          polygon
-            .map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`)
-            .join(";"),
-        );
-      else next.delete("poligono");
-    }, true);
+    if (nextFilters !== filters) setFilters(nextFilters);
+    const next = filtersToParams(nextFilters, new URLSearchParams(params));
+    next.delete("pagina");
+    if (polygon.length >= 3) next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    else next.delete("poligono");
+    setParams(next, { replace: true });
   };
   const commitFilters = (nextFilters: Filters) => {
     setFilters(nextFilters);
@@ -233,11 +239,15 @@ export function SearchPage() {
   };
   const applyLocationAreas = (selectedAreas: string[]) => {
     const nextFilters = { ...filters, areas: selectedAreas };
-    const nextQuery = selectedAreas.length === 1 ? selectedAreas[0] : 'Tenerife';
+    const nextQuery = selectedAreas.length === 1 ? getMunicipalityLabel(selectedAreas[0]) ?? selectedAreas[0] : 'Tenerife';
     setQuery(nextQuery);
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.set('q', nextQuery);
+    if (selectedAreas.length) {
+      setMapPolygon([]);
+      next.delete('poligono');
+    }
     next.delete('pagina');
     setParams(next);
   };
@@ -245,6 +255,10 @@ export function SearchPage() {
     updateParams((next) =>
       nextView === "map" ? next.set("vista", "mapa") : next.delete("vista"),
     );
+  const highlightListing = (id: string) => {
+    setHighlighted(id);
+    if (id) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-listing-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' }));
+  };
   const changeSort = (value: string) => {
     setLoading(true);
     commitFilters({ ...filters, sort: value });
@@ -387,15 +401,24 @@ export function SearchPage() {
         <MapView
           items={items}
           selectedId={selected}
+          highlightedId={highlighted}
           onSelect={setSelected}
+          onHighlight={highlightListing}
           fullScreen
           initialAction={initialMapAction}
+          onInitialActionHandled={() => setInitialMapAction(null)}
           fitResultsKey={mapBounds ? 1 : 0}
           onBoundsSearch={(bounds) => { setMapBounds(bounds); updateParams((next) => next.delete('pagina'), true); }}
           onPolygonSearch={commitPolygon}
+          onDrawingStart={() => {
+            if (!filters.areas.length) return true;
+            if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;
+            commitFilters({ ...filters, areas: [] });
+            return true;
+          }}
         />
       </div>
-      <div className="mobile-map-screen__footer"><Button onClick={() => changeView('list')}><List data-icon="inline-start" />Mostrar {items.length} habitaciones</Button></div>
+      <div className="mobile-map-screen__footer"><ListMapSwitcher value="map" count={items.length} onChange={changeView} /></div>
     </div>;
   }
 
@@ -558,8 +581,8 @@ export function SearchPage() {
                     key={listing.id}
                     listing={listing}
                     compact
-                    selected={selected === listing.id}
-                    onFocus={() => setSelected(listing.id)}
+                    selected={selected === listing.id || highlighted === listing.id}
+                    onFocus={() => highlightListing(listing.id)}
                   />
                 ))}
               </div>
@@ -567,9 +590,12 @@ export function SearchPage() {
                 <MapView
                   items={items}
                   selectedId={selected}
+                  highlightedId={highlighted}
                   onSelect={setSelected}
+                  onHighlight={highlightListing}
                   fullScreen
                   initialAction={initialMapAction}
+                  onInitialActionHandled={() => setInitialMapAction(null)}
                   fitResultsKey={mapBounds ? 1 : 0}
                   onBoundsSearch={(bounds) => {
                     setMapBounds(bounds);
@@ -577,6 +603,12 @@ export function SearchPage() {
                   }}
                   onPolygonSearch={(polygon: MapPolygonPoint[]) => {
                     commitPolygon(polygon);
+                  }}
+                  onDrawingStart={() => {
+                    if (!filters.areas.length) return true;
+                    if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;
+                    commitFilters({ ...filters, areas: [] });
+                    return true;
                   }}
                 />
               </div>
@@ -598,8 +630,8 @@ export function SearchPage() {
                 <PropertyCard
                   key={listing.id}
                   listing={listing}
-                  selected={selected === listing.id}
-                  onFocus={() => setSelected(listing.id)}
+                  selected={selected === listing.id || highlighted === listing.id}
+                  onFocus={() => highlightListing(listing.id)}
                 />
               ))}
               <Pagination
@@ -625,22 +657,7 @@ export function SearchPage() {
           )}
         </section>
       </div>
-      <Button
-        className="mobile-map-toggle"
-        onClick={() => changeView(view === "map" ? "list" : "map")}
-        aria-label={
-          view === "map"
-            ? "Mostrar lista de habitaciones"
-            : "Mostrar habitaciones en el mapa"
-        }
-      >
-        {view === "map" ? (
-          <List data-icon="inline-start" />
-        ) : (
-          <Map data-icon="inline-start" />
-        )}
-        {view === "map" ? `Mostrar ${items.length} habitaciones` : "Ver mapa"}
-      </Button>
+      <ListMapSwitcher className="mobile-map-toggle" value={view} count={items.length} onChange={changeView} />
     </div>
   );
 }

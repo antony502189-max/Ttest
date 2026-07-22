@@ -1,0 +1,113 @@
+/* Home discovery: room-first composition with a deliberate card overlap. */
+@media (max-width: 767px) {
+  body:has(.market-home) .mobile-header {
+    height: 3.75rem;
+    min-height: 3.75rem;
+    padding: .35rem .65rem;
+    border-bottom: 0;
+  }
+
+  body:has(.market-home) .mobile-header .logo { font-size: 1.45rem; }
+
+  .market-home .home-hero {
+    height: clamp(19rem, 82vw, 22rem);
+    min-height: 19rem;
+  }
+
+  .market-home .home-hero > img { object-position: 58% center; }
+
+  .market-home .home-hero__content {
+    justify-content: flex-end;
+    padding: 1.25rem 1rem 3.25rem;
+  }
+
+  .market-home .home-hero__content h1 {
+    max-width: 8ch;
+    font-size: clamp(2.65rem, 12vw, 3.25rem);
+    line-height: .9;
+  }
+
+  .market-home .home-hero__content > p {
+    margin-top: .5rem;
+    font-size: 1rem;
+  }
+
+  .market-home .home-hero__chips { margin-top: 1rem; }
+
+  .market-home .home-search-stage {
+    padding: 0 .75rem .5rem;
+    border-radius: 2rem 2rem 0 0;
+  }
+
+  .market-home .home-search-stage .market-search-panel {
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    translate: 0 -2.1rem;
+    border-radius: 1.25rem;
+  }
+
+  .market-home .market-search-panel__content { padding: .9rem; }
+
+  .market-home .market-search-panel > .rental-switch--home {
+    gap: .55rem;
+    margin: 0;
+  }
+
+  .market-home .market-search-panel > .rental-switch--home button {
+    min-height: 4.8rem;
+    padding: .55rem .65rem;
+    border-radius: .8rem;
+    font-size: inherit;
+  }
+
+  .market-home .market-search-panel .search-bar--home {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    margin-top: .65rem;
+  }
+
+  .market-home .search-bar--home .home-tenant-field,
+  .market-home .search-bar--home .search-location {
+    min-height: 4.25rem;
+    border-radius: .8rem;
+  }
+
+  .market-home .search-bar--home .location-selector-trigger {
+    width: 3rem;
+    min-height: 3rem;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .market-home .search-bar--home .location-selector-trigger span { display: none; }
+
+  .market-home .search-bar--home .search-location-row > .search-location-row__icon,
+  .market-home .search-bar--home .search-location-row > input { display: block; }
+  .market-home .search-bar--home .search-location-row > input { min-width: 0; flex: 1; }
+
+  .market-home .market-search-panel .search-bar--home > .button {
+    min-height: 3.65rem;
+    height: 3.65rem;
+    border-radius: .8rem;
+  }
+
+  .market-home .home-trust-strip {
+    min-height: 4.5rem;
+    margin-top: -1.55rem;
+    padding-inline: .2rem;
+  }
+
+  body:has(.market-home) .bottom-nav__item.is-active { color: #557000; }
+  body:has(.market-home) .bottom-nav__item.is-active svg { stroke-width: 2.8; }
+}
+
+@media (max-width: 359px) {
+  .market-home .home-hero { height: 19rem; }
+  .market-home .home-hero__content h1 { font-size: 2.55rem; }
+  .market-home .market-search-panel__content { padding: .78rem; }
+  .market-home .market-search-panel > .rental-switch--home button { padding-inline: .45rem; }
+}

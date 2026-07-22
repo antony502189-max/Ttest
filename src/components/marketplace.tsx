@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Bath,
   BedDouble,
+  Briefcase,
   CalendarDays,
   Camera,
   ChevronLeft,
@@ -91,6 +92,7 @@ import {
 } from "@/components/ui/empty";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { getMunicipalityLabel } from "@/lib/map/zones";
 import { MediaImage } from "@/components/media-image";
 import {
   amenityOptions,
@@ -121,9 +123,14 @@ import type {
 import { useApp } from "@/contexts/app-context";
 import { useI18n } from "@/contexts/i18n-context";
 
-const LazyLeafletMap = lazy(() =>
+const LazyGoogleMap = lazy(() =>
   import("@/components/map-view").then((module) => ({
-    default: module.LeafletMapView,
+    default: module.GoogleResultsMap,
+  })),
+);
+const LazyZoneSelectionMap = lazy(() =>
+  import("@/components/map/zone-selection-map").then((module) => ({
+    default: module.ZoneSelectionMap,
   })),
 );
 export type { MapBounds } from "@/components/map-view";
@@ -136,9 +143,11 @@ const imageFallback = (event: SyntheticEvent<HTMLImageElement>) => {
 
 export function RentalTypeSwitch({
   compact = false,
+  home = false,
   onChange,
 }: {
   compact?: boolean;
+  home?: boolean;
   onChange?: (mode: RentalMode) => void;
 }) {
   const { rentalMode, setRentalMode } = useApp();
@@ -152,11 +161,15 @@ export function RentalTypeSwitch({
         setRentalMode(mode);
         onChange?.(mode);
       }}
-      className={cn("rental-switch", compact && "rental-switch--compact")}
+      className={cn("rental-switch", compact && "rental-switch--compact", home && "rental-switch--home")}
       aria-label="Tipo de alquiler"
     >
-      <ToggleGroupItem value="long" aria-label="Larga estancia">Habitaciones Vivienda</ToggleGroupItem>
-      <ToggleGroupItem value="holiday" aria-label="Alquiler vacacional">Habitaciones Turísticas</ToggleGroupItem>
+      <ToggleGroupItem value="long" aria-label="Vivienda, larga estancia">
+        {home ? <><span className="rental-switch__icon rental-switch__icon--home"><Home aria-hidden="true" /></span><span><strong>Vivienda</strong><small>Larga estancia</small></span></> : "Habitaciones Vivienda"}
+      </ToggleGroupItem>
+      <ToggleGroupItem value="holiday" aria-label="Turismo, corta estancia">
+        {home ? <><span className="rental-switch__icon rental-switch__icon--tourism"><Briefcase aria-hidden="true" /></span><span><strong>Turismo</strong><small>Corta estancia</small></span></> : "Habitaciones Turísticas"}
+      </ToggleGroupItem>
     </ToggleGroup>
   );
 }
@@ -165,10 +178,12 @@ export function SearchLocationInput({
   value,
   onChange,
   error,
+  home = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  home?: boolean;
 }) {
   const id = useId();
   const listId = useId();
@@ -176,7 +191,7 @@ export function SearchLocationInput({
   const suggestions = [...new Set([...searchHistory, ...TENERIFE_LOCATIONS.map((location) => location.normalizedValue)])];
   return (
     <div className="search-location">
-      <label htmlFor={id}>Ciudad, barrio o zona</label>
+      <label htmlFor={id}>{home ? "¿Dónde buscas habitación?" : "Ciudad, barrio o zona"}</label>
       <div className="search-location-row">
         <MapPin className="search-location-row__icon" aria-hidden="true" />
         <Input
@@ -199,7 +214,7 @@ export function SearchLocationInput({
           onLocationSelect={onChange}
           onApply={(selected) => {
             setFilters({ ...filters, areas: selected });
-            onChange(selected.length === 1 ? selected[0] : "Tenerife");
+            onChange(selected.length === 1 ? getMunicipalityLabel(selected[0]) ?? selected[0] : "Tenerife");
           }}
         />
       </div>
@@ -260,9 +275,9 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
       onSubmit={submit}
       role="search"
     >
-      {home ? <FieldGroup className="home-tenant-field"><Field><FieldLabel className="sr-only" htmlFor="home-tenant-requirement">{t("Para quién")}</FieldLabel><select id="home-tenant-requirement" aria-label={t("Para quién")} value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}>{tenantOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></FieldGroup> : null}
-      <SearchLocationInput value={query} error={locationError} onChange={(value) => { setQuery(value); if (locationError) setLocationError(""); }} />
-      {compact ? null : (
+      {home ? <FieldGroup className="home-tenant-field"><Field><UsersRound className="home-search-field__icon" aria-hidden="true" /><FieldLabel htmlFor="home-tenant-requirement">¿Quién vivirá?</FieldLabel><select id="home-tenant-requirement" aria-label={t("Para quién")} value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}>{tenantOptions.map(([value, label]) => <option key={value} value={value}>{home && value === "Cualquiera" ? "Cualquiera" : home ? label.split(": ").at(-1) : label}</option>)}</select></Field></FieldGroup> : null}
+      <SearchLocationInput home={home} value={query} error={locationError} onChange={(value) => { setQuery(value); if (locationError) setLocationError(""); }} />
+      {compact || home ? null : (
         <div className="search-date">
           <label htmlFor="move-date">Entrada</label>
           <div>
@@ -280,7 +295,7 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
       )}
       <Button size="lg" type="submit">
         <Search data-icon="inline-start" />
-        Buscar
+        {home ? "Encontrar habitación" : "Buscar"}
       </Button>
     </form>
   );
@@ -297,13 +312,12 @@ export function LocationSelector({
   currentQuery?: string;
   onLocationSelect?: (query: string) => void;
 }) {
+  const { allListings, mapPolygon, clearMapPolygon } = useApp();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
   const [term, setTerm] = useState("");
   const [showZoneList, setShowZoneList] = useState(false);
-  const filteredAreas = areas.filter((area) =>
-    area.toLocaleLowerCase().includes(term.trim().toLocaleLowerCase()),
-  );
   const catalogResults = TENERIFE_LOCATIONS.filter((location) => {
     if (!term.trim()) return location.type === "island" || location.type === "municipality" && ['Adeje', 'Arona', 'Granadilla de Abona', 'San Cristóbal de La Laguna', 'Santa Cruz de Tenerife'].includes(location.label)
     const needle = term.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
@@ -316,12 +330,6 @@ export function LocationSelector({
       setShowZoneList(false);
     }
   }, [open, selected]);
-  const toggle = (area: string) =>
-    setDraft((current) =>
-      current.includes(area)
-        ? current.filter((item) => item !== area)
-        : [...current, area],
-    );
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -342,8 +350,8 @@ export function LocationSelector({
         <DialogHeader className="location-selector-dialog__header">
           {showZoneList ? <Button type="button" variant="ghost" size="icon" onClick={() => setShowZoneList(false)} aria-label="Volver a las opciones de ubicación"><ArrowLeft /></Button> : <DialogClose asChild><Button type="button" variant="ghost" size="icon" aria-label="Volver"><ArrowLeft /></Button></DialogClose>}
           <div>
-            <DialogTitle>{showZoneList ? "Seleccionar zonas" : "¿Dónde buscas?"}</DialogTitle>
-            <DialogDescription>{showZoneList ? "Elige uno o varios municipios o barrios de Tenerife." : "Busca en Tenerife por municipio, barrio o zona."}</DialogDescription>
+            <DialogTitle>{showZoneList ? "Seleccionar municipios" : "¿Dónde buscas?"}</DialogTitle>
+            <DialogDescription>{showZoneList ? "Elige uno o varios municipios reales de Tenerife." : "Busca en Tenerife por municipio, barrio o zona."}</DialogDescription>
           </div>
         </DialogHeader>
         <div className={cn("location-dialog-primary", showZoneList && "is-hidden")}>
@@ -362,27 +370,32 @@ export function LocationSelector({
           </div> : null}
           <div className="location-action-list" aria-label="También puedes">
             <span>También puedes:</span>
-            <Link to="/buscar?vista=mapa"><MapIcon aria-hidden="true" /><strong>Seleccionar zonas en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
+            <button type="button" onClick={() => setShowZoneList(true)}><MapIcon aria-hidden="true" /><strong>Seleccionar municipios en el mapa</strong><ChevronRight aria-hidden="true" /></button>
             <Link to="/buscar?vista=mapa&dibujar=1"><Pencil aria-hidden="true" /><strong>Dibujar tu zona</strong><ChevronRight aria-hidden="true" /></Link>
             <Link to="/buscar?vista=mapa"><MapPin aria-hidden="true" /><strong>Buscar en el mapa</strong><ChevronRight aria-hidden="true" /></Link>
             <Link to="/buscar?vista=mapa&cerca=1"><Crosshair aria-hidden="true" /><strong>Buscar alrededor de ti</strong><ChevronRight aria-hidden="true" /></Link>
           </div>
-          <Button type="button" variant="ghost" className="location-zones-toggle" onClick={() => setShowZoneList(true)}>Seleccionar municipios y barrios <ChevronRight data-icon="inline-end" /></Button>
+          <Button type="button" variant="ghost" className="location-zones-toggle" onClick={() => setShowZoneList(true)}>Seleccionar municipios <ChevronRight data-icon="inline-end" /></Button>
         </div>
         <div className={cn("location-zones-panel", showZoneList && "is-open")}>
-          <div className="location-selector-summary"><strong>Tenerife</strong><button type="button" onClick={() => setDraft([])}>Toda la isla</button></div>
-          <div className="location-selector-list" role="group" aria-label="Zonas de Tenerife">
-            {filteredAreas.map((area) => (
-              <label className="location-selector-option" key={area}>
-                <Checkbox checked={draft.includes(area)} onCheckedChange={() => toggle(area)} />
-                <span><strong>{area}</strong><small>{initialListings.filter((listing) => listing.area === area).length} habitaciones demo</small></span>
-              </label>
-            ))}
-          </div>
-          <DialogFooter className="location-selector-footer">
-            <Button variant="ghost" onClick={() => setDraft([])}>Borrar</Button>
-            <Button onClick={() => { onApply(draft); setOpen(false); }}>Aplicar{draft.length ? ` ${draft.length} zonas` : ""}</Button>
-          </DialogFooter>
+          <Suspense fallback={<div className="map-loading map-loading--standalone" role="status">Cargando municipios…</div>}>
+            <LazyZoneSelectionMap
+              selectedZoneIds={draft}
+              listings={allListings}
+              onChange={setDraft}
+              onDraw={() => {
+                setDraft([]);
+                onApply([]);
+                setOpen(false);
+                navigate('/buscar?vista=mapa&dibujar=1');
+              }}
+              onApply={() => {
+                if (draft.length && mapPolygon.length) clearMapPolygon();
+                onApply(draft);
+                setOpen(false);
+              }}
+            />
+          </Suspense>
         </div>
       </DialogContent>
     </Dialog>
@@ -1147,24 +1160,28 @@ export function FilterSidebar({
 export function MapView(props: {
   items: Listing[];
   selectedId?: string;
+  highlightedId?: string;
   onSelect: (id: string) => void;
+  onHighlight?: (id: string) => void;
   fullScreen?: boolean;
   showPreview?: boolean;
   onBoundsSearch?: (bounds: import("@/components/map-view").MapBounds) => void;
   onPolygonSearch?: (polygon: MapPolygonPoint[]) => void;
+  onDrawingStart?: () => boolean | void;
   fitResultsKey?: number;
   initialAction?: 'draw' | 'near' | null;
+  onInitialActionHandled?: () => void;
 }) {
   return (
     <Suspense
       fallback={
         <div className="map-loading map-loading--standalone" role="status">
           <span aria-hidden="true" />
-          <strong>Cargando mapa OpenStreetMap</strong>
+          <strong>Cargando Google Maps</strong>
         </div>
       }
     >
-      <LazyLeafletMap {...props} />
+      <LazyGoogleMap {...props} />
     </Suspense>
   );
 }

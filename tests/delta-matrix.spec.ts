@@ -267,19 +267,20 @@ test('FILTER-02..06 new filters have chips, reset, reload and history navigation
 
 test('MAP-04 visible-area state activates after movement and resets after search', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await page.locator('.leaflet-map-canvas').waitFor({ state: 'visible' })
+  await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
   const searchArea = page.getByRole('button', { name: 'Buscar en esta zona' })
   await expect(searchArea).not.toHaveAttribute('data-dirty')
-  await page.locator('.leaflet-control-zoom-in').click()
+  await page.locator('.google-map-canvas').hover()
+  await page.mouse.wheel(0, -600)
   await expect(searchArea).toHaveAttribute('data-dirty', 'true')
   await searchArea.click()
   await expect(searchArea).not.toHaveAttribute('data-dirty')
 })
 
-test('MAP-05 tile errors expose the existing accessible map error state', async ({ page }) => {
-  await page.route('**tile.openstreetmap.org/**', (route) => route.abort())
+test('MAP-05 Google Maps loader errors expose the accessible map fallback', async ({ page }) => {
+  await page.route('https://maps.googleapis.com/maps/api/js**', (route) => route.abort())
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await expect(page.getByRole('alert').filter({ hasText: 'No se pudo cargar el mapa' })).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'Google Maps no pudo cargarse' })).toBeVisible()
   await expect(page.getByLabel('Alternativa textual al mapa')).toBeVisible()
 })
 

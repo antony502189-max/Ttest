@@ -21,7 +21,7 @@ test('responsive final evidence at the required viewport matrix', async ({ page 
     await page.reload()
     await page.goto(item.route)
     await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
-    if ('map' in item && item.map) await page.locator('.leaflet-map-canvas').waitFor({ state: 'visible' })
+    if ('map' in item && item.map) await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBeTruthy()
     await page.screenshot({ path: path.join(output, `${item.name}.png`), animations: 'disabled' })
   }

@@ -64,13 +64,14 @@ test('DELTA-MAP-01 draw action runs once in dedicated map and consumes its param
   await page.setViewportSize(mobile)
   await page.goto('/#/buscar?q=Tenerife&vista=mapa&dibujar=1')
   await expect(page.locator('.mobile-map-screen')).toBeVisible()
-  await expect(page.locator('.leaflet-map-shell')).toHaveAttribute('data-drawing', 'true', { timeout: 15_000 })
+  await expect(page.locator('.google-map-shell')).toHaveAttribute('data-drawing', 'true', { timeout: 15_000 })
   await expect(page.getByRole('status')).toContainText('Modo dibujo activado')
   await expect(page).not.toHaveURL(/dibujar=1/)
   await expect(page.locator('.site-header:visible, .mobile-header:visible, .bottom-nav:visible, .search-bar:visible')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Mostrar \d+ habitaciones/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Añadir punto/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Finalizar \(0\)/ })).toBeDisabled()
   await page.reload()
-  await expect(page.locator('.leaflet-map-shell')).not.toHaveAttribute('data-drawing', 'true')
+  await expect(page.locator('.google-map-shell')).not.toHaveAttribute('data-drawing', 'true')
 })
 
 test('DELTA-MAP-02 geolocation accepts Tenerife and rejects outside coordinates without repeated calls', async ({ page, context }) => {
@@ -95,7 +96,7 @@ test('DELTA-MAP-02 geolocation accepts Tenerife and rejects outside coordinates 
   await outsidePage.setViewportSize(mobile)
   await outsidePage.goto('/#/buscar?q=Tenerife&vista=mapa&cerca=1')
   await expect(outsidePage.getByRole('status')).toContainText('fuera de Tenerife', { timeout: 15_000 })
-  await expect(outsidePage.locator('.leaflet-map-canvas')).toBeVisible()
+  await expect(outsidePage.locator('.google-map-canvas')).toBeVisible()
   await outsidePage.close()
 })
 

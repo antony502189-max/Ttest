@@ -35,8 +35,8 @@ async function settle(page: Page, options: { map?: boolean } = {}) {
     new Promise<void>((resolve) => window.setTimeout(resolve, 4_000)),
   ])).catch(() => undefined)
   if (options.map) {
-    await expect(page.locator('.leaflet-map-canvas')).toBeVisible({ timeout: 15_000 })
-    await expect.poll(() => page.locator('.leaflet-marker-icon').count(), { timeout: 15_000 }).toBeGreaterThan(0)
+    await expect(page.locator('.google-map-canvas')).toBeVisible({ timeout: 15_000 })
+    await expect.poll(() => page.locator('.map-price-marker-shell, .map-cluster-marker-shell').count(), { timeout: 15_000 }).toBeGreaterThan(0)
   }
   await page.waitForTimeout(180)
 }
