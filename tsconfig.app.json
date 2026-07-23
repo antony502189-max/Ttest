@@ -18,6 +18,7 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
+      "@/components/marketplace": ["./src/components/marketplace-localized.tsx"],
       "@/*": ["./src/*"]
     },
 

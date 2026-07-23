@@ -14,6 +14,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@/components/marketplace': path.resolve(__dirname, './src/components/marketplace-localized.tsx'),
       '@': path.resolve(__dirname, './src'),
     },
   },
