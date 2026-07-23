@@ -1,19 +1,14 @@
 @keyframes rental-mode-pop {
-  0% { transform: translateY(1px) scale(.94); }
-  48% { transform: translateY(-11px) scale(1.09); }
-  72% { transform: translateY(-7px) scale(1.045); }
-  100% { transform: translateY(-9px) scale(1.065); }
+  0% { transform: translateY(1px) scale(.97); }
+  55% { transform: translateY(-7px) scale(1.045); }
+  100% { transform: translateY(-6px) scale(1.035); }
 }
 
-/* Radix marks the selected ToggleGroup item with data-state="on".
-   Keep aria-pressed as a fallback for native/older implementations. */
 .rental-switch button:is([data-state="on"], [aria-pressed="true"]) {
-  border-color: #6f8f00;
-  background: #eaff72;
-  color: #253000;
-  box-shadow:
-    0 0 0 3px rgb(153 198 0 / .22),
-    0 .65rem 1.35rem rgb(111 143 0 / .28) !important;
+  border-color: #8aa928;
+  background: #eef7c9;
+  color: #2f3b10;
+  box-shadow: 0 .55rem 1.15rem rgb(84 106 23 / .2) !important;
 }
 
 .market-home .rental-switch--home button {
@@ -28,90 +23,82 @@
     filter .18s ease;
 }
 
-.market-home .rental-switch--home button:not([data-state="on"]):not([aria-pressed="true"]) {
-  transform: scale(.965);
-  opacity: .62;
-  filter: saturate(.72);
-  border-color: #c7cbbd;
-  background: #f4f5f1;
-  box-shadow: inset 0 0 0 1px rgb(35 43 22 / .05), 0 .2rem .45rem rgb(35 43 22 / .08);
+.market-home .rental-switch--home button:not([data-state="on"]):not([aria-pressed="true"]),
+.market-home .rental-switch--home[data-awaiting-choice="true"] button {
+  transform: scale(.985);
+  opacity: .86;
+  filter: saturate(.78);
+  border-color: #d2d5cc;
+  background: #f1f2ef;
+  color: #5f655d;
+  box-shadow: 0 .18rem .42rem rgb(35 43 22 / .08);
+}
+
+.market-home .rental-switch--home[data-awaiting-choice="true"] button:is([data-state="on"], [aria-pressed="true"]) {
+  z-index: auto;
+  transform: scale(.985);
+  animation: none;
+  border: 1px solid #d2d5cc;
+  background: #f1f2ef;
+  color: #5f655d;
+  opacity: .86;
+  filter: saturate(.78);
+  box-shadow: 0 .18rem .42rem rgb(35 43 22 / .08) !important;
 }
 
 .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) {
   z-index: 5;
-  transform: translateY(-9px) scale(1.065);
-  animation: rental-mode-pop .42s cubic-bezier(.18, .89, .32, 1.28);
-  border: 4px solid #6f8f00;
-  background: linear-gradient(145deg, #ffffff 0%, #f4ffc2 62%, #eaff72 100%);
-  color: #253000;
+  transform: translateY(-6px) scale(1.035);
+  animation: rental-mode-pop .3s cubic-bezier(.18, .89, .32, 1.18);
+  border: 2px solid #8aa928;
+  background: #eef7c9;
+  color: #2f3b10;
   opacity: 1;
   filter: none;
-  box-shadow:
-    0 0 0 5px rgb(153 198 0 / .26),
-    0 0 0 10px rgb(153 198 0 / .1),
-    0 1.65rem 3.1rem rgb(111 143 0 / .42),
-    inset 0 1px 0 rgb(255 255 255 / .95),
-    inset 0 -.35rem .8rem rgb(153 198 0 / .16) !important;
+  box-shadow: 0 .75rem 1.55rem rgb(84 106 23 / .22) !important;
 }
 
 .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"])::after {
-  content: "✓";
-  position: absolute;
-  top: -.8rem;
-  right: -.65rem;
-  width: 1.85rem;
-  height: 1.85rem;
-  display: grid;
-  place-items: center;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  background: #6f8f00;
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 900;
-  line-height: 1;
-  box-shadow: 0 .35rem .8rem rgb(111 143 0 / .38);
+  content: none;
 }
 
 .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) strong {
-  color: #253000;
-  font-weight: 850;
+  color: #2f3b10;
+  font-weight: 820;
 }
 
 .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) small {
-  color: #526600;
-  font-weight: 700;
+  color: #65732e;
+  font-weight: 680;
 }
 
 .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) .rental-switch__icon {
-  transform: scale(1.22);
-  filter: drop-shadow(0 .35rem .45rem rgb(111 143 0 / .32));
+  transform: scale(1.12);
+  filter: drop-shadow(0 .22rem .3rem rgb(84 106 23 / .18));
 }
 
 .market-home .rental-switch--home button:active {
-  transform: translateY(4px) scale(.91) !important;
-  border-color: #4f6800;
-  background: #e5ff62;
-  box-shadow:
-    0 0 0 7px rgb(153 198 0 / .34),
-    inset 0 .4rem .8rem rgb(64 84 0 / .22),
-    0 .25rem .45rem rgb(111 143 0 / .32) !important;
+  transform: translateY(1px) scale(.98) !important;
+  border-color: #78951f;
+  background: #e8f3ba;
+  box-shadow: 0 .28rem .65rem rgb(84 106 23 / .2) !important;
   transition-duration: .06s;
 }
 
 .market-home .rental-switch--home button:focus-visible {
-  outline: 4px solid rgb(194 24 130 / .38);
-  outline-offset: 5px;
+  outline: 3px solid rgb(138 169 40 / .3);
+  outline-offset: 4px;
 }
 
 @media (max-width: 767px) {
   .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) {
-    transform: translateY(-9px) scale(1.06);
-    box-shadow:
-      0 0 0 5px rgb(153 198 0 / .28),
-      0 0 0 9px rgb(153 198 0 / .11),
-      0 1.6rem 2.8rem rgb(111 143 0 / .44),
-      inset 0 -.35rem .8rem rgb(153 198 0 / .18) !important;
+    transform: translateY(-6px) scale(1.035);
+    box-shadow: 0 .7rem 1.35rem rgb(84 106 23 / .24) !important;
+  }
+
+  .market-home .rental-switch--home[data-awaiting-choice="true"] button:is([data-state="on"], [aria-pressed="true"]) {
+    transform: scale(.985);
+    box-shadow: 0 .18rem .42rem rgb(35 43 22 / .08) !important;
   }
 }
 
