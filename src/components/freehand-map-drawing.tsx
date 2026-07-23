@@ -8,14 +8,28 @@ type MapListener = (
   handler: (...args: unknown[]) => void,
 ) => google.maps.MapsEventListener
 
-type CapturedStroke = {
-  canvas: HTMLElement
-  root: HTMLElement
-  map: google.maps.Map
+type MapInteractionState = {
+  gestureHandling: google.maps.MapOptions['gestureHandling']
+  draggable: google.maps.MapOptions['draggable']
+  scrollwheel: google.maps.MapOptions['scrollwheel']
+  disableDoubleClickZoom: google.maps.MapOptions['disableDoubleClickZoom']
+  keyboardShortcuts: google.maps.MapOptions['keyboardShortcuts']
+}
+
+type DrawingStroke = {
   pointerId: number
   lastX: number
   lastY: number
   pointCount: number
+}
+
+type ActiveDrawing = {
+  root: HTMLElement
+  canvas: HTMLElement
+  map: google.maps.Map
+  overlay: HTMLDivElement
+  previousInteractions: MapInteractionState
+  destroy: () => void
 }
 
 const mapByCanvas = new WeakMap<HTMLElement, google.maps.Map>()
@@ -25,7 +39,10 @@ function installMapCapture() {
   if (captureInstallPromise) return captureInstallPromise
 
   captureInstallPromise = loadGoogleMaps().then(({ maps }) => {
-    const prototype = maps.Map.prototype as unknown as { addListener: MapListener; __freehandCaptureInstalled?: boolean }
+    const prototype = maps.Map.prototype as unknown as {
+      addListener: MapListener
+      __freehandCaptureInstalled?: boolean
+    }
     if (prototype.__freehandCaptureInstalled) return
 
     const originalAddListener = prototype.addListener
@@ -40,6 +57,30 @@ function installMapCapture() {
   })
 
   return captureInstallPromise
+}
+
+function captureInteractionState(map: google.maps.Map): MapInteractionState {
+  return {
+    gestureHandling: map.get('gestureHandling') as MapInteractionState['gestureHandling'],
+    draggable: map.get('draggable') as MapInteractionState['draggable'],
+    scrollwheel: map.get('scrollwheel') as MapInteractionState['scrollwheel'],
+    disableDoubleClickZoom: map.get('disableDoubleClickZoom') as MapInteractionState['disableDoubleClickZoom'],
+    keyboardShortcuts: map.get('keyboardShortcuts') as MapInteractionState['keyboardShortcuts'],
+  }
+}
+
+function lockMap(map: google.maps.Map) {
+  map.setOptions({
+    gestureHandling: 'none',
+    draggable: false,
+    scrollwheel: false,
+    disableDoubleClickZoom: true,
+    keyboardShortcuts: false,
+  })
+}
+
+function restoreMap(map: google.maps.Map, state: MapInteractionState) {
+  map.setOptions(state)
 }
 
 function pointOnMap(map: google.maps.Map, canvas: HTMLElement, clientX: number, clientY: number) {
@@ -67,103 +108,178 @@ function finishWhenReactIsReady(root: HTMLElement, attempts = 0) {
     finishButton.click()
     return
   }
-  if (attempts < 10) requestAnimationFrame(() => finishWhenReactIsReady(root, attempts + 1))
+  if (attempts < 30) requestAnimationFrame(() => finishWhenReactIsReady(root, attempts + 1))
+}
+
+function activateDrawing(root: HTMLElement, canvas: HTMLElement, map: google.maps.Map): ActiveDrawing {
+  const previousInteractions = captureInteractionState(map)
+  const overlay = document.createElement('div')
+  const hint = document.createElement('span')
+  let stroke: DrawingStroke | null = null
+
+  overlay.className = 'freehand-map-overlay'
+  overlay.setAttribute('aria-label', 'Mantén pulsado y dibuja el contorno de la zona')
+  hint.className = 'freehand-map-overlay__hint'
+  hint.textContent = 'Mantén pulsado y dibuja el contorno'
+  overlay.append(hint)
+  root.append(overlay)
+
+  root.classList.add('is-freehand-locked')
+  lockMap(map)
+
+  const emitPoint = (current: DrawingStroke, clientX: number, clientY: number, event: PointerEvent) => {
+    const latLng = pointOnMap(map, canvas, clientX, clientY)
+    if (!latLng) return false
+
+    google.maps.event.trigger(map, 'click', { latLng, domEvent: event })
+    current.lastX = clientX
+    current.lastY = clientY
+    current.pointCount += 1
+    return true
+  }
+
+  const pointerDown = (event: PointerEvent) => {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    overlay.setPointerCapture(event.pointerId)
+    root.classList.add('is-freehand-stroking')
+    hint.textContent = 'Обведи нужную территорию и отпусти'
+
+    stroke = {
+      pointerId: event.pointerId,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      pointCount: 0,
+    }
+    emitPoint(stroke, event.clientX, event.clientY, event)
+  }
+
+  const pointerMove = (event: PointerEvent) => {
+    if (!stroke || event.pointerId !== stroke.pointerId) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    const samples = event.getCoalescedEvents?.() ?? [event]
+    const minimumDistance = event.pointerType === 'touch' ? 7 : 5
+
+    samples.forEach((sample) => {
+      if (!stroke) return
+      const distance = Math.hypot(sample.clientX - stroke.lastX, sample.clientY - stroke.lastY)
+      if (distance >= minimumDistance) emitPoint(stroke, sample.clientX, sample.clientY, event)
+    })
+  }
+
+  const pointerUp = (event: PointerEvent) => {
+    if (!stroke || event.pointerId !== stroke.pointerId) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    const completedStroke = stroke
+    const distance = Math.hypot(event.clientX - completedStroke.lastX, event.clientY - completedStroke.lastY)
+    if (distance >= 3) emitPoint(completedStroke, event.clientX, event.clientY, event)
+
+    stroke = null
+    root.classList.remove('is-freehand-stroking')
+    try { overlay.releasePointerCapture(event.pointerId) } catch { /* Capture may already be released. */ }
+
+    if (completedStroke.pointCount >= 3) {
+      hint.textContent = 'Применяем выделенную область…'
+      requestAnimationFrame(() => finishWhenReactIsReady(root))
+    } else {
+      hint.textContent = 'Нарисуй область одним непрерывным движением'
+    }
+  }
+
+  const pointerCancel = (event: PointerEvent) => {
+    if (!stroke || event.pointerId !== stroke.pointerId) return
+    stroke = null
+    root.classList.remove('is-freehand-stroking')
+    root.querySelector<HTMLButtonElement>('.map-toolbar__cancel')?.click()
+  }
+
+  const contextMenu = (event: MouseEvent) => event.preventDefault()
+
+  overlay.addEventListener('pointerdown', pointerDown, { passive: false })
+  overlay.addEventListener('pointermove', pointerMove, { passive: false })
+  overlay.addEventListener('pointerup', pointerUp, { passive: false })
+  overlay.addEventListener('pointercancel', pointerCancel)
+  overlay.addEventListener('contextmenu', contextMenu)
+
+  return {
+    root,
+    canvas,
+    map,
+    overlay,
+    previousInteractions,
+    destroy: () => {
+      overlay.removeEventListener('pointerdown', pointerDown)
+      overlay.removeEventListener('pointermove', pointerMove)
+      overlay.removeEventListener('pointerup', pointerUp)
+      overlay.removeEventListener('pointercancel', pointerCancel)
+      overlay.removeEventListener('contextmenu', contextMenu)
+      overlay.remove()
+      root.classList.remove('is-freehand-locked', 'is-freehand-stroking')
+      restoreMap(map, previousInteractions)
+    },
+  }
 }
 
 export function FreehandMapDrawing() {
   useLayoutEffect(() => {
-    void installMapCapture().catch(() => undefined)
+    let activeDrawing: ActiveDrawing | null = null
+    let scheduledFrame = 0
+    let disposed = false
 
-    let stroke: CapturedStroke | null = null
-    let suppressCanvasClickUntil = 0
-
-    const emitPoint = (current: CapturedStroke, clientX: number, clientY: number, event: PointerEvent) => {
-      const latLng = pointOnMap(current.map, current.canvas, clientX, clientY)
-      if (!latLng) return false
-
-      google.maps.event.trigger(current.map, 'click', { latLng, domEvent: event })
-      current.lastX = clientX
-      current.lastY = clientY
-      current.pointCount += 1
-      return true
+    const deactivate = () => {
+      activeDrawing?.destroy()
+      activeDrawing = null
     }
 
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return
-      if (!(event.target instanceof Element)) return
+    const synchronize = () => {
+      scheduledFrame = 0
+      if (disposed) return
 
-      const canvas = event.target.closest<HTMLElement>('.results-map.is-drawing .results-map__canvas')
-      const root = canvas?.closest<HTMLElement>('.results-map')
-      const map = canvas ? mapByCanvas.get(canvas) : undefined
-      if (!canvas || !root || !map) return
-
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      try { canvas.setPointerCapture(event.pointerId) } catch { /* Pointer capture is optional. */ }
-
-      stroke = {
-        canvas,
-        root,
-        map,
-        pointerId: event.pointerId,
-        lastX: event.clientX,
-        lastY: event.clientY,
-        pointCount: 0,
+      const root = document.querySelector<HTMLElement>('.results-map.is-drawing')
+      if (!root) {
+        deactivate()
+        return
       }
-      emitPoint(stroke, event.clientX, event.clientY, event)
+
+      const canvas = root.querySelector<HTMLElement>('.results-map__canvas')
+      const map = canvas ? mapByCanvas.get(canvas) : undefined
+      if (!canvas || !map) {
+        scheduledFrame = requestAnimationFrame(synchronize)
+        return
+      }
+
+      if (activeDrawing?.root === root && activeDrawing.canvas === canvas) return
+      deactivate()
+      activeDrawing = activateDrawing(root, canvas, map)
     }
 
-    const handlePointerMove = (event: PointerEvent) => {
-      if (!stroke || event.pointerId !== stroke.pointerId) return
-      event.preventDefault()
-      event.stopImmediatePropagation()
-
-      const distance = Math.hypot(event.clientX - stroke.lastX, event.clientY - stroke.lastY)
-      if (distance < 7) return
-      emitPoint(stroke, event.clientX, event.clientY, event)
+    const scheduleSynchronize = () => {
+      if (scheduledFrame) return
+      scheduledFrame = requestAnimationFrame(synchronize)
     }
 
-    const handlePointerUp = (event: PointerEvent) => {
-      if (!stroke || event.pointerId !== stroke.pointerId) return
-      event.preventDefault()
-      event.stopImmediatePropagation()
+    void installMapCapture().then(scheduleSynchronize).catch(() => undefined)
 
-      const current = stroke
-      const distance = Math.hypot(event.clientX - current.lastX, event.clientY - current.lastY)
-      if (distance >= 3) emitPoint(current, event.clientX, event.clientY, event)
-      try { current.canvas.releasePointerCapture(event.pointerId) } catch { /* Pointer capture may already be released. */ }
-
-      stroke = null
-      suppressCanvasClickUntil = performance.now() + 500
-      if (current.pointCount >= 3) requestAnimationFrame(() => finishWhenReactIsReady(current.root))
-    }
-
-    const handlePointerCancel = (event: PointerEvent) => {
-      if (!stroke || event.pointerId !== stroke.pointerId) return
-      const current = stroke
-      stroke = null
-      current.root.querySelector<HTMLButtonElement>('.map-toolbar__cancel')?.click()
-    }
-
-    const suppressGeneratedClick = (event: MouseEvent) => {
-      if (performance.now() > suppressCanvasClickUntil || !(event.target instanceof Element)) return
-      if (!event.target.closest('.results-map__canvas')) return
-      event.preventDefault()
-      event.stopImmediatePropagation()
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, { capture: true, passive: false })
-    document.addEventListener('pointermove', handlePointerMove, { capture: true, passive: false })
-    document.addEventListener('pointerup', handlePointerUp, { capture: true, passive: false })
-    document.addEventListener('pointercancel', handlePointerCancel, true)
-    document.addEventListener('click', suppressGeneratedClick, true)
+    const observer = new MutationObserver(scheduleSynchronize)
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+    scheduleSynchronize()
 
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('pointermove', handlePointerMove, true)
-      document.removeEventListener('pointerup', handlePointerUp, true)
-      document.removeEventListener('pointercancel', handlePointerCancel, true)
-      document.removeEventListener('click', suppressGeneratedClick, true)
+      disposed = true
+      observer.disconnect()
+      if (scheduledFrame) cancelAnimationFrame(scheduledFrame)
+      deactivate()
     }
   }, [])
 
