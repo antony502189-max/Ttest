@@ -1,0 +1,17 @@
+.results-map.is-drawing .results-map__canvas {
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.results-map.is-drawing .results-map__canvas * {
+  cursor: crosshair !important;
+}
+
+.results-map.is-drawing .map-drawing-vertex {
+  display: none;
+}
+
+.results-map.is-drawing .map-action-announcement {
+  pointer-events: none;
+}
