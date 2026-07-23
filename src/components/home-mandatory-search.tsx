@@ -9,12 +9,13 @@ import { resolveTenerifeLocation } from '@/lib/tenerife'
 import {
   applyListingAccessProfile,
   hasListingAccessSelection,
-  listingAccessProfileFromFilters,
   persistListingAccessProfile,
+  readListingAccessProfile,
   type HomeOccupantChoice,
   type ListingAccessProfile,
 } from '@/lib/listing-access'
 import { cn } from '@/lib/utils'
+import '@/home-mandatory-search.css'
 
 const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; icon: typeof UserRound }> = [
   { value: 'single-man', label: 'Hombre', icon: UserRound },
@@ -28,7 +29,7 @@ const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: 
 export function HomeMandatorySearch() {
   const { filters, setFilters, query, setQuery, rentalMode, addSearchHistory } = useApp()
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<ListingAccessProfile>(() => listingAccessProfileFromFilters(filters))
+  const [profile, setProfile] = useState<ListingAccessProfile>(readListingAccessProfile)
   const [error, setError] = useState('')
   const canSearch = useMemo(() => hasListingAccessSelection(profile), [profile])
 
