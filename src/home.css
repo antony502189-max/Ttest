@@ -1,4 +1,43 @@
 /* Home discovery: room-first composition with a deliberate card overlap. */
+.market-home .market-search-panel > .rental-switch--home button {
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+}
+
+.market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] {
+  position: relative;
+  z-index: 2;
+  transform: translateY(-2px);
+  border-color: var(--market-magenta);
+  box-shadow:
+    0 0 0 2px rgb(194 24 130 / .16),
+    0 .9rem 1.9rem rgb(35 43 22 / .26);
+}
+
+.market-home .market-search-panel > .rental-switch--home button:active {
+  transform: translateY(1px) scale(.985);
+  box-shadow:
+    0 0 0 2px rgb(194 24 130 / .18),
+    0 .45rem 1rem rgb(35 43 22 / .24);
+}
+
+.market-home .home-publish-action [data-slot="button"] {
+  width: 100%;
+  min-height: 3.75rem;
+  border-color: var(--market-magenta);
+  background: var(--market-magenta);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 760;
+  box-shadow: 0 .55rem 1.25rem rgb(194 24 130 / .24);
+}
+
+.market-home .home-publish-action [data-slot="button"]:hover {
+  border-color: var(--market-magenta-hover);
+  background: var(--market-magenta-hover);
+  color: #fff;
+  box-shadow: 0 .7rem 1.45rem rgb(169 20 112 / .3);
+}
+
 @media (max-width: 767px) {
   body:has(.market-home) .mobile-header {
     height: 3.75rem;
@@ -99,6 +138,19 @@
     min-height: 4.5rem;
     margin-top: -1.55rem;
     padding-inline: .2rem;
+  }
+
+  .market-home .home-publish-action {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .market-home .home-publish-action [data-slot="button"] {
+    min-height: 4rem;
+    border-radius: 0;
+    box-shadow: 0 .45rem 1.1rem rgb(194 24 130 / .24);
   }
 
   body:has(.market-home) .bottom-nav__item.is-active { color: #557000; }
