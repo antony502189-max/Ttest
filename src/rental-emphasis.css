@@ -38,9 +38,9 @@
   box-shadow:
     0 0 0 5px rgb(153 198 0 / .26),
     0 0 0 10px rgb(153 198 0 / .1),
-    0 1.65rem 3.1rem rgb(35 43 22 / .46),
+    0 1.65rem 3.1rem rgb(111 143 0 / .42),
     inset 0 1px 0 rgb(255 255 255 / .95),
-    inset 0 -.35rem .8rem rgb(153 198 0 / .16);
+    inset 0 -.35rem .8rem rgb(153 198 0 / .16) !important;
 }
 
 .market-home .rental-switch--home button[aria-pressed="true"]::after {
@@ -59,7 +59,7 @@
   font-size: 1rem;
   font-weight: 900;
   line-height: 1;
-  box-shadow: 0 .35rem .8rem rgb(35 43 22 / .34);
+  box-shadow: 0 .35rem .8rem rgb(111 143 0 / .38);
 }
 
 .market-home .rental-switch--home button[aria-pressed="true"] strong {
@@ -74,7 +74,7 @@
 
 .market-home .rental-switch--home button[aria-pressed="true"] .rental-switch__icon {
   transform: scale(1.22);
-  filter: drop-shadow(0 .35rem .45rem rgb(35 43 22 / .28));
+  filter: drop-shadow(0 .35rem .45rem rgb(111 143 0 / .32));
 }
 
 .market-home .rental-switch--home button:active {
@@ -84,7 +84,7 @@
   box-shadow:
     0 0 0 7px rgb(153 198 0 / .34),
     inset 0 .4rem .8rem rgb(64 84 0 / .22),
-    0 .25rem .45rem rgb(35 43 22 / .25) !important;
+    0 .25rem .45rem rgb(111 143 0 / .32) !important;
   transition-duration: .06s;
 }
 
@@ -99,8 +99,8 @@
     box-shadow:
       0 0 0 5px rgb(153 198 0 / .28),
       0 0 0 9px rgb(153 198 0 / .11),
-      0 1.6rem 2.8rem rgb(35 43 22 / .48),
-      inset 0 -.35rem .8rem rgb(153 198 0 / .18);
+      0 1.6rem 2.8rem rgb(111 143 0 / .44),
+      inset 0 -.35rem .8rem rgb(153 198 0 / .18) !important;
   }
 }
 
