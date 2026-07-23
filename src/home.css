@@ -1,14 +1,14 @@
 /* Home discovery: room-first composition with a deliberate card overlap. */
-.market-home .market-search-panel > .rental-switch--home button {
+.market-home .mandatory-home-search__rental .rental-switch--home button {
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease, opacity .16s ease;
 }
 
-.market-home .market-search-panel > .rental-switch--home button:not([aria-pressed="true"]) {
+.market-home .mandatory-home-search__rental .rental-switch--home button:not([aria-pressed="true"]) {
   opacity: .82;
   box-shadow: 0 .2rem .55rem rgb(35 43 22 / .1);
 }
 
-.market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] {
+.market-home .mandatory-home-search__rental .rental-switch--home button[aria-pressed="true"] {
   position: relative;
   z-index: 3;
   transform: translateY(-6px) scale(1.045);
@@ -22,12 +22,12 @@
     0 .35rem .8rem rgb(35 43 22 / .24);
 }
 
-.market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] .rental-switch__icon {
+.market-home .mandatory-home-search__rental .rental-switch--home button[aria-pressed="true"] .rental-switch__icon {
   transform: scale(1.12);
   filter: drop-shadow(0 .25rem .35rem rgb(35 43 22 / .22));
 }
 
-.market-home .market-search-panel > .rental-switch--home button:active {
+.market-home .mandatory-home-search__rental .rental-switch--home button:active {
   transform: translateY(2px) scale(.97);
   box-shadow:
     0 0 0 5px rgb(112 137 0 / .25),
@@ -102,19 +102,19 @@
 
   .market-home .market-search-panel__content { padding: .9rem; }
 
-  .market-home .market-search-panel > .rental-switch--home {
+  .market-home .mandatory-home-search__rental .rental-switch--home {
     gap: .55rem;
     margin: 0;
   }
 
-  .market-home .market-search-panel > .rental-switch--home button {
+  .market-home .mandatory-home-search__rental .rental-switch--home button {
     min-height: 4.8rem;
     padding: .55rem .65rem;
     border-radius: .8rem;
     font-size: inherit;
   }
 
-  .market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] {
+  .market-home .mandatory-home-search__rental .rental-switch--home button[aria-pressed="true"] {
     transform: translateY(-7px) scale(1.055);
     box-shadow:
       0 0 0 4px rgb(112 137 0 / .24),
@@ -183,5 +183,5 @@
   .market-home .home-hero { height: 19rem; }
   .market-home .home-hero__content h1 { font-size: 2.55rem; }
   .market-home .market-search-panel__content { padding: .78rem; }
-  .market-home .market-search-panel > .rental-switch--home button { padding-inline: .45rem; }
+  .market-home .mandatory-home-search__rental .rental-switch--home button { padding-inline: .45rem; }
 }
