@@ -9,6 +9,7 @@ import { RentalSwitchFeedback } from '@/components/rental-switch-feedback'
 import { FreehandMapDrawing } from '@/components/freehand-map-drawing'
 import { MapDrawingNoticeCleanup } from '@/components/map-drawing-notice-cleanup'
 import { CurrentLocationMarker } from '@/components/current-location-marker'
+import { hasListingAccess } from '@/lib/listing-access'
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
@@ -47,6 +48,14 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
   return children
 }
 
+function ListingAccessRoute({ children }: { children: ReactNode }) {
+  const location = useLocation()
+  if (!hasListingAccess()) {
+    return <Navigate to="/" state={{ listingAccessRequired: true, returnTo: `${location.pathname}${location.search}` }} replace />
+  }
+  return children
+}
+
 class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
@@ -55,5 +64,5 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 export default function App() {
-  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><CustomerFeedbackFixes /><RentalSwitchFeedback /><FreehandMapDrawing /><MapDrawingNoticeCleanup /><CurrentLocationMarker /><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="mensajes" element={<MessagesPage />} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></AppProvider></I18nProvider></HashRouter>
+  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><CustomerFeedbackFixes /><RentalSwitchFeedback /><FreehandMapDrawing /><MapDrawingNoticeCleanup /><CurrentLocationMarker /><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<ListingAccessRoute><SearchPage /></ListingAccessRoute>} /><Route path="habitacion/:id" element={<ListingAccessRoute><ListingPage /></ListingAccessRoute>} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="mensajes" element={<MessagesPage />} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></AppProvider></I18nProvider></HashRouter>
 }
