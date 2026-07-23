@@ -6,6 +6,7 @@ import { filtersToParams } from '@/lib/search'
 import type { Filters, RentalMode } from '@/types'
 
 const priceLimit = (mode: RentalMode) => mode === 'holiday' ? 350 : 1200
+const RENTAL_MODE_KEY = '112233:rental-mode:v1'
 
 const sortCopy: Record<string, Record<Language, string>> = {
   Relevancia: { es: 'Relevancia', ru: 'По релевантности', en: 'Relevance' },
@@ -78,16 +79,28 @@ function setDirectText(element: Element | null, value: string) {
   element.append(document.createTextNode(value))
 }
 
-function setNativeInputValue(input: HTMLInputElement, value: string) {
+function nativeSetInputValue(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
   setter?.call(input, value)
+}
+
+function setNativeInputValue(input: HTMLInputElement, value: string) {
+  nativeSetInputValue(input, value)
   input.dispatchEvent(new Event('input', { bubbles: true }))
   input.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
+function isNumericInput(target: EventTarget | null): target is HTMLInputElement {
+  return target instanceof HTMLInputElement && target.type === 'number'
+}
+
+function stripLeadingZeroes(value: string) {
+  return value.replace(/^(-?)0+(?=\d)/, '$1')
+}
+
 function normalizeFilterNumbers() {
   document.querySelectorAll<HTMLInputElement>('.filter-panel input[type="number"]').forEach((input) => {
-    if (!input.value) return
+    if (!input.value || document.activeElement === input) return
     const minimum = Number(input.min || 0)
     const maximum = Number(input.max || Number.MAX_SAFE_INTEGER)
     const numeric = Number(input.value)
@@ -108,11 +121,75 @@ function normalizedPriceFilters(filters: Filters, previousMode: RentalMode, next
 }
 
 export function CustomerFeedbackFixes() {
-  const { rentalMode, filters, setFilters, activeFilterCount } = useApp()
+  const { rentalMode, setRentalMode, filters, setFilters, activeFilterCount } = useApp()
   const { language } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
   const previousMode = useRef(rentalMode)
+  const rentalModeRestored = useRef(false)
+
+  useLayoutEffect(() => {
+    const handleFocusIn = (event: FocusEvent) => {
+      if (!isNumericInput(event.target)) return
+      const input = event.target
+      if (!/^0+$/.test(input.value)) return
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === input) input.select()
+      })
+    }
+
+    const handleInput = (event: Event) => {
+      if (!isNumericInput(event.target)) return
+      const input = event.target
+
+      if (input.value === '') {
+        event.stopPropagation()
+        return
+      }
+
+      const normalized = stripLeadingZeroes(input.value)
+      if (normalized !== input.value) nativeSetInputValue(input, normalized)
+    }
+
+    const handleFocusOut = (event: FocusEvent) => {
+      if (!isNumericInput(event.target) || event.target.value !== '') return
+      const fallback = event.target.min === '' ? '0' : event.target.min
+      setNativeInputValue(event.target, fallback)
+    }
+
+    document.addEventListener('focusin', handleFocusIn, true)
+    document.addEventListener('input', handleInput, true)
+    document.addEventListener('focusout', handleFocusOut, true)
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn, true)
+      document.removeEventListener('input', handleInput, true)
+      document.removeEventListener('focusout', handleFocusOut, true)
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!rentalModeRestored.current) {
+      rentalModeRestored.current = true
+      if (location.pathname === '/') {
+        try {
+          const storedMode = localStorage.getItem(RENTAL_MODE_KEY)
+          if ((storedMode === 'long' || storedMode === 'holiday') && storedMode !== rentalMode) {
+            setRentalMode(storedMode)
+            return
+          }
+        } catch {
+          // Local storage can be unavailable in private browsing.
+        }
+      }
+    }
+
+    try {
+      localStorage.setItem(RENTAL_MODE_KEY, rentalMode)
+    } catch {
+      // Selection still remains in React state when storage is unavailable.
+    }
+  }, [location.pathname, rentalMode, setRentalMode])
 
   useLayoutEffect(() => {
     const previous = previousMode.current
