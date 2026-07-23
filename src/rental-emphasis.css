@@ -5,6 +5,17 @@
   100% { transform: translateY(-9px) scale(1.065); }
 }
 
+/* Radix marks the selected ToggleGroup item with data-state="on".
+   Keep aria-pressed as a fallback for native/older implementations. */
+.rental-switch button:is([data-state="on"], [aria-pressed="true"]) {
+  border-color: #6f8f00;
+  background: #eaff72;
+  color: #253000;
+  box-shadow:
+    0 0 0 3px rgb(153 198 0 / .22),
+    0 .65rem 1.35rem rgb(111 143 0 / .28) !important;
+}
+
 .market-home .rental-switch--home button {
   position: relative;
   overflow: visible;
@@ -17,7 +28,7 @@
     filter .18s ease;
 }
 
-.market-home .rental-switch--home button:not([aria-pressed="true"]) {
+.market-home .rental-switch--home button:not([data-state="on"]):not([aria-pressed="true"]) {
   transform: scale(.965);
   opacity: .62;
   filter: saturate(.72);
@@ -26,7 +37,7 @@
   box-shadow: inset 0 0 0 1px rgb(35 43 22 / .05), 0 .2rem .45rem rgb(35 43 22 / .08);
 }
 
-.market-home .rental-switch--home button[aria-pressed="true"] {
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) {
   z-index: 5;
   transform: translateY(-9px) scale(1.065);
   animation: rental-mode-pop .42s cubic-bezier(.18, .89, .32, 1.28);
@@ -43,7 +54,7 @@
     inset 0 -.35rem .8rem rgb(153 198 0 / .16) !important;
 }
 
-.market-home .rental-switch--home button[aria-pressed="true"]::after {
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"])::after {
   content: "✓";
   position: absolute;
   top: -.8rem;
@@ -62,17 +73,17 @@
   box-shadow: 0 .35rem .8rem rgb(111 143 0 / .38);
 }
 
-.market-home .rental-switch--home button[aria-pressed="true"] strong {
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) strong {
   color: #253000;
   font-weight: 850;
 }
 
-.market-home .rental-switch--home button[aria-pressed="true"] small {
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) small {
   color: #526600;
   font-weight: 700;
 }
 
-.market-home .rental-switch--home button[aria-pressed="true"] .rental-switch__icon {
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) .rental-switch__icon {
   transform: scale(1.22);
   filter: drop-shadow(0 .35rem .45rem rgb(111 143 0 / .32));
 }
@@ -94,7 +105,7 @@
 }
 
 @media (max-width: 767px) {
-  .market-home .rental-switch--home button[aria-pressed="true"] {
+  .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) {
     transform: translateY(-9px) scale(1.06);
     box-shadow:
       0 0 0 5px rgb(153 198 0 / .28),
@@ -105,5 +116,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .market-home .rental-switch--home button[aria-pressed="true"] { animation: none; }
+  .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) { animation: none; }
 }
