@@ -39,14 +39,13 @@
   background: transparent;
 }
 
-/* Once a polygon exists, its filtering is already active. */
-.results-map.has-polygon .map-toolbar__search {
+/* Search is already updated automatically after drawing or moving the map. */
+.results-map .map-toolbar__search {
   display: none !important;
 }
 
 .results-map.is-freehand-locked .map-layer-switcher,
 .results-map.is-freehand-locked .map-toolbar__locate,
-.results-map.is-freehand-locked .map-toolbar__search,
 .results-map.is-freehand-locked .selected-listing-sheet {
   pointer-events: none;
 }
