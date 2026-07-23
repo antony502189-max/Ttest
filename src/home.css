@@ -1,23 +1,37 @@
 /* Home discovery: room-first composition with a deliberate card overlap. */
 .market-home .market-search-panel > .rental-switch--home button {
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease, opacity .16s ease;
+}
+
+.market-home .market-search-panel > .rental-switch--home button:not([aria-pressed="true"]) {
+  opacity: .82;
+  box-shadow: 0 .2rem .55rem rgb(35 43 22 / .1);
 }
 
 .market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] {
   position: relative;
-  z-index: 2;
-  transform: translateY(-2px);
-  border-color: var(--market-magenta);
+  z-index: 3;
+  transform: translateY(-6px) scale(1.045);
+  border: 2px solid #708900;
+  background: linear-gradient(180deg, #ffffff 0%, #fbffe8 100%);
+  color: var(--ink);
+  opacity: 1;
   box-shadow:
-    0 0 0 2px rgb(194 24 130 / .16),
-    0 .9rem 1.9rem rgb(35 43 22 / .26);
+    0 0 0 4px rgb(112 137 0 / .2),
+    0 1.25rem 2.6rem rgb(35 43 22 / .38),
+    0 .35rem .8rem rgb(35 43 22 / .24);
+}
+
+.market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] .rental-switch__icon {
+  transform: scale(1.12);
+  filter: drop-shadow(0 .25rem .35rem rgb(35 43 22 / .22));
 }
 
 .market-home .market-search-panel > .rental-switch--home button:active {
-  transform: translateY(1px) scale(.985);
+  transform: translateY(2px) scale(.97);
   box-shadow:
-    0 0 0 2px rgb(194 24 130 / .18),
-    0 .45rem 1rem rgb(35 43 22 / .24);
+    0 0 0 5px rgb(112 137 0 / .25),
+    0 .35rem .8rem rgb(35 43 22 / .28);
 }
 
 .market-home .home-publish-action [data-slot="button"] {
@@ -98,6 +112,14 @@
     padding: .55rem .65rem;
     border-radius: .8rem;
     font-size: inherit;
+  }
+
+  .market-home .market-search-panel > .rental-switch--home button[aria-pressed="true"] {
+    transform: translateY(-7px) scale(1.055);
+    box-shadow:
+      0 0 0 4px rgb(112 137 0 / .24),
+      0 1.4rem 2.8rem rgb(35 43 22 / .42),
+      0 .4rem .85rem rgb(35 43 22 / .28);
   }
 
   .market-home .market-search-panel .search-bar--home {
