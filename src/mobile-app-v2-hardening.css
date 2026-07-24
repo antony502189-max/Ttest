@@ -1,0 +1,136 @@
+.m2-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.m2-app button,
+.m2-app input,
+.m2-app a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m2-app button:focus-visible,
+.m2-app input:focus-visible,
+.m2-app a:focus-visible {
+  outline: 2px solid var(--m2-lime);
+  outline-offset: 2px;
+}
+
+.m2-app button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+.m2-location-search {
+  position: relative;
+}
+
+.m2-location-clear {
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c7c7c7;
+}
+
+.m2-location-clear svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.m2-save.is-saved {
+  background: #202020;
+  color: var(--m2-lime);
+  box-shadow: inset 0 0 0 1px var(--m2-lime);
+}
+
+.m2-location-toast {
+  position: absolute;
+  right: 4.65rem;
+  bottom: calc(4.7rem + env(safe-area-inset-bottom));
+  left: .75rem;
+  z-index: 36;
+  min-height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: .5rem .75rem;
+  border: 1px solid rgb(210 255 63 / .55);
+  border-radius: .25rem;
+  background: rgb(20 20 20 / .92);
+  color: var(--m2-lime);
+  font-size: .72rem;
+  text-align: center;
+}
+
+.m2-location-toast.is-error {
+  border-color: rgb(255 130 130 / .55);
+  color: #ffb2b2;
+}
+
+.m2-map-controls button[aria-pressed="true"] {
+  border-color: var(--m2-lime);
+  color: var(--m2-lime);
+}
+
+.m2-sheet-backdrop {
+  padding-top: env(safe-area-inset-top);
+}
+
+.m2-sheet {
+  overscroll-behavior: contain;
+}
+
+.m2-sheet > .m2-primary {
+  padding-bottom: max(.7rem, env(safe-area-inset-bottom));
+}
+
+.m2-location-action:active,
+.m2-primary:active,
+.m2-outline:active,
+.m2-mode-switch > button:active,
+.m2-menu-row:active {
+  transform: translateY(1px);
+}
+
+.m2-map-canvas-wrap {
+  background:
+    radial-gradient(circle at 50% 45%, rgb(72 92 112 / .25), transparent 42%),
+    #142536;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m2-app *,
+  .m2-app *::before,
+  .m2-app *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .m2-save {
+    max-width: 7.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .m2-location-toast {
+    right: 4.35rem;
+    font-size: .66rem;
+  }
+}
