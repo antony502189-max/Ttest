@@ -120,22 +120,9 @@
   -webkit-user-select: none;
 }
 
-.m2-freehand-overlay > span {
-  position: absolute;
-  top: calc(7.8rem + env(safe-area-inset-top));
-  left: 50%;
-  width: min(calc(100% - 2rem), 22rem);
-  padding: .65rem .85rem;
-  transform: translateX(-50%);
-  border: 1px solid rgb(210 255 63 / .7);
-  border-radius: .3rem;
-  background: rgb(18 18 18 / .92);
-  color: var(--m2-lime);
-  font-size: .76rem;
-  font-weight: 700;
-  line-height: 1.35;
-  text-align: center;
-  pointer-events: none;
+.m2-freehand-overlay > span,
+.freehand-map-overlay__hint {
+  display: none !important;
 }
 
 .m2-map-screen.is-freehand-drawing .m2-map-canvas,
@@ -225,10 +212,5 @@
   .m2-clear-zone {
     flex-basis: 3rem;
     width: 3rem;
-  }
-
-  .m2-freehand-overlay > span {
-    top: calc(7.2rem + env(safe-area-inset-top));
-    font-size: .7rem;
   }
 }
