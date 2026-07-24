@@ -6,6 +6,9 @@ on:
     paths:
       - 'qa/mobile-results-full-qa-trigger.txt'
       - '.github/workflows/mobile-results-full-qa.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
