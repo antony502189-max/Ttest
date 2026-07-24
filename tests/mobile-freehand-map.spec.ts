@@ -43,7 +43,7 @@ test('freehand gesture creates and preserves a selected map area', async ({ page
   await expect(page.getByRole('button', { name: 'Eliminar zona' })).toBeVisible()
   await expect(page.locator('.m2-map-screen')).toHaveClass(/has-drawn-zone/)
 
-  await page.getByRole('button', { name: 'Volver' }).click()
+  await page.getByRole('button', { name: 'Volver', exact: true }).click()
   await page.getByTestId('search-map').click()
   await expect(page.getByRole('button', { name: 'Volver a dibujar' })).toBeEnabled({ timeout: 20_000 })
   await expect(page.getByRole('button', { name: 'Eliminar zona' })).toBeVisible()
