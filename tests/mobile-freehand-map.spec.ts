@@ -11,13 +11,22 @@ async function finishOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
-test('freehand gesture creates and preserves a selected map area', async ({ page }) => {
+test('map stays interactive until the drawing button is pressed', async ({ page }) => {
   await finishOnboarding(page)
   await page.getByTestId('open-location').click()
   await page.getByTestId('draw-zone').click()
 
+  const startDrawing = page.getByRole('button', { name: 'Dibujar tu zona' })
+  await expect(startDrawing).toBeEnabled({ timeout: 20_000 })
+  await expect(startDrawing).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByTestId('freehand-overlay')).toHaveCount(0)
+  await expect(page.locator('.m2-map-screen')).not.toHaveClass(/is-freehand-drawing/)
+
+  await startDrawing.click()
+
   const cancelDrawing = page.getByRole('button', { name: 'Cancelar dibujo' })
-  await expect(cancelDrawing).toBeEnabled({ timeout: 20_000 })
+  await expect(cancelDrawing).toBeEnabled()
+  await expect(cancelDrawing).toHaveAttribute('aria-pressed', 'true')
 
   const overlay = page.getByTestId('freehand-overlay')
   await expect(overlay).toBeVisible()
@@ -46,6 +55,7 @@ test('freehand gesture creates and preserves a selected map area', async ({ page
   await page.getByRole('button', { name: 'Volver', exact: true }).click()
   await page.getByTestId('search-map').click()
   await expect(page.getByRole('button', { name: 'Volver a dibujar' })).toBeEnabled({ timeout: 20_000 })
+  await expect(page.getByRole('button', { name: 'Eliminar зона' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Eliminar zona' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Eliminar zona' }).click()
