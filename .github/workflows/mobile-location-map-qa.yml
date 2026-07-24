@@ -1,4 +1,4 @@
-name: Mobile location and map QA
+name: Full mobile application QA
 
 on:
   push:
@@ -6,29 +6,36 @@ on:
     paths:
       - 'src/components/mobile-app-v2.tsx'
       - 'src/mobile-app-v2.css'
+      - 'src/mobile-app-v2-hardening.css'
       - 'src/components/layout.tsx'
       - 'src/main.tsx'
-      - 'tests/mobile-location-map.spec.ts'
+      - 'tests/**'
       - '.github/workflows/mobile-location-map-qa.yml'
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
-  group: mobile-location-map-qa
+  group: full-mobile-application-qa
   cancel-in-progress: true
 
 jobs:
   verify:
+    if: github.event_name != 'issues' || github.event.issue.title == '[qa] Full mobile application audit'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
       VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -37,24 +44,87 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
+        continue-on-error: true
         run: npm ci
 
-      - name: Typecheck
+      - name: Lint all source
+        id: lint
+        if: always()
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Typecheck all source
+        id: typecheck
+        if: always()
+        continue-on-error: true
         run: npm run typecheck
 
       - name: Production build
+        id: build
+        if: always()
+        continue-on-error: true
         run: npm exec vite build
 
       - name: Install Chromium
+        id: chromium
+        if: always()
+        continue-on-error: true
         run: npx playwright install --with-deps chromium
 
-      - name: Run mobile flow tests
-        run: npx playwright test tests/mobile-location-map.spec.ts
+      - name: Run complete Playwright suite
+        id: e2e
+        if: always()
+        continue-on-error: true
+        run: npx playwright test
 
-      - name: Upload Playwright report on failure
-        if: failure()
+      - name: Upload Playwright diagnostics
+        if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-location-map-playwright-report
+          name: full-mobile-qa-playwright-report
           path: output/playwright/
           if-no-files-found: ignore
+
+      - name: Report results to QA issue
+        if: always() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          INSTALL_STATUS: ${{ steps.install.outcome }}
+          LINT_STATUS: ${{ steps.lint.outcome }}
+          TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
+          CHROMIUM_STATUS: ${{ steps.chromium.outcome }}
+          E2E_STATUS: ${{ steps.e2e.outcome }}
+        run: |
+          cat > /tmp/qa-report.md <<EOF
+          ## Full QA report
+
+          - Commit: \`$(git rev-parse HEAD)\`
+          - npm ci: **$INSTALL_STATUS**
+          - lint: **$LINT_STATUS**
+          - typecheck: **$TYPECHECK_STATUS**
+          - production build: **$BUILD_STATUS**
+          - Chromium installation: **$CHROMIUM_STATUS**
+          - complete Playwright suite: **$E2E_STATUS**
+          - run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          EOF
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/qa-report.md
+
+      - name: Fail when any verification failed
+        if: always()
+        env:
+          INSTALL_STATUS: ${{ steps.install.outcome }}
+          LINT_STATUS: ${{ steps.lint.outcome }}
+          TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
+          CHROMIUM_STATUS: ${{ steps.chromium.outcome }}
+          E2E_STATUS: ${{ steps.e2e.outcome }}
+        run: |
+          test "$INSTALL_STATUS" = success
+          test "$LINT_STATUS" = success
+          test "$TYPECHECK_STATUS" = success
+          test "$BUILD_STATUS" = success
+          test "$CHROMIUM_STATUS" = success
+          test "$E2E_STATUS" = success
