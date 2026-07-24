@@ -13,6 +13,16 @@ async function finishOnboarding(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
+async function expectNoHorizontalOverflow(page: import('@playwright/test').Page) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth,
+  }))
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport)
+  expect(dimensions.body).toBeLessThanOrEqual(dimensions.viewport)
+}
+
 test('location selection contains only the required Tenerife actions', async ({ page }) => {
   await finishOnboarding(page)
   await page.getByTestId('open-location').click()
@@ -24,7 +34,7 @@ test('location selection contains only the required Tenerife actions', async ({ 
   await expect(page.getByText('Dibujar tu zona', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar en el mapa', { exact: true })).toBeVisible()
   await expect(page.getByText(/teléfono/i)).toHaveCount(0)
-  await expect(page.getByText(/ubicación/i)).toHaveCount(0)
+  await expect(page.getByText(/cerca|proximidad|ubicación actual/i)).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Cambiar' }).click()
   await expect(page.getByText('Selecciona la región en la que buscas o tienes una vivienda')).toBeVisible()
@@ -71,3 +81,22 @@ test('housing modes start inactive and occupant selector supports multiple value
   await page.getByRole('button', { name: 'Listo' }).click()
   await expect(page.getByRole('button', { name: /Para quién: solo un hombre, solo una mujer/ })).toBeVisible()
 })
+
+for (const viewport of [
+  { width: 320, height: 700 },
+  { width: 360, height: 800 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) {
+  test(`location and map screens do not overflow at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await finishOnboarding(page)
+    await expectNoHorizontalOverflow(page)
+
+    await page.getByTestId('open-location').click()
+    await expectNoHorizontalOverflow(page)
+
+    await page.getByTestId('draw-zone').click()
+    await expectNoHorizontalOverflow(page)
+  })
+}
