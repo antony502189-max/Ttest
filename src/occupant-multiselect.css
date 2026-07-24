@@ -1,0 +1,48 @@
+.occupant-multiselect-active .im-occupant-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.occupant-multiselect-active .im-radio {
+  border-radius: .28rem;
+}
+
+.occupant-multiselect-active .im-radio i {
+  width: .38rem;
+  height: .68rem;
+  border-right: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent !important;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.occupant-multiselect-active .im-occupant-option.is-selected .im-radio {
+  border-color: #f0a99d;
+  background: #f0a99d;
+}
+
+.occupant-multiselect-active .im-occupant-option.is-selected .im-radio i {
+  border-color: #2c211f;
+}
+
+.im-occupant-actions {
+  position: sticky;
+  bottom: 0;
+  padding: .7rem .8rem calc(.7rem + env(safe-area-inset-bottom));
+  border-top: 1px solid #5a4540;
+  background: #2c211f;
+}
+
+.im-occupant-apply {
+  width: 100%;
+  min-height: 3rem;
+  border: 0;
+  background: var(--im-lime);
+  color: #1b1b1b;
+  font-size: .82rem;
+  font-weight: 750;
+}
