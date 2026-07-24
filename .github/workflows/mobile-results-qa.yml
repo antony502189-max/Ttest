@@ -1,0 +1,76 @@
+name: Mobile results QA
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    if: github.event.issue.title == '[qa] Mobile results filters and sorting'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+      VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck 2>&1 | tee /tmp/typecheck.log
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm exec vite build 2>&1 | tee /tmp/build.log
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Mobile results tests
+        id: e2e
+        continue-on-error: true
+        run: npx playwright test tests/mobile-search-results.spec.ts 2>&1 | tee /tmp/e2e.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          {
+            echo '## Mobile results QA'
+            echo
+            echo "- commit: \`$(git rev-parse HEAD)\`"
+            echo "- typecheck: **$TYPECHECK**"
+            echo "- build: **$BUILD**"
+            echo "- Playwright: **$E2E**"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```text'
+            tail -n 100 /tmp/typecheck.log
+            tail -n 100 /tmp/build.log
+            tail -n 140 /tmp/e2e.log
+            echo '```'
+          } > /tmp/report.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md
+      - name: Fail on verification error
+        if: always()
+        env:
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          test "$TYPECHECK" = success
+          test "$BUILD" = success
+          test "$E2E" = success
