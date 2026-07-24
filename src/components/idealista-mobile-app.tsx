@@ -20,19 +20,15 @@ import '@/idealista-mobile-app.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type MobileTab = 'home' | 'searches' | 'favorites' | 'messages' | 'menu'
-type AppLanguage = 'English' | 'Español' | 'Русский'
+type AppLanguage = 'Español' | 'English' | 'Русский'
 
 const ONBOARDING_KEY = '112233:idealista-mobile-onboarding:v1'
 
-const languages: AppLanguage[] = ['English', 'Español', 'Русский']
-const countries = [
-  { name: 'Испания и Андорра', shape: 'ES' },
-  { name: 'Италия', shape: 'IT' },
-  { name: 'Португалия', shape: 'PT' },
-]
+const languages: AppLanguage[] = ['Español', 'English', 'Русский']
+const countries = [{ name: 'España (Tenerife)', shape: 'ES' }]
 
 function IdealistaWordmark({ compact = false }: { compact?: boolean }) {
-  return <div className={cn('im-wordmark', compact && 'im-wordmark--compact')} aria-label="WWW 11-22-33.ms">WWW 11-22-33.ms</div>
+  return <div className={cn('im-wordmark', compact && 'im-wordmark--compact')} aria-label="www.112233.es">www.112233.es</div>
 }
 
 function PrimaryButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
@@ -42,7 +38,7 @@ function PrimaryButton({ children, onClick }: { children: ReactNode; onClick?: (
 function AuthPanel({ onContinue, title = 'Войти в аккаунт или зарегистрироваться' }: { onContinue: () => void; title?: string }) {
   return <div className="im-auth-panel">
     <IdealistaWordmark />
-    <span className="im-auth-kicker">Испания и Андорра</span>
+    <span className="im-auth-kicker">España (Tenerife)</span>
     <h1>{title}</h1>
     <button type="button" className="im-social-button" onClick={onContinue}><b>G</b> Продолжить с Google</button>
     <button type="button" className="im-social-button" onClick={onContinue}><Mail aria-hidden="true" /> Войти с помощью email</button>
@@ -53,7 +49,7 @@ function AuthPanel({ onContinue, title = 'Войти в аккаунт или з
 }
 
 function Onboarding({ step, setStep }: { step: OnboardingStep; setStep: (step: OnboardingStep) => void }) {
-  const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>('English')
+  const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>('Español')
 
   if (step === 'auth') return <section className="im-onboarding im-onboarding--auth"><button className="im-back" type="button" onClick={() => setStep('privacy')}>‹</button><button className="im-skip" type="button" onClick={() => setStep('done')}>Сейчас нет</button><AuthPanel onContinue={() => setStep('done')} /></section>
 
@@ -68,8 +64,8 @@ function Onboarding({ step, setStep }: { step: OnboardingStep; setStep: (step: O
     </> : null}
     {step === 'country' ? <>
       <div className="im-onboarding-content">
-        <h1>Выберите страну, в которой вы ищете или имеете жилье</h1>
-        <div className="im-country-list">{countries.map((country, index) => <button key={country.name} type="button" className={cn('im-country-row', index === 0 && 'is-selected')} onClick={() => index === 0 && setStep('privacy')}><span className="im-country-shape">{country.shape}</span><span>{country.name}</span>{index === 0 ? <span className="im-check">✓</span> : null}</button>)}</div>
+        <h1>Выберите регион, в котором вы ищете или имеете жильё</h1>
+        <div className="im-country-list">{countries.map((country) => <button key={country.name} type="button" className="im-country-row is-selected" onClick={() => setStep('privacy')}><span className="im-country-shape">{country.shape}</span><span>{country.name}</span><span className="im-check">✓</span></button>)}</div>
       </div>
       <PrimaryButton onClick={() => setStep('privacy')}>Продолжить</PrimaryButton>
     </> : null}
@@ -90,7 +86,7 @@ function HomeScreen() {
     <div className="im-search-card">
       <div className="im-mode-switch"><button className="is-active" type="button">Купить</button><button type="button">Снять</button></div>
       <button type="button" className="im-select-row"><span>Жилые объекты</span><ChevronDown /></button>
-      <button type="button" className="im-select-row"><span>Искать в Испании</span><MapPin /></button>
+      <button type="button" className="im-select-row"><span>Искать на Тенерифе</span><MapPin /></button>
       <PrimaryButton><Search /> Найти</PrimaryButton>
       <button type="button" className="im-outline-button">Разместить объявление</button>
     </div>
@@ -101,7 +97,7 @@ function EmptyScreen({ kind, onLogin }: { kind: 'searches' | 'favorites' | 'mess
   const data = {
     searches: { title: 'Ваши поиски', heading: 'Ваше избранное все вместе', text: 'Сохраняйте здесь частые настройки поиска для большего удобства. Также мы уведомим вас о появлении новых объявлений, совпадающих с вашими критериями.', icon: <Bell /> },
     favorites: { title: 'Избранное и списки', heading: 'У вас нет объектов в Избранное', text: 'Сохраните понравившиеся объявления в вашем аккаунте, чтобы просматривать их на телефоне, планшете или компьютере.', icon: <Heart /> },
-    messages: { title: 'Чат', heading: 'Войдите в аккаунт, чтобы увидеть свои чаты', text: 'Общайтесь с владельцами объектов и рекламодателями и отвечайте на новые сообщения. Все на выходу из idealista.', icon: <MessageCircle /> },
+    messages: { title: 'Чат', heading: 'Войдите в аккаунт, чтобы увидеть свои чаты', text: 'Общайтесь с владельцами объектов и рекламодателями и отвечайте на новые сообщения. Все на выходу из 112233.es.', icon: <MessageCircle /> },
   }[kind]
   return <section className="im-screen im-empty-screen">
     <header className="im-section-header">{data.title}</header>
@@ -122,8 +118,8 @@ function MenuScreen({ onLogin, onReset }: { onLogin: () => void; onReset: () => 
     <button type="button" className="im-menu-row"><span><Search />Искать агентства для продажи</span><ChevronRight /></button>
     <button type="button" className="im-menu-row"><span><Plus />Опубликуйте свое объявление</span><ChevronRight /></button>
     <h3>Настройки</h3>
-    <button type="button" className="im-menu-row"><span>Страна поиска</span><b>Испания и Андорра</b></button>
-    <button type="button" className="im-menu-row"><span>Язык</span><b>Русский</b></button>
+    <button type="button" className="im-menu-row"><span>Регион поиска</span><b>España (Tenerife)</b></button>
+    <button type="button" className="im-menu-row"><span>Язык</span><b>Español</b></button>
     <button type="button" className="im-menu-row"><span>Внешний вид</span><b>По умолчанию (темный)</b></button>
     <h3>Услуги для вас</h3>
     <button type="button" className="im-menu-row"><span><Settings />Ипотека</span><ChevronRight /></button>
