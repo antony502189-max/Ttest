@@ -1,8 +1,11 @@
 name: Publish final mobile listings to Pages
 
 on:
-  issues:
-    types: [opened]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-final-mobile-listings.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,7 +19,6 @@ concurrency:
 
 jobs:
   build:
-    if: github.event.issue.title == '[deploy] Publish final mobile listings'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,7 +42,6 @@ jobs:
         with:
           path: dist
   deploy:
-    if: github.event.issue.title == '[deploy] Publish final mobile listings'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -53,5 +54,5 @@ jobs:
       - name: Report success
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: 30
         run: gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "PAGES_DEPLOY_OK url=${{ steps.deployment.outputs.page_url }}"
