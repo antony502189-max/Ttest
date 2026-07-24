@@ -55,7 +55,6 @@ test('map stays interactive until the drawing button is pressed', async ({ page 
   await page.getByRole('button', { name: 'Volver', exact: true }).click()
   await page.getByTestId('search-map').click()
   await expect(page.getByRole('button', { name: 'Volver a dibujar' })).toBeEnabled({ timeout: 20_000 })
-  await expect(page.getByRole('button', { name: 'Eliminar зона' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Eliminar zona' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Eliminar zona' }).click()
