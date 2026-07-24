@@ -110,6 +110,89 @@
     #142536;
 }
 
+.m2-freehand-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 29;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.m2-freehand-overlay > span {
+  position: absolute;
+  top: calc(7.8rem + env(safe-area-inset-top));
+  left: 50%;
+  width: min(calc(100% - 2rem), 22rem);
+  padding: .65rem .85rem;
+  transform: translateX(-50%);
+  border: 1px solid rgb(210 255 63 / .7);
+  border-radius: .3rem;
+  background: rgb(18 18 18 / .92);
+  color: var(--m2-lime);
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+}
+
+.m2-map-screen.is-freehand-drawing .m2-map-canvas,
+.m2-map-screen.is-freehand-drawing .m2-map-canvas * {
+  cursor: crosshair !important;
+}
+
+.m2-map-screen.is-freehand-drawing .m2-map-toolbar,
+.m2-map-screen.is-freehand-drawing .m2-map-results-header,
+.m2-map-screen.is-freehand-drawing .m2-back-header {
+  pointer-events: none;
+}
+
+.m2-draw-actions {
+  position: absolute;
+  right: 5.05rem;
+  bottom: calc(.75rem + env(safe-area-inset-bottom));
+  left: .75rem;
+  z-index: 36;
+  display: flex;
+  gap: .55rem;
+  min-width: 0;
+}
+
+.m2-draw-actions .m2-draw-cta {
+  position: static;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.m2-clear-zone {
+  flex: 0 0 3.3rem;
+  width: 3.3rem;
+  min-height: 3.3rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid #777;
+  border-radius: .25rem;
+  background: #171717;
+  color: #f5f5f5;
+}
+
+.m2-clear-zone svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.m2-map-screen.has-drawn-zone .m2-draw-cta:not([aria-pressed="true"]) {
+  background: rgb(23 23 23 / .94);
+  box-shadow: inset 0 0 0 1px rgb(210 255 63 / .18);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .m2-app *,
   .m2-app *::before,
@@ -132,5 +215,20 @@
   .m2-location-toast {
     right: 4.35rem;
     font-size: .66rem;
+  }
+
+  .m2-draw-actions {
+    right: 4.65rem;
+    gap: .4rem;
+  }
+
+  .m2-clear-zone {
+    flex-basis: 3rem;
+    width: 3rem;
+  }
+
+  .m2-freehand-overlay > span {
+    top: calc(7.2rem + env(safe-area-inset-top));
+    font-size: .7rem;
   }
 }
