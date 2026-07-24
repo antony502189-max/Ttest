@@ -19,6 +19,7 @@ import '@/idealista-mobile-app.css'
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type MobileTab = 'home' | 'searches' | 'favorites' | 'messages' | 'menu'
 type AppLanguage = 'es' | 'en' | 'ru'
+type SearchMode = 'vivienda' | 'turismo' | null
 
 const LANGUAGE_KEY = '112233:idealista-mobile-language:v1'
 
@@ -42,8 +43,6 @@ const copy = {
     legalIntro: 'Consulta la siguiente información:',
     privacyPolicy: 'Política de privacidad',
     terms: 'Términos y condiciones',
-    buy: 'Comprar',
-    rent: 'Alquilar',
     residential: 'Viviendas',
     searchTenerife: 'Buscar en Tenerife',
     search: 'Buscar',
@@ -90,8 +89,6 @@ const copy = {
     legalIntro: 'Review the following information:',
     privacyPolicy: 'Privacy policy',
     terms: 'Terms and conditions',
-    buy: 'Buy',
-    rent: 'Rent',
     residential: 'Residential properties',
     searchTenerife: 'Search in Tenerife',
     search: 'Search',
@@ -138,8 +135,6 @@ const copy = {
     legalIntro: 'Ознакомьтесь со следующей информацией:',
     privacyPolicy: 'Политика конфиденциальности',
     terms: 'Общие положения и условия',
-    buy: 'Купить',
-    rent: 'Снять',
     residential: 'Жилые объекты',
     searchTenerife: 'Искать на Тенерифе',
     search: 'Найти',
@@ -230,11 +225,16 @@ function Onboarding({ step, setStep, language, setLanguage }: { step: Onboarding
 }
 
 function HomeScreen({ t }: { t: MobileCopy }) {
+  const [mode, setMode] = useState<SearchMode>(null)
+
   return <section className="im-screen im-home-screen">
     <header className="im-topbar"><IdealistaWordmark compact /></header>
     <div className="im-hero-photo" role="img" aria-label={t.heroAlt} />
     <div className="im-search-card">
-      <div className="im-mode-switch"><button className="is-active" type="button">{t.buy}</button><button type="button">{t.rent}</button></div>
+      <div className="im-mode-switch" role="group" aria-label="Tipo de búsqueda">
+        <button type="button" className={cn(mode === 'vivienda' && 'is-active')} aria-pressed={mode === 'vivienda'} onClick={() => setMode('vivienda')}>🏠 Vivienda</button>
+        <button type="button" className={cn(mode === 'turismo' && 'is-active')} aria-pressed={mode === 'turismo'} onClick={() => setMode('turismo')}>🧳 Turismo</button>
+      </div>
       <button type="button" className="im-select-row"><span>{t.residential}</span><ChevronDown /></button>
       <button type="button" className="im-select-row"><span>{t.searchTenerife}</span><MapPin /></button>
       <PrimaryButton><Search /> {t.search}</PrimaryButton>
@@ -308,9 +308,9 @@ export function IdealistaMobileApp() {
   }, [])
   useEffect(() => { document.documentElement.lang = language }, [language])
 
-  if (step !== 'done') return <div className="idealista-mobile-app"><Onboarding step={step} setStep={setStepState} language={language} setLanguage={setLanguage} /></div>
+  if (step !== 'done') return <div className="idealista-mobile-app notranslate" translate="no"><Onboarding step={step} setStep={setStepState} language={language} setLanguage={setLanguage} /></div>
 
-  return <div className="idealista-mobile-app">
+  return <div className="idealista-mobile-app notranslate" translate="no">
     <main className="im-main">
       {tab === 'home' ? <HomeScreen t={t} /> : null}
       {tab === 'searches' ? <EmptyScreen kind="searches" onLogin={() => setStepState('auth')} t={t} /> : null}
