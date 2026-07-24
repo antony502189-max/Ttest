@@ -12,14 +12,17 @@ import {
   Plus,
   Search,
   UserRound,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import '@/idealista-mobile-app.css'
+import '@/idealista-occupant-selector.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type MobileTab = 'home' | 'searches' | 'favorites' | 'messages' | 'menu'
 type AppLanguage = 'es' | 'en' | 'ru'
 type SearchMode = 'vivienda' | 'turismo' | null
+type OccupantOption = 'anyone' | 'man' | 'woman' | 'person' | 'couple' | 'unrestricted'
 
 const LANGUAGE_KEY = '112233:idealista-mobile-language:v1'
 
@@ -43,7 +46,13 @@ const copy = {
     legalIntro: 'Consulta la siguiente información:',
     privacyPolicy: 'Política de privacidad',
     terms: 'Términos y condiciones',
-    residential: 'Viviendas',
+    occupantQuestion: '¿Quién vivirá?',
+    occupantAnyone: 'Para quién: cualquiera',
+    occupantMan: 'Para quién: solo un hombre',
+    occupantWoman: 'Para quién: solo una mujer',
+    occupantPerson: 'Para quién: una persona',
+    occupantCouple: 'Para quién: solo pareja',
+    occupantUnrestricted: 'Para quién: sin restricción',
     searchTenerife: 'Buscar en Tenerife',
     search: 'Buscar',
     publishAd: 'Publicar anuncio',
@@ -89,7 +98,13 @@ const copy = {
     legalIntro: 'Review the following information:',
     privacyPolicy: 'Privacy policy',
     terms: 'Terms and conditions',
-    residential: 'Residential properties',
+    occupantQuestion: 'Who will live there?',
+    occupantAnyone: 'For: anyone',
+    occupantMan: 'For: men only',
+    occupantWoman: 'For: women only',
+    occupantPerson: 'For: one person',
+    occupantCouple: 'For: couples only',
+    occupantUnrestricted: 'For: no restriction',
     searchTenerife: 'Search in Tenerife',
     search: 'Search',
     publishAd: 'Publish an ad',
@@ -135,7 +150,13 @@ const copy = {
     legalIntro: 'Ознакомьтесь со следующей информацией:',
     privacyPolicy: 'Политика конфиденциальности',
     terms: 'Общие положения и условия',
-    residential: 'Жилые объекты',
+    occupantQuestion: 'Кто будет жить?',
+    occupantAnyone: 'Для кого: для любого',
+    occupantMan: 'Для кого: только мужчина',
+    occupantWoman: 'Для кого: только женщина',
+    occupantPerson: 'Для кого: один человек',
+    occupantCouple: 'Для кого: только пара',
+    occupantUnrestricted: 'Для кого: без ограничений',
     searchTenerife: 'Искать на Тенерифе',
     search: 'Найти',
     publishAd: 'Разместить объявление',
@@ -224,22 +245,59 @@ function Onboarding({ step, setStep, language, setLanguage }: { step: Onboarding
   </section>
 }
 
+function getOccupantOptions(t: MobileCopy): Array<{ value: OccupantOption; label: string }> {
+  return [
+    { value: 'anyone', label: t.occupantAnyone },
+    { value: 'man', label: t.occupantMan },
+    { value: 'woman', label: t.occupantWoman },
+    { value: 'person', label: t.occupantPerson },
+    { value: 'couple', label: t.occupantCouple },
+    { value: 'unrestricted', label: t.occupantUnrestricted },
+  ]
+}
+
 function HomeScreen({ t }: { t: MobileCopy }) {
   const [mode, setMode] = useState<SearchMode>(null)
+  const [occupant, setOccupant] = useState<OccupantOption>('anyone')
+  const [occupantOpen, setOccupantOpen] = useState(false)
+  const occupantOptions = getOccupantOptions(t)
+  const selectedOccupant = occupantOptions.find((option) => option.value === occupant) ?? occupantOptions[0]
 
   return <section className="im-screen im-home-screen">
     <header className="im-topbar"><IdealistaWordmark compact /></header>
     <div className="im-hero-photo" role="img" aria-label={t.heroAlt} />
     <div className="im-search-card">
       <div className="im-mode-switch" role="group" aria-label="Tipo de búsqueda">
-        <button type="button" className={cn(mode === 'vivienda' && 'is-active')} aria-pressed={mode === 'vivienda'} onClick={() => setMode('vivienda')}>🏠 Vivienda</button>
-        <button type="button" className={cn(mode === 'turismo' && 'is-active')} aria-pressed={mode === 'turismo'} onClick={() => setMode('turismo')}>🧳 Turismo</button>
+        <button type="button" className={cn(mode === 'vivienda' && 'is-active')} aria-pressed={mode === 'vivienda'} onClick={() => setMode('vivienda')}>Vivienda</button>
+        <button type="button" className={cn(mode === 'turismo' && 'is-active')} aria-pressed={mode === 'turismo'} onClick={() => setMode('turismo')}>Turismo</button>
       </div>
-      <button type="button" className="im-select-row"><span>{t.residential}</span><ChevronDown /></button>
+
+      <div className="im-occupant-field">
+        <button type="button" className="im-occupant-trigger" aria-haspopup="dialog" aria-expanded={occupantOpen} onClick={() => setOccupantOpen(true)}>
+          <Users aria-hidden="true" />
+          <span className="im-occupant-copy"><small>{t.occupantQuestion}</small><strong>{selectedOccupant.label}</strong></span>
+          <ChevronDown aria-hidden="true" />
+        </button>
+      </div>
+
       <button type="button" className="im-select-row"><span>{t.searchTenerife}</span><MapPin /></button>
       <PrimaryButton><Search /> {t.search}</PrimaryButton>
       <button type="button" className="im-outline-button">{t.publishAd}</button>
     </div>
+
+    {occupantOpen ? <div className="im-occupant-overlay" role="presentation" onClick={() => setOccupantOpen(false)}>
+      <section className="im-occupant-panel" role="dialog" aria-modal="true" aria-label={t.occupantQuestion} onClick={(event) => event.stopPropagation()}>
+        <header><strong>{t.occupantQuestion}</strong><button type="button" aria-label="Cerrar" onClick={() => setOccupantOpen(false)}>×</button></header>
+        <div role="radiogroup" aria-label={t.occupantQuestion}>
+          {occupantOptions.map((option) => {
+            const selected = option.value === occupant
+            return <button key={option.value} type="button" className={cn('im-occupant-option', selected && 'is-selected')} role="radio" aria-checked={selected} onClick={() => { setOccupant(option.value); setOccupantOpen(false) }}>
+              <span>{option.label}</span><span className="im-radio" aria-hidden="true"><i /></span>
+            </button>
+          })}
+        </div>
+      </section>
+    </div> : null}
   </section>
 }
 
