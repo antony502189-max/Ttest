@@ -91,7 +91,7 @@ export function listingAccessProfileFromFilters(filters: Filters): ListingAccess
 
 export function applyListingAccessProfile(filters: Filters, profile: ListingAccessProfile): Filters {
   const family = profile.occupant === 'family'
-  const tenantRequirement = family
+  const tenantRequirement: Filters['tenantRequirement'] = profile.occupant === 'family'
     ? 'couple'
     : profile.occupant ?? 'Cualquiera'
 
