@@ -4,28 +4,23 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  issues:
-    types: [opened]
 
 permissions:
   contents: read
   pages: write
   id-token: write
-  issues: read
 
 concurrency:
-  group: pages
+  group: pages-main
   cancel-in-progress: true
 
 jobs:
   build:
-    if: github.event_name != 'issues' || github.event.issue.title == '[deploy] Rebuild GitHub Pages'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout latest main
+      - name: Checkout main
         uses: actions/checkout@v4
-        with:
-          ref: main
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -36,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build current frontend
+      - name: Build frontend
         run: npm exec vite build
         env:
           VITE_BASE_PATH: /Ttest/
@@ -55,11 +50,11 @@ jobs:
           path: dist
 
   deploy:
-    if: github.event_name != 'issues' || github.event.issue.title == '[deploy] Rebuild GitHub Pages'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: build
     steps:
       - name: Deploy to GitHub Pages
