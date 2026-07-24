@@ -30,7 +30,7 @@ test('list toolbar opens existing Tenerife listings without a save button', asyn
 
   await results.getByRole('button', { name: 'Filtros' }).click()
   await results.getByRole('button', { name: 'Turismo' }).click()
-  await expect(results.locator('.m2-result-card')).toHaveCount(8)
+  await expect(results.locator('.m2-result-card')).toHaveCount(9)
 
   await results.getByRole('button', { name: 'Orden' }).click()
   await expect(results.getByText('Precio más bajo')).toBeVisible()
