@@ -4,11 +4,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  issues: read
 
 concurrency:
   group: pages
@@ -16,10 +19,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'issues' || github.event.issue.title == '[deploy] Rebuild GitHub Pages'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout latest main
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -42,8 +48,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -51,6 +55,7 @@ jobs:
           path: dist
 
   deploy:
+    if: github.event_name != 'issues' || github.event.issue.title == '[deploy] Rebuild GitHub Pages'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
