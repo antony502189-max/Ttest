@@ -1,0 +1,98 @@
+name: Complete mobile results QA
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    if: github.event.issue.title == '[qa] Complete mobile listings experience'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+      VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        id: install
+        continue-on-error: true
+        run: npm ci 2>&1 | tee /tmp/install.log
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee /tmp/lint.log
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck 2>&1 | tee /tmp/typecheck.log
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm exec vite build 2>&1 | tee /tmp/build.log
+      - name: Install Chromium
+        id: chromium
+        continue-on-error: true
+        run: npx playwright install --with-deps chromium 2>&1 | tee /tmp/chromium.log
+      - name: Complete Playwright suite
+        id: e2e
+        continue-on-error: true
+        run: npx playwright test 2>&1 | tee /tmp/e2e.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          INSTALL: ${{ steps.install.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          CHROMIUM: ${{ steps.chromium.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          {
+            echo '## Complete mobile listings QA'
+            echo
+            echo "- commit: \`$(git rev-parse HEAD)\`"
+            echo "- npm ci: **$INSTALL**"
+            echo "- lint: **$LINT**"
+            echo "- typecheck: **$TYPECHECK**"
+            echo "- production build: **$BUILD**"
+            echo "- Chromium: **$CHROMIUM**"
+            echo "- Playwright: **$E2E**"
+            echo "- run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```text'
+            tail -n 80 /tmp/lint.log 2>/dev/null || true
+            tail -n 80 /tmp/typecheck.log 2>/dev/null || true
+            tail -n 80 /tmp/build.log 2>/dev/null || true
+            tail -n 180 /tmp/e2e.log 2>/dev/null || true
+            echo '```'
+          } > /tmp/report.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md
+      - name: Fail on verification error
+        if: always()
+        env:
+          INSTALL: ${{ steps.install.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          CHROMIUM: ${{ steps.chromium.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          test "$INSTALL" = success
+          test "$LINT" = success
+          test "$TYPECHECK" = success
+          test "$BUILD" = success
+          test "$CHROMIUM" = success
+          test "$E2E" = success
