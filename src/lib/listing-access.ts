@@ -26,6 +26,8 @@ export const emptyListingAccessProfile: ListingAccessProfile = {
   smoking: 'Cualquiera',
 }
 
+let inMemoryProfile: ListingAccessProfile = { ...emptyListingAccessProfile }
+
 export function hasListingAccessSelection(profile: ListingAccessProfile) {
   return Boolean(
     profile.occupant ||
@@ -37,7 +39,7 @@ export function hasListingAccessSelection(profile: ListingAccessProfile) {
 export function readListingAccessProfile(): ListingAccessProfile {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...emptyListingAccessProfile }
+    if (!raw) return { ...inMemoryProfile }
     const parsed = JSON.parse(raw) as Partial<ListingAccessProfile>
     const occupant = occupantValues.has(parsed.occupant as HomeOccupantChoice)
       ? parsed.occupant as HomeOccupantChoice
@@ -48,13 +50,15 @@ export function readListingAccessProfile(): ListingAccessProfile {
     const smoking = yesNoAnyValues.has(parsed.smoking as YesNoAny)
       ? parsed.smoking as YesNoAny
       : 'Cualquiera'
-    return { occupant, pets, smoking }
+    inMemoryProfile = { occupant, pets, smoking }
+    return { ...inMemoryProfile }
   } catch {
-    return { ...emptyListingAccessProfile }
+    return { ...inMemoryProfile }
   }
 }
 
 export function persistListingAccessProfile(profile: ListingAccessProfile) {
+  inMemoryProfile = { ...profile }
   try {
     if (!hasListingAccessSelection(profile)) {
       localStorage.removeItem(STORAGE_KEY)
@@ -62,7 +66,7 @@ export function persistListingAccessProfile(profile: ListingAccessProfile) {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile))
   } catch {
-    // Search remains usable for the current render even when storage is unavailable.
+    // The in-memory copy keeps navigation working when browser storage is unavailable.
   }
 }
 
