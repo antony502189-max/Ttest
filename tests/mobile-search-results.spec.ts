@@ -23,7 +23,7 @@ test('list toolbar opens existing Tenerife listings without a save button', asyn
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
   await expect(results.getByText(/habitaciones en Tenerife/)).toBeVisible()
-  await expect(results.getByText('Habitación luminosa con escritorio y gastos incluidos')).toBeVisible()
+  await expect(results.getByText('Habitación luminosa con escritorio y gastos incluidos').first()).toBeVisible()
   await expect(results.locator('.m2-result-card')).toHaveCount(32)
   await expect(results.locator('.m2-result-card img').first()).toBeVisible()
   await expect(results.getByRole('button', { name: 'Guardar' })).toHaveCount(0)
@@ -33,6 +33,7 @@ test('list toolbar opens existing Tenerife listings without a save button', asyn
   await expect(results.locator('.m2-result-card')).toHaveCount(9)
 
   await results.getByRole('button', { name: 'Orden' }).click()
+  await expect(results.getByText('Precio más низкий')).toHaveCount(0)
   await expect(results.getByText('Precio más bajo')).toBeVisible()
 
   await results.getByRole('button', { name: 'Mapa' }).click()
