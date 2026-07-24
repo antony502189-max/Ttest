@@ -44,6 +44,7 @@ test('Vivienda and Turismo are the only rental-mode controls and filter real lis
   await expect(turismo).toHaveAttribute('aria-pressed', 'false')
   await expect(results.getByRole('button', { name: 'Comprar' })).toHaveCount(0)
   await expect(results.getByRole('button', { name: 'Alquilar' })).toHaveCount(0)
+  await expect(results.getByText('Tipo de inmueble')).toHaveCount(0)
   await expect(results.getByText('Tipo de alquiler')).toHaveCount(0)
   await expect(results.getByLabel('Larga estancia')).toHaveCount(0)
 
