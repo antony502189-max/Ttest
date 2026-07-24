@@ -104,9 +104,50 @@ html.idealista-mobile-active #main-content > :not(.idealista-mobile-app) {
 .im-hero-photo { height: 9.8rem; background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.25)), url('https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=85') center 52% / cover; }
 .im-search-card { display: grid; gap: .55rem; padding: .7rem .65rem 1.2rem; }
 .im-mode-switch { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid #4b4b4b; }
-.im-mode-switch button { min-width: 0; min-height: 2.65rem; padding: 0 .35rem; border: 0; border-right: 1px solid #4b4b4b; background: transparent; color: #d8d8d8; font-size: .75rem; white-space: nowrap; }
+.im-mode-switch button {
+  min-width: 0;
+  min-height: 3.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  padding: 0 .35rem;
+  border: 0;
+  border-right: 1px solid #4b4b4b;
+  background: transparent;
+  color: #d8d8d8;
+  font-size: 0;
+  white-space: nowrap;
+}
 .im-mode-switch button:last-child { border-right: 0; }
+.im-mode-switch button::before {
+  content: '';
+  flex: 0 0 1.9rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 1.15rem 1.15rem;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .08), 0 2px 8px rgb(0 0 0 / .22);
+}
+.im-mode-switch button::after {
+  font-size: .78rem;
+  font-weight: 650;
+  line-height: 1;
+}
+.im-mode-switch button:first-child::before {
+  background-color: var(--im-lime);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23171717' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E");
+}
+.im-mode-switch button:first-child::after { content: 'Vivienda'; }
+.im-mode-switch button:last-child::before {
+  background-color: #c83d91;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='7' width='16' height='13' rx='2'/%3E%3Cpath d='M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M12 7v13'/%3E%3C/svg%3E");
+}
+.im-mode-switch button:last-child::after { content: 'Turismo'; }
 .im-mode-switch button.is-active { background: var(--im-lime-dark); color: #fff; box-shadow: inset 0 -2px 0 var(--im-lime); }
+.im-mode-switch button:focus-visible { outline: 2px solid var(--im-lime); outline-offset: -2px; }
 .im-select-row { width: 100%; min-width: 0; min-height: 2.8rem; display: flex; align-items: center; justify-content: space-between; padding: 0 .7rem; border: 1px solid #474747; background: #1c1c1c; color: #ddd; font-size: .74rem; }
 .im-select-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .im-select-row svg { flex: 0 0 auto; width: 1rem; color: var(--im-lime); }
