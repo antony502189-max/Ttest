@@ -1,0 +1,7 @@
+.m2-map-results-header .m2-save {
+  display: none !important;
+}
+
+.m2-map-results-header {
+  grid-template-columns: 3rem minmax(0, 1fr) !important;
+}
