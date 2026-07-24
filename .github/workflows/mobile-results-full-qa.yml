@@ -1,8 +1,12 @@
 name: Complete mobile results QA
 
 on:
-  issues:
-    types: [opened]
+  push:
+    branches: [main]
+    paths:
+      - 'qa/mobile-results-full-qa-trigger.txt'
+      - '.github/workflows/mobile-results-full-qa.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,7 +14,6 @@ permissions:
 
 jobs:
   verify:
-    if: github.event.issue.title == '[qa] Complete mobile listings experience'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -52,7 +55,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: 27
           INSTALL: ${{ steps.install.outcome }}
           LINT: ${{ steps.lint.outcome }}
           TYPECHECK: ${{ steps.typecheck.outcome }}
