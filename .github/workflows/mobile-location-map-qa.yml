@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: mobile-location-map-qa
@@ -37,24 +37,88 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
+        continue-on-error: true
         run: npm ci
 
       - name: Typecheck
+        id: typecheck
+        if: always()
+        continue-on-error: true
         run: npm run typecheck
 
       - name: Production build
+        id: build
+        if: always()
+        continue-on-error: true
         run: npm exec vite build
 
       - name: Install Chromium
+        id: chromium
+        if: always()
+        continue-on-error: true
         run: npx playwright install --with-deps chromium
 
       - name: Run mobile flow tests
+        id: e2e
+        if: always()
+        continue-on-error: true
         run: npx playwright test tests/mobile-location-map.spec.ts
 
       - name: Upload Playwright report on failure
-        if: failure()
+        if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
           name: mobile-location-map-playwright-report
           path: output/playwright/
           if-no-files-found: ignore
+
+      - name: Publish QA status
+        if: always()
+        env:
+          INSTALL_STATUS: ${{ steps.install.outcome }}
+          TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
+          CHROMIUM_STATUS: ${{ steps.chromium.outcome }}
+          E2E_STATUS: ${{ steps.e2e.outcome }}
+          TESTED_SHA: ${{ github.sha }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin qa-results || true
+          if git show-ref --verify --quiet refs/remotes/origin/qa-results; then
+            git switch -C qa-results origin/qa-results
+          else
+            git switch --orphan qa-results
+            git rm -rf .
+          fi
+          mkdir -p qa
+          cat > qa/mobile-location-map.json <<EOF
+          {
+            "sha": "$TESTED_SHA",
+            "install": "$INSTALL_STATUS",
+            "typecheck": "$TYPECHECK_STATUS",
+            "build": "$BUILD_STATUS",
+            "chromium": "$CHROMIUM_STATUS",
+            "e2e": "$E2E_STATUS",
+            "run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+          git add qa/mobile-location-map.json
+          git commit -m "Record mobile location map QA for $TESTED_SHA" || true
+          git push origin qa-results --force
+
+      - name: Fail when verification failed
+        if: always()
+        env:
+          INSTALL_STATUS: ${{ steps.install.outcome }}
+          TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
+          CHROMIUM_STATUS: ${{ steps.chromium.outcome }}
+          E2E_STATUS: ${{ steps.e2e.outcome }}
+        run: |
+          test "$INSTALL_STATUS" = success
+          test "$TYPECHECK_STATUS" = success
+          test "$BUILD_STATUS" = success
+          test "$CHROMIUM_STATUS" = success
+          test "$E2E_STATUS" = success
