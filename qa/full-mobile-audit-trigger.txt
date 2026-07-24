@@ -1,1 +1,2 @@
 Temporary pull-request trigger for the complete mobile QA suite.
+Synchronize after workflow hardening.
