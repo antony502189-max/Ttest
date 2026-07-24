@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   Bell,
   Building2,
@@ -34,7 +34,7 @@ function IdealistaWordmark({ compact = false }: { compact?: boolean }) {
   return <div className={cn('im-wordmark', compact && 'im-wordmark--compact')} aria-label="idealista">idealista</div>
 }
 
-function PrimaryButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+function PrimaryButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   return <button type="button" className="im-primary-button" onClick={onClick}>{children}</button>
 }
 
@@ -52,7 +52,7 @@ function AuthPanel({ onContinue, title = 'Войти в аккаунт или з
 }
 
 function Onboarding({ step, setStep }: { step: OnboardingStep; setStep: (step: OnboardingStep) => void }) {
-  if (step === 'auth') return <section className="im-onboarding im-onboarding--auth"><button className="im-back" type="button" onClick={() => setStep('privacy')}>‹</button><span className="im-skip" onClick={() => setStep('done')}>Сейчас нет</span><AuthPanel onContinue={() => setStep('done')} /></section>
+  if (step === 'auth') return <section className="im-onboarding im-onboarding--auth"><button className="im-back" type="button" onClick={() => setStep('privacy')}>‹</button><button className="im-skip" type="button" onClick={() => setStep('done')}>Сейчас нет</button><AuthPanel onContinue={() => setStep('done')} /></section>
 
   return <section className="im-onboarding">
     <IdealistaWordmark />
@@ -147,7 +147,7 @@ export function IdealistaMobileApp() {
     setStepState(next)
     if (next === 'done') { try { localStorage.setItem(ONBOARDING_KEY, 'done') } catch { /* no-op */ } }
   }
-  useEffect(() => { document.documentElement.classList.toggle('idealista-mobile-active', true); return () => document.documentElement.classList.remove('idealista-mobile-active') }, [])
+  useEffect(() => { document.documentElement.classList.add('idealista-mobile-active'); return () => document.documentElement.classList.remove('idealista-mobile-active') }, [])
 
   if (step !== 'done') return <div className="idealista-mobile-app"><Onboarding step={step} setStep={setStep} /></div>
 
