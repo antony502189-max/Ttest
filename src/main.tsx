@@ -5,6 +5,7 @@ import './rental-emphasis.css'
 import App from './App.tsx'
 import './mobile-app-v2-hardening.css'
 import './mobile-search-results-overrides.css'
+import './mobile-search-results-panels.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
