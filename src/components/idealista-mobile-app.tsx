@@ -20,10 +20,11 @@ import '@/idealista-mobile-app.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type MobileTab = 'home' | 'searches' | 'favorites' | 'messages' | 'menu'
+type AppLanguage = 'English' | 'Español' | 'Русский'
 
 const ONBOARDING_KEY = '112233:idealista-mobile-onboarding:v1'
 
-const languages = ['Español', 'Português', 'English', 'Català', 'Dansk', 'Deutsch', 'Suomi', 'Svenska', 'Ελληνικά', 'Українська', '中文', 'Русский']
+const languages: AppLanguage[] = ['English', 'Español', 'Русский']
 const countries = [
   { name: 'Испания и Андорра', shape: 'ES' },
   { name: 'Италия', shape: 'IT' },
@@ -31,7 +32,7 @@ const countries = [
 ]
 
 function IdealistaWordmark({ compact = false }: { compact?: boolean }) {
-  return <div className={cn('im-wordmark', compact && 'im-wordmark--compact')} aria-label="idealista">idealista</div>
+  return <div className={cn('im-wordmark', compact && 'im-wordmark--compact')} aria-label="WWW 11-22-33.ms">WWW 11-22-33.ms</div>
 }
 
 function PrimaryButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
@@ -52,6 +53,8 @@ function AuthPanel({ onContinue, title = 'Войти в аккаунт или з
 }
 
 function Onboarding({ step, setStep }: { step: OnboardingStep; setStep: (step: OnboardingStep) => void }) {
+  const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>('English')
+
   if (step === 'auth') return <section className="im-onboarding im-onboarding--auth"><button className="im-back" type="button" onClick={() => setStep('privacy')}>‹</button><button className="im-skip" type="button" onClick={() => setStep('done')}>Сейчас нет</button><AuthPanel onContinue={() => setStep('done')} /></section>
 
   return <section className="im-onboarding">
@@ -59,7 +62,7 @@ function Onboarding({ step, setStep }: { step: OnboardingStep; setStep: (step: O
     {step === 'language' ? <>
       <div className="im-onboarding-content">
         <h1>Выберите язык приложения</h1>
-        <div className="im-option-list im-option-list--scroll">{languages.map((language) => <button key={language} type="button" className={cn('im-option-row', language === 'Русский' && 'is-selected')} onClick={() => language === 'Русский' && setStep('country')}><span>{language}</span>{language === 'Русский' ? <span className="im-check">✓</span> : null}</button>)}</div>
+        <div className="im-option-list im-option-list--scroll">{languages.map((language) => <button key={language} type="button" className={cn('im-option-row', language === selectedLanguage && 'is-selected')} onClick={() => setSelectedLanguage(language)}><span>{language}</span>{language === selectedLanguage ? <span className="im-check">✓</span> : null}</button>)}</div>
       </div>
       <PrimaryButton onClick={() => setStep('country')}>Продолжить</PrimaryButton>
     </> : null}
