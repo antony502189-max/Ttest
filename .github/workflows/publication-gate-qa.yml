@@ -1,0 +1,53 @@
+name: Publication gate QA
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    if: github.event.issue.title == '[qa] Publication gate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm exec vite build
+      - run: npx playwright install --with-deps chromium
+      - id: e2e
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npx playwright test tests/mobile-publication-gate.spec.ts 2>&1 | tee /tmp/publication-gate.log
+      - if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        run: |
+          {
+            echo "## Publication gate QA"
+            echo
+            echo "- commit: \`$(git rev-parse HEAD)\`"
+            echo "- Playwright: **$E2E_OUTCOME**"
+            echo
+            echo '```text'
+            tail -n 120 /tmp/publication-gate.log
+            echo '```'
+          } > /tmp/report.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md
+      - if: always()
+        env:
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        run: test "$E2E_OUTCOME" = success
