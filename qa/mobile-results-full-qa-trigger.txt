@@ -1,3 +1,4 @@
 Temporary marker for the complete mobile listings QA run.
 Pull request synchronization trigger.
 Focused acceptance run.
+Listings-only acceptance run.
