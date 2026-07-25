@@ -27,7 +27,7 @@ test('LOCK-OVERLAY derives at most two truthful image restrictions and omits emp
   expect(getImageCriticalRestrictions(initialListings[0]).length).toBeLessThanOrEqual(2)
   expect(getImageCriticalRestrictions(unrestricted)).toEqual([])
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 1024, height: 844 })
   await page.goto('/#/buscar?q=Tenerife')
   const firstCard = page.locator('.property-card').first()
   const cardOverlay = firstCard.locator('.critical-restriction-overlay')
@@ -55,7 +55,7 @@ test('LOCK-OVERLAY derives at most two truthful image restrictions and omits emp
 })
 
 test('LOCK-CARD exposes image, price, title and body navigation without nesting controls', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 1024, height: 844 })
   await page.goto('/#/buscar?q=Tenerife')
   const card = page.locator('.property-card').first()
   const mediaLink = card.locator('.property-card__media > a')

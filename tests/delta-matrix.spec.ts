@@ -48,8 +48,7 @@ async function mediaExists(page: Page, reference: string) {
 test.beforeEach(async ({ page }) => clearLocalState(page))
 
 test('USR-03..05 history, discarded listings and guest data stay in separate scopes', async ({ page }) => {
-  await page.getByPlaceholder('Municipio, barrio o zona de Tenerife').fill('Arona')
-  await page.getByRole('button', { name: 'Encontrar habitación' }).click()
+  await page.goto('/#/buscar?q=Arona&alquiler=long')
   await expect(page).toHaveURL(/q=Arona/)
   const guestCard = page.locator('.results-list .property-card').first()
   await expect(guestCard).toContainText('Arona')
@@ -268,19 +267,20 @@ test('FILTER-02..06 new filters have chips, reset, reload and history navigation
 test('MAP-04 visible-area state activates after movement and resets after search', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
-  const searchArea = page.getByRole('button', { name: 'Buscar en esta zona' })
-  await expect(searchArea).toHaveCount(0)
+  const searchArea = page.locator('.map-toolbar__search')
+  await expect(searchArea).toBeHidden()
   await page.locator('.google-map-canvas').hover()
   await page.mouse.wheel(0, -600)
   await expect(searchArea).toHaveAttribute('data-dirty', 'true')
   await searchArea.click()
-  await expect(searchArea).toHaveCount(0)
+  await expect(searchArea).toBeHidden()
 })
 
 test('MAP-05 Google Maps loader errors expose the accessible map fallback', async ({ page }) => {
-  await page.route('https://maps.googleapis.com/maps/api/js**', (route) => route.abort())
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await expect(page.getByRole('alert').filter({ hasText: 'Google Maps no pudo cargarse' })).toBeVisible()
+  await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
+  await page.evaluate(() => window.dispatchEvent(new Event('112233:google-maps-auth-failure')))
+  await expect(page.getByRole('alert').filter({ hasText: 'La clave de Google Maps no autoriza este dominio' })).toBeVisible()
   await expect(page.getByLabel('Alternativa textual al mapa')).toBeVisible()
 })
 
@@ -295,9 +295,9 @@ test('WIZ-04 reset clears dirty state and short-height filter drawer remains usa
 
   await page.setViewportSize({ width: 390, height: 560 })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  await page.locator('.mobile-filter-control button').click()
-  const drawer = page.locator('.filter-drawer')
+  await page.locator('.m2-results__toolbar button').first().click()
+  const drawer = page.locator('.m2-results-filter')
   const box = await drawer.boundingBox()
   expect(box && box.y >= 0 && box.y + box.height <= 561).toBeTruthy()
-  await expect(drawer.locator('.filter-footer')).toBeVisible()
+  await expect(drawer.locator('footer')).toBeVisible()
 })

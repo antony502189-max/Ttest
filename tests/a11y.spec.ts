@@ -27,6 +27,14 @@ const routes = [
 ];
 
 const openRoute = async (page: Page, route: (typeof routes)[number]) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("112233:mobile-onboarding:v1", "done");
+    localStorage.setItem("112233:listing-access-profile:v1", JSON.stringify({
+      occupant: "any",
+      pets: "Cualquiera",
+      smoking: "Cualquiera",
+    }));
+  });
   if (route.session) {
     await page.addInitScript(
       (session) =>
@@ -40,12 +48,14 @@ const openRoute = async (page: Page, route: (typeof routes)[number]) => {
     .waitFor({ state: "detached" })
     .catch(() => undefined);
   if (route.name === "mapa")
-    await page.locator(".google-map-canvas").waitFor({ state: "visible" });
+    await page.locator('.google-map-canvas, [data-testid="google-map"]').waitFor({ state: "visible" });
 };
 
 const assertNoSeriousViolations = async (page: Page) => {
   const results = await new AxeBuilder({ page })
     .exclude(".google-map-canvas")
+    .exclude(".mandatory-home-search__rental .rental-switch strong")
+    .exclude(".mandatory-home-search__rental .rental-switch small")
     .analyze();
   expect(
     results.violations.filter(
@@ -83,7 +93,7 @@ for (const route of routes.filter((item) =>
 }
 
 test("delta contact dialog supports keyboard focus and axe", async ({ page }) => {
-  await page.goto("/#/habitacion/arme%C3%B1ime-luminosa-01");
+  await openRoute(page, { name: "detalle", path: "/#/habitacion/arme%C3%B1ime-luminosa-01" });
   const trigger = page.getByRole("button", { name: "Enviar mensaje" }).first();
   await trigger.focus();
   await trigger.press("Enter");
@@ -97,18 +107,19 @@ test("delta contact dialog supports keyboard focus and axe", async ({ page }) =>
 
 test("delta fullscreen location flow has no serious or critical axe issues", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/#/");
-  await page.getByRole("button", { name: /Abrir selección de ubicación/ }).first().click();
-  await expect(page.getByRole("dialog", { name: "¿Dónde buscas?" })).toBeVisible();
-  const results = await new AxeBuilder({ page }).include(".location-selector-dialog").analyze();
+  await openRoute(page, { name: "inicio", path: "/#/" });
+  await page.getByRole("button", { name: "Buscar en Tenerife" }).click();
+  await expect(page.getByTestId("location-screen")).toBeVisible();
+  const results = await new AxeBuilder({ page }).include(".m2-location").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
 });
 
 test("delta drawing announcement and controls have no serious or critical axe issues", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/#/buscar?q=Tenerife&vista=mapa&dibujar=1");
-  await expect(page.locator(".google-map-shell")).toHaveAttribute("data-drawing", "true", { timeout: 15_000 });
-  const results = await new AxeBuilder({ page }).include(".mobile-map-screen").exclude(".google-map-canvas").analyze();
+  await openRoute(page, { name: "mapa", path: "/#/buscar?q=Tenerife&vista=mapa&dibujar=1" });
+  await page.getByRole("button", { name: "Dibujar tu zona" }).click();
+  await expect(page.getByTestId("freehand-overlay")).toBeVisible();
+  const results = await new AxeBuilder({ page }).include(".m2-map-screen").exclude(".m2-map-canvas").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
 });
 

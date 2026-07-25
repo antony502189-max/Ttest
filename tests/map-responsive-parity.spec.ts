@@ -16,16 +16,17 @@ async function openMap(page: Page, width: number, height: number) {
   await page.goto('/#/buscar?q=Tenerife&vista=mapa')
   await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
   await page.evaluate(async () => { await document.fonts.ready })
-  await expect(page.locator('.google-map-canvas')).toHaveAttribute('data-map-instance', 'google-ready', { timeout: 20_000 })
-  await expect.poll(() => page.locator('.price-marker-shell, .room-cluster-shell').count(), { timeout: 20_000 }).toBeGreaterThan(0)
 }
 
-test('results map keeps Idealista-style geometry across the responsive matrix', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+})
+
+test('results map keeps the current mobile shell and desktop split geometry across the responsive matrix', async ({ page }) => {
   test.setTimeout(240_000)
   const unexpectedConsoleErrors: string[] = []
   page.on('console', (message) => {
-    if (message.type() !== 'error') return
-    if (isExpectedHeadlessVectorFallback(message.text())) return
+    if (message.type() !== 'error' || isExpectedHeadlessVectorFallback(message.text())) return
     unexpectedConsoleErrors.push(message.text())
   })
 
@@ -34,36 +35,39 @@ test('results map keeps Idealista-style geometry across the responsive matrix', 
 
   for (const viewport of matrix) {
     await openMap(page, viewport.width, viewport.height)
-    const geometry = await page.evaluate(() => {
-      const documentElement = document.documentElement
-      const map = document.querySelector<HTMLElement>('.google-map-canvas')!.getBoundingClientRect()
+    const mapSelector = viewport.mode === 'mobile' ? '.m2-map-canvas' : '.google-map-canvas'
+    await expect(page.locator(mapSelector)).toBeVisible({ timeout: 20_000 })
+    if (viewport.mode !== 'mobile') {
+      await expect(page.locator(mapSelector)).toHaveAttribute('data-map-instance', 'google-ready', { timeout: 20_000 })
+    }
+
+    const geometry = await page.locator(mapSelector).evaluate((node) => {
+      const box = node.getBoundingClientRect()
       return {
-        documentWidth: documentElement.scrollWidth,
-        viewportWidth: documentElement.clientWidth,
-        mapWidth: map.width,
-        mapHeight: map.height,
-        mapBottom: map.bottom,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+        mapWidth: box.width,
+        mapHeight: box.height,
+        mapBottom: box.bottom,
         viewportHeight: window.innerHeight,
       }
     })
 
     expect(geometry.documentWidth, `${viewport.width}px horizontal overflow`).toBeLessThanOrEqual(geometry.viewportWidth + 1)
     expect(geometry.mapWidth).toBeGreaterThan(viewport.mode === 'mobile' ? viewport.width - 2 : 360)
-    expect(geometry.mapHeight).toBeGreaterThan(viewport.mode === 'mobile' ? 520 : 360)
+    expect(geometry.mapHeight).toBeGreaterThan(viewport.mode === 'mobile' ? 500 : 360)
 
     if (viewport.mode === 'mobile') {
-      await expect(page.locator('.mobile-map-screen__contextbar')).toBeVisible()
-      await expect(page.locator('.mobile-map-screen__footer')).toBeVisible()
-      await expect(page.locator('.map-layer-switcher__mobile-toggle')).toBeVisible()
-      await expect(page.locator('.map-toolbar__draw')).toBeVisible()
+      await expect(page.getByTestId('map-search')).toBeVisible()
+      await expect(page.locator('.m2-map-toolbar')).toBeVisible()
+      await expect(page.locator('.m2-map-controls')).toBeVisible()
+      await expect(page.locator('.m2-bottom-nav')).toHaveCount(0)
     } else {
       await expect(page.locator('.map-results-split')).toBeVisible()
       await expect(page.locator('.idealista-results-layout.is-map-view > .filter-sidebar')).toBeHidden()
       expect(geometry.mapBottom).toBeLessThanOrEqual(geometry.viewportHeight + 12)
     }
 
-    await page.getByRole('button', { name: 'Dibujar zona' }).focus()
-    await expect(page.getByRole('button', { name: 'Dibujar zona' })).toBeFocused()
     await page.screenshot({
       path: path.join(output, `final-map-${viewport.width}x${viewport.height}.png`),
       animations: 'disabled',

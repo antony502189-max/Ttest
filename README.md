@@ -1,5 +1,7 @@
 # 112233.es
 
+Документы итогового APK-аудита находятся в [`docs/apk-audit`](docs/apk-audit/final-report.md).
+
 [Abrir la versión pública](https://antony502189-max.github.io/Ttest/)
 
 Frontend completo de un marketplace de alquiler de habitaciones en Tenerife. Los anuncios usan datos mock; los mapas se renderizan con Google Maps JavaScript API.

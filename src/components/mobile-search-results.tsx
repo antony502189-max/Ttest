@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowDownUp,
   ChevronLeft,
@@ -16,11 +17,12 @@ import {
 } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
+import { useI18n, type Language } from '@/contexts/i18n-context'
 import type { Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
 import '@/mobile-search-results.css'
 
-type ResultsLanguage = 'es' | 'en' | 'ru'
+type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
 type ResultsOrder = 'relevance' | 'cheap' | 'expensive' | 'saved-new' | 'saved-old' | 'reduced' | 'sqm-cheap' | 'sqm-expensive' | 'area-large' | 'area-small' | 'floor-high' | 'floor-low'
 type ResultsFilters = {
@@ -73,11 +75,6 @@ type ResultsCopy = typeof resultsCopy.es
 
 const fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560"%3E%3Crect width="800" height="560" fill="%23282828"/%3E%3Cpath d="M260 360l90-95 62 65 48-44 92 96H260z" fill="%235d655f"/%3E%3Ccircle cx="505" cy="190" r="34" fill="%23727b74"/%3E%3C/svg%3E'
 
-function currentLanguage(): ResultsLanguage {
-  const stored = localStorage.getItem('112233:mobile-language:v2')
-  return stored === 'en' || stored === 'ru' ? stored : 'es'
-}
-
 function selectedHomeRentalMode(): RentalMode | null {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-mode-switch > button'))
   if (buttons[0]?.getAttribute('aria-pressed') === 'true') return 'long'
@@ -124,36 +121,15 @@ function orderLabel(copy: ResultsCopy, order: ResultsOrder) {
   return labels[order]
 }
 
-function waitForElement(selector: string, timeout = 2500): Promise<HTMLElement | null> {
-  const current = document.querySelector<HTMLElement>(selector)
-  if (current) return Promise.resolve(current)
-  return new Promise((resolve) => {
-    const observer = new MutationObserver(() => {
-      const element = document.querySelector<HTMLElement>(selector)
-      if (!element) return
-      observer.disconnect(); window.clearTimeout(timer); resolve(element)
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
-    const timer = window.setTimeout(() => { observer.disconnect(); resolve(null) }, timeout)
-  })
-}
-
-function openExistingAuthentication() {
-  const openLogin = () => document.querySelector<HTMLButtonElement>('.m2-menu > .m2-primary')?.click()
-  if (document.querySelector('.m2-menu')) return requestAnimationFrame(openLogin)
-  document.querySelector<HTMLButtonElement>('.m2-bottom-nav button:last-child')?.click()
-  requestAnimationFrame(() => requestAnimationFrame(openLogin))
-}
-
-function MobileResultCard({ listing, index, language, favorite, onFavorite, onDiscard, onContact }: {
-  listing: Listing; index: number; language: ResultsLanguage; favorite: boolean; onFavorite: () => void; onDiscard: () => void; onContact: () => void
+function MobileResultCard({ listing, index, language, favorite, onFavorite, onDiscard, onContact, onOpen }: {
+  listing: Listing; index: number; language: ResultsLanguage; favorite: boolean; onFavorite: () => void; onDiscard: () => void; onContact: () => void; onOpen: () => void
 }) {
   const t = resultsCopy[language] as ResultsCopy
   const [imageIndex, setImageIndex] = useState(0)
   const images = listing.images.length ? listing.images : [fallbackImage]
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
   return <article className="m2-result-card" data-listing-id={listing.id}>
-    <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={nextImage} aria-label={`${t.photo}: ${listing.title}`}><MediaImage src={images[imageIndex]} onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button>{index < 2 ? <span className="m2-result-card__top">{t.top}</span> : null}<span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
+    <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button>{index < 2 ? <span className="m2-result-card__top">{t.top}</span> : null}<span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
     <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {listing.roomSizeM2} m² · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
@@ -162,32 +138,26 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
 
 export function MobileSearchResults() {
   const { allListings, discarded, discardListing, favorites, toggleFavorite, currentUser, setRentalMode } = useApp()
+  const { language } = useI18n()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [panel, setPanel] = useState<ResultsPanel>('results')
-  const [language, setLanguage] = useState<ResultsLanguage>('es')
   const [order, setOrder] = useState<ResultsOrder>('relevance')
   const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters())
   const [focusListingId, setFocusListingId] = useState('')
 
   useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      if (!window.matchMedia('(max-width: 767px)').matches) return
-      const target = event.target instanceof Element ? event.target.closest<HTMLElement>('button, a') : null
-      if (!target) return
-      const mainSearch = target.matches('[data-testid="open-location"]')
-      const mapList = Boolean(target.closest('.m2-map-toolbar')) && /listado|list|перечень/i.test(target.textContent ?? '')
-      if (!mainSearch && !mapList) return
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation()
-      if (mainSearch) {
-        const selectedMode = selectedHomeRentalMode()
-        setFilters((current) => ({ ...current, rentalMode: selectedMode }))
-        if (selectedMode) setRentalMode(selectedMode)
-      }
-      setFocusListingId(''); setLanguage(currentLanguage()); setPanel('results'); setOpen(true)
-    }
-    document.addEventListener('click', handleClick, true)
-    return () => document.removeEventListener('click', handleClick, true)
-  }, [setRentalMode])
+    const params = new URLSearchParams(location.search)
+    const shouldOpen = location.pathname === '/buscar' && params.get('vista') !== 'mapa'
+    setOpen(shouldOpen)
+    if (!shouldOpen) return
+    const routeMode = params.get('alquiler') === 'holiday' ? 'holiday' : params.get('alquiler') === 'long' ? 'long' : selectedHomeRentalMode()
+    setFilters((current) => ({ ...current, rentalMode: routeMode }))
+    if (routeMode) setRentalMode(routeMode)
+    setFocusListingId(params.get('anuncio') ?? '')
+    setPanel(params.get('panel') === 'filtros' ? 'filters' : params.get('panel') === 'orden' ? 'sort' : 'results')
+  }, [location.pathname, location.search, setRentalMode])
 
   useEffect(() => {
     const openListing = (event: Event) => {
@@ -196,14 +166,11 @@ export function MobileSearchResults() {
       if (!listing) return
       setRentalMode(listing.rentalMode)
       setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
-      setFocusListingId(listingId)
-      setLanguage(currentLanguage())
-      setPanel('results')
-      setOpen(true)
+      navigate(`/buscar?q=Tenerife&alquiler=${listing.rentalMode}&anuncio=${encodeURIComponent(listingId)}`)
     }
     window.addEventListener('112233:open-mobile-listing', openListing)
     return () => window.removeEventListener('112233:open-mobile-listing', openListing)
-  }, [allListings, setRentalMode])
+  }, [allListings, navigate, setRentalMode])
 
   useEffect(() => {
     if (!open || panel !== 'results' || !focusListingId) return
@@ -218,11 +185,11 @@ export function MobileSearchResults() {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       if (panel !== 'results') setPanel('results')
-      else setOpen(false)
+      else navigate('/')
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
-  }, [open, panel])
+  }, [navigate, open, panel])
 
   const availableListings = useMemo(() => allListings.filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded])
   const filteredListings = useMemo(() => {
@@ -260,25 +227,25 @@ export function MobileSearchResults() {
   const t = resultsCopy[language] as ResultsCopy
   const contact = () => {
     if (currentUser) return
-    setOpen(false); requestAnimationFrame(() => requestAnimationFrame(openExistingAuthentication))
+    navigate('/acceso')
   }
-  const openMap = async () => {
-    setOpen(false)
-    if (document.querySelector('.m2-map-screen')) return
-    document.querySelector<HTMLButtonElement>('.m2-select-row')?.click()
-    ;(await waitForElement('[data-testid="search-map"]'))?.click()
-  }
+  const openMap = () => navigate(`/buscar?${new URLSearchParams({ q: 'Tenerife', alquiler: filters.rentalMode ?? 'long', vista: 'mapa' }).toString()}`)
   const chooseRentalMode = (mode: RentalMode) => {
     setFilters((current) => ({ ...current, rentalMode: mode }))
-    setRentalMode(mode)
-    syncHomeRentalMode(mode)
+  }
+  const applyFilters = () => {
+    syncHomeRentalMode(filters.rentalMode ?? 'long')
+    const params = new URLSearchParams(location.search)
+    params.set('alquiler', filters.rentalMode ?? 'long')
+    navigate(`/buscar?${params.toString()}`, { replace: true })
+    setPanel('results')
   }
   const clearFilters = () => setFilters((current) => createDefaultFilters(current.rentalMode))
 
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => setOpen(false)} aria-label={t.back}><ChevronLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
+    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => navigate('/')} aria-label={t.back}><ChevronLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => setPanel('filters')}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
-      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}
+      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} onOpen={() => navigate(`/habitacion/${listing.id}`)} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}
 
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{orderKeys.map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => { setOrder(value); setPanel('results') }}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
@@ -288,6 +255,6 @@ export function MobileSearchResults() {
       <fieldset><legend>{t.area}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.area} ${t.min}`} type="number" min="0" value={filters.minArea} onChange={(event) => setFilters((current) => ({ ...current, minArea: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.area} ${t.max}`} type="number" min="0" value={filters.maxArea} onChange={(event) => setFilters((current) => ({ ...current, maxArea: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
       <fieldset><legend>{t.rooms}</legend><div className="m2-results-filter__checks">{[[1, t.oneRoom], [2, t.twoRooms]].map(([value, label]) => <label key={String(value)}><input type="checkbox" checked={filters.roomCounts.includes(value as number)} onChange={() => setFilters((current) => ({ ...current, roomCounts: toggleValue(current.roomCounts, value as number) }))} /><span>{label}</span></label>)}</div></fieldset>
       <fieldset><legend>{t.housingType}</legend><div className="m2-results-filter__checks">{([['Habitación individual', t.individual], ['Habitación compartida', t.shared], ['Estudio', t.studio]] as const).map(([value, label]) => <label key={value}><input type="checkbox" checked={filters.roomTypes.includes(value)} onChange={() => setFilters((current) => ({ ...current, roomTypes: toggleValue(current.roomTypes, value) }))} /><span>{label}</span></label>)}</div></fieldset>
-    </div><footer><button type="button" onClick={() => setPanel('results')}>{t.showListings} · {listings.length}</button></footer></section> : null}
+    </div><footer><button type="button" onClick={applyFilters}>{t.showListings} · {listings.length}</button></footer></section> : null}
   </section>, document.body)
 }

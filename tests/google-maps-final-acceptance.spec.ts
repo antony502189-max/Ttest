@@ -18,7 +18,7 @@ const firstVisible = async (page: Page, selector: string) => {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 1024, height: 768 })
   await page.goto('/#/')
   await page.evaluate(() => localStorage.clear())
 })
@@ -32,10 +32,9 @@ test('selected Advanced Marker has priority, opens the sheet, and programmatic s
   await expect(page.locator('.selected-listing-sheet')).toBeVisible()
   await expect(page.getByRole('button', { name: /buscar en esta zona/i })).toHaveCount(0)
   const sheet = await page.locator('.selected-listing-sheet').boundingBox()
-  const switcher = await page.locator('.mobile-map-screen__footer').boundingBox()
   expect(sheet).not.toBeNull()
-  expect(switcher).not.toBeNull()
-  expect(sheet!.y + sheet!.height).toBeLessThanOrEqual(switcher!.y)
+  expect(sheet!.y).toBeGreaterThanOrEqual(0)
+  expect(sheet!.y + sheet!.height).toBeLessThanOrEqual(768)
 })
 
 test('manual pan exposes Search this area while a result refit does not', async ({ page }) => {
@@ -44,12 +43,8 @@ test('manual pan exposes Search this area while a result refit does not', async 
   const searchArea = page.getByRole('button', { name: /buscar en esta zona/i })
   await expect(searchArea).toHaveCount(0)
   const canvas = page.locator('.google-map-canvas')
-  const box = await canvas.boundingBox()
-  expect(box).not.toBeNull()
-  await page.mouse.move(box!.x + box!.width * .65, box!.y + box!.height * .5)
-  await page.mouse.down()
-  await page.mouse.move(box!.x + box!.width * .35, box!.y + box!.height * .5, { steps: 8 })
-  await page.mouse.up()
+  await canvas.hover()
+  await page.mouse.wheel(0, -600)
   await expect(searchArea).toBeVisible({ timeout: 10_000 })
   await searchArea.click()
   await expect(searchArea).toHaveCount(0)

@@ -10,7 +10,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Bath,
@@ -188,6 +188,8 @@ export function SearchLocationInput({
   const id = useId();
   const listId = useId();
   const { searchHistory, filters, setFilters } = useApp();
+  const location = useLocation();
+  const navigate = useNavigate();
   const suggestions = [...new Set([...searchHistory, ...TENERIFE_LOCATIONS.map((location) => location.normalizedValue)])];
   return (
     <div className="search-location">
@@ -213,8 +215,16 @@ export function SearchLocationInput({
           currentQuery={value}
           onLocationSelect={onChange}
           onApply={(selected) => {
-            setFilters({ ...filters, areas: selected });
-            onChange(selected.length === 1 ? getMunicipalityLabel(selected[0]) ?? selected[0] : "Tenerife");
+            const nextFilters = { ...filters, areas: selected };
+            const nextQuery = selected.length === 1 ? getMunicipalityLabel(selected[0]) ?? selected[0] : "Tenerife";
+            setFilters(nextFilters);
+            onChange(nextQuery);
+            if (!home) {
+              const params = filtersToParams(nextFilters, new URLSearchParams(location.search));
+              params.set("q", nextQuery);
+              params.delete("pagina");
+              navigate(`/buscar?${params.toString()}`);
+            }
           }}
         />
       </div>

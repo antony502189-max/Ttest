@@ -274,10 +274,14 @@ test('RESP-06 short mobile dialogs and critical map/uploader targets remain reac
   expect(deletePhoto && deletePhoto.width >= 44 && deletePhoto.height >= 44).toBeTruthy()
 
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await page.locator('.google-map-canvas').hover()
-  await page.mouse.wheel(0, -600)
-  const searchArea = await page.getByRole('button', { name: 'Buscar en esta zona' }).boundingBox()
-  expect(searchArea && searchArea.height >= 44).toBeTruthy()
+  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.reload()
+  const mapCanvas = page.locator('.m2-map-canvas')
+  await expect(mapCanvas).toBeVisible()
+  const drawAction = await page.getByRole('button', { name: 'Dibujar tu zona' }).boundingBox()
+  const layersAction = await page.getByRole('button', { name: 'Cambiar capas' }).boundingBox()
+  expect(drawAction && drawAction.height >= 44).toBeTruthy()
+  expect(layersAction && layersAction.height >= 44).toBeTruthy()
 })
 
 test('I18N-01 Russian and English versions switch and persist without changing routes', async ({ page }) => {
