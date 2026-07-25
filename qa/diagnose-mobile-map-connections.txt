@@ -1,0 +1,1 @@
+Trigger focused diagnostics for marker opening, saved search, and visible-area search.
