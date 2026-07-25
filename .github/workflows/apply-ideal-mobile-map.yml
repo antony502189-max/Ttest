@@ -6,6 +6,7 @@ on:
     paths:
       - 'scripts/apply-ideal-mobile-map.mjs'
       - 'tests/mobile-map-ideal.spec.ts'
+      - 'tests/mobile-freehand-map.spec.ts'
       - '.github/workflows/apply-ideal-mobile-map.yml'
   workflow_dispatch:
 
