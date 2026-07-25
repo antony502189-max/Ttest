@@ -6,6 +6,9 @@ on:
     paths:
       - 'scripts/apply-ideal-mobile-map.mjs'
       - '.github/workflows/apply-ideal-mobile-map.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
