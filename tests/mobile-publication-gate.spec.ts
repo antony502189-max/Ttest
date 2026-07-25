@@ -26,7 +26,8 @@ test('publication gate has no duplicate top notice or close icon and opens exist
   await expect(gate.getByRole('heading', { name: 'Для публикации объявления войдите в аккаунт' })).toBeVisible()
 
   await gate.getByRole('button', { name: 'Войти в аккаунт' }).click()
-  await expect(page.getByText('Войти в аккаунт или зарегистрироваться')).toBeVisible()
+  await expect(page).toHaveURL(/#\/acceso/)
+  await expect(page.getByRole('heading', { name: 'С возвращением' })).toBeVisible()
 })
 
 test('publication entry in menu opens the same clean gate', async ({ page }) => {

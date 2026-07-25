@@ -31,9 +31,11 @@ test.afterEach(async ({ page }) => expect(runtimeErrors.get(page) ?? [], 'Errore
 
 test('01–03 inicio, navegación y dataset completo', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await page.getByRole('button', { name: /encontrar habitación/i }).click()
+  await page.getByRole('radio', { name: /Vivienda, larga estancia/i }).click()
+  await page.getByRole('button', { name: 'Sin restricción' }).click()
+  await page.getByRole('button', { name: /^ver habitaciones$/i }).click()
   await expect(page).toHaveURL(/buscar/)
-  await expect(page.getByRole('heading', { name: /habitaciones en/i })).toContainText('23')
+  await expect(page.getByRole('heading', { name: /habitaciones en/i })).toContainText('9')
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings:v3') || '{"data":[]}').data.length)).toBe(32)
 })
 
@@ -69,10 +71,23 @@ test('11–15 Google Maps, кластер, выбор, границы и пол�
   await expect(page.locator('.gm-style img[role="presentation"]')).not.toHaveCount(0)
   await expect(page.locator('.map-price-marker-shell, .map-cluster-marker-shell')).not.toHaveCount(0)
   await page.getByRole('button', { name: /dibujar zona/i }).click()
-  await page.getByRole('button', { name: /añadir punto/i }).click()
-  await page.getByRole('button', { name: /añadir punto/i }).click()
-  await page.getByRole('button', { name: /añadir punto/i }).click()
-  await page.getByRole('button', { name: /finalizar/i }).click()
+  const drawing = page.locator('.freehand-map-overlay')
+  await expect(drawing).toBeVisible()
+  const box = await drawing.boundingBox()
+  expect(box).not.toBeNull()
+  if (!box) return
+  const left = box.x + box.width * .3
+  const right = box.x + box.width * .7
+  const top = box.y + box.height * .3
+  const bottom = box.y + box.height * .7
+  await page.mouse.move(left, top)
+  await page.mouse.down()
+  await page.mouse.move(right, top, { steps: 8 })
+  await page.mouse.move(right, bottom, { steps: 8 })
+  await page.mouse.move(left, bottom, { steps: 8 })
+  await page.mouse.move(left, top, { steps: 8 })
+  await page.mouse.up()
+  await expect(drawing).toHaveCount(0)
   await expect(page).toHaveURL(/poligono=/)
   const searchArea = page.getByRole('button', { name: /buscar en esta zona/i })
   await expect(searchArea).toHaveCount(0)
@@ -156,9 +171,11 @@ test('30 admin, búsqueda, moderación y exportación CSV', async ({ page }) => 
 
 test('31 responsive móvil sin desbordamiento y navegación inferior', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.goto('/#/buscar?q=Tenerife')
+  await page.reload()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-  await expect(page.locator('.bottom-nav')).toBeVisible()
-  await page.getByRole('button', { name: /mostrar habitaciones en el mapa/i }).click()
-  await expect(page.locator('.google-map-canvas')).toBeVisible()
+  await expect(page.locator('.m2-bottom-nav')).toBeVisible()
+  await page.locator('.m2-results__toolbar button').nth(2).click()
+  await expect(page.locator('.m2-map-canvas')).toBeVisible()
 })

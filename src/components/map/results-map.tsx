@@ -126,6 +126,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     const markZoomIntent = () => {
       programmaticMoveRef.current = false
       manualMovePendingRef.current = true
+      setBoundsDirty(true)
     }
     const markKeyboardZoomIntent = (event: KeyboardEvent) => {
       if (event.key === '+' || event.key === '-' || event.key === '=') {
@@ -134,12 +135,16 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       }
     }
     const handleAuthFailure = () => setMapError(googleMapsAuthErrorMessage)
-    container.addEventListener('wheel', markZoomIntent, { passive: true })
+    container.addEventListener('wheel', markZoomIntent, { capture: true, passive: true })
     container.addEventListener('keydown', markKeyboardZoomIntent)
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
 
+    const loadTimeout = window.setTimeout(() => {
+      if (!cancelled && !mapRef.current) setMapError(googleMapsErrorMessage(new GoogleMapsSetupError('load-failed')))
+    }, 10_000)
     loadGoogleMaps().then(({ maps }) => {
       if (cancelled || !containerRef.current) return
+      window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const map = new maps.Map(containerRef.current, {
         center: TENERIFE_CENTER,
@@ -180,6 +185,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       const markManualMove = () => {
         programmaticMoveRef.current = false
         manualMovePendingRef.current = true
+        setBoundsDirty(true)
       }
       listeners.push(map.addListener('idle', updateBounds))
       listeners.push(map.addListener('dragstart', markManualMove))
@@ -206,6 +212,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
         })
       }))
     }).catch((error) => {
+      window.clearTimeout(loadTimeout)
       if (!cancelled) setMapError(googleMapsErrorMessage(error))
     })
 
@@ -213,7 +220,8 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       cancelled = true
       resizeObserver?.disconnect()
       listeners.forEach((listener) => listener.remove())
-      container.removeEventListener('wheel', markZoomIntent)
+      window.clearTimeout(loadTimeout)
+      container.removeEventListener('wheel', markZoomIntent, true)
       container.removeEventListener('keydown', markKeyboardZoomIntent)
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
       if (initializedMap) google.maps.event.clearInstanceListeners(initializedMap)
@@ -473,13 +481,20 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     }, { timeout: 7000 })
   }
   const searchBounds = () => {
-    if (!bounds || !onBoundsSearch || !boundsDirty) return
-    if (lastSearchedBoundsRef.current && boundsAreEqual(bounds, lastSearchedBoundsRef.current)) { setBoundsDirty(false); return }
+    const currentBounds = mapRef.current ? getMapBounds(mapRef.current) : bounds
+    if (!currentBounds || !onBoundsSearch || !boundsDirty) return
+    if (lastSearchedBoundsRef.current && boundsAreEqual(currentBounds, lastSearchedBoundsRef.current)) { setBoundsDirty(false); return }
     skipNextResultsFitRef.current = true
-    onBoundsSearch(bounds)
-    lastSearchedBoundsRef.current = bounds
+    onBoundsSearch(currentBounds)
+    lastSearchedBoundsRef.current = currentBounds
     setBoundsDirty(false)
     setActionAnnouncement('Resultados actualizados para el \u00e1rea visible.')
+  }
+
+  const markManualMapInteraction = () => {
+    programmaticMoveRef.current = false
+    manualMovePendingRef.current = true
+    setBoundsDirty(true)
   }
 
   useEffect(() => {
@@ -493,7 +508,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAction, onInitialActionHandled, ready])
 
-  return <section className={cn('results-map google-map-shell', fullScreen && 'results-map--fullscreen google-map-shell--fullscreen', selected && 'has-selection', drawing && 'is-drawing', drawSession && 'is-draw-session', mapPolygon.length >= 3 && 'has-polygon', mapError && 'has-map-error')} aria-label="Mapa de resultados" data-drawing={drawing || undefined} data-provider="google-maps">
+  return <section className={cn('results-map google-map-shell', fullScreen && 'results-map--fullscreen google-map-shell--fullscreen', selected && 'has-selection', drawing && 'is-drawing', drawSession && 'is-draw-session', mapPolygon.length >= 3 && 'has-polygon', mapError && 'has-map-error')} aria-label="Mapa de resultados" data-drawing={drawing || undefined} data-provider="google-maps" onWheelCapture={markManualMapInteraction}>
     <div className="results-map__canvas google-map-canvas" ref={containerRef} role="application" aria-label="Google Maps con precios de habitaciones" />
     <MapLayerSwitcher value={layer} onChange={setLayer} />
     {fullScreen ? <MapToolbar boundsDirty={boundsDirty} canSearchBounds={Boolean(boundsDirty && bounds && onBoundsSearch)} drawing={drawing} pointCount={draftPolygon.length} hasPolygon={mapPolygon.length >= 3} onSearchBounds={searchBounds} onLocate={locateCurrentPosition} onStartDrawing={startDrawing} onAddPoint={addKeyboardPoint} onCancelDrawing={cancelDrawing} onFinishDrawing={finishDrawing} onDeletePolygon={deletePolygon} /> : null}

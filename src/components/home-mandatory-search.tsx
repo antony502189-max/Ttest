@@ -60,7 +60,7 @@ export function HomeMandatorySearch() {
     const exactArea = location.type === 'area' || location.type === 'district' ? normalized : undefined
     const nextFilters = applyListingAccessProfile({
       ...filters,
-      areas: exactArea ? [exactArea] : [],
+      areas: exactArea ? [exactArea] : location.type === 'island' ? filters.areas : [],
     }, profile)
 
     persistListingAccessProfile(profile)

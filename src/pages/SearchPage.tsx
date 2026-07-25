@@ -65,6 +65,7 @@ export function SearchPage() {
     resetFilters,
     query: storedQuery,
     setQuery,
+    addSearchHistory,
     saveCurrentSearch,
     activeFilterCount,
     allListings,
@@ -99,6 +100,10 @@ export function SearchPage() {
     // paramString captures the complete serialized filter state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramString]);
+
+  useEffect(() => {
+    if (!invalidLocation) addSearchHistory(query);
+  }, [addSearchHistory, invalidLocation, query]);
 
   useLayoutEffect(() => {
     if (["genero", "parejas", "ocupantes"].some((name) => params.has(name))) {
@@ -257,14 +262,14 @@ export function SearchPage() {
     const nextQuery = rootId ? getMunicipalityLabel(rootId) ?? 'Tenerife' : 'Tenerife';
     setQuery(nextQuery);
     setFilters(nextFilters);
-    const next = filtersToParams(nextFilters, new URLSearchParams(params));
-    next.set('q', nextQuery);
-    if (selectedAreas.length) {
-      setMapPolygon([]);
-      next.delete('poligono');
-    }
-    next.delete('pagina');
-    setParams(next);
+    setParams((current) => {
+      const next = filtersToParams(nextFilters, new URLSearchParams(current));
+      next.set('q', nextQuery);
+      if (selectedAreas.length) next.delete('poligono');
+      next.delete('pagina');
+      return next;
+    });
+    if (selectedAreas.length) setMapPolygon([]);
   };
   const changeView = (nextView: "list" | "map") =>
     updateParams((next) =>
@@ -432,7 +437,6 @@ export function SearchPage() {
           onDrawingStart={() => {
             if (!filters.areas.length) return true;
             if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;
-            commitFilters({ ...filters, areas: [] });
             return true;
           }}
         />
@@ -626,7 +630,6 @@ export function SearchPage() {
                   onDrawingStart={() => {
                     if (!filters.areas.length) return true;
                     if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;
-                    commitFilters({ ...filters, areas: [] });
                     return true;
                   }}
                 />

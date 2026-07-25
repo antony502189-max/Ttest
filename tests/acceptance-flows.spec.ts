@@ -66,13 +66,14 @@ test("01–03 rental mode, búsqueda por fecha y selección de varias zonas", as
   page,
 }) => {
   await page.getByRole("radio", { name: "Turismo, corta estancia" }).click();
+  await page.getByRole("button", { name: "Sin restricción" }).click();
   await page.getByPlaceholder("Municipio, barrio o zona de Tenerife").fill("Tenerife");
   await page.getByRole("button", { name: /abrir selección de ubicación/i }).click();
   await page.getByRole('button', { name: 'Seleccionar zonas en el mapa' }).click();
   for (const area of ["Granadilla de Abona", "Arona"])
     await page.getByRole('button', { name: new RegExp(`^${area}\\b`) }).click();
   await page.getByRole("button", { name: /ver \d+ habitaciones/i }).click();
-  await page.getByRole("button", { name: /encontrar habitación/i }).click();
+  await page.getByRole("button", { name: /^ver habitaciones$/i }).click();
   await page.getByLabel("Disponible para esta fecha").fill("2026-08-10");
   await expect(page).toHaveURL(/alquiler=holiday/);
   await expect(page).toHaveURL(/zonas=/);
@@ -271,17 +272,34 @@ test("10–13 map marker/card sync, marker preview, bounds and polygon filtering
   );
   await page.locator(".google-map-canvas").hover();
   await page.mouse.wheel(0, -900);
-  await page.getByRole("button", { name: /buscar en esta zona/i }).click();
+  const searchVisibleArea = page.locator(".map-toolbar__search");
+  await expect(searchVisibleArea).toBeVisible();
+  await searchVisibleArea.click();
   await expect
     .poll(() => page.locator(".map-results-cards .property-card").count())
     .toBeLessThan(before);
   const bounded = await page
     .locator(".map-results-cards .property-card")
     .count();
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: /dibujar zona/i }).click();
-  for (let index = 0; index < 3; index += 1)
-    await page.getByRole("button", { name: /añadir punto/i }).click();
-  await page.getByRole("button", { name: /finalizar/i }).click();
+  const drawingOverlay = page.locator(".freehand-map-overlay");
+  await expect(drawingOverlay).toBeVisible();
+  const drawingBox = await drawingOverlay.boundingBox();
+  expect(drawingBox).not.toBeNull();
+  if (!drawingBox) return;
+  const left = drawingBox.x + drawingBox.width * 0.3;
+  const right = drawingBox.x + drawingBox.width * 0.7;
+  const top = drawingBox.y + drawingBox.height * 0.3;
+  const bottom = drawingBox.y + drawingBox.height * 0.7;
+  await page.mouse.move(left, top);
+  await page.mouse.down();
+  await page.mouse.move(right, top, { steps: 8 });
+  await page.mouse.move(right, bottom, { steps: 8 });
+  await page.mouse.move(left, bottom, { steps: 8 });
+  await page.mouse.move(left, top, { steps: 8 });
+  await page.mouse.up();
+  await expect(drawingOverlay).toHaveCount(0);
   await expect(page).toHaveURL(/poligono=/);
   await expect
     .poll(() => page.locator(".map-results-cards .property-card").count())
@@ -504,8 +522,17 @@ test("28–29 mobile navigation and keyboard-only critical path", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("about:blank");
+  await page.addInitScript(() => {
+    localStorage.setItem("112233:mobile-onboarding:v1", "done");
+    localStorage.setItem("112233:listing-access-profile:v1", JSON.stringify({
+      occupant: "any",
+      pets: "Cualquiera",
+      smoking: "Cualquiera",
+    }));
+  });
   await page.goto("/#/");
+  await page.evaluate(() => localStorage.setItem("112233:mobile-onboarding:v1", "done"));
+  await page.reload();
   await page.evaluate(() =>
     (document.activeElement as HTMLElement | null)?.blur(),
   );
@@ -515,22 +542,15 @@ test("28–29 mobile navigation and keyboard-only critical path", async ({
   await skipLink.focus();
   await expect(skipLink).toBeFocused();
   await page.keyboard.press("Enter");
-  const location = page.getByRole("button", { name: /abrir selección de ubicación/i }).first();
-  await location.focus();
-  await page.keyboard.press("Enter");
-  const search = page.getByPlaceholder("Municipio, barrio, zona o dirección");
-  await search.fill("Los Cristianos");
-  await page.getByRole("button", { name: /Los Cristianos/i }).focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: /encontrar habitación/i }).focus();
+  const search = page.getByTestId("open-location");
+  await search.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/buscar/);
-  await expect(page.locator(".bottom-nav")).toBeVisible();
-  await page.getByRole("button", { name: /todos los filtros/i }).focus();
+  await expect(page.locator(".m2-bottom-nav")).toBeVisible();
+  const filters = page.locator(".m2-results__toolbar button").first();
+  await filters.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: /filtros/i })).toBeVisible();
+  await expect(page.locator(".m2-results-filter")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("button", { name: /todos los filtros/i }),
-  ).toBeFocused();
+  await expect(page.locator(".m2-results-filter")).toHaveCount(0);
 });

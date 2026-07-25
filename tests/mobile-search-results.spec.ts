@@ -4,6 +4,7 @@ test.use({ viewport: { width: 390, height: 844 } })
 
 async function finishOnboarding(page: Page) {
   await page.goto('/')
+  if (await page.getByTestId('open-location').isVisible().catch(() => false)) return
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -128,13 +129,10 @@ test('contact opens the existing authentication flow and map returns to Google M
   await finishOnboarding(page)
   let results = await openResults(page, 'Vivienda')
   await results.getByRole('button', { name: 'Contactar' }).first().click()
-  await expect(page.getByRole('heading', { name: 'Inicia sesión o regístrate' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/acceso/)
+  await expect(page.getByRole('heading', { name: 'Bienvenido de nuevo' })).toBeVisible()
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Ahora no' }).click()
+  await finishOnboarding(page)
   results = await openResults(page, 'Vivienda')
   await results.getByRole('button', { name: 'Mapa' }).click()
   await expect(page.getByTestId('map-search')).toBeVisible({ timeout: 10000 })

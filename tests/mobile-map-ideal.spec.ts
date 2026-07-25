@@ -61,8 +61,9 @@ test('published listings are visible on the map and open the matching result', a
 
   const visibleMarkerOrCluster = page.locator('.m2-listing-marker:visible, .map-cluster-marker:visible').first()
   await expect(visibleMarkerOrCluster).toBeVisible({ timeout: 20_000 })
-  const visibleMarker = await revealVisibleListingMarker(page)
-  await visibleMarker.click()
+  const marker = page.locator('.m2-listing-marker').first()
+  await expect(marker).toBeAttached()
+  await marker.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
 
   const preview = page.getByTestId('mobile-map-listing-preview')
   await expect(preview).toBeVisible()

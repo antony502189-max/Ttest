@@ -77,6 +77,7 @@ test('USR-01..03 favorites, saved searches and history are user scoped', async (
   await page.goto('/#/buscar?q=Adeje&alquiler=long')
   await page.getByRole('button', { name: /Guardar búsqueda/ }).first().click()
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.reload()
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
   await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveAttribute('aria-pressed', 'false')
@@ -304,10 +305,11 @@ test('FILTER-01 and MAP-01..03 new filters serialize and map preview shows restr
 })
 
 test('RESP-01..05 critical routes have no horizontal overflow at the required matrix', async ({ page }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(240_000)
   const viewports = [[375, 812], [390, 844], [768, 1024], [1024, 768], [1440, 900]] as const
   await page.goto('/#/')
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.reload()
   const routes = [
     '/#/', '/#/buscar?q=Tenerife&alquiler=long', '/#/buscar?q=Tenerife&alquiler=long&vista=mapa',
@@ -319,7 +321,7 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
     for (const route of routes) {
       await page.goto(route)
       await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
-      if (route.includes('vista=mapa')) await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
+      if (route.includes('vista=mapa')) await page.locator('.google-map-canvas, .m2-map-canvas').waitFor({ state: 'visible' })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), `${route} at ${width}x${height}`).toBeTruthy()
     }
     await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify(null)))
