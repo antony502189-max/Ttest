@@ -19,14 +19,24 @@
       return true
     })
   }, [availableListings, filters, mapPolygon, query])
+  const mobileFiltersActive = filters.minPrice !== 0
+    || filters.maxPrice !== 1500
+    || filters.minArea !== 0
+    || filters.maxArea !== 50
+    || filters.roomTypes.length > 0
+    || filters.roomCounts.length > 0
 
   useEffect(() => {
     const publish = () => {
       window.dispatchEvent(new CustomEvent('112233:mobile-filtered-listings', {
-        detail: { listingIds: filteredListings.map((listing) => listing.id), rentalMode: filters.rentalMode },
+        detail: {
+          listingIds: filteredListings.map((listing) => listing.id),
+          rentalMode: filters.rentalMode,
+          active: mobileFiltersActive,
+        },
       }))
     }
     publish()
     window.addEventListener('112233:request-mobile-filtered-listings', publish)
     return () => window.removeEventListener('112233:request-mobile-filtered-listings', publish)
-  }, [filteredListings, filters.rentalMode])
+  }, [filteredListings, filters.rentalMode, mobileFiltersActive])
