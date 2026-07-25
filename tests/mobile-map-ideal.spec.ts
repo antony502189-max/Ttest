@@ -45,14 +45,17 @@ test('published listings are visible on the map and open the matching result', a
   await finishOnboarding(page)
   const map = await openMap(page, 'search')
   await expect(map).toHaveAttribute('data-map-interaction', 'interactive')
-  const markerOrCluster = page.locator('.m2-listing-marker, .map-cluster-marker').first()
-  await expect(markerOrCluster).toBeVisible({ timeout: 20_000 })
-  if (await markerOrCluster.evaluate((node) => node.classList.contains('map-cluster-marker'))) {
-    await markerOrCluster.click()
-    await expect(page.locator('.m2-listing-marker').first()).toBeVisible({ timeout: 10_000 })
+
+  const visibleMarkerOrCluster = page.locator('.m2-listing-marker:visible, .map-cluster-marker:visible').first()
+  await expect(visibleMarkerOrCluster).toBeVisible({ timeout: 20_000 })
+  if (await visibleMarkerOrCluster.evaluate((node) => node.classList.contains('map-cluster-marker'))) {
+    await visibleMarkerOrCluster.click()
   }
-  const marker = page.locator('.m2-listing-marker').first()
-  await marker.click()
+
+  const visibleMarker = page.locator('.m2-listing-marker:visible').first()
+  await expect(visibleMarker).toBeVisible({ timeout: 10_000 })
+  await visibleMarker.click()
+
   const preview = page.getByTestId('mobile-map-listing-preview')
   await expect(preview).toBeVisible()
   const listingId = await preview.getAttribute('data-listing-id')
