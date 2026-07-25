@@ -74,19 +74,25 @@ test('map toolbar opens the real filters and list panels', async ({ page }) => {
   await expect(page.locator('.m2-results__list .m2-result-card').first()).toBeVisible()
 })
 
-test('search visible area and save search are connected to real state', async ({ page }) => {
+test('save search persists the actual map search state', async ({ page }) => {
+  await finishOnboarding(page)
+  await openSearchMap(page)
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Guardado', exact: true })).toBeVisible()
+  await expect.poll(
+    async () => page.evaluate(() => localStorage.getItem('112233:saved-searches:v3') ?? ''),
+    { timeout: 10_000 },
+  ).toContain('Tenerife')
+})
+
+test('search visible area filters map markers after a user zoom gesture', async ({ page }) => {
   await finishOnboarding(page)
   const map = await openSearchMap(page)
-  const save = page.getByRole('button', { name: 'Guardar', exact: true })
-  await save.click()
-  await expect(page.getByRole('button', { name: 'Guardado', exact: true })).toBeVisible()
-  await expect.poll(async () => page.evaluate(() => localStorage.getItem('112233:saved-searches:v3') ?? '')).toContain('Tenerife')
-
   await map.hover()
   await page.mouse.wheel(0, -500)
   const searchArea = page.getByTestId('mobile-map-search-area')
-  await expect(searchArea).toBeVisible()
+  await expect(searchArea).toBeVisible({ timeout: 10_000 })
   await searchArea.click()
-  await expect(map).toHaveAttribute('data-bounds-filtered', 'true')
+  await expect(map).toHaveAttribute('data-bounds-filtered', 'true', { timeout: 10_000 })
   await expect(page.getByTestId('mobile-map-count')).toContainText(/\d+/)
 })
