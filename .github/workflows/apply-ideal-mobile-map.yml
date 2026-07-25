@@ -1,14 +1,85 @@
-name: Apply and verify ideal mobile map
+name: Complete mobile map parity
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-ideal-mobile-map.mjs'
+      - '.github/workflows/apply-ideal-mobile-map.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
 
+concurrency:
+  group: complete-mobile-map-parity
+  cancel-in-progress: true
+
 jobs:
-  paused:
+  apply-test-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+      VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
     steps:
-      - run: echo "Mobile map integration workflow is being upgraded."
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply complete map integration
+        run: node scripts/apply-ideal-mobile-map.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        run: npm exec vite build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify all mobile map and listing flows
+        id: maptests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npx playwright test \
+            tests/mobile-map-ideal.spec.ts \
+            tests/mobile-map-parity.spec.ts \
+            tests/mobile-freehand-map.spec.ts \
+            tests/mobile-search-results.spec.ts \
+            --workers=1 2>&1 | tee /tmp/mobile-map-parity.log
+      - name: Report verification
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.maptests.outcome }}
+        run: |
+          {
+            echo "MOBILE_MAP_PARITY outcome=$OUTCOME"
+            echo '```text'
+            tail -n 220 /tmp/mobile-map-parity.log 2>/dev/null || true
+            echo '```'
+          } > /tmp/mobile-map-report.md
+          gh issue comment 33 --repo "$GITHUB_REPOSITORY" --body-file /tmp/mobile-map-report.md
+      - name: Require all map tests
+        run: test "${{ steps.maptests.outcome }}" = success
+      - name: Remove temporary patch infrastructure
+        run: rm -rf .map-patch scripts/apply-ideal-mobile-map.mjs .github/workflows/apply-ideal-mobile-map.yml
+      - name: Commit verified map implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Complete mobile map parity and integration"
+          git push origin HEAD:main
+      - name: Close verification issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close 33 --repo "$GITHUB_REPOSITORY" --reason completed --comment "All mobile map parity, drawing, marker, filter, list and production checks passed."
