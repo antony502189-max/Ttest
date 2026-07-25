@@ -29,8 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
+      - name: Synchronize exact latest main
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          echo "CHECKOUT_SHA=$(git rev-parse HEAD)"
+          grep "^test(" .map-patch/mobile-map-parity.spec.ts || true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -66,8 +71,9 @@ jobs:
         run: |
           {
             echo "MOBILE_MAP_PARITY outcome=$OUTCOME"
+            echo "CHECKOUT_SHA=$(git rev-parse HEAD)"
             echo '```text'
-            tail -n 220 /tmp/mobile-map-parity.log 2>/dev/null || true
+            grep -E "Running [0-9]+ tests|^[[:space:]]*[✓✘]|^[[:space:]]+[0-9]+\)|Error:|Locator:|tests/.*\.spec\.ts:[0-9]+" /tmp/mobile-map-parity.log | tail -n 150 || true
             echo '```'
           } > /tmp/mobile-map-report.md
           gh issue comment 33 --repo "$GITHUB_REPOSITORY" --body-file /tmp/mobile-map-report.md
