@@ -25,21 +25,17 @@ async function openMap(page: Page, kind: 'search' | 'draw') {
 test('map is freely zoomable before explicit drawing activation', async ({ page }) => {
   await finishOnboarding(page)
   const map = await openMap(page, 'draw')
-
   await expect(page.getByTestId('freehand-overlay')).toHaveCount(0)
   const draw = page.getByRole('button', { name: 'Dibujar tu zona' })
   await expect(draw).toHaveAttribute('aria-pressed', 'false')
-
   const zoomBefore = await map.getAttribute('data-map-zoom')
   await map.hover()
   await page.mouse.wheel(0, -700)
   await expect.poll(async () => map.getAttribute('data-map-zoom')).not.toBe(zoomBefore)
-
   await draw.click()
   await expect(page.getByTestId('freehand-overlay')).toBeVisible()
   await expect(map).toHaveAttribute('data-map-interaction', 'drawing')
   await expect(page.getByRole('button', { name: 'Cancelar dibujo' })).toHaveAttribute('aria-pressed', 'true')
-
   await page.getByRole('button', { name: 'Cancelar dibujo' }).click()
   await expect(page.getByTestId('freehand-overlay')).toHaveCount(0)
   await expect(map).toHaveAttribute('data-map-interaction', 'interactive')
@@ -49,14 +45,12 @@ test('published listings are visible on the map and open the matching result', a
   await finishOnboarding(page)
   const map = await openMap(page, 'search')
   await expect(map).toHaveAttribute('data-map-interaction', 'interactive')
-
   const markerOrCluster = page.locator('.m2-listing-marker, .map-cluster-marker').first()
   await expect(markerOrCluster).toBeVisible({ timeout: 20_000 })
   if (await markerOrCluster.evaluate((node) => node.classList.contains('map-cluster-marker'))) {
     await markerOrCluster.click()
     await expect(page.locator('.m2-listing-marker').first()).toBeVisible({ timeout: 10_000 })
   }
-
   const marker = page.locator('.m2-listing-marker').first()
   await marker.click()
   const preview = page.getByTestId('mobile-map-listing-preview')
@@ -64,7 +58,6 @@ test('published listings are visible on the map and open the matching result', a
   const listingId = await preview.getAttribute('data-listing-id')
   expect(listingId).toBeTruthy()
   await expect(preview.locator('.m2-map-listing-preview__requirements span')).not.toHaveCount(0)
-
   await preview.getByRole('button', { name: 'Ver anuncio' }).click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
@@ -77,7 +70,6 @@ test('listing requirements are visually prominent in results', async ({ page }) 
   await page.getByTestId('open-location').click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
-
   const badges = results.locator('.m2-result-card').first().locator('.m2-result-card__badges span')
   await expect(badges).not.toHaveCount(0)
   await expect(badges.filter({ hasText: /Habitación para/ })).toHaveCount(1)
