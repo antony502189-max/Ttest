@@ -12,8 +12,10 @@ async function finishOnboarding(page: Page) {
 }
 
 async function openMap(page: Page, kind: 'search' | 'draw') {
-  await page.getByTestId('open-location').click()
-  await page.getByTestId(kind === 'search' ? 'search-map' : 'draw-zone').click()
+  await page.locator('.m2-select-row').click()
+  const locationAction = page.getByTestId(kind === 'search' ? 'search-map' : 'draw-zone')
+  await expect(locationAction).toBeVisible()
+  await locationAction.click()
   const map = page.getByTestId('google-map')
   await expect(map).toBeVisible()
   await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
