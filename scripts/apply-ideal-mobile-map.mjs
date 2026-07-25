@@ -29,8 +29,84 @@ function replaceFrom(path, startMarker, replacementPath, label) {
   write(path, source.slice(0, start) + read(replacementPath).trim() + '\n')
 }
 
-write('src/components/mobile-map-listings-layer.tsx', read('.map-patch/mobile-map-listings-layer.tsx'))
+const listingLayerPath = 'src/components/mobile-map-listings-layer.tsx'
+write(listingLayerPath, read('.map-patch/mobile-map-listings-layer.tsx'))
 write('tests/mobile-map-parity.spec.ts', read('.map-patch/mobile-map-parity.spec.ts'))
+
+replaceOnce(
+  listingLayerPath,
+  "  const clusterRef = useRef<MarkerClusterer | null>(null)\n  const fittedSignatureRef = useRef('')\n",
+  "  const clusterRef = useRef<MarkerClusterer | null>(null)\n  const presentationListenerRef = useRef<google.maps.MapsEventListener | null>(null)\n",
+  'deterministic marker presentation ref',
+)
+replaceOnce(
+  listingLayerPath,
+  "  const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [items])\n",
+  '',
+  'remove marker fit signature',
+)
+replaceOnce(
+  listingLayerPath,
+  "    const clear = () => {\n      clusterRef.current?.clearMarkers()",
+  "    const clear = () => {\n      presentationListenerRef.current?.remove()\n      presentationListenerRef.current = null\n      clusterRef.current?.clearMarkers()",
+  'clear marker presentation listener',
+)
+replaceOnce(
+  listingLayerPath,
+  `      clusterRef.current = new MarkerClusterer({
+        map,
+        markers,
+        algorithm: new SuperClusterAlgorithm({ radius: 42, maxZoom: 9 }),
+        renderer: new AdvancedClusterRenderer(),
+      })
+
+      if (!bounds && polygon.length < 3 && items.length && fittedSignatureRef.current !== signature) {
+        fittedSignatureRef.current = signature
+        const fitBounds = new google.maps.LatLngBounds()
+        items.forEach((listing) => fitBounds.extend(listing.coordinates))
+        map.fitBounds(fitBounds, { top: 96, right: 34, bottom: 150, left: 34 })
+        google.maps.event.addListenerOnce(map, 'idle', () => {
+          const zoom = map.getZoom() ?? 0
+          if (zoom > 13) map.setZoom(13)
+          if (zoom < 9.5) map.setZoom(9.5)
+        })
+      }`,
+  `      const clusterer = new MarkerClusterer({
+        map: null,
+        markers,
+        algorithm: new SuperClusterAlgorithm({ radius: 42, maxZoom: 9 }),
+        renderer: new AdvancedClusterRenderer(),
+      })
+      clusterRef.current = clusterer
+
+      const presentMarkers = () => {
+        const clustered = (map.getZoom() ?? 10) <= 9
+        map.getDiv().dataset.markerPresentation = clustered ? 'clusters' : 'markers'
+        if (clustered) {
+          markers.forEach((marker) => { marker.map = null })
+          clusterer.setMap(map)
+          return
+        }
+        clusterer.setMap(null)
+        markers.forEach((marker) => { marker.map = map })
+      }
+
+      presentationListenerRef.current = map.addListener('zoom_changed', presentMarkers)
+      presentMarkers()`,
+  'direct markers above cluster zoom',
+)
+replaceOnce(
+  listingLayerPath,
+  "  }, [bounds, drawing, items, mapReady, mapRef, polygon.length, signature])",
+  "  }, [bounds, drawing, items, mapReady, mapRef, polygon.length])",
+  'marker effect dependencies',
+)
+replaceOnce(
+  'tests/mobile-map-parity.spec.ts',
+  "  await page.getByRole('button', { name: 'Guardar', exact: true }).click()\n  await expect(page.getByRole('button', { name: 'Guardado', exact: true })).toBeVisible()",
+  "  const save = page.getByTestId('mobile-map-save-search')\n  await expect(save).toBeVisible()\n  await save.click()\n  await expect(save).toHaveAttribute('aria-pressed', 'true')",
+  'stable saved search control test',
+)
 
 replaceOnce(
   'src/components/mobile-app-v2.tsx',
@@ -63,6 +139,12 @@ replaceSection('src/components/mobile-app-v2.tsx', 'function HomeScreen', 'funct
 replaceSection('src/components/mobile-app-v2.tsx', 'function LocationScreen', 'function GoogleMapCanvas', '.map-patch/location-screen.txt', 'connected location query')
 replaceSection('src/components/mobile-app-v2.tsx', 'function GoogleMapCanvas', 'function captureMapInteractions', '.map-patch/google-map-canvas.txt', 'query-aware Google map')
 replaceSection('src/components/mobile-app-v2.tsx', 'function MapScreen', 'function EmptyScreen', '.map-patch/map-screen.txt', 'fully connected map screen')
+replaceOnce(
+  'src/components/mobile-app-v2.tsx',
+  "<button type=\"button\" className={cn('m2-save', saved && 'is-saved')} onClick={saveSearch} aria-pressed={saved}>",
+  "<button type=\"button\" className={cn('m2-save', saved && 'is-saved')} data-testid=\"mobile-map-save-search\" onClick={saveSearch} aria-pressed={saved} aria-label={saved ? t.saved : t.save}>",
+  'accessible saved search control',
+)
 replaceFrom('src/components/mobile-app-v2.tsx', 'export function MobileAppV2()', '.map-patch/mobile-app-root.txt', 'mobile app global map state')
 
 replaceOnce(
