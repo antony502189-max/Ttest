@@ -158,7 +158,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, qu
           content,
           title: `${listing.area}, ${priceLabel(listing)}`,
           gmpClickable: true,
-          collisionBehavior: google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
+          collisionBehavior: google.maps.CollisionBehavior.REQUIRED,
           zIndex: 10,
         })
         const select = () => {
@@ -175,7 +175,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, qu
       clusterRef.current = new MarkerClusterer({
         map,
         markers,
-        algorithm: new SuperClusterAlgorithm({ radius: 42, maxZoom: 10 }),
+        algorithm: new SuperClusterAlgorithm({ radius: 42, maxZoom: 9 }),
         renderer: new AdvancedClusterRenderer(),
       })
 
