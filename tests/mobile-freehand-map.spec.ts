@@ -13,7 +13,7 @@ async function finishOnboarding(page: Page) {
 
 test('map stays interactive until the drawing button is pressed', async ({ page }) => {
   await finishOnboarding(page)
-  await page.getByTestId('open-location').click()
+  await page.locator('.m2-select-row').click()
   await page.getByTestId('draw-zone').click()
 
   const startDrawing = page.getByRole('button', { name: 'Dibujar tu zona' })
