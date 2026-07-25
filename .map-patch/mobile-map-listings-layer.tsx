@@ -24,6 +24,7 @@ export type MobileMapBounds = {
 type MobileFilteredListings = {
   ids: Set<string>
   rentalMode: RentalMode | null
+  active: boolean
 }
 
 const labels = {
@@ -62,9 +63,13 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, qu
 
   useEffect(() => {
     const receive = (event: Event) => {
-      const detail = (event as CustomEvent<{ listingIds?: string[]; rentalMode?: RentalMode | null }>).detail
+      const detail = (event as CustomEvent<{ listingIds?: string[]; rentalMode?: RentalMode | null; active?: boolean }>).detail
       if (!Array.isArray(detail?.listingIds)) return
-      setMobileResultFilter({ ids: new Set(detail.listingIds), rentalMode: detail.rentalMode ?? null })
+      setMobileResultFilter({
+        ids: new Set(detail.listingIds),
+        rentalMode: detail.rentalMode ?? null,
+        active: detail.active === true,
+      })
     }
     window.addEventListener('112233:mobile-filtered-listings', receive)
     window.dispatchEvent(new Event('112233:request-mobile-filtered-listings'))
@@ -73,7 +78,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, qu
 
   const items = useMemo(() => {
     const location = resolveTenerifeLocation(query || 'Tenerife')
-    const resultFilter = mobileResultFilter && (!mobileResultFilter.rentalMode || mobileResultFilter.rentalMode === rentalMode)
+    const resultFilter = mobileResultFilter?.active && (!mobileResultFilter.rentalMode || mobileResultFilter.rentalMode === rentalMode)
       ? mobileResultFilter.ids
       : null
     return filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, filters)
@@ -170,7 +175,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, qu
       clusterRef.current = new MarkerClusterer({
         map,
         markers,
-        algorithm: new SuperClusterAlgorithm({ radius: 54, maxZoom: 15 }),
+        algorithm: new SuperClusterAlgorithm({ radius: 42, maxZoom: 10 }),
         renderer: new AdvancedClusterRenderer(),
       })
 
