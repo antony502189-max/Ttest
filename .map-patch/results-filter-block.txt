@@ -1,0 +1,32 @@
+  const availableListings = useMemo(
+    () => filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, appFilters),
+    [allListings, appFilters, discarded, rentalMode],
+  )
+  const filteredListings = useMemo(() => {
+    const minPrice = Math.min(filters.minPrice, filters.maxPrice)
+    const maxPrice = Math.max(filters.minPrice, filters.maxPrice)
+    const minArea = Math.min(filters.minArea, filters.maxArea)
+    const maxArea = Math.max(filters.minArea, filters.maxArea)
+    const location = resolveTenerifeLocation(query || 'Tenerife')
+    return availableListings.filter((listing) => {
+      if (!listingMatchesTenerifeLocation(listing, location)) return false
+      if (mapPolygon.length >= 3 && !pointInPolygon(listing.coordinates, mapPolygon)) return false
+      if (filters.rentalMode && listing.rentalMode !== filters.rentalMode) return false
+      if (listing.price < minPrice || listing.price > maxPrice) return false
+      if (listing.roomSizeM2 < minArea || listing.roomSizeM2 > maxArea) return false
+      if (filters.roomTypes.length && !filters.roomTypes.includes(listing.roomType)) return false
+      if (filters.roomCounts.length && !filters.roomCounts.includes(listing.roomCapacity)) return false
+      return true
+    })
+  }, [availableListings, filters, mapPolygon, query])
+
+  useEffect(() => {
+    const publish = () => {
+      window.dispatchEvent(new CustomEvent('112233:mobile-filtered-listings', {
+        detail: { listingIds: filteredListings.map((listing) => listing.id), rentalMode: filters.rentalMode },
+      }))
+    }
+    publish()
+    window.addEventListener('112233:request-mobile-filtered-listings', publish)
+    return () => window.removeEventListener('112233:request-mobile-filtered-listings', publish)
+  }, [filteredListings, filters.rentalMode])
