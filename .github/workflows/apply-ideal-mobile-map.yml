@@ -50,19 +50,23 @@ jobs:
             tests/mobile-map-parity.spec.ts \
             --grep "published listings|save search|search visible area" \
             --workers=1 --reporter=line 2>&1 | tee /tmp/mobile-map-diagnostics.log
-      - name: Report exact diagnostics
+      - name: Publish exact diagnostics in issue body
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           OUTCOME: ${{ steps.diagnostics.outcome }}
         run: |
           {
-            echo "MOBILE_MAP_DIAGNOSTICS outcome=$OUTCOME"
-            echo "CHECKOUT_SHA=$(git rev-parse HEAD)"
+            echo "# Mobile map diagnostic report"
+            echo
+            echo "Outcome: **$OUTCOME**"
+            echo
+            echo "Verified SHA: \`$(git rev-parse HEAD)\`"
+            echo
             echo '```text'
             tail -n 180 /tmp/mobile-map-diagnostics.log 2>/dev/null || true
             echo '```'
           } > /tmp/mobile-map-diagnostics.md
-          gh issue comment 33 --repo "$GITHUB_REPOSITORY" --body-file /tmp/mobile-map-diagnostics.md
+          gh issue edit 33 --repo "$GITHUB_REPOSITORY" --body-file /tmp/mobile-map-diagnostics.md
       - name: Require diagnostic tests
         run: test "${{ steps.diagnostics.outcome }}" = success
