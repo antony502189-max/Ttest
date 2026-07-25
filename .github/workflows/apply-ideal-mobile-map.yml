@@ -6,9 +6,6 @@ on:
     paths:
       - 'scripts/apply-ideal-mobile-map.mjs'
       - '.github/workflows/apply-ideal-mobile-map.yml'
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +14,7 @@ permissions:
 
 concurrency:
   group: ideal-mobile-map-patch
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   apply-and-verify:
@@ -62,7 +59,7 @@ jobs:
           {
             echo "IDEAL_MAP_TEST outcome=$OUTCOME"
             echo '```text'
-            tail -n 160 /tmp/ideal-map-test.log 2>/dev/null || true
+            tail -n 180 /tmp/ideal-map-test.log 2>/dev/null || true
             echo '```'
           } > /tmp/report.md
           gh issue comment 33 --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md
