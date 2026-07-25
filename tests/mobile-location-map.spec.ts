@@ -82,7 +82,7 @@ test('location screen contains the four APK actions and address submit opens map
   await expect(page.getByText('Búsqueda en Tenerife')).toBeVisible()
   await expect(page.locator('.m2-location-action')).toHaveCount(4)
   await expect(page.getByText('Dibujar tu zona', { exact: true })).toBeVisible()
-  await expect(page.getByText('Ver anuncios en mapa', { exact: true })).toBeVisible()
+  await expect(page.getByText('Buscar en el mapa', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar alrededor de ti', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar por teléfono', { exact: true })).toBeVisible()
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
-import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
+import { importLibrary } from '@googlemaps/js-api-loader'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -18,6 +18,7 @@ import {
   Menu,
   MessageCircle,
   PenTool,
+  Phone,
   Plus,
   Search,
   SlidersHorizontal,
@@ -30,7 +31,12 @@ import { MobileMapListingsLayer } from '@/components/mobile-map-listings-layer'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
+import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocation'
+import { googleMapsConfig, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { persistListingAccessProfile, readListingAccessProfile, type HomeOccupantChoice } from '@/lib/listing-access'
+import { selectMobileSearchListings } from '@/lib/mobile-search'
+import { filtersToParams } from '@/lib/search'
+import type { Listing } from '@/types'
 import '@/mobile-app-v2.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
@@ -42,7 +48,7 @@ type AppPage = 'tabs' | 'location' | 'map' | 'phone'
 type MapMode = 'draw' | 'search'
 type OccupantOption = 'anyone' | 'man' | 'woman' | 'person' | 'couple' | 'unrestricted'
 type MapStatus = 'loading' | 'ready' | 'error'
-type LocationStatus = 'idle' | 'loading' | 'success' | 'error'
+type LocationStatus = 'idle' | 'loading' | 'success' | GeolocationFailure | 'empty'
 type MapPoint = { lat: number; lng: number }
 type DrawingStroke = { pointerId: number; lastX: number; lastY: number; points: MapPoint[] }
 type MapInteractionState = {
@@ -87,8 +93,10 @@ const copy = {
     searchOnMap: 'Buscar en el mapa', searchNearby: 'Buscar alrededor de ti', searchByPhone: 'Buscar por teléfono', mapDrawTitle: 'Tu propia zona', visibleArea: 'Zona visible', filters: 'Filtros', list: 'Listado',
     phoneIntro: '¿Has visto un cartel de "se vende" o "se alquila"? Introduce los datos para buscarlo', phone: 'Teléfono', operation: 'Operación',
     buy: 'Comprar', rent: 'Alquilar', type: 'Tipo', homes: 'Viviendas', invalidPhone: 'Introduce un teléfono válido', phoneNotFound: 'No hemos encontrado ningún anuncio con ese teléfono.',
-    save: 'Guardar', saved: 'Guardado', layers: 'Cambiar capas', locate: 'Mi ubicación', mapLoading: 'Cargando mapa…', mapError: 'No se pudo cargar Google Maps',
-    locating: 'Buscando tu ubicación…', locationFound: 'Ubicación encontrada', locationDenied: 'No se pudo obtener tu ubicación', back: 'Volver', close: 'Cerrar', clear: 'Borrar búsqueda',
+    searchArea: 'Buscar en esta zona', save: 'Guardar', saved: 'Guardado', layers: 'Cambiar capas', locate: 'Mi ubicación', mapLoading: 'Cargando mapa…', mapError: 'No se pudo cargar Google Maps',
+    locating: 'Buscando tu ubicación…', locationFound: 'Ubicación encontrada', locationDenied: 'No has permitido acceder a tu ubicación', locationUnavailable: 'Tu ubicación no está disponible',
+    locationTimeout: 'La búsqueda de ubicación ha tardado demasiado', locationUnsupported: 'Este navegador no ofrece geolocalización', locationOutside: 'Tu ubicación está fuera de Tenerife',
+    nearbyEmpty: 'No hay anuncios cerca de esta ubicación', back: 'Volver', close: 'Cerrar', clear: 'Borrar búsqueda',
   },
   en: {
     languageTitle: 'Select the app language', continue: 'Continue', regionTitle: 'Select the region where you are looking for or own a property',
@@ -112,8 +120,9 @@ const copy = {
     phoneIntro: 'Have you seen a "for sale" or "for rent" sign? Enter the details to find it', phone: 'Phone', operation: 'Operation',
     buy: 'Buy', rent: 'Rent', type: 'Type', homes: 'Homes', invalidPhone: 'Enter a valid phone number', phoneNotFound: 'We could not find a listing with that phone number.',
     visibleArea: 'Visible area', filters: 'Filters', list: 'List', save: 'Save', saved: 'Saved', layers: 'Change map layers', locate: 'My location', mapLoading: 'Loading map…',
-    mapError: 'Google Maps could not be loaded', locating: 'Finding your location…', locationFound: 'Location found', locationDenied: 'Your location could not be obtained',
-    back: 'Back', close: 'Close', clear: 'Clear search',
+    mapError: 'Google Maps could not be loaded', searchArea: 'Search this area', locating: 'Finding your location…', locationFound: 'Location found', locationDenied: 'Location permission was denied',
+    locationUnavailable: 'Your location is unavailable', locationTimeout: 'Finding your location took too long', locationUnsupported: 'This browser does not provide geolocation',
+    locationOutside: 'Your location is outside Tenerife', nearbyEmpty: 'There are no listings near this location', back: 'Back', close: 'Close', clear: 'Clear search',
   },
   ru: {
     languageTitle: 'Выберите язык приложения', continue: 'Продолжить', regionTitle: 'Выберите регион, в котором вы ищете или имеете жильё',
@@ -139,7 +148,9 @@ const copy = {
     phoneIntro: 'Вы видели объявление «продаётся» или «сдаётся»? Введите данные, чтобы найти его', phone: 'Телефон', operation: 'Операция',
     buy: 'Купить', rent: 'Снять', type: 'Тип', homes: 'Жильё', invalidPhone: 'Введите корректный номер телефона', phoneNotFound: 'Объявление с таким номером телефона не найдено.',
     saved: 'Сохранено', layers: 'Сменить слой карты', locate: 'Моё местоположение', mapLoading: 'Загрузка карты…', mapError: 'Не удалось загрузить Google Maps',
-    locating: 'Определяем местоположение…', locationFound: 'Местоположение найдено', locationDenied: 'Не удалось определить местоположение', back: 'Назад', close: 'Закрыть', clear: 'Очистить поиск',
+    searchArea: 'Искать в этой области', locating: 'Определяем местоположение…', locationFound: 'Местоположение найдено', locationDenied: 'Доступ к местоположению отклонён',
+    locationUnavailable: 'Местоположение недоступно', locationTimeout: 'Определение местоположения заняло слишком много времени', locationUnsupported: 'Этот браузер не поддерживает геолокацию',
+    locationOutside: 'Вы находитесь за пределами Тенерифе', nearbyEmpty: 'Рядом с этим местом объявлений нет', back: 'Назад', close: 'Закрыть', clear: 'Очистить поиск',
   },
 } as const
 
@@ -159,17 +170,6 @@ const darkMapStyles: google.maps.MapTypeStyle[] = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#142536' }] },
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#70879a' }] },
 ]
-
-let mapsConfigured = false
-
-function configureMaps(language: AppLanguage) {
-  if (mapsConfigured) return
-  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-  if (!key) throw new Error('VITE_GOOGLE_MAPS_API_KEY is missing')
-  const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
-  setOptions({ key, v: 'weekly', language, region: 'ES', ...(mapId ? { mapIds: [mapId] } : {}) })
-  mapsConfigured = true
-}
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return <div className={cn('m2-brand', compact && 'm2-brand--compact')} aria-label="www.112233.es">www.112233.es</div>
@@ -242,20 +242,35 @@ function OccupantSelector({ t }: { t: MobileCopy }) {
   </>
 }
 
-function HomeScreen({ t, onLocation, onSearch, onPublish }: { t: MobileCopy; onLocation: () => void; onSearch: (mode: SearchMode) => void; onPublish: () => void }) {
-  const [mode, setMode] = useState<SearchMode>(null)
-  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className="m2-hero" role="img" aria-label={t.heroAlt} /><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => setMode('vivienda')} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => setMode('turismo')} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={() => onSearch(mode)} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
+function HomeScreen({ t, mode, onMode, onLocation, onSearch, onPublish }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onSearch: (mode: SearchMode) => void; onPublish: () => void }) {
+  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className="m2-hero" role="img" aria-label={t.heroAlt} /><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={() => onSearch(mode)} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
 }
 
-function LocationScreen({ t, onBack, onChangeRegion, onMap }: {
+function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
+  if (status === 'loading') return t.locating
+  if (status === 'success') return t.locationFound
+  if (status === 'denied') return t.locationDenied
+  if (status === 'unavailable') return t.locationUnavailable
+  if (status === 'timeout') return t.locationTimeout
+  if (status === 'unsupported') return t.locationUnsupported
+  if (status === 'outside') return t.locationOutside
+  if (status === 'empty') return t.nearbyEmpty
+  return ''
+}
+
+function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, onPhone, nearbyStatus }: {
   t: MobileCopy
   onBack: () => void
   onChangeRegion: () => void
   onMap: (mode: MapMode, query?: string) => void
+  onNearby: () => void
+  onPhone: () => void
+  nearbyStatus: LocationStatus
 }) {
   const [query, setQuery] = useState('')
   const submit = (event: React.FormEvent) => { event.preventDefault(); onMap('search', query.trim()) }
-  return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button></div></section>
+  const statusMessage = locationStatusMessage(t, nearbyStatus)
+  return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onPhone} data-testid="search-phone"><span><Phone /></span><strong>{t.searchByPhone}</strong><ChevronRight /></button>{statusMessage ? <p className={cn('m2-location-feedback', !['loading', 'success'].includes(nearbyStatus) && 'is-error')} role={nearbyStatus === 'loading' ? 'status' : 'alert'}>{statusMessage}</p> : null}</div></section>
 }
 
 function normalizePhone(value: string) {
@@ -315,14 +330,14 @@ function GoogleMapCanvas({ language, t, mapRef, query, initialCenter, onStatus }
     let cancelled = false
     const initialize = async () => {
       try {
-        configureMaps(language)
-        const { Map: GoogleMap } = await importLibrary('maps') as google.maps.MapsLibrary
+        const { maps } = await loadGoogleMaps()
+        const GoogleMap = maps.Map
         if (cancelled || !containerRef.current) return
-        const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
+        const mapId = googleMapsConfig.mapId
         const hasInitialCenter = initialLat !== undefined && initialLng !== undefined
         const map = new GoogleMap(containerRef.current, { center: hasInitialCenter ? { lat: initialLat, lng: initialLng } : TENERIFE_CENTER, zoom: hasInitialCenter ? 14 : query ? 12 : 10, mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 8, maxZoom: 19, restriction: { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } })
         mapRef.current = map
-        google.maps.event.addListenerOnce(map, 'idle', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
+        google.maps.event.addListenerOnce(map, 'tilesloaded', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
       } catch (error) {
         console.error('Google Maps initialization failed', error)
         if (!cancelled) { setStatus('error'); onStatus('error') }
@@ -488,31 +503,57 @@ function FreehandAreaLayer({ mapRef, mapReady, active, setActive, polygon, onPol
   return <div className="m2-freehand-overlay" data-testid="freehand-overlay" role="application" aria-label={t.drawInstruction} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishStroke} onPointerCancel={cancelStroke} onContextMenu={(event) => event.preventDefault()}><span>{hint}</span></div>
 }
 
-function MapScreen({ mode, language, t, query, initialCenter, polygon, onPolygonChange, onBack, onSave, onList, onFilters }: {
-  mode: MapMode; language: AppLanguage; t: MobileCopy; query: string; initialCenter?: MapPoint; polygon: MapPoint[]; onPolygonChange: (polygon: MapPoint[]) => void; onBack: () => void; onSave?: () => void; onList?: () => void; onFilters?: () => void
+function MapScreen({ mode, language, t, query, initialCenter, polygon, items, onPolygonChange, onBack, onSave, onList, onFilters, onSearchArea }: {
+  mode: MapMode; language: AppLanguage; t: MobileCopy; query: string; initialCenter?: MapPoint; polygon: MapPoint[]; items: Listing[]; onPolygonChange: (polygon: MapPoint[]) => void; onBack: () => void; onSave?: () => void; onList?: () => void; onFilters?: () => void; onSearchArea?: () => void
 }) {
   const mapRef = useRef<google.maps.Map | null>(null)
+  const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
   const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
   const [saved, setSaved] = useState(false)
   const [mapStatus, setMapStatus] = useState<MapStatus>('loading')
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle')
   const [drawing, setDrawing] = useState(false)
   const toggleLayers = () => { const next = mapType === 'roadmap' ? 'hybrid' : 'roadmap'; setMapType(next); mapRef.current?.setMapTypeId(next) }
-  const locate = () => {
-    if (!navigator.geolocation) { setLocationStatus('error'); return }
-    setLocationStatus('loading')
-    navigator.geolocation.getCurrentPosition(({ coords }) => { mapRef.current?.panTo({ lat: coords.latitude, lng: coords.longitude }); mapRef.current?.setZoom(14); setLocationStatus('success') }, () => setLocationStatus('error'), { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 })
+  const showUserMarker = async (coordinates: MapPoint) => {
+    await importLibrary('marker')
+    if (!mapRef.current) return
+    if (!userMarkerRef.current) {
+      const content = document.createElement('span')
+      content.className = 'm2-user-location-marker'
+      content.setAttribute('aria-label', t.locationFound)
+      userMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({ map: mapRef.current, position: coordinates, content, title: t.locationFound, zIndex: 5000 })
+    } else {
+      userMarkerRef.current.map = mapRef.current
+      userMarkerRef.current.position = coordinates
+    }
   }
-  const locationMessage = locationStatus === 'loading' ? t.locating : locationStatus === 'success' ? t.locationFound : locationStatus === 'error' ? t.locationDenied : ''
+  const locate = async () => {
+    setLocationStatus('loading')
+    const result = await requestCurrentLocation()
+    if (!result.ok) { setLocationStatus(result.reason); return }
+    mapRef.current?.panTo(result.coordinates)
+    mapRef.current?.setZoom(14)
+    await showUserMarker(result.coordinates)
+    setLocationStatus('success')
+  }
+  useEffect(() => {
+    if (mapStatus !== 'ready' || !initialCenter) return
+    void showUserMarker(initialCenter)
+    return () => { if (userMarkerRef.current) userMarkerRef.current.map = null }
+    // Marker creation is tied to the resolved initial coordinates and map readiness.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCenter?.lat, initialCenter?.lng, mapStatus])
+  const locationMessage = locationStatusMessage(t, locationStatus)
   const mainDrawLabel = drawing ? t.cancelDrawing : polygon.length >= 3 ? t.redrawZone : t.drawZone
   const toggleDrawing = () => setDrawing((current) => !current)
-  return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', polygon.length >= 3 && 'has-drawn-zone')} data-testid={`map-${mode}`}>
+  return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', polygon.length >= 3 && 'has-drawn-zone')} data-testid={mapStatus === 'ready' ? `map-${mode}` : undefined}>
     {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ChevronLeft /></button><div><strong>Tenerife</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => { if (!saved) onSave?.(); setSaved((value) => !value) }} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={onFilters}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={onList}><Menu />{t.list}</button></div></>}
     <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} initialCenter={initialCenter} onStatus={setMapStatus} />
-    <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} />
+    <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} items={items} />
     <FreehandAreaLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} active={drawing} setActive={setDrawing} polygon={polygon} onPolygonChange={onPolygonChange} t={t} />
     <div className="m2-map-controls"><button type="button" onClick={toggleLayers} aria-label={t.layers} aria-pressed={mapType === 'hybrid'} disabled={mapStatus !== 'ready' || drawing}><Layers3 /></button><button type="button" onClick={locate} aria-label={t.locate} disabled={mapStatus !== 'ready' || locationStatus === 'loading' || drawing}><Crosshair /></button></div>
-    {locationMessage ? <div className={cn('m2-location-toast', locationStatus === 'error' && 'is-error')} role="status">{locationMessage}</div> : null}
+    {locationMessage ? <div className={cn('m2-location-toast', !['loading', 'success'].includes(locationStatus) && 'is-error')} role="status">{locationMessage}</div> : null}
+    {polygon.length >= 3 && !drawing ? <button type="button" className="m2-search-area" data-testid="search-this-area" onClick={onSearchArea}><Search />{t.searchArea}</button> : null}
     <div className="m2-draw-actions">{polygon.length >= 3 && !drawing ? <button type="button" className="m2-clear-zone" onClick={() => onPolygonChange([])} aria-label={t.clearZone}><Trash2 /></button> : null}<button type="button" className="m2-draw-cta" onClick={toggleDrawing} disabled={mapStatus !== 'ready'} aria-pressed={drawing}><PenTool />{mainDrawLabel}</button></div>
   </section>
 }
@@ -556,7 +597,7 @@ export function MobileAppV2() {
   const location = useLocation()
   const navigate = useNavigate()
   const { language, setLanguage } = useI18n()
-  const { allListings, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, setQuery, currentUser } = useApp()
+  const { allListings, discarded, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, currentUser } = useApp()
   const [step, setStep] = useState<OnboardingStep>(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }
   })
@@ -565,10 +606,22 @@ export function MobileAppV2() {
   const [mapMode, setMapMode] = useState<MapMode>('search')
   const [mapQuery, setMapQuery] = useState('')
   const [mapCenter, setMapCenter] = useState<MapPoint | undefined>()
+  const [nearbyStatus, setNearbyStatus] = useState<LocationStatus>('idle')
   const [tab, setTab] = useState<MobileTab>(() => tabFromPath(location.pathname))
-  const shellActive = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu'].includes(location.pathname)
+  const [homeMode, setHomeMode] = useState<SearchMode>(null)
+  const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)').matches)
+  const shellActive = mobileViewport && ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu'].includes(location.pathname)
   const t: MobileCopy = copy[language]
   const navItems = getNavItems(t)
+  const mapItems = useMemo(() => selectMobileSearchListings({
+    listings: allListings,
+    discarded,
+    rentalMode,
+    filters,
+    polygon: mapPolygon,
+    query: mapQuery || query,
+    params: new URLSearchParams(location.search),
+  }), [allListings, discarded, filters, location.search, mapPolygon, mapQuery, query, rentalMode])
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => allListings.filter((listing) => favorites.has(listing.id)).map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.area}, ${listing.city} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [allListings, favorites, navigate])
   const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   const messageItems = useMemo<MobileCollectionItem[]>(() => localThreads.map((thread) => ({ id: thread.id, title: thread.listingTitle, meta: `${thread.contactName} · ${thread.messagePreview}`, onOpen: () => navigate(`/habitacion/${thread.listingId}`) })), [localThreads, navigate])
@@ -576,6 +629,12 @@ export function MobileAppV2() {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
   }, [shellActive])
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)')
+    const update = () => setMobileViewport(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
   useEffect(() => {
     if (step !== 'done') return
     const params = new URLSearchParams(location.search)
@@ -601,6 +660,19 @@ export function MobileAppV2() {
     setPage('tabs')
     setTab(tabFromPath(location.pathname))
   }, [location.pathname, location.search, step])
+  useEffect(() => {
+    if (!shellActive || location.pathname !== '/buscar') return
+    const polygonParam = new URLSearchParams(location.search).get('poligono')
+    const routePolygon = polygonParam
+      ? polygonParam.split(';').map((pair) => pair.split(',').map(Number)).filter((pair) => pair.length === 2 && pair.every(Number.isFinite)).map(([lat, lng]) => ({ lat, lng }))
+      : []
+    const nextPolygon = routePolygon.length >= 3 ? routePolygon : []
+    if (JSON.stringify(nextPolygon) !== JSON.stringify(mapPolygon)) setMapPolygon(nextPolygon)
+  }, [location.pathname, location.search, mapPolygon, setMapPolygon, shellActive])
+  useEffect(() => {
+    if (location.pathname !== '/buscar') return
+    setHomeMode(rentalMode === 'holiday' ? 'turismo' : 'vivienda')
+  }, [location.pathname, rentalMode])
   const persistOnboarding = () => { try { localStorage.setItem(ONBOARDING_KEY, 'done') } catch { /* private mode */ } }
   const returnToApp = () => { persistOnboarding(); setStep('done'); setPage('tabs') }
   const finishAuth = () => { persistOnboarding(); if (origin === 'startup') { setTab(tabFromPath(location.pathname)); setPage('tabs') }; setStep('done') }
@@ -611,18 +683,56 @@ export function MobileAppV2() {
   const handleCountryContinue = () => { if (origin === 'region-location') { setStep('done'); navigate('/?panel=ubicacion'); return }; if (origin === 'region-settings') { setStep('done'); navigate('/menu'); return }; setStep('privacy') }
   const authBack = () => { if (origin === 'startup') setStep('privacy'); else returnToApp() }
   const openMap = (mode: MapMode, query = '') => {
-    const params = new URLSearchParams()
+    const params = filtersToParams(filters)
     params.set('q', query || 'Tenerife')
     params.set('vista', 'mapa')
+    params.set('alquiler', rentalMode)
+    if (mapPolygon.length >= 3) params.set('poligono', mapPolygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     if (mode === 'draw') params.set('dibujar', '1')
     navigate(`/buscar?${params.toString()}`)
   }
-  const openResults = (mode: SearchMode) => navigate(`/buscar?q=Tenerife&alquiler=${mode === 'turismo' ? 'holiday' : 'long'}`)
+  const openResults = (mode: SearchMode) => {
+    const nextMode = mode ?? 'vivienda'
+    setHomeMode(nextMode)
+    navigate(`/buscar?q=Tenerife&alquiler=${nextMode === 'turismo' ? 'holiday' : 'long'}`)
+  }
+  const openNearby = async () => {
+    setNearbyStatus('loading')
+    const result = await requestCurrentLocation()
+    if (!result.ok) { setNearbyStatus(result.reason); return }
+    const params = filtersToParams(filters)
+    params.set('q', 'Tenerife')
+    params.set('vista', 'mapa')
+    params.set('cerca', '1')
+    params.set('radio', '30')
+    params.set('lat', String(result.coordinates.lat))
+    params.set('lng', String(result.coordinates.lng))
+    params.set('alquiler', rentalMode)
+    const nearbyItems = selectMobileSearchListings({ listings: allListings, discarded, rentalMode, filters, polygon: mapPolygon, query: 'Tenerife', params })
+    if (!nearbyItems.length) { setNearbyStatus('empty'); return }
+    setNearbyStatus('success')
+    navigate(`/buscar?${params.toString()}`)
+  }
+  const commitMobilePolygon = (polygon: MapPoint[]) => {
+    setMapPolygon(polygon)
+    const params = new URLSearchParams(location.search)
+    if (polygon.length >= 3) params.set('poligono', polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
+    else params.delete('poligono')
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true })
+  }
+  const navigateFromMap = (target: 'list' | 'filters' | 'area') => {
+    const params = new URLSearchParams(location.search)
+    params.delete('dibujar')
+    if (target !== 'area') params.delete('vista')
+    if (target === 'filters') params.set('panel', 'filtros')
+    else params.delete('panel')
+    navigate(`/buscar?${params.toString()}`)
+  }
   const openPublication = () => navigate(`${location.pathname}?gate=publicar`)
   if (!shellActive) return null
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
-  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} /></div>
+  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} onPhone={() => navigate('/?panel=telefono')} nearbyStatus={nearbyStatus} /></div>
   if (page === 'phone') return <div className="m2-app notranslate" translate="no"><PhoneSearchScreen t={t} listings={allListings} onBack={() => navigate('/?panel=ubicacion')} onFound={(listingId) => navigate(`/habitacion/${listingId}`)} /></div>
-  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} onPolygonChange={setMapPolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigate('/buscar?q=Tenerife')} onFilters={() => navigate('/buscar?q=Tenerife&panel=filtros')} /></div>
-  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} onLocation={() => navigate('/?panel=ubicacion')} onSearch={openResults} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={favoriteItems} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
+  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={() => navigateFromMap('area')} /></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={openResults} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={favoriteItems} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }

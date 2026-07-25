@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ChevronDown, Globe2, Heart, Home, LayoutDashboard, Menu, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,9 @@ import { MobileSearchResults } from '@/components/mobile-search-results'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
+
+const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
+const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu']
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return <Link to="/" className="brand-logo" aria-label="112233.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small>.es</small>}</Link>
@@ -44,6 +48,14 @@ export function Footer() { return <footer className="site-footer"><div className
 export function AppLayout() {
   const { pathname } = useLocation()
   const { storageError, clearStorageError } = useApp()
+  const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
+  const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname === '/mensajes' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults /><Outlet /></main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_VIEWPORT)
+    const update = () => setMobileViewport(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Outlet />}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
 }

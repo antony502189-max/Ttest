@@ -151,6 +151,7 @@ export function RentalTypeSwitch({
   onChange?: (mode: RentalMode) => void;
 }) {
   const { rentalMode, setRentalMode } = useApp();
+  const [awaitingChoice, setAwaitingChoice] = useState(home);
   return (
     <ToggleGroup
       type="single"
@@ -158,10 +159,12 @@ export function RentalTypeSwitch({
       onValueChange={(value) => {
         if (!value) return;
         const mode = value as RentalMode;
+        setAwaitingChoice(false);
         setRentalMode(mode);
         onChange?.(mode);
       }}
       className={cn("rental-switch", compact && "rental-switch--compact", home && "rental-switch--home")}
+      data-awaiting-choice={home && awaitingChoice ? "true" : undefined}
       aria-label="Tipo de alquiler"
     >
       <ToggleGroupItem value="long" aria-label="Vivienda, larga estancia">

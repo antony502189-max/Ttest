@@ -6,6 +6,8 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import '@/mobile-publication-gate.css'
 
+const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
+
 const gateCopy = {
   es: {
     title: 'Publica tu anuncio',
@@ -56,13 +58,21 @@ export function MobilePublicationGate() {
   const location = useLocation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_VIEWPORT)
+    const update = () => setMobileViewport(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     const requested = new URLSearchParams(location.search).get('gate') === 'publicar'
-    if (!requested) { setOpen(false); return }
+    if (!mobileViewport || !requested) { setOpen(false); return }
     if (currentUser) { navigate('/publicar', { replace: true }); return }
     setOpen(true)
-  }, [currentUser, location.search, navigate])
+  }, [currentUser, location.search, mobileViewport, navigate])
 
   useEffect(() => {
     if (!open) return
