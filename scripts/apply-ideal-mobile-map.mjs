@@ -1,73 +1,106 @@
 import fs from 'node:fs'
 
-function patch(path, operations) {
-  let source = fs.readFileSync(path, 'utf8')
-  for (const [before, after, label] of operations) {
-    if (!source.includes(before)) throw new Error(`${path}: missing patch anchor: ${label}`)
-    source = source.replace(before, after)
-  }
-  fs.writeFileSync(path, source)
+function read(path) {
+  return fs.readFileSync(path, 'utf8')
 }
 
-patch('src/components/mobile-app-v2.tsx', [
-  [
-    "import { cn } from '@/lib/utils'\n",
-    "import { MobileMapListingsLayer } from '@/components/mobile-map-listings-layer'\nimport { cn } from '@/lib/utils'\n",
-    'mobile map listings import',
-  ],
-  [
-    "  const [drawing, setDrawing] = useState(mode === 'draw')\n  useEffect(() => { if (mode === 'draw' && mapStatus === 'ready' && polygon.length < 3) setDrawing(true) }, [mapStatus, mode, polygon.length])\n",
-    "  const [drawing, setDrawing] = useState(false)\n",
-    'remove automatic drawing activation',
-  ],
-  [
-    "    <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} onStatus={setMapStatus} />\n    <FreehandAreaLayer",
-    "    <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} onStatus={setMapStatus} />\n    <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} />\n    <FreehandAreaLayer",
-    'mount listing markers on mobile map',
-  ],
-])
+function write(path, content) {
+  fs.writeFileSync(path, content)
+}
 
-patch('src/components/layout.tsx', [
-  ["import { MobileMapDrawingActivationFix } from '@/components/mobile-map-drawing-activation-fix'\n", '', 'remove drawing workaround import'],
-  ['<MobileMapDrawingActivationFix /><MobileAppV2 />', '<MobileAppV2 />', 'remove drawing workaround mount'],
-])
+function replaceOnce(path, before, after, label) {
+  const source = read(path)
+  if (!source.includes(before)) throw new Error(`${path}: missing patch anchor: ${label}`)
+  write(path, source.replace(before, after))
+}
 
-patch('src/components/mobile-search-results.tsx', [
-  [
-    "function formatPrice(listing: Listing, language: ResultsLanguage) {\n  const value = new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-GB' : 'es-ES').format(listing.price)\n  const cadence = listing.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'\n  return `${value} € / ${cadence}`\n}\n",
-    "function formatPrice(listing: Listing, language: ResultsLanguage) {\n  const value = new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-GB' : 'es-ES').format(listing.price)\n  const cadence = listing.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'\n  return `${value} € / ${cadence}`\n}\n\nfunction capacityLabel(language: ResultsLanguage, count: number) {\n  if (language === 'ru') return `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`\n  if (language === 'en') return `Room for ${count} ${count === 1 ? 'person' : 'people'}`\n  return `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`\n}\n",
-    'capacity label helper',
-  ],
-  [
-    "<div className=\"m2-result-card__badges\">{listing.restrictions.slice(0, 2).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>",
-    "<div className=\"m2-result-card__badges\">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>",
-    'prominent capacity requirement badge',
-  ],
-  [
-    "  const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters())\n",
-    "  const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters())\n  const [focusListingId, setFocusListingId] = useState('')\n",
-    'focused listing state',
-  ],
-  [
-    "      setLanguage(currentLanguage()); setPanel('results'); setOpen(true)\n",
-    "      setFocusListingId(''); setLanguage(currentLanguage()); setPanel('results'); setOpen(true)\n",
-    'clear focused listing for ordinary search',
-  ],
-  [
-    "  }, [setRentalMode])\n\n  useEffect(() => {\n    if (!open) return\n",
-    "  }, [setRentalMode])\n\n  useEffect(() => {\n    const openListing = (event: Event) => {\n      const listingId = (event as CustomEvent<{ listingId?: string }>).detail?.listingId ?? ''\n      const listing = allListings.find((item) => item.id === listingId)\n      if (!listing) return\n      setRentalMode(listing.rentalMode)\n      setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))\n      setFocusListingId(listingId)\n      setLanguage(currentLanguage())\n      setPanel('results')\n      setOpen(true)\n    }\n    window.addEventListener('112233:open-mobile-listing', openListing)\n    return () => window.removeEventListener('112233:open-mobile-listing', openListing)\n  }, [allListings, setRentalMode])\n\n  useEffect(() => {\n    if (!open || panel !== 'results' || !focusListingId) return\n    const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-listing-id=\"${CSS.escape(focusListingId)}\"]`)?.scrollIntoView({ block: 'start' }))\n    return () => cancelAnimationFrame(frame)\n  }, [focusListingId, open, panel])\n\n  useEffect(() => {\n    if (!open) return\n",
-    'map marker to focused listing flow',
-  ],
-  [
-    "  }), [favorites, filteredListings, order])\n\n  if (!open) return null\n",
-    "  }), [favorites, filteredListings, order])\n  const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])\n\n  if (!open) return null\n",
-    'focused listing ordering',
-  ],
-  [
-    "listings.length ? listings.map((listing, index) => <MobileResultCard",
-    "orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard",
-    'render focused listing first',
-  ],
-])
+function replaceSection(path, startMarker, endMarker, replacementPath, label) {
+  const source = read(path)
+  const start = source.indexOf(startMarker)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  if (start < 0 || end < 0) throw new Error(`${path}: missing section anchors: ${label}`)
+  write(path, source.slice(0, start) + read(replacementPath).trim() + '\n\n' + source.slice(end))
+}
 
-console.log('Ideal mobile map patch applied successfully.')
+function replaceFrom(path, startMarker, replacementPath, label) {
+  const source = read(path)
+  const start = source.indexOf(startMarker)
+  if (start < 0) throw new Error(`${path}: missing final section anchor: ${label}`)
+  write(path, source.slice(0, start) + read(replacementPath).trim() + '\n')
+}
+
+write('src/components/mobile-map-listings-layer.tsx', read('.map-patch/mobile-map-listings-layer.tsx'))
+write('tests/mobile-map-parity.spec.ts', read('.map-patch/mobile-map-parity.spec.ts'))
+
+replaceOnce(
+  'src/components/mobile-app-v2.tsx',
+  "import { MobileMapListingsLayer } from '@/components/mobile-map-listings-layer'\nimport { cn } from '@/lib/utils'\n",
+  "import { MobileMapListingsLayer, type MobileMapBounds } from '@/components/mobile-map-listings-layer'\nimport { useApp } from '@/contexts/app-context'\nimport { isInsideTenerife, resolveTenerifeLocation, TENERIFE_BOUNDS } from '@/lib/tenerife'\nimport { cn } from '@/lib/utils'\n",
+  'mobile map integration imports',
+)
+replaceOnce('src/components/mobile-app-v2.tsx', "type SearchMode = 'vivienda' | 'turismo' | null\n", '', 'remove local rental mode type')
+replaceOnce('src/components/mobile-app-v2.tsx', "const GENERAL_OCCUPANTS = new Set<OccupantOption>(['anyone', 'unrestricted'])\n", '', 'remove disconnected occupant set')
+replaceOnce(
+  'src/components/mobile-app-v2.tsx',
+  "    locating: 'Buscando tu ubicación…', locationFound: 'Ubicación encontrada', locationDenied: 'No se pudo obtener tu ubicación', back: 'Volver', close: 'Cerrar', clear: 'Borrar búsqueda',",
+  "    locating: 'Buscando tu ubicación…', locationFound: 'Ubicación encontrada', locationDenied: 'No se pudo obtener tu ubicación', searchThisArea: 'Buscar en esta zona', outsideTenerife: 'Tu ubicación está fuera de Tenerife', back: 'Volver', close: 'Cerrar', clear: 'Borrar búsqueda',",
+  'Spanish map copy',
+)
+replaceOnce(
+  'src/components/mobile-app-v2.tsx',
+  "    mapError: 'Google Maps could not be loaded', locating: 'Finding your location…', locationFound: 'Location found', locationDenied: 'Your location could not be obtained',\n    back: 'Back', close: 'Close', clear: 'Clear search',",
+  "    mapError: 'Google Maps could not be loaded', locating: 'Finding your location…', locationFound: 'Location found', locationDenied: 'Your location could not be obtained',\n    searchThisArea: 'Search this area', outsideTenerife: 'Your location is outside Tenerife', back: 'Back', close: 'Close', clear: 'Clear search',",
+  'English map copy',
+)
+replaceOnce(
+  'src/components/mobile-app-v2.tsx',
+  "    locating: 'Определяем местоположение…', locationFound: 'Местоположение найдено', locationDenied: 'Не удалось определить местоположение', back: 'Назад', close: 'Закрыть', clear: 'Очистить поиск',",
+  "    locating: 'Определяем местоположение…', locationFound: 'Местоположение найдено', locationDenied: 'Не удалось определить местоположение', searchThisArea: 'Искать в этой области', outsideTenerife: 'Ваше местоположение находится за пределами Тенерифе', back: 'Назад', close: 'Закрыть', clear: 'Очистить поиск',",
+  'Russian map copy',
+)
+replaceSection('src/components/mobile-app-v2.tsx', 'function OccupantSelector', 'function HomeScreen', '.map-patch/occupant-selector.txt', 'connected occupant selector')
+replaceSection('src/components/mobile-app-v2.tsx', 'function HomeScreen', 'function LocationScreen', '.map-patch/home-screen.txt', 'connected home mode')
+replaceSection('src/components/mobile-app-v2.tsx', 'function LocationScreen', 'function GoogleMapCanvas', '.map-patch/location-screen.txt', 'connected location query')
+replaceSection('src/components/mobile-app-v2.tsx', 'function GoogleMapCanvas', 'function captureMapInteractions', '.map-patch/google-map-canvas.txt', 'query-aware Google map')
+replaceSection('src/components/mobile-app-v2.tsx', 'function MapScreen', 'function EmptyScreen', '.map-patch/map-screen.txt', 'fully connected map screen')
+replaceFrom('src/components/mobile-app-v2.tsx', 'export function MobileAppV2()', '.map-patch/mobile-app-root.txt', 'mobile app global map state')
+
+replaceOnce(
+  'src/components/mobile-search-results.tsx',
+  "import { useApp } from '@/contexts/app-context'\nimport type { Listing, RentalMode } from '@/types'\n",
+  "import { useApp } from '@/contexts/app-context'\nimport { filterListings, pointInPolygon } from '@/lib/search'\nimport { listingMatchesTenerifeLocation, resolveTenerifeLocation } from '@/lib/tenerife'\nimport type { Listing, RentalMode } from '@/types'\n",
+  'mobile result map filter imports',
+)
+replaceOnce(
+  'src/components/mobile-search-results.tsx',
+  "  const { allListings, discarded, discardListing, favorites, toggleFavorite, currentUser, setRentalMode } = useApp()",
+  "  const { allListings, discarded, discardListing, favorites, toggleFavorite, currentUser, setRentalMode, rentalMode, filters: appFilters, query, mapPolygon } = useApp()",
+  'mobile result global search state',
+)
+replaceOnce(
+  'src/components/mobile-search-results.tsx',
+  "      const mapList = Boolean(target.closest('.m2-map-toolbar')) && /listado|list|перечень/i.test(target.textContent ?? '')\n      if (!mainSearch && !mapList) return",
+  "      if (!mainSearch) return",
+  'remove map toolbar capture workaround',
+)
+replaceOnce(
+  'src/components/mobile-search-results.tsx',
+  "  useEffect(() => {\n    if (!open || panel !== 'results' || !focusListingId) return",
+  read('.map-patch/results-open-effect.txt').trim() + "\n\n  useEffect(() => {\n    if (!open || panel !== 'results' || !focusListingId) return",
+  'open actual map result panels',
+)
+replaceSection(
+  'src/components/mobile-search-results.tsx',
+  '  const availableListings = useMemo',
+  '  const listings = useMemo',
+  '.map-patch/results-filter-block.txt',
+  'shared map and list filtering',
+)
+replaceOnce('src/components/mobile-search-results.tsx', '<small>{t.zone}</small>', '<small>{query || t.zone}</small>', 'show actual query in results')
+
+const cssPath = 'src/mobile-map-ideal.css'
+if (!read(cssPath).includes('.m2-map-search-area {')) {
+  write(cssPath, read(cssPath).trimEnd() + '\n\n' + read('.map-patch/mobile-map-extra.css').trim() + '\n')
+}
+
+console.log('Mobile map parity patch applied successfully.')
