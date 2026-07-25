@@ -123,7 +123,11 @@ function MapScreen({ mode, language, t, onBack }: {
     setSaved(true)
   }
 
-  return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', mapPolygon.length >= 3 && 'has-drawn-zone')} data-testid={`map-${mode}`}>
+  const markVisibleAreaChanged = () => {
+    if (!drawing && mapStatus === 'ready') setBoundsDirty(true)
+  }
+
+  return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', mapPolygon.length >= 3 && 'has-drawn-zone')} data-testid={`map-${mode}`} onWheelCapture={markVisibleAreaChanged} onDoubleClickCapture={markVisibleAreaChanged}>
     {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ChevronLeft /></button><div><strong>Tenerife</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={saveSearch} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={() => openResults('filters')}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => openResults('results')}><Menu />{t.list}</button><span className="m2-map-toolbar__count" data-testid="mobile-map-count">{visibleCount}</span></div></>}
     <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} onStatus={setMapStatus} />
     <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} query={query} polygon={mapPolygon} bounds={searchBounds} onVisibleCount={setVisibleCount} />
