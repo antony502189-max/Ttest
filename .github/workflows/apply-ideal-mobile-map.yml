@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: ideal-mobile-map-patch
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply-and-verify:
