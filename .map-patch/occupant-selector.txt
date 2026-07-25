@@ -1,0 +1,39 @@
+const occupantToRequirement: Record<OccupantOption, import('@/types').Filters['tenantRequirement']> = {
+  anyone: 'Cualquiera',
+  man: 'single-man',
+  woman: 'single-woman',
+  person: 'single-person',
+  couple: 'couple',
+  unrestricted: 'any',
+}
+
+const requirementToOccupant: Record<import('@/types').Filters['tenantRequirement'], OccupantOption> = {
+  Cualquiera: 'anyone',
+  'single-man': 'man',
+  'single-woman': 'woman',
+  'single-person': 'person',
+  couple: 'couple',
+  any: 'unrestricted',
+}
+
+function OccupantSelector({ t }: { t: MobileCopy }) {
+  const { filters, setFilters } = useApp()
+  const [open, setOpen] = useState(false)
+  const options = getOccupantOptions(t)
+  const selected = requirementToOccupant[filters.tenantRequirement] ?? 'anyone'
+  const summary = useMemo(() => `${t.occupantPrefix} ${options.find((option) => option.value === selected)?.label ?? t.occupantAnyone}`, [options, selected, t.occupantAnyone, t.occupantPrefix])
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
+  }, [open])
+  const choose = (value: OccupantOption) => {
+    setFilters({ ...filters, tenantRequirement: occupantToRequirement[value] })
+  }
+  return <><button type="button" className="m2-occupant-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} aria-label={`${t.occupantQuestion} ${summary}`}><Users /><span><small>{t.occupantQuestion}</small><strong>{summary}</strong></span><ChevronDown /></button>
+    {open ? <div className="m2-sheet-backdrop" onClick={() => setOpen(false)}><section className="m2-sheet" role="dialog" aria-modal="true" aria-label={t.occupantQuestion} onClick={(event) => event.stopPropagation()}><header><strong>{t.occupantQuestion}</strong><button type="button" onClick={() => setOpen(false)} aria-label={t.close}><X /></button></header><div className="m2-check-list" role="radiogroup" aria-label={t.occupantQuestion}>{options.map((option) => { const checked = selected === option.value; return <button key={option.value} type="button" role="radio" aria-checked={checked} className={cn(checked && 'is-selected')} onClick={() => choose(option.value)}><span>{t.occupantPrefix} {option.label}</span><i>{checked ? <Check /> : null}</i></button> })}</div><PrimaryButton onClick={() => setOpen(false)}>{t.done}</PrimaryButton></section></div> : null}
+  </>
+}
