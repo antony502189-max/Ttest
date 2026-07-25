@@ -10,10 +10,11 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: ideal-mobile-map-patch
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply-and-verify:
@@ -52,3 +53,9 @@ jobs:
           git add src/components/mobile-app-v2.tsx src/components/layout.tsx src/components/mobile-search-results.tsx
           git commit -m "Build ideal interactive mobile listings map"
           git push origin HEAD:main
+      - name: Report verification result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ job.status }}
+        run: gh issue comment 33 --repo "$GITHUB_REPOSITORY" --body "IDEAL_MAP_QA status=$RESULT run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
