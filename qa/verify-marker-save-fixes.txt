@@ -1,0 +1,1 @@
+Verify deterministic mobile map markers, saved search, and visible-area search.
