@@ -69,7 +69,7 @@ test('published listings are visible on the map and open the matching result', a
   const listingId = await preview.getAttribute('data-listing-id')
   expect(listingId).toBeTruthy()
   await expect(preview.locator('.m2-map-listing-preview__requirements span')).not.toHaveCount(0)
-  await preview.getByRole('button', { name: 'Ver anuncio' }).click()
+  await preview.locator('.m2-map-listing-preview__open').click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
   await expect(results.locator('.m2-result-card').first()).toHaveAttribute('data-listing-id', listingId!)
