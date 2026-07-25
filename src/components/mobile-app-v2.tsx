@@ -25,6 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { MobileMapListingsLayer } from '@/components/mobile-map-listings-layer'
 import { cn } from '@/lib/utils'
 import '@/mobile-app-v2.css'
 
@@ -412,8 +413,7 @@ function MapScreen({ mode, language, t, query, polygon, onPolygonChange, onBack 
   const [saved, setSaved] = useState(false)
   const [mapStatus, setMapStatus] = useState<MapStatus>('loading')
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle')
-  const [drawing, setDrawing] = useState(mode === 'draw')
-  useEffect(() => { if (mode === 'draw' && mapStatus === 'ready' && polygon.length < 3) setDrawing(true) }, [mapStatus, mode, polygon.length])
+  const [drawing, setDrawing] = useState(false)
   const toggleLayers = () => { const next = mapType === 'roadmap' ? 'hybrid' : 'roadmap'; setMapType(next); mapRef.current?.setMapTypeId(next) }
   const locate = () => {
     if (!navigator.geolocation) { setLocationStatus('error'); return }
@@ -426,6 +426,7 @@ function MapScreen({ mode, language, t, query, polygon, onPolygonChange, onBack 
   return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', polygon.length >= 3 && 'has-drawn-zone')} data-testid={`map-${mode}`}>
     {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ChevronLeft /></button><div><strong>Tenerife</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => setSaved((value) => !value)} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button"><SlidersHorizontal />{t.filters}</button><button type="button"><Menu />{t.list}</button></div></>}
     <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} onStatus={setMapStatus} />
+    <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} />
     <FreehandAreaLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} active={drawing} setActive={setDrawing} polygon={polygon} onPolygonChange={onPolygonChange} t={t} />
     <div className="m2-map-controls"><button type="button" onClick={toggleLayers} aria-label={t.layers} aria-pressed={mapType === 'hybrid'} disabled={mapStatus !== 'ready' || drawing}><Layers3 /></button><button type="button" onClick={locate} aria-label={t.locate} disabled={mapStatus !== 'ready' || locationStatus === 'loading' || drawing}><Crosshair /></button></div>
     {locationMessage ? <div className={cn('m2-location-toast', locationStatus === 'error' && 'is-error')} role="status">{locationMessage}</div> : null}

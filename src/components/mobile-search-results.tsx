@@ -101,6 +101,12 @@ function formatPrice(listing: Listing, language: ResultsLanguage) {
   return `${value} € / ${cadence}`
 }
 
+function capacityLabel(language: ResultsLanguage, count: number) {
+  if (language === 'ru') return `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`
+  if (language === 'en') return `Room for ${count} ${count === 1 ? 'person' : 'people'}`
+  return `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`
+}
+
 function toggleValue<T>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
 }
@@ -148,7 +154,7 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
   return <article className="m2-result-card" data-listing-id={listing.id}>
     <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={nextImage} aria-label={`${t.photo}: ${listing.title}`}><MediaImage src={images[imageIndex]} onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button>{index < 2 ? <span className="m2-result-card__top">{t.top}</span> : null}<span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
-    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {listing.roomSizeM2} m² · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{listing.restrictions.slice(0, 2).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
+    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {listing.roomSizeM2} m² · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
   </article>
@@ -161,6 +167,7 @@ export function MobileSearchResults() {
   const [language, setLanguage] = useState<ResultsLanguage>('es')
   const [order, setOrder] = useState<ResultsOrder>('relevance')
   const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters())
+  const [focusListingId, setFocusListingId] = useState('')
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -176,11 +183,33 @@ export function MobileSearchResults() {
         setFilters((current) => ({ ...current, rentalMode: selectedMode }))
         if (selectedMode) setRentalMode(selectedMode)
       }
-      setLanguage(currentLanguage()); setPanel('results'); setOpen(true)
+      setFocusListingId(''); setLanguage(currentLanguage()); setPanel('results'); setOpen(true)
     }
     document.addEventListener('click', handleClick, true)
     return () => document.removeEventListener('click', handleClick, true)
   }, [setRentalMode])
+
+  useEffect(() => {
+    const openListing = (event: Event) => {
+      const listingId = (event as CustomEvent<{ listingId?: string }>).detail?.listingId ?? ''
+      const listing = allListings.find((item) => item.id === listingId)
+      if (!listing) return
+      setRentalMode(listing.rentalMode)
+      setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
+      setFocusListingId(listingId)
+      setLanguage(currentLanguage())
+      setPanel('results')
+      setOpen(true)
+    }
+    window.addEventListener('112233:open-mobile-listing', openListing)
+    return () => window.removeEventListener('112233:open-mobile-listing', openListing)
+  }, [allListings, setRentalMode])
+
+  useEffect(() => {
+    if (!open || panel !== 'results' || !focusListingId) return
+    const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-listing-id="${CSS.escape(focusListingId)}"]`)?.scrollIntoView({ block: 'start' }))
+    return () => cancelAnimationFrame(frame)
+  }, [focusListingId, open, panel])
 
   useEffect(() => {
     if (!open) return
@@ -225,6 +254,7 @@ export function MobileSearchResults() {
     if (order === 'floor-low') return stableFloor(a) - stableFloor(b)
     return +new Date(b.publishedAt) - +new Date(a.publishedAt)
   }), [favorites, filteredListings, order])
+  const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])
 
   if (!open) return null
   const t = resultsCopy[language] as ResultsCopy
@@ -248,7 +278,7 @@ export function MobileSearchResults() {
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
     {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => setOpen(false)} aria-label={t.back}><ChevronLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => setPanel('filters')}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
-      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{listings.length ? listings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}
+      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}
 
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{orderKeys.map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => { setOrder(value); setPanel('results') }}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
