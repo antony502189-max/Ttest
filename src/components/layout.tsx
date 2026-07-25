@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ChevronDown, Globe2, Heart, Home, LayoutDashboard, Menu, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -45,18 +44,6 @@ export function Footer() { return <footer className="site-footer"><div className
 export function AppLayout() {
   const { pathname } = useLocation()
   const { storageError, clearStorageError } = useApp()
-  const [mobileViewport, setMobileViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches)
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)')
-    const update = () => setMobileViewport(media.matches)
-    update()
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
-  const mobileShell = mobileViewport && ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu'].includes(pathname)
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname === '/mensajes' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  if (mobileShell) {
-    return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><main id="main-content" tabIndex={-1}><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults /></main><Toaster position="top-center" richColors closeButton /></>
-  }
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><Outlet /></main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults /><Outlet /></main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
 }

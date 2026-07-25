@@ -35,6 +35,11 @@ html.mobile-v2-active #root {
 }
 
 html.mobile-v2-active body { padding-bottom: 0 !important; }
+html.mobile-v2-active .site-header,
+html.mobile-v2-active .mobile-header,
+html.mobile-v2-active .bottom-nav,
+html.mobile-v2-active .site-footer,
+html.mobile-v2-active #main-content > :not(.m2-app) { display: none !important; }
 
 .m2-brand {
   color: #fff;
