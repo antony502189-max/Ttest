@@ -27,15 +27,21 @@ function MapScreen({ mode, language, t, onBack }: {
   useEffect(() => {
     const map = mapRef.current
     if (!map || mapStatus !== 'ready' || drawing) return
+    const div = map.getDiv()
     const dirty = () => setBoundsDirty(true)
     const dragListener = map.addListener('dragstart', dirty)
-    const div = map.getDiv()
-    div.addEventListener('wheel', dirty, { passive: true })
-    div.addEventListener('dblclick', dirty)
+    const wheel = (event: WheelEvent) => {
+      if (event.target instanceof Node && div.contains(event.target)) dirty()
+    }
+    const doubleClick = (event: MouseEvent) => {
+      if (event.target instanceof Node && div.contains(event.target)) dirty()
+    }
+    window.addEventListener('wheel', wheel, { capture: true, passive: true })
+    window.addEventListener('dblclick', doubleClick, true)
     return () => {
       dragListener.remove()
-      div.removeEventListener('wheel', dirty)
-      div.removeEventListener('dblclick', dirty)
+      window.removeEventListener('wheel', wheel, true)
+      window.removeEventListener('dblclick', doubleClick, true)
     }
   }, [drawing, mapStatus])
 
