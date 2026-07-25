@@ -1,0 +1,68 @@
+.m2-map-toolbar__count {
+  min-width: 2rem;
+  height: 2rem;
+  display: inline-grid;
+  place-items: center;
+  margin-left: auto;
+  border: 1px solid rgb(210 255 63 / .65);
+  border-radius: 999px;
+  background: #303b0b;
+  color: #efffb7;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.m2-map-search-area {
+  position: absolute;
+  top: 8.35rem;
+  left: 50%;
+  z-index: 31;
+  display: inline-flex;
+  align-items: center;
+  gap: .42rem;
+  min-height: 2.65rem;
+  padding: .55rem .85rem;
+  border: 1px solid #d2ff3f;
+  border-radius: 999px;
+  background: rgb(20 20 20 / .96);
+  color: #f4f4f4;
+  font-size: .74rem;
+  font-weight: 850;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .5);
+  transform: translateX(-50%);
+}
+
+.m2-map-search-area svg {
+  width: 1rem;
+  height: 1rem;
+  color: #d2ff3f;
+}
+
+.m2-map-listing-preview__media {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.m2-map-listing-preview__title {
+  display: -webkit-box;
+  width: 100%;
+  margin: 0 1.5rem .35rem 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.m2-map-screen.is-freehand-drawing .m2-map-search-area {
+  display: none;
+}
