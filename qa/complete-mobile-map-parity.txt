@@ -1,1 +1,1 @@
-Trigger the complete mobile map parity verification against the current main branch.
+Trigger the complete mobile map parity verification against the latest main branch.
