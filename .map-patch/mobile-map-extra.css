@@ -12,6 +12,21 @@
   font-weight: 900;
 }
 
+.m2-map-results-header {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.m2-map-results-header .m2-save {
+  min-width: 5.4rem;
+  min-height: 2.6rem;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto;
+}
+
 .m2-map-search-area {
   position: absolute;
   top: 8.35rem;
