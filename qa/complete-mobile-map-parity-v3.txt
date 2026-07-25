@@ -1,0 +1,1 @@
+Trigger final complete mobile map parity verification from the latest main snapshot.
