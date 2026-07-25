@@ -18,7 +18,6 @@ import {
   Menu,
   MessageCircle,
   PenTool,
-  Phone,
   Plus,
   Search,
   SlidersHorizontal,
@@ -85,7 +84,7 @@ const copy = {
     locationTitle: '¿Dónde buscas?', regionSearch: 'Búsqueda en Tenerife', change: 'Cambiar', locationPlaceholder: 'Municipio, zona o dirección', alsoYouCan: 'También puedes',
     drawZone: 'Dibujar tu zona', redrawZone: 'Volver a dibujar', cancelDrawing: 'Cancelar dibujo', clearZone: 'Eliminar zona', drawInstruction: 'Mantén pulsado y dibuja el contorno',
     drawingInstruction: 'Rodea la zona y suelta el dedo', drawTooShort: 'Dibuja una zona más grande con un solo movimiento', areaReady: 'Zona seleccionada',
-    searchOnMap: 'Ver anuncios en mapa', searchNearby: 'Buscar alrededor de ti', searchByPhone: 'Buscar por teléfono', mapDrawTitle: 'Tu propia zona', visibleArea: 'Zona visible', filters: 'Filtros', list: 'Listado',
+    searchOnMap: 'Buscar en el mapa', searchNearby: 'Buscar alrededor de ti', searchByPhone: 'Buscar por teléfono', mapDrawTitle: 'Tu propia zona', visibleArea: 'Zona visible', filters: 'Filtros', list: 'Listado',
     phoneIntro: '¿Has visto un cartel de "se vende" o "se alquila"? Introduce los datos para buscarlo', phone: 'Teléfono', operation: 'Operación',
     buy: 'Comprar', rent: 'Alquilar', type: 'Tipo', homes: 'Viviendas', invalidPhone: 'Introduce un teléfono válido', phoneNotFound: 'No hemos encontrado ningún anuncio con ese teléfono.',
     save: 'Guardar', saved: 'Guardado', layers: 'Cambiar capas', locate: 'Mi ubicación', mapLoading: 'Cargando mapa…', mapError: 'No se pudo cargar Google Maps',
@@ -109,7 +108,7 @@ const copy = {
     mainNavigation: 'Main navigation', heroAlt: 'Home interior', locationTitle: 'Where are you looking?', regionSearch: 'Searching in Tenerife', change: 'Change',
     locationPlaceholder: 'Town, area or address', alsoYouCan: 'You can also', drawZone: 'Draw your own area', redrawZone: 'Draw again', cancelDrawing: 'Cancel drawing',
     clearZone: 'Delete area', drawInstruction: 'Press and draw the area outline', drawingInstruction: 'Draw around the area and release',
-    drawTooShort: 'Draw a larger area in one continuous movement', areaReady: 'Area selected', searchOnMap: 'View listings on the map', searchNearby: 'Search around you', searchByPhone: 'Search by phone', mapDrawTitle: 'Your own area',
+    drawTooShort: 'Draw a larger area in one continuous movement', areaReady: 'Area selected', searchOnMap: 'Search on the map', searchNearby: 'Search around you', searchByPhone: 'Search by phone', mapDrawTitle: 'Your own area',
     phoneIntro: 'Have you seen a "for sale" or "for rent" sign? Enter the details to find it', phone: 'Phone', operation: 'Operation',
     buy: 'Buy', rent: 'Rent', type: 'Type', homes: 'Homes', invalidPhone: 'Enter a valid phone number', phoneNotFound: 'We could not find a listing with that phone number.',
     visibleArea: 'Visible area', filters: 'Filters', list: 'List', save: 'Save', saved: 'Saved', layers: 'Change map layers', locate: 'My location', mapLoading: 'Loading map…',
@@ -136,7 +135,7 @@ const copy = {
     regionSearch: 'Поиск на Тенерифе', change: 'Изменить', locationPlaceholder: 'Город, район или адрес', alsoYouCan: 'Также вы можете', drawZone: 'Нарисовать свою зону',
     redrawZone: 'Нарисовать заново', cancelDrawing: 'Отменить рисование', clearZone: 'Удалить зону', drawInstruction: 'Зажмите и нарисуйте контур зоны',
     drawingInstruction: 'Обведите нужную территорию и отпустите', drawTooShort: 'Нарисуйте область побольше одним непрерывным движением', areaReady: 'Зона выбрана',
-    searchOnMap: 'Смотреть объявления на карте', searchNearby: 'Искать рядом с вами', searchByPhone: 'Искать по телефону', mapDrawTitle: 'Ваша собственная зона', visibleArea: 'Видимая зона', filters: 'Фильтры', list: 'Перечень', save: 'Сохранить',
+    searchOnMap: 'Искать на карте', searchNearby: 'Искать рядом с вами', searchByPhone: 'Искать по телефону', mapDrawTitle: 'Ваша собственная зона', visibleArea: 'Видимая зона', filters: 'Фильтры', list: 'Перечень', save: 'Сохранить',
     phoneIntro: 'Вы видели объявление «продаётся» или «сдаётся»? Введите данные, чтобы найти его', phone: 'Телефон', operation: 'Операция',
     buy: 'Купить', rent: 'Снять', type: 'Тип', homes: 'Жильё', invalidPhone: 'Введите корректный номер телефона', phoneNotFound: 'Объявление с таким номером телефона не найдено.',
     saved: 'Сохранено', layers: 'Сменить слой карты', locate: 'Моё местоположение', mapLoading: 'Загрузка карты…', mapError: 'Не удалось загрузить Google Maps',
@@ -248,17 +247,15 @@ function HomeScreen({ t, onLocation, onSearch, onPublish }: { t: MobileCopy; onL
   return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className="m2-hero" role="img" aria-label={t.heroAlt} /><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => setMode('vivienda')} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => setMode('turismo')} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={() => onSearch(mode)} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
 }
 
-function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, onPhone }: {
+function LocationScreen({ t, onBack, onChangeRegion, onMap }: {
   t: MobileCopy
   onBack: () => void
   onChangeRegion: () => void
   onMap: (mode: MapMode, query?: string) => void
-  onNearby: () => void
-  onPhone: () => void
 }) {
   const [query, setQuery] = useState('')
   const submit = (event: React.FormEvent) => { event.preventDefault(); onMap('search', query.trim()) }
-  return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onNearby} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onPhone} data-testid="search-phone"><span><Phone /></span><strong>{t.searchByPhone}</strong><ChevronRight /></button></div></section>
+  return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button></div></section>
 }
 
 function normalizePhone(value: string) {
@@ -569,12 +566,16 @@ export function MobileAppV2() {
   const [mapQuery, setMapQuery] = useState('')
   const [mapCenter, setMapCenter] = useState<MapPoint | undefined>()
   const [tab, setTab] = useState<MobileTab>(() => tabFromPath(location.pathname))
+  const shellActive = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu'].includes(location.pathname)
   const t: MobileCopy = copy[language]
   const navItems = getNavItems(t)
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => allListings.filter((listing) => favorites.has(listing.id)).map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.area}, ${listing.city} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [allListings, favorites, navigate])
   const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   const messageItems = useMemo<MobileCollectionItem[]>(() => localThreads.map((thread) => ({ id: thread.id, title: thread.listingTitle, meta: `${thread.contactName} · ${thread.messagePreview}`, onOpen: () => navigate(`/habitacion/${thread.listingId}`) })), [localThreads, navigate])
-  useEffect(() => { document.documentElement.classList.add('mobile-v2-active'); return () => document.documentElement.classList.remove('mobile-v2-active') }, [])
+  useEffect(() => {
+    document.documentElement.classList.toggle('mobile-v2-active', shellActive)
+    return () => document.documentElement.classList.remove('mobile-v2-active')
+  }, [shellActive])
   useEffect(() => {
     if (step !== 'done') return
     const params = new URLSearchParams(location.search)
@@ -617,21 +618,10 @@ export function MobileAppV2() {
     navigate(`/buscar?${params.toString()}`)
   }
   const openResults = (mode: SearchMode) => navigate(`/buscar?q=Tenerife&alquiler=${mode === 'turismo' ? 'holiday' : 'long'}`)
-  const openNearby = () => {
-    const fallback = () => navigate('/buscar?q=Tenerife&vista=mapa&cerca=1')
-    if (!navigator.geolocation) {
-      fallback()
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => navigate(`/buscar?q=${encodeURIComponent(t.searchNearby)}&vista=mapa&cerca=1&lat=${coords.latitude}&lng=${coords.longitude}`),
-      fallback,
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    )
-  }
   const openPublication = () => navigate(`${location.pathname}?gate=publicar`)
+  if (!shellActive) return null
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
-  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={openNearby} onPhone={() => navigate('/?panel=telefono')} /></div>
+  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} /></div>
   if (page === 'phone') return <div className="m2-app notranslate" translate="no"><PhoneSearchScreen t={t} listings={allListings} onBack={() => navigate('/?panel=ubicacion')} onFound={(listingId) => navigate(`/habitacion/${listingId}`)} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} onPolygonChange={setMapPolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigate('/buscar?q=Tenerife')} onFilters={() => navigate('/buscar?q=Tenerife&panel=filtros')} /></div>
   return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} onLocation={() => navigate('/?panel=ubicacion')} onSearch={openResults} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={favoriteItems} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
