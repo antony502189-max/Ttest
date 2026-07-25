@@ -1,0 +1,33 @@
+function GoogleMapCanvas({ language, t, mapRef, query, onStatus }: { language: AppLanguage; t: MobileCopy; mapRef: MutableRefObject<google.maps.Map | null>; query: string; onStatus: (status: MapStatus) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [status, setStatus] = useState<MapStatus>('loading')
+  useEffect(() => {
+    let cancelled = false
+    const initialize = async () => {
+      try {
+        configureMaps(language)
+        const { Map: GoogleMap } = await importLibrary('maps') as google.maps.MapsLibrary
+        if (cancelled || !containerRef.current) return
+        const location = resolveTenerifeLocation(query || 'Tenerife')
+        const center = location?.coordinates ?? TENERIFE_CENTER
+        const zoom = location && location.type !== 'island' ? location.type === 'municipality' ? 12 : 14 : 10
+        const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID
+        const map = new GoogleMap(containerRef.current, { center, zoom, mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 8, maxZoom: 19, restriction: { latLngBounds: TENERIFE_BOUNDS, strictBounds: false } })
+        mapRef.current = map
+        containerRef.current.dataset.mapQuery = location?.normalizedValue ?? 'Tenerife'
+        google.maps.event.addListenerOnce(map, 'idle', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
+      } catch (error) {
+        console.error('Google Maps initialization failed', error)
+        if (!cancelled) { setStatus('error'); onStatus('error') }
+      }
+    }
+    setStatus('loading'); onStatus('loading'); void initialize()
+    return () => {
+      cancelled = true
+      const map = mapRef.current
+      if (map) google.maps.event.clearInstanceListeners(map)
+      mapRef.current = null
+    }
+  }, [language, mapRef, onStatus, query])
+  return <div className="m2-map-canvas-wrap"><div ref={containerRef} className="m2-map-canvas" data-testid="google-map" />{status === 'loading' ? <div className="m2-map-status" role="status">{t.mapLoading}</div> : null}{status === 'error' ? <div className="m2-map-status m2-map-status--error" role="alert">{t.mapError}</div> : null}</div>
+}
