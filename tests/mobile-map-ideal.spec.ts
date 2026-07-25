@@ -22,6 +22,19 @@ async function openMap(page: Page, kind: 'search' | 'draw') {
   return map
 }
 
+async function revealVisibleListingMarker(page: Page) {
+  const visibleMarker = page.locator('.m2-listing-marker:visible').first()
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (await visibleMarker.isVisible().catch(() => false)) return visibleMarker
+    const cluster = page.locator('.map-cluster-marker:visible').first()
+    await expect(cluster).toBeVisible({ timeout: 20_000 })
+    await cluster.click()
+    await page.waitForTimeout(350)
+  }
+  await expect(visibleMarker).toBeVisible({ timeout: 10_000 })
+  return visibleMarker
+}
+
 test('map is freely zoomable before explicit drawing activation', async ({ page }) => {
   await finishOnboarding(page)
   const map = await openMap(page, 'draw')
@@ -48,12 +61,7 @@ test('published listings are visible on the map and open the matching result', a
 
   const visibleMarkerOrCluster = page.locator('.m2-listing-marker:visible, .map-cluster-marker:visible').first()
   await expect(visibleMarkerOrCluster).toBeVisible({ timeout: 20_000 })
-  if (await visibleMarkerOrCluster.evaluate((node) => node.classList.contains('map-cluster-marker'))) {
-    await visibleMarkerOrCluster.click()
-  }
-
-  const visibleMarker = page.locator('.m2-listing-marker:visible').first()
-  await expect(visibleMarker).toBeVisible({ timeout: 10_000 })
+  const visibleMarker = await revealVisibleListingMarker(page)
   await visibleMarker.click()
 
   const preview = page.getByTestId('mobile-map-listing-preview')
