@@ -1,78 +1,14 @@
 name: Apply and verify ideal mobile map
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/apply-ideal-mobile-map.mjs'
-      - 'tests/mobile-map-ideal.spec.ts'
-      - 'tests/mobile-freehand-map.spec.ts'
-      - '.github/workflows/apply-ideal-mobile-map.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
 
-concurrency:
-  group: ideal-mobile-map-patch
-  cancel-in-progress: true
-
 jobs:
-  apply-and-verify:
+  paused:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
-      VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Apply deterministic product patch
-        run: node scripts/apply-ideal-mobile-map.mjs
-      - name: Install dependencies
-        run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Production build
-        run: npm exec vite build
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Verify ideal mobile map
-        id: maptest
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          npx playwright test tests/mobile-map-ideal.spec.ts --workers=1 2>&1 | tee /tmp/ideal-map-test.log
-      - name: Report map diagnostics
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          OUTCOME: ${{ steps.maptest.outcome }}
-        run: |
-          {
-            echo "IDEAL_MAP_TEST outcome=$OUTCOME"
-            echo '```text'
-            tail -n 180 /tmp/ideal-map-test.log 2>/dev/null || true
-            echo '```'
-          } > /tmp/report.md
-          gh issue comment 33 --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md
-      - name: Require map tests
-        run: test "${{ steps.maptest.outcome }}" = success
-      - name: Verify connected listing flows
-        run: npx playwright test tests/mobile-freehand-map.spec.ts tests/mobile-search-results.spec.ts --workers=1
-      - name: Commit verified product changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/components/mobile-app-v2.tsx src/components/layout.tsx src/components/mobile-search-results.tsx
-          git commit -m "Build ideal interactive mobile listings map"
-          git push origin HEAD:main
+      - run: echo "Mobile map integration workflow is being upgraded."
