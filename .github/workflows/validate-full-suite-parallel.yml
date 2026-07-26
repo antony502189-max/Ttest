@@ -1,0 +1,58 @@
+name: Full suite parallel
+
+on:
+  push:
+    branches: [validation/full-suite-parallel]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+      VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: validation/full-suite-parallel
+          fetch-depth: 0
+      - name: Run parallel validation
+        shell: bash
+        run: |
+          set +e
+          mkdir -p docs
+          npm ci > /tmp/install.log 2>&1
+          install_code=$?
+          if [ $install_code -eq 0 ]; then
+            npx playwright install --with-deps chromium >> /tmp/install.log 2>&1
+            browser_code=$?
+          else browser_code=99; fi
+          if [ $install_code -eq 0 ] && [ $browser_code -eq 0 ]; then
+            npm exec playwright test -- --workers=4 > /tmp/tests.log 2>&1
+            test_code=$?
+          else test_code=99; fi
+          {
+            echo '# Parallel full-suite validation'
+            echo
+            printf '| npm ci | `%s` |\n' "$install_code"
+            printf '| browser install | `%s` |\n' "$browser_code"
+            printf '| full e2e, 4 workers | `%s` |\n' "$test_code"
+            echo
+            echo '```text'
+            tail -n 1200 /tmp/tests.log 2>/dev/null || true
+            echo '```'
+          } > docs/full-suite-parallel-validation.md
+          rm .github/workflows/validate-full-suite-parallel.yml
+      - name: Commit report
+        if: always()
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Record parallel full-suite validation" || true
+          git push origin HEAD:validation/full-suite-parallel
