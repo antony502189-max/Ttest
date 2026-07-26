@@ -1101,3 +1101,57 @@ Running 5 tests using 1 worker
   5 passed (25.4s)
 ```
 
+## `tests/map-responsive-parity.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✘  1 [chromium] › tests/map-responsive-parity.spec.ts:25:1 › results map keeps the current mobile shell and desktop split geometry across the responsive matrix (21.7s)
+
+
+  1) [chromium] › tests/map-responsive-parity.spec.ts:25:1 › results map keeps the current mobile shell and desktop split geometry across the responsive matrix 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-map-canvas')
+    Expected: visible
+    Timeout: 20000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 20000ms
+      - waiting for locator('.m2-map-canvas')
+
+
+      37 |     await openMap(page, viewport.width, viewport.height)
+      38 |     const mapSelector = viewport.mode === 'mobile' ? '.m2-map-canvas' : '.google-map-canvas'
+    > 39 |     await expect(page.locator(mapSelector)).toBeVisible({ timeout: 20_000 })
+         |                                             ^
+      40 |     if (viewport.mode !== 'mobile') {
+      41 |       await expect(page.locator(mapSelector)).toHaveAttribute('data-map-instance', 'google-ready', { timeout: 20_000 })
+      42 |     }
+        at /home/runner/work/Ttest/Ttest/tests/map-responsive-parity.spec.ts:39:45
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/map-responsive-parity-resu-fb436-cross-the-responsive-matrix-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/map-responsive-parity-resu-fb436-cross-the-responsive-matrix-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/map-responsive-parity-resu-fb436-cross-the-responsive-matrix-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/map-responsive-parity-resu-fb436-cross-the-responsive-matrix-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/map-responsive-parity-resu-fb436-cross-the-responsive-matrix-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/map-responsive-parity.spec.ts:25:1 › results map keeps the current mobile shell and desktop split geometry across the responsive matrix 
+```
+
