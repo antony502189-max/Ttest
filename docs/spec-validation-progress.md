@@ -639,3 +639,23 @@ Running 1 test using 1 worker
   1 passed (2.6s)
 ```
 
+## `tests/delta-matrix.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 10 tests using 1 worker
+
+  ✓   1 [chromium] › tests/delta-matrix.spec.ts:50:1 › USR-03..05 history, discarded listings and guest data stay in separate scopes (6.5s)
+  ✓   2 [chromium] › tests/delta-matrix.spec.ts:91:1 › STORE-05 validator rejects incomplete listing payloads instead of accepting corrupted data (2.7s)
+  ✓   3 [chromium] › tests/delta-matrix.spec.ts:101:1 › MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback work (4.5s)
+  ✓   4 [chromium] › tests/delta-matrix.spec.ts:139:1 › ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters affect results (6.8s)
+  ✓   5 [chromium] › tests/delta-matrix.spec.ts:185:1 › LOC-01 selected zone coordinates persist, edit restores them and exact street stays private (4.2s)
+  ✓   6 [chromium] › tests/delta-matrix.spec.ts:205:1 › PROFILE-02 publish defaults and preview expose only enabled contact methods (4.5s)
+  ✓   7 [chromium] › tests/delta-matrix.spec.ts:230:1 › FILTER-02..06 new filters have chips, reset, reload and history navigation (4.4s)
+  ✓   8 [chromium] › tests/delta-matrix.spec.ts:267:1 › MAP-04 visible-area state activates after movement and resets after search (3.0s)
+  ✓   9 [chromium] › tests/delta-matrix.spec.ts:279:1 › MAP-05 Google Maps loader errors expose the accessible map fallback (2.7s)
+  ✓  10 [chromium] › tests/delta-matrix.spec.ts:287:1 › WIZ-04 reset clears dirty state and short-height filter drawer remains usable (3.1s)
+
+  10 passed (43.7s)
+```
+
