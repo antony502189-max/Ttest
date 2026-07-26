@@ -1155,3 +1155,161 @@ Running 1 test using 1 worker
     [chromium] › tests/map-responsive-parity.spec.ts:25:1 › results map keeps the current mobile shell and desktop split geometry across the responsive matrix 
 ```
 
+## `tests/master-task-visual.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 3 tests using 1 worker
+
+  ✘  1 [chromium] › tests/master-task-visual.spec.ts:25:1 › master current home responsive matrix (8.5s)
+  ✘  2 [chromium] › tests/master-task-visual.spec.ts:35:1 › master current mobile list, map, drawing and location states (9.1s)
+  ✘  3 [chromium] › tests/master-task-visual.spec.ts:59:1 › master desktop municipality selection and split map states (7.5s)
+
+
+  1) [chromium] › tests/master-task-visual.spec.ts:25:1 › master current home responsive matrix ────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-home')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-home')
+
+
+      27 |   for (const [width, height] of [[360, 800], [390, 844], [430, 932], [768, 1024], [1024, 900], [1440, 900]] as const) {
+      28 |     await open(page, '/#/', width, height)
+    > 29 |     if (width < 768) await expect(page.locator('.m2-home')).toBeVisible()
+         |                                                             ^
+      30 |     else await expect(page.locator('.home-hero')).toBeVisible()
+      31 |     await shot(page, `master-current-home-${width}x${height}`)
+      32 |   }
+        at /home/runner/work/Ttest/Ttest/tests/master-task-visual.spec.ts:29:61
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/master-task-visual-master-current-home-responsive-matrix-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/master-task-visual-master-current-home-responsive-matrix-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/master-task-visual-master-current-home-responsive-matrix-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/master-task-visual-master-current-home-responsive-matrix-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/master-task-visual-master-current-home-responsive-matrix-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/master-task-visual.spec.ts:35:1 › master current mobile list, map, drawing and location states 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('map-search')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('map-search')
+
+
+      40 |
+      41 |   await open(page, '/#/buscar?q=Tenerife&vista=mapa', 390, 844)
+    > 42 |   await expect(page.getByTestId('map-search')).toBeVisible()
+         |                                                ^
+      43 |   await expect(page.locator('.m2-map-toolbar')).toBeVisible()
+      44 |   await expect(page.locator('.m2-map-canvas')).toBeVisible()
+      45 |   await shot(page, 'master-current-results-map-390x844')
+        at /home/runner/work/Ttest/Ttest/tests/master-task-visual.spec.ts:42:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/master-task-visual-master--c6877-drawing-and-location-states-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/master-task-visual-master--c6877-drawing-and-location-states-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/master-task-visual-master--c6877-drawing-and-location-states-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/master-task-visual-master--c6877-drawing-and-location-states-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/master-task-visual-master--c6877-drawing-and-location-states-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/master-task-visual.spec.ts:59:1 › master desktop municipality selection and split map states 
+
+    Error: expect(page).toHaveScreenshot(expected) failed
+
+      238737 pixels (ratio 0.19 of all image pixels) are different.
+
+      Snapshot: master-current-results-split-1440x900.png
+
+    Call log:
+      - Expect "toHaveScreenshot(master-current-results-split-1440x900.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - 238737 pixels (ratio 0.19 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - captured a stable screenshot
+      - 238737 pixels (ratio 0.19 of all image pixels) are different.
+
+
+      10 |
+      11 | async function shot(page: Page, name: string) {
+    > 12 |   await expect(page).toHaveScreenshot(`${name}.png`, {
+         |                      ^
+      13 |     animations: 'disabled',
+      14 |     caret: 'hide',
+      15 |     mask: [page.locator('.gm-style img[role="presentation"], .m2-result-card img, .property-card__media img')],
+        at shot (/home/runner/work/Ttest/Ttest/tests/master-task-visual.spec.ts:12:22)
+        at /home/runner/work/Ttest/Ttest/tests/master-task-visual.spec.ts:73:9
+
+    attachment #1: master-current-results-split-1440x900 (image/png) ───────────────────────────────
+    Expected: tests/visual-snapshots/chromium/master-current-results-split-1440x900.png
+    Received: test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/master-current-results-split-1440x900-actual.png
+    Diff:     test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/master-current-results-split-1440x900-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/master-task-visual-master--d47b4-ection-and-split-map-states-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    [chromium] › tests/master-task-visual.spec.ts:25:1 › master current home responsive matrix ─────
+    [chromium] › tests/master-task-visual.spec.ts:35:1 › master current mobile list, map, drawing and location states 
+    [chromium] › tests/master-task-visual.spec.ts:59:1 › master desktop municipality selection and split map states 
+```
+
