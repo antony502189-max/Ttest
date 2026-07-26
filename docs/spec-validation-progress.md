@@ -1547,3 +1547,15 @@ Running 3 tests using 1 worker
   2 passed (17.3s)
 ```
 
+## `tests/mobile-publication-gate.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 2 tests using 1 worker
+
+  ✓  1 [chromium] › tests/mobile-publication-gate.spec.ts:15:1 › publication gate has no duplicate top notice or close icon and opens existing auth (1.5s)
+  ✓  2 [chromium] › tests/mobile-publication-gate.spec.ts:33:1 › publication entry in menu opens the same clean gate (1.4s)
+
+  2 passed (3.9s)
+```
+
