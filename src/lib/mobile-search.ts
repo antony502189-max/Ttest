@@ -24,6 +24,7 @@ export function selectMobileSearchListings({
 }: MobileSearchInput) {
   const location = resolveTenerifeLocation(query || 'Tenerife')
   const nearby = params.get('cerca') === '1'
+  const polygonApplied = params.get('dibujar') !== '1'
   const lat = Number(params.get('lat'))
   const lng = Number(params.get('lng'))
   const radiusKm = Math.min(50, Math.max(1, Number(params.get('radio')) || 15))
@@ -39,7 +40,7 @@ export function selectMobileSearchListings({
     if (!location || !listingMatchesTenerifeLocation(listing, location)) return false
     if (roomTypes.length && !roomTypes.includes(listing.roomType)) return false
     if (capacities.length && !capacities.includes(listing.roomCapacity)) return false
-    if (polygon.length >= 3 && !pointInPolygon(listing.coordinates, polygon)) return false
+    if (polygonApplied && polygon.length >= 3 && !pointInPolygon(listing.coordinates, polygon)) return false
     if (nearbyCenter && distanceKm(listing.coordinates, nearbyCenter) > radiusKm) return false
     return true
   })
