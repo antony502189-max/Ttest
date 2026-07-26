@@ -1,23 +1,32 @@
-# Карта навигации
+# Карта навигации APK → Web
 
 ```text
 onboarding
-  └─ главная
-      ├─ выбор местоположения
-      │   ├─ рисование → карта
-      │   ├─ объявления на карте → карта
-      │   ├─ рядом со мной → карта с координатами
-      │   └─ поиск по телефону → карточка объявления
-      ├─ поиск → список → карточка объявления
-      │                  ├─ избранное
-      │                  ├─ контакт → вход (для гостя)
-      │                  └─ сообщение (после входа)
-      ├─ публикация → gate → вход → мастер публикации
-      └─ нижняя навигация
-          ├─ сохранённые поиски
-          ├─ избранное
-          ├─ сообщения
-          └─ меню → аккаунт / публикация / настройки
+  └─ home
+     ├─ location
+     │  ├─ draw zone ──> map(draw) ──> Search this area ──> list
+     │  ├─ search on map ──> map ──> marker ──> preview ──> listing
+     │  ├─ nearby ──> permission ──> map(lat,lng,radius)
+     │  └─ phone ──> phone form ──> matching listing
+     ├─ search ──> list
+     │  ├─ filters ──> list/map with the same state
+     │  ├─ sort ──> list
+     │  ├─ map ──> list / filters / marker preview
+     │  └─ listing ──> favorite / hide / contact
+     ├─ publish ──> guest gate ──> login ──> publication wizard
+     └─ tabs ──> home / saved / favorites / messages / menu
 ```
 
-Мобильная оболочка используется для `/`, `/buscar`, `/favoritos`, `/busquedas-guardadas`, `/mensajes`, `/menu` при ширине меньше 768 px. Детальная карточка, авторизация, профиль, публикация и административные разделы используют существующие экраны без редизайна.
+| State | URL |
+|---|---|
+| location | `/#/?panel=ubicacion` |
+| phone | `/#/?panel=telefono` |
+| list | `/#/buscar?q=Tenerife&alquiler=long\|holiday` |
+| map | `/#/buscar?...&vista=mapa` |
+| draw entry | `/#/buscar?...&vista=mapa&dibujar=1` |
+| polygon | `poligono=lat,lng;...` |
+| nearby | `cerca=1&radio=30&lat=...&lng=...` |
+| filters/sort | canonical params плюс `mobileOrden` |
+| focused map listing | `anuncio=<listing-id>` |
+
+На mobile монтируется только mobile implementation; скрытая desktop-карта больше не остаётся вторым источником состояния. От 768 px продолжает работать существующий route-based desktop UI baseline.

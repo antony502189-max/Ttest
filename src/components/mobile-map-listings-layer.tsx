@@ -17,23 +17,19 @@ const labels = {
   ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}` },
 } as const
 
-function publishedListings(items: Listing[], discarded: Set<string>, rentalMode: 'long' | 'holiday') {
-  return items.filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id) && listing.rentalMode === rentalMode)
-}
-
-export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing }: {
+export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
   language: MobileMapLanguage
   drawing: boolean
+  items: Listing[]
 }) {
-  const { allListings, discarded, rentalMode, favorites, toggleFavorite } = useApp()
+  const { favorites, toggleFavorite } = useApp()
   const [selectedId, setSelectedId] = useState('')
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
   const t = labels[language]
-  const items = useMemo(() => publishedListings(allListings, discarded, rentalMode), [allListings, discarded, rentalMode])
   const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [items])
   const selected = items.find((item) => item.id === selectedId)
 

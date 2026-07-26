@@ -18,6 +18,9 @@ import {
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
+import { defaultFilters } from '@/data/listings'
+import { selectMobileSearchListings } from '@/lib/mobile-search'
+import { filtersFromParams, filtersToParams } from '@/lib/search'
 import type { Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
 import '@/mobile-search-results.css'
@@ -25,6 +28,7 @@ import '@/mobile-search-results.css'
 type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
 type ResultsOrder = 'relevance' | 'cheap' | 'expensive' | 'saved-new' | 'saved-old' | 'reduced' | 'sqm-cheap' | 'sqm-expensive' | 'area-large' | 'area-small' | 'floor-high' | 'floor-low'
+const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 type ResultsFilters = {
   rentalMode: RentalMode | null
   minPrice: number
@@ -75,19 +79,6 @@ type ResultsCopy = typeof resultsCopy.es
 
 const fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560"%3E%3Crect width="800" height="560" fill="%23282828"/%3E%3Cpath d="M260 360l90-95 62 65 48-44 92 96H260z" fill="%235d655f"/%3E%3Ccircle cx="505" cy="190" r="34" fill="%23727b74"/%3E%3C/svg%3E'
 
-function selectedHomeRentalMode(): RentalMode | null {
-  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-mode-switch > button'))
-  if (buttons[0]?.getAttribute('aria-pressed') === 'true') return 'long'
-  if (buttons[1]?.getAttribute('aria-pressed') === 'true') return 'holiday'
-  return null
-}
-
-function syncHomeRentalMode(mode: RentalMode) {
-  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-mode-switch > button'))
-  const button = mode === 'long' ? buttons[0] : buttons[1]
-  if (button && button.getAttribute('aria-pressed') !== 'true') button.click()
-}
-
 function imageFallback(event: SyntheticEvent<HTMLImageElement>) {
   event.currentTarget.src = fallbackImage
 }
@@ -137,27 +128,43 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
 }
 
 export function MobileSearchResults() {
-  const { allListings, discarded, discardListing, favorites, toggleFavorite, currentUser, setRentalMode } = useApp()
+  const { allListings, discarded, discardListing, favorites, toggleFavorite, currentUser, rentalMode, setRentalMode, filters: appFilters, setFilters: setAppFilters, mapPolygon, query: appQuery } = useApp()
   const { language } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [panel, setPanel] = useState<ResultsPanel>('results')
   const [order, setOrder] = useState<ResultsOrder>('relevance')
-  const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters())
+  const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
   const [focusListingId, setFocusListingId] = useState('')
+  const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_VIEWPORT)
+    const update = () => setMobileViewport(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const shouldOpen = location.pathname === '/buscar' && params.get('vista') !== 'mapa'
+    const shouldOpen = mobileViewport && location.pathname === '/buscar' && params.get('vista') !== 'mapa'
     setOpen(shouldOpen)
     if (!shouldOpen) return
-    const routeMode = params.get('alquiler') === 'holiday' ? 'holiday' : params.get('alquiler') === 'long' ? 'long' : selectedHomeRentalMode()
-    setFilters((current) => ({ ...current, rentalMode: routeMode }))
-    if (routeMode) setRentalMode(routeMode)
+    const routeMode: RentalMode = params.get('alquiler') === 'holiday' ? 'holiday' : 'long'
+    const parsed = filtersFromParams(params)
+    const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
+    const roomCounts = (params.get('capacidades') ?? '').split('|').map(Number).filter((value): value is 1 | 2 => value === 1 || value === 2)
+    setFilters({ rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts })
+    setRentalMode(routeMode)
+    setAppFilters(parsed)
+    const routeOrder = params.get('mobileOrden') as ResultsOrder | null
+    setOrder(routeOrder && orderKeys.includes(routeOrder) ? routeOrder : 'relevance')
     setFocusListingId(params.get('anuncio') ?? '')
-    setPanel(params.get('panel') === 'filtros' ? 'filters' : params.get('panel') === 'orden' ? 'sort' : 'results')
-  }, [location.pathname, location.search, setRentalMode])
+    if (params.get('panel') === 'filtros') setPanel('filters')
+    else if (params.get('panel') === 'orden') setPanel('sort')
+    else if (!open) setPanel('results')
+  }, [location.pathname, location.search, mobileViewport, open, setAppFilters, setRentalMode])
 
   useEffect(() => {
     const openListing = (event: Event) => {
@@ -166,11 +173,16 @@ export function MobileSearchResults() {
       if (!listing) return
       setRentalMode(listing.rentalMode)
       setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
-      navigate(`/buscar?q=Tenerife&alquiler=${listing.rentalMode}&anuncio=${encodeURIComponent(listingId)}`)
+      const params = new URLSearchParams(location.search)
+      params.delete('vista')
+      params.delete('dibujar')
+      params.set('alquiler', listing.rentalMode)
+      params.set('anuncio', listingId)
+      navigate(`/buscar?${params.toString()}`)
     }
     window.addEventListener('112233:open-mobile-listing', openListing)
     return () => window.removeEventListener('112233:open-mobile-listing', openListing)
-  }, [allListings, navigate, setRentalMode])
+  }, [allListings, location.search, navigate, setRentalMode])
 
   useEffect(() => {
     if (!open || panel !== 'results' || !focusListingId) return
@@ -193,19 +205,30 @@ export function MobileSearchResults() {
 
   const availableListings = useMemo(() => allListings.filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded])
   const filteredListings = useMemo(() => {
-    const minPrice = Math.min(filters.minPrice, filters.maxPrice)
-    const maxPrice = Math.max(filters.minPrice, filters.maxPrice)
-    const minArea = Math.min(filters.minArea, filters.maxArea)
-    const maxArea = Math.max(filters.minArea, filters.maxArea)
-    return availableListings.filter((listing) => {
-      if (filters.rentalMode && listing.rentalMode !== filters.rentalMode) return false
-      if (listing.price < minPrice || listing.price > maxPrice) return false
-      if (listing.roomSizeM2 < minArea || listing.roomSizeM2 > maxArea) return false
-      if (filters.roomTypes.length && !filters.roomTypes.includes(listing.roomType)) return false
-      if (filters.roomCounts.length && !filters.roomCounts.includes(listing.roomCapacity)) return false
-      return true
+    const params = new URLSearchParams(location.search)
+    if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
+    else params.delete('tiposHabitacion')
+    if (filters.roomCounts.length) params.set('capacidades', filters.roomCounts.join('|'))
+    else params.delete('capacidades')
+    const canonicalFilters = {
+      ...appFilters,
+      minPrice: Math.min(filters.minPrice, filters.maxPrice),
+      maxPrice: Math.max(filters.minPrice, filters.maxPrice),
+      roomSizeMin: Math.min(filters.minArea, filters.maxArea),
+      roomSizeMax: Math.max(filters.minArea, filters.maxArea),
+      roomType: 'Cualquiera',
+      roomCapacity: 'Cualquiera',
+    }
+    return selectMobileSearchListings({
+      listings: allListings,
+      discarded,
+      rentalMode: filters.rentalMode ?? rentalMode,
+      filters: canonicalFilters,
+      polygon: mapPolygon,
+      query: params.get('q') ?? appQuery,
+      params,
     })
-  }, [availableListings, filters])
+  }, [allListings, appFilters, appQuery, discarded, filters, location.search, mapPolygon, rentalMode])
 
   const listings = useMemo(() => [...filteredListings].sort((a, b) => {
     if (order === 'cheap') return a.price - b.price
@@ -229,25 +252,64 @@ export function MobileSearchResults() {
     if (currentUser) return
     navigate('/acceso')
   }
-  const openMap = () => navigate(`/buscar?${new URLSearchParams({ q: 'Tenerife', alquiler: filters.rentalMode ?? 'long', vista: 'mapa' }).toString()}`)
+  const openMap = () => {
+    const params = new URLSearchParams(location.search)
+    params.delete('panel')
+    params.set('alquiler', filters.rentalMode ?? rentalMode)
+    params.set('vista', 'mapa')
+    navigate(`/buscar?${params.toString()}`)
+  }
   const chooseRentalMode = (mode: RentalMode) => {
     setFilters((current) => ({ ...current, rentalMode: mode }))
   }
   const applyFilters = () => {
-    syncHomeRentalMode(filters.rentalMode ?? 'long')
-    const params = new URLSearchParams(location.search)
-    params.set('alquiler', filters.rentalMode ?? 'long')
+    const nextMode = filters.rentalMode ?? rentalMode
+    const nextFilters = {
+      ...appFilters,
+      minPrice: Math.min(filters.minPrice, filters.maxPrice),
+      maxPrice: Math.max(filters.minPrice, filters.maxPrice),
+      roomSizeMin: Math.min(filters.minArea, filters.maxArea),
+      roomSizeMax: Math.max(filters.minArea, filters.maxArea),
+      roomType: 'Cualquiera',
+      roomCapacity: 'Cualquiera',
+    }
+    setRentalMode(nextMode)
+    setAppFilters(nextFilters)
+    const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
+    params.set('alquiler', nextMode)
+    params.delete('panel')
+    if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
+    else params.delete('tiposHabitacion')
+    if (filters.roomCounts.length) params.set('capacidades', filters.roomCounts.join('|'))
+    else params.delete('capacidades')
     navigate(`/buscar?${params.toString()}`, { replace: true })
     setPanel('results')
   }
-  const clearFilters = () => setFilters((current) => createDefaultFilters(current.rentalMode))
+  const clearFilters = () => setFilters((current) => ({
+    ...createDefaultFilters(current.rentalMode),
+    minPrice: defaultFilters.minPrice,
+    maxPrice: defaultFilters.maxPrice,
+    minArea: defaultFilters.roomSizeMin,
+    maxArea: defaultFilters.roomSizeMax,
+  }))
+  const applyOrder = (value: ResultsOrder) => {
+    setOrder(value)
+    const canonicalSort = value === 'cheap' ? 'Precio más bajo' : value === 'expensive' ? 'Precio más alto' : 'Relevancia'
+    const nextFilters = { ...appFilters, sort: canonicalSort }
+    setAppFilters(nextFilters)
+    const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
+    params.set('mobileOrden', value)
+    params.delete('panel')
+    navigate(`/buscar?${params.toString()}`, { replace: true })
+    setPanel('results')
+  }
 
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
     {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => navigate('/')} aria-label={t.back}><ChevronLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => setPanel('filters')}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} onOpen={() => navigate(`/habitacion/${listing.id}`)} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}
 
-    {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{orderKeys.map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => { setOrder(value); setPanel('results') }}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
+    {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{orderKeys.map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
     {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
       <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(filters.rentalMode === 'long' && 'is-active')} aria-pressed={filters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(filters.rentalMode === 'holiday' && 'is-active')} aria-pressed={filters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>

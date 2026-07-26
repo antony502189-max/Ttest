@@ -80,7 +80,7 @@ export function SearchPage() {
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [zoneHierarchy, setZoneHierarchy] = useState<TenerifeZoneCollection | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_MAP_MEDIA).matches);
-  const [initialMapAction, setInitialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null);
+  const [initialMapAction, setInitialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' && (!params.has('lat') || !params.has('lng')) ? 'near' : null);
   const actionConsumedRef = useRef(false);
   const view = params.get("vista") === "mapa" ? "map" : "list";
   const page = Math.max(1, Number(params.get("pagina") || 1));
@@ -147,7 +147,7 @@ export function SearchPage() {
   }, [filters.areas]);
 
   useEffect(() => {
-    const requestedAction = params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' ? 'near' : null;
+    const requestedAction = params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' && (!params.has('lat') || !params.has('lng')) ? 'near' : null;
     if (!requestedAction) return;
     actionConsumedRef.current = false;
     setInitialMapAction(requestedAction);
@@ -571,11 +571,7 @@ export function SearchPage() {
                 value={filters.sort}
                 onChange={(event) => changeSort(event.target.value)}
               >
-                <option>Relevancia</option>
-                <option>Más recientes</option>
-                <option>Más antiguos</option>
-                <option>Precio más bajo</option>
-                <option>Precio más alto</option>
+                {sortOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
             </label>
             <Button

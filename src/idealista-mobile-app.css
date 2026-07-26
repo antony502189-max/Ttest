@@ -101,7 +101,7 @@ html.idealista-mobile-active #main-content > :not(.idealista-mobile-app) {
 .im-auth-panel a { margin-top: .5rem; color: #ddd; font-size: .62rem; text-decoration: underline; }
 
 .im-topbar { height: 3.7rem; display: flex; align-items: center; justify-content: center; background: #171717; border-bottom: 1px solid #222; }
-.im-hero-photo { height: 9.8rem; background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.25)), url('https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=85') center 52% / cover; }
+.im-hero-photo { height: 9.8rem; background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.25)), url('./assets/mobile-hero.jpg') center 52% / cover; }
 .im-search-card { display: grid; gap: .55rem; padding: .7rem .65rem 1.2rem; }
 .im-mode-switch { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid #4b4b4b; }
 .im-mode-switch button {

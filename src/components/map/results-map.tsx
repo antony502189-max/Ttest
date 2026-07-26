@@ -1,20 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { useApp } from '@/contexts/app-context'
+import { useI18n } from '@/contexts/i18n-context'
+import { requestCurrentLocation } from '@/lib/geolocation'
 import { getPrimaryPrice } from '@/lib/listings'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
-import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM, isInsideTenerife } from '@/lib/tenerife'
+import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
 import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { cn } from '@/lib/utils'
 import type { Listing, MapPolygonPoint } from '@/types'
 import '@/map.css'
+import '@/current-location-marker.css'
+import '@/freehand-map-drawing.css'
 
 export interface MapBounds {
   north: number
@@ -50,6 +54,23 @@ const getMapBounds = (map: google.maps.Map): MapBounds | null => {
   return { north: northEast.lat(), east: northEast.lng(), south: southWest.lat(), west: southWest.lng() }
 }
 
+function pointOnMap(map: google.maps.Map, clientX: number, clientY: number): MapPolygonPoint | null {
+  const projection = map.getProjection()
+  const center = map.getCenter()
+  const zoom = map.getZoom()
+  if (!projection || !center || zoom === undefined) return null
+  const centerPoint = projection.fromLatLngToPoint(center)
+  if (!centerPoint) return null
+  const bounds = map.getDiv().getBoundingClientRect()
+  const scale = 2 ** zoom
+  const worldPoint = new google.maps.Point(
+    centerPoint.x + (clientX - bounds.left - bounds.width / 2) / scale,
+    centerPoint.y + (clientY - bounds.top - bounds.height / 2) / scale,
+  )
+  const latLng = projection.fromPointToLatLng(worldPoint, true)
+  return latLng ? { lat: latLng.lat(), lng: latLng.lng() } : null
+}
+
 function fitListings(map: google.maps.Map, listings: Listing[]) {
   if (!listings.length) return
   const bounds = new google.maps.LatLngBounds()
@@ -70,6 +91,7 @@ function fitListings(map: google.maps.Map, listings: Listing[]) {
 
 export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
   const { filters, mapPolygon, setMapPolygon, clearMapPolygon } = useApp()
+  const { language } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const clusterRef = useRef<MarkerClusterer | null>(null)
@@ -92,8 +114,11 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   const fittedPolygonSignatureRef = useRef('')
   const actionHandledRef = useRef(false)
   const geolocationPendingRef = useRef(false)
+  const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
+  const accuracyCircleRef = useRef<google.maps.Circle | null>(null)
   const announcementRef = useRef<HTMLDivElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
+  const freehandStrokeRef = useRef<{ pointerId: number; lastX: number; lastY: number; points: MapPolygonPoint[] } | null>(null)
   const [drawing, setDrawing] = useState(false)
   const [drawSession, setDrawSession] = useState(false)
   const [draftPolygon, setDraftPolygon] = useState<MapPolygonPoint[]>(mapPolygon)
@@ -115,6 +140,10 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   useEffect(() => { onSelectRef.current = onSelect }, [onSelect])
   useEffect(() => { onHighlightRef.current = onHighlight }, [onHighlight])
   useEffect(() => { drawingRef.current = drawing }, [drawing])
+  useEffect(() => () => {
+    if (userMarkerRef.current) userMarkerRef.current.map = null
+    accuracyCircleRef.current?.setMap(null)
+  }, [])
 
   useEffect(() => {
     const container = containerRef.current
@@ -167,7 +196,9 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       })
       mapRef.current = map
       initializedMap = map
-      containerRef.current.dataset.mapInstance = 'google-ready'
+      listeners.push(google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
+        if (containerRef.current) containerRef.current.dataset.mapInstance = 'google-ready'
+      }))
 
       const updateBounds = () => {
         const next = getMapBounds(map)
@@ -448,7 +479,59 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     setMapPolygon(draftPolygon)
     onPolygonSearch?.(draftPolygon)
     setActionAnnouncement(`Zona dibujada aplicada con ${draftPolygon.length} puntos.`)
-    toast.success(`Zona aplicada: ${draftPolygon.length} puntos`)
+  }
+  const appendFreehandPoint = (stroke: NonNullable<typeof freehandStrokeRef.current>, clientX: number, clientY: number) => {
+    const map = mapRef.current
+    if (!map) return
+    const point = pointOnMap(map, clientX, clientY)
+    if (!point) return
+    stroke.points.push(point)
+    stroke.lastX = clientX
+    stroke.lastY = clientY
+    setDraftPolygon([...stroke.points])
+  }
+  const startFreehandStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const stroke = { pointerId: event.pointerId, lastX: event.clientX, lastY: event.clientY, points: [] as MapPolygonPoint[] }
+    freehandStrokeRef.current = stroke
+    appendFreehandPoint(stroke, event.clientX, event.clientY)
+  }
+  const continueFreehandStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const stroke = freehandStrokeRef.current
+    if (!stroke || stroke.pointerId !== event.pointerId) return
+    event.preventDefault()
+    const samples = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent]
+    const minimumDistance = event.pointerType === 'touch' ? 7 : 5
+    samples.forEach((sample) => {
+      if (Math.hypot(sample.clientX - stroke.lastX, sample.clientY - stroke.lastY) >= minimumDistance) {
+        appendFreehandPoint(stroke, sample.clientX, sample.clientY)
+      }
+    })
+  }
+  const finishFreehandStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const stroke = freehandStrokeRef.current
+    if (!stroke || stroke.pointerId !== event.pointerId) return
+    event.preventDefault()
+    if (Math.hypot(event.clientX - stroke.lastX, event.clientY - stroke.lastY) >= 3) {
+      appendFreehandPoint(stroke, event.clientX, event.clientY)
+    }
+    freehandStrokeRef.current = null
+    try { event.currentTarget.releasePointerCapture(event.pointerId) } catch { /* Capture can already be released. */ }
+    if (stroke.points.length < 3) {
+      setDraftPolygon([])
+      return
+    }
+    setDrawing(false)
+    setMapPolygon(stroke.points)
+    onPolygonSearch?.(stroke.points)
+    setActionAnnouncement(`Zona dibujada aplicada con ${stroke.points.length} puntos.`)
+  }
+  const cancelFreehandStroke = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (freehandStrokeRef.current?.pointerId !== event.pointerId) return
+    freehandStrokeRef.current = null
+    setDraftPolygon([])
   }
   const deletePolygon = () => {
     setDraftPolygon([])
@@ -457,28 +540,46 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     setDrawSession(false)
     setActionAnnouncement('Zona dibujada eliminada.')
   }
-  const locateCurrentPosition = () => {
-    if (!navigator.geolocation) { toast.error('Tu navegador no ofrece geolocalizaci\u00f3n'); return }
+  const locateCurrentPosition = async () => {
     if (geolocationPendingRef.current) return
     geolocationPendingRef.current = true
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      geolocationPendingRef.current = false
-      const current = { lat: coords.latitude, lng: coords.longitude }
-      if (!isInsideTenerife(current)) {
-        setActionAnnouncement('Tu ubicaci\u00f3n est\u00e1 fuera de Tenerife. El mapa permanece en la isla.')
-        toast.error('Tu ubicaci\u00f3n est\u00e1 fuera de Tenerife.')
-        return
-      }
-      programmaticMoveRef.current = true
-      mapRef.current?.setCenter(current)
-      mapRef.current?.setZoom(14)
-      if (mapRef.current) google.maps.event.addListenerOnce(mapRef.current, 'idle', () => { programmaticMoveRef.current = false })
-      setActionAnnouncement('Ubicaci\u00f3n encontrada en Tenerife.')
-    }, () => {
-      geolocationPendingRef.current = false
-      setActionAnnouncement('No pudimos obtener tu ubicaci\u00f3n. Puedes mover el mapa manualmente.')
-      toast.error('No pudimos obtener tu ubicaci\u00f3n.')
-    }, { timeout: 7000 })
+    const messages = {
+      es: { success: 'Ubicación encontrada en Tenerife.', denied: 'No has permitido acceder a tu ubicación.', unavailable: 'Tu ubicación no está disponible.', timeout: 'La búsqueda de ubicación ha tardado demasiado.', unsupported: 'Tu navegador no ofrece geolocalización.', outside: 'Tu ubicación está fuera de Tenerife.' },
+      en: { success: 'Location found in Tenerife.', denied: 'Location permission was denied.', unavailable: 'Your location is unavailable.', timeout: 'Finding your location took too long.', unsupported: 'Your browser does not provide geolocation.', outside: 'Your location is outside Tenerife.' },
+      ru: { success: 'Местоположение на Тенерифе найдено.', denied: 'Доступ к местоположению отклонён.', unavailable: 'Местоположение недоступно.', timeout: 'Определение местоположения заняло слишком много времени.', unsupported: 'Браузер не поддерживает геолокацию.', outside: 'Вы находитесь за пределами Тенерифе.' },
+    }[language]
+    const result = await requestCurrentLocation({ enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 })
+    geolocationPendingRef.current = false
+    if (!result.ok) {
+      setActionAnnouncement(messages[result.reason])
+      toast.error(messages[result.reason])
+      return
+    }
+    const map = mapRef.current
+    if (!map) return
+    programmaticMoveRef.current = true
+    map.setCenter(result.coordinates)
+    map.setZoom(14)
+    const content = document.createElement('span')
+    content.className = 'map-current-location-marker'
+    content.setAttribute('aria-label', messages.success)
+    const pulse = document.createElement('span')
+    pulse.className = 'map-current-location-marker__pulse'
+    const dot = document.createElement('span')
+    dot.className = 'map-current-location-marker__dot'
+    content.append(pulse, dot)
+    if (!userMarkerRef.current) userMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({ map, position: result.coordinates, content, title: messages.success, zIndex: 10_000 })
+    else {
+      userMarkerRef.current.map = map
+      userMarkerRef.current.position = result.coordinates
+    }
+    if (!accuracyCircleRef.current) accuracyCircleRef.current = new google.maps.Circle({ map, center: result.coordinates, radius: 30, clickable: false, fillColor: '#4285f4', fillOpacity: .13, strokeColor: '#4285f4', strokeOpacity: .42, strokeWeight: 1 })
+    else {
+      accuracyCircleRef.current.setMap(map)
+      accuracyCircleRef.current.setCenter(result.coordinates)
+    }
+    google.maps.event.addListenerOnce(map, 'idle', () => { programmaticMoveRef.current = false })
+    setActionAnnouncement(messages.success)
   }
   const searchBounds = () => {
     const currentBounds = mapRef.current ? getMapBounds(mapRef.current) : bounds
@@ -510,6 +611,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
 
   return <section className={cn('results-map google-map-shell', fullScreen && 'results-map--fullscreen google-map-shell--fullscreen', selected && 'has-selection', drawing && 'is-drawing', drawSession && 'is-draw-session', mapPolygon.length >= 3 && 'has-polygon', mapError && 'has-map-error')} aria-label="Mapa de resultados" data-drawing={drawing || undefined} data-provider="google-maps" onWheelCapture={markManualMapInteraction}>
     <div className="results-map__canvas google-map-canvas" ref={containerRef} role="application" aria-label="Google Maps con precios de habitaciones" />
+    {drawing ? <div className="freehand-map-overlay" role="application" aria-label="Mantén pulsado y dibuja el contorno de la zona" onPointerDown={startFreehandStroke} onPointerMove={continueFreehandStroke} onPointerUp={finishFreehandStroke} onPointerCancel={cancelFreehandStroke} onContextMenu={(event) => event.preventDefault()} /> : null}
     <MapLayerSwitcher value={layer} onChange={setLayer} />
     {fullScreen ? <MapToolbar boundsDirty={boundsDirty} canSearchBounds={Boolean(boundsDirty && bounds && onBoundsSearch)} drawing={drawing} pointCount={draftPolygon.length} hasPolygon={mapPolygon.length >= 3} onSearchBounds={searchBounds} onLocate={locateCurrentPosition} onStartDrawing={startDrawing} onAddPoint={addKeyboardPoint} onCancelDrawing={cancelDrawing} onFinishDrawing={finishDrawing} onDeletePolygon={deletePolygon} /> : null}
     {actionAnnouncement ? <div ref={announcementRef} className="map-action-announcement" role="status" aria-live="polite" tabIndex={-1}>{actionAnnouncement}</div> : null}
