@@ -1467,3 +1467,26 @@ Running 1 test using 1 worker
   1 passed (5.5s)
 ```
 
+## `tests/mobile-location-map.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 13 tests using 1 worker
+
+  ✓   1 [chromium] › tests/mobile-location-map.spec.ts:22:1 › onboarding restarts after every full page reload and language names are never machine-translated (2.4s)
+  ✓   2 [chromium] › tests/mobile-location-map.spec.ts:34:1 › country selection contains only Tenerife and returns correctly from location editing (1.3s)
+  ✓   3 [chromium] › tests/mobile-location-map.spec.ts:49:1 › housing modes start inactive and occupant selector supports safe multi-select (1.4s)
+  ✓   4 [chromium] › tests/mobile-location-map.spec.ts:78:1 › location screen contains the four APK actions and address submit opens map (2.5s)
+  ✓   5 [chromium] › tests/mobile-location-map.spec.ts:96:1 › current location opens the map and keeps the user coordinates even when no nearby listing is required (2.6s)
+  ✓   6 [chromium] › tests/mobile-location-map.spec.ts:110:1 › map current-location control centers the map and renders the user marker (2.5s)
+  ✓   7 [chromium] › tests/mobile-location-map.spec.ts:121:1 › draw and search map interfaces expose the connected listing layer without a result-count redesign (4.5s)
+  ✓   8 [chromium] › tests/mobile-location-map.spec.ts:139:1 › menu keeps deleted sections absent and settings rows work without restarting registration (1.4s)
+  ✓   9 [chromium] › tests/mobile-location-map.spec.ts:159:1 › login opened from an app tab uses the canonical account route (1.3s)
+  ✓  10 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 320px (1.3s)
+  ✓  11 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 360px (1.3s)
+  ✓  12 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 390px (1.3s)
+  ✓  13 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 430px (1.3s)
+
+  13 passed (26.3s)
+```
+
