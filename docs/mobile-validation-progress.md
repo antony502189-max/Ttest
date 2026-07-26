@@ -26,3 +26,8 @@ Run `npm audit` for details.
 
 Found 1 warning and 0 errors.
 Finished in 35ms on 112 files with 102 rules using 4 threads.
+- typecheck: PASS (exit 0)
+
+> task@0.0.0 typecheck
+> tsc -b --pretty false
+
