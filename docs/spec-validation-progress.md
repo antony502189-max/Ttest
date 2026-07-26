@@ -1313,3 +1313,146 @@ Running 3 tests using 1 worker
     [chromium] › tests/master-task-visual.spec.ts:59:1 › master desktop municipality selection and split map states 
 ```
 
+## `tests/master-task.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 5 tests using 1 worker
+
+  ✘  1 [chromium] › tests/master-task.spec.ts:13:1 › P0 current mobile home preserves the locked APK hierarchy and links all five tabs (8.3s)
+  ✓  2 [chromium] › tests/master-task.spec.ts:30:1 › P1 desktop multiple municipalities stay synchronized with URL, filters and reload (4.5s)
+  ✓  3 [chromium] › tests/master-task.spec.ts:47:1 › P1 municipality list remains usable when detailed GeoJSON cannot load (3.1s)
+  ✘  4 [chromium] › tests/master-task.spec.ts:59:1 › P0 mobile and desktop maps retain their intended separate implementations (8.2s)
+  ✘  5 [chromium] › tests/master-task.spec.ts:80:1 › P1 core routes have no horizontal overflow or unexpected console errors across the responsive matrix (8.7s)
+
+
+  1) [chromium] › tests/master-task.spec.ts:13:1 › P0 current mobile home preserves the locked APK hierarchy and links all five tabs 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-home')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-home')
+
+
+      15 |   await page.goto('/#/')
+      16 |   await settle(page)
+    > 17 |   await expect(page.locator('.m2-home')).toBeVisible()
+         |                                          ^
+      18 |   await expect(page.locator('.m2-mode-switch button')).toHaveCount(2)
+      19 |   await expect(page.locator('.m2-occupant-trigger')).toBeVisible()
+      20 |   await expect(page.locator('.m2-select-row')).toBeVisible()
+        at /home/runner/work/Ttest/Ttest/tests/master-task.spec.ts:17:42
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/master-task-P0-current-mob-6df2b-chy-and-links-all-five-tabs-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/master-task-P0-current-mob-6df2b-chy-and-links-all-five-tabs-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/master-task-P0-current-mob-6df2b-chy-and-links-all-five-tabs-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/master-task-P0-current-mob-6df2b-chy-and-links-all-five-tabs-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/master-task-P0-current-mob-6df2b-chy-and-links-all-five-tabs-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/master-task.spec.ts:59:1 › P0 mobile and desktop maps retain their intended separate implementations 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('map-search')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('map-search')
+
+
+      60 |   await page.setViewportSize({ width: 390, height: 844 })
+      61 |   await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    > 62 |   await expect(page.getByTestId('map-search')).toBeVisible()
+         |                                                ^
+      63 |   await expect(page.locator('.m2-map-canvas')).toBeVisible()
+      64 |   await expect(page.locator('.google-map-canvas')).toHaveCount(0)
+      65 |   await page.getByRole('button', { name: 'Lista' }).click()
+        at /home/runner/work/Ttest/Ttest/tests/master-task.spec.ts:62:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/master-task-P0-mobile-and--501c9-ed-separate-implementations-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/master-task-P0-mobile-and--501c9-ed-separate-implementations-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/master-task-P0-mobile-and--501c9-ed-separate-implementations-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/master-task-P0-mobile-and--501c9-ed-separate-implementations-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/master-task-P0-mobile-and--501c9-ed-separate-implementations-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/master-task.spec.ts:80:1 › P1 core routes have no horizontal overflow or unexpected console errors across the responsive matrix 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-map-canvas')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-map-canvas')
+
+
+      92 |       await settle(page)
+      93 |       const mapSelector = width < 768 ? '.m2-map-canvas' : '.google-map-canvas'
+    > 94 |       if (route.includes('vista=mapa')) await expect(page.locator(mapSelector)).toBeVisible()
+         |                                                                                 ^
+      95 |       const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)
+      96 |       expect(overflow, `${route} at ${width}px`).toBeLessThanOrEqual(1)
+      97 |     }
+        at /home/runner/work/Ttest/Ttest/tests/master-task.spec.ts:94:81
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/master-task-P1-core-routes-bc3fd-cross-the-responsive-matrix-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/master-task-P1-core-routes-bc3fd-cross-the-responsive-matrix-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/master-task-P1-core-routes-bc3fd-cross-the-responsive-matrix-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/master-task-P1-core-routes-bc3fd-cross-the-responsive-matrix-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/master-task-P1-core-routes-bc3fd-cross-the-responsive-matrix-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    [chromium] › tests/master-task.spec.ts:13:1 › P0 current mobile home preserves the locked APK hierarchy and links all five tabs 
+    [chromium] › tests/master-task.spec.ts:59:1 › P0 mobile and desktop maps retain their intended separate implementations 
+    [chromium] › tests/master-task.spec.ts:80:1 › P1 core routes have no horizontal overflow or unexpected console errors across the responsive matrix 
+  2 passed (35.0s)
+```
+
