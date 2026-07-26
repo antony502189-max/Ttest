@@ -1833,3 +1833,14 @@ Running 1 test using 1 worker
   1 skipped
 ```
 
+## `tests/visual-evidence.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › tests/visual-evidence.spec.ts:13:1 › responsive final evidence at the required viewport matrix (6.8s)
+
+  1 passed (7.9s)
+```
+
