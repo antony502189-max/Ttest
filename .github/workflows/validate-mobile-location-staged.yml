@@ -1,0 +1,83 @@
+name: Staged mobile validation
+
+on:
+  push:
+    branches:
+      - validation/mobile-location-staged
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: validation/mobile-location-staged
+          fetch-depth: 0
+
+      - name: Initialize progress
+        shell: bash
+        run: |
+          mkdir -p docs
+          printf '# Staged mobile validation\n\n- started: PASS\n' > docs/mobile-validation-progress.md
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/mobile-validation-progress.md
+          git commit -m "Start staged mobile validation"
+          git push origin HEAD:validation/mobile-location-staged
+
+      - name: npm ci
+        shell: bash
+        run: |
+          set +e
+          npm ci > /tmp/npm-ci.log 2>&1
+          code=$?
+          printf -- '- npm ci: %s (exit %s)\n' "$([ $code -eq 0 ] && echo PASS || echo FAIL)" "$code" >> docs/mobile-validation-progress.md
+          tail -n 80 /tmp/npm-ci.log >> docs/mobile-validation-progress.md
+          git add docs/mobile-validation-progress.md
+          git commit -m "Record npm ci validation"
+          git push origin HEAD:validation/mobile-location-staged
+          exit $code
+
+      - name: lint typecheck build
+        shell: bash
+        run: |
+          set +e
+          for item in "lint:npm run lint" "typecheck:npm run typecheck" "build:npm run build"; do
+            name=${item%%:*}
+            command=${item#*:}
+            bash -lc "$command" > "/tmp/$name.log" 2>&1
+            code=$?
+            printf -- '- %s: %s (exit %s)\n' "$name" "$([ $code -eq 0 ] && echo PASS || echo FAIL)" "$code" >> docs/mobile-validation-progress.md
+            tail -n 100 "/tmp/$name.log" >> docs/mobile-validation-progress.md
+            git add docs/mobile-validation-progress.md
+            git commit -m "Record $name validation"
+            git push origin HEAD:validation/mobile-location-staged
+            [ $code -eq 0 ] || exit $code
+          done
+
+      - name: Install Chromium and run location tests
+        shell: bash
+        run: |
+          set +e
+          npx playwright install --with-deps chromium > /tmp/browser.log 2>&1
+          browser_code=$?
+          printf -- '- playwright install: %s (exit %s)\n' "$([ $browser_code -eq 0 ] && echo PASS || echo FAIL)" "$browser_code" >> docs/mobile-validation-progress.md
+          tail -n 100 /tmp/browser.log >> docs/mobile-validation-progress.md
+          git add docs/mobile-validation-progress.md
+          git commit -m "Record browser installation"
+          git push origin HEAD:validation/mobile-location-staged
+          [ $browser_code -eq 0 ] || exit $browser_code
+
+          npm exec playwright test tests/mobile-location-map.spec.ts > /tmp/location-tests.log 2>&1
+          test_code=$?
+          printf -- '- mobile-location-map.spec.ts: %s (exit %s)\n' "$([ $test_code -eq 0 ] && echo PASS || echo FAIL)" "$test_code" >> docs/mobile-validation-progress.md
+          tail -n 250 /tmp/location-tests.log >> docs/mobile-validation-progress.md
+          git add docs/mobile-validation-progress.md
+          git commit -m "Record mobile location tests"
+          git push origin HEAD:validation/mobile-location-staged
+          exit $test_code
