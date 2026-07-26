@@ -786,3 +786,69 @@ Running 10 tests using 1 worker
   9 passed (41.1s)
 ```
 
+## `tests/final-cleanup.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 12 tests using 1 worker
+
+  ✓   1 [chromium] › tests/final-cleanup.spec.ts:54:1 › MEDIA-09 orphan cleanup removes only unreferenced blobs (2.3s)
+  ✓   2 [chromium] › tests/final-cleanup.spec.ts:67:1 › MEDIA-10 shared listing photo survives until its final reference is deleted (3.6s)
+  ✓   3 [chromium] › tests/final-cleanup.spec.ts:85:1 › MEDIA-11 replacing an edited listing photo removes the obsolete blob (4.1s)
+  ✓   4 [chromium] › tests/final-cleanup.spec.ts:109:1 › DRAFT-05 reset removes only draft media and preserves listing media (3.9s)
+  ✓   5 [chromium] › tests/final-cleanup.spec.ts:129:1 › ACCOUNT-01 deletion clears owned local data, draft and unused media after reload (3.5s)
+  ✓   6 [chromium] › tests/final-cleanup.spec.ts:171:1 › CONTACT-07 cooldown survives dialog close and sensitive values are cleared (4.9s)
+  ✓   7 [chromium] › tests/final-cleanup.spec.ts:198:1 › CONTACT-08 disabled phone and WhatsApp are absent from the DOM (2.4s)
+  ✓   8 [chromium] › tests/final-cleanup.spec.ts:212:1 › FILTER-07 legacy URLs migrate to one tenant requirement and distinct resident/capacity controls (2.2s)
+  ✓   9 [chromium] › tests/final-cleanup.spec.ts:226:1 › LISTING-STATUS-01 user-facing status filter excludes moderation-only values (2.5s)
+  ✓  10 [chromium] › tests/final-cleanup.spec.ts:240:1 › MAP-06 selecting a card or marker preserves viewport and map instance (4.9s)
+  ✘  11 [chromium] › tests/final-cleanup.spec.ts:263:1 › RESP-06 short mobile dialogs and critical map/uploader targets remain reachable (11.8s)
+  ✓  12 [chromium] › tests/final-cleanup.spec.ts:287:1 › I18N-01 Russian and English versions switch and persist without changing routes (4.1s)
+
+
+  1) [chromium] › tests/final-cleanup.spec.ts:263:1 › RESP-06 short mobile dialogs and critical map/uploader targets remain reachable 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-map-canvas')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-map-canvas')
+
+
+      278 |   await page.reload()
+      279 |   const mapCanvas = page.locator('.m2-map-canvas')
+    > 280 |   await expect(mapCanvas).toBeVisible()
+          |                           ^
+      281 |   const drawAction = await page.getByRole('button', { name: 'Dibujar tu zona' }).boundingBox()
+      282 |   const layersAction = await page.getByRole('button', { name: 'Cambiar capas' }).boundingBox()
+      283 |   expect(drawAction && drawAction.height >= 44).toBeTruthy()
+        at /home/runner/work/Ttest/Ttest/tests/final-cleanup.spec.ts:280:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-cleanup-RESP-06-shor-7e72d-er-targets-remain-reachable-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-cleanup-RESP-06-shor-7e72d-er-targets-remain-reachable-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-cleanup-RESP-06-shor-7e72d-er-targets-remain-reachable-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-cleanup-RESP-06-shor-7e72d-er-targets-remain-reachable-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-cleanup-RESP-06-shor-7e72d-er-targets-remain-reachable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/final-cleanup.spec.ts:263:1 › RESP-06 short mobile dialogs and critical map/uploader targets remain reachable 
+  11 passed (52.1s)
+```
+
