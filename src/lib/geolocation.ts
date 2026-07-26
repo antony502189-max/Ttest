@@ -52,11 +52,13 @@ export function requestCurrentLocation(options: PositionOptions = {
       resolvePosition,
       (error) => {
         const mayRetry = options.enableHighAccuracy !== false
-&& (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)
+          && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)
+
         if (!mayRetry) {
-resolveFailure(error)
-return
+          resolveFailure(error)
+          return
         }
+
         navigator.geolocation.getCurrentPosition(resolvePosition, resolveFailure, FALLBACK_OPTIONS)
       },
       options,
