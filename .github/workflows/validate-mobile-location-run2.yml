@@ -48,35 +48,32 @@ jobs:
             check "e2e" npm run test:e2e
           fi
 
-          python <<'PY'
-          from pathlib import Path
-          from datetime import datetime, timezone
+          if awk -F '\t' 'BEGIN { ok=1; seen=0 } { seen=1; if ($2 != 0) ok=0 } END { exit !(seen && ok) }' output/validation/status.tsv; then
+            overall=PASS
+          else
+            overall=FAIL
+          fi
 
-          statuses = []
-          for line in Path('output/validation/status.tsv').read_text().splitlines():
-              name, code = line.split('\t', 1)
-              statuses.append((name, int(code)))
-          log = Path('output/validation/full.log').read_text(errors='replace')
-          rows = '\n'.join(f'| {name} | {"PASS" if code == 0 else "FAIL"} | `{code}` |' for name, code in statuses)
-          overall = 'PASS' if statuses and all(code == 0 for _, code in statuses) else 'FAIL'
-          report = f'''# Mobile validation report
-
-Generated: {datetime.now(timezone.utc).isoformat()}
-
-Overall: **{overall}**
-
-| Check | Result | Exit code |
-|---|---:|---:|
-{rows}
-
-## Last 700 log lines
-
-```text
-{'\n'.join(log.splitlines()[-700:])}
-```
-'''
-          Path('docs/mobile-validation-report.md').write_text(report)
-          PY
+          {
+            echo '# Mobile validation report'
+            echo
+            echo "Generated: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo
+            echo "Overall: **$overall**"
+            echo
+            echo '| Check | Result | Exit code |'
+            echo '|---|---:|---:|'
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" -eq 0 ]; then result=PASS; else result=FAIL; fi
+              printf '| %s | %s | `%s` |\n' "$name" "$result" "$code"
+            done < output/validation/status.tsv
+            echo
+            echo '## Last 700 log lines'
+            echo
+            echo '```text'
+            tail -n 700 output/validation/full.log
+            echo '```'
+          } > docs/mobile-validation-report.md
 
           rm .github/workflows/validate-mobile-location-run2.yml
       - name: Commit report
