@@ -267,3 +267,179 @@ Running 12 tests using 1 worker
   10 passed (1.9m)
 ```
 
+## `tests/apk-parity.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 7 tests using 1 worker
+
+  ✘  1 [chromium] › tests/apk-parity.spec.ts:15:3 › APK shell connected to the canonical web app › onboarding is completed once and survives reload (9.0s)
+  ✘  2 [chromium] › tests/apk-parity.spec.ts:22:3 › APK shell connected to the canonical web app › location, search, back and reload use real URLs (8.7s)
+  ✘  3 [chromium] › tests/apk-parity.spec.ts:38:3 › APK shell connected to the canonical web app › listing, account and publication actions open canonical routes (1.0m)
+  ✘  4 [chromium] › tests/apk-parity.spec.ts:54:3 › APK shell connected to the canonical web app › bottom tabs are deep links and favorites display stored data (1.0m)
+  ✓  5 [chromium] › tests/apk-parity.spec.ts:67:3 › APK shell connected to the canonical web app › map and drawing screens are reflected in the URL (2.8s)
+  ✓  6 [chromium] › tests/apk-parity.spec.ts:77:3 › APK shell connected to the canonical web app › missing APK location actions work: nearby and phone lookup (3.2s)
+  ✓  7 [chromium] › tests/apk-parity.spec.ts:99:1 › desktop keeps the existing responsive route-based design (1.4s)
+
+
+  1) [chromium] › tests/apk-parity.spec.ts:15:3 › APK shell connected to the canonical web app › onboarding is completed once and survives reload 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('open-location')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('open-location')
+
+
+      16 |     await finishOnboarding(page)
+      17 |     await page.reload()
+    > 18 |     await expect(page.getByTestId('open-location')).toBeVisible()
+         |                                                     ^
+      19 |     await expect(page.getByText('Selecciona el idioma de la aplicación')).toHaveCount(0)
+      20 |   })
+      21 |
+        at /home/runner/work/Ttest/Ttest/tests/apk-parity.spec.ts:18:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-adfa2-ed-once-and-survives-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-adfa2-ed-once-and-survives-reload-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-parity-APK-shell-conne-adfa2-ed-once-and-survives-reload-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-adfa2-ed-once-and-survives-reload-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-parity-APK-shell-conne-adfa2-ed-once-and-survives-reload-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/apk-parity.spec.ts:22:3 › APK shell connected to the canonical web app › location, search, back and reload use real URLs 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /#\/buscar\?q=Tenerife&alquiler=long/
+    Received string:  "http://127.0.0.1:4173/#/?panel=ubicacion"
+    Timeout: 7000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 7000ms
+        18 × unexpected value "http://127.0.0.1:4173/#/?panel=ubicacion"
+
+
+      30 |     await page.getByRole('button', { name: 'Vivienda', exact: true }).click()
+      31 |     await page.getByTestId('open-location').click()
+    > 32 |     await expect(page).toHaveURL(/#\/buscar\?q=Tenerife&alquiler=long/)
+         |                        ^
+      33 |     await expect(page.getByTestId('mobile-results')).toBeVisible()
+      34 |     await page.reload()
+      35 |     await expect(page.getByTestId('mobile-results')).toBeVisible()
+        at /home/runner/work/Ttest/Ttest/tests/apk-parity.spec.ts:32:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-169a1-ck-and-reload-use-real-URLs-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-169a1-ck-and-reload-use-real-URLs-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-parity-APK-shell-conne-169a1-ck-and-reload-use-real-URLs-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-169a1-ck-and-reload-use-real-URLs-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-parity-APK-shell-conne-169a1-ck-and-reload-use-real-URLs-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/apk-parity.spec.ts:38:3 › APK shell connected to the canonical web app › listing, account and publication actions open canonical routes 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for locator('.m2-result-card__image-button').first()
+
+
+      40 |     await page.getByTestId('open-location').click()
+      41 |     const firstListing = page.locator('.m2-result-card__image-button').first()
+    > 42 |     await firstListing.click()
+         |                        ^
+      43 |     await expect(page).toHaveURL(/#\/habitacion\//)
+      44 |     await expect(page.locator('.idealista-listing-page')).toBeVisible()
+      45 |
+        at /home/runner/work/Ttest/Ttest/tests/apk-parity.spec.ts:42:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-69f9e-tions-open-canonical-routes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-69f9e-tions-open-canonical-routes-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-parity-APK-shell-conne-69f9e-tions-open-canonical-routes-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-69f9e-tions-open-canonical-routes-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-parity-APK-shell-conne-69f9e-tions-open-canonical-routes-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/apk-parity.spec.ts:54:3 › APK shell connected to the canonical web app › bottom tabs are deep links and favorites display stored data 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for locator('.m2-result-card__favorite').first()
+
+
+      55 |     await finishOnboarding(page)
+      56 |     await page.getByTestId('open-location').click()
+    > 57 |     await page.locator('.m2-result-card__favorite').first().click()
+         |                                                             ^
+      58 |     await page.getByRole('button', { name: 'Volver' }).click()
+      59 |     await expect(page.getByTestId('mobile-results')).toHaveCount(0)
+      60 |     await page.getByRole('button', { name: 'Favoritos', exact: true }).click()
+        at /home/runner/work/Ttest/Ttest/tests/apk-parity.spec.ts:57:61
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-2fd6a-vorites-display-stored-data-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-2fd6a-vorites-display-stored-data-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-parity-APK-shell-conne-2fd6a-vorites-display-stored-data-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-parity-APK-shell-conne-2fd6a-vorites-display-stored-data-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-parity-APK-shell-conne-2fd6a-vorites-display-stored-data-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [chromium] › tests/apk-parity.spec.ts:15:3 › APK shell connected to the canonical web app › onboarding is completed once and survives reload 
+    [chromium] › tests/apk-parity.spec.ts:22:3 › APK shell connected to the canonical web app › location, search, back and reload use real URLs 
+    [chromium] › tests/apk-parity.spec.ts:38:3 › APK shell connected to the canonical web app › listing, account and publication actions open canonical routes 
+    [chromium] › tests/apk-parity.spec.ts:54:3 › APK shell connected to the canonical web app › bottom tabs are deep links and favorites display stored data 
+  3 passed (2.5m)
+```
+
