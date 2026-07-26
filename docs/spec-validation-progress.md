@@ -1744,3 +1744,16 @@ Running 2 tests using 1 worker
     [chromium] › tests/mobile-search-results.spec.ts:141:1 › results, sorting and filters fit every supported mobile width 
 ```
 
+## `tests/screenshot-locked-contract.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 3 tests using 1 worker
+
+  ✓  1 [chromium] › tests/screenshot-locked-contract.spec.ts:17:1 › LOCK-OVERLAY derives at most two truthful image restrictions and omits empty overlays (3.6s)
+  ✓  2 [chromium] › tests/screenshot-locked-contract.spec.ts:57:1 › LOCK-CARD exposes image, price, title and body navigation without nesting controls (2.7s)
+  ✓  3 [chromium] › tests/screenshot-locked-contract.spec.ts:89:1 › LOCK-COMMENTS supports honest user-scoped create, edit, delete and account cleanup (4.9s)
+
+  3 passed (12.5s)
+```
+
