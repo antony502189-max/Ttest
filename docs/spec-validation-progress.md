@@ -659,3 +659,66 @@ Running 10 tests using 1 worker
   10 passed (43.7s)
 ```
 
+## `tests/delta.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 14 tests using 1 worker
+
+  ✓   1 [chromium] › tests/delta.spec.ts:51:1 › OWN-01..04 owner isolation and foreign edit/actions are blocked (3.5s)
+  ✓   2 [chromium] › tests/delta.spec.ts:61:1 › OWN-05 new host has an empty cabinet while demo host keeps seed listings (2.2s)
+  ✓   3 [chromium] › tests/delta.spec.ts:74:1 › USR-01..03 favorites, saved searches and history are user scoped (4.7s)
+  ✓   4 [chromium] › tests/delta.spec.ts:88:1 › STORE-01..02 versioned payload survives mass deletion and migrates legacy v2 (2.8s)
+  ✓   5 [chromium] › tests/delta.spec.ts:107:1 › STORE-03..04 corrupted JSON falls back and quota errors are visible (3.9s)
+  ✓   6 [chromium] › tests/delta.spec.ts:125:1 › MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload (9.9s)
+  ✓   7 [chromium] › tests/delta.spec.ts:165:1 › MEDIA-04 avatar upload/remove persists and profile cancel restores values (4.7s)
+  ✓   8 [chromium] › tests/delta.spec.ts:195:1 › ROOM-01..04 and MODE-01..03 migrated room and rental models render consistently (2.4s)
+  ✓   9 [chromium] › tests/delta.spec.ts:205:1 › CONTACT-01..06 confirmation gates channels and local form handles abuse states (4.2s)
+  ✓  10 [chromium] › tests/delta.spec.ts:237:1 › LIFE-01..04 expiration hides public listing and renew republishes it (3.9s)
+  ✓  11 [chromium] › tests/delta.spec.ts:277:1 › WIZ-01..03 dirty state warns only after edits and save clears it (3.1s)
+  ✓  12 [chromium] › tests/delta.spec.ts:292:1 › FILTER-01 and MAP-01..03 new filters serialize and map preview shows restrictions (3.8s)
+  ✘  13 [chromium] › tests/delta.spec.ts:307:1 › RESP-01..05 critical routes have no horizontal overflow at the required matrix (4.1m)
+  ✓  14 [chromium] › tests/delta.spec.ts:348:1 › A11Y-01 contact dialog has no serious or critical axe issues (3.1s)
+
+
+  1) [chromium] › tests/delta.spec.ts:307:1 › RESP-01..05 critical routes have no horizontal overflow at the required matrix 
+
+    Test timeout of 240000ms exceeded.
+
+    Error: locator.waitFor: Test timeout of 240000ms exceeded.
+    Call log:
+      - waiting for locator('.google-map-canvas, .m2-map-canvas') to be visible
+
+
+      322 |       await page.goto(route)
+      323 |       await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
+    > 324 |       if (route.includes('vista=mapa')) await page.locator('.google-map-canvas, .m2-map-canvas').waitFor({ state: 'visible' })
+          |                                                                                                  ^
+      325 |       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), `${route} at ${width}x${height}`).toBeTruthy()
+      326 |     }
+      327 |     await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify(null)))
+        at /home/runner/work/Ttest/Ttest/tests/delta.spec.ts:324:98
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/delta-RESP-01-05-critical--18b45-flow-at-the-required-matrix-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/delta-RESP-01-05-critical--18b45-flow-at-the-required-matrix-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/delta-RESP-01-05-critical--18b45-flow-at-the-required-matrix-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/delta-RESP-01-05-critical--18b45-flow-at-the-required-matrix-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/delta-RESP-01-05-critical--18b45-flow-at-the-required-matrix-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/delta.spec.ts:307:1 › RESP-01..05 critical routes have no horizontal overflow at the required matrix 
+  13 passed (5.0m)
+```
+
