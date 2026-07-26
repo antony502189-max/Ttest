@@ -1822,3 +1822,14 @@ Running 1 test using 1 worker
     [chromium] › tests/true-target-parity.spec.ts:5:1 › capture and gate the mandatory current Idealista-derived target states 
 ```
 
+## `tests/v4-exact-design-evidence.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 1 test using 1 worker
+
+  -  1 [chromium] › tests/v4-exact-design-evidence.spec.ts:145:1 › capture V4 golden-indexed live evidence
+
+  1 skipped
+```
+
