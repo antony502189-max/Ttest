@@ -1086,3 +1086,18 @@ Running 1 test using 1 worker
   2 passed (3.7m)
 ```
 
+## `tests/google-maps-final-acceptance.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 5 tests using 1 worker
+
+  ✓  1 [chromium] › tests/google-maps-final-acceptance.spec.ts:26:1 › selected Advanced Marker has priority, opens the sheet, and programmatic selection stays clean (3.6s)
+  ✓  2 [chromium] › tests/google-maps-final-acceptance.spec.ts:40:1 › manual pan exposes Search this area while a result refit does not (3.5s)
+  ✓  3 [chromium] › tests/google-maps-final-acceptance.spec.ts:53:1 › map/list, multiple canonical zones, and polygon restore from URL and reload (7.4s)
+  ✓  4 [chromium] › tests/google-maps-final-acceptance.spec.ts:71:1 › official district hierarchy selects a stable ID and restores it from URL (6.6s)
+  ✓  5 [chromium] › tests/google-maps-final-acceptance.spec.ts:88:1 › production configuration is secret-backed and auth errors keep a usable fallback (3.2s)
+
+  5 passed (25.4s)
+```
+
