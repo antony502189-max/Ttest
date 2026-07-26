@@ -722,3 +722,67 @@ Running 14 tests using 1 worker
   13 passed (5.0m)
 ```
 
+## `tests/e2e.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 10 tests using 1 worker
+
+  ✓   1 [chromium] › tests/e2e.spec.ts:32:1 › 01–03 inicio, navegación y dataset completo (2.8s)
+  ✓   2 [chromium] › tests/e2e.spec.ts:42:1 › 04–07 filtros, chips, URL y restauración al recargar (3.8s)
+  ✓   3 [chromium] › tests/e2e.spec.ts:54:1 › 08–10 ordenación, paginación y back/forward (2.8s)
+  ✓   4 [chromium] › tests/e2e.spec.ts:68:1 › 11–15 Google Maps, кластер, выбор, границы и полигон (5.0s)
+  ✓   5 [chromium] › tests/e2e.spec.ts:102:1 › 16–19 ficha: sin bloqueo, galería, favorito, descarte (3.8s)
+  ✓   6 [chromium] › tests/e2e.spec.ts:118:1 › 20–22 login erróneo, demo y ruta protegida (2.1s)
+  ✓   7 [chromium] › tests/e2e.spec.ts:131:1 › 23–26 registro y perfil persistente (3.3s)
+  ✓   8 [chromium] › tests/e2e.spec.ts:148:1 › 27–29 publicación completa, CRUD y edición (3.8s)
+  ✓   9 [chromium] › tests/e2e.spec.ts:160:1 › 30 admin, búsqueda, moderación y exportación CSV (2.7s)
+  ✘  10 [chromium] › tests/e2e.spec.ts:172:1 › 31 responsive móvil sin desbordamiento y navegación inferior (9.7s)
+
+
+  1) [chromium] › tests/e2e.spec.ts:172:1 › 31 responsive móvil sin desbordamiento y navegación inferior 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-bottom-nav')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-bottom-nav')
+
+
+      176 |   await page.reload()
+      177 |   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    > 178 |   await expect(page.locator('.m2-bottom-nav')).toBeVisible()
+          |                                                ^
+      179 |   await page.locator('.m2-results__toolbar button').nth(2).click()
+      180 |   await expect(page.locator('.m2-map-canvas')).toBeVisible()
+      181 | })
+        at /home/runner/work/Ttest/Ttest/tests/e2e.spec.ts:178:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/e2e-31-responsive-móvil-si-3681e-iento-y-navegación-inferior-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/e2e-31-responsive-móvil-si-3681e-iento-y-navegación-inferior-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/e2e-31-responsive-móvil-si-3681e-iento-y-navegación-inferior-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/e2e-31-responsive-móvil-si-3681e-iento-y-navegación-inferior-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/e2e-31-responsive-móvil-si-3681e-iento-y-navegación-inferior-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/e2e.spec.ts:172:1 › 31 responsive móvil sin desbordamiento y navegación inferior 
+  9 passed (41.1s)
+```
+
