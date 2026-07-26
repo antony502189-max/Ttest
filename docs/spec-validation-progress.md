@@ -628,3 +628,14 @@ Running 7 tests using 1 worker
     [chromium] › tests/apk-regression-recovery.spec.ts:89:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload 
 ```
 
+## `tests/customer-qa.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › tests/customer-qa.spec.ts:3:1 › mobile search filters are fully localized and clamp numeric values (1.5s)
+
+  1 passed (2.6s)
+```
+
