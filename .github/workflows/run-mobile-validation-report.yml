@@ -1,0 +1,93 @@
+name: Run full validation report
+
+on:
+  push:
+    branches:
+      - fix/mobile-location-complete
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-location-complete
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Run all checks and record results
+        shell: bash
+        run: |
+          set +e
+          mkdir -p output/validation
+          : > output/validation/full.log
+          : > output/validation/status.tsv
+
+          run_check() {
+            name="$1"
+            shift
+            echo "===== $name =====" | tee -a output/validation/full.log
+            "$@" >> output/validation/full.log 2>&1
+            code=$?
+            printf '%s\t%s\n' "$name" "$code" >> output/validation/status.tsv
+            echo "exit=$code" | tee -a output/validation/full.log
+            return 0
+          }
+
+          run_check "npm ci" npm ci
+          if awk -F '\t' '$1 == "npm ci" && $2 == 0 { found=1 } END { exit !found }' output/validation/status.tsv; then
+            run_check "playwright install" npx playwright install --with-deps chromium
+            run_check "lint" npm run lint
+            run_check "typecheck" npm run typecheck
+            run_check "build" npm run build
+            run_check "e2e" npm run test:e2e
+          fi
+
+          python <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          statuses = []
+          for line in Path('output/validation/status.tsv').read_text().splitlines():
+              name, code = line.split('\t', 1)
+              statuses.append((name, int(code)))
+          log = Path('output/validation/full.log').read_text(errors='replace')
+          tail = '\n'.join(log.splitlines()[-500:])
+          passed = statuses and all(code == 0 for _, code in statuses)
+          rows = '\n'.join(f'| {name} | {"PASS" if code == 0 else "FAIL"} | `{code}` |' for name, code in statuses)
+          report = f'''# Mobile validation report
+
+          Generated: {datetime.now(timezone.utc).isoformat()}
+
+          Overall: **{'PASS' if passed else 'FAIL'}**
+
+          | Check | Result | Exit code |
+          |---|---:|---:|
+          {rows}
+
+          ## Last 500 log lines
+
+          ```text
+          {tail}
+          ```
+          '''.replace('          ', '')
+          Path('docs/mobile-validation-report.md').write_text(report)
+          PY
+
+          rm .github/workflows/run-mobile-validation-report.yml
+      - name: Commit validation report
+        if: always()
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Record full mobile validation results" || true
+          git push origin HEAD:fix/mobile-location-complete
