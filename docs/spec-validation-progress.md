@@ -852,3 +852,52 @@ Running 12 tests using 1 worker
   11 passed (52.1s)
 ```
 
+## `tests/final-mobile-delta-evidence.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✘  1 [chromium] › tests/final-mobile-delta-evidence.spec.ts:33:1 › capture unmasked final mobile delta evidence (3.1m)
+
+
+  1) [chromium] › tests/final-mobile-delta-evidence.spec.ts:33:1 › capture unmasked final mobile delta evidence 
+
+    Test timeout of 180000ms exceeded.
+
+    Error: locator.click: Test timeout of 180000ms exceeded.
+    Call log:
+      - waiting for locator('.m2-select-row')
+
+
+      57 |   await page.setViewportSize({ width: 390, height: 844 })
+      58 |   await page.goto('/#/')
+    > 59 |   await page.locator('.m2-select-row').click()
+         |                                        ^
+      60 |   await expect(page.getByTestId('location-screen')).toBeVisible()
+      61 |   await screenshot(page, 'location-390x844')
+      62 |
+        at /home/runner/work/Ttest/Ttest/tests/final-mobile-delta-evidence.spec.ts:59:40
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-evidenc-37870-final-mobile-delta-evidence-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-evidenc-37870-final-mobile-delta-evidence-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-mobile-delta-evidenc-37870-final-mobile-delta-evidence-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-evidenc-37870-final-mobile-delta-evidence-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-mobile-delta-evidenc-37870-final-mobile-delta-evidence-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/final-mobile-delta-evidence.spec.ts:33:1 › capture unmasked final mobile delta evidence 
+```
+
