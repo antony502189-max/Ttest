@@ -1559,3 +1559,188 @@ Running 2 tests using 1 worker
   2 passed (3.9s)
 ```
 
+## `tests/mobile-search-results.spec.ts` — FAIL (exit 1)
+
+```text
+    Usage:
+
+        npx playwright show-trace test-results/mobile-search-results-Vivi-46027-ls-and-filter-real-listings-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/mobile-search-results.spec.ts:64:1 › price, area, room count and housing type filters change the listing set 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mobile-results')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('mobile-results')
+
+
+      17 |   await page.getByTestId('open-location').click()
+      18 |   const results = page.getByTestId('mobile-results')
+    > 19 |   await expect(results).toBeVisible()
+         |                         ^
+      20 |   return results
+      21 | }
+      22 |
+        at openResults (/home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:19:25)
+        at /home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:66:19
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-search-results-pric-2a292-ters-change-the-listing-set-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-search-results-pric-2a292-ters-change-the-listing-set-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-search-results-pric-2a292-ters-change-the-listing-set-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-search-results-pric-2a292-ters-change-the-listing-set-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-search-results-pric-2a292-ters-change-the-listing-set-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/mobile-search-results.spec.ts:98:1 › sorting, photo carousel, favorites and hiding listings work together 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mobile-results')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('mobile-results')
+
+
+      17 |   await page.getByTestId('open-location').click()
+      18 |   const results = page.getByTestId('mobile-results')
+    > 19 |   await expect(results).toBeVisible()
+         |                         ^
+      20 |   return results
+      21 | }
+      22 |
+        at openResults (/home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:19:25)
+        at /home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:100:19
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-search-results-sort-ef127-ding-listings-work-together-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-search-results-sort-ef127-ding-listings-work-together-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-search-results-sort-ef127-ding-listings-work-together-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-search-results-sort-ef127-ding-listings-work-together-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-search-results-sort-ef127-ding-listings-work-together-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/mobile-search-results.spec.ts:128:1 › contact opens the existing authentication flow and map returns to Google Maps 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mobile-results')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('mobile-results')
+
+
+      17 |   await page.getByTestId('open-location').click()
+      18 |   const results = page.getByTestId('mobile-results')
+    > 19 |   await expect(results).toBeVisible()
+         |                         ^
+      20 |   return results
+      21 | }
+      22 |
+        at openResults (/home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:19:25)
+        at /home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:130:17
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-search-results-cont-61d05--map-returns-to-Google-Maps-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-search-results-cont-61d05--map-returns-to-Google-Maps-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-search-results-cont-61d05--map-returns-to-Google-Maps-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-search-results-cont-61d05--map-returns-to-Google-Maps-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-search-results-cont-61d05--map-returns-to-Google-Maps-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests/mobile-search-results.spec.ts:141:1 › results, sorting and filters fit every supported mobile width 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mobile-results')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('mobile-results')
+
+
+      17 |   await page.getByTestId('open-location').click()
+      18 |   const results = page.getByTestId('mobile-results')
+    > 19 |   await expect(results).toBeVisible()
+         |                         ^
+      20 |   return results
+      21 | }
+      22 |
+        at openResults (/home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:19:25)
+        at /home/runner/work/Ttest/Ttest/tests/mobile-search-results.spec.ts:145:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-search-results-resu-20022-very-supported-mobile-width-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-search-results-resu-20022-very-supported-mobile-width-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-search-results-resu-20022-very-supported-mobile-width-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-search-results-resu-20022-very-supported-mobile-width-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-search-results-resu-20022-very-supported-mobile-width-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5 failed
+    [chromium] › tests/mobile-search-results.spec.ts:33:1 › Vivienda and Turismo are the only rental-mode controls and filter real listings 
+    [chromium] › tests/mobile-search-results.spec.ts:64:1 › price, area, room count and housing type filters change the listing set 
+    [chromium] › tests/mobile-search-results.spec.ts:98:1 › sorting, photo carousel, favorites and hiding listings work together 
+    [chromium] › tests/mobile-search-results.spec.ts:128:1 › contact opens the existing authentication flow and map returns to Google Maps 
+    [chromium] › tests/mobile-search-results.spec.ts:141:1 › results, sorting and filters fit every supported mobile width 
+```
+
