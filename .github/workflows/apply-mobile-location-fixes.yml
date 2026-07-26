@@ -1,0 +1,203 @@
+name: Apply mobile location fixes
+
+on:
+  push:
+    branches:
+      - fix/mobile-location-complete
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-location-complete
+          fetch-depth: 0
+      - name: Apply verified source changes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old[:100]!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          main = Path('src/main.tsx')
+          main.write_text("""import { StrictMode } from 'react'
+          import { createRoot } from 'react-dom/client'
+          import './index.css'
+          import './rental-emphasis.css'
+          import App from './App.tsx'
+          import './mobile-app-v2-hardening.css'
+          import './mobile-search-results-overrides.css'
+          import './mobile-search-results-panels.css'
+
+          createRoot(document.getElementById('root')!).render(
+            <StrictMode>
+              <App />
+            </StrictMode>,
+          )
+          """.replace('          ', ''))
+
+          mobile = Path('src/components/mobile-app-v2.tsx')
+          replace_once(
+              mobile,
+              "function HomeScreen({ t, mode, onMode, onLocation, onSearch, onPublish }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onSearch: (mode: SearchMode) => void; onPublish: () => void }) {",
+              "function HomeScreen({ t, mode, onMode, onLocation, onPublish }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onPublish: () => void }) {",
+          )
+          replace_once(
+              mobile,
+              '<PrimaryButton onClick={() => onSearch(mode)} testId="open-location"><Search />{t.search}</PrimaryButton>',
+              '<PrimaryButton onClick={onLocation} testId="open-location"><Search />{t.search}</PrimaryButton>',
+          )
+          replace_once(
+              mobile,
+              "  const openResults = (mode: SearchMode) => {\n    const nextMode = mode ?? 'vivienda'\n    setHomeMode(nextMode)\n    navigate(`/buscar?q=Tenerife&alquiler=${nextMode === 'turismo' ? 'holiday' : 'long'}`)\n  }\n",
+              '',
+          )
+          replace_once(
+              mobile,
+              "    const nearbyItems = selectMobileSearchListings({ listings: allListings, discarded, rentalMode, filters, polygon: mapPolygon, query: 'Tenerife', params })\n    if (!nearbyItems.length) { setNearbyStatus('empty'); return }\n    setNearbyStatus('success')",
+              "    setNearbyStatus('success')",
+          )
+          replace_once(
+              mobile,
+              '<HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate(\'/?panel=ubicacion\')} onSearch={openResults} onPublish={openPublication} />',
+              '<HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate(\'/?panel=ubicacion\')} onPublish={openPublication} />',
+          )
+
+          geolocation = Path('src/lib/geolocation.ts')
+          geolocation.write_text("""import type { Coordinates } from '@/types'
+
+          export type GeolocationFailure = 'unsupported' | 'denied' | 'unavailable' | 'timeout' | 'outside'
+          export type GeolocationResult =
+            | { ok: true; coordinates: Coordinates }
+            | { ok: false; reason: GeolocationFailure }
+
+          const TENERIFE_BOUNDS = {
+            north: 28.62,
+            south: 27.95,
+            east: -16.08,
+            west: -16.96,
+          }
+
+          const FALLBACK_OPTIONS: PositionOptions = {
+            enableHighAccuracy: false,
+            timeout: 15_000,
+            maximumAge: 300_000,
+          }
+
+          export function isInsideTenerife({ lat, lng }: Coordinates) {
+            return lat >= TENERIFE_BOUNDS.south
+              && lat <= TENERIFE_BOUNDS.north
+              && lng >= TENERIFE_BOUNDS.west
+              && lng <= TENERIFE_BOUNDS.east
+          }
+
+          function failureReason(error: GeolocationPositionError): GeolocationFailure {
+            if (error.code === error.PERMISSION_DENIED) return 'denied'
+            if (error.code === error.TIMEOUT) return 'timeout'
+            return 'unavailable'
+          }
+
+          export function requestCurrentLocation(options: PositionOptions = {
+            enableHighAccuracy: true,
+            timeout: 10_000,
+            maximumAge: 60_000,
+          }): Promise<GeolocationResult> {
+            if (!navigator.geolocation) return Promise.resolve({ ok: false, reason: 'unsupported' })
+
+            return new Promise((resolve) => {
+              const resolvePosition = ({ coords }: GeolocationPosition) => {
+                const coordinates = { lat: coords.latitude, lng: coords.longitude }
+                resolve(isInsideTenerife(coordinates)
+                  ? { ok: true, coordinates }
+                  : { ok: false, reason: 'outside' })
+              }
+
+              const resolveFailure = (error: GeolocationPositionError) => resolve({ ok: false, reason: failureReason(error) })
+
+              navigator.geolocation.getCurrentPosition(
+                resolvePosition,
+                (error) => {
+                  const mayRetry = options.enableHighAccuracy !== false
+                    && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)
+                  if (!mayRetry) {
+                    resolveFailure(error)
+                    return
+                  }
+                  navigator.geolocation.getCurrentPosition(resolvePosition, resolveFailure, FALLBACK_OPTIONS)
+                },
+                options,
+              )
+            })
+          }
+
+          export function distanceKm(left: Coordinates, right: Coordinates) {
+            const radians = (degrees: number) => degrees * Math.PI / 180
+            const earthRadiusKm = 6371
+            const latDelta = radians(right.lat - left.lat)
+            const lngDelta = radians(right.lng - left.lng)
+            const a = Math.sin(latDelta / 2) ** 2
+              + Math.cos(radians(left.lat)) * Math.cos(radians(right.lat)) * Math.sin(lngDelta / 2) ** 2
+            return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+          }
+          """.replace('          ', ''))
+
+          tests = Path('tests/mobile-location-map.spec.ts')
+          replace_once(
+              tests,
+              "test('onboarding is completed once and language names are never machine-translated', async ({ page }) => {\n  await page.goto('/')\n  await expect(page.getByText('Español', { exact: true })).toBeVisible()\n  await expect(page.getByText('English', { exact: true })).toBeVisible()\n  await expect(page.getByText('Русский', { exact: true })).toBeVisible()\n  await expect(page.getByText('Испанский', { exact: true })).toHaveCount(0)\n  await finishOnboarding(page)\n  await page.reload()\n  await expect(page.getByTestId('open-location')).toBeVisible()\n  await expect(page.getByText('Selecciona el idioma de la aplicación')).toHaveCount(0)\n})",
+              "test('onboarding restarts after every full page reload and language names are never machine-translated', async ({ page }) => {\n  await page.goto('/')\n  await expect(page.getByText('Español', { exact: true })).toBeVisible()\n  await expect(page.getByText('English', { exact: true })).toBeVisible()\n  await expect(page.getByText('Русский', { exact: true })).toBeVisible()\n  await expect(page.getByText('Испанский', { exact: true })).toHaveCount(0)\n  await finishOnboarding(page)\n  await page.reload()\n  await expect(page.getByText('Selecciona el idioma de la aplicación')).toBeVisible()\n  await expect(page.getByText('Español', { exact: true })).toBeVisible()\n})",
+          )
+
+          anchor = "test('draw and search map interfaces expose the connected listing layer without a result-count redesign', async ({ page }) => {"
+          addition = """test('current location opens the map and keeps the user coordinates even when no nearby listing is required', async ({ page, context }) => {
+            await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
+            await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
+            await finishOnboarding(page)
+            await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+            await page.getByTestId('search-nearby').click()
+            await expect(page).toHaveURL(/vista=mapa/)
+            await expect(page).toHaveURL(/cerca=1/)
+            await expect(page).toHaveURL(/lat=28\.2916/)
+            await expect(page).toHaveURL(/lng=-16\.6291/)
+            await expect(page.getByTestId('map-search')).toBeVisible()
+            await expect(page.locator('.m2-user-location-marker')).toHaveCount(1)
+          })
+
+          test('map current-location control centers the map and renders the user marker', async ({ page, context }) => {
+            await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
+            await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
+            await finishOnboarding(page)
+            await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+            await page.getByTestId('search-map').click()
+            await page.getByRole('button', { name: 'Mi ubicación' }).click()
+            await expect(page.getByText('Ubicación encontrada')).toBeVisible()
+            await expect(page.locator('.m2-user-location-marker')).toHaveCount(1)
+          })
+
+          """
+          text = tests.read_text()
+          if text.count(anchor) != 1:
+              raise SystemExit('Could not find insertion anchor for location tests')
+          tests.write_text(text.replace(anchor, addition + anchor, 1))
+
+          Path('.github/workflows/apply-mobile-location-fixes.yml').unlink()
+          PY
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Fix mobile location flow and geolocation reliability"
+          git push origin HEAD:fix/mobile-location-complete
