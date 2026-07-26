@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/full-mobile-validation-current-location
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
