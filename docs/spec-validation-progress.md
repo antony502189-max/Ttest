@@ -153,3 +153,117 @@ Running 28 tests using 1 worker
   25 passed (4.1m)
 ```
 
+## `tests/acceptance-flows.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 12 tests using 1 worker
+
+  ✓   1 [chromium] › tests/acceptance-flows.spec.ts:65:1 › 01–03 rental mode, búsqueda por fecha y selección de varias zonas (4.9s)
+  ✓   2 [chromium] › tests/acceptance-flows.spec.ts:86:1 › 04 every visible filter is wired to data and URL (7.8s)
+  ✓   3 [chromium] › tests/acceptance-flows.spec.ts:177:1 › 05–08 filter count, individual chips, clear, URL reload and history navigation (4.1s)
+  ✘   4 [chromium] › tests/acceptance-flows.spec.ts:202:1 › 09 sorting by date and both prices plus real disjoint pagination (2.6s)
+  ✓   5 [chromium] › tests/acceptance-flows.spec.ts:252:1 › 10–13 map marker/card sync, marker preview, bounds and polygon filtering (4.7s)
+  ✓   6 [chromium] › tests/acceptance-flows.spec.ts:309:1 › 14–15 favorites and complete saved-search restoration persist (5.7s)
+  ✓   7 [chromium] › tests/acceptance-flows.spec.ts:334:1 › 16–18 listing gallery keyboard, contact, share and report mutate state (3.3s)
+  ✓   8 [chromium] › tests/acceptance-flows.spec.ts:381:1 › 19–20 registration, login persistence, logout, recovery and reset flows (3.6s)
+  ✓   9 [chromium] › tests/acceptance-flows.spec.ts:409:1 › 21–24 wizard validates, restores/reset draft, previews user data, creates and edits (6.0s)
+  ✓  10 [chromium] › tests/acceptance-flows.spec.ts:462:1 › 25–26 hide/show, renew and delete listing all change shared data (4.5s)
+  ✓  11 [chromium] › tests/acceptance-flows.spec.ts:487:1 › 27 admin status filter, approve/hide/reject, user blocking and CSV are stateful (4.6s)
+  ✘  12 [chromium] › tests/acceptance-flows.spec.ts:521:1 › 28–29 mobile navigation and keyboard-only critical path (1.0m)
+
+
+  1) [chromium] › tests/acceptance-flows.spec.ts:202:1 › 09 sorting by date and both prices plus real disjoint pagination 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 6
+    + Received  + 6
+
+      Array [
+    -   755,
+    -   710,
+    -   620,
+    -   530,
+    -   485,
+    +   350,
+        395,
+        395,
+    -   350,
+    +   485,
+    +   530,
+    +   620,
+    +   710,
+    +   755,
+        350,
+      ]
+
+      231 |     await page.locator(".results-list .price-block strong").allTextContents()
+      232 |   ).map((value) => Number.parseInt(value.replace(/\D/g, "")));
+    > 233 |   expect(high).toEqual([...high].sort((a, b) => b - a));
+          |                ^
+      234 |   await page.getByLabel("Ordenar resultados").selectOption("Precio más bajo");
+      235 |   const low = (
+      236 |     await page.locator(".results-list .price-block strong").allTextContents()
+        at /home/runner/work/Ttest/Ttest/tests/acceptance-flows.spec.ts:233:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/acceptance-flows-09-sortin-23b56-us-real-disjoint-pagination-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/acceptance-flows-09-sortin-23b56-us-real-disjoint-pagination-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/acceptance-flows-09-sortin-23b56-us-real-disjoint-pagination-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/acceptance-flows-09-sortin-23b56-us-real-disjoint-pagination-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/acceptance-flows-09-sortin-23b56-us-real-disjoint-pagination-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/acceptance-flows.spec.ts:521:1 › 28–29 mobile navigation and keyboard-only critical path 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.focus: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('open-location')
+
+
+      544 |   await page.keyboard.press("Enter");
+      545 |   const search = page.getByTestId("open-location");
+    > 546 |   await search.focus();
+          |                ^
+      547 |   await page.keyboard.press("Enter");
+      548 |   await expect(page).toHaveURL(/buscar/);
+      549 |   await expect(page.locator(".m2-bottom-nav")).toBeVisible();
+        at /home/runner/work/Ttest/Ttest/tests/acceptance-flows.spec.ts:546:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/acceptance-flows-28–29-mob-fcd99-keyboard-only-critical-path-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/acceptance-flows-28–29-mob-fcd99-keyboard-only-critical-path-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/acceptance-flows-28–29-mob-fcd99-keyboard-only-critical-path-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/acceptance-flows-28–29-mob-fcd99-keyboard-only-critical-path-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/acceptance-flows-28–29-mob-fcd99-keyboard-only-critical-path-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/acceptance-flows.spec.ts:202:1 › 09 sorting by date and both prices plus real disjoint pagination 
+    [chromium] › tests/acceptance-flows.spec.ts:521:1 › 28–29 mobile navigation and keyboard-only critical path 
+  10 passed (1.9m)
+```
+
