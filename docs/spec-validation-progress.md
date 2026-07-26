@@ -443,3 +443,188 @@ Running 7 tests using 1 worker
   3 passed (2.5m)
 ```
 
+## `tests/apk-regression-recovery.spec.ts` — FAIL (exit 1)
+
+```text
+        npx playwright show-trace test-results/apk-regression-recovery-PR-29f96-y-handles-denied-permission-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests/apk-regression-recovery.spec.ts:59:5 › PR43 regression recovery › nearby handles unavailable 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('location-screen')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('location-screen')
+
+
+       6 |   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+       7 |   await page.goto('/#/?panel=ubicacion')
+    >  8 |   await expect(page.getByTestId('location-screen')).toBeVisible()
+         |                                                     ^
+       9 | }
+      10 |
+      11 | async function allowTenerifeLocation(context: BrowserContext) {
+        at openLocation (/home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:8:53)
+        at /home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:74:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-dd9ef--nearby-handles-unavailable-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-dd9ef--nearby-handles-unavailable-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-regression-recovery-PR-dd9ef--nearby-handles-unavailable-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-dd9ef--nearby-handles-unavailable-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-regression-recovery-PR-dd9ef--nearby-handles-unavailable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests/apk-regression-recovery.spec.ts:59:5 › PR43 regression recovery › nearby handles timeout 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('location-screen')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('location-screen')
+
+
+       6 |   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+       7 |   await page.goto('/#/?panel=ubicacion')
+    >  8 |   await expect(page.getByTestId('location-screen')).toBeVisible()
+         |                                                     ^
+       9 | }
+      10 |
+      11 | async function allowTenerifeLocation(context: BrowserContext) {
+        at openLocation (/home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:8:53)
+        at /home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:74:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-1ed61-very-nearby-handles-timeout-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-1ed61-very-nearby-handles-timeout-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-regression-recovery-PR-1ed61-very-nearby-handles-timeout-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-1ed61-very-nearby-handles-timeout-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-regression-recovery-PR-1ed61-very-nearby-handles-timeout-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › tests/apk-regression-recovery.spec.ts:80:3 › PR43 regression recovery › nearby handles an unavailable Geolocation API 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('location-screen')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('location-screen')
+
+
+       6 |   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+       7 |   await page.goto('/#/?panel=ubicacion')
+    >  8 |   await expect(page.getByTestId('location-screen')).toBeVisible()
+         |                                                     ^
+       9 | }
+      10 |
+      11 | async function allowTenerifeLocation(context: BrowserContext) {
+        at openLocation (/home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:8:53)
+        at /home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:84:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-d70fa-unavailable-Geolocation-API-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-d70fa-unavailable-Geolocation-API-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-regression-recovery-PR-d70fa-unavailable-Geolocation-API-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-d70fa-unavailable-Geolocation-API-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-regression-recovery-PR-d70fa-unavailable-Geolocation-API-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › tests/apk-regression-recovery.spec.ts:89:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('search-this-area')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('search-this-area')
+
+
+      93 |
+      94 |     const searchArea = page.getByTestId('search-this-area')
+    > 95 |     await expect(searchArea).toBeVisible()
+         |                              ^
+      96 |     await searchArea.click()
+      97 |     await expect(page).toHaveURL(/vista=mapa/)
+      98 |     await expect(page).not.toHaveURL(/dibujar=1/)
+        at /home/runner/work/Ttest/Ttest/tests/apk-regression-recovery.spec.ts:95:30
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8 failed
+    [chromium] › tests/apk-regression-recovery.spec.ts:19:3 › PR43 regression recovery › location keeps all four APK actions and phone lookup is reachable 
+    [chromium] › tests/apk-regression-recovery.spec.ts:27:3 › PR43 regression recovery › nearby success stores coordinates and radius in the URL 
+    [chromium] › tests/apk-regression-recovery.spec.ts:38:3 › PR43 regression recovery › nearby rejects coordinates outside Tenerife without pretending success 
+    [chromium] › tests/apk-regression-recovery.spec.ts:47:3 › PR43 regression recovery › nearby handles denied permission 
+    [chromium] › tests/apk-regression-recovery.spec.ts:59:5 › PR43 regression recovery › nearby handles unavailable 
+    [chromium] › tests/apk-regression-recovery.spec.ts:59:5 › PR43 regression recovery › nearby handles timeout 
+    [chromium] › tests/apk-regression-recovery.spec.ts:80:3 › PR43 regression recovery › nearby handles an unavailable Geolocation API 
+    [chromium] › tests/apk-regression-recovery.spec.ts:89:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload 
+```
+
