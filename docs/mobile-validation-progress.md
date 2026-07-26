@@ -211,3 +211,201 @@ Downloading Chrome Headless Shell 149.0.7827.55 (playwright chromium-headless-sh
 |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 114.2 MiB
 |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 114.2 MiB
 Chrome Headless Shell 149.0.7827.55 (playwright chromium-headless-shell v1228) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1228
+- mobile-location-map.spec.ts: FAIL (exit 1)
+
+Running 13 tests using 1 worker
+
+  ✓   1 [chromium] › tests/mobile-location-map.spec.ts:22:1 › onboarding restarts after every full page reload and language names are never machine-translated (3.3s)
+  ✓   2 [chromium] › tests/mobile-location-map.spec.ts:34:1 › country selection contains only Tenerife and returns correctly from location editing (1.7s)
+  ✓   3 [chromium] › tests/mobile-location-map.spec.ts:49:1 › housing modes start inactive and occupant selector supports safe multi-select (2.0s)
+  ✘   4 [chromium] › tests/mobile-location-map.spec.ts:78:1 › location screen contains the four APK actions and address submit opens map (9.1s)
+  ✘   5 [chromium] › tests/mobile-location-map.spec.ts:96:1 › current location opens the map and keeps the user coordinates even when no nearby listing is required (9.2s)
+  ✘   6 [chromium] › tests/mobile-location-map.spec.ts:110:1 › map current-location control centers the map and renders the user marker (1.0m)
+  ✘   7 [chromium] › tests/mobile-location-map.spec.ts:121:1 › draw and search map interfaces expose the connected listing layer without a result-count redesign (9.1s)
+  ✓   8 [chromium] › tests/mobile-location-map.spec.ts:139:1 › menu keeps deleted sections absent and settings rows work without restarting registration (1.9s)
+  ✓   9 [chromium] › tests/mobile-location-map.spec.ts:159:1 › login opened from an app tab uses the canonical account route (1.7s)
+  ✓  10 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 320px (1.6s)
+  ✓  11 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 360px (1.7s)
+  ✓  12 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 390px (1.7s)
+  ✓  13 [chromium] › tests/mobile-location-map.spec.ts:173:3 › main, location, modal and map do not overflow at 430px (1.7s)
+
+
+  1) [chromium] › tests/mobile-location-map.spec.ts:78:1 › location screen contains the four APK actions and address submit opens map 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('map-search')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('map-search')
+
+
+      90 |   await input.fill('Santa Cruz de Tenerife')
+      91 |   await input.press('Enter')
+    > 92 |   await expect(page.getByTestId('map-search')).toBeVisible()
+         |                                                ^
+      93 |   await expect(page.getByText('Santa Cruz de Tenerife', { exact: true })).toBeVisible()
+      94 | })
+      95 |
+        at /home/runner/work/Ttest/Ttest/tests/mobile-location-map.spec.ts:92:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-location-map-locati-b63a4-nd-address-submit-opens-map-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-location-map-locati-b63a4-nd-address-submit-opens-map-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-location-map-locati-b63a4-nd-address-submit-opens-map-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-location-map-locati-b63a4-nd-address-submit-opens-map-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-location-map-locati-b63a4-nd-address-submit-opens-map-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/mobile-location-map.spec.ts:96:1 › current location opens the map and keeps the user coordinates even when no nearby listing is required 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('map-search')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('map-search')
+
+
+      104 |   await expect(page).toHaveURL(/lat=28\.2916/)
+      105 |   await expect(page).toHaveURL(/lng=-16\.6291/)
+    > 106 |   await expect(page.getByTestId('map-search')).toBeVisible()
+          |                                                ^
+      107 |   await expect(page.locator('.m2-user-location-marker')).toHaveCount(1)
+      108 | })
+      109 |
+        at /home/runner/work/Ttest/Ttest/tests/mobile-location-map.spec.ts:106:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-location-map-curren-0ade2--nearby-listing-is-required-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-location-map-curren-0ade2--nearby-listing-is-required-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-location-map-curren-0ade2--nearby-listing-is-required-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-location-map-curren-0ade2--nearby-listing-is-required-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-location-map-curren-0ade2--nearby-listing-is-required-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/mobile-location-map.spec.ts:110:1 › map current-location control centers the map and renders the user marker 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Mi ubicación' })
+        - locator resolved to <button disabled type="button" aria-label="Mi ubicación">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        117 × waiting for element to be visible, enabled and stable
+            - element is not enabled
+          - retrying click action
+            - waiting 500ms
+
+
+      114 |   await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+      115 |   await page.getByTestId('search-map').click()
+    > 116 |   await page.getByRole('button', { name: 'Mi ubicación' }).click()
+          |                                                            ^
+      117 |   await expect(page.getByText('Ubicación encontrada')).toBeVisible()
+      118 |   await expect(page.locator('.m2-user-location-marker')).toHaveCount(1)
+      119 | })
+        at /home/runner/work/Ttest/Ttest/tests/mobile-location-map.spec.ts:116:60
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-location-map-map-cu-5b594-and-renders-the-user-marker-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-location-map-map-cu-5b594-and-renders-the-user-marker-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-location-map-map-cu-5b594-and-renders-the-user-marker-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-location-map-map-cu-5b594-and-renders-the-user-marker-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-location-map-map-cu-5b594-and-renders-the-user-marker-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/mobile-location-map.spec.ts:121:1 › draw and search map interfaces expose the connected listing layer without a result-count redesign 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('map-draw')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('map-draw')
+
+
+      123 |   await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+      124 |   await page.getByTestId('draw-zone').click()
+    > 125 |   await expect(page.getByTestId('map-draw')).toBeVisible()
+          |                                              ^
+      126 |   await expect(page.getByTestId('google-map')).toBeVisible()
+      127 |   await expect(page.getByText('Tu propia zona')).toBeVisible()
+      128 |   await expect(page.getByRole('button', { name: 'Cambiar capas' })).toBeVisible()
+        at /home/runner/work/Ttest/Ttest/tests/mobile-location-map.spec.ts:125:46
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-location-map-draw-a-b984d-out-a-result-count-redesign-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-location-map-draw-a-b984d-out-a-result-count-redesign-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-location-map-draw-a-b984d-out-a-result-count-redesign-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-location-map-draw-a-b984d-out-a-result-count-redesign-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-location-map-draw-a-b984d-out-a-result-count-redesign-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [chromium] › tests/mobile-location-map.spec.ts:78:1 › location screen contains the four APK actions and address submit opens map 
+    [chromium] › tests/mobile-location-map.spec.ts:96:1 › current location opens the map and keeps the user coordinates even when no nearby listing is required 
+    [chromium] › tests/mobile-location-map.spec.ts:110:1 › map current-location control centers the map and renders the user marker 
+    [chromium] › tests/mobile-location-map.spec.ts:121:1 › draw and search map interfaces expose the connected listing layer without a result-count redesign 
+  9 passed (1.9m)
