@@ -1,0 +1,50 @@
+{
+  "name": "109-owner-listings",
+  "url": "http://127.0.0.1:4173/#/mis-anuncios",
+  "overflow": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "viewportHeight": 844,
+    "documentHeight": 844
+  },
+  "geometry": {
+    "body": null,
+    ".mobile-header": null,
+    ".bottom-nav": null,
+    ".promoted-listing": null,
+    ".market-search-panel": null,
+    ".home-publish-action": null,
+    ".mobile-results-topbar": null,
+    ".idealista-results-toolbar": null,
+    ".property-card": null,
+    ".filter-drawer": null,
+    ".filter-footer": null,
+    ".mobile-map-screen__header": null,
+    ".mobile-map-screen__footer": null,
+    ".map-selected-card": null,
+    ".listing-actionbar": null,
+    ".property-gallery": null,
+    ".listing-title": null,
+    ".listing-comments": null,
+    ".mobile-contact-bar": null,
+    ".menu-page": null,
+    ".owner-mobile-appbar": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 56,
+      "position": "static",
+      "display": "grid"
+    },
+    ".manage-card": {
+      "x": 11.19,
+      "y": 88,
+      "width": 367.63,
+      "height": 109,
+      "position": "static",
+      "display": "grid"
+    },
+    ".publish-header": null,
+    ".wizard-actions": null
+  }
+}

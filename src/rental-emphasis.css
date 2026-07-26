@@ -1,0 +1,107 @@
+@keyframes rental-mode-pop {
+  0% { transform: translateY(1px) scale(.97); }
+  55% { transform: translateY(-7px) scale(1.045); }
+  100% { transform: translateY(-6px) scale(1.035); }
+}
+
+.rental-switch button:is([data-state="on"], [aria-pressed="true"]) {
+  border-color: #8aa928;
+  background: #eef7c9;
+  color: #2f3b10;
+  box-shadow: 0 .55rem 1.15rem rgb(84 106 23 / .2) !important;
+}
+
+.market-home .rental-switch--home button {
+  position: relative;
+  overflow: visible;
+  transition:
+    transform .18s cubic-bezier(.2, .8, .2, 1),
+    box-shadow .18s ease,
+    border-color .18s ease,
+    background-color .18s ease,
+    opacity .18s ease,
+    filter .18s ease;
+}
+
+.market-home .rental-switch--home button:not([data-state="on"]):not([aria-pressed="true"]),
+.market-home .rental-switch--home[data-awaiting-choice="true"] button {
+  transform: scale(.985);
+  opacity: .86;
+  filter: saturate(.78);
+  border-color: #d2d5cc;
+  background: #f1f2ef;
+  color: #5f655d;
+  box-shadow: 0 .18rem .42rem rgb(35 43 22 / .08);
+}
+
+.market-home .rental-switch--home[data-awaiting-choice="true"] button:is([data-state="on"], [aria-pressed="true"]) {
+  z-index: auto;
+  transform: scale(.985);
+  animation: none;
+  border: 1px solid #d2d5cc;
+  background: #f1f2ef;
+  color: #5f655d;
+  opacity: .86;
+  filter: saturate(.78);
+  box-shadow: 0 .18rem .42rem rgb(35 43 22 / .08) !important;
+}
+
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) {
+  z-index: 5;
+  transform: translateY(-6px) scale(1.035);
+  animation: rental-mode-pop .3s cubic-bezier(.18, .89, .32, 1.18);
+  border: 2px solid #8aa928;
+  background: #eef7c9;
+  color: #2f3b10;
+  opacity: 1;
+  filter: none;
+  box-shadow: 0 .75rem 1.55rem rgb(84 106 23 / .22) !important;
+}
+
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"])::after {
+  content: none;
+}
+
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) strong {
+  color: #2f3b10;
+  font-weight: 820;
+}
+
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) small {
+  color: #65732e;
+  font-weight: 680;
+}
+
+.market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) .rental-switch__icon {
+  transform: scale(1.12);
+  filter: drop-shadow(0 .22rem .3rem rgb(84 106 23 / .18));
+}
+
+.market-home .rental-switch--home button:active {
+  transform: translateY(1px) scale(.98) !important;
+  border-color: #78951f;
+  background: #e8f3ba;
+  box-shadow: 0 .28rem .65rem rgb(84 106 23 / .2) !important;
+  transition-duration: .06s;
+}
+
+.market-home .rental-switch--home button:focus-visible {
+  outline: 3px solid rgb(138 169 40 / .3);
+  outline-offset: 4px;
+}
+
+@media (max-width: 767px) {
+  .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) {
+    transform: translateY(-6px) scale(1.035);
+    box-shadow: 0 .7rem 1.35rem rgb(84 106 23 / .24) !important;
+  }
+
+  .market-home .rental-switch--home[data-awaiting-choice="true"] button:is([data-state="on"], [aria-pressed="true"]) {
+    transform: scale(.985);
+    box-shadow: 0 .18rem .42rem rgb(35 43 22 / .08) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-home .rental-switch--home button:is([data-state="on"], [aria-pressed="true"]) { animation: none; }
+}

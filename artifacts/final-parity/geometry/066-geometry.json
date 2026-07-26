@@ -1,0 +1,132 @@
+{
+  "state": "066",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "documentWidth": 390,
+    "documentHeight": 844
+  },
+  "targetCoordinateSystem": {
+    "sourceViewport": {
+      "width": 390,
+      "height": 844
+    },
+    "sourceSystemChrome": {
+      "top": 31,
+      "bottom": 52
+    },
+    "normalization": "Target app geometry is measured after subtracting the 31 px captured Android status bar. The system navigation bar is outside the app frame."
+  },
+  "target": {
+    "header": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 70
+    },
+    "contextBar": {
+      "x": 0,
+      "y": 70,
+      "width": 390,
+      "height": 55
+    },
+    "mapCanvas": {
+      "x": 0,
+      "y": 125,
+      "width": 390,
+      "height": 636
+    },
+    "layerControl": null,
+    "locationControl": null,
+    "drawControl": null,
+    "listMapSwitcher": {
+      "x": 0,
+      "y": 761,
+      "width": 390,
+      "height": 83
+    },
+    "selectedListingSheet": {
+      "x": 9,
+      "y": 364,
+      "width": 372,
+      "height": 394
+    }
+  },
+  "actual": {
+    "header": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 70
+    },
+    "contextBar": {
+      "x": 0,
+      "y": 70,
+      "width": 390,
+      "height": 55.19
+    },
+    "mapCanvas": {
+      "x": 0,
+      "y": 125,
+      "width": 390,
+      "height": 636
+    },
+    "searchThisArea": null,
+    "layerControl": null,
+    "locationControl": null,
+    "drawControl": null,
+    "listMapSwitcher": {
+      "x": 0,
+      "y": 761,
+      "width": 390,
+      "height": 83
+    },
+    "selectedListingSheet": {
+      "x": 9,
+      "y": 364,
+      "width": 372,
+      "height": 394
+    },
+    "locationDialog": null,
+    "resultsList": null
+  },
+  "deltas": {
+    "header": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "contextBar": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0.19
+    },
+    "mapCanvas": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "layerControl": null,
+    "locationControl": null,
+    "drawControl": null,
+    "listMapSwitcher": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "selectedListingSheet": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    }
+  },
+  "thresholds": {
+    "positionPx": 4,
+    "sizePx": 6
+  }
+}

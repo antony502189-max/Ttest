@@ -1,0 +1,98 @@
+import { useState } from 'react'
+import { ArrowLeft, Bath, BedDouble, CalendarDays, Check, CircleAlert, CookingPot, Heart, Home, MapPin, MessageSquareText, MoreHorizontal, Pencil, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ContactPanel, MapView, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
+import { useApp } from '@/contexts/app-context'
+import { formatPublishedAt } from '@/lib/search'
+import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicListing } from '@/lib/listings'
+
+const preferenceTitle = (value?: string) => value === 'Solo hombre' ? 'Este anuncio busca a un hombre' : value === 'Solo mujer' ? 'Este anuncio busca a una mujer' : value
+
+export function ListingPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { allListings, favorites, toggleFavorite, discardListing, localComments, addLocalComment, updateLocalComment, deleteLocalComment } = useApp()
+  const [reportOpen, setReportOpen] = useState(false)
+  const [commentEditorOpen, setCommentEditorOpen] = useState(false)
+  const [commentText, setCommentText] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const listing = allListings.find((item) => item.id === id && isPublicListing(item))
+  if (!listing) return <Navigate to="/buscar" replace />
+  const criticalRestrictions = getCriticalRestrictions(listing)
+  const primaryRestriction = criticalRestrictions[0]
+  const similar = allListings
+    .filter((item) => item.id !== listing.id && item.status === 'Publicado' && item.rentalMode === listing.rentalMode)
+    .sort((a, b) => Number(b.area === listing.area) - Number(a.area === listing.area) || Math.abs(getPrimaryPrice(a) - getPrimaryPrice(listing)) - Math.abs(getPrimaryPrice(b) - getPrimaryPrice(listing)))
+    .slice(0, 3)
+  const saved = favorites.has(listing.id)
+  const listingComments = localComments.filter((comment) => comment.listingId === listing.id)
+  const share = async () => {
+    const data = { title: listing.title, text: `Habitación en ${listing.area} por ${getPrimaryPrice(listing)} €`, url: window.location.href }
+    try {
+      if (navigator.share) await navigator.share(data)
+      else { await navigator.clipboard.writeText(window.location.href); toast.success('Enlace copiado') }
+    } catch (error) { if ((error as DOMException).name !== 'AbortError') toast.error('No se pudo compartir el anuncio') }
+  }
+  const discard = () => { discardListing(listing.id); toast.success('Anuncio descartado'); navigate('/buscar') }
+  const closeCommentEditor = () => { setCommentEditorOpen(false); setEditingCommentId(null); setCommentText('') }
+  const saveComment = () => {
+    const value = commentText.trim()
+    if (!value) return
+    if (editingCommentId) updateLocalComment(editingCommentId, value)
+    else addLocalComment(listing.id, value)
+    closeCommentEditor()
+  }
+  return (
+    <article className="listing-page idealista-listing-page">
+      <div className="container listing-actionbar"><Button asChild variant="ghost" size="icon"><Link to="/buscar" aria-label="Volver al listado"><ArrowLeft /></Link></Button><div><Button variant="ghost" size="icon" onClick={() => toggleFavorite(listing.id)} aria-label={saved ? 'Guardado' : 'Guardar'} aria-pressed={saved}><Heart fill={saved ? 'currentColor' : 'none'} /></Button><Button variant="ghost" size="icon" onClick={share} aria-label="Compartir"><Share2 /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Más acciones del anuncio"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuItem onSelect={discard}><Trash2 />Descartar</DropdownMenuItem><DropdownMenuItem onSelect={() => setReportOpen(true)}><CircleAlert />Denunciar anuncio</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu></div></div>
+      <ReportDialog listing={listing} open={reportOpen} onOpenChange={setReportOpen} trigger={false} />
+      <div className="container listing-gallery-container"><PropertyGallery listing={listing} /></div>
+      <div className="container listing-layout">
+        <div className="listing-main">
+          <header className="listing-title"><div><h1>Habitación en {listing.area}, {listing.city}</h1><p>{listing.title}</p><span className="listing-address"><MapPin aria-hidden="true" />{listing.approximateAddress}</span></div><PriceBlock listing={listing} large /></header>
+          <div className="listing-keyfacts" tabIndex={0} role="region" aria-label="Resumen de la habitación"><span>{listing.roomType}</span><span>{listing.currentResidents} residentes · para {listing.roomCapacity}</span><span>{listing.roomSizeM2} m²</span><span>{listing.shower}</span></div>
+          <div className="listing-inline-actions" aria-label="Acciones del anuncio"><Button variant="ghost" onClick={() => toggleFavorite(listing.id)} aria-label={saved ? "Quitar de favoritos" : "Añadir a favoritos"} aria-pressed={saved}><Heart fill={saved ? 'currentColor' : 'none'} />{saved ? 'Guardado' : 'Guardar'}</Button><Button variant="ghost" onClick={discard} aria-label="Ocultar anuncio"><Trash2 />Descartar</Button><Button variant="ghost" onClick={share} aria-label="Enviar enlace del anuncio"><Share2 />Compartir</Button></div>
+          {primaryRestriction ? <section className="listing-restriction-notice" aria-labelledby="restriction-title"><UsersRound aria-hidden="true" /><div><span>Condición principal</span><h2 id="restriction-title">{preferenceTitle(primaryRestriction)}</h2><p>Comprueba esta preferencia visible del anunciante antes de contactar. Puedes seguir consultando el anuncio sin interrupciones.</p></div></section> : null}
+          <section className="listing-comments" aria-labelledby="listing-comments-title">
+            <Button variant="ghost" className="listing-comment-add" onClick={() => { setEditingCommentId(null); setCommentText(''); setCommentEditorOpen(true) }}><MessageSquareText data-icon="inline-start" />Añadir comentario</Button>
+            {listing.homeDescription ? <div className="advertiser-comment"><h2 id="listing-comments-title">Comentario del anunciante</h2><p>{listing.homeDescription}</p></div> : <h2 id="listing-comments-title" className="sr-only">Comentarios</h2>}
+            {commentEditorOpen ? <div className="listing-comment-editor">
+              <label htmlFor="local-listing-comment">{editingCommentId ? 'Editar comentario' : 'Comentario personal'}</label>
+              <Textarea id="local-listing-comment" rows={4} maxLength={600} value={commentText} autoFocus onChange={(event) => setCommentText(event.target.value)} placeholder="Escribe una nota sobre este anuncio" />
+              <p>Se guarda solo en este dispositivo y no se envía al anunciante.</p>
+              <div><Button variant="ghost" onClick={closeCommentEditor}>Cancelar</Button><Button onClick={saveComment} disabled={!commentText.trim()}>Guardar comentario</Button></div>
+            </div> : null}
+            {listingComments.length ? <div className="local-listing-comments" aria-label="Tus comentarios locales">{listingComments.map((comment) => <article key={comment.id}>
+              <p>{comment.text}</p>
+              <footer><span><span>Guardado en este dispositivo</span> · <time dateTime={comment.updatedAt ?? comment.createdAt}>{new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(comment.updatedAt ?? comment.createdAt))}</time>{comment.updatedAt ? <span> · editado</span> : null}</span><div><Button variant="ghost" size="sm" onClick={() => { setEditingCommentId(comment.id); setCommentText(comment.text); setCommentEditorOpen(true) }}><Pencil data-icon="inline-start" />Editar</Button><Button variant="ghost" size="sm" onClick={() => deleteLocalComment(comment.id)}><Trash2 data-icon="inline-start" />Eliminar</Button></div></footer>
+            </article>)}</div> : null}
+          </section>
+          <Separator />
+          <section className="listing-section"><h2>Descripción</h2><p className="prose">{listing.description}</p></section>
+          <Separator />
+          <section className="listing-section"><h2>Características básicas</h2><ul className="idealista-feature-list"><li><Home />Vivienda compartida con {listing.currentResidents} residentes</li><li><BedDouble />Habitación para {listing.roomCapacity} {listing.roomCapacity === 1 ? 'persona' : 'personas'}</li><li><Ruler />Superficie de la habitación: {listing.roomSizeM2} m²</li><li><Bath />{listing.bathroom} · {listing.shower}</li><li><CookingPot />{listing.kitchen}</li><li><CalendarDays />{listing.available}</li></ul></section>
+          <Separator />
+          <section className="listing-section"><h2>Equipamiento</h2><div className="amenities-grid">{listing.amenities.map((amenity) => <span key={amenity}><Check />{amenity}</span>)}</div></section>
+          <Separator />
+          <section className="listing-section conditions-block"><h2>Normas y convivencia</h2><p>Todas las condiciones están visibles antes del contacto.</p><div className="badge-row badge-row--large">{criticalRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></section>
+          <Separator />
+          <section className="listing-section"><h2>Precio y disponibilidad</h2><dl className="detail-list"><div><dt>Renta</dt><dd>{getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}</dd></div>{listing.rentalMode === 'holiday' && listing.weeklyPrice ? <div><dt>Semana</dt><dd>{listing.weeklyPrice} €</dd></div> : null}{listing.rentalMode === 'holiday' && listing.monthlyPrice ? <div><dt>Mes</dt><dd>{listing.monthlyPrice} €</dd></div> : null}<div><dt>Gastos</dt><dd>{listing.bills}</dd></div><div><dt>Fianza</dt><dd>{listing.deposit}</dd></div><div><dt>Entrada</dt><dd>{listing.available}</dd></div><div><dt>Estancia mínima</dt><dd>{listing.minimumStay}</dd></div>{listing.availableUntil ? <div><dt>Disponible hasta</dt><dd>{listing.availableUntil}</dd></div> : null}</dl></section>
+          <Separator />
+          <section className="listing-section"><h2>Ubicación aproximada</h2><p className="map-intro">El marcador protege la dirección exacta.</p><div className="detail-map"><MapView items={[listing]} selectedId={listing.id} onSelect={() => undefined} showPreview={false} /></div></section>
+          <Separator />
+          <section className="listing-section owner-detail"><div className="owner-monogram">{listing.owner.initials}</div><div><span>Anunciante</span><h2>{listing.owner.name}</h2><p>{listing.owner.since} · {listing.owner.response}</p><p>{listing.owner.verified ? 'Identidad y teléfono verificados por 112233.es.' : 'Identidad pendiente de verificación.'}</p></div>{listing.owner.verified ? <Badge variant="outline"><ShieldCheck />Anunciante verificado</Badge> : null}</section>
+          <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span>{listing.source ?? 'Anuncio directo'}</span></div>
+        </div>
+        <div className="listing-aside"><ContactPanel listing={listing} /></div>
+      </div>
+      <section className="section section--surface listing-similar"><div className="container"><div className="section-heading idealista-section-heading"><div><h2>También te puede interesar</h2><p>Primero mostramos zona y precio parecidos.</p></div><Button asChild variant="outline"><Link to="/buscar">Ver más</Link></Button></div><div className="property-grid">{similar.map((item) => <PropertyCard key={item.id} listing={item} compact />)}</div></div></section>
+      <div className="mobile-contact-bar"><ContactPanel listing={listing} mobile /></div>
+    </article>
+  )
+}

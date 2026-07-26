@@ -1,0 +1,25 @@
+export function MobileAppV2() {
+  const [step, setStep] = useState<OnboardingStep>('language')
+  const [origin, setOrigin] = useState<OnboardingOrigin>('startup')
+  const [page, setPage] = useState<AppPage>('tabs')
+  const [mapMode, setMapMode] = useState<MapMode>('search')
+  const [tab, setTab] = useState<MobileTab>('home')
+  const [language, setLanguageState] = useState<AppLanguage>(() => { try { const saved = localStorage.getItem(LANGUAGE_KEY); return saved === 'es' || saved === 'en' || saved === 'ru' ? saved : 'es' } catch { return 'es' } })
+  const t: MobileCopy = copy[language]
+  const navItems = getNavItems(t)
+  const setLanguage = (next: AppLanguage) => { setLanguageState(next); try { localStorage.setItem(LANGUAGE_KEY, next) } catch { /* private mode */ } }
+  useEffect(() => { document.documentElement.classList.add('mobile-v2-active'); document.documentElement.lang = language; return () => document.documentElement.classList.remove('mobile-v2-active') }, [language])
+  const returnToApp = () => { setStep('done'); setPage('tabs') }
+  const finishAuth = () => { if (origin === 'startup') { setTab('home'); setPage('tabs') }; setStep('done') }
+  const openAccount = () => { setOrigin('account'); setStep('auth') }
+  const openLanguageSettings = () => { setOrigin('language-settings'); setStep('language') }
+  const openRegionSettings = (from: 'menu' | 'location') => { setOrigin(from === 'menu' ? 'region-settings' : 'region-location'); setStep('country') }
+  const handleLanguageContinue = () => { if (origin === 'language-settings') { setStep('done'); setPage('tabs'); setTab('menu') } else setStep('country') }
+  const handleCountryContinue = () => { if (origin === 'region-location') { setStep('done'); setPage('location'); return }; if (origin === 'region-settings') { setStep('done'); setPage('tabs'); setTab('menu'); return }; setStep('privacy') }
+  const authBack = () => { if (origin === 'startup') setStep('privacy'); else returnToApp() }
+  const openMap = (mode: MapMode) => { setMapMode(mode); setPage('map') }
+  if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
+  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => setPage('tabs')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} /></div>
+  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} onBack={() => setPage('location')} /></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} onLocation={() => setPage('location')} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} t={t} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} t={t} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} language={language} t={t} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => setTab(itemTab)}><Icon /><span>{label}</span></button>)}</nav></div>
+}

@@ -1,0 +1,50 @@
+{
+  "name": "063-results-map-zoomed",
+  "url": "http://127.0.0.1:4173/#/buscar?q=Tenerife&vista=mapa",
+  "overflow": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "viewportHeight": 844,
+    "documentHeight": 844
+  },
+  "geometry": {
+    "body": null,
+    ".mobile-header": null,
+    ".bottom-nav": null,
+    ".promoted-listing": null,
+    ".market-search-panel": null,
+    ".home-publish-action": null,
+    ".mobile-results-topbar": null,
+    ".idealista-results-toolbar": null,
+    ".property-card": null,
+    ".filter-drawer": null,
+    ".filter-footer": null,
+    ".mobile-map-screen__header": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 65.59,
+      "position": "relative",
+      "display": "grid"
+    },
+    ".mobile-map-screen__footer": {
+      "x": 0,
+      "y": 777.41,
+      "width": 390,
+      "height": 66.59,
+      "position": "static",
+      "display": "block"
+    },
+    ".map-selected-card": null,
+    ".listing-actionbar": null,
+    ".property-gallery": null,
+    ".listing-title": null,
+    ".listing-comments": null,
+    ".mobile-contact-bar": null,
+    ".menu-page": null,
+    ".owner-mobile-appbar": null,
+    ".manage-card": null,
+    ".publish-header": null,
+    ".wizard-actions": null
+  }
+}

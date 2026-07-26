@@ -1,0 +1,69 @@
+{
+  "state": "043",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "documentWidth": 390,
+    "documentHeight": 844
+  },
+  "targetCoordinateSystem": {
+    "sourceViewport": {
+      "width": 390,
+      "height": 844
+    },
+    "sourceSystemChrome": {
+      "top": 31,
+      "bottom": 52
+    },
+    "normalization": "Target app geometry is measured after subtracting the 31 px captured Android status bar. The system navigation bar is outside the app frame."
+  },
+  "target": {},
+  "actual": {
+    "header": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 78
+    },
+    "contextBar": null,
+    "mapCanvas": {
+      "x": 0,
+      "y": 78,
+      "width": 390,
+      "height": 683
+    },
+    "searchThisArea": null,
+    "layerControl": {
+      "x": 317,
+      "y": 615,
+      "width": 54,
+      "height": 54
+    },
+    "locationControl": {
+      "x": 317,
+      "y": 688,
+      "width": 54,
+      "height": 54
+    },
+    "drawControl": {
+      "x": 38,
+      "y": 688,
+      "width": 279,
+      "height": 54
+    },
+    "listMapSwitcher": {
+      "x": 0,
+      "y": 761,
+      "width": 390,
+      "height": 83
+    },
+    "selectedListingSheet": null,
+    "locationDialog": null,
+    "resultsList": null
+  },
+  "deltas": {},
+  "thresholds": {
+    "positionPx": 4,
+    "sizePx": 6
+  }
+}

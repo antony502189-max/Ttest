@@ -1,0 +1,57 @@
+{
+  "name": "055-filters-bottom",
+  "url": "http://127.0.0.1:4173/#/buscar?q=Tenerife",
+  "overflow": {
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "viewportHeight": 844,
+    "documentHeight": 5297
+  },
+  "geometry": {
+    "body": null,
+    ".mobile-header": null,
+    ".bottom-nav": null,
+    ".promoted-listing": null,
+    ".market-search-panel": null,
+    ".home-publish-action": null,
+    ".mobile-results-topbar": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 54.59,
+      "position": "sticky",
+      "display": "grid"
+    },
+    ".idealista-results-toolbar": {
+      "x": 0,
+      "y": 82.25,
+      "width": 390,
+      "height": 49.59,
+      "position": "sticky",
+      "display": "grid"
+    },
+    ".property-card": {
+      "x": 6.39,
+      "y": 179.83,
+      "width": 377.22,
+      "height": 512.75,
+      "position": "static",
+      "display": "flex"
+    },
+    ".filter-drawer": null,
+    ".filter-footer": null,
+    ".mobile-map-screen__header": null,
+    ".mobile-map-screen__footer": null,
+    ".map-selected-card": null,
+    ".listing-actionbar": null,
+    ".property-gallery": null,
+    ".listing-title": null,
+    ".listing-comments": null,
+    ".mobile-contact-bar": null,
+    ".menu-page": null,
+    ".owner-mobile-appbar": null,
+    ".manage-card": null,
+    ".publish-header": null,
+    ".wizard-actions": null
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "035": {
+    "overlay": "PASS",
+    "manualReview": "PASS",
+    "notes": "Location entry preserves the target hierarchy: lime app bar, full-width search, and stacked map/draw/nearby actions. Copy and pictograms are product-localized rather than copied brand assets."
+  },
+  "037": {
+    "overlay": "FAIL",
+    "manualReview": "FAIL",
+    "notes": "The draw instruction is functional, but the actual map extent and drawing controls do not yet match the target frame closely enough. This state is retained as an explicit non-blocking visual delta."
+  },
+  "042": {
+    "overlay": "FAIL",
+    "manualReview": "FAIL",
+    "notes": "The real Google Maps polygon drawing state is visible and unmasked, but the deterministic keyboard polygon differs from the target gesture geometry."
+  },
+  "043": {
+    "overlay": "FAIL",
+    "manualReview": "FAIL",
+    "notes": "The completed polygon and actions are functional and visible, but the polygon shape and action treatment remain a target delta."
+  },
+  "045": {
+    "overlay": "FAIL",
+    "manualReview": "FAIL",
+    "notes": "The selected-zone results list is structurally comparable, but card density and media height exceed the target thresholds."
+  },
+  "057": {
+    "overlay": "FAIL",
+    "manualReview": "FAIL",
+    "notes": "The results list remains a documented density delta; target and actual are not declared equivalent."
+  },
+  "060": {
+    "overlay": "PASS",
+    "manualReview": "PASS",
+    "notes": "PASS for the map acceptance surface: normalized header, context bar, map, layer/location/draw controls and switcher meet the 4/6 px geometry gate. Google raster styling and required Advanced price markers/clusters intentionally replace the target's legacy pins; neither is masked."
+  },
+  "063": {
+    "overlay": "PASS",
+    "manualReview": "PASS",
+    "notes": "PASS for the zoomed map surface: programmatic cluster zoom preserves the target frame and does not expose Search this area. Required Advanced price markers are an intentional implementation substitution."
+  },
+  "066": {
+    "overlay": "PASS",
+    "manualReview": "PASS",
+    "notes": "PASS for selected-listing geometry: sheet x/y/width/height, visible-map area, header/context frame and non-overlap with the Lista/Mapa switcher meet the target gate. Listing media and localized copy are source-content differences."
+  },
+  "090": {
+    "overlay": "PASS",
+    "manualReview": "PASS",
+    "notes": "PASS for the saved selected-listing state: the sheet remains fixed to the same target geometry and the favorite state is visibly persistent without moving the map viewport."
+  }
+}
