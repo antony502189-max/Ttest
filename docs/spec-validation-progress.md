@@ -1844,3 +1844,120 @@ Running 1 test using 1 worker
   1 passed (7.9s)
 ```
 
+## `tests/visual-parity.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 3 tests using 1 worker
+
+  ✘  1 [chromium] › tests/visual-parity.spec.ts:24:1 › current mobile home, results, location and map visual states (8.3s)
+  ✘  2 [chromium] › tests/visual-parity.spec.ts:43:1 › current mobile menu, auth and Russian visual states (1.3s)
+  ✓  3 [chromium] › tests/visual-parity.spec.ts:57:1 › existing desktop results, listing and publication designs stay visually locked (3.0s)
+
+
+  1) [chromium] › tests/visual-parity.spec.ts:24:1 › current mobile home, results, location and map visual states 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-home')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-home')
+
+
+      24 | test('current mobile home, results, location and map visual states', async ({ page }) => {
+      25 |   await open(page, '/#/')
+    > 26 |   await expect(page.locator('.m2-home')).toBeVisible()
+         |                                          ^
+      27 |   await shot(page, 'current-home-390x844')
+      28 |
+      29 |   await open(page, '/#/buscar?q=Tenerife')
+        at /home/runner/work/Ttest/Ttest/tests/visual-parity.spec.ts:26:42
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/visual-parity-current-mobi-201de-ation-and-map-visual-states-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/visual-parity-current-mobi-201de-ation-and-map-visual-states-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/visual-parity-current-mobi-201de-ation-and-map-visual-states-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/visual-parity-current-mobi-201de-ation-and-map-visual-states-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/visual-parity-current-mobi-201de-ation-and-map-visual-states-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/visual-parity.spec.ts:43:1 › current mobile menu, auth and Russian visual states 
+
+    Error: expect(page).toHaveScreenshot(expected) failed
+
+      43038 pixels (ratio 0.14 of all image pixels) are different.
+
+      Snapshot: current-menu-390x844.png
+
+    Call log:
+      - Expect "toHaveScreenshot(current-menu-390x844.png)" with timeout 7000ms
+        - verifying given screenshot expectation
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - 43038 pixels (ratio 0.14 of all image pixels) are different.
+      - waiting 100ms before taking screenshot
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+      - captured a stable screenshot
+      - 43038 pixels (ratio 0.14 of all image pixels) are different.
+
+
+       9 |
+      10 | async function shot(page: Page, name: string) {
+    > 11 |   await expect(page).toHaveScreenshot(`${name}.png`, {
+         |                      ^
+      12 |     animations: 'disabled',
+      13 |     caret: 'hide',
+      14 |     mask: [page.locator('.gm-style img[role="presentation"], .m2-result-card img, .property-card__media img, .property-gallery img')],
+        at shot (/home/runner/work/Ttest/Ttest/tests/visual-parity.spec.ts:11:22)
+        at /home/runner/work/Ttest/Ttest/tests/visual-parity.spec.ts:45:9
+
+    attachment #1: current-menu-390x844 (image/png) ────────────────────────────────────────────────
+    Expected: tests/visual-snapshots/chromium/current-menu-390x844.png
+    Received: test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/current-menu-390x844-actual.png
+    Diff:     test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/current-menu-390x844-diff.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/visual-parity-current-mobi-78df0-h-and-Russian-visual-states-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/visual-parity.spec.ts:24:1 › current mobile home, results, location and map visual states 
+    [chromium] › tests/visual-parity.spec.ts:43:1 › current mobile menu, auth and Russian visual states 
+  1 passed (14.6s)
+```
+
