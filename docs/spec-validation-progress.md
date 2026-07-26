@@ -1490,3 +1490,60 @@ Running 13 tests using 1 worker
   13 passed (26.3s)
 ```
 
+## `tests/mobile-map-ideal.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 3 tests using 1 worker
+
+  ✓  1 [chromium] › tests/mobile-map-ideal.spec.ts:38:1 › map is freely zoomable before explicit drawing activation (3.9s)
+  ✓  2 [chromium] › tests/mobile-map-ideal.spec.ts:57:1 › published listings are visible on the map and open the matching result (3.9s)
+  ✘  3 [chromium] › tests/mobile-map-ideal.spec.ts:79:1 › listing requirements are visually prominent in results (8.4s)
+
+
+  1) [chromium] › tests/mobile-map-ideal.spec.ts:79:1 › listing requirements are visually prominent in results 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mobile-results')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByTestId('mobile-results')
+
+
+      82 |   await page.getByTestId('open-location').click()
+      83 |   const results = page.getByTestId('mobile-results')
+    > 84 |   await expect(results).toBeVisible()
+         |                         ^
+      85 |   const badges = results.locator('.m2-result-card').first().locator('.m2-result-card__badges span')
+      86 |   await expect(badges).not.toHaveCount(0)
+      87 |   await expect(badges.filter({ hasText: /Habitación para/ })).toHaveCount(1)
+        at /home/runner/work/Ttest/Ttest/tests/mobile-map-ideal.spec.ts:84:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/mobile-map-ideal-listing-r-bfbab-sually-prominent-in-results-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/mobile-map-ideal-listing-r-bfbab-sually-prominent-in-results-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/mobile-map-ideal-listing-r-bfbab-sually-prominent-in-results-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/mobile-map-ideal-listing-r-bfbab-sually-prominent-in-results-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/mobile-map-ideal-listing-r-bfbab-sually-prominent-in-results-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/mobile-map-ideal.spec.ts:79:1 › listing requirements are visually prominent in results 
+  2 passed (17.3s)
+```
+
