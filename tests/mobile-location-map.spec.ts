@@ -19,7 +19,7 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.body).toBeLessThanOrEqual(dimensions.viewport)
 }
 
-test('onboarding is completed once and language names are never machine-translated', async ({ page }) => {
+test('onboarding restarts after every full page reload and language names are never machine-translated', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('Español', { exact: true })).toBeVisible()
   await expect(page.getByText('English', { exact: true })).toBeVisible()
@@ -27,8 +27,8 @@ test('onboarding is completed once and language names are never machine-translat
   await expect(page.getByText('Испанский', { exact: true })).toHaveCount(0)
   await finishOnboarding(page)
   await page.reload()
-  await expect(page.getByTestId('open-location')).toBeVisible()
-  await expect(page.getByText('Selecciona el idioma de la aplicación')).toHaveCount(0)
+  await expect(page.getByText('Selecciona el idioma de la aplicación')).toBeVisible()
+  await expect(page.getByText('Español', { exact: true })).toBeVisible()
 })
 
 test('country selection contains only Tenerife and returns correctly from location editing', async ({ page }) => {
@@ -91,6 +91,31 @@ test('location screen contains the four APK actions and address submit opens map
   await input.press('Enter')
   await expect(page.getByTestId('map-search')).toBeVisible()
   await expect(page.getByText('Santa Cruz de Tenerife', { exact: true })).toBeVisible()
+})
+
+test('current location opens the map and keeps the user coordinates even when no nearby listing is required', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
+  await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
+  await finishOnboarding(page)
+  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+  await page.getByTestId('search-nearby').click()
+  await expect(page).toHaveURL(/vista=mapa/)
+  await expect(page).toHaveURL(/cerca=1/)
+  await expect(page).toHaveURL(/lat=28\.2916/)
+  await expect(page).toHaveURL(/lng=-16\.6291/)
+  await expect(page.getByTestId('map-search')).toBeVisible()
+  await expect(page.locator('.m2-user-location-marker')).toHaveCount(1)
+})
+
+test('map current-location control centers the map and renders the user marker', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
+  await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
+  await finishOnboarding(page)
+  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+  await page.getByTestId('search-map').click()
+  await page.getByRole('button', { name: 'Mi ubicación' }).click()
+  await expect(page.getByText('Ubicación encontrada')).toBeVisible()
+  await expect(page.locator('.m2-user-location-marker')).toHaveCount(1)
 })
 
 test('draw and search map interfaces expose the connected listing layer without a result-count redesign', async ({ page }) => {

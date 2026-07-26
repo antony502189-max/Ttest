@@ -12,11 +12,23 @@ const TENERIFE_BOUNDS = {
   west: -16.96,
 }
 
+const FALLBACK_OPTIONS: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 15_000,
+  maximumAge: 300_000,
+}
+
 export function isInsideTenerife({ lat, lng }: Coordinates) {
   return lat >= TENERIFE_BOUNDS.south
     && lat <= TENERIFE_BOUNDS.north
     && lng >= TENERIFE_BOUNDS.west
     && lng <= TENERIFE_BOUNDS.east
+}
+
+function failureReason(error: GeolocationPositionError): GeolocationFailure {
+  if (error.code === error.PERMISSION_DENIED) return 'denied'
+  if (error.code === error.TIMEOUT) return 'timeout'
+  return 'unavailable'
 }
 
 export function requestCurrentLocation(options: PositionOptions = {
@@ -27,20 +39,25 @@ export function requestCurrentLocation(options: PositionOptions = {
   if (!navigator.geolocation) return Promise.resolve({ ok: false, reason: 'unsupported' })
 
   return new Promise((resolve) => {
+    const resolvePosition = ({ coords }: GeolocationPosition) => {
+      const coordinates = { lat: coords.latitude, lng: coords.longitude }
+      resolve(isInsideTenerife(coordinates)
+        ? { ok: true, coordinates }
+        : { ok: false, reason: 'outside' })
+    }
+
+    const resolveFailure = (error: GeolocationPositionError) => resolve({ ok: false, reason: failureReason(error) })
+
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const coordinates = { lat: coords.latitude, lng: coords.longitude }
-        resolve(isInsideTenerife(coordinates)
-          ? { ok: true, coordinates }
-          : { ok: false, reason: 'outside' })
-      },
+      resolvePosition,
       (error) => {
-        const reason: GeolocationFailure = error.code === error.PERMISSION_DENIED
-          ? 'denied'
-          : error.code === error.TIMEOUT
-            ? 'timeout'
-            : 'unavailable'
-        resolve({ ok: false, reason })
+        const mayRetry = options.enableHighAccuracy !== false
+&& (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)
+        if (!mayRetry) {
+resolveFailure(error)
+return
+        }
+        navigator.geolocation.getCurrentPosition(resolvePosition, resolveFailure, FALLBACK_OPTIONS)
       },
       options,
     )
