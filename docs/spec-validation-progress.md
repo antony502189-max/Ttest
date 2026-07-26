@@ -1456,3 +1456,14 @@ Running 5 tests using 1 worker
   2 passed (35.0s)
 ```
 
+## `tests/mobile-freehand-map.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › tests/mobile-freehand-map.spec.ts:14:1 › map stays interactive until the drawing button is pressed (4.5s)
+
+  1 passed (5.5s)
+```
+
