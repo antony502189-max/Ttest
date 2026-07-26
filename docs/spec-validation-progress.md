@@ -1768,3 +1768,57 @@ Running 1 test using 1 worker
   1 passed (3.0s)
 ```
 
+## `tests/true-target-parity.spec.ts` — FAIL (exit 1)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✘  1 [chromium] › tests/true-target-parity.spec.ts:5:1 › capture and gate the mandatory current Idealista-derived target states (8.3s)
+
+
+  1) [chromium] › tests/true-target-parity.spec.ts:5:1 › capture and gate the mandatory current Idealista-derived target states 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-home')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-home')
+
+
+      20 |   for (const [name, route, selector] of targets) {
+      21 |     await page.goto(route)
+    > 22 |     await expect(page.locator(selector)).toBeVisible()
+         |                                          ^
+      23 |     await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' })
+      24 |   }
+      25 | })
+        at /home/runner/work/Ttest/Ttest/tests/true-target-parity.spec.ts:22:42
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/true-target-parity-capture-f36b6-lista-derived-target-states-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/true-target-parity-capture-f36b6-lista-derived-target-states-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/true-target-parity-capture-f36b6-lista-derived-target-states-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/true-target-parity-capture-f36b6-lista-derived-target-states-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/true-target-parity-capture-f36b6-lista-derived-target-states-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/true-target-parity.spec.ts:5:1 › capture and gate the mandatory current Idealista-derived target states 
+```
+
