@@ -6,6 +6,12 @@ import { I18nProvider } from '@/contexts/i18n-context'
 import { AppLayout } from '@/components/layout'
 import { CustomerFeedbackFixes } from '@/components/customer-feedback-fixes'
 
+try {
+  localStorage.removeItem('112233:mobile-onboarding:v1')
+} catch {
+  // The onboarding still starts normally when browser storage is unavailable.
+}
+
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
 const ListingPage = lazy(() => import('@/pages/ListingPage').then((module) => ({ default: module.ListingPage })))
