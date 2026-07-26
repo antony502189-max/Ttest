@@ -901,3 +901,188 @@ Running 1 test using 1 worker
     [chromium] › tests/final-mobile-delta-evidence.spec.ts:33:1 › capture unmasked final mobile delta evidence 
 ```
 
+## `tests/final-mobile-delta.spec.ts` — FAIL (exit 1)
+
+```text
+      45 |   await expect(page).toHaveURL(/vista=mapa/)
+      46 |   await page.reload()
+      47 |   await expect(page.getByTestId('map-search')).toBeVisible()
+        at /home/runner/work/Ttest/Ttest/tests/final-mobile-delta.spec.ts:44:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-6853c-k-and-reload-are-URL-backed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-6853c-k-and-reload-are-URL-backed-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-mobile-delta-DELTA-M-6853c-k-and-reload-are-URL-backed-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-6853c-k-and-reload-are-URL-backed-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-mobile-delta-DELTA-M-6853c-k-and-reload-are-URL-backed-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/final-mobile-delta.spec.ts:52:1 › DELTA-MOBILE-03 drawing and nearby search expose dedicated working map states 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('draw-zone')
+
+
+      55 |   await readyMobile(page, '/#/?panel=ubicacion')
+      56 |
+    > 57 |   await page.getByTestId('draw-zone').click()
+         |                                       ^
+      58 |   await expect(page.getByTestId('map-draw')).toBeVisible()
+      59 |   await page.getByRole('button', { name: 'Dibujar tu zona' }).click()
+      60 |   await expect(page.getByTestId('freehand-overlay')).toBeVisible()
+        at /home/runner/work/Ttest/Ttest/tests/final-mobile-delta.spec.ts:57:39
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-fa902-edicated-working-map-states-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-fa902-edicated-working-map-states-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-mobile-delta-DELTA-M-fa902-edicated-working-map-states-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-fa902-edicated-working-map-states-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-mobile-delta-DELTA-M-fa902-edicated-working-map-states-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/final-mobile-delta.spec.ts:70:1 › DELTA-MOBILE-04 phone lookup opens a real listing and canonical detail remains usable 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('search-phone')
+
+
+      70 | test('DELTA-MOBILE-04 phone lookup opens a real listing and canonical detail remains usable', async ({ page }) => {
+      71 |   await readyMobile(page, '/#/?panel=ubicacion')
+    > 72 |   await page.getByTestId('search-phone').click()
+         |                                          ^
+      73 |   await expect(page.getByTestId('phone-search-screen')).toBeVisible()
+      74 |   await page.getByLabel('Teléfono').fill('600 112 233')
+      75 |   await page.getByTestId('submit-phone-search').click()
+        at /home/runner/work/Ttest/Ttest/tests/final-mobile-delta.spec.ts:72:42
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-2e02b-nical-detail-remains-usable-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-2e02b-nical-detail-remains-usable-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-mobile-delta-DELTA-M-2e02b-nical-detail-remains-usable-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-2e02b-nical-detail-remains-usable-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-mobile-delta-DELTA-M-2e02b-nical-detail-remains-usable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests/final-mobile-delta.spec.ts:82:1 › DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are real routes 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Favoritos', exact: true })
+
+
+      84 |   await page.locator('.m2-result-card__favorite').first().click()
+      85 |   await page.getByRole('button', { name: 'Volver' }).click()
+    > 86 |   await page.getByRole('button', { name: 'Favoritos', exact: true }).click()
+         |                                                                      ^
+      87 |   await expect(page).toHaveURL(/#\/favoritos/)
+      88 |   await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)
+      89 |
+        at /home/runner/work/Ttest/Ttest/tests/final-mobile-delta.spec.ts:86:70
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-8a565-unt-actions-are-real-routes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-8a565-unt-actions-are-real-routes-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-mobile-delta-DELTA-M-8a565-unt-actions-are-real-routes-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-8a565-unt-actions-are-real-routes-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-mobile-delta-DELTA-M-8a565-unt-actions-are-real-routes-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests/final-mobile-delta.spec.ts:96:1 › DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overflow 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.m2-home')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.m2-home')
+
+
+      101 |     await page.reload()
+      102 |     await expect(page.locator('html')).toHaveAttribute('lang', language)
+    > 103 |     await expect(page.locator('.m2-home')).toBeVisible()
+          |                                            ^
+      104 |     const dimensions = await page.evaluate(() => ({
+      105 |       client: document.documentElement.clientWidth,
+      106 |       scroll: document.documentElement.scrollWidth,
+        at /home/runner/work/Ttest/Ttest/tests/final-mobile-delta.spec.ts:103:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-2bf77-troduce-horizontal-overflow-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-2bf77-troduce-horizontal-overflow-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/final-mobile-delta-DELTA-M-2bf77-troduce-horizontal-overflow-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/final-mobile-delta-DELTA-M-2bf77-troduce-horizontal-overflow-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/final-mobile-delta-DELTA-M-2bf77-troduce-horizontal-overflow-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [chromium] › tests/final-mobile-delta.spec.ts:14:1 › DELTA-MOBILE-01 home, occupant selector and location actions stay connected without changing the locked design 
+    [chromium] › tests/final-mobile-delta.spec.ts:31:1 › DELTA-MOBILE-02 list, filters, sorting, map, back and reload are URL-backed 
+    [chromium] › tests/final-mobile-delta.spec.ts:52:1 › DELTA-MOBILE-03 drawing and nearby search expose dedicated working map states 
+    [chromium] › tests/final-mobile-delta.spec.ts:70:1 › DELTA-MOBILE-04 phone lookup opens a real listing and canonical detail remains usable 
+    [chromium] › tests/final-mobile-delta.spec.ts:82:1 › DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are real routes 
+    [chromium] › tests/final-mobile-delta.spec.ts:96:1 › DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overflow 
+  2 passed (3.7m)
+```
+
