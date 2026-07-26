@@ -1757,3 +1757,14 @@ Running 3 tests using 1 worker
   3 passed (12.5s)
 ```
 
+## `tests/screenshot-locked-evidence.spec.ts` — PASS (exit 0)
+
+```text
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › tests/screenshot-locked-evidence.spec.ts:5:1 › capture the current screenshot-locked live matrix (2.0s)
+
+  1 passed (3.0s)
+```
+
