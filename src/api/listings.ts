@@ -63,7 +63,7 @@ type ListingDto = {
 }
 
 type ListingSearchDto = { items: ListingDto[]; total: number; limit: number; offset: number }
-type DraftPrivateFields = { street?: string; postcode?: string; coordinates?: { lat: number; lng: number } }
+type DraftPrivateFields = { street?: string; postcode?: string }
 
 const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
@@ -283,33 +283,9 @@ function readDraftPrivateFields(listingId?: string): DraftPrivateFields | null {
   return null
 }
 
-function approximateCoordinates(exact: { lat: number; lng: number }, id: string) {
-  let hash = 2166136261
-  for (const character of id) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
-  const angle = ((hash >>> 0) % 360) * Math.PI / 180
-  const distance = 0.0025 + (((hash >>> 8) & 255) / 255) * 0.0015
-  return {
-    lat: Math.max(-90, Math.min(90, exact.lat + Math.sin(angle) * distance)),
-    lng: Math.max(-180, Math.min(180, exact.lng + Math.cos(angle) * distance)),
-  }
-}
-
 function listingPayload(listing: Listing, existing?: Listing) {
   const draft = readDraftPrivateFields(listing.id)
-  const draftCoordinates = draft?.coordinates
-  const currentPublic = existing?.coordinates
-  const draftMatchesCurrentPublic = Boolean(
-    draftCoordinates && currentPublic
-    && Math.abs(draftCoordinates.lat - currentPublic.lat) < 1e-8
-    && Math.abs(draftCoordinates.lng - currentPublic.lng) < 1e-8,
-  )
-  const exact = listing.exactCoordinates
-    ?? (draftMatchesCurrentPublic ? existing?.exactCoordinates : draftCoordinates)
-    ?? existing?.exactCoordinates
-    ?? listing.coordinates
-  const publicPoint = existing && exact === existing.exactCoordinates
-    ? existing.coordinates
-    : approximateCoordinates(exact, listing.id)
+  const exact = listing.exactCoordinates ?? existing?.exactCoordinates
   return {
     title: listing.title, city: listing.city, area: listing.area,
     street: draft?.street?.trim() || listing.street || existing?.street || '',
@@ -323,8 +299,8 @@ function listingPayload(listing: Listing, existing?: Listing) {
     bedroomCount: listing.bedroomCount ?? null, currentResidents: listing.currentResidents, roomCapacity: listing.roomCapacity,
     shower: listing.shower, tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
     petsAllowed: listing.petsAllowed, childrenAllowed: listing.childrenAllowed, empadronamientoAllowed: listing.empadronamientoAllowed,
-    restrictions: listing.restrictions, amenities: listing.amenities, latitude: publicPoint.lat,
-    longitude: publicPoint.lng, exactLatitude: exact.lat, exactLongitude: exact.lng,
+    restrictions: listing.restrictions, amenities: listing.amenities, latitude: listing.coordinates.lat,
+    longitude: listing.coordinates.lng, exactLatitude: exact?.lat ?? null, exactLongitude: exact?.lng ?? null,
     description: listing.description, homeDescription: listing.homeDescription,
     advertiserType: listing.advertiserType, source: listing.source ?? null,
     expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null,
