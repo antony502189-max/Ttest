@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
 
+import sentry_sdk
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -22,17 +24,20 @@ from .api.v1.search_history import router as search_history_router
 from .api.v1.uploads import router as uploads_router
 from .api.v1.users import router as users_router
 from .core.config import get_settings
-from .core.observability import (
-    REQUEST_DURATION,
-    REQUESTS,
-    UNHANDLED_ERRORS,
-    configure_logging,
-    metrics_payload,
-)
+from .core.observability import REQUEST_DURATION, REQUESTS, UNHANDLED_ERRORS, configure_logging, metrics_payload
 from .db.session import engine
 from .services.rate_limit import ResilientRateLimiter
+from .storage import get_storage
 
+settings = get_settings()
 configure_logging()
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.app_env,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+        send_default_pii=False,
+    )
 logger = logging.getLogger(__name__)
 rate_limiter = ResilientRateLimiter()
 
@@ -61,10 +66,19 @@ SECURITY_HEADERS = {
 }
 
 
+def rate_rule(method: str, path: str) -> tuple[int, int] | None:
+    direct = RATE_LIMITS.get((method, path))
+    if direct:
+        return direct
+    if method == "POST" and path.startswith("/api/v1/messages/threads/"):
+        return 30, 60
+    return None
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    get_settings().validate_runtime()
-    logger.info("application_started", extra={"app_env": get_settings().app_env})
+    settings.validate_runtime()
+    logger.info("application_started", extra={"app_env": settings.app_env})
     try:
         yield
     finally:
@@ -82,7 +96,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().origins,
+    allow_origins=settings.origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
@@ -94,7 +108,7 @@ app.add_middleware(
 async def request_context(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", str(uuid4()))
     started = perf_counter()
-    rate = RATE_LIMITS.get((request.method, request.url.path))
+    rate = rate_rule(request.method, request.url.path)
     if rate:
         client = request.client.host if request.client else "unknown"
         result = await rate_limiter.consume(f"ttest:rate:{client}:{request.method}:{request.url.path}", *rate)
@@ -151,14 +165,17 @@ async def ready():
     try:
         async with engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
-        raise HTTPException(503, "Database is not ready") from exc
+        if not await rate_limiter.ready():
+            raise RuntimeError("Redis is not ready")
+        await asyncio.to_thread(get_storage().healthcheck)
+    except (SQLAlchemyError, OSError, RuntimeError) as exc:
+        raise HTTPException(503, "A required dependency is not ready") from exc
     return {"status": "ok"}
 
 
 @app.get("/metrics", include_in_schema=False)
 async def metrics():
-    if not get_settings().metrics_enabled:
+    if not settings.metrics_enabled:
         raise HTTPException(404, "Not found")
     payload, content_type = metrics_payload()
     return Response(content=payload, media_type=content_type)
