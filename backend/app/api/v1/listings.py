@@ -269,10 +269,13 @@ async def update_listing(
     if listing.owner_user_id != user.id and user.role != "admin":
         raise HTTPException(403, "Forbidden")
     changes = payload.model_dump(exclude_unset=True)
+    if changes.get("rentalMode") not in {None, "long", "holiday"}:
+        raise HTTPException(422, "rentalMode must be long or holiday")
     if "status" in changes and changes["status"] not in {"draft", "pending", "hidden", "closed"} and user.role != "admin":
         raise HTTPException(403, "Only an administrator can publish or reject listings")
     mapping = {
         "approximateAddress": "approximate_address", "monthlyPrice": "monthly_price", "nightlyPrice": "nightly_price",
+        "rentalMode": "rental_mode",
         "weeklyPrice": "weekly_price", "roomType": "room_type", "availableFrom": "available_from",
         "availableUntil": "available_until", "minimumStayMonths": "minimum_stay_months", "minimumNights": "minimum_nights",
         "depositAmount": "deposit_amount", "billsIncluded": "bills_included", "roomSizeM2": "room_size_m2",
@@ -296,6 +299,20 @@ async def update_listing(
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
     return owned_response_from(row)
+
+
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing(
+    listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    if listing.owner_user_id != user.id and user.role != "admin":
+        raise HTTPException(403, "Forbidden")
+    listing.deleted_at = datetime.now(UTC)
+    listing.status = "closed"
+    await session.commit()
 
 
 @router.get("/{listing_id}/images", response_model=list[ListingImageResponse])

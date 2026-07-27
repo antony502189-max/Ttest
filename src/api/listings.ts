@@ -138,3 +138,31 @@ export function toListing(dto: ListingDto): Listing {
 export async function getPublicListings() {
   return (await api<ListingDto[]>('/listings')).map(toListing)
 }
+
+function listingPayload(listing: Listing) {
+  return {
+    title: listing.title, city: listing.city, area: listing.area, approximateAddress: listing.approximateAddress,
+    rentalMode: listing.rentalMode, monthlyPrice: listing.monthlyPrice ?? null, nightlyPrice: listing.nightlyPrice ?? null,
+    weeklyPrice: listing.weeklyPrice ?? null, roomType: listing.roomType, availableFrom: listing.availableFrom,
+    availableUntil: listing.availableUntil ?? null, minimumStayMonths: listing.minimumStayMonths,
+    minimumNights: listing.minimumNights ?? null, depositAmount: listing.depositAmount, billsIncluded: listing.billsIncluded,
+    bathroom: listing.bathroom, kitchen: listing.kitchen, furnished: listing.furnished, roomSizeM2: listing.roomSizeM2,
+    bedroomCount: listing.bedroomCount ?? null, currentResidents: listing.currentResidents, roomCapacity: listing.roomCapacity,
+    shower: listing.shower, tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
+    petsAllowed: listing.petsAllowed, childrenAllowed: listing.childrenAllowed, empadronamientoAllowed: listing.empadronamientoAllowed,
+    restrictions: listing.restrictions, amenities: listing.amenities, latitude: listing.coordinates.lat,
+    longitude: listing.coordinates.lng, description: listing.description, homeDescription: listing.homeDescription,
+    advertiserType: listing.advertiserType, source: listing.source ?? null,
+    expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null,
+  }
+}
+
+export async function createRemoteListing(listing: Listing) {
+  return toListing(await api<ListingDto>('/listings', { method: 'POST', body: JSON.stringify(listingPayload(listing)) }))
+}
+
+export async function updateRemoteListing(id: string, listing: Listing) {
+  return toListing(await api<ListingDto>(`/listings/${id}`, { method: 'PATCH', body: JSON.stringify(listingPayload(listing)) }))
+}
+
+export const deleteRemoteListing = (id: string) => api<void>(`/listings/${id}`, { method: 'DELETE' })

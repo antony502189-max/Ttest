@@ -5,7 +5,7 @@ import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
-import { getPublicListings } from '@/api/listings'
+import { createRemoteListing, deleteRemoteListing, getPublicListings, updateRemoteListing } from '@/api/listings'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -369,8 +369,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const canManageListing = useCallback((listing: Listing) => Boolean(currentUser && (currentUser.role === 'admin' || (currentUser.role === 'host' && listing.ownerUserId === currentUser.id))), [currentUser])
   const createListing = useCallback((listing: Listing) => {
     if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return }
-    setAllListings((current) => [{ ...listing, ownerUserId: currentUser.id, userCreated: true }, ...current])
-    toast.success('Anuncio publicado y guardado en Mis anuncios')
+    const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
+    setAllListings((current) => [optimistic, ...current])
+    void createRemoteListing(optimistic).then((remote) => {
+      setAllListings((current) => current.map((item) => item.id === optimistic.id ? { ...remote, userCreated: true } : item))
+      toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
+    }).catch(() => {
+      setAllListings((current) => current.filter((item) => item.id !== optimistic.id))
+      toast.error('No se pudo publicar el anuncio en el servidor.')
+    })
   }, [currentUser])
   const mutateOwned = useCallback((id: string, mutate: (listing: Listing) => Listing | null) => setAllListings((current) => current.flatMap((listing) => {
     if (listing.id !== id) return [listing]
@@ -386,6 +393,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId }
     setAllListings((current) => current.map((item) => item.id === id ? next : item))
+    void updateRemoteListing(id, next).then((remote) => {
+      setAllListings((current) => current.map((item) => item.id === id ? { ...remote, userCreated: true } : item))
+    }).catch(() => {
+      setAllListings((current) => current.map((item) => item.id === id ? previous : item))
+      toast.error('No se pudieron guardar los cambios del anuncio.')
+    })
     const used = usedMediaReferences(allListings.map((item) => item.id === id ? next : item), users)
     void removeUnusedMediaReferences(previous.images.filter((image) => !next.images.includes(image)), used).catch((error) =>
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
@@ -407,6 +420,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
     setAllListings(remaining)
+    void deleteRemoteListing(id).catch(() => {
+      setAllListings((current) => [listing, ...current])
+      toast.error('No se pudo eliminar el anuncio en el servidor.')
+    })
     void removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value)).catch((error) =>
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
     )

@@ -69,6 +69,7 @@ class ListingPatch(BaseModel):
     street: str | None = Field(default=None, max_length=160)
     postcode: str | None = Field(default=None, max_length=32)
     approximateAddress: str | None = Field(default=None, min_length=2, max_length=240)
+    rentalMode: str | None = None
     monthlyPrice: int | None = Field(default=None, ge=0)
     nightlyPrice: int | None = Field(default=None, ge=0)
     weeklyPrice: int | None = Field(default=None, ge=0)
