@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { hydrateSession, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, removeFavorite, updateSavedSearch } from '@/api/user-state'
+import { updateCurrentUser } from '@/api/users'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -418,13 +419,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const previous = users.find((user) => user.id === currentUserId)
     const nextUsers = users.map((user) => user.id === currentUserId ? { ...user, ...changes } : user)
     setUsers(nextUsers)
+    const serverFields = Object.fromEntries(
+      Object.entries(changes).filter(([key]) => [
+        'name', 'phone', 'whatsapp', 'telegram', 'about', 'showPhone', 'showWhatsApp', 'allowContactForm',
+      ].includes(key)),
+    )
+    if (Object.keys(serverFields).length) {
+      void updateCurrentUser(serverFields).then(setRemoteUser).catch(() => {
+        if (previous) setUsers((current) => current.map((user) => user.id === previous.id ? previous : user))
+        toast.error('No se pudo guardar el perfil en el servidor.')
+      })
+    }
     if (previous?.avatarRef && Object.prototype.hasOwnProperty.call(changes, 'avatarRef') && changes.avatarRef !== previous.avatarRef) {
       void removeUnusedMediaReferences([previous.avatarRef], usedMediaReferences(allListings, nextUsers)).catch((error) =>
         toast.error(error instanceof Error ? error.message : 'No se pudo limpiar el avatar anterior.'),
       )
     }
     toast.success('Perfil actualizado')
-  }, [allListings, currentUserId, users])
+  }, [allListings, currentUserId, setRemoteUser, users])
   const deleteAccount = useCallback(() => {
     if (!currentUserId) return
     const ownedListings = allListings.filter((listing) => listing.ownerUserId === currentUserId)
