@@ -13,6 +13,6 @@ Domain endpoints are grouped under `/listings`, `/favorites`, `/discarded`, `/sa
 
 `POST /listings/search` accepts rental, price, availability, occupancy, amenities, bounds, radius and polygon filters. Bounds and polygons are evaluated by PostGIS. Public listing responses never include street, postcode or exact coordinates.
 
-Authenticated endpoints require `Authorization: Bearer <access-token>`. The refresh cookie is scoped to `/api/v1/auth`; logout revokes the server-side refresh session. Inputs are validated by Pydantic, CORS uses an allowlist, and login/register attempts are rate limited.
+Authenticated endpoints require `Authorization: Bearer <access-token>`. The refresh cookie is scoped to `/api/v1/auth`; logout revokes the server-side refresh session. Inputs are validated by Pydantic, CORS uses an allowlist, and login/register/Google/reset, uploads, messages, reports and listing creation are rate limited per client IP. A limited request receives `429` with `Retry-After`.
 
 Errors use JSON with `code`, `message` and, where applicable, `fieldErrors`. Do not rely on undocumented local demo data in API consumers.

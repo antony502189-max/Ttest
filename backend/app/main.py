@@ -30,23 +30,46 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
-AUTH_RATE_LIMIT = 10
-AUTH_RATE_WINDOW_SECONDS = 60
-_auth_attempts: dict[str, deque[float]] = defaultdict(deque)
+RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
+    ("POST", "/api/v1/auth/login"): (10, 60),
+    ("POST", "/api/v1/auth/register"): (10, 60),
+    ("POST", "/api/v1/auth/google"): (10, 60),
+    ("POST", "/api/v1/auth/forgot-password"): (5, 60),
+    ("POST", "/api/v1/auth/reset-password"): (10, 60),
+    ("POST", "/api/v1/auth/request-email-verification"): (5, 60),
+    ("POST", "/api/v1/auth/verify-email"): (10, 60),
+    ("POST", "/api/v1/messages"): (30, 60),
+    ("POST", "/api/v1/reports"): (10, 60),
+    ("POST", "/api/v1/uploads"): (20, 60),
+    ("POST", "/api/v1/listings"): (20, 60),
+}
+_rate_attempts: dict[str, deque[float]] = defaultdict(deque)
+
+
+def consume_rate_limit(key: str, limit: int, window_seconds: int, now: float | None = None) -> int | None:
+    """Returns retry seconds when a request exceeds its fixed window, otherwise None."""
+    current = monotonic() if now is None else now
+    attempts = _rate_attempts[key]
+    while attempts and attempts[0] <= current - window_seconds:
+        attempts.popleft()
+    if len(attempts) >= limit:
+        return max(1, int(window_seconds - (current - attempts[0])))
+    attempts.append(current)
+    return None
 
 
 @app.middleware("http")
 async def request_id(request: Request, call_next):
-    if request.method == "POST" and request.url.path in {"/api/v1/auth/login", "/api/v1/auth/register"}:
+    rate = RATE_LIMITS.get((request.method, request.url.path))
+    if rate:
         client = request.client.host if request.client else "unknown"
-        key = f"{client}:{request.url.path}"
-        attempts = _auth_attempts[key]
-        now = monotonic()
-        while attempts and attempts[0] <= now - AUTH_RATE_WINDOW_SECONDS:
-            attempts.popleft()
-        if len(attempts) >= AUTH_RATE_LIMIT:
-            return JSONResponse(status_code=429, content={"code": "rate_limited", "message": "Too many attempts"})
-        attempts.append(now)
+        retry_after = consume_rate_limit(f"{client}:{request.method}:{request.url.path}", *rate)
+        if retry_after is not None:
+            return JSONResponse(
+                status_code=429,
+                content={"code": "rate_limited", "message": "Too many attempts", "fieldErrors": {}},
+                headers={"Retry-After": str(retry_after)},
+            )
     request_id = request.headers.get("X-Request-ID", str(uuid4()))
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
