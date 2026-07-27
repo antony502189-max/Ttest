@@ -662,9 +662,13 @@ export function MobileAppV2() {
   const navigateFromMap = (target: 'list' | 'filters' | 'area') => {
     const params = new URLSearchParams(location.search)
     params.delete('dibujar')
-    if (target !== 'area') params.delete('vista')
+    params.delete('vista')
+    params.delete('pagina')
     if (target === 'filters') params.set('panel', 'filtros')
     else params.delete('panel')
+    if (target === 'area' && mapPolygon.length >= 3) {
+      params.set('poligono', mapPolygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
+    }
     navigate(`/buscar?${params.toString()}`)
   }
   const openPublication = () => navigate(`${location.pathname}?gate=publicar`)
