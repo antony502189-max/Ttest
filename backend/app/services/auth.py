@@ -6,7 +6,8 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
@@ -88,12 +89,16 @@ async def register_user(
     user = User(
         email=email,
         password_hash=hash_password(payload.password),
-        name=payload.name.strip(),
+        name=payload.name,
         role=payload.role,
         initials="".join(part[:1].upper() for part in payload.name.split()[:2]),
     )
     session.add(user)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(409, "Email already registered") from exc
     verification_token = new_refresh_token()
     session.add(
         EmailVerificationToken(
@@ -168,7 +173,23 @@ async def google_login_user(
             session.add(user)
     if user.blocked or user.deleted_at:
         raise HTTPException(403, "Account is blocked")
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        user = await session.scalar(
+            select(User).where(or_(User.google_subject == subject, func.lower(User.email) == email))
+        )
+        if not user or user.blocked or user.deleted_at:
+            raise HTTPException(409, "Google account could not be linked") from exc
+        if user.google_subject is None:
+            user.google_subject = subject
+            user.email_verified = True
+            try:
+                await session.flush()
+            except IntegrityError as retry_exc:
+                await session.rollback()
+                raise HTTPException(409, "Google account could not be linked") from retry_exc
     return await issue_session(user, session, user_agent=user_agent, client_ip=client_ip)
 
 
@@ -201,11 +222,13 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
 async def reset_user_password(raw_token: str, password: str, session: AsyncSession) -> None:
     now = datetime.now(UTC)
     reset = await session.scalar(
-        select(PasswordResetToken).where(
+        select(PasswordResetToken)
+        .where(
             PasswordResetToken.token_hash == token_hash(raw_token),
             PasswordResetToken.consumed_at.is_(None),
             PasswordResetToken.expires_at > now,
         )
+        .with_for_update()
     )
     if not reset:
         raise HTTPException(400, "The password reset link is invalid or has expired")
@@ -250,11 +273,13 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
 async def verify_user_email(raw_token: str, session: AsyncSession) -> None:
     now = datetime.now(UTC)
     verification = await session.scalar(
-        select(EmailVerificationToken).where(
+        select(EmailVerificationToken)
+        .where(
             EmailVerificationToken.token_hash == token_hash(raw_token),
             EmailVerificationToken.consumed_at.is_(None),
             EmailVerificationToken.expires_at > now,
         )
+        .with_for_update()
     )
     if not verification:
         raise HTTPException(400, "The email verification link is invalid or has expired")
@@ -274,11 +299,13 @@ async def refresh_user_session(
     client_ip: str,
 ) -> AuthResult:
     auth = await session.scalar(
-        select(AuthSession).where(
+        select(AuthSession)
+        .where(
             AuthSession.token_hash == token_hash(raw_refresh),
             AuthSession.revoked_at.is_(None),
             AuthSession.expires_at > datetime.now(UTC),
         )
+        .with_for_update()
     )
     if not auth:
         raise HTTPException(401, "Invalid refresh token")
