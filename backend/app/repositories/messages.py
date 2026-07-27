@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 
 from ..models import Message, MessageThread
 
