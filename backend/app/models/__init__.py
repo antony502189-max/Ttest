@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geography
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -60,6 +60,29 @@ class Listing(Timestamped, Base):
     rental_mode: Mapped[str] = mapped_column(Enum("long", "holiday", name="rental_mode"), index=True)
     monthly_price: Mapped[int | None] = mapped_column(Integer)
     nightly_price: Mapped[int | None] = mapped_column(Integer)
+    weekly_price: Mapped[int | None] = mapped_column(Integer)
+    room_type: Mapped[str] = mapped_column(String(64), default="Habitación individual")
+    available_from: Mapped[date | None] = mapped_column(Date)
+    available_until: Mapped[date | None] = mapped_column(Date)
+    minimum_stay_months: Mapped[int] = mapped_column(Integer, default=0)
+    minimum_nights: Mapped[int | None] = mapped_column(Integer)
+    deposit_amount: Mapped[int] = mapped_column(Integer, default=0)
+    bills_included: Mapped[bool] = mapped_column(Boolean, default=False)
+    bathroom: Mapped[str] = mapped_column(String(64), default="Baño compartido")
+    kitchen: Mapped[str] = mapped_column(String(64), default="Cocina compartida")
+    furnished: Mapped[bool] = mapped_column(Boolean, default=True)
+    room_size_m2: Mapped[int] = mapped_column(Integer, default=1)
+    bedroom_count: Mapped[int | None] = mapped_column(Integer)
+    current_residents: Mapped[int] = mapped_column(Integer, default=0)
+    room_capacity: Mapped[int] = mapped_column(Integer, default=1)
+    shower: Mapped[str] = mapped_column(String(64), default="Ducha compartida")
+    tenant_requirement: Mapped[str] = mapped_column(String(32), default="any")
+    smoking_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    pets_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    children_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    empadronamiento_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    restrictions: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    amenities: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(
         Enum("draft", "pending", "published", "hidden", "closed", "rejected", name="listing_status"),
         default="draft",
@@ -70,6 +93,14 @@ class Listing(Timestamped, Base):
     location: Mapped[str] = mapped_column(Geography("POINT", srid=4326), index=True)
     exact_location: Mapped[str | None] = mapped_column(Geography("POINT", srid=4326))
     description: Mapped[str] = mapped_column(Text, default="")
+    home_description: Mapped[str] = mapped_column(Text, default="")
+    advertiser_type: Mapped[str] = mapped_column(String(32), default="Particular")
+    source: Mapped[str | None] = mapped_column(String(120))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    views: Mapped[int] = mapped_column(Integer, default=0)
+    closed_reason: Mapped[str | None] = mapped_column(String(32))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class Favorite(Base):

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -65,6 +66,8 @@ async def change_listing_status(
         raise HTTPException(404, "Listing not found")
     previous = listing.status
     listing.status = payload.status
+    if listing.status == "published" and listing.published_at is None:
+        listing.published_at = datetime.now(UTC)
     session.add(ListingStatusHistory(listing_id=listing.id, from_status=previous, to_status=listing.status, changed_by=user.id))
     session.add(audit(user.id, "listing.status_changed", "listing", listing.id, {"from": previous, "to": listing.status}))
     await session.commit()

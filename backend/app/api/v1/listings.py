@@ -39,11 +39,23 @@ def point(longitude: float, latitude: float):
 def response_from(row: tuple[Listing, str]) -> ListingResponse:
     listing, geojson = row
     coordinates = json.loads(geojson)["coordinates"]
+    price = listing.monthly_price if listing.rental_mode == "long" else listing.nightly_price
     return ListingResponse(
         id=str(listing.id), ownerUserId=str(listing.owner_user_id), title=listing.title,
         city=listing.city, area=listing.area, approximateAddress=listing.approximate_address,
-        rentalMode=listing.rental_mode, monthlyPrice=listing.monthly_price, nightlyPrice=listing.nightly_price,
+        rentalMode=listing.rental_mode, monthlyPrice=listing.monthly_price, nightlyPrice=listing.nightly_price, weeklyPrice=listing.weekly_price,
+        price=price, cadence="mes" if listing.rental_mode == "long" else "noche",
+        roomType=listing.room_type, availableFrom=listing.available_from, availableUntil=listing.available_until,
+        minimumStayMonths=listing.minimum_stay_months, minimumNights=listing.minimum_nights,
+        depositAmount=listing.deposit_amount, billsIncluded=listing.bills_included, bathroom=listing.bathroom,
+        kitchen=listing.kitchen, furnished=listing.furnished, roomSizeM2=listing.room_size_m2,
+        bedroomCount=listing.bedroom_count, currentResidents=listing.current_residents, roomCapacity=listing.room_capacity,
+        shower=listing.shower, tenantRequirement=listing.tenant_requirement, smokingAllowed=listing.smoking_allowed,
+        petsAllowed=listing.pets_allowed, childrenAllowed=listing.children_allowed,
+        empadronamientoAllowed=listing.empadronamiento_allowed, restrictions=listing.restrictions, amenities=listing.amenities,
         status=listing.status, longitude=coordinates[0], latitude=coordinates[1], description=listing.description,
+        homeDescription=listing.home_description, advertiserType=listing.advertiser_type, source=listing.source,
+        publishedAt=listing.published_at, expiresAt=listing.expires_at, views=listing.views, closedReason=listing.closed_reason,
         createdAt=listing.created_at, updatedAt=listing.updated_at,
     )
 
@@ -62,7 +74,11 @@ def owned_response_from(row: tuple[Listing, str, str | None]) -> OwnedListingRes
 
 
 def visible_query() -> Select:
-    return select(Listing, ST_AsGeoJSON(Listing.location)).where(Listing.status == "published")
+    return select(Listing, ST_AsGeoJSON(Listing.location)).where(
+        Listing.status == "published",
+        Listing.deleted_at.is_(None),
+        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+    )
 
 
 def owned_query() -> Select:
@@ -150,9 +166,19 @@ async def create_listing(
         owner_user_id=user.id, title=payload.title.strip(), city=payload.city.strip(), area=payload.area.strip(),
         street=payload.street.strip(), postcode=payload.postcode.strip(),
         approximate_address=payload.approximateAddress.strip(), rental_mode=payload.rentalMode,
-        monthly_price=payload.monthlyPrice, nightly_price=payload.nightlyPrice, location=point(payload.longitude, payload.latitude),
+        monthly_price=payload.monthlyPrice, nightly_price=payload.nightlyPrice, weekly_price=payload.weeklyPrice,
+        room_type=payload.roomType, available_from=payload.availableFrom, available_until=payload.availableUntil,
+        minimum_stay_months=payload.minimumStayMonths, minimum_nights=payload.minimumNights,
+        deposit_amount=payload.depositAmount, bills_included=payload.billsIncluded, bathroom=payload.bathroom,
+        kitchen=payload.kitchen, furnished=payload.furnished, room_size_m2=payload.roomSizeM2,
+        bedroom_count=payload.bedroomCount, current_residents=payload.currentResidents, room_capacity=payload.roomCapacity,
+        shower=payload.shower, tenant_requirement=payload.tenantRequirement, smoking_allowed=payload.smokingAllowed,
+        pets_allowed=payload.petsAllowed, children_allowed=payload.childrenAllowed,
+        empadronamiento_allowed=payload.empadronamientoAllowed, restrictions=payload.restrictions, amenities=payload.amenities,
+        location=point(payload.longitude, payload.latitude),
         exact_location=(point(payload.exactLongitude, payload.exactLatitude) if payload.exactLongitude is not None else None),
-        description=payload.description.strip(), status="pending",
+        description=payload.description.strip(), home_description=payload.homeDescription.strip(), advertiser_type=payload.advertiserType,
+        source=payload.source.strip() if payload.source else None, expires_at=payload.expiresAt, status="pending",
     )
     session.add(listing)
     await session.commit()
@@ -172,7 +198,16 @@ async def update_listing(
     changes = payload.model_dump(exclude_unset=True)
     if "status" in changes and changes["status"] not in {"draft", "pending", "hidden", "closed"} and user.role != "admin":
         raise HTTPException(403, "Only an administrator can publish or reject listings")
-    mapping = {"approximateAddress": "approximate_address", "monthlyPrice": "monthly_price", "nightlyPrice": "nightly_price"}
+    mapping = {
+        "approximateAddress": "approximate_address", "monthlyPrice": "monthly_price", "nightlyPrice": "nightly_price",
+        "weeklyPrice": "weekly_price", "roomType": "room_type", "availableFrom": "available_from",
+        "availableUntil": "available_until", "minimumStayMonths": "minimum_stay_months", "minimumNights": "minimum_nights",
+        "depositAmount": "deposit_amount", "billsIncluded": "bills_included", "roomSizeM2": "room_size_m2",
+        "bedroomCount": "bedroom_count", "currentResidents": "current_residents", "roomCapacity": "room_capacity",
+        "tenantRequirement": "tenant_requirement", "smokingAllowed": "smoking_allowed", "petsAllowed": "pets_allowed",
+        "childrenAllowed": "children_allowed", "empadronamientoAllowed": "empadronamiento_allowed",
+        "homeDescription": "home_description", "advertiserType": "advertiser_type", "expiresAt": "expires_at",
+    }
     latitude, longitude = changes.pop("latitude", None), changes.pop("longitude", None)
     if latitude is not None or longitude is not None:
         if latitude is None or longitude is None:

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -14,11 +14,38 @@ class ListingWrite(BaseModel):
     rentalMode: str
     monthlyPrice: int | None = Field(default=None, ge=0)
     nightlyPrice: int | None = Field(default=None, ge=0)
+    weeklyPrice: int | None = Field(default=None, ge=0)
+    roomType: str = Field(default="Habitación individual", max_length=64)
+    availableFrom: date | None = None
+    availableUntil: date | None = None
+    minimumStayMonths: int = Field(default=0, ge=0)
+    minimumNights: int | None = Field(default=None, ge=0)
+    depositAmount: int = Field(default=0, ge=0)
+    billsIncluded: bool = False
+    bathroom: str = Field(default="Baño compartido", max_length=64)
+    kitchen: str = Field(default="Cocina compartida", max_length=64)
+    furnished: bool = True
+    roomSizeM2: int = Field(default=1, ge=1, le=10_000)
+    bedroomCount: int | None = Field(default=None, ge=1, le=99)
+    currentResidents: int = Field(default=0, ge=0)
+    roomCapacity: int = Field(default=1, ge=1, le=2)
+    shower: str = Field(default="Ducha compartida", max_length=64)
+    tenantRequirement: str = Field(default="any", max_length=32)
+    smokingAllowed: bool = False
+    petsAllowed: bool = False
+    childrenAllowed: bool = False
+    empadronamientoAllowed: bool = False
+    restrictions: list[str] = Field(default_factory=list, max_length=100)
+    amenities: list[str] = Field(default_factory=list, max_length=100)
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     exactLatitude: float | None = Field(default=None, ge=-90, le=90)
     exactLongitude: float | None = Field(default=None, ge=-180, le=180)
     description: str = Field(default="", max_length=10_000)
+    homeDescription: str = Field(default="", max_length=10_000)
+    advertiserType: str = Field(default="Particular", max_length=32)
+    source: str | None = Field(default=None, max_length=120)
+    expiresAt: datetime | None = None
 
     @model_validator(mode="after")
     def validate_price_for_mode(self):
@@ -30,6 +57,8 @@ class ListingWrite(BaseModel):
             raise ValueError("nightlyPrice is required for holiday rentals")
         if (self.exactLatitude is None) != (self.exactLongitude is None):
             raise ValueError("exactLatitude and exactLongitude must be provided together")
+        if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
+            raise ValueError("availableUntil cannot be before availableFrom")
         return self
 
 
@@ -42,11 +71,38 @@ class ListingPatch(BaseModel):
     approximateAddress: str | None = Field(default=None, min_length=2, max_length=240)
     monthlyPrice: int | None = Field(default=None, ge=0)
     nightlyPrice: int | None = Field(default=None, ge=0)
+    weeklyPrice: int | None = Field(default=None, ge=0)
+    roomType: str | None = Field(default=None, max_length=64)
+    availableFrom: date | None = None
+    availableUntil: date | None = None
+    minimumStayMonths: int | None = Field(default=None, ge=0)
+    minimumNights: int | None = Field(default=None, ge=0)
+    depositAmount: int | None = Field(default=None, ge=0)
+    billsIncluded: bool | None = None
+    bathroom: str | None = Field(default=None, max_length=64)
+    kitchen: str | None = Field(default=None, max_length=64)
+    furnished: bool | None = None
+    roomSizeM2: int | None = Field(default=None, ge=1, le=10_000)
+    bedroomCount: int | None = Field(default=None, ge=1, le=99)
+    currentResidents: int | None = Field(default=None, ge=0)
+    roomCapacity: int | None = Field(default=None, ge=1, le=2)
+    shower: str | None = Field(default=None, max_length=64)
+    tenantRequirement: str | None = Field(default=None, max_length=32)
+    smokingAllowed: bool | None = None
+    petsAllowed: bool | None = None
+    childrenAllowed: bool | None = None
+    empadronamientoAllowed: bool | None = None
+    restrictions: list[str] | None = Field(default=None, max_length=100)
+    amenities: list[str] | None = Field(default=None, max_length=100)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     exactLatitude: float | None = Field(default=None, ge=-90, le=90)
     exactLongitude: float | None = Field(default=None, ge=-180, le=180)
     description: str | None = Field(default=None, max_length=10_000)
+    homeDescription: str | None = Field(default=None, max_length=10_000)
+    advertiserType: str | None = Field(default=None, max_length=32)
+    source: str | None = Field(default=None, max_length=120)
+    expiresAt: datetime | None = None
     status: str | None = None
 
 
@@ -60,10 +116,42 @@ class ListingResponse(BaseModel):
     rentalMode: str
     monthlyPrice: int | None
     nightlyPrice: int | None
+    weeklyPrice: int | None
+    price: int | None
+    cadence: str
+    roomType: str
+    availableFrom: date | None
+    availableUntil: date | None
+    minimumStayMonths: int
+    minimumNights: int | None
+    depositAmount: int
+    billsIncluded: bool
+    bathroom: str
+    kitchen: str
+    furnished: bool
+    roomSizeM2: int
+    bedroomCount: int | None
+    currentResidents: int
+    roomCapacity: int
+    shower: str
+    tenantRequirement: str
+    smokingAllowed: bool
+    petsAllowed: bool
+    childrenAllowed: bool
+    empadronamientoAllowed: bool
+    restrictions: list[str]
+    amenities: list[str]
     status: str
     latitude: float
     longitude: float
     description: str
+    homeDescription: str
+    advertiserType: str
+    source: str | None
+    publishedAt: datetime | None
+    expiresAt: datetime | None
+    views: int
+    closedReason: str | None
     createdAt: datetime
     updatedAt: datetime | None
 
