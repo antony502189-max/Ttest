@@ -63,7 +63,13 @@ type ListingDto = {
 }
 
 type ListingSearchDto = { items: ListingDto[]; total: number; limit: number; offset: number }
-type DraftPrivateFields = { street?: string; postcode?: string }
+type DraftPrivateFields = {
+  street?: string
+  postcode?: string
+  contactName?: string
+  contactPhone?: string
+  contactWhatsapp?: string
+}
 
 const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
@@ -283,6 +289,22 @@ function readDraftPrivateFields(listingId?: string): DraftPrivateFields | null {
   return null
 }
 
+async function syncContactProfile(listing: Listing) {
+  const draft = readDraftPrivateFields(listing.id)
+  const name = (draft?.contactName || listing.owner.name).trim()
+  await api('/users/me', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      name,
+      phone: draft?.contactPhone ?? listing.contactPhone ?? '',
+      whatsapp: draft?.contactWhatsapp ?? listing.contactWhatsapp ?? '',
+      showPhone: listing.showPhone,
+      showWhatsApp: listing.showWhatsApp,
+      allowContactForm: listing.allowContactForm,
+    }),
+  })
+}
+
 function listingPayload(listing: Listing, existing?: Listing) {
   const draft = readDraftPrivateFields(listing.id)
   const exact = listing.exactCoordinates ?? existing?.exactCoordinates
@@ -308,10 +330,12 @@ function listingPayload(listing: Listing, existing?: Listing) {
 }
 
 export async function createRemoteListing(listing: Listing) {
+  await syncContactProfile(listing)
   return toListing(await api<ListingDto>('/listings', { method: 'POST', body: JSON.stringify(listingPayload(listing)) }))
 }
 
 export async function updateRemoteListing(id: string, listing: Listing) {
+  await syncContactProfile(listing)
   const existing = (await getOwnedListings()).find((item) => item.id === id)
   return toListing(await api<ListingDto>(`/listings/${id}`, {
     method: 'PATCH', body: JSON.stringify(listingPayload(listing, existing)),
