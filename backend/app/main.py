@@ -15,6 +15,7 @@ from .api.v1.listings import router as listings_router
 from .api.v1.messages import router as messages_router
 from .api.v1.reports import router as reports_router
 from .api.v1.saved_searches import router as saved_searches_router
+from .api.v1.search_history import router as search_history_router
 from .api.v1.uploads import router as uploads_router
 from .api.v1.users import router as users_router
 from .core.config import get_settings
@@ -83,5 +84,6 @@ app.include_router(listings_router, prefix="/api/v1")
 app.include_router(messages_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(saved_searches_router, prefix="/api/v1")
+app.include_router(search_history_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 app.include_router(uploads_router, prefix="/api/v1")

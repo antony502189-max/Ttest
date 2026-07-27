@@ -176,3 +176,11 @@ class ListingImage(Base):
     sort_order: Mapped[int] = mapped_column(Integer)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SearchHistory(Base):
+    __tablename__ = "search_history"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    normalized_query: Mapped[str] = mapped_column(String(240), index=True)
+    searched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

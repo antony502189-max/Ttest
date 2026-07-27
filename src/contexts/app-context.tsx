@@ -4,6 +4,7 @@ import { hydrateSession, loginWithPassword, logoutSession, registerAccount } fro
 import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
+import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -278,6 +279,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => toast.error('No se pudieron sincronizar los datos de tu cuenta.'))
   }, [currentUserId, favoriteScopes.guest, savedSearchScopes.guest])
 
+  useEffect(() => {
+    if (!currentUserId) return
+    void getSearchHistory().then((history) => {
+      setHistoryScopes((current) => ({ ...current, [currentUserId]: sanitizeTenerifeHistory(history) }))
+    }).catch(() => toast.error('No se pudo sincronizar el historial de búsqueda.'))
+  }, [currentUserId])
+
   const updateScope = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<UserScopedState<T>>>, update: (current: T | undefined) => T) => {
     setter((current) => ({ ...current, [scopeKey]: update(current[scopeKey]) }))
   }, [scopeKey])
@@ -308,9 +316,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addSearchHistory = useCallback((nextQuery: string) => updateScope(setHistoryScopes, (current) => {
     const location = resolveTenerifeLocation(nextQuery)
     if (!location || !isSupportedTenerifeQuery(nextQuery)) return sanitizeTenerifeHistory(current ?? [])
+    if (currentUserId) void addRemoteSearchHistory(location.normalizedValue).catch(() => toast.error('No se pudo guardar el historial de búsqueda.'))
     return sanitizeTenerifeHistory([location.normalizedValue, ...(current ?? [])])
-  }), [updateScope])
-  const clearSearchHistory = useCallback(() => updateScope<string[]>(setHistoryScopes, () => []), [updateScope])
+  }), [currentUserId, updateScope])
+  const clearSearchHistory = useCallback(() => updateScope<string[]>(setHistoryScopes, () => {
+    if (currentUserId) void clearRemoteSearchHistory().catch(() => toast.error('No se pudo borrar el historial de búsqueda.'))
+    return []
+  }), [currentUserId, updateScope])
   const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
     const searches = current ?? []
     const duplicate = searches.some((item) => item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
