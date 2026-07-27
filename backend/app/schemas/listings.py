@@ -2,10 +2,15 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
+ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
 
 
 class ListingWrite(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     title: str = Field(min_length=3, max_length=240)
     city: str = Field(min_length=2, max_length=120)
     area: str = Field(min_length=1, max_length=120)
@@ -49,13 +54,15 @@ class ListingWrite(BaseModel):
     expiresAt: datetime | None = None
 
     @model_validator(mode="after")
-    def validate_price_for_mode(self):
+    def validate_write(self):
         if self.rentalMode not in {"long", "holiday"}:
             raise ValueError("rentalMode must be long or holiday")
         if self.rentalMode == "long" and self.monthlyPrice is None:
             raise ValueError("monthlyPrice is required for long rentals")
         if self.rentalMode == "holiday" and self.nightlyPrice is None:
             raise ValueError("nightlyPrice is required for holiday rentals")
+        if self.roomType not in ALLOWED_ROOM_TYPES:
+            raise ValueError("roomType contains an unsupported value")
         if (self.exactLatitude is None) != (self.exactLongitude is None):
             raise ValueError("exactLatitude and exactLongitude must be provided together")
         if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
@@ -64,6 +71,8 @@ class ListingWrite(BaseModel):
 
 
 class ListingPatch(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     title: str | None = Field(default=None, min_length=3, max_length=240)
     city: str | None = Field(default=None, min_length=2, max_length=120)
     area: str | None = Field(default=None, min_length=1, max_length=120)
@@ -106,6 +115,42 @@ class ListingPatch(BaseModel):
     source: str | None = Field(default=None, max_length=120)
     expiresAt: datetime | None = None
     status: str | None = None
+
+    @model_validator(mode="after")
+    def validate_patch(self):
+        nullable_fields = {
+            "monthlyPrice",
+            "nightlyPrice",
+            "weeklyPrice",
+            "availableFrom",
+            "availableUntil",
+            "minimumNights",
+            "bedroomCount",
+            "exactLatitude",
+            "exactLongitude",
+            "source",
+            "expiresAt",
+        }
+        for field in self.model_fields_set:
+            if field not in nullable_fields and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        if "rentalMode" in self.model_fields_set and self.rentalMode not in {"long", "holiday"}:
+            raise ValueError("rentalMode must be long or holiday")
+        if "roomType" in self.model_fields_set and self.roomType not in ALLOWED_ROOM_TYPES:
+            raise ValueError("roomType contains an unsupported value")
+        if "status" in self.model_fields_set and self.status not in ALLOWED_LISTING_STATUSES:
+            raise ValueError("status contains an unsupported value")
+        coordinate_fields = {"latitude", "longitude"}
+        if self.model_fields_set & coordinate_fields:
+            if not coordinate_fields.issubset(self.model_fields_set) or self.latitude is None or self.longitude is None:
+                raise ValueError("latitude and longitude must be changed together")
+        exact_fields = {"exactLatitude", "exactLongitude"}
+        if self.model_fields_set & exact_fields:
+            if not exact_fields.issubset(self.model_fields_set):
+                raise ValueError("exactLatitude and exactLongitude must be changed together")
+            if (self.exactLatitude is None) != (self.exactLongitude is None):
+                raise ValueError("exactLatitude and exactLongitude must both be values or both be null")
+        return self
 
 
 class ListingResponse(BaseModel):
@@ -193,6 +238,8 @@ RoomCountFilter = int | Literal["10+"]
 
 
 class ListingSearchRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     query: str | None = Field(default=None, max_length=240)
     city: str | None = Field(default=None, max_length=120)
     area: str | None = Field(default=None, max_length=120)
@@ -254,11 +301,16 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("minPrice cannot exceed maxPrice")
         if self.minRoomSizeM2 is not None and self.maxRoomSizeM2 is not None and self.minRoomSizeM2 > self.maxRoomSizeM2:
             raise ValueError("minRoomSizeM2 cannot exceed maxRoomSizeM2")
-        allowed_room_types = {"Habitación individual", "Habitación compartida", "Estudio"}
+        if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
+            raise ValueError("availableUntil cannot be before availableFrom")
+        if self.deposit not in {None, "Sin fianza", "Hasta 1 mes", "Más de 1 mes"}:
+            raise ValueError("deposit contains an unsupported value")
         if self.roomType and self.roomTypes:
             raise ValueError("use roomType or roomTypes, not both")
-        if any(value not in allowed_room_types for value in self.roomTypes):
-            raise ValueError("roomTypes contains an unsupported value")
+        if self.roomType and self.roomType not in ALLOWED_ROOM_TYPES:
+            raise ValueError("roomType contains an unsupported value")
+        if len(set(self.roomTypes)) != len(self.roomTypes) or any(value not in ALLOWED_ROOM_TYPES for value in self.roomTypes):
+            raise ValueError("roomTypes contains duplicate or unsupported values")
         invalid_counts = [value for value in self.bedroomCounts if value != "10+" and not 1 <= int(value) <= 10]
         if invalid_counts or len(set(map(str, self.bedroomCounts))) != len(self.bedroomCounts):
             raise ValueError("bedroomCounts must contain unique values from 1 to 10 or 10+")
