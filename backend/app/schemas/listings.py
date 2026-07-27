@@ -194,6 +194,31 @@ class ListingSearchRequest(BaseModel):
     rentalMode: str | None = None
     minPrice: int | None = Field(default=None, ge=0)
     maxPrice: int | None = Field(default=None, ge=0)
+    roomType: str | None = Field(default=None, max_length=64)
+    availableFrom: date | None = None
+    maxMinimumStayMonths: int | None = Field(default=None, ge=0)
+    restrictions: list[str] = Field(default_factory=list, max_length=100)
+    tenantRequirement: str | None = Field(default=None, max_length=32)
+    bathroom: str | None = Field(default=None, max_length=64)
+    kitchen: str | None = Field(default=None, max_length=64)
+    furnished: bool | None = None
+    billsIncluded: bool | None = None
+    deposit: str | None = None
+    minRoomSizeM2: int | None = Field(default=None, ge=1)
+    maxRoomSizeM2: int | None = Field(default=None, ge=1)
+    shower: str | None = Field(default=None, max_length=64)
+    currentResidents: int | None = Field(default=None, ge=0)
+    minCurrentResidents: int | None = Field(default=None, ge=0)
+    roomCapacity: int | None = Field(default=None, ge=1, le=2)
+    maxMinimumNights: int | None = Field(default=None, ge=0)
+    availableUntil: date | None = None
+    smokingAllowed: bool | None = None
+    petsAllowed: bool | None = None
+    childrenAllowed: bool | None = None
+    empadronamientoAllowed: bool | None = None
+    publishedWithinDays: int | None = Field(default=None, ge=1, le=365)
+    advertiserType: str | None = Field(default=None, max_length=32)
+    amenities: list[str] = Field(default_factory=list, max_length=100)
     minLatitude: float | None = Field(default=None, ge=-90, le=90)
     maxLatitude: float | None = Field(default=None, ge=-90, le=90)
     minLongitude: float | None = Field(default=None, ge=-180, le=180)
@@ -216,8 +241,10 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("center and radiusKm must be provided together")
         if self.rentalMode not in {None, "long", "holiday"}:
             raise ValueError("rentalMode must be long or holiday")
-        if self.sort not in {"newest", "price_asc", "price_desc"}:
-            raise ValueError("sort must be newest, price_asc, or price_desc")
+        if self.sort not in {"newest", "oldest", "price_asc", "price_desc"}:
+            raise ValueError("sort must be newest, oldest, price_asc, or price_desc")
+        if self.minRoomSizeM2 is not None and self.maxRoomSizeM2 is not None and self.minRoomSizeM2 > self.maxRoomSizeM2:
+            raise ValueError("minRoomSizeM2 cannot exceed maxRoomSizeM2")
         if self.polygon:
             if len(self.polygon) < 3:
                 raise ValueError("polygon needs at least three points")

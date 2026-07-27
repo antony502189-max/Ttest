@@ -168,11 +168,12 @@ export function SearchPage() {
   useEffect(() => {
     let cancelled = false;
     setServerLoading(true);
-    const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : 'newest';
+    const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
     void searchPublicListings({
       rentalMode,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
+      filters,
       bounds: mapBounds ?? undefined,
       polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
       sort,
@@ -184,7 +185,7 @@ export function SearchPage() {
       if (!cancelled) setServerLoading(false);
     });
     return () => { cancelled = true; };
-  }, [filters.maxPrice, filters.minPrice, filters.sort, mapBounds, mapPolygon, rentalMode]);
+  }, [filters, mapBounds, mapPolygon, rentalMode]);
 
   const filteredItems = useMemo(
     () =>

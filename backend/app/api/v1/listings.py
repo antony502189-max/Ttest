@@ -153,6 +153,61 @@ def search_filters(query: Select, payload: ListingSearchRequest) -> Select:
         query = query.where((Listing.monthly_price >= payload.minPrice) | (Listing.nightly_price >= payload.minPrice))
     if payload.maxPrice is not None:
         query = query.where((Listing.monthly_price <= payload.maxPrice) | (Listing.nightly_price <= payload.maxPrice))
+    price = func.coalesce(Listing.monthly_price, Listing.nightly_price)
+    if payload.roomType:
+        query = query.where(Listing.room_type == payload.roomType)
+    if payload.availableFrom:
+        query = query.where((Listing.available_from.is_(None)) | (Listing.available_from <= payload.availableFrom))
+    if payload.maxMinimumStayMonths is not None:
+        query = query.where(Listing.minimum_stay_months <= payload.maxMinimumStayMonths)
+    if payload.restrictions:
+        query = query.where(Listing.restrictions.contains(payload.restrictions))
+    if payload.tenantRequirement:
+        query = query.where(Listing.tenant_requirement == payload.tenantRequirement)
+    if payload.bathroom:
+        query = query.where(Listing.bathroom == payload.bathroom)
+    if payload.kitchen:
+        query = query.where(Listing.kitchen == payload.kitchen)
+    if payload.furnished is not None:
+        query = query.where(Listing.furnished == payload.furnished)
+    if payload.billsIncluded is not None:
+        query = query.where(Listing.bills_included == payload.billsIncluded)
+    if payload.deposit == "Sin fianza":
+        query = query.where(Listing.deposit_amount == 0)
+    elif payload.deposit == "Hasta 1 mes":
+        query = query.where(Listing.deposit_amount <= price)
+    elif payload.deposit == "Más de 1 mes":
+        query = query.where(Listing.deposit_amount > price)
+    if payload.minRoomSizeM2 is not None:
+        query = query.where(Listing.room_size_m2 >= payload.minRoomSizeM2)
+    if payload.maxRoomSizeM2 is not None:
+        query = query.where(Listing.room_size_m2 <= payload.maxRoomSizeM2)
+    if payload.shower:
+        query = query.where(Listing.shower == payload.shower)
+    if payload.currentResidents is not None:
+        query = query.where(Listing.current_residents == payload.currentResidents)
+    if payload.minCurrentResidents is not None:
+        query = query.where(Listing.current_residents >= payload.minCurrentResidents)
+    if payload.roomCapacity is not None:
+        query = query.where(Listing.room_capacity == payload.roomCapacity)
+    if payload.maxMinimumNights is not None:
+        query = query.where(func.coalesce(Listing.minimum_nights, 1) <= payload.maxMinimumNights)
+    if payload.availableUntil:
+        query = query.where(Listing.available_until.is_not(None), Listing.available_until >= payload.availableUntil)
+    for column, value in (
+        (Listing.smoking_allowed, payload.smokingAllowed),
+        (Listing.pets_allowed, payload.petsAllowed),
+        (Listing.children_allowed, payload.childrenAllowed),
+        (Listing.empadronamiento_allowed, payload.empadronamientoAllowed),
+    ):
+        if value is not None:
+            query = query.where(column == value)
+    if payload.publishedWithinDays is not None:
+        query = query.where(Listing.published_at >= datetime.now(UTC) - timedelta(days=payload.publishedWithinDays))
+    if payload.advertiserType:
+        query = query.where(Listing.advertiser_type == payload.advertiserType)
+    if payload.amenities:
+        query = query.where(Listing.amenities.contains(payload.amenities))
     if payload.minLongitude is not None:
         bbox = ST_MakeEnvelope(payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326)
         query = query.where(ST_Within(cast(Listing.location, Geometry("POINT", srid=4326)), bbox))
@@ -194,6 +249,8 @@ async def search_listings(payload: ListingSearchRequest, session: AsyncSession =
         query = query.order_by(price.asc(), Listing.id)
     elif payload.sort == "price_desc":
         query = query.order_by(price.desc(), Listing.id)
+    elif payload.sort == "oldest":
+        query = query.order_by(Listing.created_at.asc(), Listing.id)
     else:
         query = query.order_by(Listing.created_at.desc(), Listing.id)
     rows = (await session.execute(query.limit(payload.limit).offset(payload.offset))).all()
