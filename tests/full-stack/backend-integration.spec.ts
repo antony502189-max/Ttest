@@ -1,6 +1,7 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test'
 
-const API = 'http://127.0.0.1:8000/api/v1'
+const API = 'http://127.0.0.1:8000'
+const API_PREFIX = '/api/v1'
 
 const listingPayload = (title: string) => ({
   title,
@@ -46,20 +47,33 @@ const listingPayload = (title: string) => ({
   expiresAt: new Date(Date.now() + 60 * 86_400_000).toISOString(),
 })
 
-test('frontend renders a listing created through the real FastAPI backend', async ({ page }) => {
-  const unique = `${Date.now()}-${test.info().project.name}`
-  const title = `Habitación full-stack ${unique}`
-  const api = await playwrightRequest.newContext({ baseURL: API, extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174' } })
-  const registration = await api.post('/auth/register', {
-    data: { name: 'Full Stack Host', email: `host-${unique}@example.test`, password: 'Correct-Horse-1234', role: 'host' },
+async function createBackendListing(unique: string, title: string) {
+  const api = await playwrightRequest.newContext({
+    baseURL: API,
+    extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174' },
+  })
+  const registration = await api.post(`${API_PREFIX}/auth/register`, {
+    data: {
+      name: 'Full Stack Host',
+      email: `host-${unique}@example.test`,
+      password: 'Correct-Horse-1234',
+      role: 'host',
+    },
   })
   expect(registration.status()).toBe(201)
   const session = await registration.json() as { accessToken: string }
-  const created = await api.post('/listings', {
+  const created = await api.post(`${API_PREFIX}/listings`, {
     headers: { Authorization: `Bearer ${session.accessToken}` },
     data: listingPayload(title),
   })
   expect(created.status()).toBe(201)
+  await api.dispose()
+}
+
+test('frontend renders a listing created through the real FastAPI backend', async ({ page }) => {
+  const unique = `${Date.now()}-${test.info().project.name}`
+  const title = `Habitación full-stack ${unique}`
+  await createBackendListing(unique, title)
 
   const consoleErrors: string[] = []
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
@@ -67,14 +81,18 @@ test('frontend renders a listing created through the real FastAPI backend', asyn
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   expect(consoleErrors).toEqual([])
-  await api.dispose()
 })
 
 test('room count filter is executed by the backend and reflected in mobile results', async ({ page }) => {
   test.skip(test.info().project.name !== 'mobile-chromium', 'Mobile overlay is not rendered in the desktop project')
+  const unique = `${Date.now()}-room-filter`
+  await createBackendListing(unique, `Habitación cuatro cuartos ${unique}`)
+
   const failedResponses: string[] = []
   page.on('response', (response) => {
-    if (response.url().includes('/api/v1/') && response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`)
+    if (response.url().includes('/api/v1/') && response.status() >= 400) {
+      failedResponses.push(`${response.status()} ${response.url()}`)
+    }
   })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&habitaciones=4')
   await expect(page.getByTestId('mobile-results')).toBeVisible()
