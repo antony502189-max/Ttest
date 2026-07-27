@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import select, update
