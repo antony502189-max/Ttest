@@ -1,13 +1,16 @@
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=12, max_length=256)
-    role: str = "tenant"
+    role: Literal["tenant", "host"] = "tenant"
 
 
 class LoginRequest(BaseModel):
@@ -49,6 +52,8 @@ class UserResponse(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     name: str | None = Field(default=None, min_length=2, max_length=120)
     phone: str | None = Field(default=None, max_length=64)
     whatsapp: str | None = Field(default=None, max_length=64)
@@ -57,6 +62,13 @@ class UserUpdateRequest(BaseModel):
     showPhone: bool | None = None
     showWhatsApp: bool | None = None
     allowContactForm: bool | None = None
+
+    @model_validator(mode="after")
+    def reject_explicit_nulls(self):
+        for field in self.model_fields_set:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
 
 
 class AvatarUpdateRequest(BaseModel):
