@@ -9,6 +9,10 @@ class SendMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=4_000)
 
 
+class ReplyMessageRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=4_000)
+
+
 class MessageResponse(BaseModel):
     id: UUID
     threadId: UUID
