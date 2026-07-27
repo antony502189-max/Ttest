@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
-from ...schemas.listings import ListingImageResponse, ListingImagesRequest, ListingPatch, ListingResponse, ListingWrite
+from ...schemas.listings import (
+    ListingImageResponse,
+    ListingImagesRequest,
+    ListingPatch,
+    ListingResponse,
+    ListingWrite,
+    OwnedListingResponse,
+)
 from ..dependencies import current_user, require_role
 
 router = APIRouter(prefix="/listings", tags=["listings"])
@@ -30,8 +37,25 @@ def response_from(row: tuple[Listing, str]) -> ListingResponse:
     )
 
 
+def owned_response_from(row: tuple[Listing, str, str | None]) -> OwnedListingResponse:
+    listing, public_geojson, exact_geojson = row
+    public = response_from((listing, public_geojson)).model_dump()
+    exact_coordinates = json.loads(exact_geojson)["coordinates"] if exact_geojson else None
+    return OwnedListingResponse(
+        **public,
+        street=listing.street,
+        postcode=listing.postcode,
+        exactLatitude=exact_coordinates[1] if exact_coordinates else None,
+        exactLongitude=exact_coordinates[0] if exact_coordinates else None,
+    )
+
+
 def visible_query() -> Select:
     return select(Listing, ST_AsGeoJSON(Listing.location)).where(Listing.status == "published")
+
+
+def owned_query() -> Select:
+    return select(Listing, ST_AsGeoJSON(Listing.location), ST_AsGeoJSON(Listing.exact_location))
 
 
 @router.get("", response_model=list[ListingResponse])
@@ -54,6 +78,14 @@ async def list_listings(
     return [response_from(row) for row in (await session.execute(query.order_by(Listing.created_at.desc()))).all()]
 
 
+@router.get("/mine", response_model=list[OwnedListingResponse])
+async def list_my_listings(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    query = owned_query()
+    if user.role != "admin":
+        query = query.where(Listing.owner_user_id == user.id)
+    return [owned_response_from(row) for row in (await session.execute(query.order_by(Listing.created_at.desc()))).all()]
+
+
 @router.get("/{listing_id}", response_model=ListingResponse)
 async def get_listing(listing_id: UUID, session: AsyncSession = Depends(get_session)):
     row = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
@@ -62,23 +94,25 @@ async def get_listing(listing_id: UUID, session: AsyncSession = Depends(get_sess
     return response_from(row)
 
 
-@router.post("", response_model=ListingResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=OwnedListingResponse, status_code=status.HTTP_201_CREATED)
 async def create_listing(
     payload: ListingWrite, user: User = Depends(require_role("host", "admin")), session: AsyncSession = Depends(get_session)
 ):
     listing = Listing(
         owner_user_id=user.id, title=payload.title.strip(), city=payload.city.strip(), area=payload.area.strip(),
+        street=payload.street.strip(), postcode=payload.postcode.strip(),
         approximate_address=payload.approximateAddress.strip(), rental_mode=payload.rentalMode,
         monthly_price=payload.monthlyPrice, nightly_price=payload.nightlyPrice, location=point(payload.longitude, payload.latitude),
+        exact_location=(point(payload.exactLongitude, payload.exactLatitude) if payload.exactLongitude is not None else None),
         description=payload.description.strip(), status="pending",
     )
     session.add(listing)
     await session.commit()
-    row = (await session.execute(select(Listing, ST_AsGeoJSON(Listing.location)).where(Listing.id == listing.id))).one()
-    return response_from(row)
+    row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
+    return owned_response_from(row)
 
 
-@router.patch("/{listing_id}", response_model=ListingResponse)
+@router.patch("/{listing_id}", response_model=OwnedListingResponse)
 async def update_listing(
     listing_id: UUID, payload: ListingPatch, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
 ):
@@ -96,11 +130,16 @@ async def update_listing(
         if latitude is None or longitude is None:
             raise HTTPException(422, "latitude and longitude must be changed together")
         listing.location = point(longitude, latitude)
+    exact_latitude, exact_longitude = changes.pop("exactLatitude", None), changes.pop("exactLongitude", None)
+    if exact_latitude is not None or exact_longitude is not None:
+        if exact_latitude is None or exact_longitude is None:
+            raise HTTPException(422, "exactLatitude and exactLongitude must be changed together")
+        listing.exact_location = point(exact_longitude, exact_latitude)
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value.strip() if isinstance(value, str) else value)
     await session.commit()
-    row = (await session.execute(select(Listing, ST_AsGeoJSON(Listing.location)).where(Listing.id == listing.id))).one()
-    return response_from(row)
+    row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
+    return owned_response_from(row)
 
 
 @router.get("/{listing_id}/images", response_model=list[ListingImageResponse])

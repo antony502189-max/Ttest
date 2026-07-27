@@ -54,6 +54,8 @@ class Listing(Timestamped, Base):
     title: Mapped[str] = mapped_column(String(240))
     city: Mapped[str] = mapped_column(String(120))
     area: Mapped[str] = mapped_column(String(120), index=True)
+    street: Mapped[str] = mapped_column(String(160), default="")
+    postcode: Mapped[str] = mapped_column(String(32), default="")
     approximate_address: Mapped[str] = mapped_column(String(240))
     rental_mode: Mapped[str] = mapped_column(Enum("long", "holiday", name="rental_mode"), index=True)
     monthly_price: Mapped[int | None] = mapped_column(Integer)
@@ -63,7 +65,10 @@ class Listing(Timestamped, Base):
         default="draft",
         index=True,
     )
+    # `location` is deliberately the public, approximate point.  Never use it
+    # to store the exact address coordinate returned by a host.
     location: Mapped[str] = mapped_column(Geography("POINT", srid=4326), index=True)
+    exact_location: Mapped[str | None] = mapped_column(Geography("POINT", srid=4326))
     description: Mapped[str] = mapped_column(Text, default="")
 
 
