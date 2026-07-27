@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,16 +13,34 @@ from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchRe
 MAX_HISTORY = 20
 
 
+def visible_listing_conditions():
+    return (
+        Listing.status == "published",
+        Listing.deleted_at.is_(None),
+        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+        User.deleted_at.is_(None),
+        User.blocked.is_(False),
+    )
+
+
 async def require_listing(listing_id: UUID, session: AsyncSession) -> None:
     listing = await session.scalar(
-        select(Listing.id).where(Listing.id == listing_id, Listing.deleted_at.is_(None))
+        select(Listing.id)
+        .join(User, User.id == Listing.owner_user_id)
+        .where(Listing.id == listing_id, *visible_listing_conditions())
     )
     if not listing:
         raise HTTPException(404, "Listing not found")
 
 
 def collection_query(model, user_id: UUID):
-    return select(model.listing_id).where(model.user_id == user_id).order_by(model.created_at.desc())
+    return (
+        select(model.listing_id)
+        .join(Listing, Listing.id == model.listing_id)
+        .join(User, User.id == Listing.owner_user_id)
+        .where(model.user_id == user_id, *visible_listing_conditions())
+        .order_by(model.created_at.desc())
+    )
 
 
 async def list_collection(model, user: User, session: AsyncSession) -> list[UUID]:
@@ -61,16 +79,19 @@ def valid_uuid_values(values: list[str]) -> list[UUID]:
 
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:
     requested_ids = valid_uuid_values(payload.favoriteIds)
-    valid_listing_ids = set(
-        (
-            await session.scalars(
-                select(Listing.id).where(
-                    Listing.id.in_(requested_ids),
-                    Listing.deleted_at.is_(None),
+    valid_listing_ids = (
+        set(
+            (
+                await session.scalars(
+                    select(Listing.id)
+                    .join(User, User.id == Listing.owner_user_id)
+                    .where(Listing.id.in_(requested_ids), *visible_listing_conditions())
                 )
-            )
-        ).all()
-    ) if requested_ids else set()
+            ).all()
+        )
+        if requested_ids
+        else set()
+    )
     if valid_listing_ids:
         await session.execute(
             insert(Favorite)
