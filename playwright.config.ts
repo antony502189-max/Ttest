@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
+
 export default defineConfig({
   testDir: './tests',
   timeout: 60_000,
@@ -12,13 +14,14 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: executablePath ? 'off' : 'retain-on-failure',
   },
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 4173',
+    env: { ...process.env, VITE_ENABLE_MOCK_MODE: '1' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 120_000,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], ...(executablePath ? { launchOptions: { executablePath } } : {}) } }],
 })

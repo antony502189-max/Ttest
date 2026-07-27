@@ -277,12 +277,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (listingsHydrationStarted.current) return
     listingsHydrationStarted.current = true
+    if (mockMode) return
     void getPublicListings().then(setAllListings).catch(() => {
-      if (mockMode) toast.error('No se pudo cargar el catálogo del servidor. Se muestra la copia local.')
-      else {
-        setAllListings([])
-        toast.error('No se pudo cargar el catálogo del servidor.')
-      }
+      setAllListings([])
+      toast.error('No se pudo cargar el catálogo del servidor.')
     })
   }, [])
 
