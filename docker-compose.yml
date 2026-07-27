@@ -1,12 +1,132 @@
 services:
   postgres:
     image: postgis/postgis:16-3.4
-    environment: { POSTGRES_DB: ttest, POSTGRES_USER: ttest, POSTGRES_PASSWORD: ttest }
+    environment:
+      POSTGRES_DB: ttest
+      POSTGRES_USER: ttest
+      POSTGRES_PASSWORD: ttest
     ports: ["5432:5432"]
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U ttest -d ttest"], interval: 5s, timeout: 5s, retries: 10 }
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ttest -d ttest"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ttest-minio
+      MINIO_ROOT_PASSWORD: ttest-minio-secret
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["minio-data:/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "-ec"]
+    command: >-
+      mc alias set local http://minio:9000 ttest-minio ttest-minio-secret;
+      mc mb --ignore-existing local/ttest-media;
+      mc anonymous set none local/ttest-media
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["1025:1025", "8025:8025"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment: &backend-environment
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://ttest:ttest@postgres:5432/ttest
+      JWT_SECRET: development-only-change-me-32-characters
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_BACKEND: s3
+      S3_BUCKET: ttest-media
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ttest-minio
+      S3_SECRET_KEY: ttest-minio-secret
+      S3_FORCE_PATH_STYLE: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_STARTTLS: "false"
+      FRONTEND_APP_URL: http://localhost:5173
+      FRONTEND_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,https://antony502189-max.github.io
+      AUTO_PUBLISH_LISTINGS: "true"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+
   backend:
     build: ./backend
-    environment: { DATABASE_URL: postgresql+asyncpg://ttest:ttest@postgres:5432/ttest, JWT_SECRET: development-only-change-me-32-characters }
+    environment: *backend-environment
     ports: ["${BACKEND_PORT:-8000}:8000"]
-    volumes: ["./backend/var/media:/app/var/media"]
-    depends_on: { postgres: { condition: service_healthy } }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+      mailpit: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  mail-worker:
+    build: ./backend
+    command: ["python", "-m", "app.commands.outbox_worker"]
+    environment: *backend-environment
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      mailpit: { condition: service_healthy }
+
+  seed:
+    build: ./backend
+    profiles: ["tools"]
+    command: ["python", "-m", "app.commands.seed"]
+    environment: *backend-environment
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  db-backup:
+    image: postgis/postgis:16-3.4
+    profiles: ["tools"]
+    environment:
+      PGPASSWORD: ttest
+    volumes: ["./backups:/backups"]
+    command: >-
+      sh -ec 'mkdir -p /backups && pg_dump -h postgres -U ttest -d ttest
+      --format=custom --file=/backups/ttest-$$(date +%Y%m%d-%H%M%S).dump'
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
