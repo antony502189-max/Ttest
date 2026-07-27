@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections import defaultdict, deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass
 from time import monotonic
 
@@ -15,16 +15,25 @@ class RateLimitResult:
 
 
 class MemoryRateLimiter:
-    """Single-process fallback used when Redis is unavailable."""
+    """Single-process bounded fallback used when Redis is unavailable."""
 
-    def __init__(self) -> None:
-        self._attempts: dict[str, deque[float]] = defaultdict(deque)
+    def __init__(self, max_keys: int = 10_000) -> None:
+        self._attempts: OrderedDict[str, deque[float]] = OrderedDict()
+        self._max_keys = max_keys
         self._lock = asyncio.Lock()
 
     async def consume(self, key: str, limit: int, window_seconds: int) -> RateLimitResult:
         now = monotonic()
         async with self._lock:
-            attempts = self._attempts[key]
+            attempts = self._attempts.get(key)
+            if attempts is None:
+                if len(self._attempts) >= self._max_keys:
+                    self._attempts.popitem(last=False)
+                attempts = deque()
+                self._attempts[key] = attempts
+            else:
+                self._attempts.move_to_end(key)
+
             while attempts and attempts[0] <= now - window_seconds:
                 attempts.popleft()
             if len(attempts) >= limit:
@@ -50,7 +59,14 @@ class RedisRateLimiter:
             from redis.asyncio import from_url
         except ImportError as error:  # pragma: no cover - configuration error
             raise RuntimeError("redis is required when REDIS_URL is configured") from error
-        self._client = from_url(url, encoding="utf-8", decode_responses=True)
+        self._client = from_url(
+            url,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+            health_check_interval=30,
+        )
 
     async def consume(self, key: str, limit: int, window_seconds: int) -> RateLimitResult:
         current, ttl = await self._client.eval(self._SCRIPT, 1, key, window_seconds)
@@ -65,25 +81,30 @@ class RedisRateLimiter:
 
 
 class ResilientRateLimiter:
-    """Uses Redis when configured and falls back to bounded in-memory state."""
+    """Uses Redis when healthy and temporarily falls back after an outage."""
 
     def __init__(self) -> None:
         settings = get_settings()
         self._memory = MemoryRateLimiter()
         self._redis = RedisRateLimiter(settings.redis_url) if settings.redis_url else None
+        self._redis_retry_at = 0.0
 
     async def consume(self, key: str, limit: int, window_seconds: int) -> RateLimitResult:
-        if self._redis:
+        now = monotonic()
+        if self._redis and now >= self._redis_retry_at:
             try:
                 return await self._redis.consume(key, limit, window_seconds)
             except Exception:
-                # Redis outages must not turn the whole API into 500. The local
-                # fallback still applies a per-instance safety limit.
-                pass
+                self._redis_retry_at = now + 5
         return await self._memory.consume(key, limit, window_seconds)
 
     async def ready(self) -> bool:
-        return not self._redis or await self._redis.ping()
+        if not self._redis:
+            return True
+        try:
+            return await self._redis.ping()
+        except Exception:
+            return False
 
     async def close(self) -> None:
         if self._redis:
