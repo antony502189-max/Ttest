@@ -28,7 +28,22 @@ def public_listing(listing: Listing) -> AdminListingResponse:
 
 
 def public_user(user: User) -> AdminUserResponse:
-    return AdminUserResponse(id=user.id, email=user.email, name=user.name, role=user.role, blocked=user.blocked)
+    return AdminUserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        blocked=user.blocked,
+        phone=user.phone,
+        whatsapp=user.whatsapp,
+        telegram=user.telegram,
+        about=user.about,
+        initials=user.initials,
+        showPhone=user.show_phone,
+        showWhatsApp=user.show_whatsapp,
+        allowContactForm=user.allow_contact_form,
+        avatarUrl=f"/api/v1/media/{user.avatar_asset_id}" if user.avatar_asset_id else None,
+    )
 
 
 async def dashboard_stats(session: AsyncSession) -> AdminStatsResponse:
