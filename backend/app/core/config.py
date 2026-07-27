@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     password_reset_minutes: int = 30
+    email_verification_minutes: int = 60 * 24
     google_client_id: str = ""
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,https://antony502189-max.github.io"
     # In production new listings wait for moderation unless explicitly enabled.

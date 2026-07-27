@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
+from app.schemas.auth import VerifyEmailRequest
 from app.schemas.listings import ListingSearchRequest
 
 
@@ -30,3 +31,8 @@ def test_search_schema_accepts_extended_filters():
 def test_search_schema_rejects_reversed_room_size_range():
     with pytest.raises(ValidationError, match="minRoomSizeM2 cannot exceed maxRoomSizeM2"):
         ListingSearchRequest(minRoomSizeM2=30, maxRoomSizeM2=10)
+
+
+def test_email_verification_token_requires_secure_length():
+    with pytest.raises(ValidationError):
+        VerifyEmailRequest(token="too-short")

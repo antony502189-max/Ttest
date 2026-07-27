@@ -26,6 +26,10 @@ class ResetPasswordRequest(BaseModel):
     password: str = Field(min_length=12, max_length=256)
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=512)
+
+
 class UserResponse(BaseModel):
     id: str
     name: str

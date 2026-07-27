@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.config import get_settings
 from ...core.security import create_access_token, hash_password, new_refresh_token, token_hash, verify_password
 from ...db.session import get_session
-from ...models import AuthSession, PasswordResetToken, User
+from ...models import AuthSession, EmailVerificationToken, PasswordResetToken, User
 from ...schemas.auth import (
     ForgotPasswordRequest,
     GoogleLoginRequest,
@@ -17,6 +17,7 @@ from ...schemas.auth import (
     RegisterRequest,
     ResetPasswordRequest,
     UserResponse,
+    VerifyEmailRequest,
 )
 from ..dependencies import current_user
 
@@ -165,6 +166,52 @@ async def reset_password(payload: ResetPasswordRequest, session: AsyncSession = 
     await session.execute(
         update(AuthSession).where(AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None)).values(revoked_at=now)
     )
+    await session.commit()
+
+
+@router.post("/request-email-verification", status_code=status.HTTP_202_ACCEPTED)
+async def request_email_verification(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    """Issues a one-time verification token without returning it outside development."""
+    response: dict[str, str] = {"message": "If needed, a verification link has been sent."}
+    if user.email_verified:
+        return response
+    now = datetime.now(UTC)
+    await session.execute(
+        update(EmailVerificationToken).where(
+            EmailVerificationToken.user_id == user.id, EmailVerificationToken.consumed_at.is_(None)
+        ).values(consumed_at=now)
+    )
+    raw_token = new_refresh_token()
+    session.add(EmailVerificationToken(
+        user_id=user.id,
+        token_hash=token_hash(raw_token),
+        expires_at=now + timedelta(minutes=get_settings().email_verification_minutes),
+    ))
+    await session.commit()
+    # Delivery is delegated to the configured mail provider; the token is only
+    # exposed in development to make the complete flow testable locally.
+    if get_settings().app_env == "development":
+        response["verificationToken"] = raw_token
+    return response
+
+
+@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+async def verify_email(payload: VerifyEmailRequest, session: AsyncSession = Depends(get_session)):
+    now = datetime.now(UTC)
+    verification = await session.scalar(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == token_hash(payload.token),
+            EmailVerificationToken.consumed_at.is_(None),
+            EmailVerificationToken.expires_at > now,
+        )
+    )
+    if not verification:
+        raise HTTPException(400, "The email verification link is invalid or has expired")
+    user = await session.get(User, verification.user_id)
+    if not user or user.blocked:
+        raise HTTPException(400, "The email verification link is invalid or has expired")
+    user.email_verified = True
+    verification.consumed_at = now
     await session.commit()
 
 
