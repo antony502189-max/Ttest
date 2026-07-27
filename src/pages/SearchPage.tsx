@@ -16,6 +16,7 @@ import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, Dr
 import { Field, FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApp } from "@/contexts/app-context";
+import { searchPublicListings } from "@/api/listings";
 import { defaultFilters } from "@/data/listings";
 import { tenantRequirementLabels } from "@/lib/listings";
 import { loadTenerifeZoneHierarchy } from "@/lib/map/geojson";
@@ -44,7 +45,7 @@ import {
   SearchBar,
   type MapBounds,
 } from "@/components/marketplace";
-import type { Filters, MapPolygonPoint, RentalMode } from "@/types";
+import type { Filters, Listing, MapPolygonPoint, RentalMode } from "@/types";
 
 const PAGE_SIZE = 9;
 const sortOptions = ["Relevancia", "Más recientes", "Más antiguos", "Precio más bajo", "Precio más alto"];
@@ -77,6 +78,8 @@ export function SearchPage() {
   const [selected, setSelected] = useState("");
   const [highlighted, setHighlighted] = useState("");
   const [loading, setLoading] = useState(false);
+  const [serverItems, setServerItems] = useState<Listing[] | null>(null);
+  const [serverLoading, setServerLoading] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [zoneHierarchy, setZoneHierarchy] = useState<TenerifeZoneCollection | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_MAP_MEDIA).matches);
@@ -162,15 +165,36 @@ export function SearchPage() {
     setParams(next, { replace: true });
   }, [initialMapAction, params, setParams]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setServerLoading(true);
+    const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : 'newest';
+    void searchPublicListings({
+      rentalMode,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      bounds: mapBounds ?? undefined,
+      polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
+      sort,
+    }).then((items) => {
+      if (!cancelled) setServerItems(items);
+    }).catch(() => {
+      if (!cancelled) setServerItems(null);
+    }).finally(() => {
+      if (!cancelled) setServerLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [filters.maxPrice, filters.minPrice, filters.sort, mapBounds, mapPolygon, rentalMode]);
+
   const filteredItems = useMemo(
     () =>
       filterListings(
-        allListings.filter((listing) => !discarded.has(listing.id)),
+        (serverItems ?? allListings).filter((listing) => !discarded.has(listing.id)),
         rentalMode,
         filters,
         zoneHierarchy,
       ).filter((listing) => !invalidLocation && listingMatchesTenerifeLocation(listing, location)),
-    [allListings, discarded, filters, invalidLocation, location, rentalMode, zoneHierarchy],
+    [allListings, discarded, filters, invalidLocation, location, rentalMode, serverItems, zoneHierarchy],
   );
   const spatialItems = useMemo(
     () =>
@@ -633,6 +657,8 @@ export function SearchPage() {
             </div>
           ) : forcedState === "error" ? (
             <ErrorState />
+          ) : loading || serverLoading || forcedState === "loading" ? (
+            <LoadingSkeleton />
           ) : forcedState === "empty" || items.length === 0 ? (
             <EmptyState
               onReset={() => {
@@ -640,8 +666,6 @@ export function SearchPage() {
                 restoreDiscarded();
               }}
             />
-          ) : loading || forcedState === "loading" ? (
-            <LoadingSkeleton />
           ) : (
             <div className="results-list">
               {pageItems.map((listing) => (

@@ -143,6 +143,32 @@ export async function getPublicListings() {
   return (await api<ListingDto[]>('/listings')).map(toListing)
 }
 
+export type ListingSearchInput = {
+  rentalMode: Listing['rentalMode']
+  minPrice: number
+  maxPrice: number
+  bounds?: { north: number; south: number; east: number; west: number }
+  polygon?: Array<{ latitude: number; longitude: number }>
+  sort?: 'newest' | 'price_asc' | 'price_desc'
+}
+
+export async function searchPublicListings(input: ListingSearchInput) {
+  const { bounds, polygon, ...payload } = input
+  const body = {
+    ...payload,
+    limit: 100,
+    ...(bounds ? {
+      minLatitude: bounds.south, maxLatitude: bounds.north,
+      minLongitude: bounds.west, maxLongitude: bounds.east,
+    } : {}),
+    ...(polygon?.length ? { polygon } : {}),
+  }
+  const response = await api<{ items: ListingDto[] }>('/listings/search', {
+    method: 'POST', body: JSON.stringify(body),
+  })
+  return response.items.map(toListing)
+}
+
 function listingPayload(listing: Listing) {
   return {
     title: listing.title, city: listing.city, area: listing.area, approximateAddress: listing.approximateAddress,
