@@ -71,9 +71,8 @@ npm run lint
 npm run typecheck
 VITE_BASE_PATH=/Ttest/ VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run build
 
-if ! npx playwright install --dry-run chromium >/dev/null 2>&1; then
-  npx playwright install chromium
-fi
+# Playwright installation is idempotent and does not use GitHub Actions.
+npx playwright install chromium
 
 echo '[8/9] Complete mock-mode regression, accessibility and visual suites'
 VITE_ENABLE_MOCK_MODE=1 VITE_E2E_BYPASS_ONBOARDING=1 npm run test:e2e
