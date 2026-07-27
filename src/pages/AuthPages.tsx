@@ -19,7 +19,7 @@ export function RegisterPage() {
   const [success, setSuccess] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
     const data = new FormData(form)
@@ -33,7 +33,7 @@ export function RegisterPage() {
     if (password !== data.get('confirm')) next.confirm = 'Las contraseñas no coinciden.'
     if (!accepted) next.terms = 'Debes aceptar las normas para continuar.'
     if (!Object.keys(next).length) {
-      const error = register({ name, email, password, role: String(data.get('role')) as UserRole })
+      const error = await register({ name, email, password, role: String(data.get('role')) as UserRole })
       if (error) next.email = error
       else setSuccess(true)
     }

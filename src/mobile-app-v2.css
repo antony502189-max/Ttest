@@ -126,6 +126,11 @@ html.mobile-v2-active #main-content > :not(.m2-app) { display: none !important; 
 .m2-auth-panel > button { min-height: 2.8rem; display: flex; align-items: center; justify-content: center; gap: .55rem; margin-bottom: .65rem; border: 1px solid #777; background: transparent; color: #eee; font-size: .76rem; }
 .m2-auth-panel > button svg { width: 1rem; }
 .m2-auth-panel > button b { font-size: 1rem; }
+.m2-auth-panel > button:disabled { cursor: not-allowed; opacity: .55; }
+.m2-auth-form { display: grid; gap: .55rem; }
+.m2-auth-form input { min-height: 2.8rem; border: 1px solid #777; border-radius: 0; background: transparent; color: #eee; padding: 0 .75rem; font: inherit; }
+.m2-auth-form button { min-height: 2.8rem; border: 1px solid #777; background: transparent; color: #eee; font: inherit; }
+.m2-auth-form p { margin: 0; color: #ffb6b6; font-size: .68rem; }
 .m2-auth-panel p,
 .m2-auth-panel a { color: #aaa; font-size: .65rem; }
 .m2-auth-panel a { margin-top: .5rem; text-decoration: underline; }

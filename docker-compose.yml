@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment: { POSTGRES_DB: ttest, POSTGRES_USER: ttest, POSTGRES_PASSWORD: ttest }
+    ports: ["5432:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U ttest -d ttest"], interval: 5s, timeout: 5s, retries: 10 }
+  backend:
+    build: ./backend
+    environment: { DATABASE_URL: postgresql+asyncpg://ttest:ttest@postgres:5432/ttest, JWT_SECRET: development-only-change-me-32-characters }
+    ports: ["${BACKEND_PORT:-8000}:8000"]
+    volumes: ["./backend/var/media:/app/var/media"]
+    depends_on: { postgres: { condition: service_healthy } }

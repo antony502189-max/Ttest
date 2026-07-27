@@ -1,0 +1,19 @@
+"""core identity and listing records with PostGIS points"""
+from alembic import op
+import sqlalchemy as sa
+from geoalchemy2 import Geography
+revision = "0001_core"
+down_revision = None
+branch_labels = None
+depends_on = None
+def upgrade():
+    op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+    op.create_table("users", sa.Column("id", sa.Uuid(), primary_key=True), sa.Column("email", sa.String(320), nullable=False), sa.Column("password_hash", sa.String(512)), sa.Column("google_subject", sa.String(255)), sa.Column("name", sa.String(120), nullable=False), sa.Column("role", sa.Enum("tenant", "host", "admin", name="user_role"), nullable=False, server_default="tenant"), sa.Column("phone", sa.String(64), nullable=False, server_default=""), sa.Column("whatsapp", sa.String(64), nullable=False, server_default=""), sa.Column("telegram", sa.String(64), nullable=False, server_default=""), sa.Column("about", sa.Text(), nullable=False, server_default=""), sa.Column("initials", sa.String(8), nullable=False, server_default=""), sa.Column("show_phone", sa.Boolean(), nullable=False, server_default=sa.false()), sa.Column("show_whatsapp", sa.Boolean(), nullable=False, server_default=sa.false()), sa.Column("allow_contact_form", sa.Boolean(), nullable=False, server_default=sa.true()), sa.Column("blocked", sa.Boolean(), nullable=False, server_default=sa.false()), sa.Column("email_verified", sa.Boolean(), nullable=False, server_default=sa.false()), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()), sa.UniqueConstraint("email"), sa.UniqueConstraint("google_subject"))
+    op.create_index("ix_users_email_lower", "users", [sa.text("lower(email)")], unique=True)
+    op.create_table("auth_sessions", sa.Column("id", sa.Uuid(), primary_key=True), sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False), sa.Column("token_hash", sa.String(64), nullable=False, unique=True), sa.Column("issued_at", sa.DateTime(timezone=True), server_default=sa.func.now()), sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False), sa.Column("revoked_at", sa.DateTime(timezone=True)))
+    op.create_index("ix_auth_sessions_user_id", "auth_sessions", ["user_id"])
+    op.create_table("listings", sa.Column("id", sa.Uuid(), primary_key=True), sa.Column("owner_user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False), sa.Column("title", sa.String(240), nullable=False), sa.Column("city", sa.String(120), nullable=False), sa.Column("area", sa.String(120), nullable=False), sa.Column("approximate_address", sa.String(240), nullable=False), sa.Column("rental_mode", sa.Enum("long", "holiday", name="rental_mode"), nullable=False), sa.Column("monthly_price", sa.Integer()), sa.Column("nightly_price", sa.Integer()), sa.Column("status", sa.Enum("draft", "pending", "published", "hidden", "closed", "rejected", name="listing_status"), nullable=False, server_default="draft"), sa.Column("location", Geography("POINT", srid=4326), nullable=False), sa.Column("description", sa.Text(), nullable=False, server_default=""), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()), sa.CheckConstraint("monthly_price IS NULL OR monthly_price >= 0"), sa.CheckConstraint("nightly_price IS NULL OR nightly_price >= 0"))
+    op.create_index("ix_listings_location", "listings", ["location"], postgresql_using="gist")
+    op.create_index("ix_listings_public", "listings", ["status", "rental_mode", "created_at"])
+def downgrade():
+    op.drop_table("listings"); op.drop_table("auth_sessions"); op.drop_table("users"); op.execute("DROP EXTENSION IF EXISTS postgis")

@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { hydrateSession, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
+import { ApiError } from '@/api/client'
+import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -66,8 +69,8 @@ interface AppState {
   deleteLocalComment: (id: string) => void
   users: DemoUser[]
   currentUser: DemoUser | null
-  login: (email: string, password: string) => string | null
-  register: (input: RegisterInput) => string | null
+  login: (email: string, password: string) => Promise<string | null>
+  register: (input: RegisterInput) => Promise<string | null>
   logout: () => void
   updateProfile: (changes: ProfileUpdate) => void
   deleteAccount: () => void
@@ -104,11 +107,11 @@ function usedMediaReferences(listings: Listing[], users: DemoUser[], draft: unkn
   return collectMediaReferences([listings, users, draft])
 }
 
-const demoUsers: DemoUser[] = [
-  { id: 'tenant-demo', name: 'Lucía Demo', email: 'inquilina@112233.es', password: 'demo112233', role: 'tenant', phone: '+34 600 000 112', whatsapp: '+34 600 000 112', telegram: '@lucia_demo', about: 'Busco una habitación tranquila en Tenerife.', initials: 'LD', showPhone: true, showWhatsApp: true, allowContactForm: true, allowMessaging: true },
-  { id: 'host-demo', name: 'Carlos Anfitrión', email: 'anfitrion@112233.es', password: 'demo112233', role: 'host', phone: '+34 600 112 233', whatsapp: '+34 611 223 344', telegram: '@carlos_demo', about: 'Publico habitaciones con condiciones claras.', initials: 'CA', showPhone: true, showWhatsApp: true, allowContactForm: true, allowMessaging: true },
-  { id: 'admin-demo', name: 'Ana Moderación', email: 'admin@112233.es', password: 'admin112233', role: 'admin', phone: '+34 600 332 211', whatsapp: '+34 600 332 211', telegram: '@ana_admin_demo', about: 'Cuenta de administración para esta demo local.', initials: 'AM', showPhone: false, showWhatsApp: false, allowContactForm: false, allowMessaging: false },
-]
+type RemoteUser = Omit<DemoUser, 'password'>
+
+function toAppUser(user: RemoteUser): DemoUser {
+  return { ...user, password: '', allowMessaging: user.allowContactForm, blocked: false }
+}
 
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string')
 const isScopedStringArrays = (value: unknown): value is UserScopedState<string[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every(isStringArray)
@@ -164,14 +167,6 @@ function readScopedSavedSearches() {
   return items.length ? { guest: items.map((item) => ({ ...item, filters: normalizeFilters(item.filters) })) } : {}
 }
 
-function normalizeUsers(value: DemoUser[]) {
-  return value.map((user) => ({
-    ...user,
-    showWhatsApp: user.showWhatsApp ?? user.showPhone ?? false,
-    allowContactForm: user.allowContactForm ?? user.allowMessaging ?? true,
-  }))
-}
-
 const storageMessage = (failure: StorageFailure) => failure === 'quota'
   ? 'No hay espacio suficiente. Tus últimos cambios no se han guardado.'
   : failure === 'corrupted'
@@ -192,10 +187,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [threadScopes, setThreadScopes] = useState<UserScopedState<LocalMessageThread[]>>(readScopedLocalThreads)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
-  const [users, setUsers] = useState<DemoUser[]>(() => normalizeUsers(readJson<DemoUser[]>('112233:users:v1', demoUsers).data))
-  const [currentUserId, setCurrentUserId] = useState<string | null>(() => readJson<string | null>('112233:session:v1', null).data)
+  const [users, setUsers] = useState<DemoUser[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [storageError, setStorageError] = useState<string | null>(() => listingLoad.failure ? storageMessage(listingLoad.failure) : null)
   const orphanCleanupStarted = useRef(false)
+  const authHydrationStarted = useRef(false)
 
   const currentUser = users.find((user) => user.id === currentUserId) ?? null
   const scopeKey = currentUserId ?? 'guest'
@@ -230,13 +226,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:message-threads:v1', 1, threadScopes)), [threadScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
-  useEffect(() => reportStorageFailure(persistJson('112233:users:v1', users)), [users, reportStorageFailure])
-  useEffect(() => reportStorageFailure(persistJson('112233:session:v1', currentUserId)), [currentUserId, reportStorageFailure])
   useEffect(() => {
     if (orphanCleanupStarted.current) return
     orphanCleanupStarted.current = true
     void cleanupOrphanedMedia(usedMediaReferences(allListings, users)).catch(() => undefined)
   }, [allListings, users])
+
+  const setRemoteUser = useCallback((remote: RemoteUser) => {
+    const user = toAppUser(remote)
+    setUsers((current) => [...current.filter((item) => item.id !== user.id), user])
+    setCurrentUserId(user.id)
+  }, [])
+
+  useEffect(() => {
+    if (authHydrationStarted.current) return
+    authHydrationStarted.current = true
+    void hydrateSession().then(setRemoteUser).catch((error: unknown) => {
+      if (!(error instanceof ApiError) || error.status !== 401) toast.error('No se pudo restaurar la sesión.')
+    })
+  }, [setRemoteUser])
+
+  useEffect(() => {
+    if (!currentUserId) return
+    void Promise.all([getFavorites(), getDiscarded(), getSavedSearches()]).then(([remoteFavorites, remoteDiscarded, remoteSearches]) => {
+      setFavoriteScopes((current) => ({ ...current, [currentUserId]: remoteFavorites }))
+      setDiscardedScopes((current) => ({ ...current, [currentUserId]: remoteDiscarded }))
+      setSavedSearchScopes((current) => ({
+        ...current,
+        [currentUserId]: remoteSearches.map((search) => ({
+          id: search.id,
+          query: search.query,
+          rentalMode: search.rentalMode,
+          filters: normalizeFilters({ ...defaultFilters, ...search.filters }),
+          alerts: search.alertsEnabled,
+          createdAt: search.createdAt,
+          polygon: search.polygon,
+        })),
+      }))
+    }).catch(() => toast.error('No se pudieron sincronizar los datos de tu cuenta.'))
+  }, [currentUserId])
 
   const updateScope = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<UserScopedState<T>>>, update: (current: T | undefined) => T) => {
     setter((current) => ({ ...current, [scopeKey]: update(current[scopeKey]) }))
@@ -246,11 +274,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const next = new Set(current ?? [])
     const wasSaved = next.has(id)
     if (wasSaved) next.delete(id); else next.add(id)
+    if (currentUserId) {
+      const operation = wasSaved ? removeFavorite(id) : addFavorite(id)
+      void operation.catch(() => {
+        updateScope(setFavoriteScopes, (latest) => wasSaved ? [...new Set([...(latest ?? []), id])] : (latest ?? []).filter((item) => item !== id))
+        toast.error('No se pudo sincronizar el favorito.')
+      })
+    }
     toast.success(wasSaved ? 'Eliminado de favoritos' : 'Guardado en favoritos')
     return [...next]
-  }), [updateScope])
-  const discardListing = useCallback((id: string) => updateScope(setDiscardedScopes, (current) => [...new Set([...(current ?? []), id])]), [updateScope])
-  const restoreDiscarded = useCallback(() => updateScope<string[]>(setDiscardedScopes, () => []), [updateScope])
+  }), [currentUserId, updateScope])
+  const discardListing = useCallback((id: string) => updateScope(setDiscardedScopes, (current) => {
+    if (currentUserId) void addDiscarded(id).catch(() => toast.error('No se pudo sincronizar el anuncio oculto.'))
+    return [...new Set([...(current ?? []), id])]
+  }), [currentUserId, updateScope])
+  const restoreDiscarded = useCallback(() => updateScope<string[]>(setDiscardedScopes, () => {
+    if (currentUserId) void clearDiscarded().catch(() => toast.error('No se pudieron restaurar los anuncios.'))
+    return []
+  }), [currentUserId, updateScope])
   const resetFilters = useCallback(() => setFilters({ ...defaultFilters }), [])
   const addSearchHistory = useCallback((nextQuery: string) => updateScope(setHistoryScopes, (current) => {
     const location = resolveTenerifeLocation(nextQuery)
@@ -262,16 +303,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const searches = current ?? []
     const duplicate = searches.some((item) => item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
     if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
+    const optimistic = { id: `search-${Date.now()}`, query, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
+    if (currentUserId) {
+      void createSavedSearch({ name: query, query, rentalMode, filters: filters as unknown as Record<string, unknown>, polygon: mapPolygon, alertsEnabled: true }).then((saved) => {
+        updateScope(setSavedSearchScopes, (latest) => (latest ?? []).map((item) => item.id === optimistic.id ? { ...item, id: saved.id, createdAt: saved.createdAt } : item))
+      }).catch(() => {
+        updateScope(setSavedSearchScopes, (latest) => (latest ?? []).filter((item) => item.id !== optimistic.id))
+        toast.error('No se pudo guardar la búsqueda.')
+      })
+    }
     toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
-    return [{ id: `search-${Date.now()}`, query, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }, ...searches]
-  }), [filters, mapPolygon, query, rentalMode, updateScope])
+    return [optimistic, ...searches]
+  }), [currentUserId, filters, mapPolygon, query, rentalMode, updateScope])
   const restoreSavedSearch = useCallback((id: string) => {
     const found = savedSearches.find((item) => item.id === id)
     if (found) { setQuery(found.query); setRentalMode(found.rentalMode); setFilters(normalizeFilters(found.filters)); setMapPolygonState(found.polygon ?? []) }
     return found
   }, [savedSearches])
-  const removeSavedSearch = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => (current ?? []).filter((item) => item.id !== id)), [updateScope])
-  const toggleSearchAlerts = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => (current ?? []).map((item) => item.id === id ? { ...item, alerts: !item.alerts } : item)), [updateScope])
+  const removeSavedSearch = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => {
+    if (currentUserId) void deleteSavedSearch(id).catch(() => toast.error('No se pudo eliminar la búsqueda.'))
+    return (current ?? []).filter((item) => item.id !== id)
+  }), [currentUserId, updateScope])
+  const toggleSearchAlerts = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => {
+    const search = (current ?? []).find((item) => item.id === id)
+    if (currentUserId && search) void updateSavedSearch(id, { alertsEnabled: !search.alerts }).catch(() => toast.error('No se pudieron actualizar las alertas.'))
+    return (current ?? []).map((item) => item.id === id ? { ...item, alerts: !item.alerts } : item)
+  }), [currentUserId, updateScope])
   const setMapPolygon = useCallback((points: MapPolygonPoint[]) => setMapPolygonState(points), [])
   const clearMapPolygon = useCallback(() => setMapPolygonState([]), [])
 
@@ -336,22 +393,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateLocalComment = useCallback((id: string, text: string) => updateScope(setCommentScopes, (current) => (current ?? []).map((comment) => comment.id === id ? { ...comment, text: text.trim(), updatedAt: new Date().toISOString() } : comment)), [updateScope])
   const deleteLocalComment = useCallback((id: string) => updateScope(setCommentScopes, (current) => (current ?? []).filter((comment) => comment.id !== id)), [updateScope])
 
-  const login = useCallback((email: string, password: string) => {
-    const user = users.find((item) => item.email.toLocaleLowerCase() === email.trim().toLocaleLowerCase())
-    if (!user || user.password !== password) return 'Email o contraseña incorrectos. Usa una cuenta demo o regístrate.'
-    if (user.blocked) return 'Esta cuenta está bloqueada en la demo.'
-    setCurrentUserId(user.id)
-    return null
-  }, [users])
-  const register = useCallback((input: RegisterInput) => {
-    if (users.some((user) => user.email.toLocaleLowerCase() === input.email.toLocaleLowerCase())) return 'Ya existe una cuenta con este email.'
-    const initials = input.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase()
-    const user: DemoUser = { id: `user-${Date.now()}`, ...input, phone: '', whatsapp: '', telegram: '', about: '', initials, showPhone: false, showWhatsApp: false, allowContactForm: true, allowMessaging: true }
-    setUsers((current) => [...current, user])
-    setCurrentUserId(user.id)
-    return null
-  }, [users])
-  const logout = useCallback(() => setCurrentUserId(null), [])
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      setRemoteUser(await loginWithPassword(email, password))
+      return null
+    } catch (error) {
+      return error instanceof ApiError ? error.message : 'No se pudo iniciar sesión. Inténtalo de nuevo.'
+    }
+  }, [setRemoteUser])
+  const register = useCallback(async (input: RegisterInput) => {
+    try {
+      setRemoteUser(await registerAccount(input))
+      return null
+    } catch (error) {
+      return error instanceof ApiError ? error.message : 'No se pudo crear la cuenta. Inténtalo de nuevo.'
+    }
+  }, [setRemoteUser])
+  const logout = useCallback(() => {
+    setCurrentUserId(null)
+    void logoutSession().catch(() => undefined)
+  }, [])
   const updateProfile = useCallback((changes: ProfileUpdate) => {
     if (!currentUserId) return
     const previous = users.find((user) => user.id === currentUserId)

@@ -1,0 +1,25 @@
+[project]
+name = "ttest-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.14", "argon2-cffi>=23.1", "asyncpg>=0.30", "email-validator>=2.2",
+  "fastapi>=0.115", "geoalchemy2>=0.16", "httpx>=0.28", "pydantic-settings>=2.7", "Pillow>=11.0",
+  "psycopg[binary]>=3.2", "PyJWT>=2.10", "python-multipart>=0.0.18", "sqlalchemy[asyncio]>=2.0", "uvicorn[standard]>=0.34"
+]
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+[project.optional-dependencies]
+dev = ["mypy>=1.14", "pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.9"]
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+[tool.ruff.lint]
+ignore = ["B008"] # FastAPI declares dependencies in endpoint signatures.
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

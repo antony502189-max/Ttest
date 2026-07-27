@@ -8,6 +8,13 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.venv/
+.smoke-venv/
+.ruff_cache/
+*.egg-info/
+__pycache__/
+*.py[cod]
+backend/var/
 dist
 dist-ssr
 *.local
