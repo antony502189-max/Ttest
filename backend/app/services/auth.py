@@ -298,20 +298,26 @@ async def refresh_user_session(
     user_agent: str,
     client_ip: str,
 ) -> AuthResult:
+    now = datetime.now(UTC)
     auth = await session.scalar(
         select(AuthSession)
-        .where(
-            AuthSession.token_hash == token_hash(raw_refresh),
-            AuthSession.revoked_at.is_(None),
-            AuthSession.expires_at > datetime.now(UTC),
-        )
+        .where(AuthSession.token_hash == token_hash(raw_refresh))
         .with_for_update()
     )
-    if not auth:
+    if not auth or auth.expires_at <= now:
+        raise HTTPException(401, "Invalid refresh token")
+    if auth.revoked_at is not None:
+        if auth.replaced_by is not None:
+            await session.execute(
+                update(AuthSession)
+                .where(AuthSession.user_id == auth.user_id, AuthSession.revoked_at.is_(None))
+                .values(revoked_at=now)
+            )
+            await session.commit()
         raise HTTPException(401, "Invalid refresh token")
     user = await session.get(User, auth.user_id)
     if not user or user.blocked or user.deleted_at:
-        auth.revoked_at = datetime.now(UTC)
+        auth.revoked_at = now
         await session.commit()
         raise HTTPException(401, "Authentication required")
     return await issue_session(
