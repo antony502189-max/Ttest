@@ -1,11 +1,12 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response, status
-from sqlalchemy import update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import AuthSession, User
+from ...models import AuthSession, Listing, MediaAsset, User
 from ...schemas.auth import UserResponse, UserUpdateRequest
 from ..dependencies import current_user
 from .auth import public_user
@@ -39,7 +40,11 @@ async def update_me(
 async def delete_me(
     response: Response, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
 ):
+    media_paths = list((await session.scalars(select(MediaAsset.storage_key).where(MediaAsset.owner_id == user.id))).all())
     await session.execute(update(AuthSession).where(AuthSession.user_id == user.id).values(revoked_at=datetime.now(UTC)))
+    await session.execute(delete(Listing).where(Listing.owner_user_id == user.id))
     await session.delete(user)
     await session.commit()
+    for storage_key in media_paths:
+        (get_settings().media_root / storage_key).unlink(missing_ok=True)
     response.delete_cookie("refresh_token", path="/api/v1/auth")
