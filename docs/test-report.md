@@ -11,6 +11,8 @@ frontend: npm run lint               PASS (one existing unused-helper warning)
 frontend: npm run build              PASS
 Docker: alembic current              0014_session_audit (head)
 Playwright E2E smoke                 PASS (1 passed, 24.4s)
+Docker: docker compose config        PASS
+Backend: OpenAPI generation          PASS
 ```
 
 Runtime checks used Docker PostGIS and FastAPI:
