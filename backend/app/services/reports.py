@@ -29,11 +29,15 @@ def public_report(report: Report) -> ReportResponse:
 
 async def create_report(payload: CreateReportRequest, user: User | None, session: AsyncSession) -> ReportResponse:
     listing = await session.scalar(
-        select(Listing).where(
+        select(Listing)
+        .join(User, User.id == Listing.owner_user_id)
+        .where(
             Listing.id == payload.listingId,
             Listing.status == "published",
             Listing.deleted_at.is_(None),
             (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+            User.deleted_at.is_(None),
+            User.blocked.is_(False),
         )
     )
     if not listing:
