@@ -66,24 +66,46 @@ class Settings(BaseSettings):
         return self.app_env.lower() == "production"
 
     def validate_runtime(self) -> None:
-        """Fail fast instead of silently starting with unsafe production defaults."""
-        if not self.is_production:
-            return
+        """Fail fast instead of silently starting with unsafe or contradictory configuration."""
         problems: list[str] = []
-        if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:
-            problems.append("JWT_SECRET must be a strong production secret")
-        if not self.origins or any(origin.startswith("http://") for origin in self.origins):
-            problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
-        if self.storage_backend == "s3" and not all([self.s3_bucket, self.s3_access_key, self.s3_secret_key]):
-            problems.append("S3 storage requires bucket and credentials")
-        if not self.smtp_host:
-            problems.append("SMTP_HOST is required in production")
-        if not self.redis_url:
-            problems.append("REDIS_URL is required for distributed production rate limiting")
+        environment = self.app_env.lower()
+        if environment not in {"development", "test", "production"}:
+            problems.append("APP_ENV must be development, test, or production")
+        if self.storage_backend not in {"local", "s3"}:
+            problems.append("STORAGE_BACKEND must be local or s3")
+        if self.access_token_minutes < 1:
+            problems.append("ACCESS_TOKEN_MINUTES must be positive")
+        if self.refresh_token_days < 1:
+            problems.append("REFRESH_TOKEN_DAYS must be positive")
+        if self.password_reset_minutes < 1 or self.email_verification_minutes < 1:
+            problems.append("Password reset and email verification lifetimes must be positive")
+        if self.mail_worker_interval_seconds < 1 or self.mail_worker_batch_size < 1 or self.mail_max_attempts < 1:
+            problems.append("Mail worker limits must be positive")
+        if self.max_upload_bytes < 1 or self.max_image_dimension < 1:
+            problems.append("Media upload limits must be positive")
         if not 0 <= self.sentry_traces_sample_rate <= 1:
             problems.append("SENTRY_TRACES_SAMPLE_RATE must be between 0 and 1")
+
+        if self.is_production:
+            if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:
+                problems.append("JWT_SECRET must be a strong production secret")
+            if not self.origins or any(origin.startswith("http://") for origin in self.origins):
+                problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
+            if not self.frontend_app_url.startswith("https://"):
+                problems.append("FRONTEND_APP_URL must use HTTPS in production")
+            if self.storage_backend != "s3":
+                problems.append("Production media storage must use STORAGE_BACKEND=s3")
+            if self.storage_backend == "s3" and not all([self.s3_bucket, self.s3_access_key, self.s3_secret_key]):
+                problems.append("S3 storage requires bucket and credentials")
+            if not self.smtp_host:
+                problems.append("SMTP_HOST is required in production")
+            if not self.redis_url:
+                problems.append("REDIS_URL is required for distributed production rate limiting")
+            if self.auto_publish_listings:
+                problems.append("AUTO_PUBLISH_LISTINGS must be false in production")
+
         if problems:
-            raise RuntimeError("Invalid production configuration: " + "; ".join(problems))
+            raise RuntimeError("Invalid runtime configuration: " + "; ".join(problems))
 
 
 @lru_cache
