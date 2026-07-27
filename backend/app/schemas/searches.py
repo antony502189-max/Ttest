@@ -46,5 +46,7 @@ class SavedSearchResponse(BaseModel):
 
 
 class GuestStateImport(BaseModel):
-    favoriteIds: list[UUID] = Field(default_factory=list, max_length=500)
+    # Older frontend builds stored slug-like listing ids. The service validates
+    # and imports only UUIDs that exist in the current database.
+    favoriteIds: list[str] = Field(default_factory=list, max_length=500)
     savedSearches: list[SavedSearchWrite] = Field(default_factory=list, max_length=100)
