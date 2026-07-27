@@ -17,6 +17,10 @@ type ListingDto = {
   city: string
   area: string
   approximateAddress: string
+  street?: string
+  postcode?: string
+  exactLatitude?: number | null
+  exactLongitude?: number | null
   price: number | null
   cadence: 'mes' | 'noche'
   monthlyPrice: number | null
@@ -55,8 +59,11 @@ type ListingDto = {
   publishedAt: string | null
   expiresAt: string | null
   views: number
-  closedReason: Listing['closedReason']
+  closedReason: Listing['closedReason'] | null
 }
+
+type ListingSearchDto = { items: ListingDto[]; total: number; limit: number; offset: number }
+type DraftPrivateFields = { street?: string; postcode?: string; coordinates?: { lat: number; lng: number } }
 
 const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
@@ -79,6 +86,11 @@ export function toListing(dto: ListingDto): Listing {
     city: dto.city,
     area: dto.area,
     approximateAddress: dto.approximateAddress,
+    ...(dto.street !== undefined ? { street: dto.street } : {}),
+    ...(dto.postcode !== undefined ? { postcode: dto.postcode } : {}),
+    ...(dto.exactLatitude != null && dto.exactLongitude != null
+      ? { exactCoordinates: { lat: dto.exactLatitude, lng: dto.exactLongitude } }
+      : {}),
     price,
     cadence: dto.cadence,
     monthlyPrice: dto.monthlyPrice ?? undefined,
@@ -139,8 +151,29 @@ export function toListing(dto: ListingDto): Listing {
   }
 }
 
-export async function getPublicListings() {
-  return (await api<ListingDto[]>('/listings')).map(toListing)
+async function fetchAllSearch(body: Record<string, unknown>) {
+  const pageSize = 100
+  const items: ListingDto[] = []
+  let offset = 0
+  let total = 0
+  do {
+    const response = await api<ListingSearchDto>('/listings/search', {
+      method: 'POST', body: JSON.stringify({ ...body, limit: pageSize, offset }),
+    })
+    items.push(...response.items)
+    total = response.total
+    if (!response.items.length) break
+    offset += response.items.length
+  } while (items.length < total)
+  return items.map(toListing)
+}
+
+export function getPublicListings() {
+  return fetchAllSearch({ sort: 'newest' })
+}
+
+export async function getOwnedListings() {
+  return (await api<ListingDto[]>('/listings/mine')).map(toListing)
 }
 
 export async function getPublicListing(id: string) {
@@ -190,7 +223,7 @@ function routeSearchState() {
   }
 }
 
-export async function searchPublicListings(input: ListingSearchInput) {
+export function searchPublicListings(input: ListingSearchInput) {
   const route = routeSearchState()
   const { bounds, polygon, filters, ...payload } = input
   const yesNo = (value: string) => value === 'Cualquiera' ? undefined : value === 'Sí'
@@ -202,7 +235,6 @@ export async function searchPublicListings(input: ListingSearchInput) {
     bedroomCounts: input.bedroomCounts ?? route.bedroomCounts,
     center: input.center ?? route.center,
     radiusKm: input.radiusKm ?? route.radiusKm,
-    limit: 100,
     ...(filters.roomType !== 'Cualquiera' ? { roomType: filters.roomType } : {}),
     ...(filters.available ? { availableFrom: filters.available } : {}),
     ...(filters.minStay !== 'Cualquiera' ? { maxMinimumStayMonths: Number(filters.minStay) } : {}),
@@ -233,15 +265,56 @@ export async function searchPublicListings(input: ListingSearchInput) {
     } : {}),
     ...(polygon?.length ? { polygon } : {}),
   }
-  const response = await api<{ items: ListingDto[] }>('/listings/search', {
-    method: 'POST', body: JSON.stringify(body),
-  })
-  return response.items.map(toListing)
+  return fetchAllSearch(body)
 }
 
-function listingPayload(listing: Listing) {
+function readDraftPrivateFields(listingId?: string): DraftPrivateFields | null {
+  for (const key of ['112233:listing-draft:v3', '112233:listing-draft:v2']) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const parsed = JSON.parse(raw) as { listingId?: string; data?: DraftPrivateFields } | DraftPrivateFields
+      const recordListingId = 'listingId' in parsed ? parsed.listingId : undefined
+      if (recordListingId && listingId && recordListingId !== listingId) continue
+      const data = 'data' in parsed && parsed.data ? parsed.data : parsed as DraftPrivateFields
+      return data
+    } catch { /* Ignore corrupted legacy drafts. */ }
+  }
+  return null
+}
+
+function approximateCoordinates(exact: { lat: number; lng: number }, id: string) {
+  let hash = 2166136261
+  for (const character of id) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  const angle = ((hash >>> 0) % 360) * Math.PI / 180
+  const distance = 0.0025 + (((hash >>> 8) & 255) / 255) * 0.0015
   return {
-    title: listing.title, city: listing.city, area: listing.area, approximateAddress: listing.approximateAddress,
+    lat: Math.max(-90, Math.min(90, exact.lat + Math.sin(angle) * distance)),
+    lng: Math.max(-180, Math.min(180, exact.lng + Math.cos(angle) * distance)),
+  }
+}
+
+function listingPayload(listing: Listing, existing?: Listing) {
+  const draft = readDraftPrivateFields(listing.id)
+  const draftCoordinates = draft?.coordinates
+  const currentPublic = existing?.coordinates
+  const draftMatchesCurrentPublic = Boolean(
+    draftCoordinates && currentPublic
+    && Math.abs(draftCoordinates.lat - currentPublic.lat) < 1e-8
+    && Math.abs(draftCoordinates.lng - currentPublic.lng) < 1e-8,
+  )
+  const exact = listing.exactCoordinates
+    ?? (draftMatchesCurrentPublic ? existing?.exactCoordinates : draftCoordinates)
+    ?? existing?.exactCoordinates
+    ?? listing.coordinates
+  const publicPoint = existing && exact === existing.exactCoordinates
+    ? existing.coordinates
+    : approximateCoordinates(exact, listing.id)
+  return {
+    title: listing.title, city: listing.city, area: listing.area,
+    street: draft?.street?.trim() || listing.street || existing?.street || '',
+    postcode: draft?.postcode?.trim() || listing.postcode || existing?.postcode || '',
+    approximateAddress: listing.approximateAddress,
     rentalMode: listing.rentalMode, monthlyPrice: listing.monthlyPrice ?? null, nightlyPrice: listing.nightlyPrice ?? null,
     weeklyPrice: listing.weeklyPrice ?? null, roomType: listing.roomType, availableFrom: listing.availableFrom,
     availableUntil: listing.availableUntil ?? null, minimumStayMonths: listing.minimumStayMonths,
@@ -250,8 +323,9 @@ function listingPayload(listing: Listing) {
     bedroomCount: listing.bedroomCount ?? null, currentResidents: listing.currentResidents, roomCapacity: listing.roomCapacity,
     shower: listing.shower, tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
     petsAllowed: listing.petsAllowed, childrenAllowed: listing.childrenAllowed, empadronamientoAllowed: listing.empadronamientoAllowed,
-    restrictions: listing.restrictions, amenities: listing.amenities, latitude: listing.coordinates.lat,
-    longitude: listing.coordinates.lng, description: listing.description, homeDescription: listing.homeDescription,
+    restrictions: listing.restrictions, amenities: listing.amenities, latitude: publicPoint.lat,
+    longitude: publicPoint.lng, exactLatitude: exact.lat, exactLongitude: exact.lng,
+    description: listing.description, homeDescription: listing.homeDescription,
     advertiserType: listing.advertiserType, source: listing.source ?? null,
     expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null,
   }
@@ -262,7 +336,10 @@ export async function createRemoteListing(listing: Listing) {
 }
 
 export async function updateRemoteListing(id: string, listing: Listing) {
-  return toListing(await api<ListingDto>(`/listings/${id}`, { method: 'PATCH', body: JSON.stringify(listingPayload(listing)) }))
+  const existing = (await getOwnedListings()).find((item) => item.id === id)
+  return toListing(await api<ListingDto>(`/listings/${id}`, {
+    method: 'PATCH', body: JSON.stringify(listingPayload(listing, existing)),
+  }))
 }
 
 export async function setRemoteListingStatus(id: string, status: ListingStatus) {
