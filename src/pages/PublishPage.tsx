@@ -337,12 +337,15 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     setMaxVisited((current) => Math.max(current, value));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const finish = () => {
+  const finish = async () => {
     const listing = toListing(draft, existing, currentUser?.id);
+    const saved = existing
+      ? await updateListing(existing.id, listing)
+      : await createListing(listing);
+    if (!saved) return;
     if (existing) {
-      updateListing(existing.id, listing);
       toast.success("Cambios publicados");
-    } else createListing(listing);
+    }
     localStorage.removeItem(draftKey);
     setBaseline(JSON.stringify(draft));
     setPublished(true);

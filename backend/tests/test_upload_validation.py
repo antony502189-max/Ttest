@@ -27,3 +27,10 @@ def test_invalid_image_is_rejected():
         validate_and_normalize(b"<svg><script>alert(1)</script></svg>")
 
     assert error.value.status_code == 415
+
+
+def test_corrupt_image_stream_is_rejected():
+    with pytest.raises(HTTPException) as error:
+        validate_and_normalize(b"\x89PNG\r\n\x1a\nbroken-image-data")
+
+    assert error.value.status_code == 415

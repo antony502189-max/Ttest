@@ -234,7 +234,7 @@ class ListingSearchResponse(BaseModel):
 
 
 class ListingImagesRequest(BaseModel):
-    assetIds: list[UUID] = Field(min_length=1, max_length=20)
+    assetIds: list[UUID] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def unique_assets(self):

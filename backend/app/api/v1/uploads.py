@@ -39,7 +39,7 @@ def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
             output = BytesIO()
             normalized.save(output, format="WEBP", method=6, quality=88)
             return output.getvalue(), width, height
-    except UnidentifiedImageError:
+    except (UnidentifiedImageError, OSError, ValueError):
         raise HTTPException(415, "Invalid image file")
 
 

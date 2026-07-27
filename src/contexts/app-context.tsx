@@ -7,6 +7,7 @@ import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSav
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
+import { syncListingImages } from '@/api/media'
 import { getRemoteThreads, sendRemoteMessage, type RemoteThread } from '@/api/messages'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { defaultFilters, initialListings } from '@/data/listings'
@@ -57,8 +58,8 @@ interface AppState {
   setMapPolygon: (points: MapPolygonPoint[]) => void
   clearMapPolygon: () => void
   allListings: Listing[]
-  createListing: (listing: Listing) => void
-  updateListing: (id: string, listing: Listing) => void
+  createListing: (listing: Listing) => Promise<boolean>
+  updateListing: (id: string, listing: Listing) => Promise<boolean>
   deleteListing: (id: string) => void
   setListingStatus: (id: string, status: ListingStatus) => void
   renewListing: (id: string) => void
@@ -403,17 +404,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clearMapPolygon = useCallback(() => setMapPolygonState([]), [])
 
   const canManageListing = useCallback((listing: Listing) => Boolean(currentUser && (currentUser.role === 'admin' || (currentUser.role === 'host' && listing.ownerUserId === currentUser.id))), [currentUser])
-  const createListing = useCallback((listing: Listing) => {
-    if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return }
+  const createListing = useCallback(async (listing: Listing) => {
+    if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return false }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
     setAllListings((current) => [optimistic, ...current])
-    void createRemoteListing(optimistic).then((remote) => {
-      setAllListings((current) => current.map((item) => item.id === optimistic.id ? { ...remote, userCreated: true } : item))
+    try {
+      const remote = await createRemoteListing(optimistic)
+      let stored = { ...remote, userCreated: true }
+      try {
+        const images = await syncListingImages(remote.id, optimistic.images)
+        stored = { ...stored, images }
+        await removeUnusedMediaReferences(optimistic.images, images)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'El anuncio se guardó, pero no se pudieron subir las imágenes.')
+      }
+      setAllListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
       toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
-    }).catch(() => {
+      return true
+    } catch {
       setAllListings((current) => current.filter((item) => item.id !== optimistic.id))
       toast.error('No se pudo publicar el anuncio en el servidor.')
-    })
+      return false
+    }
   }, [currentUser])
   const mutateOwned = useCallback((id: string, mutate: (listing: Listing) => Listing | null) => setAllListings((current) => current.flatMap((listing) => {
     if (listing.id !== id) return [listing]
@@ -421,25 +433,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const next = mutate(listing)
     return next ? [next] : []
   })), [canManageListing])
-  const updateListing = useCallback((id: string, listing: Listing) => {
+  const updateListing = useCallback(async (id: string, listing: Listing) => {
     const previous = allListings.find((item) => item.id === id)
     if (!previous || !canManageListing(previous)) {
       if (previous) toast.error('No puedes gestionar un anuncio de otra cuenta.')
-      return
+      return false
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId }
     setAllListings((current) => current.map((item) => item.id === id ? next : item))
-    void updateRemoteListing(id, next).then((remote) => {
-      setAllListings((current) => current.map((item) => item.id === id ? { ...remote, userCreated: true } : item))
-    }).catch(() => {
+    try {
+      const remote = await updateRemoteListing(id, next)
+      let stored = { ...remote, userCreated: true }
+      try {
+        const images = await syncListingImages(id, next.images)
+        stored = { ...stored, images }
+        await removeUnusedMediaReferences(next.images, images)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'No se pudieron actualizar las imágenes del anuncio.')
+      }
+      setAllListings((current) => current.map((item) => item.id === id ? stored : item))
+      return true
+    } catch {
       setAllListings((current) => current.map((item) => item.id === id ? previous : item))
       toast.error('No se pudieron guardar los cambios del anuncio.')
-    })
-    const used = usedMediaReferences(allListings.map((item) => item.id === id ? next : item), users)
-    void removeUnusedMediaReferences(previous.images.filter((image) => !next.images.includes(image)), used).catch((error) =>
-      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
-    )
-  }, [allListings, canManageListing, users])
+      return false
+    }
+  }, [allListings, canManageListing])
   const deleteListing = useCallback((id: string) => {
     const listing = allListings.find((item) => item.id === id)
     if (!listing) return

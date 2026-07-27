@@ -17,7 +17,7 @@ from geoalchemy2.functions import (
     ST_Within,
 )
 from sqlalchemy import Select, cast, delete, func, select, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
@@ -43,21 +43,23 @@ def point(longitude: float, latitude: float):
     return ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
 
 
-def cover_asset_subquery():
+def image_asset_ids_subquery():
     return (
-        select(MediaAsset.id)
+        select(func.array_agg(aggregate_order_by(MediaAsset.id, ListingImage.is_cover.desc(), ListingImage.sort_order)))
         .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
         .where(ListingImage.listing_id == Listing.id, MediaAsset.deleted_at.is_(None))
-        .order_by(ListingImage.is_cover.desc(), ListingImage.sort_order)
-        .limit(1)
+        .correlate(Listing)
         .scalar_subquery()
     )
 
 
 def response_from(row) -> ListingResponse:
-    listing, geojson, owner, cover_asset_id = row
+    listing, geojson, owner, asset_ids = row
     coordinates = json.loads(geojson)["coordinates"]
     price = listing.monthly_price if listing.rental_mode == "long" else listing.nightly_price
+    image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
+    if not image_urls:
+        image_urls = listing.external_image_urls
     return ListingResponse(
         id=str(listing.id), ownerUserId=str(listing.owner_user_id),
         owner=ListingOwnerResponse(
@@ -73,8 +75,8 @@ def response_from(row) -> ListingResponse:
         showPhone=owner.show_phone,
         showWhatsApp=owner.show_whatsapp,
         allowContactForm=owner.allow_contact_form,
-        coverImageUrl=f"/api/v1/media/{cover_asset_id}" if cover_asset_id else (listing.external_image_urls[0] if listing.external_image_urls else None),
-        imageUrls=[f"/api/v1/media/{cover_asset_id}"] if cover_asset_id else listing.external_image_urls,
+        coverImageUrl=image_urls[0] if image_urls else None,
+        imageUrls=image_urls,
         title=listing.title,
         city=listing.city, area=listing.area, approximateAddress=listing.approximate_address,
         rentalMode=listing.rental_mode, monthlyPrice=listing.monthly_price, nightlyPrice=listing.nightly_price, weeklyPrice=listing.weekly_price,
@@ -95,8 +97,8 @@ def response_from(row) -> ListingResponse:
 
 
 def owned_response_from(row) -> OwnedListingResponse:
-    listing, public_geojson, owner, cover_asset_id, exact_geojson = row
-    public = response_from((listing, public_geojson, owner, cover_asset_id)).model_dump()
+    listing, public_geojson, owner, asset_ids, exact_geojson = row
+    public = response_from((listing, public_geojson, owner, asset_ids)).model_dump()
     exact_coordinates = json.loads(exact_geojson)["coordinates"] if exact_geojson else None
     return OwnedListingResponse(
         **public,
@@ -108,7 +110,7 @@ def owned_response_from(row) -> OwnedListingResponse:
 
 
 def visible_query() -> Select:
-    return select(Listing, ST_AsGeoJSON(Listing.location), User, cover_asset_subquery()).join(
+    return select(Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery()).join(
         User, User.id == Listing.owner_user_id
     ).where(
         Listing.status == "published",
@@ -136,7 +138,7 @@ async def register_view(listing: Listing, viewer_key: str, session: AsyncSession
 
 def owned_query() -> Select:
     return select(
-        Listing, ST_AsGeoJSON(Listing.location), User, cover_asset_subquery(), ST_AsGeoJSON(Listing.exact_location)
+        Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery(), ST_AsGeoJSON(Listing.exact_location)
     ).join(User, User.id == Listing.owner_user_id)
 
 
