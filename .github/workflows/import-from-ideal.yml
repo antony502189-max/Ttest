@@ -1,0 +1,70 @@
+name: Import current ideal main
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  import:
+    if: github.event_name == 'workflow_dispatch' || github.event.issue.title == 'RUN_IMPORT_FROM_IDEAL'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Ttest
+        uses: actions/checkout@v4
+        with:
+          path: target
+          fetch-depth: 0
+
+      - name: Checkout current ideal main
+        uses: actions/checkout@v4
+        with:
+          repository: antonnhamezaa-tech/ideal
+          ref: main
+          path: source
+          fetch-depth: 1
+
+      - name: Mirror project into Ttest
+        shell: bash
+        run: |
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/' \
+            source/ target/
+
+          while IFS= read -r -d '' file; do
+            sed -i 's#https://antonnhamezaa-tech\.github\.io/ideal/#https://antony502189-max.github.io/Ttest/#g' "$file"
+            sed -i 's#https://antonnhamezaa-tech\.github\.io/ideal#https://antony502189-max.github.io/Ttest#g' "$file"
+            sed -i 's#/ideal/#/Ttest/#g' "$file"
+          done < <(grep -RIlZ --exclude-dir=.git --exclude-dir=.github -e 'antonnhamezaa-tech.github.io/ideal' -e '/ideal/' target || true)
+
+      - name: Commit imported project
+        working-directory: target
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to import.'
+          else
+            git commit -m 'Import latest project updates from ideal'
+            git push origin HEAD:main
+          fi
+
+      - name: Report result
+        if: always() && github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `IMPORT_FROM_IDEAL_RESULT: ${{ job.status }}\nRun: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            })
