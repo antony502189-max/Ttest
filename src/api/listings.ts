@@ -143,6 +143,10 @@ export async function getPublicListings() {
   return (await api<ListingDto[]>('/listings')).map(toListing)
 }
 
+export async function getPublicListing(id: string) {
+  return toListing(await api<ListingDto>(`/listings/${id}`))
+}
+
 export type ListingSearchInput = {
   rentalMode: Listing['rentalMode']
   minPrice: number

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, Bath, BedDouble, CalendarDays, Check, CircleAlert, CookingPot, Heart, Home, MapPin, MessageSquareText, MoreHorizontal, Pencil, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -9,8 +9,10 @@ import { Separator } from '@/components/ui/separator'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ContactPanel, MapView, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
+import { getPublicListing } from '@/api/listings'
 import { formatPublishedAt } from '@/lib/search'
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicListing } from '@/lib/listings'
+import type { Listing } from '@/types'
 
 const preferenceTitle = (value?: string) => value === 'Solo hombre' ? 'Este anuncio busca a un hombre' : value === 'Solo mujer' ? 'Este anuncio busca a una mujer' : value
 
@@ -22,7 +24,24 @@ export function ListingPage() {
   const [commentEditorOpen, setCommentEditorOpen] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
-  const listing = allListings.find((item) => item.id === id && isPublicListing(item))
+  const [serverListing, setServerListing] = useState<Listing | null>(null)
+  const [detailLoading, setDetailLoading] = useState(true)
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    setDetailLoading(true)
+    setServerListing(null)
+    void getPublicListing(id).then((listing) => {
+      if (!cancelled) setServerListing(listing)
+    }).catch(() => {
+      if (!cancelled) setServerListing(null)
+    }).finally(() => {
+      if (!cancelled) setDetailLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [id])
+  const listing = serverListing ?? allListings.find((item) => item.id === id && isPublicListing(item))
+  if (!listing && detailLoading) return null
   if (!listing) return <Navigate to="/buscar" replace />
   const criticalRestrictions = getCriticalRestrictions(listing)
   const primaryRestriction = criticalRestrictions[0]
