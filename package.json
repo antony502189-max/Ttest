@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test tests/a11y.spec.ts",
-    "test:visual": "playwright test tests/visual-parity.spec.ts tests/true-target-parity.spec.ts && python scripts/build-true-target-parity.py"
+    "test:visual": "playwright test tests/visual-parity.spec.ts tests/true-target-parity.spec.ts && python scripts/build-true-target-parity.py",
+    "test:fullstack": "playwright test --config playwright.fullstack.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
