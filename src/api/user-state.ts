@@ -24,3 +24,5 @@ export const createSavedSearch = (body: Omit<RemoteSavedSearch, 'id' | 'createdA
 export const updateSavedSearch = (id: string, body: Partial<Omit<RemoteSavedSearch, 'id' | 'createdAt' | 'rentalMode'>>) =>
   api<RemoteSavedSearch>(`/saved-searches/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
 export const deleteSavedSearch = (id: string) => api<void>(`/saved-searches/${id}`, { method: 'DELETE' })
+export const importGuestState = (body: { favoriteIds: string[]; savedSearches: Array<Omit<RemoteSavedSearch, 'id' | 'createdAt'>> }) =>
+  api<void>('/account/import-guest-state', { method: 'POST', body: JSON.stringify(body) })

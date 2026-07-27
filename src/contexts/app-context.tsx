@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { toast } from 'sonner'
 import { hydrateSession, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
 import { ApiError } from '@/api/client'
-import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, removeFavorite, updateSavedSearch } from '@/api/user-state'
+import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
@@ -249,7 +249,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!currentUserId) return
-    void Promise.all([getFavorites(), getDiscarded(), getSavedSearches()]).then(([remoteFavorites, remoteDiscarded, remoteSearches]) => {
+    const guestFavorites = (favoriteScopes.guest ?? []).filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+    const guestSavedSearches = (savedSearchScopes.guest ?? []).map((search) => ({
+      name: search.query,
+      query: search.query,
+      rentalMode: search.rentalMode,
+      filters: search.filters as unknown as Record<string, unknown>,
+      polygon: search.polygon,
+      alertsEnabled: search.alerts,
+    }))
+    void importGuestState({ favoriteIds: guestFavorites, savedSearches: guestSavedSearches }).then(() =>
+      Promise.all([getFavorites(), getDiscarded(), getSavedSearches()]),
+    ).then(([remoteFavorites, remoteDiscarded, remoteSearches]) => {
       setFavoriteScopes((current) => ({ ...current, [currentUserId]: remoteFavorites }))
       setDiscardedScopes((current) => ({ ...current, [currentUserId]: remoteDiscarded }))
       setSavedSearchScopes((current) => ({
@@ -265,7 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })),
       }))
     }).catch(() => toast.error('No se pudieron sincronizar los datos de tu cuenta.'))
-  }, [currentUserId])
+  }, [currentUserId, favoriteScopes.guest, savedSearchScopes.guest])
 
   const updateScope = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<UserScopedState<T>>>, update: (current: T | undefined) => T) => {
     setter((current) => ({ ...current, [scopeKey]: update(current[scopeKey]) }))

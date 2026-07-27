@@ -6,7 +6,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
-from ...models import DiscardedListing, Favorite, Listing, User
+from ...models import DiscardedListing, Favorite, Listing, SavedSearch, User
+from ...schemas.searches import GuestStateImport
 from ..dependencies import current_user
 
 router = APIRouter(tags=["favorites"])
@@ -40,6 +41,40 @@ async def add_favorite(listing_id: UUID, user: User = Depends(current_user), ses
 @router.delete("/favorites/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_favorite(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     await session.execute(delete(Favorite).where(Favorite.user_id == user.id, Favorite.listing_id == listing_id))
+    await session.commit()
+
+
+@router.post("/account/import-guest-state", status_code=status.HTTP_204_NO_CONTENT)
+async def import_guest_state(
+    payload: GuestStateImport, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    valid_listing_ids = set(
+        (await session.scalars(select(Listing.id).where(Listing.id.in_(payload.favoriteIds)))).all()
+    )
+    for listing_id in valid_listing_ids:
+        await session.execute(
+            insert(Favorite).values(user_id=user.id, listing_id=listing_id).on_conflict_do_nothing(
+                constraint="uq_favorites_user_listing"
+            )
+        )
+    for item in payload.savedSearches:
+        polygon = [point.model_dump() for point in item.polygon]
+        duplicate = await session.scalar(
+            select(SavedSearch.id).where(
+                SavedSearch.user_id == user.id,
+                SavedSearch.query == item.query.strip(),
+                SavedSearch.rental_mode == item.rentalMode,
+                SavedSearch.filters == item.filters,
+                SavedSearch.polygon == polygon,
+            )
+        )
+        if not duplicate:
+            session.add(
+                SavedSearch(
+                    user_id=user.id, name=item.name.strip(), query=item.query.strip(), rental_mode=item.rentalMode,
+                    filters=item.filters, polygon=polygon, alerts_enabled=item.alertsEnabled,
+                )
+            )
     await session.commit()
 
 

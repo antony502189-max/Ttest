@@ -43,3 +43,8 @@ class SavedSearchResponse(BaseModel):
     alertsEnabled: bool
     createdAt: datetime
     updatedAt: datetime | None
+
+
+class GuestStateImport(BaseModel):
+    favoriteIds: list[UUID] = Field(default_factory=list, max_length=500)
+    savedSearches: list[SavedSearchWrite] = Field(default_factory=list, max_length=100)
