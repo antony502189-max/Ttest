@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -11,11 +12,48 @@ from ..core.config import get_settings
 from ..models import Listing, ListingImage, ListingStatusHistory, MediaAsset, User
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import ListingImageResponse, ListingImagesRequest, ListingPatch, ListingWrite, OwnedListingResponse
+from ..storage import get_storage
 
 
 def ensure_owner_or_admin(listing: Listing, user: User) -> None:
     if listing.owner_user_id != user.id and user.role != "admin":
         raise HTTPException(403, "Forbidden")
+
+
+async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> list[str]:
+    if not candidate_ids:
+        return []
+    attached = set(
+        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(candidate_ids)))).all()
+    )
+    avatars = set(
+        value
+        for value in (await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))).all()
+        if value is not None
+    )
+    orphan_ids = candidate_ids - attached - avatars
+    if not orphan_ids:
+        return []
+    assets = list(
+        (
+            await session.scalars(
+                select(MediaAsset).where(MediaAsset.id.in_(orphan_ids), MediaAsset.deleted_at.is_(None))
+            )
+        ).all()
+    )
+    now = datetime.now(UTC)
+    for asset in assets:
+        asset.deleted_at = now
+    return [asset.storage_key for asset in assets]
+
+
+async def delete_storage_keys(storage_keys: list[str]) -> None:
+    if not storage_keys:
+        return
+    await asyncio.gather(
+        *(asyncio.to_thread(get_storage().delete, storage_key) for storage_key in storage_keys),
+        return_exceptions=True,
+    )
 
 
 def apply_write(listing: Listing, payload: ListingWrite) -> None:
@@ -204,6 +242,13 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
+    attached_ids = set(
+        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
+    )
+    await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
+    await session.flush()
+    storage_keys = await mark_orphaned_media(session, attached_ids)
+
     previous_status = listing.status
     listing.deleted_at = datetime.now(UTC)
     listing.status = "closed"
@@ -217,6 +262,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
         )
     )
     await session.commit()
+    await delete_storage_keys(storage_keys)
 
 
 async def replace_listing_images(
@@ -242,6 +288,10 @@ async def replace_listing_images(
         asset.owner_id != user.id for asset in assets if user.role != "admin"
     ):
         raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
+
+    previous_ids = set(
+        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
+    )
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     for sort_order, asset_id in enumerate(payload.assetIds):
         session.add(
@@ -252,7 +302,10 @@ async def replace_listing_images(
                 is_cover=sort_order == 0,
             )
         )
+    await session.flush()
+    storage_keys = await mark_orphaned_media(session, previous_ids - set(payload.assetIds))
     await session.commit()
+    await delete_storage_keys(storage_keys)
     return [
         ListingImageResponse(
             assetId=asset_id,
