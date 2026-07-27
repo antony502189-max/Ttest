@@ -92,7 +92,7 @@ bash scripts/final-audit-local.sh
 1. поднимает PostGIS, Redis, MinIO и Mailpit;
 2. создаёт отдельную `ttest_test`;
 3. применяет Alembic с пустой базы;
-4. запускает Ruff, format check, Mypy и pytest;
+4. запускает Ruff, Mypy и pytest;
 5. проверяет PostgreSQL/PostGIS и MinIO integration tests;
 6. запускает API, mail worker и seed;
 7. выполняет frontend lint, typecheck и production build;
@@ -114,7 +114,6 @@ npm run test:fullstack
 
 cd backend
 ruff check app tests
-ruff format --check app tests
 mypy app
 pytest -q
 ```
@@ -156,6 +155,7 @@ Backend специально отказывается запускаться в 
 - [Deployment](docs/deployment.md)
 - [Design freeze](docs/frontend-freeze-report.md)
 - [Тестирование](docs/test-report.md)
+- [Финальный аудит](docs/final-audit.md)
 
 ## Stack
 
