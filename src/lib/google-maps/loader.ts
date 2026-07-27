@@ -40,7 +40,6 @@ export function loadGoogleMaps(): Promise<GoogleMapsLibraries> {
         v: 'weekly',
         language: 'es',
         region: 'ES',
-        authReferrerPolicy: 'origin',
         ...(configuredMapId ? { mapIds: [configuredMapId] } : {}),
       })
       optionsSet = true

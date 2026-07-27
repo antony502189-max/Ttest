@@ -18,7 +18,7 @@ const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ defau
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
 const ListingPage = lazy(() => import('@/pages/ListingPage').then((module) => ({ default: module.ListingPage })))
 const RegisterPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.RegisterPage })))
-const LoginPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.LoginPage })))
+const LoginPage = lazy(() => import('@/pages/UnifiedAuthPage').then((module) => ({ default: module.UnifiedAuthPage })))
 const RecoverPasswordPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.RecoverPasswordPage })))
 const ResetPasswordPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.ResetPasswordPage })))
 const FavoritesPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.FavoritesPage })))

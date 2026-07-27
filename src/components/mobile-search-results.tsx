@@ -19,6 +19,7 @@ import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
+import { getBedroomCount } from '@/lib/listings'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersFromParams, filtersToParams } from '@/lib/search'
 import type { Listing, RentalMode } from '@/types'
@@ -27,6 +28,9 @@ import '@/mobile-search-results.css'
 
 type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
+type ExactRoomCount = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+type RoomCountFilter = ExactRoomCount | '10+'
+const roomCountOptions: readonly RoomCountFilter[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, '10+']
 type ResultsOrder = 'relevance' | 'cheap' | 'expensive' | 'saved-new' | 'saved-old' | 'reduced' | 'sqm-cheap' | 'sqm-expensive' | 'area-large' | 'area-small' | 'floor-high' | 'floor-low'
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 type ResultsFilters = {
@@ -36,7 +40,7 @@ type ResultsFilters = {
   minArea: number
   maxArea: number
   roomTypes: Listing['roomType'][]
-  roomCounts: number[]
+  roomCounts: RoomCountFilter[]
 }
 
 const createDefaultFilters = (rentalMode: RentalMode | null = null): ResultsFilters => ({
@@ -55,21 +59,21 @@ const resultsCopy = {
   es: {
     header: (count: number) => `${count} viviendas en Tenerife`, zone: 'Tu zona seleccionada', filters: 'Filtros', order: 'Orden', map: 'Mapa', showing: (count: number, total: number) => `Viendo ${count} de ${total} viviendas`, top: 'Destacado',
     contact: 'Contactar', call: 'Llamar', favorite: 'Guardar en favoritos', unfavorite: 'Quitar de favoritos', discard: 'Ocultar anuncio', photo: 'Siguiente foto', back: 'Volver', close: 'Cerrar', clear: 'Limpiar', empty: 'No hay anuncios que coincidan con estos filtros.',
-    vivienda: 'Vivienda', turismo: 'Turismo', price: 'Precio', area: 'Superficie', min: 'Mín', max: 'Máx', housingType: 'Tipo de vivienda', rooms: 'Número de habitaciones', oneRoom: '1 habitación', twoRooms: '2 habitaciones',
+    vivienda: 'Vivienda', turismo: 'Turismo', price: 'Precio', area: 'Superficie', min: 'Mín', max: 'Máx', housingType: 'Tipo de vivienda', rooms: 'Número de habitaciones', roomCount: (count: number) => `${count} ${count === 1 ? 'habitación' : 'habitaciones'}`, moreThanTenRooms: 'Más de 10 habitaciones',
     individual: 'Habitaciones individuales', shared: 'Habitaciones compartidas', studio: 'Estudios', showListings: 'Ver anuncios', residents: 'residentes',
     relevance: 'Relevancia', cheap: 'Más baratos', expensive: 'Más caros', savedNew: 'Guardados recientemente', savedOld: 'Guardados anteriormente', reduced: 'Precio rebajado', sqmCheap: 'Menor precio por m²', sqmExpensive: 'Mayor precio por m²', areaLarge: 'Mayor superficie', areaSmall: 'Menor superficie', floorHigh: 'Plantas altas', floorLow: 'Plantas bajas',
   },
   en: {
     header: (count: number) => `${count} properties in Tenerife`, zone: 'Your selected area', filters: 'Filters', order: 'Order', map: 'Map', showing: (count: number, total: number) => `Viewing ${count} of ${total} properties`, top: 'Featured',
     contact: 'Contact', call: 'Call', favorite: 'Add to favorites', unfavorite: 'Remove from favorites', discard: 'Hide listing', photo: 'Next photo', back: 'Back', close: 'Close', clear: 'Clear', empty: 'No listings match these filters.',
-    vivienda: 'Housing', turismo: 'Tourism', price: 'Price', area: 'Area', min: 'Min', max: 'Max', housingType: 'Property category', rooms: 'Number of rooms', oneRoom: '1 room', twoRooms: '2 rooms',
+    vivienda: 'Housing', turismo: 'Tourism', price: 'Price', area: 'Area', min: 'Min', max: 'Max', housingType: 'Property category', rooms: 'Number of rooms', roomCount: (count: number) => `${count} ${count === 1 ? 'room' : 'rooms'}`, moreThanTenRooms: 'More than 10 rooms',
     individual: 'Individual rooms', shared: 'Shared rooms', studio: 'Studios', showListings: 'View listings', residents: 'residents',
     relevance: 'Relevance', cheap: 'Cheapest', expensive: 'Most expensive', savedNew: 'Saved recently', savedOld: 'Saved earlier', reduced: 'Reduced price', sqmCheap: 'Lowest price per m²', sqmExpensive: 'Highest price per m²', areaLarge: 'Largest area', areaSmall: 'Smallest area', floorHigh: 'Upper floors', floorLow: 'Lower floors',
   },
   ru: {
     header: (count: number) => `${count} объявлений на Тенерифе`, zone: 'Ваша выделенная зона', filters: 'Фильтры', order: 'Порядок', map: 'Карта', showing: (count: number, total: number) => `Просмотр ${count} из ${total} объявлений`, top: 'Топ',
     contact: 'Связаться', call: 'Позвонить', favorite: 'Добавить в избранное', unfavorite: 'Убрать из избранного', discard: 'Скрыть объявление', photo: 'Следующая фотография', back: 'Назад', close: 'Закрыть', clear: 'Сбросить', empty: 'Нет объявлений, подходящих под выбранные фильтры.',
-    vivienda: 'Жильё', turismo: 'Туризм', price: 'Цена', area: 'Площадь', min: 'Мин', max: 'Макс', housingType: 'Тип жилья', rooms: 'Количество комнат', oneRoom: '1 комната', twoRooms: '2 комнаты',
+    vivienda: 'Жильё', turismo: 'Туризм', price: 'Цена', area: 'Площадь', min: 'Мин', max: 'Макс', housingType: 'Тип жилья', rooms: 'Количество комнат', roomCount: (count: number) => `${count} ${count === 1 ? 'комната' : count >= 2 && count <= 4 ? 'комнаты' : 'комнат'}`, moreThanTenRooms: 'Больше 10 комнат',
     individual: 'Отдельные комнаты', shared: 'Общие комнаты', studio: 'Студии', showListings: 'Перейти к объявлениям', residents: 'жильцов',
     relevance: 'Релевантность', cheap: 'Дешевые', expensive: 'Дорогие', savedNew: 'Сохраненные недавно', savedOld: 'Сохраненные раньше', reduced: 'Со сниженной ценой', sqmCheap: 'Дешевые евро/м²', sqmExpensive: 'Дорогие евро/м²', areaLarge: 'С большей площадью', areaSmall: 'С меньшей площадью', floorHigh: 'Верхние этажи', floorLow: 'Нижние этажи',
   },
@@ -93,6 +97,12 @@ function capacityLabel(language: ResultsLanguage, count: number) {
   if (language === 'ru') return `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`
   if (language === 'en') return `Room for ${count} ${count === 1 ? 'person' : 'people'}`
   return `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`
+}
+
+function bedroomFact(language: ResultsLanguage, count: number) {
+  if (language === 'ru') return `${count} ${count === 1 ? 'комната' : count >= 2 && count <= 4 ? 'комнаты' : 'комнат'}`
+  if (language === 'en') return `${count} ${count === 1 ? 'room' : 'rooms'}`
+  return `${count} ${count === 1 ? 'habitación' : 'habitaciones'}`
 }
 
 function toggleValue<T>(values: T[], value: T) {
@@ -121,7 +131,7 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
   return <article className="m2-result-card" data-listing-id={listing.id}>
     <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button>{index < 2 ? <span className="m2-result-card__top">{t.top}</span> : null}<span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
-    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {listing.roomSizeM2} m² · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
+    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2} m² · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
   </article>
@@ -154,7 +164,11 @@ export function MobileSearchResults() {
     const routeMode: RentalMode = params.get('alquiler') === 'holiday' ? 'holiday' : 'long'
     const parsed = filtersFromParams(params)
     const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
-    const roomCounts = (params.get('capacidades') ?? '').split('|').map(Number).filter((value): value is 1 | 2 => value === 1 || value === 2)
+    const roomCounts = (params.get('habitaciones') ?? '').split('|').map((value): RoomCountFilter | null => {
+      if (value === '10+') return value
+      const count = Number(value)
+      return Number.isInteger(count) && count >= 1 && count <= 10 ? count as ExactRoomCount : null
+    }).filter((value): value is RoomCountFilter => value !== null)
     setFilters({ rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts })
     setRentalMode(routeMode)
     setAppFilters(parsed)
@@ -208,8 +222,9 @@ export function MobileSearchResults() {
     const params = new URLSearchParams(location.search)
     if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
-    if (filters.roomCounts.length) params.set('capacidades', filters.roomCounts.join('|'))
-    else params.delete('capacidades')
+    params.delete('capacidades')
+    if (filters.roomCounts.length) params.set('habitaciones', filters.roomCounts.join('|'))
+    else params.delete('habitaciones')
     const canonicalFilters = {
       ...appFilters,
       minPrice: Math.min(filters.minPrice, filters.maxPrice),
@@ -280,8 +295,9 @@ export function MobileSearchResults() {
     params.delete('panel')
     if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
-    if (filters.roomCounts.length) params.set('capacidades', filters.roomCounts.join('|'))
-    else params.delete('capacidades')
+    params.delete('capacidades')
+    if (filters.roomCounts.length) params.set('habitaciones', filters.roomCounts.join('|'))
+    else params.delete('habitaciones')
     navigate(`/buscar?${params.toString()}`, { replace: true })
     setPanel('results')
   }
@@ -315,7 +331,7 @@ export function MobileSearchResults() {
       <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(filters.rentalMode === 'long' && 'is-active')} aria-pressed={filters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(filters.rentalMode === 'holiday' && 'is-active')} aria-pressed={filters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>
       <fieldset><legend>{t.price}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.price} ${t.min}`} type="number" min="0" step="25" value={filters.minPrice} onChange={(event) => setFilters((current) => ({ ...current, minPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.price} ${t.max}`} type="number" min="0" step="25" value={filters.maxPrice} onChange={(event) => setFilters((current) => ({ ...current, maxPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
       <fieldset><legend>{t.area}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.area} ${t.min}`} type="number" min="0" value={filters.minArea} onChange={(event) => setFilters((current) => ({ ...current, minArea: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.area} ${t.max}`} type="number" min="0" value={filters.maxArea} onChange={(event) => setFilters((current) => ({ ...current, maxArea: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
-      <fieldset><legend>{t.rooms}</legend><div className="m2-results-filter__checks">{[[1, t.oneRoom], [2, t.twoRooms]].map(([value, label]) => <label key={String(value)}><input type="checkbox" checked={filters.roomCounts.includes(value as number)} onChange={() => setFilters((current) => ({ ...current, roomCounts: toggleValue(current.roomCounts, value as number) }))} /><span>{label}</span></label>)}</div></fieldset>
+      <fieldset><legend>{t.rooms}</legend><div className="m2-results-filter__checks m2-results-filter__checks--rooms">{roomCountOptions.map((value) => { const label = value === '10+' ? t.moreThanTenRooms : t.roomCount(value); return <label key={String(value)}><input type="checkbox" checked={filters.roomCounts.includes(value)} onChange={() => setFilters((current) => ({ ...current, roomCounts: toggleValue(current.roomCounts, value) }))} /><span>{label}</span></label> })}</div></fieldset>
       <fieldset><legend>{t.housingType}</legend><div className="m2-results-filter__checks">{([['Habitación individual', t.individual], ['Habitación compartida', t.shared], ['Estudio', t.studio]] as const).map(([value, label]) => <label key={value}><input type="checkbox" checked={filters.roomTypes.includes(value)} onChange={() => setFilters((current) => ({ ...current, roomTypes: toggleValue(current.roomTypes, value) }))} /><span>{label}</span></label>)}</div></fieldset>
     </div><footer><button type="button" onClick={applyFilters}>{t.showListings} · {listings.length}</button></footer></section> : null}
   </section>, document.body)

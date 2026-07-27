@@ -47,6 +47,7 @@ export interface Listing {
   kitchen: 'Cocina privada' | 'Cocina compartida'
   furnished: boolean
   roomSizeM2: number
+  bedroomCount?: number
   currentResidents: number
   roomCapacity: 1 | 2
   shower: ShowerType
@@ -141,6 +142,7 @@ export interface ListingDraft {
   locationManuallyMoved: boolean
   roomType: Listing['roomType']
   roomSizeM2: number
+  bedroomCount: number
   currentResidents: number
   roomCapacity: 1 | 2
   bathroom: Listing['bathroom']

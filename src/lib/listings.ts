@@ -19,6 +19,13 @@ export function getPrimaryCadence(listing: Listing): 'mes' | 'noche' {
   return listing.rentalMode === 'holiday' ? 'noche' : 'mes'
 }
 
+export function getBedroomCount(listing: Listing) {
+  const explicit = Number(listing.bedroomCount)
+  if (Number.isFinite(explicit) && explicit >= 1) return Math.min(99, Math.max(1, Math.round(explicit)))
+  if (listing.roomType === 'Estudio') return 1
+  return Math.min(99, Math.max(1, Math.round((listing.currentResidents || 1) + 1)))
+}
+
 export function getCriticalRestrictions(listing: Listing): string[] {
   const restrictions = [
     tenantRequirementLabels[listing.tenantRequirement],
@@ -130,6 +137,9 @@ export function normalizeListing(value: unknown): Listing | null {
     kitchen: legacy.kitchen ?? 'Cocina compartida',
     furnished: legacy.furnished ?? true,
     roomSizeM2: typeof legacy.roomSizeM2 === 'number' ? legacy.roomSizeM2 : typeof legacy.size === 'number' ? legacy.size : 12,
+    bedroomCount: typeof legacy.bedroomCount === 'number' && Number.isFinite(legacy.bedroomCount)
+      ? Math.min(99, Math.max(1, Math.round(legacy.bedroomCount)))
+      : legacy.roomType === 'Estudio' ? 1 : Math.min(99, Math.max(1, Math.round((legacy.currentResidents ?? legacy.occupants ?? 1) + 1))),
     currentResidents: typeof legacy.currentResidents === 'number' ? legacy.currentResidents : typeof legacy.occupants === 'number' ? legacy.occupants : 1,
     roomCapacity,
     shower: legacy.shower === 'Ducha privada' ? 'Ducha privada' : 'Ducha compartida',

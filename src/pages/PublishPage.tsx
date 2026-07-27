@@ -79,6 +79,7 @@ const toDraft = (listing: Listing): ListingDraft => ({
   locationManuallyMoved: true,
   roomType: listing.roomType,
   roomSizeM2: listing.roomSizeM2,
+  bedroomCount: listing.bedroomCount ?? (listing.roomType === 'Estudio' ? 1 : Math.max(1, listing.currentResidents + 1)),
   currentResidents: listing.currentResidents,
   roomCapacity: listing.roomCapacity,
   bathroom: listing.bathroom,
@@ -163,6 +164,7 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     kitchen: draft.kitchen,
     furnished: draft.furnished,
     roomSizeM2: draft.roomSizeM2,
+    bedroomCount: Math.min(99, Math.max(1, Math.round(draft.bedroomCount))),
     currentResidents: draft.currentResidents,
     roomCapacity: draft.roomCapacity,
     shower: draft.shower,
@@ -295,6 +297,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     const next: Record<string, string> = {};
     if (step === 1 && !draft.area.trim())
       next.area = "Indica la zona o barrio.";
+    if (step === 2 && (draft.bedroomCount < 1 || draft.bedroomCount > 99))
+      next.bedroomCount = "Indica entre 1 y 99 habitaciones.";
     if (step === 2 && draft.currentResidents < 0)
       next.currentResidents = "El número de residentes no puede ser negativo.";
     if (step === 3 && getPrimaryPrice(preview) < 1)
@@ -553,6 +557,22 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                   min="1"
                   value={draft.roomSizeM2}
                   onChange={(e) => set("roomSizeM2", Number(e.target.value))}
+                />
+              </FormField>
+              <FormField
+                label="Número de habitaciones de la vivienda"
+                htmlFor="publish-bedrooms"
+                error={errors.bedroomCount}
+              >
+                <Input
+                  id="publish-bedrooms"
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={draft.bedroomCount}
+                  aria-invalid={Boolean(errors.bedroomCount)}
+                  aria-describedby={errors.bedroomCount ? "publish-bedrooms-error" : undefined}
+                  onChange={(e) => set("bedroomCount", Math.min(99, Math.max(1, Number(e.target.value) || 1)))}
                 />
               </FormField>
               <FormField

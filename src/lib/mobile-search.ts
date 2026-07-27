@@ -1,4 +1,5 @@
 import { distanceKm } from '@/lib/geolocation'
+import { getBedroomCount } from '@/lib/listings'
 import { filterListings, pointInPolygon, sortListings } from '@/lib/search'
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from '@/lib/tenerife'
 import type { Filters, Listing, MapPolygonPoint, RentalMode } from '@/types'
@@ -30,7 +31,9 @@ export function selectMobileSearchListings({
   const radiusKm = Math.min(50, Math.max(1, Number(params.get('radio')) || 15))
   const nearbyCenter = nearby && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
   const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter(Boolean)
-  const capacities = (params.get('capacidades') ?? '').split('|').filter(Boolean).map(Number).filter(Number.isFinite)
+  const bedroomFilters = (params.get('habitaciones') ?? '').split('|').filter(Boolean)
+  const exactBedroomCounts = bedroomFilters.map(Number).filter((value) => Number.isInteger(value) && value >= 1 && value <= 10)
+  const moreThanTenBedrooms = bedroomFilters.includes('10+')
 
   const filtered = filterListings(
     listings.filter((listing) => !discarded.has(listing.id)),
@@ -39,7 +42,8 @@ export function selectMobileSearchListings({
   ).filter((listing) => {
     if (!location || !listingMatchesTenerifeLocation(listing, location)) return false
     if (roomTypes.length && !roomTypes.includes(listing.roomType)) return false
-    if (capacities.length && !capacities.includes(listing.roomCapacity)) return false
+    const bedroomCount = getBedroomCount(listing)
+    if (bedroomFilters.length && !exactBedroomCounts.includes(bedroomCount) && !(moreThanTenBedrooms && bedroomCount > 10)) return false
     if (polygonApplied && polygon.length >= 3 && !pointInPolygon(listing.coordinates, polygon)) return false
     if (nearbyCenter && distanceKm(listing.coordinates, nearbyCenter) > radiusKm) return false
     return true

@@ -17,6 +17,7 @@ dist-ssr
 .playwright-cli/
 output/
 test-results/
+tests/visual-snapshots/
 
 # Editor directories and files
 .vscode/*
@@ -28,6 +29,3 @@ test-results/
 *.njsproj
 *.sln
 *.sw?
-
-# Generated visual regression screenshots
-tests/visual-snapshots/

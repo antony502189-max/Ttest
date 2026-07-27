@@ -84,6 +84,7 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
   const price = rentalMode === 'holiday' ? 44 + (index % 8) * 7 : 350 + (index % 10) * 45
   const tenantRequirement: Listing['tenantRequirement'] = index % 5 === 0 ? 'single-woman' : index % 7 === 0 ? 'single-man' : index % 3 === 0 ? 'couple' : 'any'
   const roomCapacity: Listing['roomCapacity'] = tenantRequirement === 'couple' || (tenantRequirement === 'any' && index % 4 === 1) ? 2 : 1
+  const bedroomCount = index % 9 === 5 ? 1 : 1 + (index % 12)
   const publishedDate = new Date(Date.UTC(2026, 6, 20 - (index % 31), 12 - (index % 8)))
   const restrictions = buildRestrictions(index, rentalMode, tenantRequirement)
   const [ownerName, initials] = owners[index % owners.length]
@@ -114,6 +115,7 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     kitchen: index % 9 === 5 ? 'Cocina privada' : 'Cocina compartida',
     furnished: index % 11 !== 0,
     roomSizeM2: 9 + (index % 10),
+    bedroomCount,
     currentResidents: 1 + (index % 6),
     roomCapacity,
     shower: index % 4 === 2 ? 'Ducha privada' : 'Ducha compartida',
@@ -126,7 +128,7 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     restrictions,
     amenities: amenityOptions.filter((_, amenityIndex) => (index + amenityIndex) % 3 !== 0).slice(0, 5),
     description: 'Habitación exterior y cuidada en una vivienda compartida con buena conexión. El anuncio detalla gastos, disponibilidad y normas para que puedas comparar antes de contactar.',
-    homeDescription: `Vivienda de ${2 + (index % 4)} dormitorios con zonas comunes equipadas. La posición del mapa es aproximada para proteger la privacidad.`,
+    homeDescription: `Vivienda de ${bedroomCount} ${bedroomCount === 1 ? 'dormitorio' : 'dormitorios'} con zonas comunes equipadas. La posición del mapa es aproximada para proteger la privacidad.`,
     images: rotatePhotos(index),
     owner: { name: ownerName, initials, since: `Publica desde ${2021 + (index % 5)}`, response: index % 3 === 0 ? 'Suele responder en menos de 1 hora' : 'Suele responder en el mismo día', verified: index % 7 !== 0 },
     advertiserType: index % 4 === 0 ? 'Profesional' : 'Particular',
@@ -180,7 +182,7 @@ export const defaultFilters: Filters = {
 }
 
 export const createDefaultDraft = (): ListingDraft => ({
-  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], locationManuallyMoved: false, roomType: 'Habitación individual', roomSizeM2: 12, currentResidents: 4, roomCapacity: 1,
+  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], locationManuallyMoved: false, roomType: 'Habitación individual', roomSizeM2: 12, bedroomCount: 4, currentResidents: 4, roomCapacity: 1,
   bathroom: 'Baño compartido', shower: 'Ducha compartida', kitchen: 'Cocina compartida', furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 450,
   billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-01', availableUntil: '2026-12-20', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
   tenantRequirement: 'single-person', smokingAllowed: false, petsAllowed: false, childrenAllowed: false, empadronamientoAllowed: true,
