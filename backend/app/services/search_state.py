@@ -49,17 +49,28 @@ async def clear_collection(model, user: User, session: AsyncSession) -> None:
     await session.commit()
 
 
+def valid_uuid_values(values: list[str]) -> list[UUID]:
+    result: list[UUID] = []
+    for value in values:
+        try:
+            result.append(UUID(value))
+        except (ValueError, TypeError, AttributeError):
+            continue
+    return result
+
+
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:
+    requested_ids = valid_uuid_values(payload.favoriteIds)
     valid_listing_ids = set(
         (
             await session.scalars(
                 select(Listing.id).where(
-                    Listing.id.in_(payload.favoriteIds),
+                    Listing.id.in_(requested_ids),
                     Listing.deleted_at.is_(None),
                 )
             )
         ).all()
-    )
+    ) if requested_ids else set()
     if valid_listing_ids:
         await session.execute(
             insert(Favorite)
@@ -148,7 +159,7 @@ async def update_saved_search(
     )
     if not search:
         raise HTTPException(404, "Saved search not found")
-    mapping = {"alertsEnabled": "alerts_enabled", "rentalMode": "rental_mode"}
+    mapping = {"alertsEnabled": "alerts_enabled"}
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key == "polygon" and value is not None:
             search.polygon = [point if isinstance(point, dict) else point.model_dump() for point in value]
