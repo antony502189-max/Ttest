@@ -4,7 +4,7 @@ from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
@@ -151,8 +151,18 @@ async def list_listing_images(
     session: AsyncSession = Depends(get_session),
 ):
     listing = await session.get(Listing, listing_id)
-    owner_or_admin = listing and user and (listing.owner_user_id == user.id or user.role == "admin")
-    if not listing or listing.deleted_at is not None or (listing.status != "published" and not owner_or_admin):
+    if not listing or listing.deleted_at is not None:
+        raise HTTPException(404, "Listing not found")
+    owner = await session.get(User, listing.owner_user_id)
+    owner_or_admin = bool(user and (listing.owner_user_id == user.id or user.role == "admin"))
+    public_visible = bool(
+        listing.status == "published"
+        and (listing.expires_at is None or listing.expires_at > datetime.now(UTC))
+        and owner
+        and owner.deleted_at is None
+        and not owner.blocked
+    )
+    if not owner_or_admin and not public_visible:
         raise HTTPException(404, "Listing not found")
     rows = (
         await session.execute(
