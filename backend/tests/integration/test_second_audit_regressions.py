@@ -28,9 +28,9 @@ def auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def image_bytes() -> bytes:
+def image_bytes(color: tuple[int, int, int] = (30, 80, 120)) -> bytes:
     output = BytesIO()
-    Image.new("RGB", (40, 30), (30, 80, 120)).save(output, "PNG")
+    Image.new("RGB", (40, 30), color).save(output, "PNG")
     return output.getvalue()
 
 
@@ -88,7 +88,8 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
 
     rotated = await client.post("/api/v1/auth/refresh")
     assert rotated.status_code == 200
-    assert client.cookies.get("refresh_token") != old_refresh
+    current_refresh = client.cookies.get("refresh_token")
+    assert current_refresh and current_refresh != old_refresh
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -98,6 +99,9 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
     ) as replay:
         rejected = await replay.post("/api/v1/auth/refresh")
     assert rejected.status_code == 401
+
+    family_revoked = await client.post("/api/v1/auth/refresh")
+    assert family_revoked.status_code == 401
 
 
 async def test_availability_window_excludes_already_ended_listing(client: AsyncClient, register_user):
@@ -161,6 +165,50 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
         json={"assetId": asset_id},
     )
     assert avatar_conflict.status_code == 409
+
+
+async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: AsyncClient, register_user):
+    token, _ = await register_user(client, email="orphan-media@example.test", role="host")
+    listing = await client.post(
+        "/api/v1/listings",
+        headers=auth(token),
+        json=listing_payload(title="Orphan media cleanup listing"),
+    )
+    assert listing.status_code == 201, listing.text
+    listing_id = listing.json()["id"]
+
+    first = await client.post(
+        "/api/v1/uploads",
+        headers=auth(token),
+        files={"file": ("first.png", image_bytes((10, 20, 30)), "image/png")},
+    )
+    second = await client.post(
+        "/api/v1/uploads",
+        headers=auth(token),
+        files={"file": ("second.png", image_bytes((90, 100, 110)), "image/png")},
+    )
+    assert first.status_code == second.status_code == 201
+
+    attach_first = await client.put(
+        f"/api/v1/listings/{listing_id}/images",
+        headers=auth(token),
+        json={"assetIds": [first.json()["id"]]},
+    )
+    assert attach_first.status_code == 200
+    assert (await client.get(first.json()["url"])).status_code == 200
+
+    replace = await client.put(
+        f"/api/v1/listings/{listing_id}/images",
+        headers=auth(token),
+        json={"assetIds": [second.json()["id"]]},
+    )
+    assert replace.status_code == 200
+    assert (await client.get(first.json()["url"], headers=auth(token))).status_code == 404
+    assert (await client.get(second.json()["url"])).status_code == 200
+
+    deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(token))
+    assert deleted.status_code == 204
+    assert (await client.get(second.json()["url"], headers=auth(token))).status_code == 404
 
 
 async def test_disabled_contact_form_blocks_new_threads(client: AsyncClient, register_user):
