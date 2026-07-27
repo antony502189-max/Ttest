@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -188,6 +189,9 @@ class SearchPoint(BaseModel):
     longitude: float = Field(ge=-180, le=180)
 
 
+RoomCountFilter = int | Literal["10+"]
+
+
 class ListingSearchRequest(BaseModel):
     city: str | None = Field(default=None, max_length=120)
     area: str | None = Field(default=None, max_length=120)
@@ -195,6 +199,7 @@ class ListingSearchRequest(BaseModel):
     minPrice: int | None = Field(default=None, ge=0)
     maxPrice: int | None = Field(default=None, ge=0)
     roomType: str | None = Field(default=None, max_length=64)
+    bedroomCounts: list[RoomCountFilter] = Field(default_factory=list, max_length=11)
     availableFrom: date | None = None
     maxMinimumStayMonths: int | None = Field(default=None, ge=0)
     restrictions: list[str] = Field(default_factory=list, max_length=100)
@@ -231,7 +236,7 @@ class ListingSearchRequest(BaseModel):
     offset: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
-    def validate_geo_filters(self):
+    def validate_filters(self):
         bounds = (self.minLatitude, self.maxLatitude, self.minLongitude, self.maxLongitude)
         if any(value is not None for value in bounds) and any(value is None for value in bounds):
             raise ValueError("all bounding-box coordinates are required")
@@ -243,11 +248,17 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("rentalMode must be long or holiday")
         if self.sort not in {"newest", "oldest", "price_asc", "price_desc"}:
             raise ValueError("sort must be newest, oldest, price_asc, or price_desc")
+        if self.minPrice is not None and self.maxPrice is not None and self.minPrice > self.maxPrice:
+            raise ValueError("minPrice cannot exceed maxPrice")
         if self.minRoomSizeM2 is not None and self.maxRoomSizeM2 is not None and self.minRoomSizeM2 > self.maxRoomSizeM2:
             raise ValueError("minRoomSizeM2 cannot exceed maxRoomSizeM2")
+        invalid_counts = [value for value in self.bedroomCounts if value != "10+" and not 1 <= int(value) <= 10]
+        if invalid_counts or len(set(map(str, self.bedroomCounts))) != len(self.bedroomCounts):
+            raise ValueError("bedroomCounts must contain unique values from 1 to 10 or 10+")
         if self.polygon:
-            if len(self.polygon) < 3:
-                raise ValueError("polygon needs at least three points")
+            unique = {(point.latitude, point.longitude) for point in self.polygon}
+            if len(unique) < 3:
+                raise ValueError("polygon needs at least three unique points")
             if self.polygon[0] != self.polygon[-1]:
                 self.polygon.append(self.polygon[0])
         return self
