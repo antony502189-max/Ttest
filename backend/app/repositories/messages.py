@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import Select, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Message, MessageThread
@@ -31,6 +32,24 @@ async def find_thread(session: AsyncSession, listing_id: UUID, tenant_id: UUID) 
             MessageThread.tenant_id == tenant_id,
         )
     )
+
+
+async def get_or_create_thread(
+    session: AsyncSession,
+    *,
+    listing_id: UUID,
+    tenant_id: UUID,
+    host_id: UUID,
+) -> MessageThread:
+    await session.execute(
+        insert(MessageThread)
+        .values(listing_id=listing_id, tenant_id=tenant_id, host_id=host_id)
+        .on_conflict_do_nothing(constraint="uq_thread_listing_tenant")
+    )
+    thread = await find_thread(session, listing_id, tenant_id)
+    if thread is None:  # pragma: no cover - defensive database invariant
+        raise RuntimeError("Message thread could not be created")
+    return thread
 
 
 async def thread_messages(session: AsyncSession, thread_id: UUID) -> list[Message]:
