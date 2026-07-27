@@ -1,32 +1,27 @@
-import json
-from datetime import UTC, datetime, timedelta
-from hashlib import sha256
-from hmac import new as hmac_new
+from __future__ import annotations
+
 from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
-from geoalchemy2 import Geometry
-from geoalchemy2.functions import (
-    ST_AsGeoJSON,
-    ST_DWithin,
-    ST_GeomFromText,
-    ST_MakeEnvelope,
-    ST_MakePoint,
-    ST_SetSRID,
-    ST_Within,
-)
-from sqlalchemy import Select, cast, delete, func, select, update
-from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import Listing, ListingImage, ListingStatusHistory, ListingView, MediaAsset, User
+from ...models import Listing, ListingImage, MediaAsset, User
+from ...repositories.listings import (
+    anonymous_viewer_key,
+    owned_query,
+    owned_response_from,
+    register_view,
+    response_from,
+    search_public,
+    visible_query,
+)
 from ...schemas.listings import (
     ListingImageResponse,
     ListingImagesRequest,
-    ListingOwnerResponse,
     ListingPatch,
     ListingResponse,
     ListingSearchRequest,
@@ -34,235 +29,50 @@ from ...schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
+from ...services.listings import (
+    create_listing as create_listing_service,
+    delete_listing as delete_listing_service,
+    renew_listing as renew_listing_service,
+    replace_listing_images as replace_listing_images_service,
+    update_listing as update_listing_service,
+)
 from ..dependencies import current_user, optional_user, require_role
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
 
-def point(longitude: float, latitude: float):
-    return ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
-
-
-def image_asset_ids_subquery():
-    return (
-        select(func.array_agg(aggregate_order_by(MediaAsset.id, ListingImage.is_cover.desc(), ListingImage.sort_order)))
-        .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
-        .where(ListingImage.listing_id == Listing.id, MediaAsset.deleted_at.is_(None))
-        .correlate(Listing)
-        .scalar_subquery()
-    )
-
-
-def response_from(row) -> ListingResponse:
-    listing, geojson, owner, asset_ids = row
-    coordinates = json.loads(geojson)["coordinates"]
-    price = listing.monthly_price if listing.rental_mode == "long" else listing.nightly_price
-    image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
-    if not image_urls:
-        image_urls = listing.external_image_urls
-    return ListingResponse(
-        id=str(listing.id), ownerUserId=str(listing.owner_user_id),
-        owner=ListingOwnerResponse(
-            name=owner.name,
-            initials=owner.initials or "".join(part[:1].upper() for part in owner.name.split()[:2]),
-            since=owner.created_at,
-            response="Consulta disponibilidad",
-            verified=owner.email_verified,
-        ),
-        contactPhone=owner.phone if owner.show_phone else None,
-        contactWhatsapp=owner.whatsapp if owner.show_whatsapp else None,
-        contactEmail=None,
-        showPhone=owner.show_phone,
-        showWhatsApp=owner.show_whatsapp,
-        allowContactForm=owner.allow_contact_form,
-        coverImageUrl=image_urls[0] if image_urls else None,
-        imageUrls=image_urls,
-        title=listing.title,
-        city=listing.city, area=listing.area, approximateAddress=listing.approximate_address,
-        rentalMode=listing.rental_mode, monthlyPrice=listing.monthly_price, nightlyPrice=listing.nightly_price, weeklyPrice=listing.weekly_price,
-        price=price, cadence="mes" if listing.rental_mode == "long" else "noche",
-        roomType=listing.room_type, availableFrom=listing.available_from, availableUntil=listing.available_until,
-        minimumStayMonths=listing.minimum_stay_months, minimumNights=listing.minimum_nights,
-        depositAmount=listing.deposit_amount, billsIncluded=listing.bills_included, bathroom=listing.bathroom,
-        kitchen=listing.kitchen, furnished=listing.furnished, roomSizeM2=listing.room_size_m2,
-        bedroomCount=listing.bedroom_count, currentResidents=listing.current_residents, roomCapacity=listing.room_capacity,
-        shower=listing.shower, tenantRequirement=listing.tenant_requirement, smokingAllowed=listing.smoking_allowed,
-        petsAllowed=listing.pets_allowed, childrenAllowed=listing.children_allowed,
-        empadronamientoAllowed=listing.empadronamiento_allowed, restrictions=listing.restrictions, amenities=listing.amenities,
-        status=listing.status, longitude=coordinates[0], latitude=coordinates[1], description=listing.description,
-        homeDescription=listing.home_description, advertiserType=listing.advertiser_type, source=listing.source,
-        publishedAt=listing.published_at, expiresAt=listing.expires_at, views=listing.views, closedReason=listing.closed_reason,
-        createdAt=listing.created_at, updatedAt=listing.updated_at,
-    )
-
-
-def owned_response_from(row) -> OwnedListingResponse:
-    listing, public_geojson, owner, asset_ids, exact_geojson = row
-    public = response_from((listing, public_geojson, owner, asset_ids)).model_dump()
-    exact_coordinates = json.loads(exact_geojson)["coordinates"] if exact_geojson else None
-    return OwnedListingResponse(
-        **public,
-        street=listing.street,
-        postcode=listing.postcode,
-        exactLatitude=exact_coordinates[1] if exact_coordinates else None,
-        exactLongitude=exact_coordinates[0] if exact_coordinates else None,
-    )
-
-
-def visible_query() -> Select:
-    return select(Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery()).join(
-        User, User.id == Listing.owner_user_id
-    ).where(
-        Listing.status == "published",
-        Listing.deleted_at.is_(None),
-        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
-    )
-
-
-def anonymous_viewer_key(visitor_token: str) -> str:
-    return hmac_new(get_settings().jwt_secret.encode(), visitor_token.encode(), sha256).hexdigest()
-
-
-async def register_view(listing: Listing, viewer_key: str, session: AsyncSession) -> bool:
-    result = await session.execute(
-        insert(ListingView)
-        .values(listing_id=listing.id, viewer_key=viewer_key, view_date=datetime.now(UTC).date())
-        .on_conflict_do_nothing(constraint="uq_listing_views_daily")
-    )
-    if getattr(result, "rowcount", 0):
-        await session.execute(update(Listing).where(Listing.id == listing.id).values(views=Listing.views + 1))
-        await session.commit()
-        return True
-    return False
-
-
-def owned_query() -> Select:
-    return select(
-        Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery(), ST_AsGeoJSON(Listing.exact_location)
-    ).join(User, User.id == Listing.owner_user_id)
-
-
-def search_filters(query: Select, payload: ListingSearchRequest) -> Select:
-    if payload.city:
-        query = query.where(Listing.city.ilike(f"%{payload.city.strip()}%"))
-    if payload.area:
-        query = query.where(Listing.area.ilike(f"%{payload.area.strip()}%"))
-    if payload.rentalMode:
-        query = query.where(Listing.rental_mode == payload.rentalMode)
-    if payload.minPrice is not None:
-        query = query.where((Listing.monthly_price >= payload.minPrice) | (Listing.nightly_price >= payload.minPrice))
-    if payload.maxPrice is not None:
-        query = query.where((Listing.monthly_price <= payload.maxPrice) | (Listing.nightly_price <= payload.maxPrice))
-    price = func.coalesce(Listing.monthly_price, Listing.nightly_price)
-    if payload.roomType:
-        query = query.where(Listing.room_type == payload.roomType)
-    if payload.availableFrom:
-        query = query.where((Listing.available_from.is_(None)) | (Listing.available_from <= payload.availableFrom))
-    if payload.maxMinimumStayMonths is not None:
-        query = query.where(Listing.minimum_stay_months <= payload.maxMinimumStayMonths)
-    if payload.restrictions:
-        query = query.where(Listing.restrictions.contains(payload.restrictions))
-    if payload.tenantRequirement:
-        query = query.where(Listing.tenant_requirement == payload.tenantRequirement)
-    if payload.bathroom:
-        query = query.where(Listing.bathroom == payload.bathroom)
-    if payload.kitchen:
-        query = query.where(Listing.kitchen == payload.kitchen)
-    if payload.furnished is not None:
-        query = query.where(Listing.furnished == payload.furnished)
-    if payload.billsIncluded is not None:
-        query = query.where(Listing.bills_included == payload.billsIncluded)
-    if payload.deposit == "Sin fianza":
-        query = query.where(Listing.deposit_amount == 0)
-    elif payload.deposit == "Hasta 1 mes":
-        query = query.where(Listing.deposit_amount <= price)
-    elif payload.deposit == "Más de 1 mes":
-        query = query.where(Listing.deposit_amount > price)
-    if payload.minRoomSizeM2 is not None:
-        query = query.where(Listing.room_size_m2 >= payload.minRoomSizeM2)
-    if payload.maxRoomSizeM2 is not None:
-        query = query.where(Listing.room_size_m2 <= payload.maxRoomSizeM2)
-    if payload.shower:
-        query = query.where(Listing.shower == payload.shower)
-    if payload.currentResidents is not None:
-        query = query.where(Listing.current_residents == payload.currentResidents)
-    if payload.minCurrentResidents is not None:
-        query = query.where(Listing.current_residents >= payload.minCurrentResidents)
-    if payload.roomCapacity is not None:
-        query = query.where(Listing.room_capacity == payload.roomCapacity)
-    if payload.maxMinimumNights is not None:
-        query = query.where(func.coalesce(Listing.minimum_nights, 1) <= payload.maxMinimumNights)
-    if payload.availableUntil:
-        query = query.where(Listing.available_until.is_not(None), Listing.available_until >= payload.availableUntil)
-    for column, value in (
-        (Listing.smoking_allowed, payload.smokingAllowed),
-        (Listing.pets_allowed, payload.petsAllowed),
-        (Listing.children_allowed, payload.childrenAllowed),
-        (Listing.empadronamiento_allowed, payload.empadronamientoAllowed),
-    ):
-        if value is not None:
-            query = query.where(column == value)
-    if payload.publishedWithinDays is not None:
-        query = query.where(Listing.published_at >= datetime.now(UTC) - timedelta(days=payload.publishedWithinDays))
-    if payload.advertiserType:
-        query = query.where(Listing.advertiser_type == payload.advertiserType)
-    if payload.amenities:
-        query = query.where(Listing.amenities.contains(payload.amenities))
-    if payload.minLongitude is not None:
-        bbox = ST_MakeEnvelope(payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326)
-        query = query.where(ST_Within(cast(Listing.location, Geometry("POINT", srid=4326)), bbox))
-    if payload.center and payload.radiusKm is not None:
-        query = query.where(ST_DWithin(Listing.location, point(payload.center.longitude, payload.center.latitude), payload.radiusKm * 1000))
-    if payload.polygon:
-        wkt = "POLYGON((" + ", ".join(f"{item.longitude} {item.latitude}" for item in payload.polygon) + "))"
-        polygon = ST_GeomFromText(wkt, 4326)
-        query = query.where(ST_Within(cast(Listing.location, Geometry("POINT", srid=4326)), polygon))
-    return query
-
-
 @router.get("", response_model=list[ListingResponse])
 async def list_listings(
-    city: str | None = None, area: str | None = None, rental_mode: str | None = Query(default=None, alias="rentalMode"),
+    city: str | None = None,
+    area: str | None = None,
+    rental_mode: str | None = Query(default=None, alias="rentalMode"),
     min_price: int | None = Query(default=None, ge=0, alias="minPrice"),
-    max_price: int | None = Query(default=None, ge=0, alias="maxPrice"), session: AsyncSession = Depends(get_session),
+    max_price: int | None = Query(default=None, ge=0, alias="maxPrice"),
+    session: AsyncSession = Depends(get_session),
 ):
-    query = visible_query()
-    if city:
-        query = query.where(Listing.city.ilike(f"%{city.strip()}%"))
-    if area:
-        query = query.where(Listing.area.ilike(f"%{area.strip()}%"))
-    if rental_mode in {"long", "holiday"}:
-        query = query.where(Listing.rental_mode == rental_mode)
-    if min_price is not None:
-        query = query.where((Listing.monthly_price >= min_price) | (Listing.nightly_price >= min_price))
-    if max_price is not None:
-        query = query.where((Listing.monthly_price <= max_price) | (Listing.nightly_price <= max_price))
-    return [response_from(row) for row in (await session.execute(query.order_by(Listing.created_at.desc()))).all()]
+    payload = ListingSearchRequest(
+        city=city,
+        area=area,
+        rentalMode=rental_mode,
+        minPrice=min_price,
+        maxPrice=max_price,
+        limit=100,
+    )
+    return (await search_public(session, payload)).items
 
 
 @router.post("/search", response_model=ListingSearchResponse)
 async def search_listings(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session)):
-    query = search_filters(visible_query(), payload)
-    total = await session.scalar(select(func.count()).select_from(query.subquery()))
-    price = func.coalesce(Listing.monthly_price, Listing.nightly_price)
-    if payload.sort == "price_asc":
-        query = query.order_by(price.asc(), Listing.id)
-    elif payload.sort == "price_desc":
-        query = query.order_by(price.desc(), Listing.id)
-    elif payload.sort == "oldest":
-        query = query.order_by(Listing.created_at.asc(), Listing.id)
-    else:
-        query = query.order_by(Listing.created_at.desc(), Listing.id)
-    rows = (await session.execute(query.limit(payload.limit).offset(payload.offset))).all()
-    return ListingSearchResponse(items=[response_from(row) for row in rows], total=total or 0, limit=payload.limit, offset=payload.offset)
+    return await search_public(session, payload)
 
 
 @router.get("/mine", response_model=list[OwnedListingResponse])
 async def list_my_listings(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    query = owned_query()
+    query = owned_query().where(Listing.deleted_at.is_(None))
     if user.role != "admin":
         query = query.where(Listing.owner_user_id == user.id)
-    return [owned_response_from(row) for row in (await session.execute(query.order_by(Listing.created_at.desc()))).all()]
+    rows = (await session.execute(query.order_by(Listing.created_at.desc()))).all()
+    return [owned_response_from(row) for row in rows]
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)
@@ -282,8 +92,13 @@ async def get_listing(
         if not visitor_token:
             visitor_token = token_urlsafe(32)
             response.set_cookie(
-                "listing_visitor", visitor_token, httponly=True, secure=get_settings().app_env != "development",
-                samesite="lax", max_age=90 * 24 * 60 * 60, path="/api/v1/listings",
+                "listing_visitor",
+                visitor_token,
+                httponly=True,
+                secure=get_settings().is_production,
+                samesite="lax",
+                max_age=90 * 24 * 60 * 60,
+                path="/api/v1/listings",
             )
         viewer_key = anonymous_viewer_key(visitor_token)
     if await register_view(row[0], viewer_key, session):
@@ -293,176 +108,75 @@ async def get_listing(
 
 @router.post("", response_model=OwnedListingResponse, status_code=status.HTTP_201_CREATED)
 async def create_listing(
-    payload: ListingWrite, user: User = Depends(require_role("host", "admin")), session: AsyncSession = Depends(get_session)
+    payload: ListingWrite,
+    user: User = Depends(require_role("host", "admin")),
+    session: AsyncSession = Depends(get_session),
 ):
-    now = datetime.now(UTC)
-    initial_status = "published" if get_settings().auto_publish_listings else "pending"
-    listing = Listing(
-        owner_user_id=user.id, title=payload.title.strip(), city=payload.city.strip(), area=payload.area.strip(),
-        street=payload.street.strip(), postcode=payload.postcode.strip(),
-        approximate_address=payload.approximateAddress.strip(), rental_mode=payload.rentalMode,
-        monthly_price=payload.monthlyPrice, nightly_price=payload.nightlyPrice, weekly_price=payload.weeklyPrice,
-        room_type=payload.roomType, available_from=payload.availableFrom, available_until=payload.availableUntil,
-        minimum_stay_months=payload.minimumStayMonths, minimum_nights=payload.minimumNights,
-        deposit_amount=payload.depositAmount, bills_included=payload.billsIncluded, bathroom=payload.bathroom,
-        kitchen=payload.kitchen, furnished=payload.furnished, room_size_m2=payload.roomSizeM2,
-        bedroom_count=payload.bedroomCount, current_residents=payload.currentResidents, room_capacity=payload.roomCapacity,
-        shower=payload.shower, tenant_requirement=payload.tenantRequirement, smoking_allowed=payload.smokingAllowed,
-        pets_allowed=payload.petsAllowed, children_allowed=payload.childrenAllowed,
-        empadronamiento_allowed=payload.empadronamientoAllowed, restrictions=payload.restrictions, amenities=payload.amenities,
-        location=point(payload.longitude, payload.latitude),
-        exact_location=(
-            point(payload.exactLongitude, payload.exactLatitude)
-            if payload.exactLongitude is not None and payload.exactLatitude is not None else None
-        ),
-        description=payload.description.strip(), home_description=payload.homeDescription.strip(), advertiser_type=payload.advertiserType,
-        source=payload.source.strip() if payload.source else None, expires_at=payload.expiresAt,
-        status=initial_status, published_at=now if initial_status == "published" else None,
-    )
-    session.add(listing)
-    await session.flush()
-    session.add(ListingStatusHistory(
-        listing_id=listing.id, from_status="draft", to_status=initial_status, changed_by=user.id
-    ))
-    await session.commit()
-    row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
-    return owned_response_from(row)
+    return await create_listing_service(payload, user, session)
 
 
 @router.patch("/{listing_id}", response_model=OwnedListingResponse)
 async def update_listing(
-    listing_id: UUID, payload: ListingPatch, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    listing_id: UUID,
+    payload: ListingPatch,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    listing = await session.get(Listing, listing_id)
-    if not listing:
-        raise HTTPException(404, "Listing not found")
-    if listing.owner_user_id != user.id and user.role != "admin":
-        raise HTTPException(403, "Forbidden")
-    changes = payload.model_dump(exclude_unset=True)
-    if changes.get("rentalMode") not in {None, "long", "holiday"}:
-        raise HTTPException(422, "rentalMode must be long or holiday")
-    if "status" in changes and changes["status"] not in {"draft", "pending", "hidden", "closed"} and user.role != "admin":
-        raise HTTPException(403, "Only an administrator can publish or reject listings")
-    mapping = {
-        "approximateAddress": "approximate_address", "monthlyPrice": "monthly_price", "nightlyPrice": "nightly_price",
-        "rentalMode": "rental_mode",
-        "weeklyPrice": "weekly_price", "roomType": "room_type", "availableFrom": "available_from",
-        "availableUntil": "available_until", "minimumStayMonths": "minimum_stay_months", "minimumNights": "minimum_nights",
-        "depositAmount": "deposit_amount", "billsIncluded": "bills_included", "roomSizeM2": "room_size_m2",
-        "bedroomCount": "bedroom_count", "currentResidents": "current_residents", "roomCapacity": "room_capacity",
-        "tenantRequirement": "tenant_requirement", "smokingAllowed": "smoking_allowed", "petsAllowed": "pets_allowed",
-        "childrenAllowed": "children_allowed", "empadronamientoAllowed": "empadronamiento_allowed",
-        "homeDescription": "home_description", "advertiserType": "advertiser_type", "expiresAt": "expires_at",
-    }
-    latitude, longitude = changes.pop("latitude", None), changes.pop("longitude", None)
-    if latitude is not None or longitude is not None:
-        if latitude is None or longitude is None:
-            raise HTTPException(422, "latitude and longitude must be changed together")
-        listing.location = point(longitude, latitude)
-    exact_latitude, exact_longitude = changes.pop("exactLatitude", None), changes.pop("exactLongitude", None)
-    if exact_latitude is not None or exact_longitude is not None:
-        if exact_latitude is None or exact_longitude is None:
-            raise HTTPException(422, "exactLatitude and exactLongitude must be changed together")
-        listing.exact_location = point(exact_longitude, exact_latitude)
-    previous_status = listing.status
-    for key, value in changes.items():
-        setattr(listing, mapping.get(key, key), value.strip() if isinstance(value, str) else value)
-    if "status" in changes and listing.status != previous_status:
-        if listing.status == "published" and listing.published_at is None:
-            listing.published_at = datetime.now(UTC)
-        if listing.status == "closed" and user.role != "admin":
-            listing.closed_reason = "owner"
-        elif listing.status != "closed":
-            listing.closed_reason = None
-        session.add(ListingStatusHistory(
-            listing_id=listing.id, from_status=previous_status, to_status=listing.status, changed_by=user.id
-        ))
-    await session.commit()
-    row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
-    return owned_response_from(row)
+    return await update_listing_service(listing_id, payload, user, session)
 
 
 @router.post("/{listing_id}/renew", response_model=OwnedListingResponse)
 async def renew_listing(
-    listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    listing_id: UUID,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
-    if listing.owner_user_id != user.id and user.role != "admin":
-        raise HTTPException(403, "Forbidden")
-
-    now = datetime.now(UTC)
-    expiry_base = listing.expires_at if listing.expires_at and listing.expires_at > now else now
-    listing.expires_at = expiry_base + timedelta(days=30)
-    previous_status = listing.status
-    listing.status = "published" if get_settings().auto_publish_listings else "pending"
-    listing.closed_reason = None
-    if listing.status == "published" and listing.published_at is None:
-        listing.published_at = now
-    if listing.status != previous_status:
-        session.add(ListingStatusHistory(
-            listing_id=listing.id, from_status=previous_status, to_status=listing.status, changed_by=user.id
-        ))
-    await session.commit()
-    row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
-    return owned_response_from(row)
+    return await renew_listing_service(listing_id, user, session)
 
 
 @router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_listing(
-    listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    listing_id: UUID,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    listing = await session.get(Listing, listing_id)
-    if not listing:
-        raise HTTPException(404, "Listing not found")
-    if listing.owner_user_id != user.id and user.role != "admin":
-        raise HTTPException(403, "Forbidden")
-    listing.deleted_at = datetime.now(UTC)
-    listing.status = "closed"
-    await session.commit()
+    await delete_listing_service(listing_id, user, session)
 
 
 @router.get("/{listing_id}/images", response_model=list[ListingImageResponse])
 async def list_listing_images(
-    listing_id: UUID, user: User | None = Depends(optional_user), session: AsyncSession = Depends(get_session)
+    listing_id: UUID,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
 ):
     listing = await session.get(Listing, listing_id)
     owner_or_admin = listing and user and (listing.owner_user_id == user.id or user.role == "admin")
-    if not listing or (listing.status != "published" and not owner_or_admin):
+    if not listing or listing.deleted_at is not None or (listing.status != "published" and not owner_or_admin):
         raise HTTPException(404, "Listing not found")
     rows = (
         await session.execute(
-            select(ListingImage, MediaAsset).join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id).where(
-                ListingImage.listing_id == listing.id, MediaAsset.deleted_at.is_(None)
-            ).order_by(ListingImage.sort_order)
+            select(ListingImage, MediaAsset)
+            .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
+            .where(ListingImage.listing_id == listing.id, MediaAsset.deleted_at.is_(None))
+            .order_by(ListingImage.sort_order)
         )
     ).all()
     return [
-        ListingImageResponse(assetId=asset.id, url=f"/api/v1/media/{asset.id}", sortOrder=image.sort_order, isCover=image.is_cover)
+        ListingImageResponse(
+            assetId=asset.id,
+            url=f"/api/v1/media/{asset.id}",
+            sortOrder=image.sort_order,
+            isCover=image.is_cover,
+        )
         for image, asset in rows
     ]
 
 
 @router.put("/{listing_id}/images", response_model=list[ListingImageResponse])
 async def replace_listing_images(
-    listing_id: UUID, payload: ListingImagesRequest, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    listing_id: UUID,
+    payload: ListingImagesRequest,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    listing = await session.get(Listing, listing_id)
-    if not listing:
-        raise HTTPException(404, "Listing not found")
-    if listing.owner_user_id != user.id and user.role != "admin":
-        raise HTTPException(403, "Forbidden")
-    assets = (
-        await session.scalars(select(MediaAsset).where(MediaAsset.id.in_(payload.assetIds), MediaAsset.deleted_at.is_(None)))
-    ).all()
-    if len(assets) != len(payload.assetIds) or any(asset.owner_id != user.id for asset in assets if user.role != "admin"):
-        raise HTTPException(422, "Every image must be an active asset owned by the requester")
-    await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
-    for sort_order, asset_id in enumerate(payload.assetIds):
-        session.add(ListingImage(listing_id=listing.id, media_asset_id=asset_id, sort_order=sort_order, is_cover=sort_order == 0))
-    await session.commit()
-    return [
-        ListingImageResponse(assetId=asset_id, url=f"/api/v1/media/{asset_id}", sortOrder=order, isCover=order == 0)
-        for order, asset_id in enumerate(payload.assetIds)
-    ]
+    return await replace_listing_images_service(listing_id, payload, user, session)
