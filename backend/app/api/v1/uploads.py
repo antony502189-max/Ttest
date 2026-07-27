@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+from datetime import UTC, datetime
 from io import BytesIO
 from uuid import UUID, uuid4
 
@@ -42,7 +43,6 @@ def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
             settings = get_settings()
             if width < 1 or height < 1 or width > settings.max_image_dimension or height > settings.max_image_dimension:
                 raise HTTPException(422, "Image dimensions are not allowed")
-            # Re-encoding strips EXIF, ICC and embedded GPS metadata.
             normalized = source.convert("RGBA" if "A" in source.getbands() else "RGB")
             output = BytesIO()
             normalized.save(output, format="WEBP", method=6, quality=88)
@@ -152,6 +152,6 @@ async def delete_upload(
     )
     if active_avatar or listing_attachment:
         raise HTTPException(409, "Media is still attached to an active resource")
-    asset.deleted_at = func.now()
+    asset.deleted_at = datetime.now(UTC)
     await session.commit()
     await asyncio.to_thread(get_storage().delete, asset.storage_key)
