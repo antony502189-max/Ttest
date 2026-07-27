@@ -1,14 +1,10 @@
-import asyncio
-from datetime import UTC, datetime
-
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select, update
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
-from ...models import AuthSession, Listing, MediaAsset, User
+from ...models import User
 from ...schemas.auth import AvatarUpdateRequest, UserResponse, UserUpdateRequest
-from ...storage import get_storage
+from ...services.users import delete_account, update_avatar, update_profile
 from ..dependencies import current_user
 from .auth import public_user
 
@@ -22,59 +18,27 @@ async def get_me(user: User = Depends(current_user)):
 
 @router.patch("/me", response_model=UserResponse)
 async def update_me(
-    payload: UserUpdateRequest, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    payload: UserUpdateRequest,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    fields = payload.model_dump(exclude_unset=True)
-    mapping = {
-        "showPhone": "show_phone", "showWhatsApp": "show_whatsapp", "allowContactForm": "allow_contact_form",
-    }
-    for key, value in fields.items():
-        setattr(user, mapping.get(key, key), value.strip() if isinstance(value, str) else value)
-    if "name" in fields:
-        user.initials = "".join(part[:1].upper() for part in user.name.split()[:2])
-    await session.commit()
-    await session.refresh(user)
-    return public_user(user)
+    return public_user(await update_profile(payload, user, session))
 
 
 @router.put("/me/avatar", response_model=UserResponse)
-async def update_avatar(
-    payload: AvatarUpdateRequest, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+async def update_me_avatar(
+    payload: AvatarUpdateRequest,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    if payload.assetId is None:
-        user.avatar_asset_id = None
-    else:
-        asset = await session.get(MediaAsset, payload.assetId)
-        if not asset or asset.owner_id != user.id or asset.deleted_at:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Media not found")
-        asset.kind = "avatar"
-        user.avatar_asset_id = asset.id
-    await session.commit()
-    await session.refresh(user)
-    return public_user(user)
+    return public_user(await update_avatar(payload, user, session))
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_me(
-    response: Response, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    response: Response,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    media_paths = list((await session.scalars(select(MediaAsset.storage_key).where(MediaAsset.owner_id == user.id))).all())
-    await session.execute(update(AuthSession).where(AuthSession.user_id == user.id).values(revoked_at=datetime.now(UTC)))
-    now = datetime.now(UTC)
-    await session.execute(update(Listing).where(Listing.owner_user_id == user.id).values(deleted_at=now))
-    await session.execute(update(MediaAsset).where(MediaAsset.owner_id == user.id).values(deleted_at=now))
-    user.deleted_at = now
-    user.blocked = True
-    user.email_verified = False
-    user.email = f"deleted-{user.id}@deleted.invalid"
-    user.google_subject = None
-    user.password_hash = None
-    user.name = "Deleted user"
-    user.phone = user.whatsapp = user.telegram = user.about = ""
-    user.show_phone = user.show_whatsapp = False
-    user.allow_contact_form = False
-    user.avatar_asset_id = None
-    await session.commit()
-    for storage_key in media_paths:
-        await asyncio.to_thread(get_storage().delete, storage_key)
+    await delete_account(user, session)
     response.delete_cookie("refresh_token", path="/api/v1/auth")
