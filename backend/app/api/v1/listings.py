@@ -1,7 +1,11 @@
 import json
+from datetime import UTC, datetime
+from hashlib import sha256
+from hmac import new as hmac_new
+from secrets import token_urlsafe
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import (
     ST_AsGeoJSON,
@@ -12,11 +16,13 @@ from geoalchemy2.functions import (
     ST_SetSRID,
     ST_Within,
 )
-from sqlalchemy import Select, cast, delete, func, select
+from sqlalchemy import Select, cast, delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import Listing, ListingImage, MediaAsset, User
+from ...models import Listing, ListingImage, ListingView, MediaAsset, User
 from ...schemas.listings import (
     ListingImageResponse,
     ListingImagesRequest,
@@ -27,7 +33,7 @@ from ...schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
-from ..dependencies import current_user, require_role
+from ..dependencies import current_user, optional_user, require_role
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -79,6 +85,23 @@ def visible_query() -> Select:
         Listing.deleted_at.is_(None),
         (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
     )
+
+
+def anonymous_viewer_key(visitor_token: str) -> str:
+    return hmac_new(get_settings().jwt_secret.encode(), visitor_token.encode(), sha256).hexdigest()
+
+
+async def register_view(listing: Listing, viewer_key: str, session: AsyncSession) -> bool:
+    result = await session.execute(
+        insert(ListingView)
+        .values(listing_id=listing.id, viewer_key=viewer_key, view_date=datetime.now(UTC).date())
+        .on_conflict_do_nothing(constraint="uq_listing_views_daily")
+    )
+    if result.rowcount:
+        await session.execute(update(Listing).where(Listing.id == listing.id).values(views=Listing.views + 1))
+        await session.commit()
+        return True
+    return False
 
 
 def owned_query() -> Select:
@@ -151,10 +174,28 @@ async def list_my_listings(user: User = Depends(current_user), session: AsyncSes
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)
-async def get_listing(listing_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_listing(
+    listing_id: UUID,
+    response: Response,
+    visitor_token: str | None = Cookie(default=None, alias="listing_visitor"),
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
     row = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
     if not row:
         raise HTTPException(404, "Listing not found")
+    if user:
+        viewer_key = f"user:{user.id}"
+    else:
+        if not visitor_token:
+            visitor_token = token_urlsafe(32)
+            response.set_cookie(
+                "listing_visitor", visitor_token, httponly=True, secure=get_settings().app_env != "development",
+                samesite="lax", max_age=90 * 24 * 60 * 60, path="/api/v1/listings",
+            )
+        viewer_key = anonymous_viewer_key(visitor_token)
+    if await register_view(row[0], viewer_key, session):
+        row = (await session.execute(visible_query().where(Listing.id == listing_id))).one()
     return response_from(row)
 
 

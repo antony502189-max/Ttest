@@ -11,17 +11,23 @@ from ..models import User
 bearer = HTTPBearer(auto_error=False)
 
 
-async def current_user(
+async def optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer), session: AsyncSession = Depends(get_session)
-) -> User:
+) -> User | None:
     if not credentials:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
+        return None
     try:
         claims = decode_access_token(credentials.credentials)
     except InvalidTokenError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
+        return None
     user = await session.scalar(select(User).where(User.id == claims.get("sub")))
     if not user or user.blocked:
+        return None
+    return user
+
+
+async def current_user(user: User | None = Depends(optional_user)) -> User:
+    if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
     return user
 

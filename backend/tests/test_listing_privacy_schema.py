@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from app.api.v1.listings import anonymous_viewer_key
 from app.schemas.listings import ListingResponse, ListingSearchRequest, ListingWrite, OwnedListingResponse
 
 
@@ -44,3 +45,11 @@ def test_search_polygon_is_closed_for_postgis():
 
     assert len(search.polygon) == 4
     assert search.polygon[0] == search.polygon[-1]
+
+
+def test_anonymous_viewer_key_is_stable_but_does_not_reveal_the_cookie():
+    key = anonymous_viewer_key("private-browser-token")
+
+    assert key == anonymous_viewer_key("private-browser-token")
+    assert key != "private-browser-token"
+    assert len(key) == 64
