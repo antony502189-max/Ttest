@@ -6,6 +6,7 @@ import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSav
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getPublicListings, updateRemoteListing } from '@/api/listings'
+import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -296,6 +297,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => toast.error('No se pudo sincronizar el historial de búsqueda.'))
   }, [currentUserId])
 
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') return
+    void getRemoteReports().then(setReports).catch(() => toast.error('No se pudieron cargar las denuncias.'))
+  }, [currentUser?.role])
+
   const updateScope = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<UserScopedState<T>>>, update: (current: T | undefined) => T) => {
     setter((current) => ({ ...current, [scopeKey]: update(current[scopeKey]) }))
   }, [scopeKey])
@@ -438,7 +444,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }), [mutateOwned])
   const closeListing = useCallback((id: string) => mutateOwned(id, (listing) => ({ ...listing, status: 'Finalizado', closedReason: 'owner' })), [mutateOwned])
   const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
-  const addReport = useCallback((listingId: string, reason: string, comment: string) => setReports((current) => [{ id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }, ...current]), [])
+  const addReport = useCallback((listingId: string, reason: string, comment: string) => {
+    const optimistic: ReportRecord = { id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }
+    setReports((current) => [optimistic, ...current])
+    void createRemoteReport(listingId, reason, comment).then((report) => {
+      setReports((current) => current.map((item) => item.id === optimistic.id ? report : item))
+    }).catch(() => {
+      setReports((current) => current.filter((item) => item.id !== optimistic.id))
+      toast.error('No se pudo enviar la denuncia al servidor.')
+    })
+  }, [])
   const addLocalMessage = useCallback((thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'>) => updateScope(setThreadScopes, (current) => [{ ...thread, id: `local-${Date.now()}`, createdAt: new Date().toISOString(), status: 'Demo local' as const }, ...(current ?? [])]), [updateScope])
   const addLocalComment = useCallback((listingId: string, text: string) => updateScope(setCommentScopes, (current) => [{ id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, userId: scopeKey, listingId, text: text.trim(), createdAt: new Date().toISOString() }, ...(current ?? [])]), [scopeKey, updateScope])
   const updateLocalComment = useCallback((id: string, text: string) => updateScope(setCommentScopes, (current) => (current ?? []).map((comment) => comment.id === id ? { ...comment, text: text.trim(), updatedAt: new Date().toISOString() } : comment)), [updateScope])

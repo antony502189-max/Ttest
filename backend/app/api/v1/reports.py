@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...db.session import get_session
 from ...models import AuditLog, Listing, Report, User
 from ...schemas.reports import CreateReportRequest, ReportResponse, ReportStatusRequest
-from ..dependencies import current_user, require_role
+from ..dependencies import optional_user, require_role
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -24,12 +24,12 @@ def public_report(report: Report) -> ReportResponse:
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
 async def create_report(
-    payload: CreateReportRequest, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+    payload: CreateReportRequest, user: User | None = Depends(optional_user), session: AsyncSession = Depends(get_session)
 ):
     if not await session.get(Listing, payload.listingId):
         raise HTTPException(404, "Listing not found")
     report = Report(
-        public_reference=f"R-{token_hex(5).upper()}", listing_id=payload.listingId, reporter_id=user.id,
+        public_reference=f"R-{token_hex(5).upper()}", listing_id=payload.listingId, reporter_id=user.id if user else None,
         reason=payload.reason.strip(), comment=payload.comment.strip(),
     )
     session.add(report)
