@@ -5,7 +5,7 @@ from secrets import token_hex
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, Listing, Report, User
@@ -28,15 +28,22 @@ def public_report(report: Report) -> ReportResponse:
 
 
 async def create_report(payload: CreateReportRequest, user: User | None, session: AsyncSession) -> ReportResponse:
-    listing = await session.get(Listing, payload.listingId)
-    if not listing or listing.deleted_at is not None:
+    listing = await session.scalar(
+        select(Listing).where(
+            Listing.id == payload.listingId,
+            Listing.status == "published",
+            Listing.deleted_at.is_(None),
+            (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+        )
+    )
+    if not listing:
         raise HTTPException(404, "Listing not found")
     report = Report(
         public_reference=f"R-{token_hex(5).upper()}",
-        listing_id=payload.listingId,
+        listing_id=listing.id,
         reporter_id=user.id if user else None,
-        reason=payload.reason.strip(),
-        comment=payload.comment.strip(),
+        reason=payload.reason,
+        comment=payload.comment,
     )
     session.add(report)
     await session.commit()
