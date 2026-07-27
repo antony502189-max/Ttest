@@ -6,7 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     app_env: str = "development"
+    app_name: str = "112233-api"
     database_url: str = "postgresql+asyncpg://ttest:ttest@localhost:5432/ttest"
     jwt_secret: str = "unsafe-development-secret-change-me-32"
     access_token_minutes: int = 15
@@ -14,16 +16,29 @@ class Settings(BaseSettings):
     password_reset_minutes: int = 30
     email_verification_minutes: int = 60 * 24
     frontend_app_url: str = "http://localhost:5173"
+    frontend_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:5174,http://127.0.0.1:5174,"
+        "http://localhost:5175,http://127.0.0.1:5175,"
+        "http://localhost:5176,http://127.0.0.1:5176,"
+        "https://antony502189-max.github.io"
+    )
+
+    google_client_id: str = ""
+
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = "noreply@112233.es"
     smtp_starttls: bool = True
-    google_client_id: str = ""
-    frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:5176,http://127.0.0.1:5176,https://antony502189-max.github.io"
+    mail_worker_interval_seconds: int = 10
+    mail_worker_batch_size: int = 50
+    mail_max_attempts: int = 8
+
     # In production new listings wait for moderation unless explicitly enabled.
     auto_publish_listings: bool = False
+
     media_root: Path = Path("var/media")
     storage_backend: str = "local"
     s3_bucket: str = ""
@@ -31,12 +46,40 @@ class Settings(BaseSettings):
     s3_region: str = ""
     s3_access_key: str = ""
     s3_secret_key: str = ""
+    s3_force_path_style: bool = True
     max_upload_bytes: int = 8 * 1024 * 1024
     max_image_dimension: int = 8_000
 
+    redis_url: str = ""
+    metrics_enabled: bool = True
+    structured_logs: bool = True
+    log_level: str = "INFO"
+
     @property
     def origins(self) -> list[str]:
-        return [item.strip() for item in self.frontend_origins.split(",") if item.strip()]
+        return [item.strip().rstrip("/") for item in self.frontend_origins.split(",") if item.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.lower() == "production"
+
+    def validate_runtime(self) -> None:
+        """Fail fast instead of silently starting with unsafe production defaults."""
+        if not self.is_production:
+            return
+        problems: list[str] = []
+        if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:
+            problems.append("JWT_SECRET must be a strong production secret")
+        if not self.origins or any(origin.startswith("http://") for origin in self.origins):
+            problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
+        if self.storage_backend == "s3" and not all(
+            [self.s3_bucket, self.s3_access_key, self.s3_secret_key]
+        ):
+            problems.append("S3 storage requires bucket and credentials")
+        if not self.smtp_host:
+            problems.append("SMTP_HOST is required in production")
+        if problems:
+            raise RuntimeError("Invalid production configuration: " + "; ".join(problems))
 
 
 @lru_cache
