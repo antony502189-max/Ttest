@@ -91,12 +91,13 @@ async def get_listing(
     else:
         if not visitor_token:
             visitor_token = token_urlsafe(32)
+            settings = get_settings()
             response.set_cookie(
                 "listing_visitor",
                 visitor_token,
                 httponly=True,
-                secure=get_settings().is_production,
-                samesite="lax",
+                secure=settings.is_production,
+                samesite="none" if settings.is_production else "lax",
                 max_age=90 * 24 * 60 * 60,
                 path="/api/v1/listings",
             )
