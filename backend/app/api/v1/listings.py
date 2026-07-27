@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
