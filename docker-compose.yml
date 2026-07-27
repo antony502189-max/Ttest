@@ -32,30 +32,20 @@ services:
       MINIO_ROOT_PASSWORD: ttest-minio-secret
     ports: ["9000:9000", "9001:9001"]
     volumes: ["minio-data:/data"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
 
   minio-init:
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
     depends_on:
-      minio: { condition: service_healthy }
+      minio: { condition: service_started }
     entrypoint: ["/bin/sh", "-ec"]
     command: >-
-      mc alias set local http://minio:9000 ttest-minio ttest-minio-secret;
+      until mc alias set local http://minio:9000 ttest-minio ttest-minio-secret; do sleep 2; done;
       mc mb --ignore-existing local/ttest-media;
       mc anonymous set none local/ttest-media
 
   mailpit:
     image: axllent/mailpit:v1.27
     ports: ["1025:1025", "8025:8025"]
-    healthcheck:
-      test: ["CMD", "/mailpit", "readyz"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
 
   migrate:
     build: ./backend
@@ -76,7 +66,7 @@ services:
       SMTP_PORT: "1025"
       SMTP_STARTTLS: "false"
       FRONTEND_APP_URL: http://localhost:5173
-      FRONTEND_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,https://antony502189-max.github.io
+      FRONTEND_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:4174,https://antony502189-max.github.io
       AUTO_PUBLISH_LISTINGS: "true"
     depends_on:
       postgres: { condition: service_healthy }
@@ -91,7 +81,7 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
       minio-init: { condition: service_completed_successfully }
-      mailpit: { condition: service_healthy }
+      mailpit: { condition: service_started }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
       interval: 10s
@@ -104,7 +94,7 @@ services:
     environment: *backend-environment
     depends_on:
       migrate: { condition: service_completed_successfully }
-      mailpit: { condition: service_healthy }
+      mailpit: { condition: service_started }
 
   seed:
     build: ./backend
