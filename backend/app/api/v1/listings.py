@@ -267,9 +267,12 @@ async def update_listing(
 
 
 @router.get("/{listing_id}/images", response_model=list[ListingImageResponse])
-async def list_listing_images(listing_id: UUID, session: AsyncSession = Depends(get_session)):
+async def list_listing_images(
+    listing_id: UUID, user: User | None = Depends(optional_user), session: AsyncSession = Depends(get_session)
+):
     listing = await session.get(Listing, listing_id)
-    if not listing or listing.status != "published":
+    owner_or_admin = listing and user and (listing.owner_user_id == user.id or user.role == "admin")
+    if not listing or (listing.status != "published" and not owner_or_admin):
         raise HTTPException(404, "Listing not found")
     rows = (
         await session.execute(

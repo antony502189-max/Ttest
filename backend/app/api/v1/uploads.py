@@ -5,13 +5,14 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import MediaAsset, User
+from ...models import Listing, ListingImage, MediaAsset, User
 from ...schemas.media import MediaAssetResponse
-from ..dependencies import current_user
+from ..dependencies import current_user, optional_user
 
 router = APIRouter(tags=["uploads"])
 SUPPORTED_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
@@ -72,10 +73,27 @@ async def upload_image(
 
 
 @router.get("/media/{asset_id}")
-async def get_media(asset_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_media(
+    asset_id: UUID, user: User | None = Depends(optional_user), session: AsyncSession = Depends(get_session)
+):
     asset = await session.get(MediaAsset, asset_id)
     if not asset or asset.deleted_at:
         raise HTTPException(404, "Media not found")
+    owner_or_admin = user and (user.id == asset.owner_id or user.role == "admin")
+    if not owner_or_admin:
+        published_listing = await session.scalar(
+            select(ListingImage.listing_id)
+            .join(Listing, Listing.id == ListingImage.listing_id)
+            .where(
+                ListingImage.media_asset_id == asset.id,
+                Listing.status == "published",
+                Listing.deleted_at.is_(None),
+                (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+            )
+            .limit(1)
+        )
+        if not published_listing:
+            raise HTTPException(404, "Media not found")
     path = get_settings().media_root / asset.storage_key
     if not path.is_file():
         raise HTTPException(404, "Media not found")
@@ -85,7 +103,7 @@ async def get_media(asset_id: UUID, session: AsyncSession = Depends(get_session)
 @router.delete("/uploads/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_upload(asset_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     asset = await session.get(MediaAsset, asset_id)
-    if not asset or asset.owner_id != user.id:
+    if not asset or (asset.owner_id != user.id and user.role != "admin"):
         raise HTTPException(404, "Media not found")
     path = get_settings().media_root / asset.storage_key
     await session.delete(asset)
