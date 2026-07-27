@@ -1,5 +1,10 @@
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
+from app.api.v1.auth import require_cookie_origin
+from app.core.config import get_settings
 from app.main import RATE_LIMITS, _rate_attempts, app, consume_rate_limit
 
 
@@ -41,3 +46,12 @@ def test_rate_limiter_returns_429_from_middleware() -> None:
     finally:
         RATE_LIMITS.pop(route, None)
         _rate_attempts.clear()
+
+
+def test_cookie_mutations_require_allowlisted_origin_in_production(monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "app_env", "production")
+    request = Request({"type": "http", "headers": [(b"origin", b"https://example.invalid")]})
+    with pytest.raises(HTTPException) as error:
+        require_cookie_origin(request)
+    assert error.value.status_code == 403

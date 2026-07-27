@@ -25,6 +25,14 @@ from ..dependencies import current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def require_cookie_origin(request: Request) -> None:
+    """Require an allowlisted browser Origin for cookie-authenticated mutations in production."""
+    settings = get_settings()
+    origin = request.headers.get("origin")
+    if settings.app_env != "development" and origin not in settings.origins:
+        raise HTTPException(403, "Invalid request origin")
+
+
 def public_user(user: User) -> dict:
     return {
         "id": str(user.id),
@@ -246,6 +254,7 @@ async def me(user: User = Depends(current_user)):
 async def refresh(
     response: Response, request: Request, refresh_token: str | None = Cookie(default=None), session: AsyncSession = Depends(get_session)
 ):
+    require_cookie_origin(request)
     if not refresh_token:
         raise HTTPException(401, "Refresh token required")
     auth = await session.scalar(
@@ -267,8 +276,9 @@ async def refresh(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
-    response: Response, refresh_token: str | None = Cookie(default=None), session: AsyncSession = Depends(get_session)
+    response: Response, request: Request, refresh_token: str | None = Cookie(default=None), session: AsyncSession = Depends(get_session)
 ):
+    require_cookie_origin(request)
     if refresh_token:
         auth = await session.scalar(
             select(AuthSession).where(
