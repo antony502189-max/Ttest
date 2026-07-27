@@ -36,10 +36,7 @@ def point(longitude: float, latitude: float):
 
 
 def primary_price_expression():
-    return case(
-        (Listing.rental_mode == "holiday", Listing.nightly_price),
-        else_=Listing.monthly_price,
-    )
+    return case((Listing.rental_mode == "holiday", Listing.nightly_price), else_=Listing.monthly_price)
 
 
 def bedroom_count_expression():
@@ -170,6 +167,9 @@ def owned_query() -> Select:
 def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select:
     price = primary_price_expression()
     bedrooms = bedroom_count_expression()
+    if payload.query and payload.query.strip().casefold() not in {"tenerife", "isla de tenerife"}:
+        term = f"%{payload.query.strip()}%"
+        query = query.where(or_(Listing.city.ilike(term), Listing.area.ilike(term)))
     if payload.city:
         query = query.where(Listing.city.ilike(f"%{payload.city.strip()}%"))
     if payload.area:
@@ -182,6 +182,8 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
         query = query.where(price <= payload.maxPrice)
     if payload.roomType:
         query = query.where(Listing.room_type == payload.roomType)
+    if payload.roomTypes:
+        query = query.where(Listing.room_type.in_(payload.roomTypes))
     if payload.bedroomCounts:
         exact = [int(value) for value in payload.bedroomCounts if value != "10+"]
         predicates = []
