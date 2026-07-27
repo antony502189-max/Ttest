@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
@@ -18,9 +20,10 @@ async def optional_user(
         return None
     try:
         claims = decode_access_token(credentials.credentials)
-    except InvalidTokenError:
+        user_id = UUID(claims["sub"])
+    except (InvalidTokenError, ValueError, TypeError):
         return None
-    user = await session.scalar(select(User).where(User.id == claims.get("sub")))
+    user = await session.scalar(select(User).where(User.id == user_id))
     if not user or user.blocked or user.deleted_at is not None:
         return None
     return user
