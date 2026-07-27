@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { hydrateSession, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, removeFavorite, updateSavedSearch } from '@/api/user-state'
-import { updateCurrentUser } from '@/api/users'
+import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -439,6 +439,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [allListings, currentUserId, setRemoteUser, users])
   const deleteAccount = useCallback(() => {
     if (!currentUserId) return
+    void deleteCurrentUser().catch(() => toast.error('No se pudo eliminar la cuenta en el servidor.'))
     const ownedListings = allListings.filter((listing) => listing.ownerUserId === currentUserId)
     const remainingListings = allListings.filter((listing) => listing.ownerUserId !== currentUserId)
     const remainingUsers = users.filter((user) => user.id !== currentUserId)
