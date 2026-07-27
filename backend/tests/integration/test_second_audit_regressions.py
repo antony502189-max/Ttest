@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from uuid import UUID
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -218,7 +219,7 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
     assert deleted.status_code == 204
 
     async with SessionLocal() as session:
-        user_id = user["id"]
+        user_id = UUID(user["id"])
         assert await session.scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user_id)) == 0
         assert await session.scalar(select(func.count()).select_from(Favorite).where(Favorite.user_id == user_id)) == 0
         assert await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id)) == 0
