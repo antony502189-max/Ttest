@@ -5,6 +5,18 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import '@/mobile-app-v2.css'
 
+type GoogleCredentialResponse = { credential: string }
+type GoogleIdentityApi = {
+  accounts: { id: {
+    initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void }) => void
+    prompt: () => void
+  } }
+}
+
+declare global { interface Window { google?: GoogleIdentityApi } }
+
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+
 const copy = {
   es: {
     title: 'Inicia sesión o regístrate',
@@ -42,18 +54,55 @@ export function UnifiedAuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { language } = useI18n()
-  const { login } = useApp()
+  const { login, loginGoogle } = useApp()
   const t = copy[language]
   const [showEmail, setShowEmail] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [googleReady, setGoogleReady] = useState(false)
 
   useEffect(() => {
     document.documentElement.classList.add('mobile-v2-active')
     return () => document.documentElement.classList.remove('mobile-v2-active')
   }, [])
+
+  useEffect(() => {
+    if (!googleClientId) return
+    let cancelled = false
+    const initialize = () => {
+      if (!window.google || cancelled) return
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: ({ credential }) => {
+          void (async () => {
+            setSubmitting(true)
+            const message = await loginGoogle(credential)
+            setSubmitting(false)
+            if (message) { setError(message); return }
+            const state = location.state as { returnTo?: string } | null
+            navigate(state?.returnTo ?? '/', { replace: true })
+          })()
+        },
+      })
+      setGoogleReady(true)
+    }
+    const existing = document.getElementById('google-identity-services') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', initialize)
+      initialize()
+      return () => { cancelled = true; existing.removeEventListener('load', initialize) }
+    }
+    const script = document.createElement('script')
+    script.id = 'google-identity-services'
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.addEventListener('load', initialize)
+    document.head.append(script)
+    return () => { cancelled = true; script.removeEventListener('load', initialize) }
+  }, [location.state, loginGoogle, navigate])
 
   const close = () => navigate('/', { replace: true })
   const back = () => {
@@ -78,7 +127,7 @@ export function UnifiedAuthPage() {
         <div className="m2-brand" aria-label="www.112233.es">www.112233.es</div>
         <span>España (Tenerife)</span>
         <h1>{t.title}</h1>
-        <button type="button" disabled title="Google sign-in is not configured yet"><b>G</b>{t.google}</button>
+        <button type="button" disabled={!googleReady || submitting} title={googleClientId ? undefined : 'Google sign-in is not configured'} onClick={() => { setError(''); window.google?.accounts.id.prompt() }}><b>G</b>{t.google}</button>
         {!showEmail ? <button type="button" onClick={() => setShowEmail(true)}><Mail />{t.email}</button> : <form className="m2-auth-form" onSubmit={submit}>
           <input aria-label="Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="Email" />
           <input aria-label="Contraseña" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required placeholder="Contraseña" />

@@ -13,6 +13,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(min_length=20, max_length=10_000)
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 

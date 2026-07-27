@@ -18,10 +18,13 @@ Crea `.env.local` a partir de `.env.example`:
 VITE_GOOGLE_MAPS_API_KEY=
 VITE_GOOGLE_MAPS_MAP_ID=
 VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_GOOGLE_CLIENT_ID=
 BACKEND_PORT=8000
 ```
 
 El Map ID es obligatorio en producción para Advanced Markers. El modo local puede usar temporalmente `DEMO_MAP_ID` cuando no se ha configurado uno propio. `.env.local` y el resto de archivos `.env.*` están ignorados por Git.
+
+Para Google sign-in usa el mismo OAuth Web Client ID en `VITE_GOOGLE_CLIENT_ID` y `backend/.env` como `GOOGLE_CLIENT_ID`.
 
 ```bash
 npm run dev

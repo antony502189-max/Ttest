@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +10,14 @@ from ...core.config import get_settings
 from ...core.security import create_access_token, hash_password, new_refresh_token, token_hash, verify_password
 from ...db.session import get_session
 from ...models import AuthSession, PasswordResetToken, User
-from ...schemas.auth import ForgotPasswordRequest, LoginRequest, RegisterRequest, ResetPasswordRequest, UserResponse
+from ...schemas.auth import (
+    ForgotPasswordRequest,
+    GoogleLoginRequest,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    UserResponse,
+)
 from ..dependencies import current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -72,6 +81,40 @@ async def login(payload: LoginRequest, response: Response, session: AsyncSession
     user = await session.scalar(select(User).where(func.lower(User.email) == str(payload.email).lower()))
     if not user or not user.password_hash or not verify_password(payload.password, user.password_hash) or user.blocked:
         raise HTTPException(401, "Invalid credentials")
+    return await issue_tokens(user, session, response)
+
+
+@router.post("/google")
+async def google_login(payload: GoogleLoginRequest, response: Response, session: AsyncSession = Depends(get_session)):
+    settings = get_settings()
+    if not settings.google_client_id:
+        raise HTTPException(503, "Google sign-in is not configured")
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            payload.credential, google_requests.Request(), settings.google_client_id
+        )
+    except ValueError:
+        raise HTTPException(401, "Invalid Google credential")
+    subject = claims.get("sub")
+    email = str(claims.get("email", "")).lower()
+    if not subject or not email or not claims.get("email_verified"):
+        raise HTTPException(401, "Google account email is not verified")
+    user = await session.scalar(select(User).where(User.google_subject == subject))
+    if not user:
+        user = await session.scalar(select(User).where(func.lower(User.email) == email))
+        if user:
+            user.google_subject = subject
+            user.email_verified = True
+        else:
+            name = str(claims.get("name") or email.split("@", 1)[0]).strip()[:120]
+            user = User(
+                email=email, google_subject=subject, name=name, role="tenant", password_hash=None,
+                initials="".join(part[:1].upper() for part in name.split()[:2]), email_verified=True,
+            )
+            session.add(user)
+    if user.blocked:
+        raise HTTPException(403, "Account is blocked")
+    await session.flush()
     return await issue_tokens(user, session, response)
 
 
