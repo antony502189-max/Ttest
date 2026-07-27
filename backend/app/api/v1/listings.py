@@ -2,8 +2,17 @@ import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from geoalchemy2.functions import ST_AsGeoJSON, ST_MakePoint, ST_SetSRID
-from sqlalchemy import Select, delete, select
+from geoalchemy2 import Geometry
+from geoalchemy2.functions import (
+    ST_AsGeoJSON,
+    ST_DWithin,
+    ST_GeomFromText,
+    ST_MakeEnvelope,
+    ST_MakePoint,
+    ST_SetSRID,
+    ST_Within,
+)
+from sqlalchemy import Select, cast, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
@@ -13,6 +22,8 @@ from ...schemas.listings import (
     ListingImagesRequest,
     ListingPatch,
     ListingResponse,
+    ListingSearchRequest,
+    ListingSearchResponse,
     ListingWrite,
     OwnedListingResponse,
 )
@@ -58,6 +69,29 @@ def owned_query() -> Select:
     return select(Listing, ST_AsGeoJSON(Listing.location), ST_AsGeoJSON(Listing.exact_location))
 
 
+def search_filters(query: Select, payload: ListingSearchRequest) -> Select:
+    if payload.city:
+        query = query.where(Listing.city.ilike(f"%{payload.city.strip()}%"))
+    if payload.area:
+        query = query.where(Listing.area.ilike(f"%{payload.area.strip()}%"))
+    if payload.rentalMode:
+        query = query.where(Listing.rental_mode == payload.rentalMode)
+    if payload.minPrice is not None:
+        query = query.where((Listing.monthly_price >= payload.minPrice) | (Listing.nightly_price >= payload.minPrice))
+    if payload.maxPrice is not None:
+        query = query.where((Listing.monthly_price <= payload.maxPrice) | (Listing.nightly_price <= payload.maxPrice))
+    if payload.minLongitude is not None:
+        bbox = ST_MakeEnvelope(payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326)
+        query = query.where(ST_Within(cast(Listing.location, Geometry("POINT", srid=4326)), bbox))
+    if payload.center:
+        query = query.where(ST_DWithin(Listing.location, point(payload.center.longitude, payload.center.latitude), payload.radiusKm * 1000))
+    if payload.polygon:
+        wkt = "POLYGON((" + ", ".join(f"{item.longitude} {item.latitude}" for item in payload.polygon) + "))"
+        polygon = ST_GeomFromText(wkt, 4326)
+        query = query.where(ST_Within(cast(Listing.location, Geometry("POINT", srid=4326)), polygon))
+    return query
+
+
 @router.get("", response_model=list[ListingResponse])
 async def list_listings(
     city: str | None = None, area: str | None = None, rental_mode: str | None = Query(default=None, alias="rentalMode"),
@@ -76,6 +110,20 @@ async def list_listings(
     if max_price is not None:
         query = query.where((Listing.monthly_price <= max_price) | (Listing.nightly_price <= max_price))
     return [response_from(row) for row in (await session.execute(query.order_by(Listing.created_at.desc()))).all()]
+
+
+@router.post("/search", response_model=ListingSearchResponse)
+async def search_listings(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session)):
+    query = search_filters(visible_query(), payload)
+    total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    price = func.coalesce(Listing.monthly_price, Listing.nightly_price)
+    ordering = {
+        "newest": Listing.created_at.desc(),
+        "price_asc": price.asc(),
+        "price_desc": price.desc(),
+    }[payload.sort]
+    rows = (await session.execute(query.order_by(ordering, Listing.id).limit(payload.limit).offset(payload.offset))).all()
+    return ListingSearchResponse(items=[response_from(row) for row in rows], total=total or 0, limit=payload.limit, offset=payload.offset)
 
 
 @router.get("/mine", response_model=list[OwnedListingResponse])

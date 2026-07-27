@@ -77,6 +77,56 @@ class OwnedListingResponse(ListingResponse):
     exactLongitude: float | None
 
 
+class SearchPoint(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class ListingSearchRequest(BaseModel):
+    city: str | None = Field(default=None, max_length=120)
+    area: str | None = Field(default=None, max_length=120)
+    rentalMode: str | None = None
+    minPrice: int | None = Field(default=None, ge=0)
+    maxPrice: int | None = Field(default=None, ge=0)
+    minLatitude: float | None = Field(default=None, ge=-90, le=90)
+    maxLatitude: float | None = Field(default=None, ge=-90, le=90)
+    minLongitude: float | None = Field(default=None, ge=-180, le=180)
+    maxLongitude: float | None = Field(default=None, ge=-180, le=180)
+    center: SearchPoint | None = None
+    radiusKm: float | None = Field(default=None, gt=0, le=100)
+    polygon: list[SearchPoint] = Field(default_factory=list, max_length=100)
+    sort: str = "newest"
+    limit: int = Field(default=20, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_geo_filters(self):
+        bounds = (self.minLatitude, self.maxLatitude, self.minLongitude, self.maxLongitude)
+        if any(value is not None for value in bounds) and any(value is None for value in bounds):
+            raise ValueError("all bounding-box coordinates are required")
+        if self.minLatitude is not None and (self.minLatitude >= self.maxLatitude or self.minLongitude >= self.maxLongitude):
+            raise ValueError("bounding-box minimums must be below maximums")
+        if (self.center is None) != (self.radiusKm is None):
+            raise ValueError("center and radiusKm must be provided together")
+        if self.rentalMode not in {None, "long", "holiday"}:
+            raise ValueError("rentalMode must be long or holiday")
+        if self.sort not in {"newest", "price_asc", "price_desc"}:
+            raise ValueError("sort must be newest, price_asc, or price_desc")
+        if self.polygon:
+            if len(self.polygon) < 3:
+                raise ValueError("polygon needs at least three points")
+            if self.polygon[0] != self.polygon[-1]:
+                self.polygon.append(self.polygon[0])
+        return self
+
+
+class ListingSearchResponse(BaseModel):
+    items: list[ListingResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class ListingImagesRequest(BaseModel):
     assetIds: list[UUID] = Field(min_length=1, max_length=20)
 
