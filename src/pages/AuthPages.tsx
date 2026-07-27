@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FormField } from '@/components/forms'
 import { Logo } from '@/components/layout'
 import { useApp } from '@/contexts/app-context'
-import { requestPasswordReset, resetPassword } from '@/api/auth'
+import { requestPasswordReset, resetPassword, verifyEmail } from '@/api/auth'
 import type { UserRole } from '@/types'
 
 function AuthShell({ title, description, children, asideTitle = 'Tu próxima habitación empieza con información clara.' }: { title: string; description: string; children: ReactNode; asideTitle?: string }) {
@@ -76,4 +76,17 @@ export function ResetPasswordPage() {
     catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo actualizar la contraseña.') }
   }
   return <AuthShell title={done ? 'Contraseña actualizada' : 'Crea una nueva contraseña'} description={done ? 'Ya puedes acceder con tu nueva contraseña.' : 'Usa al menos 12 caracteres.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Tu contraseña se ha actualizado y las sesiones anteriores se han cerrado.</AlertDescription></Alert><Button asChild><Link to="/acceso">Acceder</Link></Button></> : <form className="auth-form" onSubmit={submit}><FormField label="Nueva contraseña" htmlFor="reset-password" error={error}><Input id="reset-password" name="password" type="password" minLength={12} required aria-invalid={!!error} /></FormField><FormField label="Repite la contraseña" htmlFor="reset-confirm"><Input id="reset-confirm" name="confirm" type="password" minLength={12} required /></FormField><Button size="lg"><KeyRound data-icon="inline-start" />Guardar contraseña</Button></form>}</AuthShell>
+}
+
+export function VerifyEmailPage() {
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
+  const [params] = useSearchParams()
+  const submit = async () => {
+    const token = params.get('token')
+    if (!token) { setError('El enlace de confirmación no es válido o ha caducado.'); return }
+    try { await verifyEmail(token); setError(''); setDone(true) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo confirmar el correo.') }
+  }
+  return <AuthShell title={done ? 'Correo confirmado' : 'Confirma tu correo'} description={done ? 'Tu dirección de correo ya está verificada.' : 'Confirma tu dirección para completar la seguridad de tu cuenta.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Ya puedes continuar usando tu cuenta.</AlertDescription></Alert><Button asChild><Link to="/">Ir al inicio</Link></Button></> : <><FormField label="Enlace de confirmación" htmlFor="verification-token" error={error}><Input id="verification-token" value={params.get('token') ?? ''} readOnly aria-invalid={!!error} /></FormField><Button size="lg" onClick={submit}><Mail data-icon="inline-start" />Confirmar correo</Button></>}</AuthShell>
 }

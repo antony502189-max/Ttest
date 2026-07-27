@@ -13,8 +13,15 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     password_reset_minutes: int = 30
     email_verification_minutes: int = 60 * 24
+    frontend_app_url: str = "http://localhost:5173"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@112233.es"
+    smtp_starttls: bool = True
     google_client_id: str = ""
-    frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,https://antony502189-max.github.io"
+    frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:5176,http://127.0.0.1:5176,https://antony502189-max.github.io"
     # In production new listings wait for moderation unless explicitly enabled.
     auto_publish_listings: bool = False
     media_root: Path = Path("var/media")

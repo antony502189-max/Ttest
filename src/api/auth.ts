@@ -8,6 +8,7 @@ export async function loginWithGoogle(credential: string) { const session = awai
 export async function registerAccount(input: { name: string; email: string; password: string; role: UserRole }) { const session = await api<Session>('/auth/register', { method: 'POST', body: JSON.stringify(input) }); setAccessToken(session.accessToken); localStorage.setItem(SESSION_HINT, '1'); return session.user }
 export const requestPasswordReset = (email: string) => api<{ message: string; resetToken?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) })
 export const resetPassword = (token: string, password: string) => api<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) })
+export const verifyEmail = (token: string) => api<void>('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) })
 export async function hydrateSession() {
   if (!localStorage.getItem(SESSION_HINT)) return null
   try { const session = await api<Session>('/auth/refresh', { method: 'POST' }); setAccessToken(session.accessToken); return session.user }

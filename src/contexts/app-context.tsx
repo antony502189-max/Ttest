@@ -92,6 +92,7 @@ const LISTINGS_KEY = '112233:listings:v3'
 const LISTINGS_VERSION = 3
 const DRAFT_KEY = '112233:listing-draft:v3'
 const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
 function collectMediaReferences(value: unknown, found = new Set<string>()) {
   if (typeof value === 'string') {
@@ -147,6 +148,7 @@ const isScopedLocalComments = (value: unknown): value is UserScopedState<LocalLi
 const isListingArray = (value: unknown): value is Listing[] => Array.isArray(value) && value.every(isListingLike)
 
 function readListings() {
+  if (!mockMode) return { data: [] as Listing[] }
   const current = readVersioned(LISTINGS_KEY, LISTINGS_VERSION, [] as Listing[], isListingArray)
   if (!current.failure && localStorage.getItem(LISTINGS_KEY)) {
     return { data: current.data.map(normalizeListing).filter((item): item is Listing => Boolean(item)) }
@@ -246,7 +248,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => reportStorageFailure(persistVersioned('112233:discarded:v2', 2, discardedScopes)), [discardedScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:search-history:v2', 2, historyScopes)), [historyScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:saved-searches:v3', 3, savedSearchScopes)), [savedSearchScopes, reportStorageFailure])
-  useEffect(() => reportStorageFailure(persistVersioned(LISTINGS_KEY, LISTINGS_VERSION, allListings)), [allListings, reportStorageFailure])
+  useEffect(() => {
+    if (mockMode) reportStorageFailure(persistVersioned(LISTINGS_KEY, LISTINGS_VERSION, allListings))
+  }, [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:message-threads:v1', 1, threadScopes)), [threadScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
@@ -274,7 +278,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (listingsHydrationStarted.current) return
     listingsHydrationStarted.current = true
     void getPublicListings().then(setAllListings).catch(() => {
-      toast.error('No se pudo cargar el catálogo del servidor. Se muestra la copia local.')
+      if (mockMode) toast.error('No se pudo cargar el catálogo del servidor. Se muestra la copia local.')
+      else {
+        setAllListings([])
+        toast.error('No se pudo cargar el catálogo del servidor.')
+      }
     })
   }, [])
 

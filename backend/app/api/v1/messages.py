@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...db.session import get_session
 from ...models import Listing, Message, MessageThread, User
 from ...schemas.messages import MessageResponse, SendMessageRequest, ThreadResponse
+from ...services.mail import enqueue_message_notification
 from ..dependencies import current_user
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -69,6 +70,9 @@ async def send_message(
     message = Message(thread_id=thread.id, sender_id=user.id, body=payload.body.strip())
     thread.last_message_at = datetime.now(UTC)
     session.add(message)
+    recipient = await session.get(User, thread.host_id)
+    if recipient and recipient.allow_contact_form:
+        enqueue_message_notification(session, recipient.email, str(listing.id))
     await session.commit()
     await session.refresh(message)
     return public_message(message)

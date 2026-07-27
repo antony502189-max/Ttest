@@ -19,6 +19,7 @@ from ...schemas.auth import (
     UserResponse,
     VerifyEmailRequest,
 )
+from ...services.mail import enqueue_email_verification, enqueue_password_reset
 from ..dependencies import current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -74,6 +75,13 @@ async def register(payload: RegisterRequest, response: Response, session: AsyncS
     )
     session.add(user)
     await session.flush()
+    verification_token = new_refresh_token()
+    session.add(EmailVerificationToken(
+        user_id=user.id,
+        token_hash=token_hash(verification_token),
+        expires_at=datetime.now(UTC) + timedelta(minutes=get_settings().email_verification_minutes),
+    ))
+    enqueue_email_verification(session, user.email, verification_token)
     return await issue_tokens(user, session, response)
 
 
@@ -138,9 +146,9 @@ async def forgot_password(payload: ForgotPasswordRequest, session: AsyncSession 
         token_hash=token_hash(raw_token),
         expires_at=now + timedelta(minutes=get_settings().password_reset_minutes),
     ))
+    enqueue_password_reset(session, user.email, raw_token)
     await session.commit()
-    # A mail provider is environment-specific.  Development exposes the token
-    # so the complete browser flow remains testable without an SMTP service.
+    # Development exposes the token so the browser flow remains testable.
     if get_settings().app_env == "development":
         response["resetToken"] = raw_token
     return response
@@ -187,9 +195,9 @@ async def request_email_verification(user: User = Depends(current_user), session
         token_hash=token_hash(raw_token),
         expires_at=now + timedelta(minutes=get_settings().email_verification_minutes),
     ))
+    enqueue_email_verification(session, user.email, raw_token)
     await session.commit()
-    # Delivery is delegated to the configured mail provider; the token is only
-    # exposed in development to make the complete flow testable locally.
+    # The token is exposed only in development to make the flow testable locally.
     if get_settings().app_env == "development":
         response["verificationToken"] = raw_token
     return response

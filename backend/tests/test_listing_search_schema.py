@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.schemas.auth import VerifyEmailRequest
 from app.schemas.listings import ListingSearchRequest
+from app.services.mail import frontend_link
 
 
 def test_search_schema_accepts_extended_filters():
@@ -36,3 +37,8 @@ def test_search_schema_rejects_reversed_room_size_range():
 def test_email_verification_token_requires_secure_length():
     with pytest.raises(ValidationError):
         VerifyEmailRequest(token="too-short")
+
+
+def test_mail_links_use_existing_hash_routes():
+    assert frontend_link("/restablecer-contrasena?token=test").endswith("/#/restablecer-contrasena?token=test")
+    assert frontend_link("/habitacion/listing-id").endswith("/#/habitacion/listing-id")

@@ -50,6 +50,7 @@ import type { Filters, Listing, MapPolygonPoint, RentalMode } from "@/types";
 const PAGE_SIZE = 9;
 const sortOptions = ["Relevancia", "Más recientes", "Más antiguos", "Precio más bajo", "Precio más alto"];
 const MOBILE_MAP_MEDIA = "(max-width: 767px), (max-height: 480px) and (max-width: 900px)";
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1';
 
 function SortControl({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return <Drawer><DrawerTrigger asChild><Button variant="outline" className="mobile-sort-control"><ArrowUpDown data-icon="inline-start" />Ordenar</Button></DrawerTrigger><DrawerContent className="sort-drawer"><DrawerHeader><DrawerTitle>Ordenar resultados</DrawerTitle><DrawerDescription>Elige cómo quieres ver las habitaciones.</DrawerDescription></DrawerHeader><RadioGroup value={value} onValueChange={onChange} className="sort-options">{sortOptions.map((option) => { const id = `sort-${option.replace(/\s+/g, '-').toLocaleLowerCase()}`; return <Field key={option} orientation="horizontal"><RadioGroupItem id={id} value={option} /><FieldLabel htmlFor={id}>{option}</FieldLabel></Field> })}</RadioGroup><DrawerFooter><DrawerClose asChild><Button>Aplicar orden</Button></DrawerClose></DrawerFooter></DrawerContent></Drawer>
@@ -80,6 +81,7 @@ export function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [serverItems, setServerItems] = useState<Listing[] | null>(null);
   const [serverLoading, setServerLoading] = useState(false);
+  const [serverError, setServerError] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [zoneHierarchy, setZoneHierarchy] = useState<TenerifeZoneCollection | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_MAP_MEDIA).matches);
@@ -168,6 +170,7 @@ export function SearchPage() {
   useEffect(() => {
     let cancelled = false;
     setServerLoading(true);
+    setServerError(false);
     const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
     void searchPublicListings({
       rentalMode,
@@ -180,7 +183,10 @@ export function SearchPage() {
     }).then((items) => {
       if (!cancelled) setServerItems(items);
     }).catch(() => {
-      if (!cancelled) setServerItems(null);
+      if (!cancelled) {
+        setServerItems(mockMode ? null : []);
+        setServerError(true);
+      }
     }).finally(() => {
       if (!cancelled) setServerLoading(false);
     });
@@ -190,7 +196,7 @@ export function SearchPage() {
   const filteredItems = useMemo(
     () =>
       filterListings(
-        (serverItems ?? allListings).filter((listing) => !discarded.has(listing.id)),
+        (serverItems ?? (mockMode ? allListings : [])).filter((listing) => !discarded.has(listing.id)),
         rentalMode,
         filters,
         zoneHierarchy,
@@ -656,7 +662,7 @@ export function SearchPage() {
                 />
               </div>
             </div>
-          ) : forcedState === "error" ? (
+          ) : forcedState === "error" || serverError ? (
             <ErrorState />
           ) : loading || serverLoading || forcedState === "loading" ? (
             <LoadingSkeleton />
