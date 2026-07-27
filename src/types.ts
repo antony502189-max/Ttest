@@ -26,6 +26,9 @@ export interface Listing {
   city: string
   area: string
   approximateAddress: string
+  street?: string
+  postcode?: string
+  exactCoordinates?: Coordinates
   price: number
   cadence: 'mes' | 'noche'
   monthlyPrice?: number
@@ -77,7 +80,7 @@ export interface Listing {
   showPhone: boolean
   showWhatsApp: boolean
   allowContactForm: boolean
-  closedReason?: 'expired' | 'owner'
+  closedReason?: 'expired' | 'owner' | 'deleted' | 'account_deleted'
 }
 
 export interface Filters {
