@@ -83,6 +83,7 @@ class Listing(Timestamped, Base):
     empadronamiento_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
     restrictions: Mapped[list[str]] = mapped_column(JSONB, default=list)
     amenities: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    external_image_urls: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(
         Enum("draft", "pending", "published", "hidden", "closed", "rejected", name="listing_status"),
         default="draft",

@@ -109,6 +109,15 @@ class ListingPatch(BaseModel):
 class ListingResponse(BaseModel):
     id: str
     ownerUserId: str
+    owner: "ListingOwnerResponse"
+    contactPhone: str | None
+    contactWhatsapp: str | None
+    contactEmail: str | None
+    showPhone: bool
+    showWhatsApp: bool
+    allowContactForm: bool
+    coverImageUrl: str | None
+    imageUrls: list[str]
     title: str
     city: str
     area: str
@@ -154,6 +163,14 @@ class ListingResponse(BaseModel):
     closedReason: str | None
     createdAt: datetime
     updatedAt: datetime | None
+
+
+class ListingOwnerResponse(BaseModel):
+    name: str
+    initials: str
+    since: datetime | None
+    response: str
+    verified: bool
 
 
 class OwnedListingResponse(ListingResponse):

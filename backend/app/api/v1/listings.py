@@ -26,6 +26,7 @@ from ...models import Listing, ListingImage, ListingView, MediaAsset, User
 from ...schemas.listings import (
     ListingImageResponse,
     ListingImagesRequest,
+    ListingOwnerResponse,
     ListingPatch,
     ListingResponse,
     ListingSearchRequest,
@@ -42,12 +43,39 @@ def point(longitude: float, latitude: float):
     return ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
 
 
-def response_from(row: tuple[Listing, str]) -> ListingResponse:
-    listing, geojson = row
+def cover_asset_subquery():
+    return (
+        select(MediaAsset.id)
+        .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
+        .where(ListingImage.listing_id == Listing.id, MediaAsset.deleted_at.is_(None))
+        .order_by(ListingImage.is_cover.desc(), ListingImage.sort_order)
+        .limit(1)
+        .scalar_subquery()
+    )
+
+
+def response_from(row) -> ListingResponse:
+    listing, geojson, owner, cover_asset_id = row
     coordinates = json.loads(geojson)["coordinates"]
     price = listing.monthly_price if listing.rental_mode == "long" else listing.nightly_price
     return ListingResponse(
-        id=str(listing.id), ownerUserId=str(listing.owner_user_id), title=listing.title,
+        id=str(listing.id), ownerUserId=str(listing.owner_user_id),
+        owner=ListingOwnerResponse(
+            name=owner.name,
+            initials=owner.initials or "".join(part[:1].upper() for part in owner.name.split()[:2]),
+            since=owner.created_at,
+            response="Consulta disponibilidad",
+            verified=owner.email_verified,
+        ),
+        contactPhone=owner.phone if owner.show_phone else None,
+        contactWhatsapp=owner.whatsapp if owner.show_whatsapp else None,
+        contactEmail=None,
+        showPhone=owner.show_phone,
+        showWhatsApp=owner.show_whatsapp,
+        allowContactForm=owner.allow_contact_form,
+        coverImageUrl=f"/api/v1/media/{cover_asset_id}" if cover_asset_id else (listing.external_image_urls[0] if listing.external_image_urls else None),
+        imageUrls=[f"/api/v1/media/{cover_asset_id}"] if cover_asset_id else listing.external_image_urls,
+        title=listing.title,
         city=listing.city, area=listing.area, approximateAddress=listing.approximate_address,
         rentalMode=listing.rental_mode, monthlyPrice=listing.monthly_price, nightlyPrice=listing.nightly_price, weeklyPrice=listing.weekly_price,
         price=price, cadence="mes" if listing.rental_mode == "long" else "noche",
@@ -66,9 +94,9 @@ def response_from(row: tuple[Listing, str]) -> ListingResponse:
     )
 
 
-def owned_response_from(row: tuple[Listing, str, str | None]) -> OwnedListingResponse:
-    listing, public_geojson, exact_geojson = row
-    public = response_from((listing, public_geojson)).model_dump()
+def owned_response_from(row) -> OwnedListingResponse:
+    listing, public_geojson, owner, cover_asset_id, exact_geojson = row
+    public = response_from((listing, public_geojson, owner, cover_asset_id)).model_dump()
     exact_coordinates = json.loads(exact_geojson)["coordinates"] if exact_geojson else None
     return OwnedListingResponse(
         **public,
@@ -80,7 +108,9 @@ def owned_response_from(row: tuple[Listing, str, str | None]) -> OwnedListingRes
 
 
 def visible_query() -> Select:
-    return select(Listing, ST_AsGeoJSON(Listing.location)).where(
+    return select(Listing, ST_AsGeoJSON(Listing.location), User, cover_asset_subquery()).join(
+        User, User.id == Listing.owner_user_id
+    ).where(
         Listing.status == "published",
         Listing.deleted_at.is_(None),
         (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
@@ -105,7 +135,9 @@ async def register_view(listing: Listing, viewer_key: str, session: AsyncSession
 
 
 def owned_query() -> Select:
-    return select(Listing, ST_AsGeoJSON(Listing.location), ST_AsGeoJSON(Listing.exact_location))
+    return select(
+        Listing, ST_AsGeoJSON(Listing.location), User, cover_asset_subquery(), ST_AsGeoJSON(Listing.exact_location)
+    ).join(User, User.id == Listing.owner_user_id)
 
 
 def search_filters(query: Select, payload: ListingSearchRequest) -> Select:

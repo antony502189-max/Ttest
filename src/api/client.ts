@@ -6,6 +6,9 @@ export class ApiError extends Error {
   constructor(status: number, message: string, fieldErrors: Record<string, string> = {}) { super(message); this.status = status; this.fieldErrors = fieldErrors }
 }
 export function setAccessToken(token: string | null) { accessToken = token }
+export function resolveApiUrl(path: string) {
+  return /^https?:\/\//.test(path) ? path : new URL(path, `${API_BASE_URL}/`).toString()
+}
 async function refresh() {
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, { method: 'POST', credentials: 'include' })
   if (!response.ok) return false

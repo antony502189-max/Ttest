@@ -5,6 +5,7 @@ import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
+import { getPublicListings } from '@/api/listings'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -194,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [storageError, setStorageError] = useState<string | null>(() => listingLoad.failure ? storageMessage(listingLoad.failure) : null)
   const orphanCleanupStarted = useRef(false)
   const authHydrationStarted = useRef(false)
+  const listingsHydrationStarted = useRef(false)
 
   const currentUser = users.find((user) => user.id === currentUserId) ?? null
   const scopeKey = currentUserId ?? 'guest'
@@ -243,10 +245,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (authHydrationStarted.current) return
     authHydrationStarted.current = true
-    void hydrateSession().then(setRemoteUser).catch((error: unknown) => {
+    void hydrateSession().then((user) => { if (user) setRemoteUser(user) }).catch((error: unknown) => {
       if (!(error instanceof ApiError) || error.status !== 401) toast.error('No se pudo restaurar la sesión.')
     })
   }, [setRemoteUser])
+
+  useEffect(() => {
+    if (listingsHydrationStarted.current) return
+    listingsHydrationStarted.current = true
+    void getPublicListings().then(setAllListings).catch(() => {
+      toast.error('No se pudo cargar el catálogo del servidor. Se muestra la copia local.')
+    })
+  }, [])
 
   useEffect(() => {
     if (!currentUserId) return
