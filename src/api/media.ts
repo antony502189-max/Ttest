@@ -14,15 +14,29 @@ export async function uploadMediaReference(reference: string) {
   return api<MediaAssetDto>('/uploads', { method: 'POST', body })
 }
 
+async function deleteUploadedAsset(assetId: string) {
+  await api<void>(`/uploads/${assetId}`, { method: 'DELETE' })
+}
+
 export async function syncListingImages(listingId: string, references: string[]) {
   const assetIds: string[] = []
-  for (const reference of references) {
-    const existingId = assetIdFromUrl(reference)
-    if (existingId) assetIds.push(existingId)
-    else if (isMediaReference(reference)) assetIds.push((await uploadMediaReference(reference)).id)
+  const newlyUploaded: string[] = []
+  try {
+    for (const reference of references) {
+      const existingId = assetIdFromUrl(reference)
+      if (existingId) assetIds.push(existingId)
+      else if (isMediaReference(reference)) {
+        const uploaded = await uploadMediaReference(reference)
+        assetIds.push(uploaded.id)
+        newlyUploaded.push(uploaded.id)
+      }
+    }
+    const images = await api<ListingImageDto[]>(`/listings/${listingId}/images`, {
+      method: 'PUT', body: JSON.stringify({ assetIds }),
+    })
+    return images.sort((a, b) => a.sortOrder - b.sortOrder).map((image) => resolveApiUrl(image.url))
+  } catch (error) {
+    await Promise.allSettled(newlyUploaded.map(deleteUploadedAsset))
+    throw error
   }
-  const images = await api<ListingImageDto[]>(`/listings/${listingId}/images`, {
-    method: 'PUT', body: JSON.stringify({ assetIds }),
-  })
-  return images.sort((a, b) => a.sortOrder - b.sortOrder).map((image) => resolveApiUrl(image.url))
 }
