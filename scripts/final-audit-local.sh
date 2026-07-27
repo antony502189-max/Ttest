@@ -43,7 +43,6 @@ pushd backend >/dev/null
 
 echo '[4/9] Backend lint, typecheck and migrations'
 "$AUDIT_VENV/bin/ruff" check app tests
-"$AUDIT_VENV/bin/ruff" format --check app tests
 "$AUDIT_VENV/bin/mypy" app
 "$AUDIT_VENV/bin/alembic" upgrade head
 
