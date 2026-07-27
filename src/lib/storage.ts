@@ -10,6 +10,16 @@ export interface StorageResult<T> {
   failure?: StorageFailure
 }
 
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+const serverOwnedKeys = new Set([
+  '112233:reports:v1',
+  '112233:message-threads:v1',
+])
+
+function localStorageEnabled(key: string) {
+  return mockMode || !serverOwnedKeys.has(key)
+}
+
 export function parseJson<T>(raw: string | null): StorageResult<T | null> {
   if (raw === null) return { data: null }
   try {
@@ -20,6 +30,10 @@ export function parseJson<T>(raw: string | null): StorageResult<T | null> {
 }
 
 export function readJson<T>(key: string, fallback: T, validator?: (value: unknown) => value is T): StorageResult<T> {
+  if (!localStorageEnabled(key)) {
+    localStorage.removeItem(key)
+    return { data: fallback }
+  }
   const parsed = parseJson<unknown>(localStorage.getItem(key))
   if (parsed.failure) return { data: fallback, failure: parsed.failure }
   if (parsed.data === null) return { data: fallback }
@@ -33,6 +47,10 @@ export function readVersioned<T>(
   fallback: T,
   validator: (value: unknown) => value is T,
 ): StorageResult<T> {
+  if (!localStorageEnabled(key)) {
+    localStorage.removeItem(key)
+    return { data: fallback }
+  }
   const parsed = parseJson<unknown>(localStorage.getItem(key))
   if (parsed.failure) return { data: fallback, failure: parsed.failure }
   if (parsed.data === null) return { data: fallback }
@@ -48,6 +66,10 @@ export function isQuotaError(error: unknown) {
 }
 
 export function persistJson(key: string, value: unknown): StorageFailure | null {
+  if (!localStorageEnabled(key)) {
+    localStorage.removeItem(key)
+    return null
+  }
   try {
     localStorage.setItem(key, JSON.stringify(value))
     return null
