@@ -6,7 +6,7 @@ type ListingImageDto = { assetId: string; url: string; sortOrder: number; isCove
 
 const assetIdFromUrl = (reference: string) => reference.match(/\/media\/([0-9a-f-]{36})(?:$|[?#])/i)?.[1]
 
-async function uploadReference(reference: string) {
+export async function uploadMediaReference(reference: string) {
   const blob = await getMediaBlob(reference)
   if (!blob) throw new Error('No se encontró una de las imágenes locales.')
   const body = new FormData()
@@ -19,7 +19,7 @@ export async function syncListingImages(listingId: string, references: string[])
   for (const reference of references) {
     const existingId = assetIdFromUrl(reference)
     if (existingId) assetIds.push(existingId)
-    else if (isMediaReference(reference)) assetIds.push((await uploadReference(reference)).id)
+    else if (isMediaReference(reference)) assetIds.push((await uploadMediaReference(reference)).id)
   }
   const images = await api<ListingImageDto[]>(`/listings/${listingId}/images`, {
     method: 'PUT', body: JSON.stringify({ assetIds }),

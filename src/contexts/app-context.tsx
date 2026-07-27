@@ -2,9 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { toast } from 'sonner'
 import { hydrateSession, loginWithGoogle, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
 import { getAdminUsers, moderateRemoteListing, setRemoteUserBlocked } from '@/api/admin'
-import { ApiError } from '@/api/client'
+import { ApiError, resolveApiUrl } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
-import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
+import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
 import { syncListingImages } from '@/api/media'
@@ -116,10 +116,15 @@ function usedMediaReferences(listings: Listing[], users: DemoUser[], draft: unkn
   return collectMediaReferences([listings, users, draft])
 }
 
-type RemoteUser = Omit<DemoUser, 'password'>
-
 function toAppUser(user: RemoteUser): DemoUser {
-  return { ...user, password: '', allowMessaging: user.allowContactForm, blocked: false }
+  const { avatarUrl, ...profile } = user
+  return {
+    ...profile,
+    avatarRef: avatarUrl ? resolveApiUrl(avatarUrl) : undefined,
+    password: '',
+    allowMessaging: user.allowContactForm,
+    blocked: false,
+  }
 }
 
 function toLocalThread(thread: RemoteThread, listings: Listing[], currentUserId: string): LocalMessageThread | null {
@@ -599,6 +604,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void updateCurrentUser(serverFields).then(setRemoteUser).catch(() => {
         if (previous) setUsers((current) => current.map((user) => user.id === previous.id ? previous : user))
         toast.error('No se pudo guardar el perfil en el servidor.')
+      })
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, 'avatarRef')) {
+      void updateCurrentAvatar(changes.avatarRef).then(setRemoteUser).catch(() => {
+        if (previous) setUsers((current) => current.map((user) => user.id === previous.id ? previous : user))
+        toast.error('No se pudo guardar el avatar en el servidor.')
       })
     }
     if (previous?.avatarRef && Object.prototype.hasOwnProperty.call(changes, 'avatarRef') && changes.avatarRef !== previous.avatarRef) {

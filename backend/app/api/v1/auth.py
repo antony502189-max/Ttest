@@ -47,6 +47,7 @@ def public_user(user: User) -> dict:
         "showPhone": user.show_phone,
         "showWhatsApp": user.show_whatsapp,
         "allowContactForm": user.allow_contact_form,
+        "avatarUrl": f"/api/v1/media/{user.avatar_asset_id}" if user.avatar_asset_id else None,
     }
 
 

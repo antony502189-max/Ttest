@@ -1,6 +1,7 @@
 import { api, setAccessToken } from './client'
-import type { DemoUser, UserRole } from '@/types'
-type Session = { accessToken: string; user: Omit<DemoUser, 'password'> }
+import type { UserRole } from '@/types'
+import type { RemoteUser } from './users'
+type Session = { accessToken: string; user: RemoteUser }
 const SESSION_HINT = '112233:has-session'
 
 export async function loginWithPassword(email: string, password: string) { const session = await api<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); setAccessToken(session.accessToken); localStorage.setItem(SESSION_HINT, '1'); return session.user }

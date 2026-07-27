@@ -1,13 +1,13 @@
 import asyncio
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
 from ...models import AuthSession, Listing, MediaAsset, User
-from ...schemas.auth import UserResponse, UserUpdateRequest
+from ...schemas.auth import AvatarUpdateRequest, UserResponse, UserUpdateRequest
 from ...storage import get_storage
 from ..dependencies import current_user
 from .auth import public_user
@@ -32,6 +32,23 @@ async def update_me(
         setattr(user, mapping.get(key, key), value.strip() if isinstance(value, str) else value)
     if "name" in fields:
         user.initials = "".join(part[:1].upper() for part in user.name.split()[:2])
+    await session.commit()
+    await session.refresh(user)
+    return public_user(user)
+
+
+@router.put("/me/avatar", response_model=UserResponse)
+async def update_avatar(
+    payload: AvatarUpdateRequest, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    if payload.assetId is None:
+        user.avatar_asset_id = None
+    else:
+        asset = await session.get(MediaAsset, payload.assetId)
+        if not asset or asset.owner_id != user.id or asset.deleted_at:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Media not found")
+        asset.kind = "avatar"
+        user.avatar_asset_id = asset.id
     await session.commit()
     await session.refresh(user)
     return public_user(user)

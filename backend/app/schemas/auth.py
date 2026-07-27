@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -43,6 +45,7 @@ class UserResponse(BaseModel):
     showPhone: bool
     showWhatsApp: bool
     allowContactForm: bool
+    avatarUrl: str | None = None
 
 
 class UserUpdateRequest(BaseModel):
@@ -54,3 +57,7 @@ class UserUpdateRequest(BaseModel):
     showPhone: bool | None = None
     showWhatsApp: bool | None = None
     allowContactForm: bool | None = None
+
+
+class AvatarUpdateRequest(BaseModel):
+    assetId: UUID | None = None
