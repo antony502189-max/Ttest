@@ -1357,7 +1357,7 @@ export function ContactPanel({
     `Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`,
   );
   const updateMessage = (key: keyof typeof messageForm, value: string | boolean) => setMessageForm((current) => ({ ...current, [key]: value }));
-  const submitMessage = (event: FormEvent<HTMLFormElement>) => {
+  const submitMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const next: Record<string, string> = {};
     if (messageForm.website) next.form = "No se pudo enviar este formulario.";
@@ -1379,21 +1379,19 @@ export function ContactPanel({
       return;
     }
     contactSubmissions.set(contactKey, { time: Date.now(), signature });
-    addLocalMessage({
+    setMessageSending(true);
+    setMessageStatus("Enviando mensaje…");
+    const sent = await addLocalMessage({
       listingId: listing.id,
       listingTitle: listing.title,
       imageRef: listing.images[0] ?? '',
       contactName: messageForm.name.trim(),
       messagePreview: messageForm.message.trim().slice(0, 160),
+      body: messageForm.message.trim(),
     });
-    setMessageSending(true);
-    setMessageStatus("Registrando el mensaje local…");
-    messageTimerRef.current = window.setTimeout(() => {
-      setMessageSending(false);
-      setMessageStatus("Mensaje guardado solo en esta demo local. No se ha enviado por internet.");
-      setMessageForm((current) => ({ ...current, message: "", website: "", confirmed: false }));
-      messageTimerRef.current = null;
-    }, 250);
+    setMessageSending(false);
+    setMessageStatus(sent ? "Mensaje enviado al anunciante." : "No se pudo enviar el mensaje.");
+    if (sent) setMessageForm((current) => ({ ...current, message: "", website: "", confirmed: false }));
   };
   return (
     <aside
@@ -1498,7 +1496,7 @@ export function ContactPanel({
               </label>
               {messageErrors.confirmed ? <span id="contact-confirm-error" className="field-error">{messageErrors.confirmed}</span> : null}
               {(messageErrors.form || messageStatus) ? <div className="contact-message-status" role={messageErrors.form || Object.keys(messageErrors).length ? "alert" : "status"} aria-live="polite">{messageErrors.form || messageStatus}</div> : null}
-              <DialogFooter><Button type="submit" disabled={messageSending}>{messageSending ? "Registrando…" : "Registrar mensaje"}</Button></DialogFooter>
+              <DialogFooter><Button type="submit" disabled={messageSending}>{messageSending ? "Enviando…" : "Enviar mensaje"}</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog> : null}

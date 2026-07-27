@@ -197,7 +197,7 @@ export interface LocalMessageThread {
   contactName: string
   messagePreview: string
   createdAt: string
-  status: 'Demo local'
+  status: 'Demo local' | 'Enviado'
 }
 
 export interface LocalListingComment {

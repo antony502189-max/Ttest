@@ -6,6 +6,7 @@ import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSav
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getPublicListings, updateRemoteListing } from '@/api/listings'
+import { getRemoteThreads, sendRemoteMessage, type RemoteThread } from '@/api/messages'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
@@ -66,7 +67,7 @@ interface AppState {
   reports: ReportRecord[]
   addReport: (listingId: string, reason: string, comment: string) => void
   localThreads: LocalMessageThread[]
-  addLocalMessage: (thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'>) => void
+  addLocalMessage: (thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'> & { body?: string }) => Promise<boolean>
   localComments: LocalListingComment[]
   addLocalComment: (listingId: string, text: string) => void
   updateLocalComment: (id: string, text: string) => void
@@ -115,6 +116,21 @@ type RemoteUser = Omit<DemoUser, 'password'>
 
 function toAppUser(user: RemoteUser): DemoUser {
   return { ...user, password: '', allowMessaging: user.allowContactForm, blocked: false }
+}
+
+function toLocalThread(thread: RemoteThread, listings: Listing[], currentUserId: string): LocalMessageThread | null {
+  const listing = listings.find((item) => item.id === thread.listingId)
+  if (!listing) return null
+  return {
+    id: thread.id,
+    listingId: thread.listingId,
+    listingTitle: listing.title,
+    imageRef: listing.images[0] ?? '',
+    contactName: thread.hostId === currentUserId ? 'Inquilino' : listing.owner.name,
+    messagePreview: thread.lastMessagePreview ?? 'Sin mensajes',
+    createdAt: thread.lastMessageAt,
+    status: 'Enviado',
+  }
 }
 
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string')
@@ -298,6 +314,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUserId])
 
   useEffect(() => {
+    if (!currentUserId) return
+    void getRemoteThreads().then((threads) => {
+      const remote = threads.map((thread) => toLocalThread(thread, allListings, currentUserId)).filter((thread): thread is LocalMessageThread => Boolean(thread))
+      setThreadScopes((current) => ({ ...current, [currentUserId]: remote }))
+    }).catch(() => toast.error('No se pudieron cargar los mensajes.'))
+  }, [allListings, currentUserId])
+
+  useEffect(() => {
     if (currentUser?.role !== 'admin') return
     void getRemoteReports().then(setReports).catch(() => toast.error('No se pudieron cargar las denuncias.'))
   }, [currentUser?.role])
@@ -454,7 +478,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.error('No se pudo enviar la denuncia al servidor.')
     })
   }, [])
-  const addLocalMessage = useCallback((thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'>) => updateScope(setThreadScopes, (current) => [{ ...thread, id: `local-${Date.now()}`, createdAt: new Date().toISOString(), status: 'Demo local' as const }, ...(current ?? [])]), [updateScope])
+  const addLocalMessage = useCallback(async (thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'> & { body?: string }) => {
+    if (!currentUserId) { toast.error('Inicia sesión para enviar un mensaje.'); return false }
+    const optimistic: LocalMessageThread = { ...thread, id: `local-${Date.now()}`, createdAt: new Date().toISOString(), status: 'Enviado' }
+    updateScope(setThreadScopes, (current) => [optimistic, ...(current ?? [])])
+    try {
+      await sendRemoteMessage(thread.listingId, thread.body ?? thread.messagePreview)
+      const threads = await getRemoteThreads()
+      const remote = threads.map((item) => toLocalThread(item, allListings, currentUserId)).filter((item): item is LocalMessageThread => Boolean(item))
+      setThreadScopes((current) => ({ ...current, [currentUserId]: remote }))
+      return true
+    } catch {
+      updateScope(setThreadScopes, (current) => (current ?? []).filter((item) => item.id !== optimistic.id))
+      toast.error('No se pudo enviar el mensaje al servidor.')
+      return false
+    }
+  }, [allListings, currentUserId, updateScope])
   const addLocalComment = useCallback((listingId: string, text: string) => updateScope(setCommentScopes, (current) => [{ id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, userId: scopeKey, listingId, text: text.trim(), createdAt: new Date().toISOString() }, ...(current ?? [])]), [scopeKey, updateScope])
   const updateLocalComment = useCallback((id: string, text: string) => updateScope(setCommentScopes, (current) => (current ?? []).map((comment) => comment.id === id ? { ...comment, text: text.trim(), updatedAt: new Date().toISOString() } : comment)), [updateScope])
   const deleteLocalComment = useCallback((id: string) => updateScope(setCommentScopes, (current) => (current ?? []).filter((comment) => comment.id !== id)), [updateScope])
