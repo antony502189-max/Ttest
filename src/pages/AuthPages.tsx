@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FormField } from '@/components/forms'
 import { Logo } from '@/components/layout'
 import { useApp } from '@/contexts/app-context'
+import { requestPasswordReset, resetPassword } from '@/api/auth'
 import type { UserRole } from '@/types'
 
 function AuthShell({ title, description, children, asideTitle = 'Tu próxima habitación empieza con información clara.' }: { title: string; description: string; children: ReactNode; asideTitle?: string }) {
@@ -46,12 +47,33 @@ export function RegisterPage() {
 
 export function RecoverPasswordPage() {
   const [sent, setSent] = useState(false)
-  return <AuthShell title="Recupera tu contraseña" description="Simularemos el envío de un enlace seguro.">{sent ? <><Alert><Mail /><AlertTitle>Solicitud registrada</AlertTitle><AlertDescription>En esta demo no se envían correos reales. Continúa al formulario de restablecimiento.</AlertDescription></Alert><Button asChild><Link to="/restablecer-contrasena">Crear nueva contraseña</Link></Button></> : <form className="auth-form" onSubmit={(event) => { event.preventDefault(); setSent(true) }}><FormField label="Email de tu cuenta" htmlFor="recover-email"><Input id="recover-email" type="email" required autoComplete="email" /></FormField><Button size="lg"><Mail data-icon="inline-start" />Solicitar enlace demo</Button></form>}</AuthShell>
+  const [token, setToken] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError('')
+    try {
+      const result = await requestPasswordReset(String(new FormData(event.currentTarget).get('email')).trim())
+      setToken(result.resetToken ?? null)
+      setSent(true)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo solicitar el restablecimiento.') }
+  }
+  return <AuthShell title="Recupera tu contraseña" description="Te enviaremos un enlace seguro para crear una contraseña nueva.">{sent ? <><Alert><Mail /><AlertTitle>Solicitud registrada</AlertTitle><AlertDescription>Si existe una cuenta con ese email, recibirás las instrucciones de restablecimiento.</AlertDescription></Alert>{token ? <Button asChild><Link to={`/restablecer-contrasena?token=${encodeURIComponent(token)}`}>Crear nueva contraseña</Link></Button> : null}</> : <form className="auth-form" onSubmit={submit}><FormField label="Email de tu cuenta" htmlFor="recover-email" error={error}><Input id="recover-email" name="email" type="email" required autoComplete="email" aria-invalid={Boolean(error)} /></FormField><Button size="lg"><Mail data-icon="inline-start" />Solicitar enlace</Button></form>}</AuthShell>
 }
 
 export function ResetPasswordPage() {
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
-  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const data = new FormData(event.currentTarget); const password = String(data.get('password')); if (password.length < 8 || password !== data.get('confirm')) setError('Las contraseñas deben coincidir y tener al menos 8 caracteres.'); else { setError(''); setDone(true) } }
-  return <AuthShell title={done ? 'Contraseña actualizada' : 'Crea una nueva contraseña'} description={done ? 'Ya puedes acceder con tu nueva contraseña demo.' : 'Usa al menos 8 caracteres.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>El flujo demo se ha completado.</AlertDescription></Alert><Button asChild><Link to="/acceso">Acceder</Link></Button></> : <form className="auth-form" onSubmit={submit}><FormField label="Nueva contraseña" htmlFor="reset-password" error={error}><Input id="reset-password" name="password" type="password" minLength={8} required aria-invalid={!!error} /></FormField><FormField label="Repite la contraseña" htmlFor="reset-confirm"><Input id="reset-confirm" name="confirm" type="password" minLength={8} required /></FormField><Button size="lg"><KeyRound data-icon="inline-start" />Guardar contraseña</Button></form>}</AuthShell>
+  const [params] = useSearchParams()
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const password = String(data.get('password'))
+    const token = params.get('token')
+    if (!token) { setError('El enlace de restablecimiento no es válido o ha caducado.'); return }
+    if (password.length < 12 || password !== data.get('confirm')) { setError('Las contraseñas deben coincidir y tener al menos 12 caracteres.'); return }
+    try { await resetPassword(token, password); setError(''); setDone(true) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo actualizar la contraseña.') }
+  }
+  return <AuthShell title={done ? 'Contraseña actualizada' : 'Crea una nueva contraseña'} description={done ? 'Ya puedes acceder con tu nueva contraseña.' : 'Usa al menos 12 caracteres.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Tu contraseña se ha actualizado y las sesiones anteriores se han cerrado.</AlertDescription></Alert><Button asChild><Link to="/acceso">Acceder</Link></Button></> : <form className="auth-form" onSubmit={submit}><FormField label="Nueva contraseña" htmlFor="reset-password" error={error}><Input id="reset-password" name="password" type="password" minLength={12} required aria-invalid={!!error} /></FormField><FormField label="Repite la contraseña" htmlFor="reset-confirm"><Input id="reset-confirm" name="confirm" type="password" minLength={12} required /></FormField><Button size="lg"><KeyRound data-icon="inline-start" />Guardar contraseña</Button></form>}</AuthShell>
 }
