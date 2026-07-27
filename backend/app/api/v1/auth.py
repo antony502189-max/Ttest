@@ -34,10 +34,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def require_cookie_origin(request: Request) -> None:
-    """Require an allowlisted browser Origin for cookie-authenticated mutations outside development."""
+    """Reject cross-site cookie issuance/mutation outside local development and tests."""
     settings = get_settings()
     origin = request.headers.get("origin")
-    if settings.app_env != "development" and origin not in settings.origins:
+    if settings.app_env.lower() not in {"development", "test"} and origin not in settings.origins:
         raise HTTPException(403, "Invalid request origin")
 
 
@@ -66,6 +66,7 @@ async def register(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    require_cookie_origin(request)
     user_agent, client_ip = request_metadata(request)
     result = await register_user(payload, session, user_agent=user_agent, client_ip=client_ip)
     return set_refresh_cookie(response, result)
@@ -78,6 +79,7 @@ async def login(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    require_cookie_origin(request)
     user_agent, client_ip = request_metadata(request)
     result = await login_user(
         str(payload.email),
@@ -96,6 +98,7 @@ async def google_login(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    require_cookie_origin(request)
     user_agent, client_ip = request_metadata(request)
     result = await google_login_user(payload, session, user_agent=user_agent, client_ip=client_ip)
     return set_refresh_cookie(response, result)
