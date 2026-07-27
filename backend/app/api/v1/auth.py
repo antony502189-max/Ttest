@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy import func, select, update
@@ -42,10 +42,24 @@ def public_user(user: User) -> dict:
     }
 
 
-async def issue_tokens(user: User, session: AsyncSession, response: Response) -> dict:
+async def issue_tokens(
+    user: User, session: AsyncSession, response: Response, request: Request, previous_session: AuthSession | None = None
+) -> dict:
     raw_refresh = new_refresh_token()
     expires = datetime.now(UTC) + timedelta(days=get_settings().refresh_token_days)
-    session.add(AuthSession(user_id=user.id, token_hash=token_hash(raw_refresh), expires_at=expires))
+    client_ip = request.client.host if request.client else "unknown"
+    auth_session = AuthSession(
+        user_id=user.id,
+        token_hash=token_hash(raw_refresh),
+        expires_at=expires,
+        user_agent=request.headers.get("user-agent", "")[:512] or None,
+        ip_hash=token_hash(client_ip),
+    )
+    session.add(auth_session)
+    await session.flush()
+    if previous_session:
+        previous_session.revoked_at = datetime.now(UTC)
+        previous_session.replaced_by = auth_session.id
     await session.commit()
     response.set_cookie(
         "refresh_token",
@@ -60,7 +74,7 @@ async def issue_tokens(user: User, session: AsyncSession, response: Response) ->
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(payload: RegisterRequest, response: Response, session: AsyncSession = Depends(get_session)):
+async def register(payload: RegisterRequest, response: Response, request: Request, session: AsyncSession = Depends(get_session)):
     email = str(payload.email).lower()
     if payload.role not in {"tenant", "host"}:
         raise HTTPException(422, "Invalid role")
@@ -82,19 +96,19 @@ async def register(payload: RegisterRequest, response: Response, session: AsyncS
         expires_at=datetime.now(UTC) + timedelta(minutes=get_settings().email_verification_minutes),
     ))
     enqueue_email_verification(session, user.email, verification_token)
-    return await issue_tokens(user, session, response)
+    return await issue_tokens(user, session, response, request)
 
 
 @router.post("/login")
-async def login(payload: LoginRequest, response: Response, session: AsyncSession = Depends(get_session)):
+async def login(payload: LoginRequest, response: Response, request: Request, session: AsyncSession = Depends(get_session)):
     user = await session.scalar(select(User).where(func.lower(User.email) == str(payload.email).lower()))
-    if not user or not user.password_hash or not verify_password(payload.password, user.password_hash) or user.blocked:
+    if not user or not user.password_hash or not verify_password(payload.password, user.password_hash) or user.blocked or user.deleted_at:
         raise HTTPException(401, "Invalid credentials")
-    return await issue_tokens(user, session, response)
+    return await issue_tokens(user, session, response, request)
 
 
 @router.post("/google")
-async def google_login(payload: GoogleLoginRequest, response: Response, session: AsyncSession = Depends(get_session)):
+async def google_login(payload: GoogleLoginRequest, response: Response, request: Request, session: AsyncSession = Depends(get_session)):
     settings = get_settings()
     if not settings.google_client_id:
         raise HTTPException(503, "Google sign-in is not configured")
@@ -121,10 +135,10 @@ async def google_login(payload: GoogleLoginRequest, response: Response, session:
                 initials="".join(part[:1].upper() for part in name.split()[:2]), email_verified=True,
             )
             session.add(user)
-    if user.blocked:
+    if user.blocked or user.deleted_at:
         raise HTTPException(403, "Account is blocked")
     await session.flush()
-    return await issue_tokens(user, session, response)
+    return await issue_tokens(user, session, response, request)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
@@ -230,7 +244,7 @@ async def me(user: User = Depends(current_user)):
 
 @router.post("/refresh")
 async def refresh(
-    response: Response, refresh_token: str | None = Cookie(default=None), session: AsyncSession = Depends(get_session)
+    response: Response, request: Request, refresh_token: str | None = Cookie(default=None), session: AsyncSession = Depends(get_session)
 ):
     if not refresh_token:
         raise HTTPException(401, "Refresh token required")
@@ -243,12 +257,12 @@ async def refresh(
     )
     if not auth:
         raise HTTPException(401, "Invalid refresh token")
-    auth.revoked_at = datetime.now(UTC)
     user = await session.get(User, auth.user_id)
-    if not user or user.blocked:
+    if not user or user.blocked or user.deleted_at:
+        auth.revoked_at = datetime.now(UTC)
         await session.commit()
         raise HTTPException(401, "Authentication required")
-    return await issue_tokens(user, session, response)
+    return await issue_tokens(user, session, response, request, previous_session=auth)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
