@@ -19,12 +19,12 @@ def ensure_owner_or_admin(listing: Listing, user: User) -> None:
 
 
 def apply_write(listing: Listing, payload: ListingWrite) -> None:
-    listing.title = payload.title.strip()
-    listing.city = payload.city.strip()
-    listing.area = payload.area.strip()
-    listing.street = payload.street.strip()
-    listing.postcode = payload.postcode.strip()
-    listing.approximate_address = payload.approximateAddress.strip()
+    listing.title = payload.title
+    listing.city = payload.city
+    listing.area = payload.area
+    listing.street = payload.street
+    listing.postcode = payload.postcode
+    listing.approximate_address = payload.approximateAddress
     listing.rental_mode = payload.rentalMode
     listing.monthly_price = payload.monthlyPrice
     listing.nightly_price = payload.nightlyPrice
@@ -57,10 +57,10 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
         if payload.exactLongitude is not None and payload.exactLatitude is not None
         else None
     )
-    listing.description = payload.description.strip()
-    listing.home_description = payload.homeDescription.strip()
+    listing.description = payload.description
+    listing.home_description = payload.homeDescription
     listing.advertiser_type = payload.advertiserType
-    listing.source = payload.source.strip() if payload.source else None
+    listing.source = payload.source or None
     listing.expires_at = payload.expiresAt
 
 
@@ -97,9 +97,7 @@ async def update_listing(
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
     changes = payload.model_dump(exclude_unset=True)
-    if changes.get("rentalMode") not in {None, "long", "holiday"}:
-        raise HTTPException(422, "rentalMode must be long or holiday")
-    if "status" in changes and changes["status"] not in {"draft", "pending", "hidden", "closed"} and user.role != "admin":
+    if "status" in changes and user.role != "admin" and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
         raise HTTPException(403, "Only an administrator can publish or reject listings")
 
     mapping = {
@@ -128,20 +126,25 @@ async def update_listing(
         "advertiserType": "advertiser_type",
         "expiresAt": "expires_at",
     }
-    latitude, longitude = changes.pop("latitude", None), changes.pop("longitude", None)
-    if latitude is not None or longitude is not None:
-        if latitude is None or longitude is None:
-            raise HTTPException(422, "latitude and longitude must be changed together")
+    coordinates_changed = "latitude" in changes or "longitude" in changes
+    latitude = changes.pop("latitude", None)
+    longitude = changes.pop("longitude", None)
+    if coordinates_changed:
         listing.location = point(longitude, latitude)
-    exact_latitude, exact_longitude = changes.pop("exactLatitude", None), changes.pop("exactLongitude", None)
-    if exact_latitude is not None or exact_longitude is not None:
-        if exact_latitude is None or exact_longitude is None:
-            raise HTTPException(422, "exactLatitude and exactLongitude must be changed together")
-        listing.exact_location = point(exact_longitude, exact_latitude)
+
+    exact_changed = "exactLatitude" in changes or "exactLongitude" in changes
+    exact_latitude = changes.pop("exactLatitude", None)
+    exact_longitude = changes.pop("exactLongitude", None)
+    if exact_changed:
+        listing.exact_location = (
+            point(exact_longitude, exact_latitude)
+            if exact_latitude is not None and exact_longitude is not None
+            else None
+        )
 
     previous_status = listing.status
     for key, value in changes.items():
-        setattr(listing, mapping.get(key, key), value.strip() if isinstance(value, str) else value)
+        setattr(listing, mapping.get(key, key), value)
     if listing.rental_mode == "long" and listing.monthly_price is None:
         raise HTTPException(422, "monthlyPrice is required for long rentals")
     if listing.rental_mode == "holiday" and listing.nightly_price is None:
