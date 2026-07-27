@@ -57,6 +57,9 @@ class RedisRateLimiter:
         allowed = int(current) <= limit
         return RateLimitResult(allowed, 0 if allowed else max(1, int(ttl)))
 
+    async def ping(self) -> bool:
+        return bool(await self._client.ping())
+
     async def close(self) -> None:
         await self._client.aclose()
 
@@ -74,10 +77,13 @@ class ResilientRateLimiter:
             try:
                 return await self._redis.consume(key, limit, window_seconds)
             except Exception:
-                # Availability of Redis must not turn every API request into 500.
-                # The local fallback still limits abuse on the current instance.
+                # Redis outages must not turn the whole API into 500. The local
+                # fallback still applies a per-instance safety limit.
                 pass
         return await self._memory.consume(key, limit, window_seconds)
+
+    async def ready(self) -> bool:
+        return not self._redis or await self._redis.ping()
 
     async def close(self) -> None:
         if self._redis:
