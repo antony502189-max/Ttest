@@ -1473,8 +1473,8 @@ export function ContactPanel({
           <DialogTrigger asChild><Button variant="outline" aria-label="Enviar mensaje"><MessageCircle data-icon="inline-start" />{mobile ? "Chat" : "Enviar mensaje"}</Button></DialogTrigger>
           <DialogContent className="contact-message-dialog">
             <DialogHeader>
-              <DialogTitle>Enviar un mensaje local</DialogTitle>
-              <DialogDescription>La demo valida y guarda el envío en esta sesión, pero no lo entrega por internet.</DialogDescription>
+              <DialogTitle>Enviar un mensaje</DialogTitle>
+              <DialogDescription>El mensaje se enviará al anunciante y quedará disponible en tus conversaciones.</DialogDescription>
             </DialogHeader>
             <form ref={messageFormRef} className="contact-message-form" onSubmit={submitMessage} noValidate>
               <label className="field-label">Nombre

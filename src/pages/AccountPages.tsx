@@ -409,8 +409,8 @@ export function ProfilePage() {
             </label>
             <label>
               <div>
-                <strong>Permitir formulario local</strong>
-                <span>Registra mensajes solo en la demo</span>
+                <strong>Permitir formulario de contacto</strong>
+                <span>Permite que las personas interesadas te escriban</span>
               </div>
               <Switch
                 checked={profileDraft.allowContactForm}
