@@ -67,6 +67,8 @@ cd backend && ruff check app && pytest -q
 
 Los scripts reproducibles de QA están en `scripts/`. Los artefactos locales de Playwright se guardan en `output/playwright/` y no se publican en Git.
 
+Documentación operativa: [arquitectura](docs/architecture.md), [API](docs/api.md), [base de datos](docs/database.md), [desarrollo local](docs/local-development.md), [despliegue](docs/deployment.md), [design freeze](docs/frontend-freeze-report.md) y [resultados de pruebas](docs/test-report.md).
+
 ## Stack
 
 - React 19 + TypeScript
