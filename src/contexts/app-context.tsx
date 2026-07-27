@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { hydrateSession, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
+import { getAdminUsers, moderateRemoteListing, setRemoteUserBlocked } from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
@@ -326,6 +327,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void getRemoteReports().then(setReports).catch(() => toast.error('No se pudieron cargar las denuncias.'))
   }, [currentUser?.role])
 
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') return
+    void getAdminUsers().then(setUsers).catch(() => toast.error('No se pudieron cargar los usuarios.'))
+  }, [currentUser?.role])
+
   const updateScope = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<UserScopedState<T>>>, update: (current: T | undefined) => T) => {
     setter((current) => ({ ...current, [scopeKey]: update(current[scopeKey]) }))
   }, [scopeKey])
@@ -458,7 +464,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
     )
   }, [allListings, canManageListing, users])
-  const setListingStatus = useCallback((id: string, status: ListingStatus) => mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason : undefined })), [mutateOwned])
+  const setListingStatus = useCallback((id: string, status: ListingStatus) => {
+    const previous = allListings.find((listing) => listing.id === id)
+    mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason : undefined }))
+    if (currentUser?.role === 'admin' && previous) {
+      void moderateRemoteListing(id, status).catch(() => {
+        setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
+        toast.error('No se pudo moderar el anuncio en el servidor.')
+      })
+    }
+  }, [allListings, currentUser?.role, mutateOwned])
   const renewListing = useCallback((id: string) => mutateOwned(id, (listing) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const currentExpiry = new Date(`${listing.expiresAt}T00:00:00`)
@@ -570,7 +585,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar todos los datos multimedia de la cuenta.'),
     )
   }, [allListings, currentUserId, users])
-  const toggleUserBlocked = useCallback((id: string) => setUsers((current) => current.map((user) => user.id === id ? { ...user, blocked: !user.blocked } : user)), [])
+  const toggleUserBlocked = useCallback((id: string) => {
+    if (currentUser?.role !== 'admin') return
+    const previous = users.find((user) => user.id === id)
+    if (!previous) return
+    const blocked = !previous.blocked
+    setUsers((current) => current.map((user) => user.id === id ? { ...user, blocked } : user))
+    void setRemoteUserBlocked(id, blocked).catch(() => {
+      setUsers((current) => current.map((user) => user.id === id ? previous : user))
+      toast.error('No se pudo actualizar el estado de la cuenta.')
+    })
+  }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
   const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
