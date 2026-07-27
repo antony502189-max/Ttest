@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     metrics_enabled: bool = True
     structured_logs: bool = True
     log_level: str = "INFO"
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.05
 
     @property
     def origins(self) -> list[str]:
@@ -72,12 +74,14 @@ class Settings(BaseSettings):
             problems.append("JWT_SECRET must be a strong production secret")
         if not self.origins or any(origin.startswith("http://") for origin in self.origins):
             problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
-        if self.storage_backend == "s3" and not all(
-            [self.s3_bucket, self.s3_access_key, self.s3_secret_key]
-        ):
+        if self.storage_backend == "s3" and not all([self.s3_bucket, self.s3_access_key, self.s3_secret_key]):
             problems.append("S3 storage requires bucket and credentials")
         if not self.smtp_host:
             problems.append("SMTP_HOST is required in production")
+        if not self.redis_url:
+            problems.append("REDIS_URL is required for distributed production rate limiting")
+        if not 0 <= self.sentry_traces_sample_rate <= 1:
+            problems.append("SENTRY_TRACES_SAMPLE_RATE must be between 0 and 1")
         if problems:
             raise RuntimeError("Invalid production configuration: " + "; ".join(problems))
 
