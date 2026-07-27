@@ -27,6 +27,26 @@ CONSTRAINTS = {
 
 
 def upgrade() -> None:
+    # Existing local/demo databases may contain records created before these
+    # invariants existed. Normalize them deterministically before validation.
+    op.execute("UPDATE listings SET weekly_price = 0 WHERE weekly_price < 0")
+    op.execute("UPDATE listings SET deposit_amount = 0 WHERE deposit_amount < 0")
+    op.execute("UPDATE listings SET room_size_m2 = 1 WHERE room_size_m2 < 1")
+    op.execute("UPDATE listings SET bedroom_count = LEAST(99, GREATEST(1, bedroom_count)) WHERE bedroom_count IS NOT NULL")
+    op.execute("UPDATE listings SET current_residents = 0 WHERE current_residents < 0")
+    op.execute("UPDATE listings SET room_capacity = LEAST(2, GREATEST(1, room_capacity))")
+    op.execute("UPDATE listings SET minimum_stay_months = 0 WHERE minimum_stay_months < 0")
+    op.execute("UPDATE listings SET minimum_nights = 0 WHERE minimum_nights < 0")
+    op.execute("UPDATE listings SET available_until = NULL WHERE available_from IS NOT NULL AND available_until < available_from")
+    op.execute(
+        "UPDATE listings SET monthly_price = GREATEST(0, COALESCE(monthly_price, nightly_price, 0)) "
+        "WHERE rental_mode = 'long' AND monthly_price IS NULL"
+    )
+    op.execute(
+        "UPDATE listings SET nightly_price = GREATEST(0, COALESCE(nightly_price, monthly_price, 0)) "
+        "WHERE rental_mode = 'holiday' AND nightly_price IS NULL"
+    )
+
     for name, expression in CONSTRAINTS.items():
         op.create_check_constraint(name, "listings", expression)
 
