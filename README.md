@@ -56,6 +56,8 @@ docker compose run --rm backend python -m app.commands.deliver_outbox
 
 Si el puerto 8000 ya está ocupado, ejecuta `BACKEND_PORT=8001 docker compose up -d backend` (en PowerShell: `$env:BACKEND_PORT='8001'`). La API incluye autenticación JWT con refresh cookie, perfiles, anuncios PostGIS, favoritos, ocultos y búsquedas guardadas.
 
+Las imágenes se almacenan localmente en `MEDIA_ROOT` por defecto. Para object storage compatible con S3 configura `STORAGE_BACKEND=s3`, `S3_BUCKET`, credenciales y, si procede, `S3_ENDPOINT_URL` en `backend/.env`.
+
 ## Verificación
 
 ```bash

@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # In production new listings wait for moderation unless explicitly enabled.
     auto_publish_listings: bool = False
     media_root: Path = Path("var/media")
+    storage_backend: str = "local"
+    s3_bucket: str = ""
+    s3_endpoint_url: str = ""
+    s3_region: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
     max_upload_bytes: int = 8 * 1024 * 1024
     max_image_dimension: int = 8_000
 

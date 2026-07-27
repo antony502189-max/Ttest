@@ -1,13 +1,14 @@
+import asyncio
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.config import get_settings
 from ...db.session import get_session
 from ...models import AuthSession, Listing, MediaAsset, User
 from ...schemas.auth import UserResponse, UserUpdateRequest
+from ...storage import get_storage
 from ..dependencies import current_user
 from .auth import public_user
 
@@ -58,5 +59,5 @@ async def delete_me(
     user.avatar_asset_id = None
     await session.commit()
     for storage_key in media_paths:
-        (get_settings().media_root / storage_key).unlink(missing_ok=True)
+        await asyncio.to_thread(get_storage().delete, storage_key)
     response.delete_cookie("refresh_token", path="/api/v1/auth")

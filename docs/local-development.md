@@ -18,3 +18,5 @@ Copy `backend/.env.example` to `backend/.env` for non-Docker execution. Configur
 ```bash
 docker compose run --rm backend python -m app.commands.deliver_outbox
 ```
+
+Media uses `STORAGE_BACKEND=local` and `MEDIA_ROOT=./var/media` by default. To exercise an S3-compatible service set `STORAGE_BACKEND=s3`, `S3_BUCKET`, access credentials and optionally `S3_ENDPOINT_URL`; the same upload URLs work with either backend.

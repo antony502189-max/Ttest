@@ -1,9 +1,10 @@
+import asyncio
 import hashlib
 from io import BytesIO
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from ...core.config import get_settings
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
 from ...schemas.media import MediaAssetResponse
+from ...storage import get_storage
 from ..dependencies import current_user, optional_user
 
 router = APIRouter(tags=["uploads"])
@@ -55,9 +57,8 @@ async def upload_image(
         raise HTTPException(413, "Image is too large")
     normalized, width, height = validate_and_normalize(content)
     storage_key = f"{uuid4().hex}.webp"
-    destination = settings.media_root / storage_key
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(normalized)
+    storage = get_storage()
+    await asyncio.to_thread(storage.put, storage_key, normalized)
     asset = MediaAsset(
         owner_id=user.id, storage_key=storage_key, mime_type="image/webp", size_bytes=len(normalized), width=width,
         height=height, checksum=hashlib.sha256(normalized).hexdigest(), kind="listing_image",
@@ -66,7 +67,7 @@ async def upload_image(
     try:
         await session.commit()
     except Exception:
-        destination.unlink(missing_ok=True)
+        await asyncio.to_thread(storage.delete, storage_key)
         raise
     await session.refresh(asset)
     return public_asset(asset)
@@ -94,10 +95,10 @@ async def get_media(
         )
         if not published_listing:
             raise HTTPException(404, "Media not found")
-    path = get_settings().media_root / asset.storage_key
-    if not path.is_file():
+    content = await asyncio.to_thread(get_storage().get, asset.storage_key)
+    if content is None:
         raise HTTPException(404, "Media not found")
-    return FileResponse(path, media_type=asset.mime_type, filename=f"{asset.id}.webp")
+    return Response(content, media_type=asset.mime_type)
 
 
 @router.delete("/uploads/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -105,7 +106,6 @@ async def delete_upload(asset_id: UUID, user: User = Depends(current_user), sess
     asset = await session.get(MediaAsset, asset_id)
     if not asset or (asset.owner_id != user.id and user.role != "admin"):
         raise HTTPException(404, "Media not found")
-    path = get_settings().media_root / asset.storage_key
     await session.delete(asset)
     await session.commit()
-    path.unlink(missing_ok=True)
+    await asyncio.to_thread(get_storage().delete, asset.storage_key)

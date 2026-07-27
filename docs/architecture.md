@@ -6,7 +6,7 @@
 React SPA (HashRouter) -> /api/v1 -> FastAPI routers -> SQLAlchemy async -> PostgreSQL + PostGIS
                                       |                 |
                                       |                 +-> Alembic migrations
-                                      +-> local media filesystem
+                                      +-> storage adapter -> local filesystem or S3-compatible object storage
                                       +-> transactional mail_outbox -> delivery command -> dev log or SMTP
 ```
 
