@@ -14,7 +14,7 @@ docker compose run --rm backend alembic upgrade head
 docker compose run --rm backend alembic current
 ```
 
-The current migration head is `0013_mail_outbox`. Development demo data is idempotent and is prohibited when `APP_ENV=production`:
+The current migration head is `0014_session_audit`. Development demo data is idempotent and is prohibited when `APP_ENV=production`:
 
 ```bash
 docker compose run --rm backend python -m app.commands.seed

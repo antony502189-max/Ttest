@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
@@ -42,8 +42,20 @@ async def delete_me(
 ):
     media_paths = list((await session.scalars(select(MediaAsset.storage_key).where(MediaAsset.owner_id == user.id))).all())
     await session.execute(update(AuthSession).where(AuthSession.user_id == user.id).values(revoked_at=datetime.now(UTC)))
-    await session.execute(delete(Listing).where(Listing.owner_user_id == user.id))
-    await session.delete(user)
+    now = datetime.now(UTC)
+    await session.execute(update(Listing).where(Listing.owner_user_id == user.id).values(deleted_at=now))
+    await session.execute(update(MediaAsset).where(MediaAsset.owner_id == user.id).values(deleted_at=now))
+    user.deleted_at = now
+    user.blocked = True
+    user.email_verified = False
+    user.email = f"deleted-{user.id}@deleted.invalid"
+    user.google_subject = None
+    user.password_hash = None
+    user.name = "Deleted user"
+    user.phone = user.whatsapp = user.telegram = user.about = ""
+    user.show_phone = user.show_whatsapp = False
+    user.allow_contact_form = False
+    user.avatar_asset_id = None
     await session.commit()
     for storage_key in media_paths:
         (get_settings().media_root / storage_key).unlink(missing_ok=True)

@@ -21,7 +21,7 @@ async def optional_user(
     except InvalidTokenError:
         return None
     user = await session.scalar(select(User).where(User.id == claims.get("sub")))
-    if not user or user.blocked:
+    if not user or user.blocked or user.deleted_at is not None:
         return None
     return user
 

@@ -35,6 +35,8 @@ class User(Timestamped, Base):
     allow_contact_form: Mapped[bool] = mapped_column(Boolean, default=True)
     blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    avatar_asset_id: Mapped[UUID | None] = mapped_column(ForeignKey("media_assets.id", ondelete="SET NULL"))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class AuthSession(Base):
@@ -45,6 +47,9 @@ class AuthSession(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    replaced_by: Mapped[UUID | None] = mapped_column(ForeignKey("auth_sessions.id", ondelete="SET NULL"))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    ip_hash: Mapped[str | None] = mapped_column(String(64))
 
 
 class PasswordResetToken(Base):
