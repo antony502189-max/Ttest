@@ -53,7 +53,7 @@ def enqueue_message_notification(session: AsyncSession, recipient: str, listing_
 
 def send_smtp(item: MailOutbox, settings: Settings) -> None:
     if not settings.smtp_host:
-        raise RuntimeError("SMTP_HOST is required outside development")
+        raise RuntimeError("SMTP_HOST is not configured")
     message = EmailMessage()
     message["From"] = settings.smtp_from
     message["To"] = item.recipient
@@ -67,27 +67,36 @@ def send_smtp(item: MailOutbox, settings: Settings) -> None:
         smtp.send_message(message)
 
 
-async def deliver_pending_mail(session: AsyncSession, *, limit: int = 50) -> int:
+async def deliver_pending_mail(session: AsyncSession, *, limit: int | None = None) -> int:
+    settings = get_settings()
+    batch_size = limit or settings.mail_worker_batch_size
     items = (
         await session.scalars(
-            select(MailOutbox).where(MailOutbox.status == "pending").order_by(MailOutbox.created_at).limit(limit)
+            select(MailOutbox)
+            .where(MailOutbox.status == "pending", MailOutbox.attempts < settings.mail_max_attempts)
+            .order_by(MailOutbox.created_at)
+            .limit(batch_size)
+            .with_for_update(skip_locked=True)
         )
     ).all()
-    settings = get_settings()
     delivered = 0
     for item in items:
         item.attempts += 1
         try:
-            if settings.app_env == "development":
-                logger.info("dev_mail kind=%s recipient=%s body=%s", item.kind, item.recipient, item.body)
-            else:
+            if settings.smtp_host:
                 await asyncio.to_thread(send_smtp, item, settings)
+            elif settings.app_env == "development":
+                logger.info("dev_mail", extra={"recipient": item.recipient, "kind": item.kind})
+            else:
+                raise RuntimeError("SMTP_HOST is required outside development")
             item.status = "sent"
             item.sent_at = datetime.now(UTC)
             item.last_error = None
             delivered += 1
         except (OSError, RuntimeError, smtplib.SMTPException) as exc:
             item.last_error = str(exc)[:2_000]
-            logger.warning("mail_delivery_failed id=%s kind=%s", item.id, item.kind)
+            if item.attempts >= settings.mail_max_attempts:
+                item.status = "failed"
+            logger.warning("mail_delivery_failed", extra={"mail_id": str(item.id), "kind": item.kind})
     await session.commit()
     return delivered
