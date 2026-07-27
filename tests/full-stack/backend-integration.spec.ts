@@ -71,6 +71,7 @@ test('frontend renders a listing created through the real FastAPI backend', asyn
 })
 
 test('room count filter is executed by the backend and reflected in mobile results', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile-chromium', 'Mobile overlay is not rendered in the desktop project')
   const failedResponses: string[] = []
   page.on('response', (response) => {
     if (response.url().includes('/api/v1/') && response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`)
