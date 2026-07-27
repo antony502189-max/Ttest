@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,https://antony502189-max.github.io"
-    auto_publish_listings: bool = True
+    # In production new listings wait for moderation unless explicitly enabled.
+    auto_publish_listings: bool = False
     media_root: Path = Path("var/media")
     max_upload_bytes: int = 8 * 1024 * 1024
     max_image_dimension: int = 8_000

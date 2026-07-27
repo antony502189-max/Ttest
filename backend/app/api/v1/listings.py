@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from hmac import new as hmac_new
 from secrets import token_urlsafe
@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import Listing, ListingImage, ListingView, MediaAsset, User
+from ...models import Listing, ListingImage, ListingStatusHistory, ListingView, MediaAsset, User
 from ...schemas.listings import (
     ListingImageResponse,
     ListingImagesRequest,
@@ -235,6 +235,8 @@ async def get_listing(
 async def create_listing(
     payload: ListingWrite, user: User = Depends(require_role("host", "admin")), session: AsyncSession = Depends(get_session)
 ):
+    now = datetime.now(UTC)
+    initial_status = "published" if get_settings().auto_publish_listings else "pending"
     listing = Listing(
         owner_user_id=user.id, title=payload.title.strip(), city=payload.city.strip(), area=payload.area.strip(),
         street=payload.street.strip(), postcode=payload.postcode.strip(),
@@ -251,9 +253,14 @@ async def create_listing(
         location=point(payload.longitude, payload.latitude),
         exact_location=(point(payload.exactLongitude, payload.exactLatitude) if payload.exactLongitude is not None else None),
         description=payload.description.strip(), home_description=payload.homeDescription.strip(), advertiser_type=payload.advertiserType,
-        source=payload.source.strip() if payload.source else None, expires_at=payload.expiresAt, status="pending",
+        source=payload.source.strip() if payload.source else None, expires_at=payload.expiresAt,
+        status=initial_status, published_at=now if initial_status == "published" else None,
     )
     session.add(listing)
+    await session.flush()
+    session.add(ListingStatusHistory(
+        listing_id=listing.id, from_status="draft", to_status=initial_status, changed_by=user.id
+    ))
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
     return owned_response_from(row)
@@ -294,8 +301,46 @@ async def update_listing(
         if exact_latitude is None or exact_longitude is None:
             raise HTTPException(422, "exactLatitude and exactLongitude must be changed together")
         listing.exact_location = point(exact_longitude, exact_latitude)
+    previous_status = listing.status
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value.strip() if isinstance(value, str) else value)
+    if "status" in changes and listing.status != previous_status:
+        if listing.status == "published" and listing.published_at is None:
+            listing.published_at = datetime.now(UTC)
+        if listing.status == "closed" and user.role != "admin":
+            listing.closed_reason = "owner"
+        elif listing.status != "closed":
+            listing.closed_reason = None
+        session.add(ListingStatusHistory(
+            listing_id=listing.id, from_status=previous_status, to_status=listing.status, changed_by=user.id
+        ))
+    await session.commit()
+    row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
+    return owned_response_from(row)
+
+
+@router.post("/{listing_id}/renew", response_model=OwnedListingResponse)
+async def renew_listing(
+    listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    listing = await session.get(Listing, listing_id)
+    if not listing or listing.deleted_at is not None:
+        raise HTTPException(404, "Listing not found")
+    if listing.owner_user_id != user.id and user.role != "admin":
+        raise HTTPException(403, "Forbidden")
+
+    now = datetime.now(UTC)
+    expiry_base = listing.expires_at if listing.expires_at and listing.expires_at > now else now
+    listing.expires_at = expiry_base + timedelta(days=30)
+    previous_status = listing.status
+    listing.status = "published" if get_settings().auto_publish_listings else "pending"
+    listing.closed_reason = None
+    if listing.status == "published" and listing.published_at is None:
+        listing.published_at = now
+    if listing.status != previous_status:
+        session.add(ListingStatusHistory(
+            listing_id=listing.id, from_status=previous_status, to_status=listing.status, changed_by=user.id
+        ))
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
     return owned_response_from(row)

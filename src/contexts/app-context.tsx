@@ -6,7 +6,7 @@ import { ApiError } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
-import { createRemoteListing, deleteRemoteListing, getPublicListings, updateRemoteListing } from '@/api/listings'
+import { createRemoteListing, deleteRemoteListing, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
 import { getRemoteThreads, sendRemoteMessage, type RemoteThread } from '@/api/messages'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { defaultFilters, initialListings } from '@/data/listings'
@@ -466,22 +466,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [allListings, canManageListing, users])
   const setListingStatus = useCallback((id: string, status: ListingStatus) => {
     const previous = allListings.find((listing) => listing.id === id)
+    if (!previous || !canManageListing(previous)) return
     mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason : undefined }))
     if (currentUser?.role === 'admin' && previous) {
       void moderateRemoteListing(id, status).catch(() => {
         setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
         toast.error('No se pudo moderar el anuncio en el servidor.')
       })
+    } else {
+      void setRemoteListingStatus(id, status).then((remote) => {
+        setAllListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
+      }).catch(() => {
+        setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
+        toast.error('No se pudo actualizar el estado del anuncio en el servidor.')
+      })
     }
-  }, [allListings, currentUser?.role, mutateOwned])
-  const renewListing = useCallback((id: string) => mutateOwned(id, (listing) => {
+  }, [allListings, canManageListing, currentUser?.role, mutateOwned])
+  const renewListing = useCallback((id: string) => {
+    const previous = allListings.find((listing) => listing.id === id)
+    if (!previous || !canManageListing(previous)) return
+    mutateOwned(id, (listing) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const currentExpiry = new Date(`${listing.expiresAt}T00:00:00`)
     const base = Number.isFinite(currentExpiry.getTime()) && currentExpiry > today ? currentExpiry : today
     base.setDate(base.getDate() + 30)
-    return { ...listing, expiresAt: base.toISOString().slice(0, 10), status: 'Publicado', closedReason: undefined }
-  }), [mutateOwned])
-  const closeListing = useCallback((id: string) => mutateOwned(id, (listing) => ({ ...listing, status: 'Finalizado', closedReason: 'owner' })), [mutateOwned])
+    return { ...listing, expiresAt: base.toISOString().slice(0, 10), closedReason: undefined }
+    })
+    void renewRemoteListing(id).then((remote) => {
+      setAllListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
+    }).catch(() => {
+      setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
+      toast.error('No se pudo renovar el anuncio en el servidor.')
+    })
+  }, [allListings, canManageListing, mutateOwned])
+  const closeListing = useCallback((id: string) => setListingStatus(id, 'Finalizado'), [setListingStatus])
   const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
   const addReport = useCallback((listingId: string, reason: string, comment: string) => {
     const optimistic: ReportRecord = { id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }

@@ -62,6 +62,10 @@ const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
 }
 
+const remoteStatusMap: Record<ListingStatus, string> = {
+  Borrador: 'draft', Pendiente: 'pending', Publicado: 'published', Oculto: 'hidden', Finalizado: 'closed', Rechazado: 'rejected',
+}
+
 function dateOnly(value: string | null, fallback: string) {
   return value ? value.slice(0, 10) : fallback
 }
@@ -163,6 +167,16 @@ export async function createRemoteListing(listing: Listing) {
 
 export async function updateRemoteListing(id: string, listing: Listing) {
   return toListing(await api<ListingDto>(`/listings/${id}`, { method: 'PATCH', body: JSON.stringify(listingPayload(listing)) }))
+}
+
+export async function setRemoteListingStatus(id: string, status: ListingStatus) {
+  return toListing(await api<ListingDto>(`/listings/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status: remoteStatusMap[status] }),
+  }))
+}
+
+export async function renewRemoteListing(id: string) {
+  return toListing(await api<ListingDto>(`/listings/${id}/renew`, { method: 'POST' }))
 }
 
 export const deleteRemoteListing = (id: string) => api<void>(`/listings/${id}`, { method: 'DELETE' })
