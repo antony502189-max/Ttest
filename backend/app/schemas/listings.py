@@ -193,12 +193,14 @@ RoomCountFilter = int | Literal["10+"]
 
 
 class ListingSearchRequest(BaseModel):
+    query: str | None = Field(default=None, max_length=240)
     city: str | None = Field(default=None, max_length=120)
     area: str | None = Field(default=None, max_length=120)
     rentalMode: str | None = None
     minPrice: int | None = Field(default=None, ge=0)
     maxPrice: int | None = Field(default=None, ge=0)
     roomType: str | None = Field(default=None, max_length=64)
+    roomTypes: list[str] = Field(default_factory=list, max_length=3)
     bedroomCounts: list[RoomCountFilter] = Field(default_factory=list, max_length=11)
     availableFrom: date | None = None
     maxMinimumStayMonths: int | None = Field(default=None, ge=0)
@@ -209,8 +211,8 @@ class ListingSearchRequest(BaseModel):
     furnished: bool | None = None
     billsIncluded: bool | None = None
     deposit: str | None = None
-    minRoomSizeM2: int | None = Field(default=None, ge=1)
-    maxRoomSizeM2: int | None = Field(default=None, ge=1)
+    minRoomSizeM2: int | None = Field(default=None, ge=0)
+    maxRoomSizeM2: int | None = Field(default=None, ge=0)
     shower: str | None = Field(default=None, max_length=64)
     currentResidents: int | None = Field(default=None, ge=0)
     minCurrentResidents: int | None = Field(default=None, ge=0)
@@ -252,6 +254,11 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("minPrice cannot exceed maxPrice")
         if self.minRoomSizeM2 is not None and self.maxRoomSizeM2 is not None and self.minRoomSizeM2 > self.maxRoomSizeM2:
             raise ValueError("minRoomSizeM2 cannot exceed maxRoomSizeM2")
+        allowed_room_types = {"Habitación individual", "Habitación compartida", "Estudio"}
+        if self.roomType and self.roomTypes:
+            raise ValueError("use roomType or roomTypes, not both")
+        if any(value not in allowed_room_types for value in self.roomTypes):
+            raise ValueError("roomTypes contains an unsupported value")
         invalid_counts = [value for value in self.bedroomCounts if value != "10+" and not 1 <= int(value) <= 10]
         if invalid_counts or len(set(map(str, self.bedroomCounts))) != len(self.bedroomCounts):
             raise ValueError("bedroomCounts must contain unique values from 1 to 10 or 10+")
