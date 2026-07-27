@@ -1,10 +1,11 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
 
 
 class ListingStatusRequest(BaseModel):
-    status: str
+    status: Literal["draft", "pending", "published", "hidden", "closed", "rejected"]
 
 
 class BlockUserRequest(BaseModel):
