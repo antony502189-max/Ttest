@@ -1,106 +1,80 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete, select
-from sqlalchemy.dialects.postgresql import insert
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
-from ...models import DiscardedListing, Favorite, Listing, SavedSearch, User
+from ...models import User
 from ...schemas.searches import GuestStateImport
+from ...services.search_state import (
+    DISCARDED,
+    FAVORITES,
+    add_collection_item,
+    clear_collection,
+    import_guest_state,
+    list_collection,
+    remove_collection_item,
+)
 from ..dependencies import current_user
 
 router = APIRouter(tags=["favorites"])
 
 
-async def require_listing(listing_id: UUID, session: AsyncSession) -> None:
-    if not await session.scalar(select(Listing.id).where(Listing.id == listing_id)):
-        raise HTTPException(404, "Listing not found")
-
-
-def collection(model, user_id: UUID):
-    return select(model.listing_id).where(model.user_id == user_id).order_by(model.created_at.desc())
-
-
 @router.get("/favorites", response_model=list[UUID])
 async def list_favorites(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    return list((await session.scalars(collection(Favorite, user.id))).all())
+    return await list_collection(FAVORITES, user, session)
 
 
 @router.put("/favorites/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def add_favorite(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    await require_listing(listing_id, session)
-    await session.execute(
-        insert(Favorite).values(user_id=user.id, listing_id=listing_id).on_conflict_do_nothing(
-            constraint="uq_favorites_user_listing"
-        )
-    )
-    await session.commit()
+async def add_favorite(
+    listing_id: UUID,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await add_collection_item(FAVORITES, "uq_favorites_user_listing", listing_id, user, session)
 
 
 @router.delete("/favorites/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_favorite(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    await session.execute(delete(Favorite).where(Favorite.user_id == user.id, Favorite.listing_id == listing_id))
-    await session.commit()
+async def remove_favorite(
+    listing_id: UUID,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await remove_collection_item(FAVORITES, listing_id, user, session)
 
 
 @router.post("/account/import-guest-state", status_code=status.HTTP_204_NO_CONTENT)
-async def import_guest_state(
-    payload: GuestStateImport, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+async def import_guest_state_route(
+    payload: GuestStateImport,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
 ):
-    valid_listing_ids = set(
-        (await session.scalars(select(Listing.id).where(Listing.id.in_(payload.favoriteIds)))).all()
-    )
-    for listing_id in valid_listing_ids:
-        await session.execute(
-            insert(Favorite).values(user_id=user.id, listing_id=listing_id).on_conflict_do_nothing(
-                constraint="uq_favorites_user_listing"
-            )
-        )
-    for item in payload.savedSearches:
-        polygon = [point.model_dump() for point in item.polygon]
-        duplicate = await session.scalar(
-            select(SavedSearch.id).where(
-                SavedSearch.user_id == user.id,
-                SavedSearch.query == item.query.strip(),
-                SavedSearch.rental_mode == item.rentalMode,
-                SavedSearch.filters == item.filters,
-                SavedSearch.polygon == polygon,
-            )
-        )
-        if not duplicate:
-            session.add(
-                SavedSearch(
-                    user_id=user.id, name=item.name.strip(), query=item.query.strip(), rental_mode=item.rentalMode,
-                    filters=item.filters, polygon=polygon, alerts_enabled=item.alertsEnabled,
-                )
-            )
-    await session.commit()
+    await import_guest_state(payload, user, session)
 
 
 @router.get("/discarded-listings", response_model=list[UUID])
 async def list_discarded(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    return list((await session.scalars(collection(DiscardedListing, user.id))).all())
+    return await list_collection(DISCARDED, user, session)
 
 
 @router.delete("/discarded-listings", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_discarded(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    await session.execute(delete(DiscardedListing).where(DiscardedListing.user_id == user.id))
-    await session.commit()
+    await clear_collection(DISCARDED, user, session)
 
 
 @router.put("/discarded-listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def add_discarded(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    await require_listing(listing_id, session)
-    await session.execute(
-        insert(DiscardedListing).values(user_id=user.id, listing_id=listing_id).on_conflict_do_nothing(
-            constraint="uq_discarded_user_listing"
-        )
-    )
-    await session.commit()
+async def add_discarded(
+    listing_id: UUID,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await add_collection_item(DISCARDED, "uq_discarded_user_listing", listing_id, user, session)
 
 
 @router.delete("/discarded-listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_discarded(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    await session.execute(delete(DiscardedListing).where(DiscardedListing.user_id == user.id, DiscardedListing.listing_id == listing_id))
-    await session.commit()
+async def remove_discarded(
+    listing_id: UUID,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await remove_collection_item(DISCARDED, listing_id, user, session)
