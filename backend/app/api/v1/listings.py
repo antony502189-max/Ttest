@@ -129,7 +129,7 @@ async def register_view(listing: Listing, viewer_key: str, session: AsyncSession
         .values(listing_id=listing.id, viewer_key=viewer_key, view_date=datetime.now(UTC).date())
         .on_conflict_do_nothing(constraint="uq_listing_views_daily")
     )
-    if result.rowcount:
+    if getattr(result, "rowcount", 0):
         await session.execute(update(Listing).where(Listing.id == listing.id).values(views=Listing.views + 1))
         await session.commit()
         return True
@@ -156,7 +156,7 @@ def search_filters(query: Select, payload: ListingSearchRequest) -> Select:
     if payload.minLongitude is not None:
         bbox = ST_MakeEnvelope(payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326)
         query = query.where(ST_Within(cast(Listing.location, Geometry("POINT", srid=4326)), bbox))
-    if payload.center:
+    if payload.center and payload.radiusKm is not None:
         query = query.where(ST_DWithin(Listing.location, point(payload.center.longitude, payload.center.latitude), payload.radiusKm * 1000))
     if payload.polygon:
         wkt = "POLYGON((" + ", ".join(f"{item.longitude} {item.latitude}" for item in payload.polygon) + "))"
@@ -190,12 +190,13 @@ async def search_listings(payload: ListingSearchRequest, session: AsyncSession =
     query = search_filters(visible_query(), payload)
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
     price = func.coalesce(Listing.monthly_price, Listing.nightly_price)
-    ordering = {
-        "newest": Listing.created_at.desc(),
-        "price_asc": price.asc(),
-        "price_desc": price.desc(),
-    }[payload.sort]
-    rows = (await session.execute(query.order_by(ordering, Listing.id).limit(payload.limit).offset(payload.offset))).all()
+    if payload.sort == "price_asc":
+        query = query.order_by(price.asc(), Listing.id)
+    elif payload.sort == "price_desc":
+        query = query.order_by(price.desc(), Listing.id)
+    else:
+        query = query.order_by(Listing.created_at.desc(), Listing.id)
+    rows = (await session.execute(query.limit(payload.limit).offset(payload.offset))).all()
     return ListingSearchResponse(items=[response_from(row) for row in rows], total=total or 0, limit=payload.limit, offset=payload.offset)
 
 
@@ -253,7 +254,10 @@ async def create_listing(
         pets_allowed=payload.petsAllowed, children_allowed=payload.childrenAllowed,
         empadronamiento_allowed=payload.empadronamientoAllowed, restrictions=payload.restrictions, amenities=payload.amenities,
         location=point(payload.longitude, payload.latitude),
-        exact_location=(point(payload.exactLongitude, payload.exactLatitude) if payload.exactLongitude is not None else None),
+        exact_location=(
+            point(payload.exactLongitude, payload.exactLatitude)
+            if payload.exactLongitude is not None and payload.exactLatitude is not None else None
+        ),
         description=payload.description.strip(), home_description=payload.homeDescription.strip(), advertiser_type=payload.advertiserType,
         source=payload.source.strip() if payload.source else None, expires_at=payload.expiresAt,
         status=initial_status, published_at=now if initial_status == "published" else None,
