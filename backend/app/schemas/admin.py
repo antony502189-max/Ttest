@@ -25,6 +25,15 @@ class AdminUserResponse(BaseModel):
     name: str
     role: str
     blocked: bool
+    phone: str
+    whatsapp: str
+    telegram: str
+    about: str
+    initials: str
+    showPhone: bool
+    showWhatsApp: bool
+    allowContactForm: bool
+    avatarUrl: str | None = None
 
 
 class AdminListingResponse(BaseModel):
