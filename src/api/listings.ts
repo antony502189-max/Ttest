@@ -147,22 +147,61 @@ export async function getPublicListing(id: string) {
   return toListing(await api<ListingDto>(`/listings/${id}`))
 }
 
+export type RoomCountFilter = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | '10+'
+
 export type ListingSearchInput = {
   rentalMode: Listing['rentalMode']
   minPrice: number
   maxPrice: number
   filters: Filters
+  query?: string
+  roomTypes?: Listing['roomType'][]
+  bedroomCounts?: RoomCountFilter[]
   bounds?: { north: number; south: number; east: number; west: number }
   polygon?: Array<{ latitude: number; longitude: number }>
+  center?: { latitude: number; longitude: number }
+  radiusKm?: number
   sort?: 'newest' | 'oldest' | 'price_asc' | 'price_desc'
 }
 
+function routeSearchState() {
+  const hashQuery = window.location.hash.split('?', 2)[1] ?? ''
+  const params = new URLSearchParams(hashQuery)
+  const roomTypes = (params.get('tiposHabitacion') ?? '')
+    .split('|')
+    .filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
+  const bedroomCounts = (params.get('habitaciones') ?? '')
+    .split('|')
+    .map((value): RoomCountFilter | null => {
+      if (value === '10+') return value
+      const number = Number(value)
+      return Number.isInteger(number) && number >= 1 && number <= 10 ? number as RoomCountFilter : null
+    })
+    .filter((value): value is RoomCountFilter => value !== null)
+  const latitude = Number(params.get('lat'))
+  const longitude = Number(params.get('lng'))
+  const nearby = params.get('cerca') === '1' && Number.isFinite(latitude) && Number.isFinite(longitude)
+  return {
+    query: params.get('q')?.trim() || 'Tenerife',
+    roomTypes,
+    bedroomCounts,
+    center: nearby ? { latitude, longitude } : undefined,
+    radiusKm: nearby ? Math.min(50, Math.max(1, Number(params.get('radio')) || 15)) : undefined,
+  }
+}
+
 export async function searchPublicListings(input: ListingSearchInput) {
+  const route = routeSearchState()
   const { bounds, polygon, filters, ...payload } = input
   const yesNo = (value: string) => value === 'Cualquiera' ? undefined : value === 'Sí'
   const publicationDays = filters.publicationDate === '24h' ? 1 : filters.publicationDate === '7d' ? 7 : filters.publicationDate === '30d' ? 30 : undefined
   const body = {
     ...payload,
+    query: input.query ?? route.query,
+    roomTypes: input.roomTypes ?? route.roomTypes,
+    bedroomCounts: input.bedroomCounts ?? route.bedroomCounts,
+    center: input.center ?? route.center,
+    radiusKm: input.radiusKm ?? route.radiusKm,
     limit: 100,
     ...(filters.roomType !== 'Cualquiera' ? { roomType: filters.roomType } : {}),
     ...(filters.available ? { availableFrom: filters.available } : {}),
@@ -174,7 +213,8 @@ export async function searchPublicListings(input: ListingSearchInput) {
     ...(filters.furnished ? { furnished: true } : {}),
     ...(filters.billsIncluded ? { billsIncluded: true } : {}),
     ...(filters.deposit !== 'Cualquiera' ? { deposit: filters.deposit } : {}),
-    minRoomSizeM2: filters.roomSizeMin, maxRoomSizeM2: filters.roomSizeMax,
+    minRoomSizeM2: filters.roomSizeMin,
+    maxRoomSizeM2: filters.roomSizeMax,
     ...(filters.shower !== 'Cualquiera' ? { shower: filters.shower } : {}),
     ...(filters.currentResidents === '5+' ? { minCurrentResidents: 5 } : filters.currentResidents !== 'Cualquiera' ? { currentResidents: Number(filters.currentResidents) } : {}),
     ...(filters.roomCapacity !== 'Cualquiera' ? { roomCapacity: Number(filters.roomCapacity) } : {}),
