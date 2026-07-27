@@ -5,7 +5,11 @@ from app.main import RATE_LIMITS, _rate_attempts, app, consume_rate_limit
 
 def test_live_and_openapi_are_available() -> None:
     client = TestClient(app)
-    assert client.get("/health/live").json() == {"status": "ok"}
+    response = client.get("/health/live", headers={"X-Request-ID": "test-request"})
+    assert response.json() == {"status": "ok"}
+    assert response.headers["x-request-id"] == "test-request"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "no-referrer"
     assert client.get("/api/openapi.json").status_code == 200
 
 

@@ -45,6 +45,15 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
 }
 _rate_attempts: dict[str, deque[float]] = defaultdict(deque)
 
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-site",
+}
+
 
 def consume_rate_limit(key: str, limit: int, window_seconds: int, now: float | None = None) -> int | None:
     """Returns retry seconds when a request exceeds its fixed window, otherwise None."""
@@ -60,6 +69,7 @@ def consume_rate_limit(key: str, limit: int, window_seconds: int, now: float | N
 
 @app.middleware("http")
 async def request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid4()))
     rate = RATE_LIMITS.get((request.method, request.url.path))
     if rate:
         client = request.client.host if request.client else "unknown"
@@ -68,13 +78,11 @@ async def request_id(request: Request, call_next):
             return JSONResponse(
                 status_code=429,
                 content={"code": "rate_limited", "message": "Too many attempts", "fieldErrors": {}},
-                headers={"Retry-After": str(retry_after)},
+                headers={"Retry-After": str(retry_after), "X-Request-ID": request_id, **SECURITY_HEADERS},
             )
-    request_id = request.headers.get("X-Request-ID", str(uuid4()))
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers.update(SECURITY_HEADERS)
     return response
 
 
