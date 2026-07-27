@@ -51,8 +51,8 @@ def set_refresh_cookie(response: Response, result: AuthResult) -> dict:
         "refresh_token",
         result.refresh_token,
         httponly=True,
-        secure=settings.app_env != "development",
-        samesite="lax" if settings.app_env == "development" else "none",
+        secure=settings.is_production,
+        samesite="none" if settings.is_production else "lax",
         max_age=max(1, int((result.refresh_expires_at - datetime.now(UTC)).total_seconds())),
         path="/api/v1/auth",
     )
