@@ -167,13 +167,13 @@ def owned_query() -> Select:
 def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select:
     price = primary_price_expression()
     bedrooms = bedroom_count_expression()
-    if payload.query and payload.query.strip().casefold() not in {"tenerife", "isla de tenerife"}:
-        term = f"%{payload.query.strip()}%"
+    if payload.query and payload.query.casefold() not in {"tenerife", "isla de tenerife"}:
+        term = f"%{payload.query}%"
         query = query.where(or_(Listing.city.ilike(term), Listing.area.ilike(term)))
     if payload.city:
-        query = query.where(Listing.city.ilike(f"%{payload.city.strip()}%"))
+        query = query.where(Listing.city.ilike(f"%{payload.city}%"))
     if payload.area:
-        query = query.where(Listing.area.ilike(f"%{payload.area.strip()}%"))
+        query = query.where(Listing.area.ilike(f"%{payload.area}%"))
     if payload.rentalMode:
         query = query.where(Listing.rental_mode == payload.rentalMode)
     if payload.minPrice is not None:
@@ -193,7 +193,10 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
             predicates.append(bedrooms > 10)
         query = query.where(or_(*predicates))
     if payload.availableFrom:
-        query = query.where((Listing.available_from.is_(None)) | (Listing.available_from <= payload.availableFrom))
+        query = query.where(
+            (Listing.available_from.is_(None)) | (Listing.available_from <= payload.availableFrom),
+            (Listing.available_until.is_(None)) | (Listing.available_until >= payload.availableFrom),
+        )
     if payload.maxMinimumStayMonths is not None:
         query = query.where(Listing.minimum_stay_months <= payload.maxMinimumStayMonths)
     if payload.restrictions:
@@ -229,7 +232,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.maxMinimumNights is not None:
         query = query.where(func.coalesce(Listing.minimum_nights, 1) <= payload.maxMinimumNights)
     if payload.availableUntil:
-        query = query.where(Listing.available_until.is_not(None), Listing.available_until >= payload.availableUntil)
+        query = query.where((Listing.available_until.is_(None)) | (Listing.available_until >= payload.availableUntil))
     for column, value in (
         (Listing.smoking_allowed, payload.smokingAllowed),
         (Listing.pets_allowed, payload.petsAllowed),
