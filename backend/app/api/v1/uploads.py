@@ -1,10 +1,11 @@
 import asyncio
 import hashlib
+import warnings
 from datetime import UTC, datetime
 from io import BytesIO
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
@@ -34,19 +35,28 @@ def public_asset(asset: MediaAsset) -> MediaAssetResponse:
 
 
 def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
+    settings = get_settings()
     try:
-        with Image.open(BytesIO(content)) as source:
-            source.load()
-            if source.format not in SUPPORTED_FORMATS:
-                raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
-            width, height = source.size
-            settings = get_settings()
-            if width < 1 or height < 1 or width > settings.max_image_dimension or height > settings.max_image_dimension:
-                raise HTTPException(422, "Image dimensions are not allowed")
-            normalized = source.convert("RGBA" if "A" in source.getbands() else "RGB")
-            output = BytesIO()
-            normalized.save(output, format="WEBP", method=6, quality=88)
-            return output.getvalue(), width, height
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(content)) as probe:
+                if probe.format not in SUPPORTED_FORMATS:
+                    raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
+                width, height = probe.size
+                if width < 1 or height < 1 or width > settings.max_image_dimension or height > settings.max_image_dimension:
+                    raise HTTPException(422, "Image dimensions are not allowed")
+                probe.verify()
+
+            with Image.open(BytesIO(content)) as source:
+                source.load()
+                normalized = source.convert("RGBA" if "A" in source.getbands() else "RGB")
+                output = BytesIO()
+                normalized.save(output, format="WEBP", method=6, quality=88)
+                return output.getvalue(), width, height
+    except Image.DecompressionBombWarning as exc:
+        raise HTTPException(422, "Image dimensions are not allowed") from exc
+    except Image.DecompressionBombError as exc:
+        raise HTTPException(422, "Image dimensions are not allowed") from exc
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise HTTPException(415, "Invalid image file") from exc
 
@@ -90,13 +100,14 @@ async def upload_image(
 @router.get("/media/{asset_id}")
 async def get_media(
     asset_id: UUID,
+    request: Request,
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
     asset = await session.get(MediaAsset, asset_id)
     if not asset or asset.deleted_at:
         raise HTTPException(404, "Media not found")
-    owner_or_admin = user and (user.id == asset.owner_id or user.role == "admin")
+    owner_or_admin = bool(user and (user.id == asset.owner_id or user.role == "admin"))
     publicly_visible = False
     if asset.kind == "avatar":
         publicly_visible = bool(
@@ -124,17 +135,17 @@ async def get_media(
         )
     if not owner_or_admin and not publicly_visible:
         raise HTTPException(404, "Media not found")
+
+    etag = f'"{asset.checksum}"'
+    cache_control = "public, max-age=3600, must-revalidate" if publicly_visible else "private, no-store"
+    headers = {"ETag": etag, "Cache-Control": cache_control, "Vary": "Authorization"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+
     content = await asyncio.to_thread(get_storage().get, asset.storage_key)
     if content is None:
         raise HTTPException(404, "Media not found")
-    return Response(
-        content,
-        media_type=asset.mime_type,
-        headers={
-            "ETag": f'"{asset.checksum}"',
-            "Cache-Control": "public, max-age=31536000, immutable",
-        },
-    )
+    return Response(content, media_type=asset.mime_type, headers=headers)
 
 
 @router.delete("/uploads/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
