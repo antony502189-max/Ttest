@@ -124,11 +124,14 @@ async def get_media(
             await session.scalar(
                 select(ListingImage.listing_id)
                 .join(Listing, Listing.id == ListingImage.listing_id)
+                .join(User, User.id == Listing.owner_user_id)
                 .where(
                     ListingImage.media_asset_id == asset.id,
                     Listing.status == "published",
                     Listing.deleted_at.is_(None),
                     (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                    User.deleted_at.is_(None),
+                    User.blocked.is_(False),
                 )
                 .limit(1)
             )
