@@ -168,6 +168,12 @@ export function SearchPage() {
   }, [initialMapAction, params, setParams]);
 
   useEffect(() => {
+    if (mockMode) {
+      setServerItems(null);
+      setServerLoading(false);
+      setServerError(false);
+      return;
+    }
     let cancelled = false;
     setServerLoading(true);
     setServerError(false);
