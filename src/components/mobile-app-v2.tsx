@@ -707,6 +707,12 @@ export function MobileAppV2() {
     }
     navigate(`/buscar?${params.toString()}`)
   }
+  const searchThisMapArea = () => {
+    const params = new URLSearchParams(location.search)
+    params.delete('dibujar')
+    params.delete('pagina')
+    navigate(`/buscar?${params.toString()}`)
+  }
   const runHomeSearch = () => {
     const mode = homeMode === 'turismo' ? 'holiday' : 'long'
     const params = filtersToParams(filters)
@@ -719,6 +725,6 @@ export function MobileAppV2() {
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} onPhone={() => navigate('/?panel=telefono')} nearbyStatus={nearbyStatus} /></div>
   if (page === 'phone') return <div className="m2-app notranslate" translate="no"><PhoneSearchScreen t={t} listings={allListings} onBack={() => navigate('/?panel=ubicacion')} onOpen={(listingId) => navigate(`/habitacion/${listingId}`)} /></div>
-  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={() => navigateFromMap('area')} /></div>
+  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
   return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={favoriteItems} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }

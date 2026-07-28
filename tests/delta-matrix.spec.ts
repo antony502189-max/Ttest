@@ -156,7 +156,7 @@ test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters 
   await page.getByLabel('Requisito para la persona inquilina').selectOption('couple')
   await continueWizard(page, 4)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/ya está visible/)).toBeVisible()
+  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
 
   const listing = (await storedListings(page))[0]
   expect(listing).toMatchObject({
