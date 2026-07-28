@@ -378,7 +378,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     return { ...listing, status: 'Publicado', expiresAt: base.toISOString().slice(0, 10), closedReason: undefined }
   }), [mutateOwned])
 
-  const closeListing = useCallback((id: string) => setListingStatus(id, 'Finalizado'), [setListingStatus])
+  const closeListing = useCallback((id: string) => mutateOwned(id, (listing) => ({ ...listing, status: 'Finalizado', closedReason: 'owner' })), [mutateOwned])
   const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
 
   const addReport = useCallback((listingId: string, reason: string, comment: string) => {
