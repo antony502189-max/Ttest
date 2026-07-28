@@ -6,14 +6,6 @@ import { I18nProvider } from '@/contexts/i18n-context'
 import { AppLayout } from '@/components/layout'
 import { CustomerFeedbackFixes } from '@/components/customer-feedback-fixes'
 
-if (import.meta.env.VITE_E2E_BYPASS_ONBOARDING !== '1') {
-  try {
-    localStorage.removeItem('112233:mobile-onboarding:v1')
-  } catch {
-    // The onboarding still starts normally when browser storage is unavailable.
-  }
-}
-
 try {
   // A drawn map area belongs only to the current SPA session. A full page load
   // starts a clean search while normal in-app navigation keeps the selection.
