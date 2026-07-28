@@ -184,6 +184,9 @@ test("05–08 filter count, individual chips, clear, URL reload and history navi
     .getByText("Costa Adeje", { exact: true })
     .click();
   await expect(page.locator(".applied-filters__clear")).toContainText("(2)");
+  await expect(page).toHaveURL(/precioMax=500/);
+  await expect(page).toHaveURL(/zonas=/);
+  await expect.poll(() => resultCount(page)).toBe(3);
   const filtered = await resultCount(page);
   await page.reload();
   await expect.poll(() => resultCount(page)).toBe(filtered);
