@@ -32,9 +32,17 @@ from ...schemas.listings import (
 )
 from ...services.listings import (
     create_listing as create_listing_service,
+)
+from ...services.listings import (
     delete_listing as delete_listing_service,
+)
+from ...services.listings import (
     renew_listing as renew_listing_service,
+)
+from ...services.listings import (
     replace_listing_images as replace_listing_images_service,
+)
+from ...services.listings import (
     update_listing as update_listing_service,
 )
 from ..dependencies import current_user, optional_user, require_role

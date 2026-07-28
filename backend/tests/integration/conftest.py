@@ -20,8 +20,8 @@ os.environ.setdefault("STORAGE_BACKEND", "local")
 os.environ.setdefault("MEDIA_ROOT", "var/test-media")
 os.environ.setdefault("FRONTEND_ORIGINS", "http://testserver")
 
-from app.db.session import engine  # noqa: E402
-from app.main import app  # noqa: E402
+from app.db.session import engine
+from app.main import app
 
 
 @pytest.fixture(scope="session")

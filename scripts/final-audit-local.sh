@@ -8,6 +8,7 @@ AUDIT_VENV="${AUDIT_VENV:-$ROOT/.audit-venv}"
 TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql+asyncpg://ttest:ttest@127.0.0.1:5432/ttest_test}"
 
 cleanup() {
+  mkdir -p output
   docker compose logs --no-color backend mail-worker > output/backend-audit.log 2>&1 || true
 }
 trap cleanup EXIT
