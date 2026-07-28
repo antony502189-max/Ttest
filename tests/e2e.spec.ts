@@ -9,12 +9,22 @@ const reset = async (page: Page) => {
   await page.reload()
 }
 
+const submitEmailLogin = async (page: Page, emailValue: string, passwordValue: string) => {
+  const email = page.getByLabel(/^email$/i)
+  if (!(await email.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /iniciar sesión con email/i }).click()
+  }
+  await email.fill(emailValue)
+  await page.locator('#login-password').or(page.getByLabel(/^contraseña$/i)).fill(passwordValue)
+  const desktopSubmit = page.getByRole('button', { name: /^acceder$/i })
+  if (await desktopSubmit.isVisible().catch(() => false)) await desktopSubmit.click()
+  else await page.getByRole('button', { name: /iniciar sesión con email/i }).click()
+}
+
 const login = async (page: Page, role: 'tenant' | 'host' | 'admin' = 'tenant') => {
   const credentials = role === 'admin' ? ['admin@112233.es', 'admin112233'] : role === 'host' ? ['anfitrion@112233.es', 'demo112233'] : ['inquilina@112233.es', 'demo112233']
   await page.goto('/#/acceso')
-  await page.getByLabel(/email/i).fill(credentials[0])
-  await page.locator('#login-password').fill(credentials[1])
-  await page.getByRole('button', { name: /^acceder$/i }).click()
+  await submitEmailLogin(page, credentials[0], credentials[1])
   await expect(page).not.toHaveURL(/acceso/)
 }
 
@@ -118,13 +128,9 @@ test('16–19 ficha: sin bloqueo, galería, favorito, descarte', async ({ page }
 test('20–22 login erróneo, demo y ruta protegida', async ({ page }) => {
   await page.goto('/#/perfil')
   await expect(page).toHaveURL(/acceso/)
-  await page.getByLabel(/email/i).fill('nadie@example.es')
-  await page.locator('#login-password').fill('incorrecta')
-  await page.getByRole('button', { name: /^acceder$/i }).click()
+  await submitEmailLogin(page, 'nadie@example.es', 'incorrecta')
   await expect(page.getByRole('alert')).toBeVisible()
-  await page.getByLabel(/email/i).fill('inquilina@112233.es')
-  await page.locator('#login-password').fill('demo112233')
-  await page.getByRole('button', { name: /^acceder$/i }).click()
+  await submitEmailLogin(page, 'inquilina@112233.es', 'demo112233')
   await expect(page).toHaveURL(/perfil/)
 })
 
@@ -150,7 +156,7 @@ test('27–29 publicación completa, CRUD y edición', async ({ page }) => {
   await page.goto('/#/publicar')
   for (let index = 0; index < 9; index += 1) await page.getByRole('button', { name: /continuar/i }).click()
   await page.getByRole('button', { name: /publicar anuncio/i }).click()
-  await expect(page.getByRole('heading', { name: /ya está visible/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /se ha enviado a revisión/i })).toBeVisible()
   await page.getByRole('link', { name: /mis anuncios/i }).click()
   await expect(page.locator('.manage-card')).toHaveCount(4)
   await page.locator('.manage-card').first().getByRole('link', { name: /editar/i }).click()

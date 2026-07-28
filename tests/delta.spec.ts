@@ -137,7 +137,7 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   await expect(page.locator('.upload-grid img')).toHaveCount(7)
   await advanceWizard(page, 3)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/ya está visible/)).toBeVisible()
+  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
   const listings = await storedListings(page)
   const createdId = String(listings[0].id)
   expect(listings[0].images[0]).toMatch(/^idb-media:/)
