@@ -81,7 +81,7 @@ docker compose up -d mail-worker
 
 ## Полный локальный аудит
 
-Никакие GitHub Actions для аудита не нужны. Полная проверка выполняется локально:
+Полная проверка выполняется локально:
 
 ```bash
 bash scripts/final-audit-local.sh
@@ -100,6 +100,8 @@ bash scripts/final-audit-local.sh
 9. выполняет отдельный real full-stack Playwright suite без mock backend.
 
 Результаты Playwright сохраняются только в `output/` и исключены из Git.
+
+CI берёт утверждённые snapshots из ветки `visual-baselines`, а actual/expected/diff и HTML-report публикует как GitHub Actions artifacts. Обычный CI никогда не обновляет baseline. Обновление разрешено только ручным запуском workflow **Update Approved Visual Baselines** после визуального ревью.
 
 Отдельные команды:
 
@@ -143,6 +145,8 @@ docker compose --profile tools run --rm db-backup
 - Google Maps HTTP-referrer/API restrictions;
 - `SENTRY_DSN` или другой error-tracking provider;
 - reverse proxy с TLS и ограничениями размера request body.
+
+GitHub Pages до появления backend-домена остаётся в mock-mode. Чтобы перевести его на реальный API, владелец один раз добавляет Actions Secret `VITE_API_BASE_URL=https://<backend-domain>/api/v1` и повторно запускает deployment; workflow сам выключит mock-mode. Подробности: [Deployment](docs/deployment.md).
 
 Backend специально отказывается запускаться в `APP_ENV=production`, если критическая конфигурация небезопасна или отсутствует.
 

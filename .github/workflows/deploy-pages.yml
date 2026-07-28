@@ -35,7 +35,8 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: /Ttest/
-          VITE_ENABLE_MOCK_MODE: '1'
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_ENABLE_MOCK_MODE: ${{ secrets.VITE_API_BASE_URL != '' && '0' || '1' }}
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
           VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
