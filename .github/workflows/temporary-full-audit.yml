@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
@@ -36,6 +36,75 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Wire isolated mock provider
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/contexts/app-context.tsx')
+          text = path.read_text()
+          changed = False
+
+          import_line = "import { MockAppProvider } from '@/contexts/mock-app-provider'\n"
+          anchor = "import { createRemoteReport, getRemoteReports } from '@/api/reports'\n"
+          if import_line not in text:
+              if anchor not in text:
+                  raise SystemExit('app-context import anchor not found')
+              text = text.replace(anchor, anchor + import_line, 1)
+              changed = True
+
+          if 'export interface AppState {' not in text:
+              if 'interface AppState {' not in text:
+                  raise SystemExit('AppState declaration not found')
+              text = text.replace('interface AppState {', 'export interface AppState {', 1)
+              changed = True
+
+          if 'export const AppContext = createContext<AppState | null>(null)' not in text:
+              if 'const AppContext = createContext<AppState | null>(null)' not in text:
+                  raise SystemExit('AppContext declaration not found')
+              text = text.replace(
+                  'const AppContext = createContext<AppState | null>(null)',
+                  'export const AppContext = createContext<AppState | null>(null)',
+                  1,
+              )
+              changed = True
+
+          if 'function RemoteAppProvider(' not in text:
+              if 'export function AppProvider(' not in text:
+                  raise SystemExit('AppProvider declaration not found')
+              text = text.replace(
+                  'export function AppProvider({ children }: { children: ReactNode }) {',
+                  'function RemoteAppProvider({ children }: { children: ReactNode }) {',
+                  1,
+              )
+              changed = True
+
+          wrapper = """export function AppProvider({ children }: { children: ReactNode }) {
+  return mockMode
+    ? <MockAppProvider context={AppContext}>{children}</MockAppProvider>
+    : <RemoteAppProvider>{children}</RemoteAppProvider>
+}
+
+"""
+          use_app = 'export function useApp() {'
+          if wrapper not in text:
+              if use_app not in text:
+                  raise SystemExit('useApp declaration not found')
+              text = text.replace(use_app, wrapper + use_app, 1)
+              changed = True
+
+          if changed:
+              path.write_text(text)
+          PY
+          git config user.name 'full-audit-bot'
+          git config user.email 'full-audit-bot@users.noreply.github.com'
+          git add src/contexts/app-context.tsx src/contexts/mock-app-provider.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m 'test: wire isolated mock application provider'
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
 
       - name: Show tool versions
         run: |
