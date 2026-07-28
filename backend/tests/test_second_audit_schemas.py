@@ -20,10 +20,10 @@ def valid_listing() -> dict:
 
 
 def test_registration_strips_whitespace_and_limits_roles():
-    parsed = RegisterRequest(name="  Host Person  ", email="host@example.test", password="Correct-Horse-1234", role="host")
+    parsed = RegisterRequest(name="  Host Person  ", email="host@example.com", password="Correct-Horse-1234", role="host")
     assert parsed.name == "Host Person"
     with pytest.raises(ValidationError):
-        RegisterRequest(name="Host Person", email="host@example.test", password="Correct-Horse-1234", role="admin")
+        RegisterRequest(name="Host Person", email="host@example.com", password="Correct-Horse-1234", role="admin")
 
 
 def test_profile_patch_rejects_explicit_null_and_blank_name():
