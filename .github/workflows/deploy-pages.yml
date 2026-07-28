@@ -40,8 +40,10 @@ jobs:
           VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
-      - name: Add SPA fallback
-        run: cp dist/index.html dist/404.html
+      - name: Add SPA fallback and deployment marker
+        run: |
+          cp dist/index.html dist/404.html
+          printf '{"branch":"%s","commit":"%s","run":"%s"}\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$GITHUB_RUN_ID" > dist/build-info.json
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
