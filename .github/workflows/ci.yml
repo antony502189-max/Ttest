@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches-ignore: [pages-latest]
   pull_request:
 
 permissions:
