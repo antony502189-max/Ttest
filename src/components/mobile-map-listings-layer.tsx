@@ -5,7 +5,7 @@ import { MediaImage } from '@/components/media-image'
 import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { cn } from '@/lib/utils'
-import { loadGoogleMaps } from '@/lib/google-maps/loader'
+import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import type { Listing } from '@/types'
 import '@/mobile-map-ideal.css'
 
@@ -99,12 +99,15 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         return marker
       })
 
-      clusterRef.current = new MarkerClusterer({
-        map,
-        markers,
-        algorithm: new SuperClusterAlgorithm({ radius: 54, maxZoom: 15 }),
-        renderer: new AdvancedClusterRenderer(),
-      })
+      if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })
+      else {
+        clusterRef.current = new MarkerClusterer({
+          map,
+          markers,
+          algorithm: new SuperClusterAlgorithm({ radius: 54, maxZoom: 15 }),
+          renderer: new AdvancedClusterRenderer(),
+        })
+      }
 
       if (items.length && fittedSignatureRef.current !== signature) {
         fittedSignatureRef.current = signature

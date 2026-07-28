@@ -6,7 +6,7 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { requestCurrentLocation } from '@/lib/geolocation'
 import { getPrimaryPrice } from '@/lib/listings'
-import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
+import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
@@ -305,12 +305,15 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       return marker
     })
 
-    const cluster = new MarkerClusterer({
-      map,
-      markers,
-      algorithm: new SuperClusterAlgorithm({ radius: 58, maxZoom: 16 }),
-      renderer: new AdvancedClusterRenderer(),
-    })
+    const cluster = googleMapsTestSdkEnabled
+      ? null
+      : new MarkerClusterer({
+        map,
+        markers,
+        algorithm: new SuperClusterAlgorithm({ radius: 58, maxZoom: 16 }),
+        renderer: new AdvancedClusterRenderer(),
+      })
+    if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })
     clusterRef.current = cluster
     if (itemsRef.current.length && !skipNextResultsFitRef.current) {
       programmaticMoveRef.current = true
@@ -323,8 +326,8 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       skipNextResultsFitRef.current = false
     }
     return () => {
-      cluster.clearMarkers()
-      cluster.setMap(null)
+      cluster?.clearMarkers()
+      cluster?.setMap(null)
     }
   }, [itemSignature, ready])
 

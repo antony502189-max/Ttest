@@ -6,6 +6,7 @@
 type PointLike = { lat: number; lng: number }
 type Listener = { remove: () => void }
 type ListenerCallback = (...args: unknown[]) => void
+let markerSequence = 0
 
 class TestLatLng {
   private readonly point: PointLike
@@ -59,6 +60,9 @@ class TestMap {
   private zoom = 10
   private readonly listeners = new Map<string, Set<ListenerCallback>>()
   private readonly options = new Map<string, unknown>()
+  private bounds = new TestBounds()
+    .extend({ lat: 27.1, lng: -18.2 })
+    .extend({ lat: 29.2, lng: -15.3 })
   readonly data = new TestDataLayer()
 
   constructor(element: HTMLElement, options: Record<string, unknown> = {}) {
@@ -68,6 +72,14 @@ class TestMap {
     canvas.className = 'gm-style'
     canvas.dataset.testMapSdk = '1'
     element.append(canvas)
+    element.addEventListener('wheel', () => {
+      const current = this.center
+      this.bounds = new TestBounds()
+        .extend({ lat: current.lat() - 0.006, lng: current.lng() - 0.008 })
+        .extend({ lat: current.lat() + 0.006, lng: current.lng() + 0.008 })
+      this.zoom += 1
+      this.emit('idle')
+    }, { capture: true })
   }
 
   addListener(name: string, callback: ListenerCallback): Listener {
@@ -82,12 +94,8 @@ class TestMap {
   setCenter(value: PointLike | TestLatLng) { this.center = new TestLatLng(point(value)); this.emit('idle') }
   getZoom() { return this.zoom }
   setZoom(value: number) { this.zoom = value; this.emit('idle') }
-  getBounds() {
-    return new TestBounds()
-      .extend({ lat: 27.1, lng: -18.2 })
-      .extend({ lat: 29.2, lng: -15.3 })
-  }
-  fitBounds(bounds: TestBounds) { this.center = bounds.getCenter(); this.emit('idle') }
+  getBounds() { return this.bounds }
+  fitBounds(bounds: TestBounds) { this.bounds = bounds; this.center = bounds.getCenter(); this.emit('idle') }
   panTo(value: PointLike | TestLatLng) { this.setCenter(value) }
   setOptions(options: Record<string, unknown>) { Object.entries(options).forEach(([key, value]) => this.options.set(key, value)) }
   get(name: string) { return this.options.get(name) }
@@ -102,7 +110,9 @@ class TestMap {
 }
 
 class TestAdvancedMarker extends EventTarget {
-  map: TestMap | null = null
+  private currentMap: TestMap | null = null
+  private readonly placement = markerSequence++
+  private contentClickBound = false
   position: PointLike | null = null
   content: Node | null = null
   zIndex: number | undefined
@@ -113,7 +123,29 @@ class TestAdvancedMarker extends EventTarget {
     this.content = options.content ?? null
     this.zIndex = options.zIndex
     this.map = options.map ?? null
-    if (this.map && this.content) this.map.getDiv().append(this.content)
+  }
+
+  get map() { return this.currentMap }
+  set map(next: TestMap | null) {
+    if (this.currentMap === next) return
+    this.content?.parentNode?.removeChild(this.content)
+    this.currentMap = next
+    if (next && this.content) {
+      if (this.content instanceof HTMLElement && this.position) {
+        const horizontalOffset = ((this.placement % 4) - 1.5) * 12
+        const verticalOffset = (Math.floor(this.placement / 4) % 3 - 1) * 11
+        const left = Math.min(84, Math.max(12, 50 + (this.position.lng + 16.65) * 100 + horizontalOffset))
+        const top = Math.min(76, Math.max(24, 50 - (this.position.lat - 28.1) * 150 + verticalOffset))
+        this.content.style.position = 'absolute'
+        this.content.style.left = `${left}%`
+        this.content.style.top = `${top}%`
+        if (!this.contentClickBound) {
+          this.content.addEventListener('click', () => this.dispatchEvent(new Event('gmp-click')))
+          this.contentClickBound = true
+        }
+      }
+      next.getDiv().append(this.content)
+    }
   }
 }
 
