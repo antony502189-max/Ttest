@@ -55,9 +55,9 @@ class S3Storage:
         force_path_style: bool = True,
     ):
         try:
-            import boto3  # type: ignore[import-untyped]
-            from botocore.config import Config  # type: ignore[import-untyped]
-            from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+            import boto3  # type: ignore[import-not-found,import-untyped]
+            from botocore.config import Config  # type: ignore[import-not-found,import-untyped]
+            from botocore.exceptions import ClientError  # type: ignore[import-not-found,import-untyped]
         except ImportError as error:  # pragma: no cover - configuration error
             raise RuntimeError("boto3 is required for STORAGE_BACKEND=s3") from error
         self.bucket = bucket

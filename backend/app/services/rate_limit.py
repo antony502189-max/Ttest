@@ -5,7 +5,7 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass
 from time import monotonic
 
-from redis.exceptions import RedisError
+from redis.exceptions import RedisError  # type: ignore[import-not-found]
 
 from ..core.config import get_settings
 
@@ -58,7 +58,7 @@ class RedisRateLimiter:
 
     def __init__(self, url: str) -> None:
         try:
-            from redis.asyncio import from_url
+            from redis.asyncio import from_url  # type: ignore[import-not-found]
         except ImportError as error:  # pragma: no cover - configuration error
             raise RuntimeError("redis is required when REDIS_URL is configured") from error
         self._client = from_url(

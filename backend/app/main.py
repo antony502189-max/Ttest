@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
 
-import sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
