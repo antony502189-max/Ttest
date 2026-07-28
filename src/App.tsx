@@ -25,6 +25,7 @@ const MenuPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ de
 const MessagesPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MessagesPage })))
 
 const infoRoutes = ['/sobre-nosotros', '/como-funciona', '/ayuda', '/terminos', '/privacidad', '/cookies', '/normas-de-publicacion']
+const MOBILE_ONBOARDING_KEY = '112233:mobile-onboarding:v1'
 
 function RouteLoading() {
   return <div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>
@@ -65,6 +66,7 @@ function MobileOnboardingAuthBridge() {
       if (!button) return
       event.preventDefault()
       event.stopPropagation()
+      try { localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done') } catch { /* Navigation still works when storage is unavailable. */ }
       navigate('/acceso')
     }
     document.addEventListener('click', openRealAuth, true)
