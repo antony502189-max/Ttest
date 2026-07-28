@@ -78,7 +78,7 @@ test('08–10 ordenación, paginación y back/forward', async ({ page }) => {
 test('11–15 Google Maps, кластер, выбор, границы и полигон', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   await expect(page.locator('.google-map-canvas')).toBeVisible()
-  await expect(page.locator('.gm-style img[role="presentation"]')).not.toHaveCount(0)
+  await expect(page.locator('.gm-style[data-test-map-sdk="1"]')).toHaveCount(1)
   await expect(page.locator('.map-price-marker-shell, .map-cluster-marker-shell')).not.toHaveCount(0)
   await page.getByRole('button', { name: /dibujar zona/i }).click()
   const drawing = page.locator('.freehand-map-overlay')

@@ -345,6 +345,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       : await createListing(listing);
     if (!saved) return;
     if (existing) {
+      const usedAfterUpdate = new Set([
+        ...allListings.filter((item) => item.id !== existing.id).flatMap((item) => item.images),
+        ...listing.images,
+        ...(currentUser?.avatarRef ? [currentUser.avatarRef] : []),
+      ]);
+      await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch((error) =>
+        toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes reemplazadas."),
+      );
       toast.success("Cambios guardados");
     }
     localStorage.removeItem(draftKey);
