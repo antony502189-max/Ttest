@@ -47,8 +47,25 @@ def upgrade() -> None:
         "WHERE rental_mode = 'holiday' AND nightly_price IS NULL"
     )
 
+    # Some constraints were already introduced by earlier migrations. Guard
+    # every addition so this revision works for both clean and upgraded DBs.
     for name, expression in CONSTRAINTS.items():
-        op.create_check_constraint(name, "listings", expression)
+        op.execute(
+            f"""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = '{name}'
+                      AND conrelid = 'listings'::regclass
+                ) THEN
+                    ALTER TABLE listings ADD CONSTRAINT {name} CHECK ({expression});
+                END IF;
+            END
+            $$;
+            """
+        )
 
     # Partial/composite indexes follow the public search and owner dashboard paths.
     op.execute(
@@ -76,4 +93,4 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_listings_owner_active")
     op.execute("DROP INDEX IF EXISTS ix_listings_public_search")
     for name in reversed(tuple(CONSTRAINTS)):
-        op.drop_constraint(name, "listings", type_="check")
+        op.execute(f"ALTER TABLE listings DROP CONSTRAINT IF EXISTS {name}")
