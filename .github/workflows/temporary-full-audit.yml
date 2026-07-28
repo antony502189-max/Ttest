@@ -2,7 +2,7 @@ name: Temporary Full Audit
 
 on:
   push:
-    branches: [main]
+    branches: [main, automation/full-audit-run]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
+  group: temporary-full-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
           cache: npm
 
       - name: Wire isolated mock provider
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref_name == 'automation/full-audit-run'
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -103,7 +103,7 @@ jobs:
           git add src/contexts/app-context.tsx src/contexts/mock-app-provider.tsx
           if ! git diff --cached --quiet; then
             git commit -m 'test: wire isolated mock application provider'
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
           fi
 
       - name: Show tool versions
