@@ -43,7 +43,8 @@ jobs:
 
           rate = Path('backend/app/services/rate_limit.py')
           text = rate.read_text()
-          text = text.replace('from time import monotonic\n', 'from time import monotonic\n\nfrom redis.exceptions import RedisError\n')
+          if 'from redis.exceptions import RedisError' not in text:
+              text = text.replace('from time import monotonic\n', 'from time import monotonic\n\nfrom redis.exceptions import RedisError\n')
           text = text.replace('except Exception:', 'except (RedisError, OSError, asyncio.TimeoutError):')
           rate.write_text(text)
 
@@ -56,7 +57,6 @@ jobs:
           script.write_text(text)
           PY
           ruff check --fix backend/app/api/v1/listings.py backend/app/services/listings.py backend/tests/integration/conftest.py
-          ruff check backend/app backend/tests
       - name: Commit fixes
         shell: bash
         run: |
@@ -66,6 +66,9 @@ jobs:
           git commit -m 'fix: resolve first full audit lint failures'
           git push origin HEAD:main
       - name: Report
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh issue comment ${{ github.event.issue.number }} --body 'Audit lint fixes committed and pushed to main.'
+        run: |
+          git status --short
+          gh issue comment ${{ github.event.issue.number }} --body 'Temporary fixer completed. Check main for the committed changes.'
