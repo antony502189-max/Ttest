@@ -319,7 +319,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       next.contactPhone = "Introduce un teléfono válido.";
     if (step === 8 && draft.showWhatsApp && !/^\+?[\d\s-]{7,}$/.test(draft.contactWhatsapp))
       next.contactWhatsapp = "Introduce un WhatsApp válido.";
-    if (step === 8 && draft.allowContactForm && !/^\S+@\S+\.\S+$/.test(draft.contactEmail))
+    if (step === 8 && draft.allowContactForm && !/^\S+@\S+\.\S+$/.test(currentUser?.email ?? draft.contactEmail))
       next.contactEmail = "Introduce un email válido.";
     setErrors(next);
     if (Object.keys(next).length)
@@ -338,7 +338,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const finish = async () => {
-    const listing = toListing(draft, existing, currentUser?.id);
+    const authoritativeDraft = currentUser ? { ...draft, contactEmail: currentUser.email } : draft;
+    const listing = toListing(authoritativeDraft, existing, currentUser?.id);
     const saved = existing
       ? await updateListing(existing.id, listing)
       : await createListing(listing);
@@ -889,9 +890,11 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
                 <Input
                   id="publish-contact-email"
                   type="email"
-                  value={draft.contactEmail}
+                  value={currentUser?.email ?? draft.contactEmail}
                   aria-invalid={Boolean(errors.contactEmail)}
-                  onChange={(e) => set("contactEmail", e.target.value)}
+                  readOnly
+                  aria-readonly="true"
+                  title="Se usa el email de tu cuenta"
                 />
               </FormField>
             </div>
