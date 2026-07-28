@@ -26,6 +26,26 @@ CONSTRAINTS = {
 }
 
 
+def create_constraint_if_missing(name: str, expression: str) -> None:
+    op.execute(
+        f"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = '{name}'
+                  AND conrelid = 'listings'::regclass
+            ) THEN
+                ALTER TABLE listings
+                ADD CONSTRAINT {name} CHECK ({expression});
+            END IF;
+        END
+        $$;
+        """
+    )
+
+
 def upgrade() -> None:
     # Existing local/demo databases may contain records created before these
     # invariants existed. Normalize them deterministically before validation.
@@ -48,7 +68,7 @@ def upgrade() -> None:
     )
 
     for name, expression in CONSTRAINTS.items():
-        op.create_check_constraint(name, "listings", expression)
+        create_constraint_if_missing(name, expression)
 
     # Partial/composite indexes follow the public search and owner dashboard paths.
     op.execute(
@@ -76,4 +96,4 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_listings_owner_active")
     op.execute("DROP INDEX IF EXISTS ix_listings_public_search")
     for name in reversed(tuple(CONSTRAINTS)):
-        op.drop_constraint(name, "listings", type_="check")
+        op.execute(f"ALTER TABLE listings DROP CONSTRAINT IF EXISTS {name}")
