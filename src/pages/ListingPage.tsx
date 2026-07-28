@@ -15,6 +15,7 @@ import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicLi
 import type { Listing } from '@/types'
 
 const preferenceTitle = (value?: string) => value === 'Solo hombre' ? 'Este anuncio busca a un hombre' : value === 'Solo mujer' ? 'Este anuncio busca a una mujer' : value
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
 export function ListingPage() {
   const { id } = useParams()
@@ -27,7 +28,10 @@ export function ListingPage() {
   const [serverListing, setServerListing] = useState<Listing | null>(null)
   const [detailLoading, setDetailLoading] = useState(true)
   useEffect(() => {
-    if (!id) return
+    if (!id || mockMode) {
+      setDetailLoading(false)
+      return
+    }
     let cancelled = false
     setDetailLoading(true)
     setServerListing(null)

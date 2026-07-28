@@ -20,9 +20,16 @@ const login = async (
         ? ["anfitrion@112233.es", "demo112233"]
         : ["inquilina@112233.es", "demo112233"];
   await page.goto("/#/acceso");
-  await page.getByLabel(/^email$/i).fill(credentials[0]);
-  await page.locator("#login-password").fill(credentials[1]);
-  await page.getByRole("button", { name: /^acceder$/i }).click();
+  const email = page.getByLabel(/^email$/i);
+  if (!(await email.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: /iniciar sesión con email/i }).click();
+  }
+  await email.fill(credentials[0]);
+  const password = page.locator("#login-password").or(page.getByLabel(/^contraseña$/i));
+  await password.fill(credentials[1]);
+  const desktopSubmit = page.getByRole("button", { name: /^acceder$/i });
+  if (await desktopSubmit.isVisible().catch(() => false)) await desktopSubmit.click();
+  else await page.getByRole("button", { name: /iniciar sesión con email/i }).click();
   await expect(page).not.toHaveURL(/acceso/);
 };
 
