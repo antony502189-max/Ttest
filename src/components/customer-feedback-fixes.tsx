@@ -6,6 +6,14 @@ import type { Filters, RentalMode } from '@/types'
 
 const priceLimit = (mode: RentalMode) => mode === 'holiday' ? 350 : 1200
 const RENTAL_MODE_KEY = '112233:rental-mode:v1'
+const REMOVED_MENU_LABELS = [
+  'Buscar agencias para vender',
+  'Find agencies to sell',
+  'Искать агентства для продажи',
+  'Acerca de la aplicación',
+  'About the app',
+  'О приложении',
+]
 
 function nativeSetInputValue(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
@@ -41,6 +49,26 @@ export function CustomerFeedbackFixes() {
   const navigate = useNavigate()
   const previousMode = useRef(rentalMode)
   const rentalModeRestored = useRef(false)
+
+  useLayoutEffect(() => {
+    if (location.pathname === '/contacto') {
+      navigate('/', { replace: true })
+      return
+    }
+    if (location.pathname !== '/menu') return
+
+    const hideRemovedRows = () => {
+      document.querySelectorAll<HTMLButtonElement>('.m2-menu-row').forEach((row) => {
+        const text = row.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        row.hidden = REMOVED_MENU_LABELS.some((label) => text.includes(label))
+      })
+    }
+
+    hideRemovedRows()
+    const observer = new MutationObserver(hideRemovedRows)
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [location.pathname, navigate])
 
   useLayoutEffect(() => {
     const handleFocusIn = (event: FocusEvent) => {
