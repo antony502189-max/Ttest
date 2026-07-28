@@ -13,6 +13,7 @@ frontend: npm run build              PASS
 Docker PostGIS: alembic upgrade head PASS (0015_integrity_constraints)
 Playwright full-stack                3 passed, 1 skipped (desktop + 390×844)
 Playwright accessibility (Axe)      28 passed (no serious/critical violations)
+S3-compatible MinIO round-trip      1 passed (put/read/delete)
 Docker: docker compose config        PASS
 Backend: OpenAPI generation          PASS
 ```
@@ -27,6 +28,6 @@ Runtime checks used Docker PostGIS and FastAPI:
 - `POST /listings/search` was exercised against the running PostGIS API.
 - The full-stack tests register a host through FastAPI, create a PostgreSQL/PostGIS listing, then confirm that the SPA renders it from the real API on desktop and mobile. The mobile room-count filter request is also verified against the backend.
 
-The S3-only test remains skipped locally until the MinIO image download finishes; it is not represented as a passing result.
+Visual regression is intentionally not marked passing: the repository has no committed `tests/visual-snapshots/` baseline, and the map routes need a configured Google Maps key or a dedicated Maps stub to capture the normal map state. The visual command was run; no generated snapshot was accepted as a new baseline.
 
 Playwright CLI snapshots are local ephemeral artifacts under `.playwright-cli/`; they are not committed. CI runs frontend lint/typecheck/build and backend lint/typecheck/tests/migrations/Docker build. Full visual/a11y and all end-to-end coverage remain separate CI work where configured.
