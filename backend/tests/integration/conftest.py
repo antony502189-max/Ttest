@@ -15,7 +15,10 @@ os.environ.setdefault(
 )
 os.environ.setdefault("JWT_SECRET", "integration-test-secret-at-least-32-characters")
 os.environ.setdefault("AUTO_PUBLISH_LISTINGS", "true")
-os.environ.setdefault("REDIS_URL", "")
+# Integration tests exercise API/database behavior in a fresh event loop per
+# test. Disable the process-global Redis client here; the composed backend
+# readiness check later in the audit verifies the real Redis dependency.
+os.environ["REDIS_URL"] = ""
 os.environ.setdefault("STORAGE_BACKEND", "local")
 os.environ.setdefault("MEDIA_ROOT", "var/test-media")
 os.environ.setdefault("FRONTEND_ORIGINS", "http://testserver")
@@ -44,6 +47,9 @@ async def clean_database() -> AsyncIterator[None]:
             quoted = ", ".join(f'"{name}"' for name in table_names)
             await connection.execute(text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
     yield
+    # pytest-asyncio may create a new loop for the next test. Dispose pooled
+    # asyncpg connections before the current loop is closed.
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
