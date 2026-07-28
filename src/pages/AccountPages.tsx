@@ -448,9 +448,9 @@ export function ProfilePage() {
               description="Se eliminarán esta cuenta local, su sesión, anuncios, borrador, búsquedas, favoritos, historial, comentarios y archivos multimedia sin uso. Esta acción no se puede deshacer."
               confirmLabel="Eliminar definitivamente"
               destructive
-              onConfirm={() => {
-                deleteAccount();
-                navigate("/acceso");
+              onConfirm={async () => {
+                const deleted = await deleteAccount();
+                if (deleted) navigate("/acceso");
               }}
             />
           </div>

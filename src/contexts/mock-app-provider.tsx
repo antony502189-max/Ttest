@@ -449,8 +449,8 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     toast.success('Perfil actualizado')
   }, [allListings, currentUserId, users])
 
-  const deleteAccount = useCallback(() => {
-    if (!currentUserId) return
+  const deleteAccount = useCallback(async () => {
+    if (!currentUserId) return false
     const ownedListings = allListings.filter((listing) => listing.ownerUserId === currentUserId)
     const remainingListings = allListings.filter((listing) => listing.ownerUserId !== currentUserId)
     const remainingUsers = users.filter((user) => user.id !== currentUserId)
@@ -476,6 +476,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     void removeUnusedMediaReferences([...removedMedia], usedMediaReferences(remainingListings, remainingUsers, retainedDraft)).catch((error) =>
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar todos los datos multimedia de la cuenta.'),
     )
+    return true
   }, [allListings, currentUserId, users])
 
   const toggleUserBlocked = useCallback((id: string) => {

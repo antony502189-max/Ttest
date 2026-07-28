@@ -73,9 +73,9 @@ const toDraft = (listing: Listing): ListingDraft => ({
   rentalMode: listing.rentalMode,
   city: listing.city,
   area: listing.area,
-  street: "",
-  postcode: "",
-  coordinates: listing.coordinates,
+  street: listing.street ?? "",
+  postcode: listing.postcode ?? "",
+  coordinates: listing.exactCoordinates ?? listing.coordinates,
   locationManuallyMoved: true,
   roomType: listing.roomType,
   roomSizeM2: listing.roomSizeM2,
@@ -344,7 +344,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       : await createListing(listing);
     if (!saved) return;
     if (existing) {
-      toast.success("Cambios publicados");
+      toast.success("Cambios guardados");
     }
     localStorage.removeItem(draftKey);
     setBaseline(JSON.stringify(draft));
@@ -1003,13 +1003,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     return (
       <div className="publish-success">
         <CheckCircle2 />
-        <span className="eyebrow">Anuncio publicado</span>
+        <span className="eyebrow">{editing ? "Anuncio actualizado" : "Anuncio enviado"}</span>
         <h1>
-          {editing ? "Cambios guardados" : "Tu habitación ya está visible"}
+          {editing ? "Cambios guardados" : "Tu anuncio se ha enviado a revisión"}
         </h1>
         <p>
-          El anuncio se ha guardado localmente y aparece en la búsqueda y en Mis
-          anuncios.
+          {editing
+            ? "Los cambios se han guardado. Consulta el estado del anuncio en Mis anuncios."
+            : "Revisaremos el anuncio antes de publicarlo. Puedes consultar su estado en Mis anuncios."}
         </p>
         <div>
           <Button asChild>

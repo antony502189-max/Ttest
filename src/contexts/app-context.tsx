@@ -82,7 +82,7 @@ export interface AppState {
   register: (input: RegisterInput) => Promise<string | null>
   logout: () => void
   updateProfile: (changes: ProfileUpdate) => void
-  deleteAccount: () => void
+  deleteAccount: () => Promise<boolean>
   toggleUserBlocked: (id: string) => void
   storageError: string | null
   clearStorageError: () => void
@@ -620,9 +620,14 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
     toast.success('Perfil actualizado')
   }, [allListings, currentUserId, setRemoteUser, users])
-  const deleteAccount = useCallback(() => {
-    if (!currentUserId) return
-    void deleteCurrentUser().catch(() => toast.error('No se pudo eliminar la cuenta en el servidor.'))
+  const deleteAccount = useCallback(async () => {
+    if (!currentUserId) return false
+    try {
+      await deleteCurrentUser()
+    } catch {
+      toast.error('No se pudo eliminar la cuenta en el servidor.')
+      return false
+    }
     const ownedListings = allListings.filter((listing) => listing.ownerUserId === currentUserId)
     const remainingListings = allListings.filter((listing) => listing.ownerUserId !== currentUserId)
     const remainingUsers = users.filter((user) => user.id !== currentUserId)
@@ -648,6 +653,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     void removeUnusedMediaReferences([...removedMedia], usedMediaReferences(remainingListings, remainingUsers, retainedDraft)).catch((error) =>
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar todos los datos multimedia de la cuenta.'),
     )
+    return true
   }, [allListings, currentUserId, users])
   const toggleUserBlocked = useCallback((id: string) => {
     if (currentUser?.role !== 'admin') return
