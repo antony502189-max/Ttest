@@ -67,6 +67,10 @@ export async function hydrateSession() {
 }
 
 export async function logoutSession() {
+  if (!hasSessionHint()) {
+    setAccessToken(null)
+    return
+  }
   await api<void>('/auth/logout', { method: 'POST' })
   forgetSession()
   setAccessToken(null)
