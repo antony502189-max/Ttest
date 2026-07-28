@@ -18,7 +18,18 @@ mkdir -p output backups
 echo '[1/9] Starting local infrastructure'
 docker compose up -d postgres redis minio minio-init mailpit
 
+# The PostgreSQL image starts a temporary server while initializing extensions,
+# then shuts it down and starts the final server. Require a delayed second check.
 until docker compose exec -T postgres pg_isready -U ttest -d postgres >/dev/null 2>&1; do sleep 2; done
+sleep 4
+until docker compose exec -T postgres pg_isready -U ttest -d postgres >/dev/null 2>&1; do sleep 2; done
+
+until [ "$(docker inspect -f '{{.State.Health.Status}}' ttest-redis-1 2>/dev/null || true)" = "healthy" ]; do sleep 2; done
+until [ "$(docker inspect -f '{{.State.Status}}' ttest-minio-init-1 2>/dev/null || true)" = "exited" ]; do sleep 2; done
+if [ "$(docker inspect -f '{{.State.ExitCode}}' ttest-minio-init-1)" != "0" ]; then
+  docker compose logs --no-color minio-init
+  exit 1
+fi
 
 echo '[2/9] Creating isolated PostgreSQL/PostGIS test database'
 if ! docker compose exec -T postgres psql -U ttest -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='ttest_test'" | grep -q 1; then
