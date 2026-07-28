@@ -45,8 +45,25 @@ jobs:
           text = rate.read_text()
           if 'from redis.exceptions import RedisError' not in text:
               text = text.replace('from time import monotonic\n', 'from time import monotonic\n\nfrom redis.exceptions import RedisError\n')
-          text = text.replace('except Exception:', 'except (RedisError, OSError, asyncio.TimeoutError):')
+          text = text.replace('except Exception:', 'except (RedisError, OSError, TimeoutError):')
+          text = text.replace('except (RedisError, OSError, asyncio.TimeoutError):', 'except (RedisError, OSError, TimeoutError):')
           rate.write_text(text)
+
+          listings = Path('backend/app/services/listings.py')
+          text = listings.read_text()
+          text = text.replace(
+              '    avatars = set(\n'
+              '        value\n'
+              '        for value in (await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))).all()\n'
+              '        if value is not None\n'
+              '    )\n',
+              '    avatars = {\n'
+              '        value\n'
+              '        for value in (await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))).all()\n'
+              '        if value is not None\n'
+              '    }\n',
+          )
+          listings.write_text(text)
 
           script = Path('scripts/final-audit-local.sh')
           text = script.read_text()
@@ -56,7 +73,7 @@ jobs:
           )
           script.write_text(text)
           PY
-          ruff check --fix backend/app/api/v1/listings.py backend/app/services/listings.py backend/tests/integration/conftest.py || true
+          ruff check --fix backend/app/api/v1/listings.py backend/app/services/listings.py backend/app/services/rate_limit.py backend/tests/integration/conftest.py || true
       - name: Commit fixes
         shell: bash
         run: |
@@ -64,7 +81,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add backend scripts
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: resolve first full audit lint failures'
+            git commit -m 'fix: resolve remaining backend lint findings'
             git push origin HEAD:main
           fi
       - name: Report
