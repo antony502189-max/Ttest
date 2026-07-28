@@ -1,3 +1,4 @@
+import app.main as main_module
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -5,7 +6,8 @@ from starlette.requests import Request
 
 from app.api.v1.auth import require_cookie_origin
 from app.core.config import get_settings
-from app.main import RATE_LIMITS, _rate_attempts, app, consume_rate_limit
+from app.main import RATE_LIMITS, app
+from app.services.rate_limit import MemoryRateLimiter
 
 
 def test_live_and_openapi_are_available() -> None:
@@ -25,17 +27,20 @@ def test_sensitive_endpoints_have_rate_limits() -> None:
     assert ("POST", "/api/v1/auth/forgot-password") in RATE_LIMITS
 
 
-def test_rate_limiter_returns_retry_after() -> None:
-    key = "test-rate-limit"
-    _rate_attempts.pop(key, None)
-    assert consume_rate_limit(key, limit=1, window_seconds=60, now=100.0) is None
-    assert consume_rate_limit(key, limit=1, window_seconds=60, now=101.0) == 59
-    _rate_attempts.pop(key, None)
+@pytest.mark.asyncio
+async def test_rate_limiter_returns_retry_after() -> None:
+    limiter = MemoryRateLimiter()
+    first = await limiter.consume("test-rate-limit", limit=1, window_seconds=60)
+    second = await limiter.consume("test-rate-limit", limit=1, window_seconds=60)
+    assert first.allowed is True
+    assert second.allowed is False
+    assert 1 <= second.retry_after <= 60
 
 
-def test_rate_limiter_returns_429_from_middleware() -> None:
+def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
     route = ("GET", "/health/live")
     RATE_LIMITS[route] = (1, 60)
+    monkeypatch.setattr(main_module, "rate_limiter", MemoryRateLimiter())
     try:
         client = TestClient(app)
         assert client.get("/health/live").status_code == 200
@@ -45,7 +50,6 @@ def test_rate_limiter_returns_429_from_middleware() -> None:
         assert limited.headers["retry-after"]
     finally:
         RATE_LIMITS.pop(route, None)
-        _rate_attempts.clear()
 
 
 def test_cookie_mutations_require_allowlisted_origin_in_production(monkeypatch) -> None:
