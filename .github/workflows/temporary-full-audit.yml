@@ -53,51 +53,12 @@ jobs:
                   raise SystemExit('pytest asyncio configuration anchor not found')
               pyproject.write_text(text.replace(anchor, anchor + additions, 1))
               changed = True
-
-          app_context = Path('src/contexts/app-context.tsx')
-          text = app_context.read_text()
-          import_line = "import { MockAppProvider } from '@/contexts/mock-app-provider'\n"
-          import_anchor = "import { createRemoteReport, getRemoteReports } from '@/api/reports'\n"
-          if import_line not in text:
-              if import_anchor not in text:
-                  raise SystemExit('app-context import anchor not found')
-              text = text.replace(import_anchor, import_anchor + import_line, 1)
-              changed = True
-          if 'export interface AppState {' not in text:
-              text = text.replace('interface AppState {', 'export interface AppState {', 1)
-              changed = True
-          if 'export const AppContext = createContext<AppState | null>(null)' not in text:
-              text = text.replace(
-                  'const AppContext = createContext<AppState | null>(null)',
-                  'export const AppContext = createContext<AppState | null>(null)',
-                  1,
-              )
-              changed = True
-          if 'function RemoteAppProvider(' not in text:
-              text = text.replace(
-                  'export function AppProvider({ children }: { children: ReactNode }) {',
-                  'function RemoteAppProvider({ children }: { children: ReactNode }) {',
-                  1,
-              )
-              changed = True
-          wrapper = """export function AppProvider({ children }: { children: ReactNode }) {
-            return mockMode
-              ? <MockAppProvider context={AppContext}>{children}</MockAppProvider>
-              : <RemoteAppProvider>{children}</RemoteAppProvider>
-          }
-
-          """.replace('          ', '')
-          if wrapper not in text:
-              text = text.replace('export function useApp() {', wrapper + 'export function useApp() {', 1)
-              changed = True
-          if changed:
-              app_context.write_text(text)
           PY
           git config user.name 'full-audit-bot'
           git config user.email 'full-audit-bot@users.noreply.github.com'
-          git add backend/tests backend/pyproject.toml src/contexts/app-context.tsx src/contexts/mock-app-provider.tsx
+          git add backend/tests backend/pyproject.toml
           if ! git diff --cached --quiet; then
-            git commit -m 'fix: resolve remaining full audit blockers'
+            git commit -m 'fix: resolve remaining backend audit blockers'
             git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           else
