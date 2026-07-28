@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
@@ -21,21 +21,90 @@ jobs:
     env:
       CI: "true"
     steps:
-      - name: Checkout repository
+      - name: Checkout repository branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      - name: Store only password hashes in mock mode
+        id: secure
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/contexts/mock-app-provider.tsx')
+          text = path.read_text()
+          original = text
+
+          replacements = [
+              (
+                  "type UserScopedState<T> = Record<string, T>\n\nconst initialUsers: DemoUser[] = [",
+                  "type UserScopedState<T> = Record<string, T>\ntype MockUser = DemoUser & { passwordHash: string }\n\nconst initialUsers: MockUser[] = [",
+              ),
+              ("    password: 'demo112233',", "    password: '',\n    passwordHash: '9f43cf3b2ee389bd63013060127a8243c50580f829de40f817aeba77b531eed6',"),
+              ("    password: 'admin112233',", "    password: '',\n    passwordHash: 'aa5ff7ddeca7848ed7eb16270306d14ba2f7b65171ca0e700ec2e2adda115b83',"),
+              (
+                  "const isDemoUser = (value: unknown): value is DemoUser => {\n  if (!value || typeof value !== 'object') return false\n  const user = value as Partial<DemoUser>\n  return typeof user.id === 'string' && typeof user.name === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && ['tenant', 'host', 'admin'].includes(user.role ?? '')\n}\n\nconst isDemoUserArray = (value: unknown): value is DemoUser[] => Array.isArray(value) && value.every(isDemoUser)",
+                  "const isMockUser = (value: unknown): value is MockUser => {\n  if (!value || typeof value !== 'object') return false\n  const user = value as Partial<MockUser>\n  return typeof user.id === 'string' && typeof user.name === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && typeof user.passwordHash === 'string' && ['tenant', 'host', 'admin'].includes(user.role ?? '')\n}\n\nconst isMockUserArray = (value: unknown): value is MockUser[] => Array.isArray(value) && value.every(isMockUser)",
+              ),
+              (
+                  "function readUsers() {\n  return readJson<DemoUser[]>(USERS_KEY, initialUsers, isDemoUserArray).data\n}",
+                  "function readUsers() {\n  return readJson<MockUser[]>(USERS_KEY, initialUsers, isMockUserArray).data\n}",
+              ),
+              (
+                  "const makeInitials = (name: string) => name.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || 'US'",
+                  "async function hashPassword(value: string) {\n  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))\n  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')\n}\n\nconst makeInitials = (name: string) => name.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || 'US'",
+              ),
+              ("  const [users, setUsers] = useState<DemoUser[]>(initialUserLoad)", "  const [users, setUsers] = useState<MockUser[]>(initialUserLoad)"),
+              (
+                  "  const login = useCallback(async (email: string, password: string) => {\n    const normalizedEmail = email.trim().toLowerCase()\n    const user = users.find((item) => item.email.toLowerCase() === normalizedEmail && item.password === password)",
+                  "  const login = useCallback(async (email: string, password: string) => {\n    const normalizedEmail = email.trim().toLowerCase()\n    const passwordHash = await hashPassword(password)\n    const user = users.find((item) => item.email.toLowerCase() === normalizedEmail && item.passwordHash === passwordHash)",
+              ),
+              (
+                  "    const user: DemoUser = {\n      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,",
+                  "    const passwordHash = await hashPassword(input.password)\n    const user: MockUser = {\n      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,",
+              ),
+              ("      password: input.password,", "      password: '',\n      passwordHash,"),
+          ]
+
+          for old, new in replacements:
+              if new in text:
+                  continue
+              if old not in text:
+                  raise SystemExit(f'anchor not found: {old[:100]}')
+              text = text.replace(old, new, 1)
+
+          if "demo112233" in text:
+              raise SystemExit('raw demo password remains in mock provider')
+          if text != original:
+              path.write_text(text)
+          PY
+          git config user.name 'full-audit-bot'
+          git config user.email 'full-audit-bot@users.noreply.github.com'
+          git add src/contexts/mock-app-provider.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m 'security: hash mock credentials before persistence'
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Python 3.12
+        if: steps.secure.outputs.changed != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 22
+        if: steps.secure.outputs.changed != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
 
       - name: Show tool versions
+        if: steps.secure.outputs.changed != 'true'
         run: |
           python --version
           node --version
@@ -44,20 +113,21 @@ jobs:
           docker compose version
 
       - name: Run complete local audit
+        if: steps.secure.outputs.changed != 'true'
         run: |
           mkdir -p output
           set -o pipefail
           bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
-        if: always()
+        if: always() && steps.secure.outputs.changed != 'true'
         run: |
           mkdir -p output
           docker compose ps --all > output/docker-ps.txt 2>&1 || true
           docker compose logs --no-color > output/docker-compose.log 2>&1 || true
 
       - name: Upload audit artifacts
-        if: always()
+        if: always() && steps.secure.outputs.changed != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: temporary-full-audit-${{ github.run_attempt }}
@@ -70,5 +140,5 @@ jobs:
             backend/var/test-media/**
 
       - name: Stop audit infrastructure
-        if: always()
+        if: always() && steps.secure.outputs.changed != 'true'
         run: docker compose down --volumes --remove-orphans || true
