@@ -55,7 +55,7 @@ async function createBackendListing(unique: string, title: string) {
   const registration = await api.post(`${API_PREFIX}/auth/register`, {
     data: {
       name: 'Full Stack Host',
-      email: `host-${unique}@example.test`,
+      email: `host-${unique}@example.com`,
       password: 'Correct-Horse-1234',
       role: 'host',
     },

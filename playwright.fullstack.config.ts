@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
+const launchOptions = executablePath ? { executablePath } : undefined
+
 export default defineConfig({
   testDir: './tests/full-stack',
   timeout: 90_000,
@@ -11,7 +14,7 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4174',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: executablePath ? 'off' : 'retain-on-failure',
   },
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 4174',
@@ -25,7 +28,10 @@ export default defineConfig({
     },
   },
   projects: [
-    { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-chromium', use: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } },
+    { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'], launchOptions } },
+    {
+      name: 'mobile-chromium',
+      use: { ...devices['iPhone 13'], browserName: 'chromium', viewport: { width: 390, height: 844 }, launchOptions },
+    },
   ],
 })
