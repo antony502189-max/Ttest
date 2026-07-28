@@ -1,20 +1,44 @@
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from email_validator import EmailNotValidError, validate_email
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, WithJsonSchema, model_validator
+
+from ..core.config import get_settings
+
+
+def validate_application_email(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError("Email must be a string")
+    try:
+        result = validate_email(
+            value,
+            check_deliverability=False,
+            test_environment=get_settings().app_env == "test",
+        )
+    except EmailNotValidError as error:
+        raise ValueError(str(error)) from error
+    return result.normalized
+
+
+ApplicationEmail = Annotated[
+    str,
+    BeforeValidator(validate_application_email),
+    WithJsonSchema({"type": "string", "format": "email"}),
+]
 
 
 class RegisterRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(min_length=2, max_length=120)
-    email: EmailStr
+    email: ApplicationEmail
     password: str = Field(min_length=12, max_length=256)
     role: Literal["tenant", "host"] = "tenant"
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: ApplicationEmail
     password: str
 
 
@@ -23,7 +47,7 @@ class GoogleLoginRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    email: ApplicationEmail
 
 
 class ResetPasswordRequest(BaseModel):
@@ -38,7 +62,7 @@ class VerifyEmailRequest(BaseModel):
 class UserResponse(BaseModel):
     id: str
     name: str
-    email: EmailStr
+    email: ApplicationEmail
     role: str
     phone: str
     whatsapp: str

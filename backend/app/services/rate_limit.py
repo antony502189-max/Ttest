@@ -96,7 +96,7 @@ class ResilientRateLimiter:
         if self._redis and now >= self._redis_retry_at:
             try:
                 return await self._redis.consume(key, limit, window_seconds)
-            except (RedisError, OSError, TimeoutError):
+            except RedisError:
                 self._redis_retry_at = now + 5
         return await self._memory.consume(key, limit, window_seconds)
 
@@ -105,7 +105,7 @@ class ResilientRateLimiter:
             return True
         try:
             return await self._redis.ping()
-        except (RedisError, OSError, TimeoutError):
+        except RedisError:
             return False
 
     async def close(self) -> None:

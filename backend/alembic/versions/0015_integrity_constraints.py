@@ -26,6 +26,26 @@ CONSTRAINTS = {
 }
 
 
+def create_constraint_if_missing(name: str, expression: str) -> None:
+    op.execute(
+        f"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = '{name}'
+                  AND conrelid = 'listings'::regclass
+            ) THEN
+                ALTER TABLE listings
+                ADD CONSTRAINT {name} CHECK ({expression});
+            END IF;
+        END
+        $$;
+        """
+    )
+
+
 def upgrade() -> None:
     # Existing local/demo databases may contain records created before these
     # invariants existed. Normalize them deterministically before validation.
@@ -47,25 +67,8 @@ def upgrade() -> None:
         "WHERE rental_mode = 'holiday' AND nightly_price IS NULL"
     )
 
-    # Some constraints were already introduced by earlier migrations. Guard
-    # every addition so this revision works for both clean and upgraded DBs.
     for name, expression in CONSTRAINTS.items():
-        op.execute(
-            f"""
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1
-                    FROM pg_constraint
-                    WHERE conname = '{name}'
-                      AND conrelid = 'listings'::regclass
-                ) THEN
-                    ALTER TABLE listings ADD CONSTRAINT {name} CHECK ({expression});
-                END IF;
-            END
-            $$;
-            """
-        )
+        create_constraint_if_missing(name, expression)
 
     # Partial/composite indexes follow the public search and owner dashboard paths.
     op.execute(

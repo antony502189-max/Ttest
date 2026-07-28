@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -29,13 +27,14 @@ def test_sensitive_endpoints_have_rate_limits() -> None:
     assert ("POST", "/api/v1/auth/forgot-password") in RATE_LIMITS
 
 
-def test_rate_limiter_returns_retry_after() -> None:
+@pytest.mark.asyncio
+async def test_rate_limiter_returns_retry_after() -> None:
     limiter = MemoryRateLimiter()
-    first = asyncio.run(limiter.consume("test-rate-limit", limit=1, window_seconds=60))
-    second = asyncio.run(limiter.consume("test-rate-limit", limit=1, window_seconds=60))
-    assert first.allowed
-    assert not second.allowed
-    assert second.retry_after >= 1
+    first = await limiter.consume("test-rate-limit", limit=1, window_seconds=60)
+    second = await limiter.consume("test-rate-limit", limit=1, window_seconds=60)
+    assert first.allowed is True
+    assert second.allowed is False
+    assert 1 <= second.retry_after <= 60
 
 
 def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
