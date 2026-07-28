@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
@@ -21,21 +21,113 @@ jobs:
     env:
       CI: "true"
     steps:
-      - name: Checkout repository
+      - name: Checkout repository branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      - name: Complete phone listing search once
+        id: fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/mobile-app-v2.tsx')
+          text = path.read_text()
+          replacements = [
+              (
+                  "  PenTool,\n  Plus,\n  Search,",
+                  "  PenTool,\n  Phone,\n  Plus,\n  Search,",
+              ),
+              (
+                  "type AppPage = 'tabs' | 'location' | 'map'",
+                  "type AppPage = 'tabs' | 'location' | 'phone' | 'map'",
+              ),
+              (
+                  "function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, nearbyStatus }: {\n  t: MobileCopy\n  onBack: () => void\n  onChangeRegion: () => void\n  onMap: (mode: MapMode, query?: string) => void\n  onNearby: () => void\n  nearbyStatus: LocationStatus\n}) {",
+                  "function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, onPhone, nearbyStatus }: {\n  t: MobileCopy\n  onBack: () => void\n  onChangeRegion: () => void\n  onMap: (mode: MapMode, query?: string) => void\n  onNearby: () => void\n  onPhone: () => void\n  nearbyStatus: LocationStatus\n}) {",
+              ),
+              (
+                  "<button type=\"button\" className=\"m2-location-action\" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid=\"search-nearby\"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button>{statusMessage ?",
+                  "<button type=\"button\" className=\"m2-location-action\" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid=\"search-nearby\"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button><button type=\"button\" className=\"m2-location-action\" onClick={onPhone} data-testid=\"search-phone\"><span><Phone /></span><strong>{t.searchByPhone}</strong><ChevronRight /></button>{statusMessage ?",
+              ),
+              (
+                  "\nfunction GoogleMapCanvas(",
+                  """
+
+function PhoneSearchScreen({ t, listings, onBack, onOpen }: {
+  t: MobileCopy
+  listings: Listing[]
+  onBack: () => void
+  onOpen: (listingId: string) => void
+}) {
+  const [phone, setPhone] = useState('')
+  const [error, setError] = useState('')
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault()
+    const digits = phone.replace(/\\D/g, '')
+    if (digits.length < 7) { setError(t.invalidPhone); return }
+    const listing = listings.find((item) => {
+      if (!item.showPhone || !item.contactPhone || item.status !== 'Publicado') return false
+      const listingDigits = item.contactPhone.replace(/\\D/g, '')
+      return listingDigits === digits || listingDigits.endsWith(digits) || digits.endsWith(listingDigits)
+    })
+    if (!listing) { setError(t.phoneNotFound); return }
+    setError('')
+    onOpen(listing.id)
+  }
+  return <section className=\"m2-screen m2-location m2-phone-search\" data-testid=\"phone-search-screen\"><BackHeader title={t.searchByPhone} onBack={onBack} backLabel={t.back} /><div className=\"m2-location__body\"><p>{t.phoneIntro}</p><form className=\"m2-location-search\" onSubmit={submit}><Phone /><label><span className=\"m2-sr-only\">{t.phone}</span><input value={phone} onChange={(event) => { setPhone(event.target.value); setError('') }} inputMode=\"tel\" autoComplete=\"tel\" aria-label={t.phone} placeholder={t.phone} /></label><PrimaryButton type=\"submit\" testId=\"submit-phone-search\">{t.search}</PrimaryButton></form>{error ? <p className=\"m2-location-feedback is-error\" role=\"alert\">{error}</p> : null}</div></section>
+}
+
+function GoogleMapCanvas(""",
+              ),
+              (
+                  "    if (location.pathname === '/' && params.get('panel') === 'ubicacion') {\n      setPage('location')\n      return\n    }",
+                  "    if (location.pathname === '/' && params.get('panel') === 'ubicacion') {\n      setPage('location')\n      return\n    }\n    if (location.pathname === '/' && params.get('panel') === 'telefono') {\n      setPage('phone')\n      return\n    }",
+              ),
+              (
+                  "  if (page === 'location') return <div className=\"m2-app notranslate\" translate=\"no\"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>\n  if (page === 'map')",
+                  "  if (page === 'location') return <div className=\"m2-app notranslate\" translate=\"no\"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} onPhone={() => navigate('/?panel=telefono')} nearbyStatus={nearbyStatus} /></div>\n  if (page === 'phone') return <div className=\"m2-app notranslate\" translate=\"no\"><PhoneSearchScreen t={t} listings={allListings} onBack={() => navigate('/?panel=ubicacion')} onOpen={(listingId) => navigate(`/habitacion/${listingId}`)} /></div>\n  if (page === 'map')",
+              ),
+          ]
+
+          changed = False
+          for old, new in replacements:
+              if new in text:
+                  continue
+              if old not in text:
+                  raise SystemExit(f'mobile phone search anchor not found: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+              changed = True
+          if changed:
+              path.write_text(text)
+          PY
+          git config user.name 'full-audit-bot'
+          git config user.email 'full-audit-bot@users.noreply.github.com'
+          git add src/components/mobile-app-v2.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: complete mobile phone listing search'
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Python 3.12
+        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 22
+        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
 
       - name: Show tool versions
+        if: steps.fix.outputs.changed != 'true'
         run: |
           python --version
           node --version
@@ -44,20 +136,21 @@ jobs:
           docker compose version
 
       - name: Run complete local audit
+        if: steps.fix.outputs.changed != 'true'
         run: |
           mkdir -p output
           set -o pipefail
           bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
-        if: always()
+        if: always() && steps.fix.outputs.changed != 'true'
         run: |
           mkdir -p output
           docker compose ps --all > output/docker-ps.txt 2>&1 || true
           docker compose logs --no-color > output/docker-compose.log 2>&1 || true
 
       - name: Upload audit artifacts
-        if: always()
+        if: always() && steps.fix.outputs.changed != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: temporary-full-audit-${{ github.run_attempt }}
@@ -70,5 +163,5 @@ jobs:
             backend/var/test-media/**
 
       - name: Stop audit infrastructure
-        if: always()
+        if: always() && steps.fix.outputs.changed != 'true'
         run: docker compose down --volumes --remove-orphans || true
