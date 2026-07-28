@@ -9,7 +9,7 @@ from ..core.config import get_settings
 
 def validate_application_email(value: object) -> str:
     if not isinstance(value, str):
-        raise ValueError("Email must be a string")
+        raise TypeError("Email must be a string")
     try:
         result = validate_email(
             value,
