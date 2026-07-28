@@ -1,0 +1,71 @@
+name: Temporary Audit Fixer
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  fix:
+    if: startsWith(github.event.issue.title, '[FIX-AUDIT]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply deterministic lint fixes
+        shell: bash
+        run: |
+          python3 -m pip install ruff==0.16.0
+          python3 - <<'PY'
+          from pathlib import Path
+
+          schema = Path('backend/app/schemas/listings.py')
+          text = schema.read_text()
+          text = text.replace(
+              '        if self.model_fields_set & coordinate_fields:\n'
+              '            if not coordinate_fields.issubset(self.model_fields_set) or self.latitude is None or self.longitude is None:\n'
+              '                raise ValueError("latitude and longitude must be changed together")\n',
+              '        if (\n'
+              '            self.model_fields_set & coordinate_fields\n'
+              '            and (\n'
+              '                not coordinate_fields.issubset(self.model_fields_set)\n'
+              '                or self.latitude is None\n'
+              '                or self.longitude is None\n'
+              '            )\n'
+              '        ):\n'
+              '            raise ValueError("latitude and longitude must be changed together")\n',
+          )
+          schema.write_text(text)
+
+          rate = Path('backend/app/services/rate_limit.py')
+          text = rate.read_text()
+          text = text.replace('from time import monotonic\n', 'from time import monotonic\n\nfrom redis.exceptions import RedisError\n')
+          text = text.replace('except Exception:', 'except (RedisError, OSError, asyncio.TimeoutError):')
+          rate.write_text(text)
+
+          script = Path('scripts/final-audit-local.sh')
+          text = script.read_text()
+          text = text.replace(
+              'cleanup() {\n  docker compose logs --no-color backend mail-worker > output/backend-audit.log 2>&1 || true\n}',
+              'cleanup() {\n  mkdir -p output\n  docker compose logs --no-color backend mail-worker > output/backend-audit.log 2>&1 || true\n}',
+          )
+          script.write_text(text)
+          PY
+          ruff check --fix backend/app/api/v1/listings.py backend/app/services/listings.py backend/tests/integration/conftest.py
+          ruff check backend/app backend/tests
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend scripts
+          git commit -m 'fix: resolve first full audit lint failures'
+          git push origin HEAD:main
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment ${{ github.event.issue.number }} --body 'Audit lint fixes committed and pushed to main.'
