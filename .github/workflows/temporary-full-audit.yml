@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
@@ -21,65 +21,21 @@ jobs:
     env:
       CI: "true"
     steps:
-      - name: Checkout repository branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
-
-      - name: Apply remaining audit fixes once
-        id: fix
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          changed = False
-
-          for path in Path('backend/tests').rglob('*.py'):
-              text = path.read_text()
-              updated = text.replace('@example.test', '@example.com')
-              if updated != text:
-                  path.write_text(updated)
-                  changed = True
-
-          pyproject = Path('backend/pyproject.toml')
-          text = pyproject.read_text()
-          anchor = 'asyncio_mode = "auto"\n'
-          additions = (
-              'asyncio_default_fixture_loop_scope = "session"\n'
-              'asyncio_default_test_loop_scope = "session"\n'
-          )
-          if additions not in text:
-              if anchor not in text:
-                  raise SystemExit('pytest asyncio configuration anchor not found')
-              pyproject.write_text(text.replace(anchor, anchor + additions, 1))
-              changed = True
-          PY
-          git config user.name 'full-audit-bot'
-          git config user.email 'full-audit-bot@users.noreply.github.com'
-          git add backend/tests backend/pyproject.toml
-          if ! git diff --cached --quiet; then
-            git commit -m 'fix: resolve remaining backend audit blockers'
-            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Set up Python 3.12
-        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 22
-        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
 
       - name: Show tool versions
-        if: steps.fix.outputs.changed != 'true'
         run: |
           python --version
           node --version
@@ -88,21 +44,20 @@ jobs:
           docker compose version
 
       - name: Run complete local audit
-        if: steps.fix.outputs.changed != 'true'
         run: |
           mkdir -p output
           set -o pipefail
           bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         run: |
           mkdir -p output
           docker compose ps --all > output/docker-ps.txt 2>&1 || true
           docker compose logs --no-color > output/docker-compose.log 2>&1 || true
 
       - name: Upload audit artifacts
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: temporary-full-audit-${{ github.run_attempt }}
@@ -115,5 +70,5 @@ jobs:
             backend/var/test-media/**
 
       - name: Stop audit infrastructure
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         run: docker compose down --volumes --remove-orphans || true
