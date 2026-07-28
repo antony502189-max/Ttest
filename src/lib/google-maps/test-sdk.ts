@@ -52,10 +52,12 @@ class TestMap {
   private center = new TestLatLng({ lat: 28.2916, lng: -16.6291 })
   private zoom = 10
   private readonly listeners = new Map<string, Set<ListenerCallback>>()
+  private readonly options = new Map<string, unknown>()
   readonly data = new TestDataLayer()
 
-  constructor(element: HTMLElement) {
+  constructor(element: HTMLElement, options: Record<string, unknown> = {}) {
     this.element = element
+    Object.entries(options).forEach(([key, value]) => this.options.set(key, value))
     const canvas = document.createElement('div')
     canvas.className = 'gm-style'
     canvas.dataset.testMapSdk = '1'
@@ -76,7 +78,9 @@ class TestMap {
   setZoom(value: number) { this.zoom = value; this.emit('idle') }
   getBounds() { return new TestBounds() }
   fitBounds(bounds: TestBounds) { this.center = bounds.getCenter(); this.emit('idle') }
-  setOptions() {}
+  panTo(value: PointLike | TestLatLng) { this.setCenter(value) }
+  setOptions(options: Record<string, unknown>) { Object.entries(options).forEach(([key, value]) => this.options.set(key, value)) }
+  get(name: string) { return this.options.get(name) }
   setMapTypeId() {}
   getDiv() { return this.element }
   getProjection() {
