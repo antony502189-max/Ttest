@@ -19,23 +19,29 @@ function point(value: PointLike | TestLatLng) {
 }
 
 class TestBounds {
-  private south = 27.1
-  private west = -18.2
-  private north = 29.2
-  private east = -15.3
+  private south: number | null = null
+  private west: number | null = null
+  private north: number | null = null
+  private east: number | null = null
+
+  isEmpty() { return this.south === null }
 
   extend(value: PointLike | TestLatLng) {
     const next = point(value)
-    this.south = Math.min(this.south, next.lat)
-    this.west = Math.min(this.west, next.lng)
-    this.north = Math.max(this.north, next.lat)
-    this.east = Math.max(this.east, next.lng)
+    this.south = this.south === null ? next.lat : Math.min(this.south, next.lat)
+    this.west = this.west === null ? next.lng : Math.min(this.west, next.lng)
+    this.north = this.north === null ? next.lat : Math.max(this.north, next.lat)
+    this.east = this.east === null ? next.lng : Math.max(this.east, next.lng)
     return this
   }
 
-  getNorthEast() { return new TestLatLng({ lat: this.north, lng: this.east }) }
-  getSouthWest() { return new TestLatLng({ lat: this.south, lng: this.west }) }
-  getCenter() { return new TestLatLng({ lat: (this.north + this.south) / 2, lng: (this.east + this.west) / 2 }) }
+  getNorthEast() { return new TestLatLng({ lat: this.north ?? 29.2, lng: this.east ?? -15.3 }) }
+  getSouthWest() { return new TestLatLng({ lat: this.south ?? 27.1, lng: this.west ?? -18.2 }) }
+  getCenter() {
+    const northeast = this.getNorthEast()
+    const southwest = this.getSouthWest()
+    return new TestLatLng({ lat: (northeast.lat() + southwest.lat()) / 2, lng: (northeast.lng() + southwest.lng()) / 2 })
+  }
 }
 
 class TestDataLayer {
@@ -76,7 +82,11 @@ class TestMap {
   setCenter(value: PointLike | TestLatLng) { this.center = new TestLatLng(point(value)); this.emit('idle') }
   getZoom() { return this.zoom }
   setZoom(value: number) { this.zoom = value; this.emit('idle') }
-  getBounds() { return new TestBounds() }
+  getBounds() {
+    return new TestBounds()
+      .extend({ lat: 27.1, lng: -18.2 })
+      .extend({ lat: 29.2, lng: -15.3 })
+  }
   fitBounds(bounds: TestBounds) { this.center = bounds.getCenter(); this.emit('idle') }
   panTo(value: PointLike | TestLatLng) { this.setCenter(value) }
   setOptions(options: Record<string, unknown>) { Object.entries(options).forEach(([key, value]) => this.options.set(key, value)) }
