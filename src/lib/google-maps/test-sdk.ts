@@ -117,12 +117,17 @@ class TestAdvancedMarker extends EventTarget {
   content: Node | null = null
   zIndex: number | undefined
 
-  constructor(options: { map?: TestMap; position?: PointLike; content?: Node; zIndex?: number }) {
+  constructor(options: { map?: TestMap; position?: PointLike; content?: Node | TestPinElement; zIndex?: number }) {
     super()
     this.position = options.position ?? null
-    this.content = options.content ?? null
+    this.content = options.content instanceof TestPinElement ? options.content.element : options.content ?? null
     this.zIndex = options.zIndex
     this.map = options.map ?? null
+  }
+
+  addListener(name: string, callback: ListenerCallback): Listener {
+    this.addEventListener(name, callback)
+    return { remove: () => this.removeEventListener(name, callback) }
   }
 
   get map() { return this.currentMap }
@@ -146,6 +151,21 @@ class TestAdvancedMarker extends EventTarget {
       }
       next.getDiv().append(this.content)
     }
+  }
+}
+
+class TestPinElement {
+  readonly element: HTMLDivElement
+
+  constructor(options: { background?: string; borderColor?: string; glyphColor?: string; scale?: number } = {}) {
+    this.element = document.createElement('div')
+    this.element.className = 'gm-test-pin'
+    this.element.style.width = '22px'
+    this.element.style.height = '22px'
+    this.element.style.borderRadius = '50% 50% 50% 0'
+    this.element.style.transform = 'rotate(-45deg)'
+    this.element.style.background = options.background ?? '#dff34f'
+    this.element.style.border = `2px solid ${options.borderColor ?? '#344500'}`
   }
 }
 
@@ -225,12 +245,12 @@ export function loadGoogleMapsTestSdk(): Promise<{ maps: google.maps.MapsLibrary
       Circle: TestShape,
       OverlayView: TestOverlayView,
       event,
-      marker: { AdvancedMarkerElement: TestAdvancedMarker },
+      marker: { AdvancedMarkerElement: TestAdvancedMarker, PinElement: TestPinElement },
       CollisionBehavior: { OPTIONAL_AND_HIDES_LOWER_PRIORITY: 'OPTIONAL_AND_HIDES_LOWER_PRIORITY' },
-      importLibrary: async (name: string) => name === 'marker' ? { AdvancedMarkerElement: TestAdvancedMarker } : maps,
+      importLibrary: async (name: string) => name === 'marker' ? { AdvancedMarkerElement: TestAdvancedMarker, PinElement: TestPinElement } : maps,
     }
     Object.assign(window as object, { google: { maps } })
     libraries = maps as unknown as google.maps.MapsLibrary
   }
-  return Promise.resolve({ maps: libraries, marker: { AdvancedMarkerElement: TestAdvancedMarker } as unknown as google.maps.MarkerLibrary })
+  return Promise.resolve({ maps: libraries, marker: { AdvancedMarkerElement: TestAdvancedMarker, PinElement: TestPinElement } as unknown as google.maps.MarkerLibrary })
 }

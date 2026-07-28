@@ -410,8 +410,8 @@ test("19–20 registration, login persistence, logout, recovery and reset flows"
   await page.getByLabel(/email de tu cuenta/i).fill("flujo@example.es");
   await page.getByRole("button", { name: /solicitar enlace/i }).click();
   await page.getByRole("link", { name: /crear nueva contraseña/i }).click();
-  await page.getByLabel(/^nueva contraseña/i).fill("nueva112233");
-  await page.getByLabel(/repite la contraseña/i).fill("nueva112233");
+  await page.getByLabel(/^nueva contraseña/i).fill("nueva1122334");
+  await page.getByLabel(/repite la contraseña/i).fill("nueva1122334");
   await page.getByRole("button", { name: /guardar contraseña/i }).click();
   await expect(page.getByText(/todo listo/i)).toBeVisible();
 });
@@ -424,7 +424,7 @@ test("21–24 wizard validates, restores/reset draft, previews user data, create
   await page.getByRole("button", { name: /continuar/i }).click();
   await page.getByLabel(/zona o barrio/i).fill("");
   await page.getByRole("button", { name: /continuar/i }).click();
-  await expect(page.getByRole("alert")).toContainText(/indica la zona/i);
+  await expect(page.getByRole("alert").filter({ hasText: /indica la zona/i })).toBeVisible();
   await page.getByLabel(/zona o barrio/i).fill("Zona Demo E2E");
   await page.reload();
   await page.getByRole("button", { name: /continuar/i }).click();

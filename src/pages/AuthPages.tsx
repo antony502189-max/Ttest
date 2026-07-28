@@ -11,6 +11,8 @@ import { useApp } from '@/contexts/app-context'
 import { requestPasswordReset, resetPassword, verifyEmail } from '@/api/auth'
 import type { UserRole } from '@/types'
 
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+
 function AuthShell({ title, description, children, asideTitle = 'Tu próxima habitación empieza con información clara.' }: { title: string; description: string; children: ReactNode; asideTitle?: string }) {
   return <div className="auth-page"><aside><Logo /><div><span className="eyebrow">112233.es</span><h2>{asideTitle}</h2><ul><li><ShieldCheck />Condiciones visibles antes de contactar</li><li><ShieldCheck />Anunciantes con señales de confianza</li><li><ShieldCheck />Demo local sin datos reales</li></ul></div><small>Tenerife · frontend demo</small></aside><section><div className="auth-card"><h1>{title}</h1><p>{description}</p>{children}</div></section></div>
 }
@@ -53,7 +55,9 @@ export function RecoverPasswordPage() {
     event.preventDefault()
     setError('')
     try {
-      const result = await requestPasswordReset(String(new FormData(event.currentTarget).get('email')).trim())
+      const result = mockMode
+        ? { resetToken: 'demo-reset-token' }
+        : await requestPasswordReset(String(new FormData(event.currentTarget).get('email')).trim())
       setToken(result.resetToken ?? null)
       setSent(true)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo solicitar el restablecimiento.') }
@@ -72,7 +76,7 @@ export function ResetPasswordPage() {
     const token = params.get('token')
     if (!token) { setError('El enlace de restablecimiento no es válido o ha caducado.'); return }
     if (password.length < 12 || password !== data.get('confirm')) { setError('Las contraseñas deben coincidir y tener al menos 12 caracteres.'); return }
-    try { await resetPassword(token, password); setError(''); setDone(true) }
+    try { if (!mockMode) await resetPassword(token, password); setError(''); setDone(true) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo actualizar la contraseña.') }
   }
   return <AuthShell title={done ? 'Contraseña actualizada' : 'Crea una nueva contraseña'} description={done ? 'Ya puedes acceder con tu nueva contraseña.' : 'Usa al menos 12 caracteres.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Tu contraseña se ha actualizado y las sesiones anteriores se han cerrado.</AlertDescription></Alert><Button asChild><Link to="/acceso">Acceder</Link></Button></> : <form className="auth-form" onSubmit={submit}><FormField label="Nueva contraseña" htmlFor="reset-password" error={error}><Input id="reset-password" name="password" type="password" minLength={12} required aria-invalid={!!error} /></FormField><FormField label="Repite la contraseña" htmlFor="reset-confirm"><Input id="reset-confirm" name="confirm" type="password" minLength={12} required /></FormField><Button size="lg"><KeyRound data-icon="inline-start" />Guardar contraseña</Button></form>}</AuthShell>
@@ -85,7 +89,7 @@ export function VerifyEmailPage() {
   const submit = async () => {
     const token = params.get('token')
     if (!token) { setError('El enlace de confirmación no es válido o ha caducado.'); return }
-    try { await verifyEmail(token); setError(''); setDone(true) }
+    try { if (!mockMode) await verifyEmail(token); setError(''); setDone(true) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo confirmar el correo.') }
   }
   return <AuthShell title={done ? 'Correo confirmado' : 'Confirma tu correo'} description={done ? 'Tu dirección de correo ya está verificada.' : 'Confirma tu dirección para completar la seguridad de tu cuenta.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Ya puedes continuar usando tu cuenta.</AlertDescription></Alert><Button asChild><Link to="/">Ir al inicio</Link></Button></> : <><FormField label="Enlace de confirmación" htmlFor="verification-token" error={error}><Input id="verification-token" value={params.get('token') ?? ''} readOnly aria-invalid={!!error} /></FormField><Button size="lg" onClick={submit}><Mail data-icon="inline-start" />Confirmar correo</Button></>}</AuthShell>
