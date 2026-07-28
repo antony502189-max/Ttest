@@ -24,7 +24,7 @@ const AdminPage = lazy(() => import('@/pages/AdminPage').then((module) => ({ def
 const MenuPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MenuPage })))
 const MessagesPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MessagesPage })))
 
-const infoRoutes = ['/sobre-nosotros', '/como-funciona', '/ayuda', '/contacto', '/terminos', '/privacidad', '/cookies', '/normas-de-publicacion']
+const infoRoutes = ['/sobre-nosotros', '/como-funciona', '/ayuda', '/terminos', '/privacidad', '/cookies', '/normas-de-publicacion']
 
 function RouteLoading() {
   return <div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>
