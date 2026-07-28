@@ -1,9 +1,9 @@
-import app.main as main_module
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
+import app.main as main_module
 from app.api.v1.auth import require_cookie_origin
 from app.core.config import get_settings
 from app.main import RATE_LIMITS, app
