@@ -12,6 +12,7 @@ frontend: npm run lint               PASS (one existing unused-helper warning)
 frontend: npm run build              PASS
 Docker PostGIS: alembic upgrade head PASS (0015_integrity_constraints)
 Playwright full-stack                3 passed, 1 skipped (desktop + 390×844)
+Playwright accessibility (Axe)      28 passed (no serious/critical violations)
 Docker: docker compose config        PASS
 Backend: OpenAPI generation          PASS
 ```

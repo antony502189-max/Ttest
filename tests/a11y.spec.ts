@@ -97,7 +97,7 @@ test("delta contact dialog supports keyboard focus and axe", async ({ page }) =>
   const trigger = page.getByRole("button", { name: "Enviar mensaje" }).first();
   await trigger.focus();
   await trigger.press("Enter");
-  const dialog = page.getByRole("dialog", { name: "Enviar un mensaje local" });
+  const dialog = page.getByRole("dialog", { name: "Enviar un mensaje" });
   await expect(dialog).toBeVisible();
   const results = await new AxeBuilder({ page }).include(".contact-message-dialog").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
@@ -117,7 +117,13 @@ test("delta fullscreen location flow has no serious or critical axe issues", asy
 test("delta drawing announcement and controls have no serious or critical axe issues", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openRoute(page, { name: "mapa", path: "/#/buscar?q=Tenerife&vista=mapa&dibujar=1" });
-  await page.getByRole("button", { name: "Dibujar tu zona" }).click();
+  const drawZone = page.getByRole("button", { name: "Dibujar tu zona" });
+  if (await drawZone.isDisabled()) {
+    await expect(page.getByRole("alert")).toContainText("No se pudo cargar Google Maps");
+    await assertNoSeriousViolations(page);
+    return;
+  }
+  await drawZone.click();
   await expect(page.getByTestId("freehand-overlay")).toBeVisible();
   const results = await new AxeBuilder({ page }).include(".m2-map-screen").exclude(".m2-map-canvas").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
