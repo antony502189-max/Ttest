@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
@@ -21,56 +21,43 @@ jobs:
     env:
       CI: "true"
     steps:
-      - name: Checkout repository branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
-
-      - name: Align publish email with account once
-        id: fix
-        run: |
-          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnAgPSBQYXRoKCdzcmMvcGFnZXMvUHVibGlzaFBhZ2UudHN4JykKdGV4dCA9IHAucmVhZF90ZXh0KCkKY2hhbmdlcyA9IFsKKAonICAgIGlmIChzdGVwID09PSA4ICYmIGRyYWZ0LmFsbG93Q29udGFjdEZvcm0gJiYgIS9eXFxTK0BcXFMrXFwuXFxTKyQvLnRlc3QoZHJhZnQuY29udGFjdEVtYWlsKSlcbiAgICAgIG5leHQuY29udGFjdEVtYWlsID0gIkludHJvZHVjZSB1biBlbWFpbCB2w6FsaWRvLiI7JywKJyAgICBpZiAoc3RlcCA9PT0gOCAmJiBkcmFmdC5hbGxvd0NvbnRhY3RGb3JtICYmICEvXlxcUytAXFxTK1xcLlxcUyskLy50ZXN0KGN1cnJlbnRVc2VyPy5lbWFpbCA/PyBkcmFmdC5jb250YWN0RW1haWwpKVxuICAgICAgbmV4dC5jb250YWN0RW1haWwgPSAiSW50cm9kdWNlIHVuIGVtYWlsIHbDoWxpZG8uIjsnCiksCigKJyAgICBjb25zdCBsaXN0aW5nID0gdG9MaXN0aW5nKGRyYWZ0LCBleGlzdGluZywgY3VycmVudFVzZXI/LmlkKTsnLAonICAgIGNvbnN0IGF1dGhvcml0YXRpdmVEcmFmdCA9IGN1cnJlbnRVc2VyID8geyAuLi5kcmFmdCwgY29udGFjdEVtYWlsOiBjdXJyZW50VXNlci5lbWFpbCB9IDogZHJhZnQ7XG4gICAgY29uc3QgbGlzdGluZyA9IHRvTGlzdGluZyhhdXRob3JpdGF0aXZlRHJhZnQsIGV4aXN0aW5nLCBjdXJyZW50VXNlcj8uaWQpOycKKSwKKAonICAgICAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0LmNvbnRhY3RFbWFpbH1cbiAgICAgICAgICAgICAgICAgIGFyaWEtaW52YWxpZD17Qm9vbGVhbihlcnJvcnMuY29udGFjdEVtYWlsKX1cbiAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0KCJjb250YWN0RW1haWwiLCBlLnRhcmdldC52YWx1ZSl9JywKJyAgICAgICAgICAgICAgICAgIHZhbHVlPXtjdXJyZW50VXNlcj8uZW1haWwgPz8gZHJhZnQuY29udGFjdEVtYWlsfVxuICAgICAgICAgICAgICAgICAgYXJpYS1pbnZhbGlkPXtCb29sZWFuKGVycm9ycy5jb250YWN0RW1haWwpfVxuICAgICAgICAgICAgICAgICAgcmVhZE9ubHlcbiAgICAgICAgICAgICAgICAgIGFyaWEtcmVhZG9ubHk9InRydWUiXG4gICAgICAgICAgICAgICAgICB0aXRsZT0iU2UgdXNhIGVsIGVtYWlsIGRlIHR1IGN1ZW50YSInCiksCl0KZm9yIG9sZCxuZXcgaW4gY2hhbmdlczoKICAgIGlmIG5ldyBpbiB0ZXh0OiBjb250aW51ZQogICAgaWYgb2xkIG5vdCBpbiB0ZXh0OiByYWlzZSBTeXN0ZW1FeGl0KGYnYW5jaG9yIG1pc3Npbmc6IHtvbGRbOjEwMF19JykKICAgIHRleHQ9dGV4dC5yZXBsYWNlKG9sZCxuZXcsMSkKcC53cml0ZV90ZXh0KHRleHQpCnByaW50KCdjb250YWN0IGVtYWlsIGFsaWduZWQgd2l0aCBhY2NvdW50JykK' | base64 --decode > /tmp/patch-contact.py
-          python /tmp/patch-contact.py
-          git config user.name 'full-audit-bot'
-          git config user.email 'full-audit-bot@users.noreply.github.com'
-          git add src/pages/PublishPage.tsx
-          if ! git diff --cached --quiet; then
-            git commit -m 'fix: make account email authoritative for publishing'
-            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Set up Python 3.12
-        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 22
-        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
 
+      - name: Show tool versions
+        run: |
+          python --version
+          node --version
+          npm --version
+          docker --version
+          docker compose version
+
       - name: Run complete local audit
-        if: steps.fix.outputs.changed != 'true'
         run: |
           mkdir -p output
           set -o pipefail
           bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         run: |
           mkdir -p output
           docker compose ps --all > output/docker-ps.txt 2>&1 || true
           docker compose logs --no-color > output/docker-compose.log 2>&1 || true
 
       - name: Upload audit artifacts
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: temporary-full-audit-${{ github.run_attempt }}
@@ -83,5 +70,5 @@ jobs:
             backend/var/test-media/**
 
       - name: Stop audit infrastructure
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         run: docker compose down --volumes --remove-orphans || true
