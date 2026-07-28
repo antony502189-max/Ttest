@@ -6,29 +6,6 @@ import { I18nProvider } from '@/contexts/i18n-context'
 import { AppLayout } from '@/components/layout'
 import { CustomerFeedbackFixes } from '@/components/customer-feedback-fixes'
 
-try {
-  // A drawn map area belongs only to the current SPA session. A full page load
-  // starts a clean search while normal in-app navigation keeps the selection.
-  localStorage.removeItem('112233:map-polygon:v1')
-  const hash = window.location.hash
-  const queryIndex = hash.indexOf('?')
-  if (queryIndex >= 0) {
-    const route = hash.slice(0, queryIndex)
-    const params = new URLSearchParams(hash.slice(queryIndex + 1))
-    const hadTemporaryMapState = params.has('poligono') || params.has('dibujar')
-    params.delete('poligono')
-    params.delete('dibujar')
-    params.delete('pagina')
-    if (hadTemporaryMapState) {
-      const serialized = params.toString()
-      const nextHash = serialized ? `${route}?${serialized}` : route
-      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${nextHash}`)
-    }
-  }
-} catch {
-  // Temporary map state cleanup must not block application startup.
-}
-
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
 const ListingPage = lazy(() => import('@/pages/ListingPage').then((module) => ({ default: module.ListingPage })))
