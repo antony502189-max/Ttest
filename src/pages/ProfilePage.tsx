@@ -6,14 +6,15 @@ import { ProfilePage as DesktopProfilePage } from '@/pages/AccountPages'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { useMediaUrl } from '@/components/media-image'
+import { logoutSession } from '@/api/auth'
 import { MediaStorageError, saveMediaFile } from '@/lib/media-storage'
 import '@/mobile-app-v2.css'
 import '@/auth-account.css'
 
 const copy = {
-  es: { title: 'Tu cuenta', photo: 'Añadir foto', data: 'Tus datos', name: 'Nombre', email: 'Email', logout: 'Cerrar sesión', saving: 'Guardando…', saved: 'Guardado', invalidName: 'El nombre debe tener al menos 2 caracteres.', upload: 'No se pudo guardar la foto.' },
-  en: { title: 'Your account', photo: 'Add photo', data: 'Your details', name: 'Name', email: 'Email', logout: 'Sign out', saving: 'Saving…', saved: 'Saved', invalidName: 'The name must contain at least 2 characters.', upload: 'The photo could not be saved.' },
-  ru: { title: 'Ваш аккаунт', photo: 'Добавить фото', data: 'Ваши данные', name: 'Имя', email: 'Email', logout: 'Выйти из аккаунта', saving: 'Сохранение…', saved: 'Сохранено', invalidName: 'Имя должно содержать минимум 2 символа.', upload: 'Не удалось сохранить фотографию.' },
+  es: { title: 'Tu cuenta', photo: 'Añadir foto', data: 'Tus datos', name: 'Nombre', email: 'Email', logout: 'Cerrar sesión', saving: 'Guardando…', saved: 'Guardado', invalidName: 'El nombre debe tener al menos 2 caracteres.', upload: 'No se pudo guardar la foto.', logoutError: 'No se pudo cerrar la sesión. Comprueba la conexión e inténtalo de nuevo.' },
+  en: { title: 'Your account', photo: 'Add photo', data: 'Your details', name: 'Name', email: 'Email', logout: 'Sign out', saving: 'Saving…', saved: 'Saved', invalidName: 'The name must contain at least 2 characters.', upload: 'The photo could not be saved.', logoutError: 'The session could not be closed. Check the connection and try again.' },
+  ru: { title: 'Ваш аккаунт', photo: 'Добавить фото', data: 'Ваши данные', name: 'Имя', email: 'Email', logout: 'Выйти из аккаунта', saving: 'Сохранение…', saved: 'Сохранено', invalidName: 'Имя должно содержать минимум 2 символа.', upload: 'Не удалось сохранить фотографию.', logoutError: 'Не удалось завершить сессию. Проверьте соединение и повторите попытку.' },
 } as const
 
 function useMobileProfileLayout() {
@@ -90,8 +91,14 @@ function MobileProfilePage() {
   const signOut = async () => {
     if (loggingOut) return
     setLoggingOut(true)
-    await Promise.resolve(logout())
-    navigate('/acceso', { replace: true })
+    try {
+      await logoutSession()
+      logout()
+      navigate('/acceso', { replace: true })
+    } catch {
+      toast.error(t.logoutError)
+      setLoggingOut(false)
+    }
   }
 
   return <div className="m2-app m2-account-screen notranslate" translate="no">
