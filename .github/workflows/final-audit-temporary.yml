@@ -1,0 +1,80 @@
+name: Temporary Full Audit
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    if: startsWith(github.event.issue.title, '[FINAL-AUDIT]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Docker BuildKit
+        run: |
+          echo 'DOCKER_BUILDKIT=1' >> "$GITHUB_ENV"
+          echo 'COMPOSE_DOCKER_CLI_BUILD=1' >> "$GITHUB_ENV"
+
+      - name: Run complete audit
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          bash scripts/final-audit-local.sh 2>&1 | tee final-audit.log
+          status=${PIPESTATUS[0]}
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            final-audit.log
+            output/**
+            playwright-report/**
+            test-results/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Publish audit result to issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          log = Path('final-audit.log')
+          text = log.read_text(encoding='utf-8', errors='replace') if log.exists() else 'Audit log was not created.'
+          lines = text.splitlines()
+          tail = '\n'.join(lines[-500:])
+          if len(tail) > 58000:
+              tail = tail[-58000:]
+          code = os.environ.get('EXIT_CODE') or 'unknown'
+          state = 'PASSED' if code == '0' else 'FAILED'
+          body = (
+              f"## Temporary full audit: {state}\n\n"
+              f"Exit code: `{code}`\n\n"
+              f"Run: {os.environ['RUN_URL']}\n\n"
+              "<details><summary>Last audit log lines</summary>\n\n"
+              "```text\n" + tail + "\n```\n</details>"
+          )
+          Path('audit-comment.md').write_text(body, encoding='utf-8')
+          PY
+          gh issue comment "$ISSUE_NUMBER" --body-file audit-comment.md
