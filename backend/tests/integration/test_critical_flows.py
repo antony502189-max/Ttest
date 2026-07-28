@@ -67,7 +67,7 @@ def image_bytes() -> bytes:
 
 
 async def test_complete_auth_geo_media_message_and_delete_flow(client: AsyncClient, register_user):
-    host_token, host = await register_user(client, email="host@example.test", role="host")
+    host_token, host = await register_user(client, email="host@example.com", role="host")
 
     refresh = await client.post("/api/v1/auth/refresh")
     assert refresh.status_code == 200, refresh.text
@@ -137,7 +137,7 @@ async def test_complete_auth_geo_media_message_and_delete_flow(client: AsyncClie
     attached_delete = await client.delete(f"/api/v1/uploads/{asset_id}", headers=auth(host_token))
     assert attached_delete.status_code == 409
 
-    tenant_token, _ = await register_user(client, email="tenant@example.test", role="tenant")
+    tenant_token, _ = await register_user(client, email="tenant@example.com", role="tenant")
     initial_message = await client.post(
         "/api/v1/messages",
         headers=auth(tenant_token),

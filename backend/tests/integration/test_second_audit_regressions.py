@@ -82,7 +82,7 @@ def listing_payload(*, title: str, available_until: str | None = None) -> dict:
 
 
 async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_user):
-    await register_user(client, email="refresh@example.test")
+    await register_user(client, email="refresh@example.com")
     old_refresh = client.cookies.get("refresh_token")
     assert old_refresh
 
@@ -105,7 +105,7 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
 
 
 async def test_availability_window_excludes_already_ended_listing(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="availability@example.test", role="host")
+    token, _ = await register_user(client, email="availability@example.com", role="host")
     yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
     created = await client.post(
         "/api/v1/listings",
@@ -123,7 +123,7 @@ async def test_availability_window_excludes_already_ended_listing(client: AsyncC
 
 
 async def test_private_media_cache_and_listing_avatar_separation(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="media@example.test", role="host")
+    token, _ = await register_user(client, email="media@example.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -168,7 +168,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
 
 
 async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="orphan-media@example.test", role="host")
+    token, _ = await register_user(client, email="orphan-media@example.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -212,7 +212,7 @@ async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: Asyn
 
 
 async def test_disabled_contact_form_blocks_new_threads(client: AsyncClient, register_user):
-    host_token, _ = await register_user(client, email="closed-contact@example.test", role="host")
+    host_token, _ = await register_user(client, email="closed-contact@example.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(host_token),
@@ -226,7 +226,7 @@ async def test_disabled_contact_form_blocks_new_threads(client: AsyncClient, reg
     )
     assert profile.status_code == 200
 
-    tenant_token, _ = await register_user(client, email="contact-tenant@example.test")
+    tenant_token, _ = await register_user(client, email="contact-tenant@example.com")
     message = await client.post(
         "/api/v1/messages",
         headers=auth(tenant_token),
@@ -236,7 +236,7 @@ async def test_disabled_contact_form_blocks_new_threads(client: AsyncClient, reg
 
 
 async def test_account_deletion_erases_owned_state(client: AsyncClient, register_user):
-    token, user = await register_user(client, email="erase-me@example.test", role="host")
+    token, user = await register_user(client, email="erase-me@example.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -272,7 +272,7 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
         assert await session.scalar(select(func.count()).select_from(Favorite).where(Favorite.user_id == user_id)) == 0
         assert await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id)) == 0
         assert await session.scalar(select(func.count()).select_from(SearchHistory).where(SearchHistory.user_id == user_id)) == 0
-        assert await session.scalar(select(func.count()).select_from(MailOutbox).where(MailOutbox.recipient == "erase-me@example.test")) == 0
+        assert await session.scalar(select(func.count()).select_from(MailOutbox).where(MailOutbox.recipient == "erase-me@example.com")) == 0
         assert await session.scalar(select(func.count()).select_from(MediaAsset).where(MediaAsset.owner_id == user_id, MediaAsset.deleted_at.is_(None))) == 0
         stored_user = await session.scalar(select(User).where(User.id == user_id))
         assert stored_user is not None
