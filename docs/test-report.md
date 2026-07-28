@@ -14,6 +14,7 @@ Docker PostGIS: alembic upgrade head PASS (0015_integrity_constraints)
 Playwright full-stack                3 passed, 1 skipped (desktop + 390×844)
 Playwright accessibility (Axe)      28 passed (no serious/critical violations)
 S3-compatible MinIO round-trip      1 passed (put/read/delete)
+Compose runtime                      OpenAPI OK, /health/ready 200, Redis PONG
 Docker: docker compose config        PASS
 Backend: OpenAPI generation          PASS
 ```
