@@ -10,6 +10,7 @@ import { createRemoteListing, deleteRemoteListing, getPublicListings, renewRemot
 import { syncListingImages } from '@/api/media'
 import { getRemoteThreads, sendRemoteMessage, type RemoteThread } from '@/api/messages'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
+import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
@@ -32,7 +33,7 @@ type RegisterInput = { name: string; email: string; password: string; role: User
 type ProfileUpdate = Partial<Omit<DemoUser, 'id' | 'email' | 'password' | 'role'>>
 type UserScopedState<T> = Record<string, T>
 
-interface AppState {
+export interface AppState {
   rentalMode: RentalMode
   setRentalMode: (mode: RentalMode) => void
   query: string
@@ -87,7 +88,7 @@ interface AppState {
   clearStorageError: () => void
 }
 
-const AppContext = createContext<AppState | null>(null)
+export const AppContext = createContext<AppState | null>(null)
 const LISTINGS_KEY = '112233:listings:v3'
 const LISTINGS_VERSION = 3
 const DRAFT_KEY = '112233:listing-draft:v3'
@@ -203,7 +204,7 @@ const storageMessage = (failure: StorageFailure) => failure === 'quota'
     ? 'Había datos locales dañados. Se ha cargado una copia segura.'
     : 'No se pudo guardar en este navegador. Revisa la privacidad o el espacio disponible.'
 
-export function AppProvider({ children }: { children: ReactNode }) {
+function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [listingLoad] = useState(readListings)
   const [rentalMode, setRentalMode] = useState<RentalMode>('long')
   const [query, setQuery] = useState('Tenerife')
@@ -663,6 +664,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
   const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  return mockMode
+    ? <MockAppProvider context={AppContext}>{children}</MockAppProvider>
+    : <RemoteAppProvider>{children}</RemoteAppProvider>
 }
 
 export function useApp() {
