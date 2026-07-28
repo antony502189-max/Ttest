@@ -19,7 +19,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    env: { ...process.env, VITE_ENABLE_MOCK_MODE: '1' },
+    env: { ...process.env, VITE_ENABLE_MOCK_MODE: '1', VITE_GOOGLE_MAPS_TEST_SDK: '1' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 120_000,

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import { importLibrary } from '@googlemaps/js-api-loader'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { cn } from '@/lib/utils'
+import { loadGoogleMaps } from '@/lib/google-maps/loader'
 import type { Listing } from '@/types'
 import '@/mobile-map-ideal.css'
 
@@ -71,7 +71,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     }
 
     const createMarkers = async () => {
-      await importLibrary('marker')
+      await loadGoogleMaps()
       if (cancelled || !mapRef.current) return
       clear()
 

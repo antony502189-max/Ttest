@@ -2,6 +2,7 @@ import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 
 const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '').trim()
 const configuredMapId = (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ?? '').trim()
+const testSdkEnabled = import.meta.env.VITE_GOOGLE_MAPS_TEST_SDK === '1'
 export const GOOGLE_MAPS_AUTH_FAILURE_EVENT = '112233:google-maps-auth-failure'
 
 export const googleMapsConfig = {
@@ -30,6 +31,9 @@ let librariesPromise: Promise<GoogleMapsLibraries> | null = null
 let optionsSet = false
 
 export function loadGoogleMaps(): Promise<GoogleMapsLibraries> {
+  if (testSdkEnabled) {
+    return import('./test-sdk').then(({ loadGoogleMapsTestSdk }) => loadGoogleMapsTestSdk())
+  }
   if (!apiKey) return Promise.reject(new GoogleMapsSetupError('missing-key'))
   if (!librariesPromise) {
     if (!optionsSet) {

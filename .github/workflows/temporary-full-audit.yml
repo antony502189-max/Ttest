@@ -24,6 +24,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Checkout approved visual baselines
+        uses: actions/checkout@v4
+        with:
+          ref: visual-baselines
+          path: .visual-baselines
+          sparse-checkout: tests/visual-snapshots
+          sparse-checkout-cone-mode: false
+
+      - name: Install approved visual baselines
+        run: |
+          mkdir -p tests/visual-snapshots
+          cp -R .visual-baselines/tests/visual-snapshots/. tests/visual-snapshots/
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:

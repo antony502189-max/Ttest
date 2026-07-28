@@ -1,0 +1,50 @@
+name: Update Approved Visual Baselines
+
+on:
+  workflow_dispatch:
+    inputs:
+      visual_review_confirmed:
+        description: I manually reviewed every visual change and approve replacing the baseline
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: inputs.visual_review_confirmed == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Generate candidate snapshots after explicit approval
+        env:
+          VITE_ENABLE_MOCK_MODE: '1'
+          VITE_GOOGLE_MAPS_TEST_SDK: '1'
+        run: npx playwright test tests/visual-parity.spec.ts --update-snapshots
+
+      - name: Commit reviewed baseline to dedicated branch
+        run: |
+          mkdir -p /tmp/visual-baselines
+          cp -R tests/visual-snapshots/. /tmp/visual-baselines/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin visual-baselines
+          git switch -C visual-baselines origin/visual-baselines
+          rm -rf tests/visual-snapshots
+          mkdir -p tests/visual-snapshots
+          cp -R /tmp/visual-baselines/. tests/visual-snapshots/
+          git add -f tests/visual-snapshots
+          git diff --cached --quiet && exit 0
+          git commit -m 'test: update approved visual baselines'
+          git push origin visual-baselines

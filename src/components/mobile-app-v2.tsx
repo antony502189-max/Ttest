@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
-import { importLibrary } from '@googlemaps/js-api-loader'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -498,7 +497,7 @@ function MapScreen({ mode, language, t, query, initialCenter, polygon, items, on
   const [drawing, setDrawing] = useState(false)
   const toggleLayers = () => { const next = mapType === 'roadmap' ? 'hybrid' : 'roadmap'; setMapType(next); mapRef.current?.setMapTypeId(next) }
   const showUserMarker = async (coordinates: MapPoint) => {
-    await importLibrary('marker')
+    await loadGoogleMaps()
     if (!mapRef.current) return
     if (!userMarkerRef.current) {
       const content = document.createElement('span')
