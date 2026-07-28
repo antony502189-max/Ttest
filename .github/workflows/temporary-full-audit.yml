@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
@@ -21,56 +21,43 @@ jobs:
     env:
       CI: "true"
     steps:
-      - name: Checkout repository branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
-
-      - name: Complete mobile search flows once
-        id: fix
-        run: |
-          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgnc3JjL2NvbXBvbmVudHMvbW9iaWxlLWFwcC12Mi50c3gnKQp0ZXh0ID0gcGF0aC5yZWFkX3RleHQoKQoKZGVmIHJlcGxhY2Vfb25jZShvbGQ6IHN0ciwgbmV3OiBzdHIpIC0+IE5vbmU6CiAgICBnbG9iYWwgdGV4dAogICAgaWYgbmV3IGluIHRleHQ6CiAgICAgICAgcmV0dXJuCiAgICBpZiBvbGQgbm90IGluIHRleHQ6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmJ2FuY2hvciBtaXNzaW5nOiB7b2xkWzoxMjBdIXJ9JykKICAgIHRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkLCBuZXcsIDEpCgpyZXBsYWNlX29uY2UoCiAgICAiICBQZW5Ub29sLFxuICBQbHVzLFxuICBTZWFyY2gsIiwKICAgICIgIFBlblRvb2wsXG4gIFBob25lLFxuICBQbHVzLFxuICBTZWFyY2gsIiwKKQpyZXBsYWNlX29uY2UoCiAgICAidHlwZSBBcHBQYWdlID0gJ3RhYnMnIHwgJ2xvY2F0aW9uJyB8ICdtYXAnIiwKICAgICJ0eXBlIEFwcFBhZ2UgPSAndGFicycgfCAnbG9jYXRpb24nIHwgJ3Bob25lJyB8ICdtYXAnIiwKKQpyZXBsYWNlX29uY2UoCiAgICAiZnVuY3Rpb24gSG9tZVNjcmVlbih7IHQsIG1vZGUsIG9uTW9kZSwgb25Mb2NhdGlvbiwgb25QdWJsaXNoIH06IHsgdDogTW9iaWxlQ29weTsgbW9kZTogU2VhcmNoTW9kZTsgb25Nb2RlOiAobW9kZTogRXhjbHVkZTxTZWFyY2hNb2RlLCBudWxsPikgPT4gdm9pZDsgb25Mb2NhdGlvbjogKCkgPT4gdm9pZDsgb25QdWJsaXNoOiAoKSA9PiB2b2lkIH0pIHsiLAogICAgImZ1bmN0aW9uIEhvbWVTY3JlZW4oeyB0LCBtb2RlLCBvbk1vZGUsIG9uTG9jYXRpb24sIG9uU2VhcmNoLCBvblB1Ymxpc2ggfTogeyB0OiBNb2JpbGVDb3B5OyBtb2RlOiBTZWFyY2hNb2RlOyBvbk1vZGU6IChtb2RlOiBFeGNsdWRlPFNlYXJjaE1vZGUsIG51bGw+KSA9PiB2b2lkOyBvbkxvY2F0aW9uOiAoKSA9PiB2b2lkOyBvblNlYXJjaDogKCkgPT4gdm9pZDsgb25QdWJsaXNoOiAoKSA9PiB2b2lkIH0pIHsiLAopCnJlcGxhY2Vfb25jZSgKICAgICc8UHJpbWFyeUJ1dHRvbiBvbkNsaWNrPXtvbkxvY2F0aW9ufSB0ZXN0SWQ9Im9wZW4tbG9jYXRpb24iPjxTZWFyY2ggLz57dC5zZWFyY2h9PC9QcmltYXJ5QnV0dG9uPicsCiAgICAnPFByaW1hcnlCdXR0b24gb25DbGljaz17b25TZWFyY2h9IHRlc3RJZD0ib3Blbi1sb2NhdGlvbiI+PFNlYXJjaCAvPnt0LnNlYXJjaH08L1ByaW1hcnlCdXR0b24+JywKKQpyZXBsYWNlX29uY2UoCiAgICAiZnVuY3Rpb24gTG9jYXRpb25TY3JlZW4oeyB0LCBvbkJhY2ssIG9uQ2hhbmdlUmVnaW9uLCBvbk1hcCwgb25OZWFyYnksIG5lYXJieVN0YXR1cyB9OiB7XG4gIHQ6IE1vYmlsZUNvcHlcbiAgb25CYWNrOiAoKSA9PiB2b2lkXG4gIG9uQ2hhbmdlUmVnaW9uOiAoKSA9PiB2b2lkXG4gIG9uTWFwOiAobW9kZTogTWFwTW9kZSwgcXVlcnk/OiBzdHJpbmcpID0+IHZvaWRcbiAgb25OZWFyYnk6ICgpID0+IHZvaWRcbiAgbmVhcmJ5U3RhdHVzOiBMb2NhdGlvblN0YXR1c1xufSkgeyIsCiAgICAiZnVuY3Rpb24gTG9jYXRpb25TY3JlZW4oeyB0LCBvbkJhY2ssIG9uQ2hhbmdlUmVnaW9uLCBvbk1hcCwgb25OZWFyYnksIG9uUGhvbmUsIG5lYXJieVN0YXR1cyB9OiB7XG4gIHQ6IE1vYmlsZUNvcHlcbiAgb25CYWNrOiAoKSA9PiB2b2lkXG4gIG9uQ2hhbmdlUmVnaW9uOiAoKSA9PiB2b2lkXG4gIG9uTWFwOiAobW9kZTogTWFwTW9kZSwgcXVlcnk/OiBzdHJpbmcpID0+IHZvaWRcbiAgb25OZWFyYnk6ICgpID0+IHZvaWRcbiAgb25QaG9uZTogKCkgPT4gdm9pZFxuICBuZWFyYnlTdGF0dXM6IExvY2F0aW9uU3RhdHVzXG59KSB7IiwKKQpyZXBsYWNlX29uY2UoCiAgICAnPGJ1dHRvbiB0eXBlPSJidXR0b24iIGNsYXNzTmFtZT0ibTItbG9jYXRpb24tYWN0aW9uIiBvbkNsaWNrPXtvbk5lYXJieX0gZGlzYWJsZWQ9e25lYXJieVN0YXR1cyA9PT0gXCdsb2FkaW5nXCd9IGRhdGEtdGVzdGlkPSJzZWFyY2gtbmVhcmJ5Ij48c3Bhbj48Q3Jvc3NoYWlyIC8+PC9zcGFuPjxzdHJvbmc+e3Quc2VhcmNoTmVhcmJ5fTwvc3Ryb25nPjxDaGV2cm9uUmlnaHQgLz48L2J1dHRvbj57c3RhdHVzTWVzc2FnZSA/JywKICAgICc8YnV0dG9uIHR5cGU9ImJ1dHRvbiIgY2xhc3NOYW1lPSJtMi1sb2NhdGlvbi1hY3Rpb24iIG9uQ2xpY2s9e29uTmVhcmJ5fSBkaXNhYmxlZD17bmVhcmJ5U3RhdHVzID09PSBcJ2xvYWRpbmdcJ30gZGF0YS10ZXN0aWQ9InNlYXJjaC1uZWFyYnkiPjxzcGFuPjxDcm9zc2hhaXIgLz48L3NwYW4+PHN0cm9uZz57dC5zZWFyY2hOZWFyYnl9PC9zdHJvbmc+PENoZXZyb25SaWdodCAvPjwvYnV0dG9uPjxidXR0b24gdHlwZT0iYnV0dG9uIiBjbGFzc05hbWU9Im0yLWxvY2F0aW9uLWFjdGlvbiIgb25DbGljaz17b25QaG9uZX0gZGF0YS10ZXN0aWQ9InNlYXJjaC1waG9uZSI+PHNwYW4+PFBob25lIC8+PC9zcGFuPjxzdHJvbmc+e3Quc2VhcmNoQnlQaG9uZX08L3N0cm9uZz48Q2hldnJvblJpZ2h0IC8+PC9idXR0b24+e3N0YXR1c01lc3NhZ2UgPycsCikKcGhvbmVfc2NyZWVuID0gcicnJwpmdW5jdGlvbiBQaG9uZVNlYXJjaFNjcmVlbih7IHQsIGxpc3RpbmdzLCBvbkJhY2ssIG9uT3BlbiB9OiB7CiAgdDogTW9iaWxlQ29weQogIGxpc3RpbmdzOiBMaXN0aW5nW10KICBvbkJhY2s6ICgpID0+IHZvaWQKICBvbk9wZW46IChsaXN0aW5nSWQ6IHN0cmluZykgPT4gdm9pZAp9KSB7CiAgY29uc3QgW3Bob25lLCBzZXRQaG9uZV0gPSB1c2VTdGF0ZSgnJykKICBjb25zdCBbZXJyb3IsIHNldEVycm9yXSA9IHVzZVN0YXRlKCcnKQogIGNvbnN0IHN1Ym1pdCA9IChldmVudDogUmVhY3QuRm9ybUV2ZW50KSA9PiB7CiAgICBldmVudC5wcmV2ZW50RGVmYXVsdCgpCiAgICBjb25zdCBkaWdpdHMgPSBwaG9uZS5yZXBsYWNlKC9cRC9nLCAnJykKICAgIGlmIChkaWdpdHMubGVuZ3RoIDwgNykgewogICAgICBzZXRFcnJvcih0LmludmFsaWRQaG9uZSkKICAgICAgcmV0dXJuCiAgICB9CiAgICBjb25zdCBsaXN0aW5nID0gbGlzdGluZ3MuZmluZCgoaXRlbSkgPT4gewogICAgICBpZiAoIWl0ZW0uc2hvd1Bob25lIHx8ICFpdGVtLmNvbnRhY3RQaG9uZSB8fCBpdGVtLnN0YXR1cyAhPT0gJ1B1YmxpY2FkbycpIHJldHVybiBmYWxzZQogICAgICBjb25zdCBsaXN0aW5nRGlnaXRzID0gaXRlbS5jb250YWN0UGhvbmUucmVwbGFjZSgvXEQvZywgJycpCiAgICAgIHJldHVybiBsaXN0aW5nRGlnaXRzID09PSBkaWdpdHMgfHwgbGlzdGluZ0RpZ2l0cy5lbmRzV2l0aChkaWdpdHMpIHx8IGRpZ2l0cy5lbmRzV2l0aChsaXN0aW5nRGlnaXRzKQogICAgfSkKICAgIGlmICghbGlzdGluZykgewogICAgICBzZXRFcnJvcih0LnBob25lTm90Rm91bmQpCiAgICAgIHJldHVybgogICAgfQogICAgc2V0RXJyb3IoJycpCiAgICBvbk9wZW4obGlzdGluZy5pZCkKICB9CiAgcmV0dXJuIDxzZWN0aW9uIGNsYXNzTmFtZT0ibTItc2NyZWVuIG0yLWxvY2F0aW9uIG0yLXBob25lLXNlYXJjaCIgZGF0YS10ZXN0aWQ9InBob25lLXNlYXJjaC1zY3JlZW4iPjxCYWNrSGVhZGVyIHRpdGxlPXt0LnNlYXJjaEJ5UGhvbmV9IG9uQmFjaz17b25CYWNrfSBiYWNrTGFiZWw9e3QuYmFja30gLz48ZGl2IGNsYXNzTmFtZT0ibTItbG9jYXRpb25fX2JvZHkiPjxwPnt0LnBob25lSW50cm99PC9wPjxmb3JtIGNsYXNzTmFtZT0ibTItbG9jYXRpb24tc2VhcmNoIiBvblN1Ym1pdD17c3VibWl0fT48UGhvbmUgLz48bGFiZWw+PHNwYW4gY2xhc3NOYW1lPSJtMi1zci1vbmx5Ij57dC5waG9uZX08L3NwYW4+PGlucHV0IHZhbHVlPXtwaG9uZX0gb25DaGFuZ2U9eyhldmVudCkgPT4geyBzZXRQaG9uZShldmVudC50YXJnZXQudmFsdWUpOyBzZXRFcnJvcignJykgfX0gaW5wdXRNb2RlPSJ0ZWwiIGF1dG9Db21wbGV0ZT0idGVsIiBhcmlhLWxhYmVsPXt0LnBob25lfSBwbGFjZWhvbGRlcj17dC5waG9uZX0gLz48L2xhYmVsPjxQcmltYXJ5QnV0dG9uIHR5cGU9InN1Ym1pdCIgdGVzdElkPSJzdWJtaXQtcGhvbmUtc2VhcmNoIj57dC5zZWFyY2h9PC9QcmltYXJ5QnV0dG9uPjwvZm9ybT57ZXJyb3IgPyA8cCBjbGFzc05hbWU9Im0yLWxvY2F0aW9uLWZlZWRiYWNrIGlzLWVycm9yIiByb2xlPSJhbGVydCI+e2Vycm9yfTwvcD4gOiBudWxsfTwvZGl2Pjwvc2VjdGlvbj4KfQoKJycnCnJlcGxhY2Vfb25jZSgiXG5mdW5jdGlvbiBHb29nbGVNYXBDYW52YXMoIiwgIlxuIiArIHBob25lX3NjcmVlbiArICJmdW5jdGlvbiBHb29nbGVNYXBDYW52YXMoIikKcmVwbGFjZV9vbmNlKAogICAgIiAgICBpZiAobG9jYXRpb24ucGF0aG5hbWUgPT09ICcvJyAmJiBwYXJhbXMuZ2V0KCdwYW5lbCcpID09PSAndWJpY2FjaW9uJykge1xuICAgICAgc2V0UGFnZSgnbG9jYXRpb24nKVxuICAgICAgcmV0dXJuXG4gICAgfSIsCiAgICAiICAgIGlmIChsb2NhdGlvbi5wYXRobmFtZSA9PT0gJy8nICYmIHBhcmFtcy5nZXQoJ3BhbmVsJykgPT09ICd1YmljYWNpb24nKSB7XG4gICAgICBzZXRQYWdlKCdsb2NhdGlvbicpXG4gICAgICByZXR1cm5cbiAgICB9XG4gICAgaWYgKGxvY2F0aW9uLnBhdGhuYW1lID09PSAnLycgJiYgcGFyYW1zLmdldCgncGFuZWwnKSA9PT0gJ3RlbGVmb25vJykge1xuICAgICAgc2V0UGFnZSgncGhvbmUnKVxuICAgICAgcmV0dXJuXG4gICAgfSIsCikKcmVwbGFjZV9vbmNlKAogICAgIiAgY29uc3Qgb3BlblB1YmxpY2F0aW9uID0gKCkgPT4gbmF2aWdhdGUoYCR7bG9jYXRpb24ucGF0aG5hbWV9P2dhdGU9cHVibGljYXJgKSIsCiAgICAiICBjb25zdCBydW5Ib21lU2VhcmNoID0gKCkgPT4ge1xuICAgIGNvbnN0IG1vZGUgPSBob21lTW9kZSA9PT0gJ3R1cmlzbW8nID8gJ2hvbGlkYXknIDogJ2xvbmcnXG4gICAgY29uc3QgcGFyYW1zID0gZmlsdGVyc1RvUGFyYW1zKGZpbHRlcnMpXG4gICAgcGFyYW1zLnNldCgncScsICdUZW5lcmlmZScpXG4gICAgcGFyYW1zLnNldCgnYWxxdWlsZXInLCBtb2RlKVxuICAgIG5hdmlnYXRlKGAvYnVzY2FyPyR7cGFyYW1zLnRvU3RyaW5nKCl9YClcbiAgfVxuICBjb25zdCBvcGVuUHVibGljYXRpb24gPSAoKSA9PiBuYXZpZ2F0ZShgJHtsb2NhdGlvbi5wYXRobmFtZX0/Z2F0ZT1wdWJsaWNhcmApIiwKKQpyZXBsYWNlX29uY2UoCiAgICAiICBpZiAocGFnZSA9PT0gJ2xvY2F0aW9uJykgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPVwibTItYXBwIG5vdHJhbnNsYXRlXCIgdHJhbnNsYXRlPVwibm9cIj48TG9jYXRpb25TY3JlZW4gdD17dH0gb25CYWNrPXsoKSA9PiBuYXZpZ2F0ZSgnLycpfSBvbkNoYW5nZVJlZ2lvbj17KCkgPT4gb3BlblJlZ2lvblNldHRpbmdzKCdsb2NhdGlvbicpfSBvbk1hcD17b3Blbk1hcH0gb25OZWFyYnk9eygpID0+IHsgdm9pZCBvcGVuTmVhcmJ5KCkgfX0gbmVhcmJ5U3RhdHVzPXtuZWFyYnlTdGF0dXN9IC8+PC9kaXY+XG4gIGlmIChwYWdlID09PSAnbWFwJykiLAogICAgIiAgaWYgKHBhZ2UgPT09ICdsb2NhdGlvbicpIHJldHVybiA8ZGl2IGNsYXNzTmFtZT1cIm0yLWFwcCBub3RyYW5zbGF0ZVwiIHRyYW5zbGF0ZT1cIm5vXCI+PExvY2F0aW9uU2NyZWVuIHQ9e3R9IG9uQmFjaz17KCkgPT4gbmF2aWdhdGUoJy8nKX0gb25DaGFuZ2VSZWdpb249eygpID0+IG9wZW5SZWdpb25TZXR0aW5ncygnbG9jYXRpb24nKX0gb25NYXA9e29wZW5NYXB9IG9uTmVhcmJ5PXsoKSA9PiB7IHZvaWQgb3Blbk5lYXJieSgpIH19IG9uUGhvbmU9eygpID0+IG5hdmlnYXRlKCcvP3BhbmVsPXRlbGVmb25vJyl9IG5lYXJieVN0YXR1cz17bmVhcmJ5U3RhdHVzfSAvPjwvZGl2PlxuICBpZiAocGFnZSA9PT0gJ3Bob25lJykgcmV0dXJuIDxkaXYgY2xhc3NOYW1lPVwibTItYXBwIG5vdHJhbnNsYXRlXCIgdHJhbnNsYXRlPVwibm9cIj48UGhvbmVTZWFyY2hTY3JlZW4gdD17dH0gbGlzdGluZ3M9e2FsbExpc3RpbmdzfSBvbkJhY2s9eygpID0+IG5hdmlnYXRlKCcvP3BhbmVsPXViaWNhY2lvbicpfSBvbk9wZW49eyhsaXN0aW5nSWQpID0+IG5hdmlnYXRlKGAvaGFiaXRhY2lvbi8ke2xpc3RpbmdJZH1gKX0gLz48L2Rpdj5cbiAgaWYgKHBhZ2UgPT09ICdtYXAnKSIsCikKcmVwbGFjZV9vbmNlKAogICAgIjxIb21lU2NyZWVuIHQ9e3R9IG1vZGU9e2hvbWVNb2RlfSBvbk1vZGU9e3NldEhvbWVNb2RlfSBvbkxvY2F0aW9uPXsoKSA9PiBuYXZpZ2F0ZSgnLz9wYW5lbD11YmljYWNpb24nKX0gb25QdWJsaXNoPXtvcGVuUHVibGljYXRpb259IC8+IiwKICAgICI8SG9tZVNjcmVlbiB0PXt0fSBtb2RlPXtob21lTW9kZX0gb25Nb2RlPXtzZXRIb21lTW9kZX0gb25Mb2NhdGlvbj17KCkgPT4gbmF2aWdhdGUoJy8/cGFuZWw9dWJpY2FjaW9uJyl9IG9uU2VhcmNoPXtydW5Ib21lU2VhcmNofSBvblB1Ymxpc2g9e29wZW5QdWJsaWNhdGlvbn0gLz4iLAopCnBhdGgud3JpdGVfdGV4dCh0ZXh0KQpwcmludCgncGF0Y2hlZCcsIHBhdGgsIGxlbih0ZXh0KSkK' | base64 --decode > /tmp/patch-mobile.py
-          python /tmp/patch-mobile.py
-          git config user.name 'full-audit-bot'
-          git config user.email 'full-audit-bot@users.noreply.github.com'
-          git add src/components/mobile-app-v2.tsx
-          if ! git diff --cached --quiet; then
-            git commit -m 'feat: complete mobile search flows'
-            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Set up Python 3.12
-        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Set up Node.js 22
-        if: steps.fix.outputs.changed != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
 
+      - name: Show tool versions
+        run: |
+          python --version
+          node --version
+          npm --version
+          docker --version
+          docker compose version
+
       - name: Run complete local audit
-        if: steps.fix.outputs.changed != 'true'
         run: |
           mkdir -p output
           set -o pipefail
           bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         run: |
           mkdir -p output
           docker compose ps --all > output/docker-ps.txt 2>&1 || true
           docker compose logs --no-color > output/docker-compose.log 2>&1 || true
 
       - name: Upload audit artifacts
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: temporary-full-audit-${{ github.run_attempt }}
@@ -83,5 +70,5 @@ jobs:
             backend/var/test-media/**
 
       - name: Stop audit infrastructure
-        if: always() && steps.fix.outputs.changed != 'true'
+        if: always()
         run: docker compose down --volumes --remove-orphans || true
