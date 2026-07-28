@@ -11,7 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.config import get_settings
 from ..models import Listing, ListingImage, ListingStatusHistory, MediaAsset, User
 from ..repositories.listings import owned_query, owned_response_from, point
-from ..schemas.listings import ListingImageResponse, ListingImagesRequest, ListingPatch, ListingWrite, OwnedListingResponse
+from ..schemas.listings import (
+    ListingImageResponse,
+    ListingImagesRequest,
+    ListingPatch,
+    ListingWrite,
+    OwnedListingResponse,
+)
 from ..storage import get_storage
 
 
@@ -26,11 +32,11 @@ async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -
     attached = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(candidate_ids)))).all()
     )
-    avatars = set(
+    avatars = {
         value
         for value in (await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))).all()
         if value is not None
-    )
+    }
     orphan_ids = candidate_ids - attached - avatars
     if not orphan_ids:
         return []

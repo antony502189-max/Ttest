@@ -5,6 +5,8 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass
 from time import monotonic
 
+from redis.exceptions import RedisError
+
 from ..core.config import get_settings
 
 
@@ -94,7 +96,7 @@ class ResilientRateLimiter:
         if self._redis and now >= self._redis_retry_at:
             try:
                 return await self._redis.consume(key, limit, window_seconds)
-            except Exception:
+            except RedisError:
                 self._redis_retry_at = now + 5
         return await self._memory.consume(key, limit, window_seconds)
 
@@ -103,7 +105,7 @@ class ResilientRateLimiter:
             return True
         try:
             return await self._redis.ping()
-        except Exception:
+        except RedisError:
             return False
 
     async def close(self) -> None:

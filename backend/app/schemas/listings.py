@@ -141,9 +141,15 @@ class ListingPatch(BaseModel):
         if "status" in self.model_fields_set and self.status not in ALLOWED_LISTING_STATUSES:
             raise ValueError("status contains an unsupported value")
         coordinate_fields = {"latitude", "longitude"}
-        if self.model_fields_set & coordinate_fields:
-            if not coordinate_fields.issubset(self.model_fields_set) or self.latitude is None or self.longitude is None:
-                raise ValueError("latitude and longitude must be changed together")
+        if (
+            self.model_fields_set & coordinate_fields
+            and (
+                not coordinate_fields.issubset(self.model_fields_set)
+                or self.latitude is None
+                or self.longitude is None
+            )
+        ):
+            raise ValueError("latitude and longitude must be changed together")
         exact_fields = {"exactLatitude", "exactLongitude"}
         if self.model_fields_set & exact_fields:
             if not exact_fields.issubset(self.model_fields_set):
