@@ -44,7 +44,10 @@ jobs:
           docker compose version
 
       - name: Run complete local audit
-        run: bash scripts/final-audit-local.sh
+        run: |
+          mkdir -p output
+          set -o pipefail
+          bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
         if: always()
