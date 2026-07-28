@@ -38,13 +38,15 @@ const SESSION_KEY = '112233:session:v1'
 type RegisterInput = { name: string; email: string; password: string; role: UserRole }
 type ProfileUpdate = Partial<Omit<DemoUser, 'id' | 'email' | 'password' | 'role'>>
 type UserScopedState<T> = Record<string, T>
+type MockUser = DemoUser & { passwordHash: string }
 
-const initialUsers: DemoUser[] = [
+const initialUsers: MockUser[] = [
   {
     id: 'tenant-demo',
     name: 'Inquilina Demo',
     email: 'inquilina@112233.es',
-    password: 'demo112233',
+    password: '',
+    passwordHash: '9f43cf3b2ee389bd63013060127a8243c50580f829de40f817aeba77b531eed6',
     role: 'tenant',
     phone: '+34 620 112 233',
     whatsapp: '+34 621 223 344',
@@ -61,7 +63,8 @@ const initialUsers: DemoUser[] = [
     id: 'host-demo',
     name: 'Anfitrión Demo',
     email: 'anfitrion@112233.es',
-    password: 'demo112233',
+    password: '',
+    passwordHash: '9f43cf3b2ee389bd63013060127a8243c50580f829de40f817aeba77b531eed6',
     role: 'host',
     phone: '+34 600 112 233',
     whatsapp: '+34 611 223 344',
@@ -78,7 +81,8 @@ const initialUsers: DemoUser[] = [
     id: 'admin-demo',
     name: 'Administración 112233',
     email: 'admin@112233.es',
-    password: 'admin112233',
+    password: '',
+    passwordHash: 'aa5ff7ddeca7848ed7eb16270306d14ba2f7b65171ca0e700ec2e2adda115b83',
     role: 'admin',
     phone: '',
     whatsapp: '',
@@ -119,13 +123,13 @@ const isScopedLocalComments = (value: unknown): value is UserScopedState<LocalLi
 
 const isListingArray = (value: unknown): value is Listing[] => Array.isArray(value) && value.every(isListingLike)
 
-const isDemoUser = (value: unknown): value is DemoUser => {
+const isMockUser = (value: unknown): value is MockUser => {
   if (!value || typeof value !== 'object') return false
-  const user = value as Partial<DemoUser>
-  return typeof user.id === 'string' && typeof user.name === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && ['tenant', 'host', 'admin'].includes(user.role ?? '')
+  const user = value as Partial<MockUser>
+  return typeof user.id === 'string' && typeof user.name === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && typeof user.passwordHash === 'string' && ['tenant', 'host', 'admin'].includes(user.role ?? '')
 }
 
-const isDemoUserArray = (value: unknown): value is DemoUser[] => Array.isArray(value) && value.every(isDemoUser)
+const isMockUserArray = (value: unknown): value is MockUser[] => Array.isArray(value) && value.every(isMockUser)
 
 function collectMediaReferences(value: unknown, found = new Set<string>()) {
   if (typeof value === 'string') {
@@ -166,7 +170,7 @@ function readListings() {
 }
 
 function readUsers() {
-  return readJson<DemoUser[]>(USERS_KEY, initialUsers, isDemoUserArray).data
+  return readJson<MockUser[]>(USERS_KEY, initialUsers, isMockUserArray).data
 }
 
 function readSession(users: DemoUser[]) {
@@ -208,6 +212,11 @@ const storageMessage = (failure: StorageFailure) => failure === 'quota'
     ? 'Había datos locales dañados. Se ha cargado una copia segura.'
     : 'No se pudo guardar en este navegador. Revisa la privacidad o el espacio disponible.'
 
+async function hashPassword(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 const makeInitials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || 'US'
 
 export function MockAppProvider({ children, context }: { children: ReactNode; context: Context<AppState | null> }) {
@@ -225,7 +234,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [threadScopes, setThreadScopes] = useState<UserScopedState<LocalMessageThread[]>>(readScopedLocalThreads)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
-  const [users, setUsers] = useState<DemoUser[]>(initialUserLoad)
+  const [users, setUsers] = useState<MockUser[]>(initialUserLoad)
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => readSession(initialUserLoad))
   const [storageError, setStorageError] = useState<string | null>(() => listingLoad.failure ? storageMessage(listingLoad.failure) : null)
   const orphanCleanupStarted = useRef(false)
@@ -388,7 +397,8 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
 
   const login = useCallback(async (email: string, password: string) => {
     const normalizedEmail = email.trim().toLowerCase()
-    const user = users.find((item) => item.email.toLowerCase() === normalizedEmail && item.password === password)
+    const passwordHash = await hashPassword(password)
+    const user = users.find((item) => item.email.toLowerCase() === normalizedEmail && item.passwordHash === passwordHash)
     if (!user) return 'Email o contraseña incorrectos.'
     if (user.blocked) return 'Esta cuenta está bloqueada.'
     setCurrentUserId(user.id)
@@ -400,11 +410,13 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const register = useCallback(async (input: RegisterInput) => {
     const normalizedEmail = input.email.trim().toLowerCase()
     if (users.some((user) => user.email.toLowerCase() === normalizedEmail)) return 'Ya existe una cuenta con este email.'
-    const user: DemoUser = {
+    const passwordHash = await hashPassword(input.password)
+    const user: MockUser = {
       id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: input.name.trim(),
       email: normalizedEmail,
-      password: input.password,
+      password: '',
+      passwordHash,
       role: input.role,
       phone: '',
       whatsapp: '',
