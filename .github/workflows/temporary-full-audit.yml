@@ -36,13 +36,11 @@ jobs:
           text = path.read_text()
           original = text
 
-          replacements = [
+          exact = [
               (
                   "type UserScopedState<T> = Record<string, T>\n\nconst initialUsers: DemoUser[] = [",
                   "type UserScopedState<T> = Record<string, T>\ntype MockUser = DemoUser & { passwordHash: string }\n\nconst initialUsers: MockUser[] = [",
               ),
-              ("    password: 'demo112233',", "    password: '',\n    passwordHash: '9f43cf3b2ee389bd63013060127a8243c50580f829de40f817aeba77b531eed6',"),
-              ("    password: 'admin112233',", "    password: '',\n    passwordHash: 'aa5ff7ddeca7848ed7eb16270306d14ba2f7b65171ca0e700ec2e2adda115b83',"),
               (
                   "const isDemoUser = (value: unknown): value is DemoUser => {\n  if (!value || typeof value !== 'object') return false\n  const user = value as Partial<DemoUser>\n  return typeof user.id === 'string' && typeof user.name === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && ['tenant', 'host', 'admin'].includes(user.role ?? '')\n}\n\nconst isDemoUserArray = (value: unknown): value is DemoUser[] => Array.isArray(value) && value.every(isDemoUser)",
                   "const isMockUser = (value: unknown): value is MockUser => {\n  if (!value || typeof value !== 'object') return false\n  const user = value as Partial<MockUser>\n  return typeof user.id === 'string' && typeof user.name === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && typeof user.passwordHash === 'string' && ['tenant', 'host', 'admin'].includes(user.role ?? '')\n}\n\nconst isMockUserArray = (value: unknown): value is MockUser[] => Array.isArray(value) && value.every(isMockUser)",
@@ -67,14 +65,21 @@ jobs:
               ("      password: input.password,", "      password: '',\n      passwordHash,"),
           ]
 
-          for old, new in replacements:
+          for old, new in exact:
               if new in text:
                   continue
               if old not in text:
                   raise SystemExit(f'anchor not found: {old[:100]}')
               text = text.replace(old, new, 1)
 
-          if "demo112233" in text:
+          demo_old = "    password: 'demo112233',"
+          demo_new = "    password: '',\n    passwordHash: '9f43cf3b2ee389bd63013060127a8243c50580f829de40f817aeba77b531eed6',"
+          text = text.replace(demo_old, demo_new)
+          admin_old = "    password: 'admin112233',"
+          admin_new = "    password: '',\n    passwordHash: 'aa5ff7ddeca7848ed7eb16270306d14ba2f7b65171ca0e700ec2e2adda115b83',"
+          text = text.replace(admin_old, admin_new)
+
+          if 'demo112233' in text or 'admin112233' in text:
               raise SystemExit('raw demo password remains in mock provider')
           if text != original:
               path.write_text(text)
