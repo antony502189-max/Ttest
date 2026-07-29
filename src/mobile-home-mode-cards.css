@@ -93,10 +93,11 @@
     letter-spacing: .005em;
     line-height: 1;
     white-space: nowrap;
+    text-shadow: .12px 0 currentColor, -.12px 0 currentColor;
   }
 
   .m2-mode-switch > button > span:last-child::after {
-    color: #555;
+    color: #4f4f4f;
     font-size: clamp(.5rem, 2.6vw, .66rem);
     font-weight: 400;
     letter-spacing: .08em;
