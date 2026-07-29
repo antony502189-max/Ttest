@@ -51,9 +51,7 @@ const owners = [
 ] as const
 
 const legacyIds = ['armeñime-luminosa-01', 'cristianos-mar-02', 'medano-teletrabajo-03', 'laguna-estudiantes-04', 'santa-cruz-centro-05', 'americas-estudio-06', 'costa-adeje-terraza-07', 'san-isidro-economica-08']
-
 const legacyPlaceIndices = [1, 3, 5, 7, 6, 2, 0, 4]
-
 const rotatePhotos = (index: number) => Array.from({ length: 6 }, (_, offset) => photos[(index + offset * 2) % photos.length])
 
 const tenantLabels: Record<Listing['tenantRequirement'], string> = {
@@ -63,6 +61,14 @@ const tenantLabels: Record<Listing['tenantRequirement'], string> = {
   couple: 'Solo pareja',
   any: 'Sin restricción',
 }
+
+const tenantRequirementCycle: Listing['tenantRequirement'][] = [
+  'single-woman',
+  'single-man',
+  'single-person',
+  'couple',
+  'any',
+]
 
 const buildRestrictions = (index: number, mode: Listing['rentalMode'], tenantRequirement: Listing['tenantRequirement']) => {
   const restrictions = [tenantLabels[tenantRequirement]]
@@ -82,7 +88,7 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
   const rentalMode: Listing['rentalMode'] = index % 5 === 2 || index % 7 === 5 ? 'holiday' : 'long'
   const minimumStayMonths = rentalMode === 'holiday' ? 0 : [1, 2, 3, 6][index % 4]
   const price = rentalMode === 'holiday' ? 44 + (index % 8) * 7 : 350 + (index % 10) * 45
-  const tenantRequirement: Listing['tenantRequirement'] = index % 5 === 0 ? 'single-woman' : index % 7 === 0 ? 'single-man' : index % 3 === 0 ? 'couple' : 'any'
+  const tenantRequirement = tenantRequirementCycle[index % tenantRequirementCycle.length]
   const roomCapacity: Listing['roomCapacity'] = tenantRequirement === 'couple' || (tenantRequirement === 'any' && index % 4 === 1) ? 2 : 1
   const bedroomCount = index % 9 === 5 ? 1 : 1 + (index % 12)
   const publishedDate = new Date(Date.UTC(2026, 6, 20 - (index % 31), 12 - (index % 8)))
@@ -159,6 +165,7 @@ export const defaultFilters: Filters = {
   minStay: 'Cualquiera',
   conditions: [],
   tenantRequirement: 'Cualquiera',
+  tenantRequirements: [],
   bathroom: 'Cualquiera',
   kitchen: 'Cualquiera',
   furnished: false,
