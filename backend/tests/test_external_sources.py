@@ -148,6 +148,26 @@ def test_embedded_public_json_fallback_parses_listing_state():
     assert parsed["email"] == "owner@example.test"
 
 
+def test_structured_items_are_merged_for_public_address_coordinates_and_all_photos():
+    document = """
+    <script type="application/ld+json">
+      [{"@type":"Product","image":"https://images.example.test/cover.jpg"},
+       {"@type":"Residence","address":{"addressLocality":"Arona","addressRegion":"Santa Cruz de Tenerife","streetAddress":"Calle Venus"},
+        "geo":{"latitude":"28.014793","longitude":"-16.653652"},
+        "photo":[{"contentUrl":"https://images.example.test/cover.jpg"},{"contentUrl":"https://images.example.test/second.jpg"}]}]
+    </script>
+    <meta property="og:title" content="Habitación individual en alquiler">
+    <meta property="og:description" content="Se alquila habitación en piso compartido">
+    <body>450€ al mes · Arona</body>
+    """
+    parsed = PisoCompartidoSource().parse_listing(document, "https://www.pisocompartido.com/habitacion/1008162/")
+    assert parsed["city"] == "Arona"
+    assert parsed["latitude"] == "28.014793"
+    assert parsed["longitude"] == "-16.653652"
+    assert parsed["images"] == ["https://images.example.test/cover.jpg", "https://images.example.test/second.jpg"]
+    assert parsed["price_text"] == "450€ al mes"
+
+
 @pytest.mark.parametrize(
     ("source", "fixture", "url"),
     [

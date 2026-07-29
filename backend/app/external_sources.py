@@ -312,7 +312,11 @@ class NormalizedListing:
                     self.description,
                     self.source_price_text,
                     self.room_type,
+                    str(self.latitude or ""),
+                    str(self.longitude or ""),
+                    "|".join(self.photos),
                     self.phone or "",
+                    self.whatsapp or "",
                     self.email or "",
                 )
             ).encode()
@@ -414,10 +418,14 @@ class ExternalListingSource(ABC):
         try:
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.launch(headless=True)
-                context = await browser.new_context(
-                    user_agent=get_settings().external_import_user_agent,
-                    locale="es-ES",
-                )
+                settings = get_settings()
+                context_options: dict[str, Any] = {"locale": "es-ES"}
+                # An operator may provide a real browser UA.  Do not send the HTTP
+                # collector label as a browser UA: it is neither a normal Chromium
+                # value nor required for a public anonymous browser session.
+                if settings.external_import_user_agent.startswith("Mozilla/"):
+                    context_options["user_agent"] = settings.external_import_user_agent
+                context = await browser.new_context(**context_options)
                 page = await context.new_page()
                 response = await page.goto(
                     url,
@@ -501,18 +509,31 @@ class ExternalListingSource(ABC):
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         ld = json_ld(document)
         state = embedded_json(document)
+        structured_items = [item for item in ld + state if isinstance(item, dict)]
         item = next(
             (
                 x
-                for x in ld + state
+                for x in structured_items
                 if first_text(x, "name", "title", "headline") and first_text(x, "description", "body")
             ),
             {},
         )
         title_match = re.search(r"<title[^>]*>(.*?)</title>", document, re.IGNORECASE | re.DOTALL)
         body = clean(document)
-        images = item.get("image") or item.get("images") or item.get("photos") or []
-        images = [images] if isinstance(images, str) else images
+        images: list[str] = []
+        for structured in structured_items:
+            for key in ("image", "images", "photos", "photo"):
+                values = structured.get(key) or []
+                if not isinstance(values, list):
+                    values = [values]
+                for value in values:
+                    image_url = (
+                        value.get("contentUrl") or value.get("url") or value.get("image")
+                        if isinstance(value, dict)
+                        else value
+                    )
+                    if isinstance(image_url, str) and image_url.startswith("http") and image_url not in images:
+                        images.append(image_url)
         if not images and meta_content(document, "og:image"):
             images = [meta_content(document, "og:image")]
         price_match = re.search(
@@ -520,9 +541,19 @@ class ExternalListingSource(ABC):
             body,
             re.IGNORECASE,
         )
-        raw_geo = item.get("geo") or item.get("coordinates")
+        raw_geo = next(
+            (
+                structured.get("geo") or structured.get("coordinates")
+                for structured in structured_items
+                if isinstance(structured.get("geo") or structured.get("coordinates"), dict)
+            ),
+            item.get("geo") or item.get("coordinates"),
+        )
         geo: dict[str, Any] = raw_geo if isinstance(raw_geo, dict) else {}
-        raw_address = item.get("address")
+        raw_address = next(
+            (structured.get("address") for structured in structured_items if isinstance(structured.get("address"), dict)),
+            item.get("address"),
+        )
         address: dict[str, Any] = raw_address if isinstance(raw_address, dict) else {}
         latitude = geo.get("latitude") or geo.get("lat") or item.get("latitude") or item.get("lat")
         longitude = geo.get("longitude") or geo.get("lng") or item.get("longitude") or item.get("lng")
@@ -551,9 +582,21 @@ class ExternalListingSource(ABC):
             "province": clean(address.get("addressRegion")),
             "address": clean(address.get("streetAddress")),
             "postcode": clean(address.get("postalCode")),
-            "phone": first_text(item, "telephone", "phone", "contactPhone") or (PHONE.findall(body) or [None])[0],
-            "whatsapp": first_text(item, "whatsapp", "contactWhatsapp", "whatsApp") or None,
-            "email": first_text(item, "email", "contactEmail") or (EMAIL.findall(body) or [None])[0],
+            "phone": next(
+                (first_text(structured, "telephone", "phone", "contactPhone") for structured in structured_items
+                 if first_text(structured, "telephone", "phone", "contactPhone")),
+                (PHONE.findall(body) or [None])[0],
+            ),
+            "whatsapp": next(
+                (first_text(structured, "whatsapp", "contactWhatsapp", "whatsApp") for structured in structured_items
+                 if first_text(structured, "whatsapp", "contactWhatsapp", "whatsApp")),
+                None,
+            ),
+            "email": next(
+                (first_text(structured, "email", "contactEmail") for structured in structured_items
+                 if first_text(structured, "email", "contactEmail")),
+                (EMAIL.findall(body) or [None])[0],
+            ),
             "latitude": latitude,
             "longitude": longitude,
             "raw": {"jsonLd": ld, "embeddedJson": state, "html": document[:200000]},

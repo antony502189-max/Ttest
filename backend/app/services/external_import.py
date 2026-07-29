@@ -164,8 +164,8 @@ async def public_image_hashes(urls: list[str]) -> set[str]:
                 content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
                 if response.status_code != 200 or not content_type.startswith("image/"):
                     continue
-                normalized, _, _ = validate_and_normalize(response.content)
-                result.add(perceptual_hash(normalized))
+                normalized, _, _ = await asyncio.to_thread(validate_and_normalize, response.content)
+                result.add(await asyncio.to_thread(perceptual_hash, normalized))
             except (HTTPException, OSError, ValueError, httpx.HTTPError):
                 continue
     return result
@@ -195,7 +195,9 @@ async def import_images(session: AsyncSession, listing: Listing, owner: User, ur
                     or len(response.content) > get_settings().max_upload_bytes
                 ):
                     continue
-                normalized, width, height = validate_and_normalize(response.content)
+                # Decoding and WebP encoding can be CPU-heavy for source photographs.
+                # Keep the importer event loop responsive while retaining the shared media validation path.
+                normalized, width, height = await asyncio.to_thread(validate_and_normalize, response.content)
                 checksum = hashlib.sha256(normalized).hexdigest()
                 asset = await session.scalar(
                     select(MediaAsset).where(MediaAsset.checksum == checksum, MediaAsset.deleted_at.is_(None))
@@ -209,7 +211,7 @@ async def import_images(session: AsyncSession, listing: Listing, owner: User, ur
                         width=width,
                         height=height,
                         checksum=checksum,
-                        perceptual_hash=perceptual_hash(normalized),
+                        perceptual_hash=await asyncio.to_thread(perceptual_hash, normalized),
                         kind="listing_image",
                     )
                     await asyncio.to_thread(get_storage().put, asset.storage_key, normalized)
