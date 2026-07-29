@@ -2,11 +2,11 @@ import type { Listing, TenantRequirement } from '@/types'
 import { TENERIFE_CENTER } from '@/lib/tenerife'
 
 export const tenantRequirementLabels: Record<TenantRequirement, string> = {
-  'single-man': 'Solo un hombre',
-  'single-woman': 'Solo una mujer',
-  'single-person': 'Una persona',
-  couple: 'Solo pareja',
-  any: 'Sin restricción',
+  'single-man': 'Solo hombre',
+  'single-woman': 'Solo mujer',
+  'single-person': '1 persona',
+  couple: '2 personas (pareja/amigos)',
+  any: 'Sin restricciones',
 }
 
 export function getPrimaryPrice(listing: Listing) {
@@ -48,7 +48,7 @@ export function getImageCriticalRestrictions(listing: Listing): string[] {
   if (!listing.petsAllowed) conditions.push('Sin mascotas')
   if (!listing.childrenAllowed) conditions.push('Sin niños')
   if (!listing.smokingAllowed) conditions.push('No fumar')
-  if (!conditions.length && listing.roomCapacity === 1) conditions.push('Solo una persona')
+  if (!conditions.length && listing.roomCapacity === 1) conditions.push('1 persona')
   return [...new Set(conditions)].slice(0, 2)
 }
 
