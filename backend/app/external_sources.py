@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import html
 import json
+import logging
 import re
 from abc import ABC
 from dataclasses import dataclass, field
@@ -15,6 +16,8 @@ from urllib.parse import urljoin, urlparse
 import httpx
 
 from .core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 SPACE = re.compile(r"\s+")
 TAG = re.compile(r"<[^>]+>")
@@ -165,10 +168,20 @@ def is_rental(data: dict[str, Any]) -> bool:
             str(data.get(key, "")) for key in ("title", "description", "category", "breadcrumbs", "url", "price_text")
         )
     ).casefold()
-    return ("alquiler" in corpus or "rent" in corpus) and "venta" not in corpus and "comprar" not in corpus
+    return (
+        any(term in corpus for term in ("alquiler", "se alquila", "alquilo", "arrendamiento", "rent"))
+        and "venta" not in corpus
+        and "comprar" not in corpus
+    )
 
 
 def is_in_target_province(data: dict[str, Any]) -> bool:
+    try:
+        latitude, longitude = float(str(data.get("latitude"))), float(str(data.get("longitude")))
+        if coordinates_in_target_province(latitude, longitude):
+            return True
+    except (TypeError, ValueError):
+        pass
     corpus = clean(
         " ".join(
             str(data.get(key, "")) for key in ("province", "city", "municipality", "address", "breadcrumbs", "postcode")
@@ -311,6 +324,9 @@ class ExternalListingSource(ABC):
     discovery_urls: tuple[str, ...]
     domain: str
     url_tokens: tuple[str, ...]
+    listing_url_pattern: re.Pattern[str]
+    discovery_selectors: tuple[str, ...] = ()
+    max_discovery_pages = 30
 
     def __init__(self) -> None:
         settings = get_settings()
@@ -320,18 +336,51 @@ class ExternalListingSource(ABC):
             follow_redirects=True,
         )
         self.not_found_urls: set[str] = set()
+        self.discovery_diagnostics: dict[str, dict[str, Any]] = {}
 
     async def close(self) -> None:
         await self.client.aclose()
+
+    def _record_page(
+        self, url: str, document: str | None, *, status: int | None, final_url: str | None, method: str = "GET"
+    ) -> None:
+        links = LINK.findall(document or "")
+        title_match = re.search(r"<title[^>]*>(.*?)</title>", document or "", re.IGNORECASE | re.DOTALL)
+        self.discovery_diagnostics[url] = {
+            "method": method,
+            "url": url,
+            "status": status,
+            "final_url": final_url or url,
+            "title": clean(title_match.group(1)) if title_match else "",
+            "body_preview": clean(document or "")[:3000],
+            "anchor_count": len(links),
+            "hrefs": [html.unescape(link) for link in links[:50]],
+            "selectors": list(self.discovery_selectors),
+        }
+
+    def _save_discovery_artifacts(self, url: str, document: str | None, screenshot: bytes | None = None) -> None:
+        """Persist anonymous error evidence outside the database for operator inspection."""
+        digest = hashlib.sha256(url.encode()).hexdigest()[:16]
+        directory = get_settings().media_root / "external-import-errors" / self.name.casefold()
+        directory.mkdir(parents=True, exist_ok=True)
+        if document is not None:
+            (directory / f"{digest}.html").write_text(document, encoding="utf-8")
+        if screenshot is not None:
+            (directory / f"{digest}.png").write_bytes(screenshot)
 
     async def request(self, url: str) -> str | None:
         for attempt in range(3):
             try:
                 response = await self.client.get(url)
+                self._record_page(url, response.text, status=response.status_code, final_url=str(response.url))
+                logger.info(
+                    "external_source_http", extra={"source": self.name, "method": "GET", "url": url,
+                                                   "status": response.status_code, "final_url": str(response.url)}
+                )
                 if response.status_code == 404:
                     self.not_found_urls.add(url)
                     return None
-                if response.status_code in {403, 429} or response.status_code >= 500:
+                if response.status_code in {403, 405, 429} or response.status_code >= 500:
                     if response.status_code in {403, 405} and get_settings().external_import_playwright_enabled:
                         rendered = await self.render_public_page(url)
                         if rendered:
@@ -342,7 +391,13 @@ class ExternalListingSource(ABC):
                     continue
                 response.raise_for_status()
                 return response.text
-            except httpx.HTTPError:
+            except httpx.HTTPError as exc:
+                logger.info("external_source_http_error", extra={"source": self.name, "method": "GET", "url": url,
+                                                                   "error": type(exc).__name__})
+                if get_settings().external_import_playwright_enabled:
+                    rendered = await self.render_public_page(url)
+                    if rendered:
+                        return rendered
                 if attempt == 2:
                     raise
                 await asyncio.sleep(2**attempt)
@@ -366,18 +421,48 @@ class ExternalListingSource(ABC):
                     wait_until="domcontentloaded",
                     timeout=get_settings().external_import_request_timeout_seconds * 1000,
                 )
-                document = await page.content() if response and response.status < 400 else None
+                # Pages are allowed to hydrate after DOMContentLoaded, but a hung network must not hold a run.
+                await page.wait_for_timeout(750)
+                document: str | None = await page.content()
+                status = response.status if response else None
+                final_url = page.url
+                self._record_page(url, document, status=status, final_url=final_url, method="BROWSER_GET")
+                logger.info("external_source_browser", extra={"source": self.name, "method": "BROWSER_GET", "url": url,
+                                                               "status": status, "final_url": final_url})
+                if status is not None and status >= 400:
+                    self._save_discovery_artifacts(url, document, await page.screenshot(full_page=True))
+                    document = None
                 await context.close()
                 await browser.close()
                 return document
         except (OSError, PlaywrightError, PlaywrightTimeoutError):
+            diagnostic = self.discovery_diagnostics.get(url, {})
+            self._save_discovery_artifacts(url, diagnostic.get("html"))
             return None
+
+    def is_listing_url(self, url: str) -> bool:
+        parsed = urlparse(url)
+        return (
+            parsed.netloc.endswith(self.domain)
+            and url.rstrip("/") not in {discovery.rstrip("/") for discovery in self.discovery_urls}
+            and bool(self.listing_url_pattern.search(parsed.path))
+        )
+
+    def is_pagination_url(self, url: str) -> bool:
+        parsed = urlparse(url)
+        return parsed.netloc.endswith(self.domain) and bool(
+            re.search(
+                r"(?:[?&](?:pagina|page)=\d+|/pagina/\d+|/\d+/?$)",
+                f"{parsed.path}?{parsed.query}",
+                re.IGNORECASE,
+            )
+        )
 
     async def discover_listing_urls(self) -> list[str]:
         seen: set[str] = set()
         visited: set[str] = set()
         queue = list(self.discovery_urls)
-        while queue and len(visited) < 100:
+        while queue and len(visited) < self.max_discovery_pages:
             page = queue.pop(0)
             if page in visited:
                 continue
@@ -386,23 +471,24 @@ class ExternalListingSource(ABC):
             if not document:
                 continue
             static_links = LINK.findall(document)
-            has_listing_link = any(
-                urlparse(urljoin(page, html.unescape(href))).netloc.endswith(self.domain)
-                and any(token in urljoin(page, html.unescape(href)) for token in self.url_tokens)
-                for href in static_links
-            )
+            has_listing_link = any(self.is_listing_url(urljoin(page, html.unescape(href))) for href in static_links)
             if not has_listing_link and get_settings().external_import_playwright_enabled:
                 rendered = await self.render_public_page(page)
                 if rendered:
                     static_links = LINK.findall(rendered)
             for href in static_links:
                 url = urljoin(page, html.unescape(href).split("#", 1)[0])
-                if urlparse(url).netloc.endswith(self.domain) and any(token in url for token in self.url_tokens):
-                    seen.add(url)
-                elif urlparse(url).netloc.endswith(self.domain) and any(
-                    token in url for token in ("pagina=", "page=", "/pagina/")
-                ):
+                if self.is_listing_url(url):
+                    # Gallery/map variants on a card are the same public listing.
+                    seen.add(url.split("?", 1)[0])
+                elif self.is_pagination_url(url):
                     queue.append(url)
+            diagnostics = self.discovery_diagnostics.get(page, {})
+            if not has_listing_link and re.search(
+                r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE
+            ):
+                self._save_discovery_artifacts(page, document)
+                raise RuntimeError(f"discovery returned zero URLs despite visible results: {json.dumps(diagnostics)}")
         return list(seen)
 
     async def fetch_listing(self, url: str) -> str | None:
@@ -426,7 +512,9 @@ class ExternalListingSource(ABC):
         if not images and meta_content(document, "og:image"):
             images = [meta_content(document, "og:image")]
         price_match = re.search(
-            r"(?:Desde\s*)?[\d.]+(?:,\d+)?\s*€\s*(?:/\s*(?:mes|noche|semana))?", body, re.IGNORECASE
+            r"(?:Desde\s*)?[\d.]+(?:,\d+)?\s*\u20ac(?:\s*(?:/\s*|al\s+|por\s+)(?:mes|noche|semana)|\s*mensual)?",
+            body,
+            re.IGNORECASE,
         )
         raw_geo = item.get("geo") or item.get("coordinates")
         geo: dict[str, Any] = raw_geo if isinstance(raw_geo, dict) else {}
@@ -526,7 +614,7 @@ class ExternalListingSource(ABC):
             longitude,
             photos,
             data.get("phone"),
-            data.get("whatsapp") or data.get("phone"),
+            data.get("whatsapp"),
             data.get("email"),
             data.get("raw", data),
         )
@@ -536,30 +624,38 @@ class IdealistaSource(ExternalListingSource):
     name = "Idealista"
     domain = "idealista.com"
     url_tokens = ("/inmueble/",)
+    listing_url_pattern = re.compile(r"/inmueble/\d+/?$", re.IGNORECASE)
+    discovery_selectors = ('a[href*="/inmueble/"]',)
     discovery_urls = ("https://www.idealista.com/alquiler-habitacion/santa-cruz-de-tenerife-provincia/",)
 
 
 class FotocasaSource(ExternalListingSource):
     name = "Fotocasa"
     domain = "fotocasa.es"
-    url_tokens = ("/es/alquiler/", "/inmueble/")
+    url_tokens = ("/es/compartir/vivienda/",)
+    listing_url_pattern = re.compile(r"/es/compartir/vivienda/.+/\d+/d/?$", re.IGNORECASE)
+    discovery_selectors = ('a[href*="/es/compartir/vivienda/"][href$="/d"]', 'a[href*="/es/compartir/vivienda/"]')
     discovery_urls = (
-        "https://www.fotocasa.es/es/alquiler/habitaciones/santa-cruz-de-tenerife-provincia/todas-las-zonas/l",
+        "https://www.fotocasa.es/es/compartir/viviendas/santa-cruz-de-tenerife-provincia/todas-las-zonas/1-habitacion/l",
     )
 
 
 class MilanunciosSource(ExternalListingSource):
     name = "Milanuncios"
     domain = "milanuncios.com"
-    url_tokens = ("/habitaciones-en-alquiler/",)
-    discovery_urls = ("https://www.milanuncios.com/habitaciones-en-alquiler-en-santa-cruz-de-tenerife/",)
+    url_tokens = ("/pisos-compartidos-",)
+    listing_url_pattern = re.compile(r"/pisos-compartidos-[^?#]+\.htm$", re.IGNORECASE)
+    discovery_selectors = ('a[href*="/pisos-compartidos-"][href$=".htm"]',)
+    discovery_urls = ("https://www.milanuncios.com/pisos-compartidos-en-santa-cruz-de-tenerife-tenerife/habitacion.htm",)
 
 
 class PisoCompartidoSource(ExternalListingSource):
     name = "PisoCompartido"
     domain = "pisocompartido.com"
     url_tokens = ("/habitacion/", "/alquiler-habitacion/")
-    discovery_urls = ("https://www.pisocompartido.com/habitaciones-alquiler-santa-cruz-de-tenerife/",)
+    listing_url_pattern = re.compile(r"/habitacion/\d+/?$", re.IGNORECASE)
+    discovery_selectors = ('a[href^="/habitacion/"]', 'a[href*="pisocompartido.com/habitacion/"]')
+    discovery_urls = ("https://www.pisocompartido.com/habitaciones-santa_cruz_de_tenerife/",)
 
 
 def configured_sources() -> list[ExternalListingSource]:

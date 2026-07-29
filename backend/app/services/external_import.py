@@ -18,7 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..api.v1.uploads import validate_and_normalize
 from ..core.config import get_settings
 from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
-from ..external_sources import ExternalListingSource, NormalizedListing
+from ..external_sources import (
+    ExternalListingSource,
+    NormalizedListing,
+    is_in_target_province,
+    is_rental,
+    is_room_offer,
+)
 from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
 from ..repositories.listings import point
@@ -169,13 +175,17 @@ async def import_images(session: AsyncSession, listing: Listing, owner: User, ur
     """Persist public images where possible; keep source URLs as a safe fallback."""
     if not get_settings().external_import_download_images or not urls:
         return
-    attached = set(
-        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
-    )
+    existing_images = (
+        await session.execute(
+            select(ListingImage.media_asset_id, ListingImage.sort_order).where(ListingImage.listing_id == listing.id)
+        )
+    ).all()
+    attached = {media_asset_id for media_asset_id, _ in existing_images}
+    next_sort_order = max((sort_order for _, sort_order in existing_images), default=-1) + 1
     async with httpx.AsyncClient(
         timeout=get_settings().external_import_request_timeout_seconds, follow_redirects=True
     ) as client:
-        for order, url in enumerate(urls[:20]):
+        for url in urls[:20]:
             try:
                 response = await client.get(url, headers={"User-Agent": get_settings().external_import_user_agent})
                 content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
@@ -208,10 +218,14 @@ async def import_images(session: AsyncSession, listing: Listing, owner: User, ur
                 if asset.id not in attached:
                     session.add(
                         ListingImage(
-                            listing_id=listing.id, media_asset_id=asset.id, sort_order=order, is_cover=order == 0
+                            listing_id=listing.id,
+                            media_asset_id=asset.id,
+                            sort_order=next_sort_order,
+                            is_cover=next_sort_order == 0,
                         )
                     )
                     attached.add(asset.id)
+                    next_sort_order += 1
             except (HTTPException, OSError, ValueError, httpx.HTTPError):
                 logger.info("external_image_skipped", extra={"listing_id": str(listing.id), "url": url})
 
@@ -463,13 +477,19 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         key: 0
         for key in (
             "discovered",
+            "discovered_urls",
             "fetched",
+            "fetched_details",
             "imported",
+            "created",
             "updated",
             "unchanged",
             "restored",
             "filtered_not_room",
+            "rejected_not_room",
             "filtered_wrong_location",
+            "rejected_wrong_location",
+            "accepted_rooms",
             "archived",
             "failed",
         )
@@ -481,6 +501,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     try:
         urls = await source.discover_listing_urls()
         counters["discovered"] = len(urls)
+        counters["discovered_urls"] = len(urls)
         source.not_found_urls.clear()
         semaphore = asyncio.Semaphore(get_settings().external_import_max_concurrency_per_source)
 
@@ -494,11 +515,26 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                     counters["archived"] += await archive_confirmed_not_found(session, source.name, url)
                 continue
             counters["fetched"] += 1
-            item = source.normalize_listing(source.parse_listing(document, url), url)
+            counters["fetched_details"] += 1
+            parsed = source.parse_listing(document, url)
+            if not (is_room_offer(parsed) and is_rental(parsed)):
+                counters["filtered_not_room"] += 1
+                counters["rejected_not_room"] += 1
+                continue
+            if not is_in_target_province(parsed):
+                counters["filtered_wrong_location"] += 1
+                counters["rejected_wrong_location"] += 1
+                continue
+            item = source.normalize_listing(parsed, url)
             if not item:
                 counters["filtered_not_room"] += 1
+                counters["rejected_not_room"] += 1
                 continue
-            counters[await upsert(session, item)] += 1
+            counters["accepted_rooms"] += 1
+            outcome = await upsert(session, item)
+            counters[outcome] += 1
+            if outcome == "imported":
+                counters["created"] += 1
         counters["archived"] = await archive_missing(session, source.name, started_at)
         run.result = "success"
     except Exception as exc:
