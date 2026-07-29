@@ -14,14 +14,71 @@ const REMOVED_MENU_LABELS = [
   'About the app',
   'О приложении',
 ]
-const OCCUPANT_REQUIREMENT_BY_INDEX: Array<TenantRequirement | null> = [
-  null,
-  'single-man',
-  'single-woman',
-  'single-person',
-  'couple',
-  'any',
-]
+
+type OccupantKey = 'one' | 'two' | 'man' | 'woman' | 'children' | 'pets' | 'unrestricted'
+type OccupantLocale = 'es' | 'en' | 'ru'
+
+type OccupantCopy = {
+  title: string
+  done: string
+  prefix: string
+  options: Array<{ key: OccupantKey; emoji: string; label: string }>
+}
+
+const OCCUPANT_COPY: Record<OccupantLocale, OccupantCopy> = {
+  es: {
+    title: '¿Quién vivirá?',
+    done: 'Listo',
+    prefix: 'Para:',
+    options: [
+      { key: 'one', emoji: '👤', label: '1 persona' },
+      { key: 'two', emoji: '👥', label: '2 personas (pareja/amigos)' },
+      { key: 'man', emoji: '👱‍♂️', label: 'Solo hombre' },
+      { key: 'woman', emoji: '👱‍♀️', label: 'Solo mujer' },
+      { key: 'children', emoji: '👪', label: 'Con niños' },
+      { key: 'pets', emoji: '🐶', label: 'Con mascotas' },
+      { key: 'unrestricted', emoji: '🌍', label: 'Sin restricciones' },
+    ],
+  },
+  en: {
+    title: 'Who will live there?',
+    done: 'Done',
+    prefix: 'For:',
+    options: [
+      { key: 'one', emoji: '👤', label: '1 person' },
+      { key: 'two', emoji: '👥', label: '2 people (couple/friends)' },
+      { key: 'man', emoji: '👱‍♂️', label: 'Man only' },
+      { key: 'woman', emoji: '👱‍♀️', label: 'Woman only' },
+      { key: 'children', emoji: '👪', label: 'With children' },
+      { key: 'pets', emoji: '🐶', label: 'With pets' },
+      { key: 'unrestricted', emoji: '🌍', label: 'No restrictions' },
+    ],
+  },
+  ru: {
+    title: 'Кто будет жить?',
+    done: 'Готово',
+    prefix: 'Для кого:',
+    options: [
+      { key: 'one', emoji: '👤', label: '1 человек' },
+      { key: 'two', emoji: '👥', label: '2 человека (пара/друзья)' },
+      { key: 'man', emoji: '👱‍♂️', label: 'Только мужчина' },
+      { key: 'woman', emoji: '👱‍♀️', label: 'Только женщина' },
+      { key: 'children', emoji: '👪', label: 'Можно с ребёнком' },
+      { key: 'pets', emoji: '🐶', label: 'Можно с животными' },
+      { key: 'unrestricted', emoji: '🌍', label: 'Без ограничений' },
+    ],
+  },
+}
+
+const PRIMARY_REQUIREMENTS: Record<Exclude<OccupantKey, 'children' | 'pets' | 'unrestricted'>, {
+  tenantRequirement: TenantRequirement
+  roomCapacity: '1' | '2'
+}> = {
+  one: { tenantRequirement: 'single-person', roomCapacity: '1' },
+  two: { tenantRequirement: 'couple', roomCapacity: '2' },
+  man: { tenantRequirement: 'single-man', roomCapacity: '1' },
+  woman: { tenantRequirement: 'single-woman', roomCapacity: '1' },
+}
 
 function nativeSetInputValue(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
@@ -51,22 +108,174 @@ function normalizedPriceFilters(filters: Filters, previousMode: RentalMode, next
   return { ...filters, minPrice, maxPrice }
 }
 
-function occupantRows() {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-check-list > button'))
+function detectOccupantLocale(source?: Element | null): OccupantLocale {
+  const text = `${source?.textContent ?? ''} ${document.querySelector('.m2-occupant-trigger')?.textContent ?? ''}`
+  if (/кто|человек|мужчин|женщин|ребён|животн|огранич/i.test(text)) return 'ru'
+  if (/who|person|people|man|woman|children|pets|restrictions/i.test(text)) return 'en'
+  return 'es'
 }
 
-function selectedOccupantRequirements(rows: HTMLButtonElement[]) {
-  const selectedIndexes = rows
-    .map((row, index) => row.getAttribute('aria-checked') === 'true' ? index : -1)
-    .filter((index) => index >= 0)
-  if (!selectedIndexes.length || selectedIndexes.includes(0)) return []
-  return selectedIndexes
-    .map((index) => OCCUPANT_REQUIREMENT_BY_INDEX[index])
-    .filter((value): value is TenantRequirement => value !== null)
+function primaryKey(filters: Filters): Exclude<OccupantKey, 'children' | 'pets' | 'unrestricted'> | null {
+  const requirement = filters.tenantRequirement !== 'Cualquiera'
+    ? filters.tenantRequirement
+    : filters.tenantRequirements[0]
+  if (requirement === 'single-person') return 'one'
+  if (requirement === 'couple') return 'two'
+  if (requirement === 'single-man') return 'man'
+  if (requirement === 'single-woman') return 'woman'
+  if (filters.roomCapacity === '1') return 'one'
+  if (filters.roomCapacity === '2') return 'two'
+  return null
 }
 
-function sameRequirements(left: TenantRequirement[], right: TenantRequirement[]) {
-  return [...left].sort().join('|') === [...right].sort().join('|')
+function selectedOccupantKeys(filters: Filters): OccupantKey[] {
+  const selected: OccupantKey[] = []
+  const primary = primaryKey(filters)
+  if (primary) selected.push(primary)
+  if (filters.children === 'Sí') selected.push('children')
+  if (filters.pets === 'Sí') selected.push('pets')
+  return selected.length ? selected : ['unrestricted']
+}
+
+function occupantFilters(filters: Filters, key: OccupantKey): Filters {
+  if (key === 'unrestricted') {
+    return {
+      ...filters,
+      tenantRequirement: 'Cualquiera',
+      tenantRequirements: [],
+      roomCapacity: 'Cualquiera',
+      children: 'Cualquiera',
+      pets: 'Cualquiera',
+    }
+  }
+
+  if (key === 'children') {
+    return { ...filters, children: filters.children === 'Sí' ? 'Cualquiera' : 'Sí' }
+  }
+
+  if (key === 'pets') {
+    return { ...filters, pets: filters.pets === 'Sí' ? 'Cualquiera' : 'Sí' }
+  }
+
+  const active = primaryKey(filters) === key
+  if (active) {
+    return {
+      ...filters,
+      tenantRequirement: 'Cualquiera',
+      tenantRequirements: [],
+      roomCapacity: 'Cualquiera',
+    }
+  }
+
+  const next = PRIMARY_REQUIREMENTS[key]
+  return {
+    ...filters,
+    tenantRequirement: next.tenantRequirement,
+    tenantRequirements: [],
+    roomCapacity: next.roomCapacity,
+  }
+}
+
+function sameOccupantFilters(left: Filters, right: Filters) {
+  return left.tenantRequirement === right.tenantRequirement
+    && left.tenantRequirements.join('|') === right.tenantRequirements.join('|')
+    && left.roomCapacity === right.roomCapacity
+    && left.children === right.children
+    && left.pets === right.pets
+}
+
+function normalizedLegacyOccupants(filters: Filters): Filters {
+  if (!filters.tenantRequirements.length && filters.tenantRequirement !== 'any') return filters
+  const legacy = filters.tenantRequirement !== 'Cualquiera'
+    ? filters.tenantRequirement
+    : filters.tenantRequirements.find((value) => value !== 'any') ?? 'any'
+  if (legacy === 'any') {
+    return {
+      ...filters,
+      tenantRequirement: 'Cualquiera',
+      tenantRequirements: [],
+      roomCapacity: 'Cualquiera',
+    }
+  }
+  const nextPrimary = legacy === 'couple' ? 'two' : legacy === 'single-man' ? 'man' : legacy === 'single-woman' ? 'woman' : 'one'
+  const next = PRIMARY_REQUIREMENTS[nextPrimary]
+  return {
+    ...filters,
+    tenantRequirement: next.tenantRequirement,
+    tenantRequirements: [],
+    roomCapacity: next.roomCapacity,
+  }
+}
+
+function occupantSheetSource() {
+  return Array.from(document.querySelectorAll<HTMLElement>('.m2-sheet')).find((sheet) => {
+    const title = sheet.querySelector('header strong')?.textContent ?? ''
+    return /¿quién vivirá|who will live|кто будет жить/i.test(title)
+  })
+}
+
+function updatePublishRequirementLabels() {
+  const labels: Record<string, string> = {
+    'single-man': 'Solo hombre',
+    'single-woman': 'Solo mujer',
+    'single-person': '1 persona',
+    couple: '2 personas (pareja/amigos)',
+    any: 'Sin restricciones',
+  }
+  document.querySelectorAll<HTMLOptionElement>('#publish-tenant-requirement option').forEach((option) => {
+    const label = labels[option.value]
+    if (label && option.textContent !== label) option.textContent = label
+  })
+}
+
+function renderOccupantPanel(filters: Filters) {
+  const source = occupantSheetSource()
+  document.querySelectorAll('.m2-sheet--occupant-source').forEach((element) => {
+    if (element !== source) element.classList.remove('m2-sheet--occupant-source')
+  })
+
+  const existing = document.querySelector<HTMLElement>('.m2-custom-occupant-sheet')
+  if (!source) {
+    existing?.remove()
+    document.querySelector('.m2-occupant-trigger')?.removeAttribute('data-occupant-summary')
+    return
+  }
+
+  source.classList.add('m2-sheet--occupant-source')
+  const locale = detectOccupantLocale(source)
+  const copy = OCCUPANT_COPY[locale]
+  const selected = new Set(selectedOccupantKeys(filters))
+  const panel = existing ?? document.createElement('section')
+  panel.className = 'm2-custom-occupant-sheet'
+  panel.setAttribute('role', 'dialog')
+  panel.setAttribute('aria-modal', 'true')
+  panel.setAttribute('aria-label', copy.title)
+  panel.innerHTML = `
+    <header>
+      <strong>${copy.title}</strong>
+      <button type="button" data-m2-occupant-close aria-label="${locale === 'ru' ? 'Закрыть' : locale === 'en' ? 'Close' : 'Cerrar'}">×</button>
+    </header>
+    <div class="m2-custom-occupant-list" role="group" aria-label="${copy.title}">
+      ${copy.options.map((option) => {
+        const checked = selected.has(option.key)
+        return `<button type="button" role="checkbox" aria-checked="${checked}" data-m2-occupant-key="${option.key}" class="${checked ? 'is-selected' : ''}">
+          <span><b aria-hidden="true">${option.emoji}</b>${option.label}</span>
+          <i aria-hidden="true">${checked ? '✓' : ''}</i>
+        </button>`
+      }).join('')}
+    </div>
+    <button type="button" class="m2-custom-occupant-done" data-m2-occupant-close>${copy.done}</button>
+  `
+  if (!existing) document.body.appendChild(panel)
+
+  const selectedLabels = copy.options
+    .filter((option) => selected.has(option.key) && option.key !== 'unrestricted')
+    .map((option) => option.label)
+  const summary = selectedLabels.length
+    ? `${copy.prefix} ${selectedLabels.join(', ')}`
+    : `${copy.prefix} ${copy.options.find((option) => option.key === 'unrestricted')?.label ?? ''}`
+  const trigger = document.querySelector<HTMLElement>('.m2-occupant-trigger')
+  trigger?.setAttribute('data-occupant-summary', summary)
 }
 
 export function CustomerFeedbackFixes() {
@@ -75,7 +284,6 @@ export function CustomerFeedbackFixes() {
   const navigate = useNavigate()
   const previousMode = useRef(rentalMode)
   const rentalModeRestored = useRef(false)
-  const syncingOccupants = useRef(false)
 
   useLayoutEffect(() => {
     if (location.pathname === '/contacto') {
@@ -130,60 +338,61 @@ export function CustomerFeedbackFixes() {
   }, [])
 
   useLayoutEffect(() => {
-    const currentRequirements = filters.tenantRequirement !== 'Cualquiera'
-      ? [filters.tenantRequirement]
-      : filters.tenantRequirements
-
-    const commitSelection = () => {
-      const rows = occupantRows()
-      if (!rows.length) return
-      const requirements = selectedOccupantRequirements(rows)
-      const nextFilters: Filters = requirements.length === 1
-        ? { ...filters, tenantRequirement: requirements[0], tenantRequirements: [] }
-        : { ...filters, tenantRequirement: 'Cualquiera', tenantRequirements: requirements }
-      if (sameRequirements(currentRequirements, requirements)) return
-      setFilters(nextFilters)
-      if (location.pathname !== '/buscar') return
-      const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
-      params.delete('pagina')
-      const search = params.toString()
-      navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true })
+    const normalized = normalizedLegacyOccupants(filters)
+    if (!sameOccupantFilters(filters, normalized)) {
+      setFilters(normalized)
+      return
     }
 
-    const restoreSelection = () => {
-      const rows = occupantRows()
-      if (!rows.length || syncingOccupants.current) return
-      const desiredIndexes = currentRequirements.length
-        ? currentRequirements.map((requirement) => OCCUPANT_REQUIREMENT_BY_INDEX.indexOf(requirement)).filter((index) => index > 0)
-        : [0]
-      const selectedIndexes = rows
-        .map((row, index) => row.getAttribute('aria-checked') === 'true' ? index : -1)
-        .filter((index) => index >= 0)
-      if (selectedIndexes.join('|') === desiredIndexes.join('|')) return
-      syncingOccupants.current = true
-      rows[0]?.click()
-      if (desiredIndexes[0] !== 0) desiredIndexes.forEach((index) => rows[index]?.click())
-      window.requestAnimationFrame(() => { syncingOccupants.current = false })
-    }
-
-    const handleOccupantClick = (event: MouseEvent) => {
-      if (syncingOccupants.current) return
-      const target = event.target
-      if (!(target instanceof Element) || !target.closest('.m2-check-list > button')) return
-      syncingOccupants.current = true
-      window.requestAnimationFrame(() => {
-        commitSelection()
-        window.requestAnimationFrame(() => { syncingOccupants.current = false })
+    let frame = 0
+    const synchronize = () => {
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        renderOccupantPanel(filters)
+        updatePublishRequirementLabels()
       })
     }
-
-    document.addEventListener('click', handleOccupantClick, true)
-    const observer = new MutationObserver(restoreSelection)
+    const observer = new MutationObserver(synchronize)
     observer.observe(document.body, { childList: true, subtree: true })
-    restoreSelection()
+    synchronize()
+
+    const closeSource = () => {
+      const source = occupantSheetSource()
+      source?.querySelector<HTMLButtonElement>('header button')?.click()
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-m2-occupant-close]')) {
+        event.preventDefault()
+        event.stopPropagation()
+        closeSource()
+        return
+      }
+      const button = target.closest<HTMLButtonElement>('[data-m2-occupant-key]')
+      if (!button) return
+      const key = button.dataset.m2OccupantKey as OccupantKey | undefined
+      if (!key) return
+      event.preventDefault()
+      event.stopPropagation()
+      const nextFilters = occupantFilters(filters, key)
+      setFilters(nextFilters)
+      if (location.pathname === '/buscar') {
+        const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
+        params.delete('pagina')
+        const search = params.toString()
+        navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true })
+      }
+    }
+
+    document.addEventListener('click', handleClick, true)
     return () => {
-      document.removeEventListener('click', handleOccupantClick, true)
+      window.cancelAnimationFrame(frame)
       observer.disconnect()
+      document.removeEventListener('click', handleClick, true)
+      document.querySelector('.m2-custom-occupant-sheet')?.remove()
+      document.querySelectorAll('.m2-sheet--occupant-source').forEach((element) => element.classList.remove('m2-sheet--occupant-source'))
     }
   }, [filters, location.pathname, location.search, navigate, setFilters])
 
