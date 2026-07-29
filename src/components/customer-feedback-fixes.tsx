@@ -235,9 +235,12 @@ function renderOccupantPanel(filters: Filters) {
   })
 
   const existing = document.querySelector<HTMLElement>('.m2-custom-occupant-sheet')
+  const trigger = document.querySelector<HTMLElement>('.m2-occupant-trigger')
+  const triggerSummary = trigger?.querySelector<HTMLElement>('strong')
   if (!source) {
     existing?.remove()
-    document.querySelector('.m2-occupant-trigger')?.removeAttribute('data-occupant-summary')
+    trigger?.removeAttribute('data-occupant-summary')
+    triggerSummary?.removeAttribute('data-occupant-summary')
     return
   }
 
@@ -245,27 +248,31 @@ function renderOccupantPanel(filters: Filters) {
   const locale = detectOccupantLocale(source)
   const copy = OCCUPANT_COPY[locale]
   const selected = new Set(selectedOccupantKeys(filters))
+  const signature = `${locale}:${copy.options.filter((option) => selected.has(option.key)).map((option) => option.key).join('|')}`
   const panel = existing ?? document.createElement('section')
   panel.className = 'm2-custom-occupant-sheet'
   panel.setAttribute('role', 'dialog')
   panel.setAttribute('aria-modal', 'true')
   panel.setAttribute('aria-label', copy.title)
-  panel.innerHTML = `
-    <header>
-      <strong>${copy.title}</strong>
-      <button type="button" data-m2-occupant-close aria-label="${locale === 'ru' ? 'Закрыть' : locale === 'en' ? 'Close' : 'Cerrar'}">×</button>
-    </header>
-    <div class="m2-custom-occupant-list" role="group" aria-label="${copy.title}">
-      ${copy.options.map((option) => {
-        const checked = selected.has(option.key)
-        return `<button type="button" role="checkbox" aria-checked="${checked}" data-m2-occupant-key="${option.key}" class="${checked ? 'is-selected' : ''}">
-          <span><b aria-hidden="true">${option.emoji}</b>${option.label}</span>
-          <i aria-hidden="true">${checked ? '✓' : ''}</i>
-        </button>`
-      }).join('')}
-    </div>
-    <button type="button" class="m2-custom-occupant-done" data-m2-occupant-close>${copy.done}</button>
-  `
+  if (panel.dataset.occupantSignature !== signature) {
+    panel.dataset.occupantSignature = signature
+    panel.innerHTML = `
+      <header>
+        <strong>${copy.title}</strong>
+        <button type="button" data-m2-occupant-close aria-label="${locale === 'ru' ? 'Закрыть' : locale === 'en' ? 'Close' : 'Cerrar'}">×</button>
+      </header>
+      <div class="m2-custom-occupant-list" role="group" aria-label="${copy.title}">
+        ${copy.options.map((option) => {
+          const checked = selected.has(option.key)
+          return `<button type="button" role="checkbox" aria-checked="${checked}" data-m2-occupant-key="${option.key}" class="${checked ? 'is-selected' : ''}">
+            <span><b aria-hidden="true">${option.emoji}</b>${option.label}</span>
+            <i aria-hidden="true">${checked ? '✓' : ''}</i>
+          </button>`
+        }).join('')}
+      </div>
+      <button type="button" class="m2-custom-occupant-done" data-m2-occupant-close>${copy.done}</button>
+    `
+  }
   if (!existing) document.body.appendChild(panel)
 
   const selectedLabels = copy.options
@@ -274,8 +281,8 @@ function renderOccupantPanel(filters: Filters) {
   const summary = selectedLabels.length
     ? `${copy.prefix} ${selectedLabels.join(', ')}`
     : `${copy.prefix} ${copy.options.find((option) => option.key === 'unrestricted')?.label ?? ''}`
-  const trigger = document.querySelector<HTMLElement>('.m2-occupant-trigger')
   trigger?.setAttribute('data-occupant-summary', summary)
+  triggerSummary?.setAttribute('data-occupant-summary', summary)
 }
 
 export function CustomerFeedbackFixes() {
