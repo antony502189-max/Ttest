@@ -414,7 +414,10 @@ class ExternalListingSource(ABC):
         try:
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.launch(headless=True)
-                context = await browser.new_context(user_agent=get_settings().external_import_user_agent)
+                context = await browser.new_context(
+                    user_agent=get_settings().external_import_user_agent,
+                    locale="es-ES",
+                )
                 page = await context.new_page()
                 response = await page.goto(
                     url,
@@ -450,10 +453,11 @@ class ExternalListingSource(ABC):
 
     def is_pagination_url(self, url: str) -> bool:
         parsed = urlparse(url)
+        location = parsed.path + (f"?{parsed.query}" if parsed.query else "")
         return parsed.netloc.endswith(self.domain) and bool(
             re.search(
                 r"(?:[?&](?:pagina|page)=\d+|/pagina/\d+|/\d+/?$)",
-                f"{parsed.path}?{parsed.query}",
+                location,
                 re.IGNORECASE,
             )
         )
@@ -638,6 +642,10 @@ class FotocasaSource(ExternalListingSource):
     discovery_urls = (
         "https://www.fotocasa.es/es/compartir/viviendas/santa-cruz-de-tenerife-provincia/todas-las-zonas/1-habitacion/l",
     )
+
+    def is_pagination_url(self, url: str) -> bool:
+        """Stay in the selected Spanish result set rather than crawling locale switcher links."""
+        return urlparse(url).path.startswith("/es/compartir/viviendas/") and super().is_pagination_url(url)
 
 
 class MilanunciosSource(ExternalListingSource):
