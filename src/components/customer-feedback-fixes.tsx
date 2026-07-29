@@ -75,7 +75,7 @@ export function CustomerFeedbackFixes() {
   const navigate = useNavigate()
   const previousMode = useRef(rentalMode)
   const rentalModeRestored = useRef(false)
-  const restoringOccupants = useRef(false)
+  const syncingOccupants = useRef(false)
 
   useLayoutEffect(() => {
     if (location.pathname === '/contacto') {
@@ -146,12 +146,13 @@ export function CustomerFeedbackFixes() {
       if (location.pathname !== '/buscar') return
       const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
       params.delete('pagina')
-      navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true })
+      const search = params.toString()
+      navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true })
     }
 
     const restoreSelection = () => {
       const rows = occupantRows()
-      if (!rows.length || restoringOccupants.current) return
+      if (!rows.length || syncingOccupants.current) return
       const desiredIndexes = currentRequirements.length
         ? currentRequirements.map((requirement) => OCCUPANT_REQUIREMENT_BY_INDEX.indexOf(requirement)).filter((index) => index > 0)
         : [0]
@@ -159,17 +160,21 @@ export function CustomerFeedbackFixes() {
         .map((row, index) => row.getAttribute('aria-checked') === 'true' ? index : -1)
         .filter((index) => index >= 0)
       if (selectedIndexes.join('|') === desiredIndexes.join('|')) return
-      restoringOccupants.current = true
+      syncingOccupants.current = true
       rows[0]?.click()
       if (desiredIndexes[0] !== 0) desiredIndexes.forEach((index) => rows[index]?.click())
-      window.requestAnimationFrame(() => { restoringOccupants.current = false })
+      window.requestAnimationFrame(() => { syncingOccupants.current = false })
     }
 
     const handleOccupantClick = (event: MouseEvent) => {
-      if (restoringOccupants.current) return
+      if (syncingOccupants.current) return
       const target = event.target
       if (!(target instanceof Element) || !target.closest('.m2-check-list > button')) return
-      window.requestAnimationFrame(commitSelection)
+      syncingOccupants.current = true
+      window.requestAnimationFrame(() => {
+        commitSelection()
+        window.requestAnimationFrame(() => { syncingOccupants.current = false })
+      })
     }
 
     document.addEventListener('click', handleOccupantClick, true)
