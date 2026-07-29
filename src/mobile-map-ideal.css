@@ -37,9 +37,9 @@
 .m2-map-listing-preview {
   position: absolute;
   right: .7rem;
-  bottom: calc(5.15rem + env(safe-area-inset-bottom));
+  bottom: calc(12.55rem + env(safe-area-inset-bottom));
   left: .7rem;
-  z-index: 35;
+  z-index: 36;
   display: grid;
   grid-template-columns: 7rem minmax(0, 1fr);
   min-height: 9.5rem;
