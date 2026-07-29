@@ -1,13 +1,24 @@
 import { defaultFilters } from '@/data/listings'
 import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
 import { canonicalizeZoneId, listingMatchesSelectedAreas, type TenerifeZoneCollection } from '@/lib/map/zones'
-import type { Filters, Listing, MapPolygonPoint, RentalMode, YesNoAny } from '@/types'
+import type { Filters, Listing, MapPolygonPoint, RentalMode, TenantRequirement, YesNoAny } from '@/types'
 
 const boolMatches = (value: boolean, filter: YesNoAny) => filter === 'Cualquiera' || value === (filter === 'Sí')
+const tenantRequirementValues = new Set<TenantRequirement>(['single-man', 'single-woman', 'single-person', 'couple', 'any'])
+
+function normalizeTenantRequirements(value: unknown): TenantRequirement[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((item): item is TenantRequirement => typeof item === 'string' && tenantRequirementValues.has(item as TenantRequirement)))]
+}
+
+export function getTenantRequirements(filters: Filters): TenantRequirement[] {
+  if (filters.tenantRequirement !== 'Cualquiera') return [filters.tenantRequirement]
+  return normalizeTenantRequirements(filters.tenantRequirements)
+}
 
 export function normalizeFilters(value: unknown): Filters {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-  const next: Filters = { ...defaultFilters, areas: [], conditions: [], amenities: [] }
+  const next: Filters = { ...defaultFilters, areas: [], conditions: [], tenantRequirements: [], amenities: [] }
   for (const key of Object.keys(defaultFilters) as (keyof Filters)[]) {
     const candidate = source[key]
     const fallback = defaultFilters[key]
@@ -17,7 +28,9 @@ export function normalizeFilters(value: unknown): Filters {
       ;(next as unknown as Record<string, unknown>)[key] = candidate
     }
   }
-  if (!source.tenantRequirement) {
+  next.tenantRequirements = normalizeTenantRequirements(next.tenantRequirements)
+  if (next.tenantRequirement !== 'Cualquiera') next.tenantRequirements = []
+  if (!source.tenantRequirement && !source.tenantRequirements) {
     if (source.gender === 'Solo hombre') next.tenantRequirement = 'single-man'
     else if (source.gender === 'Solo mujer') next.tenantRequirement = 'single-woman'
     else if (source.couples === 'Sí') next.tenantRequirement = 'couple'
@@ -28,6 +41,7 @@ export function normalizeFilters(value: unknown): Filters {
 
 export function filterListings(items: Listing[], mode: RentalMode, filters: Filters, zoneCollection?: TenerifeZoneCollection | null) {
   const today = Date.now()
+  const tenantRequirements = getTenantRequirements(filters)
   return items.filter((listing) => {
     if (!isPublicListing(listing) || listing.rentalMode !== mode) return false
     const primaryPrice = getPrimaryPrice(listing)
@@ -40,7 +54,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
       if (listing.minimumStayMonths > requested) return false
     }
     if (filters.conditions.length && !filters.conditions.every((condition) => listing.restrictions.includes(condition))) return false
-    if (filters.tenantRequirement !== 'Cualquiera' && listing.tenantRequirement !== filters.tenantRequirement) return false
+    if (tenantRequirements.length && !tenantRequirements.includes(listing.tenantRequirement)) return false
     if (filters.bathroom !== 'Cualquiera' && listing.bathroom !== filters.bathroom) return false
     if (filters.kitchen !== 'Cualquiera' && listing.kitchen !== filters.kitchen) return false
     if (filters.furnished && !listing.furnished) return false
@@ -88,7 +102,7 @@ export function getActiveFilterKeys(filters: Filters) {
   if (filters.available) keys.push('available')
   if (filters.minStay !== defaultFilters.minStay) keys.push('minStay')
   if (filters.conditions.length) keys.push('conditions')
-  if (filters.tenantRequirement !== defaultFilters.tenantRequirement) keys.push('tenantRequirement')
+  if (getTenantRequirements(filters).length) keys.push('tenantRequirement')
   if (filters.bathroom !== defaultFilters.bathroom) keys.push('bathroom')
   if (filters.kitchen !== defaultFilters.kitchen) keys.push('kitchen')
   if (filters.furnished) keys.push('furnished')
@@ -110,18 +124,18 @@ export function getActiveFilterKeys(filters: Filters) {
   return keys
 }
 
-const listFields: (keyof Filters)[] = ['areas', 'conditions', 'amenities']
+const listFields: (keyof Filters)[] = ['areas', 'conditions', 'tenantRequirements', 'amenities']
 const booleanFields: (keyof Filters)[] = ['furnished', 'billsIncluded']
 const numericFields: (keyof Filters)[] = ['minPrice', 'maxPrice', 'roomSizeMin', 'roomSizeMax', 'minimumNights']
 const paramNames: Partial<Record<keyof Filters, string>> = {
-  minPrice: 'precioMin', maxPrice: 'precioMax', areas: 'zonas', roomType: 'habitacion', available: 'fecha', minStay: 'estancia', conditions: 'condiciones', tenantRequirement: 'requisito',
+  minPrice: 'precioMin', maxPrice: 'precioMax', areas: 'zonas', roomType: 'habitacion', available: 'fecha', minStay: 'estancia', conditions: 'condiciones', tenantRequirement: 'requisito', tenantRequirements: 'requisitos',
   bathroom: 'bano', kitchen: 'cocina', furnished: 'amueblada', billsIncluded: 'gastos', deposit: 'fianza', smoking: 'fumar', pets: 'mascotas',
   children: 'ninos', empadronamiento: 'padron', publicationDate: 'publicado', advertiserType: 'anunciante', amenities: 'servicios', sort: 'orden',
   roomSizeMin: 'tamanoMin', roomSizeMax: 'tamanoMax', shower: 'ducha', currentResidents: 'residentes', roomCapacity: 'capacidad', minimumNights: 'nochesMin', availableUntil: 'hasta',
 }
 
 export function filtersFromParams(params: URLSearchParams): Filters {
-  const next: Filters = { ...defaultFilters, areas: [], conditions: [], amenities: [] }
+  const next: Filters = { ...defaultFilters, areas: [], conditions: [], tenantRequirements: [], amenities: [] }
   ;(Object.keys(paramNames) as (keyof Filters)[]).forEach((key) => {
     const raw = params.get(paramNames[key] ?? key)
     if (raw === null) return
@@ -133,7 +147,9 @@ export function filtersFromParams(params: URLSearchParams): Filters {
     else if (numericFields.includes(key)) (next[key] as number) = Number(raw)
     else (next[key] as string) = raw
   })
-  if (!params.has('requisito')) {
+  if (params.has('requisito')) next.tenantRequirements = []
+  else if (params.has('requisitos')) next.tenantRequirement = 'Cualquiera'
+  if (!params.has('requisito') && !params.has('requisitos')) {
     const legacyGender = params.get('genero')
     const legacyCouples = params.get('parejas')
     if (legacyGender === 'Solo hombre') next.tenantRequirement = 'single-man'
@@ -148,10 +164,12 @@ export function filtersFromParams(params: URLSearchParams): Filters {
 }
 
 export function filtersToParams(filters: Filters, params = new URLSearchParams()) {
+  const normalized = normalizeFilters(filters)
+  if (normalized.tenantRequirement !== 'Cualquiera') normalized.tenantRequirements = []
   ;['genero', 'parejas', 'ocupantes'].forEach((name) => params.delete(name))
   ;(Object.keys(paramNames) as (keyof Filters)[]).forEach((key) => {
     const name = paramNames[key] ?? key
-    const value = filters[key]
+    const value = normalized[key]
     const fallback = defaultFilters[key]
     const isDefault = Array.isArray(value) ? value.length === 0 : value === fallback
     if (isDefault) params.delete(name)
@@ -159,6 +177,8 @@ export function filtersToParams(filters: Filters, params = new URLSearchParams()
     else if (typeof value === 'boolean') params.set(name, value ? '1' : '0')
     else params.set(name, String(value))
   })
+  if (normalized.tenantRequirement !== 'Cualquiera') params.delete('requisitos')
+  else if (normalized.tenantRequirements.length) params.delete('requisito')
   return params
 }
 
