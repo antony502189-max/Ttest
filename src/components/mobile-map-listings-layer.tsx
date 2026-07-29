@@ -135,6 +135,13 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [items, selectedId])
 
   useEffect(() => {
+    const screen = mapRef.current?.getDiv().closest('.m2-map-screen')
+    if (!(screen instanceof HTMLElement)) return
+    screen.classList.toggle('has-listing-preview', Boolean(selected))
+    return () => screen.classList.remove('has-listing-preview')
+  }, [mapReady, mapRef, selected])
+
+  useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
     const listener = map.addListener('idle', () => {
