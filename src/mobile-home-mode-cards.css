@@ -16,18 +16,19 @@
     justify-content: space-between;
     gap: .28rem;
     padding: .68rem .3rem .58rem;
-    border: 1px solid rgb(255 255 255 / .68);
+    border: 1.5px solid rgb(116 196 0 / .58);
     border-radius: 1rem;
-    background: linear-gradient(145deg, #fffef9 0%, #f6f6ef 100%);
+    background: linear-gradient(145deg, #fffffb 0%, #f3f9e7 100%);
     color: #111;
-    box-shadow: 0 .12rem .35rem rgb(0 0 0 / .13);
+    box-shadow: 0 .22rem .62rem rgb(0 0 0 / .22), 0 0 .42rem rgb(116 196 0 / .13);
     text-align: center;
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
 
   .m2-mode-switch > button:last-child {
-    border-color: rgb(198 0 131 / .18);
-    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
+    border-color: rgb(223 0 143 / .64);
+    background: linear-gradient(145deg, #fff4fb 0%, #ffdeef 100%);
+    box-shadow: 0 .22rem .62rem rgb(0 0 0 / .22), 0 0 .48rem rgb(223 0 143 / .17);
   }
 
   .m2-mode-switch > button:active {
@@ -35,14 +36,14 @@
   }
 
   .m2-mode-switch > button.is-active {
-    background: linear-gradient(145deg, #fffef9 0%, #f6f6ef 100%);
+    background: linear-gradient(145deg, #fffffb 0%, #f3f9e7 100%);
     color: #111;
-    box-shadow: 0 .15rem .42rem rgb(0 0 0 / .16), inset 0 0 0 2px #74b900;
+    box-shadow: 0 .24rem .68rem rgb(0 0 0 / .25), inset 0 0 0 2.5px #79c900, 0 0 .72rem rgb(121 201 0 / .28);
   }
 
   .m2-mode-switch > button:last-child.is-active {
-    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
-    box-shadow: 0 .15rem .42rem rgb(0 0 0 / .16), inset 0 0 0 2px #c60083;
+    background: linear-gradient(145deg, #fff4fb 0%, #ffdeef 100%);
+    box-shadow: 0 .24rem .68rem rgb(0 0 0 / .25), inset 0 0 0 2.5px #df008f, 0 0 .78rem rgb(223 0 143 / .32);
   }
 
   .m2-mode-icon {
@@ -63,12 +64,12 @@
 
   .m2-mode-icon--home {
     background: transparent;
-    color: #64b800;
+    color: #70cc00;
   }
 
   .m2-mode-icon--tourism {
-    background: transparent center / contain no-repeat url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzYwMDgzIiBzdHJva2Utd2lkdGg9IjIuMTUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTYgMjBoMTJhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJINmEyIDIgMCAwIDAtMiAydjExYTIgMiAwIDAgMCAyIDJaIi8+PHBhdGggZD0iTTggNVYzYTEgMSAwIDAgMSAxLTFoNmExIDEgMCAwIDEgMSAxdjIiLz48cGF0aCBkPSJNOSAyMHYxTTE1IDIwdjFNOCAxMHY0TTE2IDEwdjQiLz48L3N2Zz4=");
-    color: #c60083;
+    background: transparent center / contain no-repeat url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZGYwMDhmIiBzdHJva2Utd2lkdGg9IjIuMTUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTYgMjBoMTJhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJINmEyIDIgMCAwIDAtMiAydjExYTIgMiAwIDAgMCAyIDJaIi8+PHBhdGggZD0iTTggNVYzYTEgMSAwIDAgMSAxLTFoNmExIDEgMCAwIDEgMSAxdjIiLz48cGF0aCBkPSJNOSAyMHYxTTE1IDIwdjFNOCAxMHY0TTE2IDEwdjQiLz48L3N2Zz4=");
+    color: #df008f;
   }
 
   .m2-mode-icon--tourism svg {
