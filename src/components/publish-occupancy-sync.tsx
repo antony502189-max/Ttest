@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useApp } from '@/contexts/app-context'
+import { listingAccessProfileFromFilters, persistListingAccessProfile } from '@/lib/listing-access'
 import { getCriticalRestrictions } from '@/lib/listings'
 import type { Listing, TenantRequirement } from '@/types'
 
@@ -10,8 +11,12 @@ function expectedCapacity(requirement: TenantRequirement): Listing['roomCapacity
 }
 
 export function PublishOccupancySync() {
-  const { allListings, canManageListing, updateListing } = useApp()
+  const { allListings, canManageListing, filters, updateListing } = useApp()
   const pending = useRef(new Set<string>())
+
+  useEffect(() => {
+    persistListingAccessProfile(listingAccessProfileFromFilters(filters))
+  }, [filters])
 
   useEffect(() => {
     allListings.forEach((listing) => {
