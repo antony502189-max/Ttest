@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '@/contexts/app-context'
 import { filtersToParams } from '@/lib/search'
-import type { Filters, RentalMode } from '@/types'
+import type { Filters, RentalMode, TenantRequirement } from '@/types'
 
 const priceLimit = (mode: RentalMode) => mode === 'holiday' ? 350 : 1200
 const RENTAL_MODE_KEY = '112233:rental-mode:v1'
@@ -13,6 +13,14 @@ const REMOVED_MENU_LABELS = [
   'Acerca de la aplicación',
   'About the app',
   'О приложении',
+]
+const OCCUPANT_REQUIREMENT_BY_INDEX: Array<TenantRequirement | null> = [
+  null,
+  'single-man',
+  'single-woman',
+  'single-person',
+  'couple',
+  'any',
 ]
 
 function nativeSetInputValue(input: HTMLInputElement, value: string) {
@@ -43,12 +51,31 @@ function normalizedPriceFilters(filters: Filters, previousMode: RentalMode, next
   return { ...filters, minPrice, maxPrice }
 }
 
+function occupantRows() {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-check-list > button'))
+}
+
+function selectedOccupantRequirements(rows: HTMLButtonElement[]) {
+  const selectedIndexes = rows
+    .map((row, index) => row.getAttribute('aria-checked') === 'true' ? index : -1)
+    .filter((index) => index >= 0)
+  if (!selectedIndexes.length || selectedIndexes.includes(0)) return []
+  return selectedIndexes
+    .map((index) => OCCUPANT_REQUIREMENT_BY_INDEX[index])
+    .filter((value): value is TenantRequirement => value !== null)
+}
+
+function sameRequirements(left: TenantRequirement[], right: TenantRequirement[]) {
+  return [...left].sort().join('|') === [...right].sort().join('|')
+}
+
 export function CustomerFeedbackFixes() {
   const { rentalMode, setRentalMode, filters, setFilters } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
   const previousMode = useRef(rentalMode)
   const rentalModeRestored = useRef(false)
+  const restoringOccupants = useRef(false)
 
   useLayoutEffect(() => {
     if (location.pathname === '/contacto') {
@@ -101,6 +128,59 @@ export function CustomerFeedbackFixes() {
       document.removeEventListener('focusout', handleFocusOut, true)
     }
   }, [])
+
+  useLayoutEffect(() => {
+    const currentRequirements = filters.tenantRequirement !== 'Cualquiera'
+      ? [filters.tenantRequirement]
+      : filters.tenantRequirements
+
+    const commitSelection = () => {
+      const rows = occupantRows()
+      if (!rows.length) return
+      const requirements = selectedOccupantRequirements(rows)
+      const nextFilters: Filters = requirements.length === 1
+        ? { ...filters, tenantRequirement: requirements[0], tenantRequirements: [] }
+        : { ...filters, tenantRequirement: 'Cualquiera', tenantRequirements: requirements }
+      if (sameRequirements(currentRequirements, requirements)) return
+      setFilters(nextFilters)
+      if (location.pathname !== '/buscar') return
+      const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
+      params.delete('pagina')
+      navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true })
+    }
+
+    const restoreSelection = () => {
+      const rows = occupantRows()
+      if (!rows.length || restoringOccupants.current) return
+      const desiredIndexes = currentRequirements.length
+        ? currentRequirements.map((requirement) => OCCUPANT_REQUIREMENT_BY_INDEX.indexOf(requirement)).filter((index) => index > 0)
+        : [0]
+      const selectedIndexes = rows
+        .map((row, index) => row.getAttribute('aria-checked') === 'true' ? index : -1)
+        .filter((index) => index >= 0)
+      if (selectedIndexes.join('|') === desiredIndexes.join('|')) return
+      restoringOccupants.current = true
+      rows[0]?.click()
+      if (desiredIndexes[0] !== 0) desiredIndexes.forEach((index) => rows[index]?.click())
+      window.requestAnimationFrame(() => { restoringOccupants.current = false })
+    }
+
+    const handleOccupantClick = (event: MouseEvent) => {
+      if (restoringOccupants.current) return
+      const target = event.target
+      if (!(target instanceof Element) || !target.closest('.m2-check-list > button')) return
+      window.requestAnimationFrame(commitSelection)
+    }
+
+    document.addEventListener('click', handleOccupantClick, true)
+    const observer = new MutationObserver(restoreSelection)
+    observer.observe(document.body, { childList: true, subtree: true })
+    restoreSelection()
+    return () => {
+      document.removeEventListener('click', handleOccupantClick, true)
+      observer.disconnect()
+    }
+  }, [filters, location.pathname, location.search, navigate, setFilters])
 
   useLayoutEffect(() => {
     if (!rentalModeRestored.current) {
