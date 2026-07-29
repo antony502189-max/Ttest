@@ -7,6 +7,7 @@ import './mobile-app-v2-hardening.css'
 import './mobile-search-results-overrides.css'
 import './mobile-search-results-panels.css'
 import './mobile-home-mode-cards.css'
+import './mobile-occupant-filters.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
