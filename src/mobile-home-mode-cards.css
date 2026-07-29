@@ -2,25 +2,25 @@
   .m2-mode-switch {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .72rem;
+    gap: .55rem;
     border: 0;
     background: transparent;
   }
 
   .m2-mode-switch > button {
     min-width: 0;
-    min-height: 13.8rem;
+    min-height: 7rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    gap: 1.3rem;
-    padding: 2rem .45rem 1.35rem;
+    justify-content: center;
+    gap: .55rem;
+    padding: .75rem .3rem .7rem;
     border: 1px solid rgb(0 0 0 / .08);
-    border-radius: 1.05rem;
+    border-radius: .78rem;
     background: linear-gradient(145deg, #fbfcf6 0%, #f5f6ef 100%);
     color: #111;
-    box-shadow: 0 .2rem .65rem rgb(0 0 0 / .16);
+    box-shadow: 0 .14rem .42rem rgb(0 0 0 / .14);
     text-align: center;
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
@@ -37,18 +37,18 @@
   .m2-mode-switch > button.is-active {
     background: linear-gradient(145deg, #fbfcf6 0%, #f5f6ef 100%);
     color: #111;
-    box-shadow: 0 .22rem .7rem rgb(0 0 0 / .18), inset 0 0 0 3px #74b900;
+    box-shadow: 0 .16rem .46rem rgb(0 0 0 / .16), inset 0 0 0 2px #74b900;
   }
 
   .m2-mode-switch > button:last-child.is-active {
     background: linear-gradient(145deg, #fff5fa 0%, #fbe9f3 100%);
-    box-shadow: 0 .22rem .7rem rgb(0 0 0 / .18), inset 0 0 0 3px #c60083;
+    box-shadow: 0 .16rem .46rem rgb(0 0 0 / .16), inset 0 0 0 2px #c60083;
   }
 
   .m2-mode-icon {
-    flex: 0 0 4.35rem;
-    width: 4.35rem;
-    height: 4.35rem;
+    flex: 0 0 2.45rem;
+    width: 2.45rem;
+    height: 2.45rem;
     display: grid;
     place-items: center;
     border-radius: 0;
@@ -56,9 +56,9 @@
   }
 
   .m2-mode-icon svg {
-    width: 4.1rem;
-    height: 4.1rem;
-    stroke-width: 1.65;
+    width: 2.35rem;
+    height: 2.35rem;
+    stroke-width: 1.8;
   }
 
   .m2-mode-icon--home {
@@ -76,7 +76,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: .55rem;
+    gap: .28rem;
     font-size: 0;
     line-height: 1;
   }
@@ -84,19 +84,19 @@
   .m2-mode-switch > button > span:last-child::before {
     content: 'HABITACIONES';
     color: #111;
-    font-size: clamp(1.05rem, 5vw, 1.38rem);
+    font-size: clamp(.72rem, 3.6vw, .9rem);
     font-weight: 900;
-    letter-spacing: .015em;
+    letter-spacing: .01em;
     line-height: 1.05;
     white-space: nowrap;
   }
 
   .m2-mode-switch > button > span:last-child::after {
     color: #4b4b4b;
-    font-size: clamp(.72rem, 3.5vw, .98rem);
+    font-size: clamp(.5rem, 2.6vw, .66rem);
     font-weight: 400;
-    letter-spacing: .09em;
-    line-height: 1.2;
+    letter-spacing: .075em;
+    line-height: 1.15;
     white-space: nowrap;
   }
 
@@ -111,28 +111,32 @@
 
 @media (max-width: 360px) {
   .m2-mode-switch {
-    gap: .5rem;
+    gap: .42rem;
   }
 
   .m2-mode-switch > button {
-    min-height: 11.8rem;
-    gap: .85rem;
-    padding: 1.35rem .3rem 1rem;
-    border-radius: .85rem;
+    min-height: 6.35rem;
+    gap: .42rem;
+    padding: .62rem .2rem .58rem;
+    border-radius: .68rem;
   }
 
   .m2-mode-icon,
   .m2-mode-icon svg {
-    width: 3.55rem;
-    height: 3.55rem;
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+
+  .m2-mode-icon {
+    flex-basis: 2.1rem;
   }
 
   .m2-mode-switch > button > span:last-child::before {
-    font-size: .92rem;
+    font-size: .68rem;
   }
 
   .m2-mode-switch > button > span:last-child::after {
-    font-size: .62rem;
-    letter-spacing: .06em;
+    font-size: .47rem;
+    letter-spacing: .055em;
   }
 }
