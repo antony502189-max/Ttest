@@ -35,14 +35,14 @@ export function SelectedListingSheet({ listing, onClose, focusOnOpen = false, re
       <span className="selected-listing-sheet__photo-count">1/{listing.images.length}</span>
     </div>
     <div className="selected-listing-sheet__content">
-      <Link to={`/habitacion/${listing.id}`}>{listing.title}</Link>
-      <strong>{priceLabel(listing)} <span>/{getPrimaryCadence(listing)}</span></strong>
+      {listing.isExternal && listing.sourceUrl ? <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer">{listing.title}</a> : <Link to={`/habitacion/${listing.id}`}>{listing.title}</Link>}
+      <strong>{priceLabel(listing)} {listing.sourcePriceText ? null : <span>/{getPrimaryCadence(listing)}</span>}</strong>
       <p>{listing.area}, {listing.city}</p>
       <p className="selected-listing-sheet__facts">{listing.roomType} · {listing.currentResidents} residentes · {listing.roomSizeM2} m²</p>
       <ul>{getCriticalRestrictions(listing).slice(0, 2).map((restriction) => <li key={restriction}>{restriction}</li>)}</ul>
     </div>
     <div className="selected-listing-sheet__actions">
-      <Link to={`/habitacion/${listing.id}#contacto`}><MessageSquare aria-hidden="true" /><span>Contactar</span></Link>
+      {listing.isExternal && listing.sourceUrl ? <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer"><MessageSquare aria-hidden="true" /><span>Ver anuncio</span></a> : <Link to={`/habitacion/${listing.id}#contacto`}><MessageSquare aria-hidden="true" /><span>Contactar</span></Link>}
       {listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone.replace(/\s+/g, '')}`}><Phone aria-hidden="true" /><span>Llamar</span></a> : null}
       <button type="button" className={cn('selected-listing-sheet__favorite', saved && 'is-saved')} aria-label={saved ? `Quitar ${listing.title} de favoritos` : `Guardar ${listing.title} en favoritos`} aria-pressed={saved} onClick={() => toggleFavorite(listing.id)}><Heart aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /><span>Guardar</span></button>
     </div>

@@ -56,6 +56,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     sentry_dsn: str = ""
     sentry_traces_sample_rate: float = 0.05
+    external_import_enabled: bool = True
+    external_import_interval_seconds: int = 7200
+    external_import_run_on_start: bool = True
+    external_import_sources: str = "idealista,fotocasa,milanuncios,pisocompartido"
+    external_import_request_timeout_seconds: int = 25
+    external_import_max_concurrency_per_source: int = 3
+    external_import_download_images: bool = True
+    external_import_user_agent: str = "112233.es room aggregator"
+    external_import_playwright_enabled: bool = False
 
     @property
     def origins(self) -> list[str]:
@@ -83,6 +92,12 @@ class Settings(BaseSettings):
             problems.append("Mail worker limits must be positive")
         if self.max_upload_bytes < 1 or self.max_image_dimension < 1:
             problems.append("Media upload limits must be positive")
+        if (
+            self.external_import_interval_seconds < 1
+            or self.external_import_request_timeout_seconds < 1
+            or self.external_import_max_concurrency_per_source < 1
+        ):
+            problems.append("External import limits must be positive")
         if not 0 <= self.sentry_traces_sample_rate <= 1:
             problems.append("SENTRY_TRACES_SAMPLE_RATE must be between 0 and 1")
 

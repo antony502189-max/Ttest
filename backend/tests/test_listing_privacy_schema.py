@@ -37,11 +37,13 @@ def test_public_listing_dto_cannot_expose_exact_location_fields():
 
 
 def test_search_polygon_is_closed_for_postgis():
-    search = ListingSearchRequest(polygon=[
-        {"latitude": 28.0, "longitude": -16.8},
-        {"latitude": 28.1, "longitude": -16.8},
-        {"latitude": 28.1, "longitude": -16.7},
-    ])
+    search = ListingSearchRequest(
+        polygon=[
+            {"latitude": 28.0, "longitude": -16.8},
+            {"latitude": 28.1, "longitude": -16.8},
+            {"latitude": 28.1, "longitude": -16.7},
+        ]
+    )
 
     assert len(search.polygon) == 4
     assert search.polygon[0] == search.polygon[-1]

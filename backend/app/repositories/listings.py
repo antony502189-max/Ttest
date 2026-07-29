@@ -71,12 +71,16 @@ def response_from(row: Any) -> ListingResponse:
             response="Consulta disponibilidad",
             verified=owner.email_verified,
         ),
-        contactPhone=owner.phone if owner.show_phone else None,
-        contactWhatsapp=owner.whatsapp if owner.show_whatsapp else None,
-        contactEmail=None,
-        showPhone=owner.show_phone,
-        showWhatsApp=owner.show_whatsapp,
-        allowContactForm=owner.allow_contact_form,
+        contactPhone=listing.external_contact_phone
+        if listing.is_external
+        else (owner.phone if owner.show_phone else None),
+        contactWhatsapp=listing.external_contact_whatsapp
+        if listing.is_external
+        else (owner.whatsapp if owner.show_whatsapp else None),
+        contactEmail=listing.external_contact_email if listing.is_external else None,
+        showPhone=bool(listing.external_contact_phone) if listing.is_external else owner.show_phone,
+        showWhatsApp=bool(listing.external_contact_whatsapp) if listing.is_external else owner.show_whatsapp,
+        allowContactForm=False if listing.is_external else owner.allow_contact_form,
         coverImageUrl=image_urls[0] if image_urls else None,
         imageUrls=image_urls,
         title=listing.title,
@@ -118,6 +122,13 @@ def response_from(row: Any) -> ListingResponse:
         homeDescription=listing.home_description,
         advertiserType=listing.advertiser_type,
         source=listing.source,
+        isExternal=listing.is_external,
+        primarySource=listing.primary_source,
+        sourceUrl=listing.primary_source_url,
+        sourcePriceText=listing.source_price_text,
+        priceCurrency=listing.source_price_currency,
+        pricePeriod=listing.source_price_period,
+        priceIsFrom=listing.source_price_is_from,
         publishedAt=listing.published_at,
         expiresAt=listing.expires_at,
         views=listing.views,
@@ -198,7 +209,9 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
             (Listing.available_until.is_(None)) | (Listing.available_until >= payload.availableFrom),
         )
     if payload.maxMinimumStayMonths is not None:
-        query = query.where(Listing.minimum_stay_months <= payload.maxMinimumStayMonths)
+        query = query.where(
+            Listing.minimum_stay_months.is_not(None), Listing.minimum_stay_months <= payload.maxMinimumStayMonths
+        )
     if payload.restrictions:
         query = query.where(Listing.restrictions.contains(payload.restrictions))
     if payload.tenantRequirement:
@@ -230,7 +243,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.roomCapacity is not None:
         query = query.where(Listing.room_capacity == payload.roomCapacity)
     if payload.maxMinimumNights is not None:
-        query = query.where(func.coalesce(Listing.minimum_nights, 1) <= payload.maxMinimumNights)
+        query = query.where(Listing.minimum_nights.is_not(None), Listing.minimum_nights <= payload.maxMinimumNights)
     if payload.availableUntil:
         query = query.where((Listing.available_until.is_(None)) | (Listing.available_until >= payload.availableUntil))
     for column, value in (
@@ -248,11 +261,15 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.amenities:
         query = query.where(Listing.amenities.contains(payload.amenities))
     if payload.minLongitude is not None:
-        bbox = ST_MakeEnvelope(payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326)
+        bbox = ST_MakeEnvelope(
+            payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326
+        )
         query = query.where(ST_Covers(bbox, cast(Listing.location, Geometry("POINT", srid=4326))))
     if payload.center and payload.radiusKm is not None:
         query = query.where(
-            ST_DWithin(Listing.location, point(payload.center.longitude, payload.center.latitude), payload.radiusKm * 1000)
+            ST_DWithin(
+                Listing.location, point(payload.center.longitude, payload.center.latitude), payload.radiusKm * 1000
+            )
         )
     if payload.polygon:
         wkt = "POLYGON((" + ", ".join(f"{item.longitude} {item.latitude}" for item in payload.polygon) + "))"
@@ -275,7 +292,9 @@ def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
 async def search_public(session: AsyncSession, payload: ListingSearchRequest) -> ListingSearchResponse:
     filtered = apply_search_filters(visible_query(), payload)
     total = await session.scalar(select(func.count()).select_from(filtered.order_by(None).subquery()))
-    rows = (await session.execute(apply_search_order(filtered, payload).limit(payload.limit).offset(payload.offset))).all()
+    rows = (
+        await session.execute(apply_search_order(filtered, payload).limit(payload.limit).offset(payload.offset))
+    ).all()
     return ListingSearchResponse(
         items=[response_from(row) for row in rows],
         total=total or 0,

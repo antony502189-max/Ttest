@@ -2,7 +2,7 @@ import type { Renderer } from '@googlemaps/markerclusterer'
 import { getPrimaryPrice } from '@/lib/listings'
 import type { Listing } from '@/types'
 
-export const priceLabel = (listing: Listing) => `${getPrimaryPrice(listing)} \u20ac`
+export const priceLabel = (listing: Listing) => listing.sourcePriceText ?? `${getPrimaryPrice(listing)} \u20ac`
 
 export function createPriceMarkerContent(listing: Listing) {
   const shell = document.createElement('div')

@@ -30,11 +30,17 @@ async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -
     if not candidate_ids:
         return []
     attached = set(
-        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(candidate_ids)))).all()
+        (
+            await session.scalars(
+                select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(candidate_ids))
+            )
+        ).all()
     )
     avatars = {
         value
-        for value in (await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))).all()
+        for value in (
+            await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))
+        ).all()
         if value is not None
     }
     orphan_ids = candidate_ids - attached - avatars
@@ -111,7 +117,15 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
 async def create_listing(payload: ListingWrite, user: User, session: AsyncSession) -> OwnedListingResponse:
     now = datetime.now(UTC)
     initial_status = "published" if get_settings().auto_publish_listings else "pending"
-    listing = Listing(owner_user_id=user.id, approximate_address="", title="", city="", area="", rental_mode="long", location=point(0, 0))
+    listing = Listing(
+        owner_user_id=user.id,
+        approximate_address="",
+        title="",
+        city="",
+        area="",
+        rental_mode="long",
+        location=point(0, 0),
+    )
     apply_write(listing, payload)
     listing.status = initial_status
     listing.published_at = now if initial_status == "published" else None
@@ -141,7 +155,11 @@ async def update_listing(
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
     changes = payload.model_dump(exclude_unset=True)
-    if "status" in changes and user.role != "admin" and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
+    if (
+        "status" in changes
+        and user.role != "admin"
+        and changes["status"] not in {"draft", "pending", "hidden", "closed"}
+    ):
         raise HTTPException(403, "Only an administrator can publish or reject listings")
 
     mapping = {

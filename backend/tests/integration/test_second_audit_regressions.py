@@ -268,12 +268,35 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
 
     async with SessionLocal() as session:
         user_id = UUID(user["id"])
-        assert await session.scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user_id)) == 0
+        assert (
+            await session.scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user_id))
+            == 0
+        )
         assert await session.scalar(select(func.count()).select_from(Favorite).where(Favorite.user_id == user_id)) == 0
-        assert await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id)) == 0
-        assert await session.scalar(select(func.count()).select_from(SearchHistory).where(SearchHistory.user_id == user_id)) == 0
-        assert await session.scalar(select(func.count()).select_from(MailOutbox).where(MailOutbox.recipient == "erase-me@example.com")) == 0
-        assert await session.scalar(select(func.count()).select_from(MediaAsset).where(MediaAsset.owner_id == user_id, MediaAsset.deleted_at.is_(None))) == 0
+        assert (
+            await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id))
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count()).select_from(SearchHistory).where(SearchHistory.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count()).select_from(MailOutbox).where(MailOutbox.recipient == "erase-me@example.com")
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(MediaAsset)
+                .where(MediaAsset.owner_id == user_id, MediaAsset.deleted_at.is_(None))
+            )
+            == 0
+        )
         stored_user = await session.scalar(select(User).where(User.id == user_id))
         assert stored_user is not None
         assert stored_user.email.endswith("@deleted.invalid")

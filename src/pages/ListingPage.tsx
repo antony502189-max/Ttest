@@ -17,6 +17,13 @@ import type { Listing } from '@/types'
 const preferenceTitle = (value?: string) => value === 'Solo hombre' ? 'Este anuncio busca a un hombre' : value === 'Solo mujer' ? 'Este anuncio busca a una mujer' : value
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
+function ExternalListingRedirect({ sourceUrl }: { sourceUrl: string }) {
+  useEffect(() => {
+    window.location.replace(sourceUrl)
+  }, [sourceUrl])
+  return null
+}
+
 export function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -47,6 +54,7 @@ export function ListingPage() {
   const listing = serverListing ?? allListings.find((item) => item.id === id && isPublicListing(item))
   if (!listing && detailLoading) return null
   if (!listing) return <Navigate to="/buscar" replace />
+  if (listing.isExternal && listing.sourceUrl) return <ExternalListingRedirect sourceUrl={listing.sourceUrl} />
   const criticalRestrictions = getCriticalRestrictions(listing)
   const primaryRestriction = criticalRestrictions[0]
   const similar = allListings

@@ -1,15 +1,17 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
-from ...models import User
+from ...models import ExternalImportRun, User
 from ...schemas.admin import (
     AdminListingResponse,
     AdminStatsResponse,
     AdminUserResponse,
     BlockUserRequest,
+    ExternalImportRunResponse,
     ListingStatusRequest,
 )
 from ...services.admin import (
@@ -19,6 +21,7 @@ from ...services.admin import (
     list_users,
     set_user_blocked,
 )
+from ...workers.external_listings import run_once
 from ..dependencies import require_role
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -69,3 +72,29 @@ async def set_user_blocked_route(
     session: AsyncSession = Depends(get_session),
 ):
     return await set_user_blocked(user_id, payload.blocked, user, session)
+
+
+@router.get("/external-import/runs", response_model=list[ExternalImportRunResponse])
+async def external_import_runs(
+    user: User = Depends(require_role("admin")), session: AsyncSession = Depends(get_session)
+):
+    rows = (
+        await session.scalars(select(ExternalImportRun).order_by(ExternalImportRun.started_at.desc()).limit(100))
+    ).all()
+    return [
+        ExternalImportRunResponse(
+            runId=row.run_id,
+            source=row.source_name,
+            startedAt=row.started_at,
+            finishedAt=row.finished_at,
+            result=row.result,
+            counters=row.counters,
+            lastError=row.last_error,
+        )
+        for row in rows
+    ]
+
+
+@router.post("/external-import/run")
+async def trigger_external_import(user: User = Depends(require_role("admin"))):
+    return await run_once()

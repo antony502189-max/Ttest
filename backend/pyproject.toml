@@ -18,6 +18,7 @@ dependencies = [
   "pydantic-settings>=2.7",
   "PyJWT>=2.10",
   "python-multipart>=0.0.18",
+  "playwright>=1.52",
   "redis>=5.2",
   "sentry-sdk[fastapi]>=2.20",
   "sqlalchemy[asyncio]>=2.0",

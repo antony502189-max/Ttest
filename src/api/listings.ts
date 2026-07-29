@@ -30,7 +30,7 @@ type ListingDto = {
   roomType: Listing['roomType']
   availableFrom: string | null
   availableUntil: string | null
-  minimumStayMonths: number
+  minimumStayMonths: number | null
   minimumNights: number | null
   depositAmount: number
   billsIncluded: boolean
@@ -43,10 +43,10 @@ type ListingDto = {
   roomCapacity: 1 | 2
   shower: Listing['shower']
   tenantRequirement: TenantRequirement
-  smokingAllowed: boolean
-  petsAllowed: boolean
-  childrenAllowed: boolean
-  empadronamientoAllowed: boolean
+  smokingAllowed: boolean | null
+  petsAllowed: boolean | null
+  childrenAllowed: boolean | null
+  empadronamientoAllowed: boolean | null
   restrictions: string[]
   amenities: string[]
   status: string
@@ -56,6 +56,13 @@ type ListingDto = {
   homeDescription: string
   advertiserType: Listing['advertiserType']
   source: string | null
+  isExternal: boolean
+  primarySource: string | null
+  sourceUrl: string | null
+  sourcePriceText: string | null
+  priceCurrency: string | null
+  pricePeriod: 'month' | 'night' | 'week' | null
+  priceIsFrom: boolean | null
   publishedAt: string | null
   expiresAt: string | null
   views: number
@@ -107,7 +114,9 @@ export function toListing(dto: ListingDto): Listing {
     available: dto.availableFrom ? `Disponible desde ${availableFrom}` : 'Consultar disponibilidad',
     availableFrom,
     availableUntil: dto.availableUntil ? dateOnly(dto.availableUntil, availableFrom) : undefined,
-    minimumStay: dto.rentalMode === 'holiday' ? `Mínimo ${dto.minimumNights ?? 1} noche(s)` : `Mínimo ${dto.minimumStayMonths} mes(es)`,
+    minimumStay: dto.rentalMode === 'holiday'
+      ? dto.minimumNights == null ? 'Consultar estancia mínima' : `Mínimo ${dto.minimumNights} noche(s)`
+      : dto.minimumStayMonths == null ? 'Consultar estancia mínima' : `Mínimo ${dto.minimumStayMonths} mes(es)`,
     minimumStayMonths: dto.minimumStayMonths,
     minimumNights: dto.minimumNights ?? undefined,
     deposit: dto.depositAmount ? `${dto.depositAmount} € de fianza` : 'Sin fianza',
@@ -142,6 +151,13 @@ export function toListing(dto: ListingDto): Listing {
     },
     advertiserType: dto.advertiserType,
     source: dto.source ?? undefined,
+    isExternal: dto.isExternal,
+    primarySource: dto.primarySource ?? undefined,
+    sourceUrl: dto.sourceUrl ?? undefined,
+    sourcePriceText: dto.sourcePriceText ?? undefined,
+    priceCurrency: dto.priceCurrency ?? undefined,
+    pricePeriod: dto.pricePeriod ?? undefined,
+    priceIsFrom: dto.priceIsFrom ?? undefined,
     status: statusMap[dto.status] ?? 'Publicado',
     publishedAt: dateOnly(dto.publishedAt, availableFrom),
     views: dto.views,

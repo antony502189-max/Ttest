@@ -33,13 +33,16 @@ def anyio_backend() -> str:
 async def clean_database() -> AsyncIterator[None]:
     async with engine.begin() as connection:
         table_names = (
-            await connection.execute(
-                text(
-                    "SELECT tablename FROM pg_tables "
-                    "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+            (
+                await connection.execute(
+                    text(
+                        "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if table_names:
             quoted = ", ".join(f'"{name}"' for name in table_names)
             await connection.execute(text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))

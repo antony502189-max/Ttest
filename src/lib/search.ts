@@ -3,7 +3,7 @@ import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
 import { canonicalizeZoneId, listingMatchesSelectedAreas, type TenerifeZoneCollection } from '@/lib/map/zones'
 import type { Filters, Listing, MapPolygonPoint, RentalMode, TenantRequirement, YesNoAny } from '@/types'
 
-const boolMatches = (value: boolean, filter: YesNoAny) => filter === 'Cualquiera' || value === (filter === 'Sí')
+const boolMatches = (value: boolean | null, filter: YesNoAny) => filter === 'Cualquiera' || (value !== null && value === (filter === 'Sí'))
 const tenantRequirementValues = new Set<TenantRequirement>(['single-man', 'single-woman', 'single-person', 'couple', 'any'])
 
 function normalizeTenantRequirements(value: unknown): TenantRequirement[] {
@@ -51,7 +51,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     if (filters.available && listing.availableFrom > filters.available) return false
     if (filters.minStay !== 'Cualquiera') {
       const requested = Number(filters.minStay)
-      if (listing.minimumStayMonths > requested) return false
+      if (listing.minimumStayMonths == null || listing.minimumStayMonths > requested) return false
     }
     if (filters.conditions.length && !filters.conditions.every((condition) => listing.restrictions.includes(condition))) return false
     if (tenantRequirements.length && !tenantRequirements.includes(listing.tenantRequirement)) return false

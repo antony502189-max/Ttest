@@ -300,9 +300,7 @@ async def refresh_user_session(
 ) -> AuthResult:
     now = datetime.now(UTC)
     auth = await session.scalar(
-        select(AuthSession)
-        .where(AuthSession.token_hash == token_hash(raw_refresh))
-        .with_for_update()
+        select(AuthSession).where(AuthSession.token_hash == token_hash(raw_refresh)).with_for_update()
     )
     if not auth or auth.expires_at <= now:
         raise HTTPException(401, "Invalid refresh token")

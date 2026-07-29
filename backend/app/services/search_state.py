@@ -50,9 +50,7 @@ async def list_collection(model, user: User, session: AsyncSession) -> list[UUID
 async def add_collection_item(model, constraint: str, listing_id: UUID, user: User, session: AsyncSession) -> None:
     await require_listing(listing_id, session)
     await session.execute(
-        insert(model)
-        .values(user_id=user.id, listing_id=listing_id)
-        .on_conflict_do_nothing(constraint=constraint)
+        insert(model).values(user_id=user.id, listing_id=listing_id).on_conflict_do_nothing(constraint=constraint)
     )
     await session.commit()
 
@@ -141,9 +139,7 @@ def public_search(search: SavedSearch) -> SavedSearchResponse:
 async def list_saved_searches(user: User, session: AsyncSession) -> list[SavedSearchResponse]:
     searches = (
         await session.scalars(
-            select(SavedSearch)
-            .where(SavedSearch.user_id == user.id)
-            .order_by(SavedSearch.created_at.desc())
+            select(SavedSearch).where(SavedSearch.user_id == user.id).order_by(SavedSearch.created_at.desc())
         )
     ).all()
     return [public_search(search) for search in searches]

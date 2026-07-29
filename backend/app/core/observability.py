@@ -24,6 +24,16 @@ UNHANDLED_ERRORS = Counter(
     "Unhandled application errors",
     ("exception",),
 )
+EXTERNAL_IMPORTS = Counter(
+    "ttest_external_import_runs_total",
+    "External import source runs",
+    ("source", "result"),
+)
+EXTERNAL_IMPORT_DURATION = Histogram(
+    "ttest_external_import_duration_seconds",
+    "External import source duration",
+    ("source",),
+)
 
 
 class JsonFormatter(logging.Formatter):
@@ -46,7 +56,11 @@ class JsonFormatter(logging.Formatter):
 def configure_logging() -> None:
     settings = get_settings()
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter() if settings.structured_logs else logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    handler.setFormatter(
+        JsonFormatter()
+        if settings.structured_logs
+        else logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    )
     root = logging.getLogger()
     root.handlers.clear()
     root.addHandler(handler)

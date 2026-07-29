@@ -13,6 +13,9 @@ COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
 RUN pip install .
+# Public-page rendering is optional at runtime, but the worker image must be
+# capable of providing the configured Playwright fallback without a host browser.
+RUN python -m playwright install --with-deps chromium
 
 RUN mkdir -p /app/var/media && chown -R app:app /app
 USER app

@@ -150,6 +150,10 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2), capacity]))
   const saved = favorites.has(selected.id)
   const openListing = () => {
+    if (selected.isExternal && selected.sourceUrl) {
+      window.open(selected.sourceUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
     window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: selected.id } }))
   }
 
@@ -159,7 +163,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       <button type="button" className="m2-map-listing-preview__close" onClick={() => setSelectedId('')} aria-label={t.close}><X /></button>
       <p><MapPin />{selected.area}, {selected.city}</p>
       <h2>{selected.title}</h2>
-      <strong>{priceLabel(selected)} <small>/{selected.cadence}</small></strong>
+      <strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{selected.cadence}</small>}</strong>
       <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
       <div className="m2-map-listing-preview__actions">
         <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(selected.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>

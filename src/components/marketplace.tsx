@@ -495,15 +495,20 @@ export function PriceBlock({
   return (
     <div className={cn("price-block", large && "price-block--large")}>
       <strong>
-        {new Intl.NumberFormat("es-ES", {
+        {listing.sourcePriceText ?? new Intl.NumberFormat("es-ES", {
           style: "currency",
           currency: "EUR",
           maximumFractionDigits: 0,
         }).format(getPrimaryPrice(listing))}
       </strong>
-      <span>/{getPrimaryCadence(listing)}</span>
+      {listing.sourcePriceText ? null : <span>/{getPrimaryCadence(listing)}</span>}
     </div>
   );
+}
+
+function ListingDestination({ listing, className, ariaLabel, children }: { listing: Listing; className?: string; ariaLabel?: string; children: ReactNode }) {
+  if (listing.isExternal && listing.sourceUrl) return <a className={className} href={listing.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel}>{children}</a>
+  return <Link className={className} to={`/habitacion/${listing.id}`} aria-label={ariaLabel}>{children}</Link>
 }
 
 export function PropertyCard({
@@ -545,10 +550,7 @@ export function PropertyCard({
       data-listing-id={listing.id}
     >
       <div className="property-card__media">
-        <Link
-          to={`/habitacion/${listing.id}`}
-          aria-label={`Ver ${listing.title}`}
-        >
+        <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`}>
           <MediaImage
             src={listing.images[imageIndex] || fallbackImage}
             onError={imageFallback}
@@ -557,7 +559,7 @@ export function PropertyCard({
             height="480"
             loading="lazy"
           />
-        </Link>
+        </ListingDestination>
         <button
           type="button"
           className="card-gallery-arrow card-gallery-arrow--previous"
@@ -592,7 +594,7 @@ export function PropertyCard({
         ) : null}
       </div>
       <div className="property-card__content">
-        <Link className="property-card__body-link" to={`/habitacion/${listing.id}`} aria-label={`Abrir ${listing.title}`}>
+        <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`}>
           <h3>{listing.title}</h3>
           <div className="card-topline">
             <PriceBlock listing={listing} />
@@ -609,15 +611,15 @@ export function PropertyCard({
             {visibleRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}
             {criticalRestrictions.length > visibleRestrictions.length ? <Badge variant="secondary">+{criticalRestrictions.length - visibleRestrictions.length} condiciones</Badge> : null}
           </div>
-          <div className="property-card__meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>{listing.advertiserType}</span></div>
-        </Link>
+          <div className="property-card__meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>{listing.primarySource ? `Fuente: ${listing.primarySource}` : listing.advertiserType}</span></div>
+        </ListingDestination>
         {compact ? null : (
           <div className="property-card__actions">
             <Button asChild>
-              <Link to={`/habitacion/${listing.id}`}>
+              <ListingDestination listing={listing}>
                 <MessageCircle data-icon="inline-start" />
                 Contactar
-              </Link>
+              </ListingDestination>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1429,10 +1431,10 @@ export function ContactPanel({
         <span>{confirmationText}</span>
       </label>
       <div className="contact-actions">
-        {listing.showWhatsApp ? <Button asChild={confirmed} disabled={!confirmed}>
+        {listing.showWhatsApp && listing.contactWhatsapp ? <Button asChild={confirmed} disabled={!confirmed}>
           {confirmed ? (
             <a
-              href={`https://wa.me/${(listing.contactWhatsapp || "34600112233").replace(/\D/g, "")}?text=${contactText}`}
+              href={`https://wa.me/${listing.contactWhatsapp.replace(/\D/g, "")}?text=${contactText}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -1446,18 +1448,21 @@ export function ContactPanel({
             </>
           )}
         </Button> : null}
-        {listing.showPhone ? (
+        {listing.showPhone && listing.contactPhone ? (
           <Button
             variant="outline"
             disabled={!confirmed && !mobile}
-            onClick={() => setPhone(true)}
+            onClick={() => listing.isExternal ? window.location.assign(`tel:${listing.contactPhone}`) : setPhone(true)}
           >
             <Phone data-icon="inline-start" />
             {phone
-              ? listing.contactPhone || "+34 600 112 233"
+              ? listing.contactPhone
               : mobile ? "Llamar" : "Mostrar teléfono"}
           </Button>
         ) : null}
+        {listing.isExternal && listing.contactEmail ? <Button asChild variant="outline" disabled={!confirmed && !mobile}>
+          {confirmed || mobile ? <a href={`mailto:${listing.contactEmail}`}><MessageCircle data-icon="inline-start" />Email</a> : <><MessageCircle data-icon="inline-start" />Email</>}
+        </Button> : null}
         {listing.allowContactForm ? <Dialog open={messageOpen} onOpenChange={(open) => {
           setMessageOpen(open);
           if (open) messageStartedAt.current = Date.now();

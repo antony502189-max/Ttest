@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import func, select
+
+from app.db.session import SessionLocal
+from app.external_sources import NormalizedListing
+from app.models import ExternalListingSource, Listing
+from app.services.external_import import archive_missing, run_source, upsert
+
+pytestmark = pytest.mark.integration
+
+
+def external_item(*, source: str, external_id: str, url: str, price: int = 710) -> NormalizedListing:
+    return NormalizedListing(
+        source_name=source,
+        external_id=external_id,
+        source_url=url,
+        title="Habitación exterior cerca de la playa",
+        description="Habitación individual amueblada en piso compartido en Adeje.",
+        city="Adeje",
+        area="Adeje",
+        rental_mode="long",
+        source_price_text=f"{price} €/mes",
+        price_amount=price,
+        price_currency="EUR",
+        price_period="month",
+        price_is_from=False,
+        latitude=28.1227,
+        longitude=-16.7244,
+        phone="+34 612 345 678",
+        whatsapp="+34 612 345 678",
+        email="owner@example.test",
+        raw_payload={"fixture": source},
+    )
+
+
+class FailingSource:
+    name = "Idealista"
+
+    async def discover_listing_urls(self) -> list[str]:
+        raise RuntimeError("public source unavailable")
+
+    async def close(self) -> None:
+        return None
+
+
+async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
+    async with SessionLocal() as session:
+        idealista = external_item(
+            source="Idealista",
+            external_id="idealista-1",
+            url="https://www.idealista.com/inmueble/100001/",
+        )
+        assert await upsert(session, idealista) == "imported"
+        await session.commit()
+        assert await upsert(session, idealista) == "unchanged"
+        await session.commit()
+
+        fotocasa = external_item(
+            source="Fotocasa",
+            external_id="fotocasa-1",
+            url="https://www.fotocasa.es/es/alquiler/inmueble/100001",
+            price=740,
+        )
+        assert await upsert(session, fotocasa) == "updated"
+        await session.commit()
+
+        assert await session.scalar(select(func.count()).select_from(Listing).where(Listing.is_external.is_(True))) == 1
+        assert await session.scalar(select(func.count()).select_from(ExternalListingSource)) == 2
+        listing = await session.scalar(select(Listing).where(Listing.is_external.is_(True)))
+        assert listing is not None and listing.source_price_text == "740 €/mes"
+
+        search = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
+        assert search.status_code == 200, search.text
+        external = next(item for item in search.json()["items"] if item["id"] == str(listing.id))
+        assert external["isExternal"] is True
+        assert external["sourceUrl"] == fotocasa.source_url
+        assert external["sourcePriceText"] == "740 €/mes"
+
+        future_run = datetime.now(UTC) + timedelta(minutes=1)
+        assert await archive_missing(session, "Fotocasa", future_run) == 0
+        assert await archive_missing(session, "Fotocasa", future_run) == 0
+        await session.commit()
+        await session.refresh(listing)
+        assert listing.status == "published"
+        assert listing.primary_source == "Idealista"
+
+        assert await archive_missing(session, "Idealista", future_run) == 0
+        assert await archive_missing(session, "Idealista", future_run) == 1
+        await session.commit()
+        await session.refresh(listing)
+        assert listing.status == "closed"
+
+
+async def test_complete_source_failure_does_not_mark_existing_external_listing_missing():
+    async with SessionLocal() as session:
+        item = external_item(
+            source="Idealista",
+            external_id="idealista-2",
+            url="https://www.idealista.com/inmueble/100002/",
+        )
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+
+        counters = await run_source(session, FailingSource(), "test-failing-source")  # type: ignore[arg-type]
+        assert counters["failed"] == 1
+        source = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "idealista-2")
+        )
+        assert source is not None
+        assert source.current_status == "active"
+        assert source.consecutive_missing_runs == 0

@@ -40,7 +40,7 @@ export interface Listing {
   availableFrom: string
   availableUntil?: string
   minimumStay: string
-  minimumStayMonths: number
+  minimumStayMonths: number | null
   minimumNights?: number
   deposit: string
   depositAmount: number
@@ -56,10 +56,10 @@ export interface Listing {
   shower: ShowerType
   coordinates: Coordinates
   tenantRequirement: TenantRequirement
-  smokingAllowed: boolean
-  petsAllowed: boolean
-  childrenAllowed: boolean
-  empadronamientoAllowed: boolean
+  smokingAllowed: boolean | null
+  petsAllowed: boolean | null
+  childrenAllowed: boolean | null
+  empadronamientoAllowed: boolean | null
   restrictions: string[]
   amenities: string[]
   description: string
@@ -68,6 +68,13 @@ export interface Listing {
   owner: Owner
   advertiserType: AdvertiserType
   source?: string
+  isExternal?: boolean
+  primarySource?: string
+  sourceUrl?: string
+  sourcePriceText?: string
+  priceCurrency?: string
+  pricePeriod?: 'month' | 'night' | 'week'
+  priceIsFrom?: boolean
   status: ListingStatus
   publishedAt: string
   views: number

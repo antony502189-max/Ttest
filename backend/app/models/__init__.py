@@ -103,7 +103,7 @@ class Listing(Timestamped, Base):
     room_type: Mapped[str] = mapped_column(String(64), default="Habitación individual")
     available_from: Mapped[date | None] = mapped_column(Date)
     available_until: Mapped[date | None] = mapped_column(Date)
-    minimum_stay_months: Mapped[int] = mapped_column(Integer, default=0)
+    minimum_stay_months: Mapped[int | None] = mapped_column(Integer, default=0)
     minimum_nights: Mapped[int | None] = mapped_column(Integer)
     deposit_amount: Mapped[int] = mapped_column(Integer, default=0)
     bills_included: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -116,10 +116,10 @@ class Listing(Timestamped, Base):
     room_capacity: Mapped[int] = mapped_column(Integer, default=1)
     shower: Mapped[str] = mapped_column(String(64), default="Ducha compartida")
     tenant_requirement: Mapped[str] = mapped_column(String(32), default="any")
-    smoking_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
-    pets_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
-    children_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
-    empadronamiento_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    smoking_allowed: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    pets_allowed: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    children_allowed: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    empadronamiento_allowed: Mapped[bool | None] = mapped_column(Boolean, default=False)
     restrictions: Mapped[list[str]] = mapped_column(JSONB, default=list)
     amenities: Mapped[list[str]] = mapped_column(JSONB, default=list)
     external_image_urls: Mapped[list[str]] = mapped_column(JSONB, default=list)
@@ -141,6 +141,54 @@ class Listing(Timestamped, Base):
     views: Mapped[int] = mapped_column(Integer, default=0)
     closed_reason: Mapped[str | None] = mapped_column(String(32))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    is_external: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    primary_source: Mapped[str | None] = mapped_column(String(64), index=True)
+    primary_source_url: Mapped[str | None] = mapped_column(Text)
+    source_price_text: Mapped[str | None] = mapped_column(String(120))
+    source_price_currency: Mapped[str | None] = mapped_column(String(8))
+    source_price_period: Mapped[str | None] = mapped_column(String(16))
+    source_price_is_from: Mapped[bool | None] = mapped_column(Boolean)
+    external_contact_phone: Mapped[str | None] = mapped_column(String(64))
+    external_contact_whatsapp: Mapped[str | None] = mapped_column(String(64))
+    external_contact_email: Mapped[str | None] = mapped_column(String(320))
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ExternalListingSource(Base):
+    __tablename__ = "external_listing_sources"
+    __table_args__ = (
+        UniqueConstraint("source_name", "external_id", name="uq_external_listing_source_external_id"),
+        UniqueConstraint("source_url", name="uq_external_listing_source_url"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    source_name: Mapped[str] = mapped_column(String(64), index=True)
+    external_id: Mapped[str] = mapped_column(String(255))
+    source_url: Mapped[str] = mapped_column(Text)
+    canonical_listing_id: Mapped[UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), index=True)
+    raw_payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+    source_price_text: Mapped[str | None] = mapped_column(String(120))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    content_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consecutive_missing_runs: Mapped[int] = mapped_column(Integer, default=0)
+    current_status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class ExternalImportRun(Base):
+    __tablename__ = "external_import_runs"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    run_id: Mapped[str] = mapped_column(String(64), index=True)
+    source_name: Mapped[str] = mapped_column(String(64), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[str] = mapped_column(String(32), default="running")
+    counters: Mapped[dict] = mapped_column(JSONB, default=dict)
+    last_error: Mapped[str | None] = mapped_column(Text)
 
 
 class Favorite(Base):
@@ -249,6 +297,7 @@ class MediaAsset(Base):
     width: Mapped[int] = mapped_column(Integer)
     height: Mapped[int] = mapped_column(Integer)
     checksum: Mapped[str] = mapped_column(String(64), index=True)
+    perceptual_hash: Mapped[str | None] = mapped_column(String(16), index=True)
     kind: Mapped[str] = mapped_column(Enum("listing_image", "avatar", name="media_kind"), default="listing_image")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

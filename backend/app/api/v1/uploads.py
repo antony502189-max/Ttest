@@ -43,7 +43,12 @@ def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
                 if probe.format not in SUPPORTED_FORMATS:
                     raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
                 width, height = probe.size
-                if width < 1 or height < 1 or width > settings.max_image_dimension or height > settings.max_image_dimension:
+                if (
+                    width < 1
+                    or height < 1
+                    or width > settings.max_image_dimension
+                    or height > settings.max_image_dimension
+                ):
                     raise HTTPException(422, "Image dimensions are not allowed")
                 probe.verify()
 

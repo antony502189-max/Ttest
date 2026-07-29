@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -44,3 +45,13 @@ class AdminListingResponse(BaseModel):
     area: str
     status: str
     rentalMode: str
+
+
+class ExternalImportRunResponse(BaseModel):
+    runId: str
+    source: str
+    startedAt: datetime
+    finishedAt: datetime | None
+    result: str
+    counters: dict
+    lastError: str | None

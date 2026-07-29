@@ -141,13 +141,8 @@ class ListingPatch(BaseModel):
         if "status" in self.model_fields_set and self.status not in ALLOWED_LISTING_STATUSES:
             raise ValueError("status contains an unsupported value")
         coordinate_fields = {"latitude", "longitude"}
-        if (
-            self.model_fields_set & coordinate_fields
-            and (
-                not coordinate_fields.issubset(self.model_fields_set)
-                or self.latitude is None
-                or self.longitude is None
-            )
+        if self.model_fields_set & coordinate_fields and (
+            not coordinate_fields.issubset(self.model_fields_set) or self.latitude is None or self.longitude is None
         ):
             raise ValueError("latitude and longitude must be changed together")
         exact_fields = {"exactLatitude", "exactLongitude"}
@@ -184,7 +179,7 @@ class ListingResponse(BaseModel):
     roomType: str
     availableFrom: date | None
     availableUntil: date | None
-    minimumStayMonths: int
+    minimumStayMonths: int | None
     minimumNights: int | None
     depositAmount: int
     billsIncluded: bool
@@ -197,10 +192,10 @@ class ListingResponse(BaseModel):
     roomCapacity: int
     shower: str
     tenantRequirement: str
-    smokingAllowed: bool
-    petsAllowed: bool
-    childrenAllowed: bool
-    empadronamientoAllowed: bool
+    smokingAllowed: bool | None
+    petsAllowed: bool | None
+    childrenAllowed: bool | None
+    empadronamientoAllowed: bool | None
     restrictions: list[str]
     amenities: list[str]
     status: str
@@ -210,6 +205,13 @@ class ListingResponse(BaseModel):
     homeDescription: str
     advertiserType: str
     source: str | None
+    isExternal: bool = False
+    primarySource: str | None = None
+    sourceUrl: str | None = None
+    sourcePriceText: str | None = None
+    priceCurrency: str | None = None
+    pricePeriod: str | None = None
+    priceIsFrom: bool | None = None
     publishedAt: datetime | None
     expiresAt: datetime | None
     views: int
@@ -295,7 +297,9 @@ class ListingSearchRequest(BaseModel):
         bounds = (self.minLatitude, self.maxLatitude, self.minLongitude, self.maxLongitude)
         if any(value is not None for value in bounds) and any(value is None for value in bounds):
             raise ValueError("all bounding-box coordinates are required")
-        if self.minLatitude is not None and (self.minLatitude >= self.maxLatitude or self.minLongitude >= self.maxLongitude):
+        if self.minLatitude is not None and (
+            self.minLatitude >= self.maxLatitude or self.minLongitude >= self.maxLongitude
+        ):
             raise ValueError("bounding-box minimums must be below maximums")
         if (self.center is None) != (self.radiusKm is None):
             raise ValueError("center and radiusKm must be provided together")
@@ -305,7 +309,11 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("sort must be newest, oldest, price_asc, or price_desc")
         if self.minPrice is not None and self.maxPrice is not None and self.minPrice > self.maxPrice:
             raise ValueError("minPrice cannot exceed maxPrice")
-        if self.minRoomSizeM2 is not None and self.maxRoomSizeM2 is not None and self.minRoomSizeM2 > self.maxRoomSizeM2:
+        if (
+            self.minRoomSizeM2 is not None
+            and self.maxRoomSizeM2 is not None
+            and self.minRoomSizeM2 > self.maxRoomSizeM2
+        ):
             raise ValueError("minRoomSizeM2 cannot exceed maxRoomSizeM2")
         if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
             raise ValueError("availableUntil cannot be before availableFrom")
@@ -315,7 +323,9 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("use roomType or roomTypes, not both")
         if self.roomType and self.roomType not in ALLOWED_ROOM_TYPES:
             raise ValueError("roomType contains an unsupported value")
-        if len(set(self.roomTypes)) != len(self.roomTypes) or any(value not in ALLOWED_ROOM_TYPES for value in self.roomTypes):
+        if len(set(self.roomTypes)) != len(self.roomTypes) or any(
+            value not in ALLOWED_ROOM_TYPES for value in self.roomTypes
+        ):
             raise ValueError("roomTypes contains duplicate or unsupported values")
         invalid_counts = [value for value in self.bedroomCounts if value != "10+" and not 1 <= int(value) <= 10]
         if invalid_counts or len(set(map(str, self.bedroomCounts))) != len(self.bedroomCounts):

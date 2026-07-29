@@ -30,13 +30,13 @@ export function getCriticalRestrictions(listing: Listing): string[] {
   const restrictions = [
     tenantRequirementLabels[listing.tenantRequirement],
     `Habitación para ${listing.roomCapacity} ${listing.roomCapacity === 1 ? 'persona' : 'personas'}`,
-    listing.petsAllowed ? 'Mascotas permitidas' : 'Sin mascotas',
-    listing.smokingAllowed ? 'Se puede fumar' : 'No fumar',
-    listing.childrenAllowed ? 'Niños permitidos' : 'Sin niños',
-    listing.empadronamientoAllowed ? 'Empadronamiento posible' : 'Sin empadronamiento',
+    listing.petsAllowed == null ? '' : listing.petsAllowed ? 'Mascotas permitidas' : 'Sin mascotas',
+    listing.smokingAllowed == null ? '' : listing.smokingAllowed ? 'Se puede fumar' : 'No fumar',
+    listing.childrenAllowed == null ? '' : listing.childrenAllowed ? 'Niños permitidos' : 'Sin niños',
+    listing.empadronamientoAllowed == null ? '' : listing.empadronamientoAllowed ? 'Empadronamiento posible' : 'Sin empadronamiento',
     listing.rentalMode === 'holiday'
-      ? `Estancia mínima de ${listing.minimumNights ?? 1} ${(listing.minimumNights ?? 1) === 1 ? 'noche' : 'noches'}`
-      : `Estancia mínima de ${listing.minimumStayMonths} ${listing.minimumStayMonths === 1 ? 'mes' : 'meses'}`,
+      ? listing.minimumNights == null ? '' : `Estancia mínima de ${listing.minimumNights} ${listing.minimumNights === 1 ? 'noche' : 'noches'}`
+      : listing.minimumStayMonths == null ? '' : `Estancia mínima de ${listing.minimumStayMonths} ${listing.minimumStayMonths === 1 ? 'mes' : 'meses'}`,
     listing.billsIncluded ? 'Gastos incluidos' : listing.bills,
   ]
   return [...new Set(restrictions.filter(Boolean))]
@@ -45,9 +45,9 @@ export function getCriticalRestrictions(listing: Listing): string[] {
 export function getImageCriticalRestrictions(listing: Listing): string[] {
   const conditions: string[] = []
   if (listing.tenantRequirement !== 'any') conditions.push(tenantRequirementLabels[listing.tenantRequirement])
-  if (!listing.petsAllowed) conditions.push('Sin mascotas')
-  if (!listing.childrenAllowed) conditions.push('Sin niños')
-  if (!listing.smokingAllowed) conditions.push('No fumar')
+  if (listing.petsAllowed === false) conditions.push('Sin mascotas')
+  if (listing.childrenAllowed === false) conditions.push('Sin niños')
+  if (listing.smokingAllowed === false) conditions.push('No fumar')
   if (!conditions.length && listing.roomCapacity === 1) conditions.push('1 persona')
   return [...new Set(conditions)].slice(0, 2)
 }
@@ -126,9 +126,9 @@ export function normalizeListing(value: unknown): Listing | null {
     available: legacy.available ?? 'Consultar disponibilidad',
     availableFrom: legacy.availableFrom ?? new Date().toISOString().slice(0, 10),
     availableUntil: legacy.availableUntil,
-    minimumStay: legacy.minimumStay ?? (rentalMode === 'holiday' ? 'Mínimo 1 noche' : 'Mínimo 1 mes'),
-    minimumStayMonths: typeof legacy.minimumStayMonths === 'number' ? legacy.minimumStayMonths : rentalMode === 'long' ? 1 : 0,
-    minimumNights: typeof legacy.minimumNights === 'number' ? legacy.minimumNights : rentalMode === 'holiday' ? 1 : undefined,
+    minimumStay: legacy.minimumStay ?? (legacy.isExternal ? 'Consultar estancia mínima' : rentalMode === 'holiday' ? 'Mínimo 1 noche' : 'Mínimo 1 mes'),
+    minimumStayMonths: typeof legacy.minimumStayMonths === 'number' ? legacy.minimumStayMonths : legacy.isExternal ? null : rentalMode === 'long' ? 1 : 0,
+    minimumNights: typeof legacy.minimumNights === 'number' ? legacy.minimumNights : legacy.isExternal ? undefined : rentalMode === 'holiday' ? 1 : undefined,
     deposit: legacy.deposit ?? 'Sin fianza',
     depositAmount: typeof legacy.depositAmount === 'number' ? legacy.depositAmount : 0,
     bills: legacy.bills ?? 'Gastos no especificados',
@@ -147,10 +147,10 @@ export function normalizeListing(value: unknown): Listing | null {
       ? legacy.coordinates
       : { ...TENERIFE_CENTER },
     tenantRequirement,
-    smokingAllowed: Boolean(legacy.smokingAllowed),
-    petsAllowed: Boolean(legacy.petsAllowed),
-    childrenAllowed: Boolean(legacy.childrenAllowed),
-    empadronamientoAllowed: Boolean(legacy.empadronamientoAllowed),
+    smokingAllowed: typeof legacy.smokingAllowed === 'boolean' ? legacy.smokingAllowed : null,
+    petsAllowed: typeof legacy.petsAllowed === 'boolean' ? legacy.petsAllowed : null,
+    childrenAllowed: typeof legacy.childrenAllowed === 'boolean' ? legacy.childrenAllowed : null,
+    empadronamientoAllowed: typeof legacy.empadronamientoAllowed === 'boolean' ? legacy.empadronamientoAllowed : null,
     restrictions: Array.isArray(legacy.restrictions) ? legacy.restrictions : [],
     amenities: Array.isArray(legacy.amenities) ? legacy.amenities : [],
     description: legacy.description ?? '',
@@ -159,6 +159,13 @@ export function normalizeListing(value: unknown): Listing | null {
     owner: legacy.owner ?? { name: 'Anunciante', initials: 'AN', since: 'Cuenta local', response: 'Consulta disponibilidad', verified: false },
     advertiserType: legacy.advertiserType ?? 'Particular',
     source: legacy.source,
+    isExternal: legacy.isExternal,
+    primarySource: legacy.primarySource,
+    sourceUrl: legacy.sourceUrl,
+    sourcePriceText: legacy.sourcePriceText,
+    priceCurrency: legacy.priceCurrency,
+    pricePeriod: legacy.pricePeriod,
+    priceIsFrom: legacy.priceIsFrom,
     status: legacy.status ?? 'Publicado',
     publishedAt: value.publishedAt,
     views: typeof legacy.views === 'number' ? legacy.views : 0,
