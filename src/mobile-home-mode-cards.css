@@ -13,21 +13,21 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: .55rem;
-    padding: .75rem .3rem .7rem;
-    border: 1px solid rgb(0 0 0 / .08);
-    border-radius: .78rem;
-    background: linear-gradient(145deg, #fbfcf6 0%, #f5f6ef 100%);
+    justify-content: space-between;
+    gap: .28rem;
+    padding: .68rem .3rem .58rem;
+    border: 1px solid rgb(255 255 255 / .68);
+    border-radius: 1rem;
+    background: linear-gradient(145deg, #fffef9 0%, #f6f6ef 100%);
     color: #111;
-    box-shadow: 0 .14rem .42rem rgb(0 0 0 / .14);
+    box-shadow: 0 .12rem .35rem rgb(0 0 0 / .13);
     text-align: center;
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
 
   .m2-mode-switch > button:last-child {
-    border-right: 1px solid rgb(190 0 126 / .1);
-    background: linear-gradient(145deg, #fff5fa 0%, #fbe9f3 100%);
+    border-color: rgb(198 0 131 / .18);
+    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
   }
 
   .m2-mode-switch > button:active {
@@ -35,20 +35,20 @@
   }
 
   .m2-mode-switch > button.is-active {
-    background: linear-gradient(145deg, #fbfcf6 0%, #f5f6ef 100%);
+    background: linear-gradient(145deg, #fffef9 0%, #f6f6ef 100%);
     color: #111;
-    box-shadow: 0 .16rem .46rem rgb(0 0 0 / .16), inset 0 0 0 2px #74b900;
+    box-shadow: 0 .15rem .42rem rgb(0 0 0 / .16), inset 0 0 0 2px #74b900;
   }
 
   .m2-mode-switch > button:last-child.is-active {
-    background: linear-gradient(145deg, #fff5fa 0%, #fbe9f3 100%);
-    box-shadow: 0 .16rem .46rem rgb(0 0 0 / .16), inset 0 0 0 2px #c60083;
+    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
+    box-shadow: 0 .15rem .42rem rgb(0 0 0 / .16), inset 0 0 0 2px #c60083;
   }
 
   .m2-mode-icon {
-    flex: 0 0 2.45rem;
-    width: 2.45rem;
-    height: 2.45rem;
+    flex: 0 0 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
     display: grid;
     place-items: center;
     border-radius: 0;
@@ -56,19 +56,23 @@
   }
 
   .m2-mode-icon svg {
-    width: 2.35rem;
-    height: 2.35rem;
-    stroke-width: 1.8;
+    width: 2.45rem;
+    height: 2.45rem;
+    stroke-width: 2.15;
   }
 
   .m2-mode-icon--home {
     background: transparent;
-    color: #70b700;
+    color: #64b800;
   }
 
   .m2-mode-icon--tourism {
-    background: transparent;
+    background: transparent center / contain no-repeat url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzYwMDgzIiBzdHJva2Utd2lkdGg9IjIuMTUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTYgMjBoMTJhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJINmEyIDIgMCAwIDAtMiAydjExYTIgMiAwIDAgMCAyIDJaIi8+PHBhdGggZD0iTTggNVYzYTEgMSAwIDAgMSAxLTFoNmExIDEgMCAwIDEgMSAxdjIiLz48cGF0aCBkPSJNOSAyMHYxTTE1IDIwdjFNOCAxMHY0TTE2IDEwdjQiLz48L3N2Zz4=");
     color: #c60083;
+  }
+
+  .m2-mode-icon--tourism svg {
+    visibility: hidden;
   }
 
   .m2-mode-switch > button > span:last-child {
@@ -76,7 +80,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: .28rem;
+    gap: .32rem;
     font-size: 0;
     line-height: 1;
   }
@@ -84,18 +88,18 @@
   .m2-mode-switch > button > span:last-child::before {
     content: 'HABITACIONES';
     color: #111;
-    font-size: clamp(.72rem, 3.6vw, .9rem);
+    font-size: clamp(.73rem, 3.7vw, .92rem);
     font-weight: 900;
-    letter-spacing: .01em;
-    line-height: 1.05;
+    letter-spacing: .005em;
+    line-height: 1;
     white-space: nowrap;
   }
 
   .m2-mode-switch > button > span:last-child::after {
-    color: #4b4b4b;
+    color: #555;
     font-size: clamp(.5rem, 2.6vw, .66rem);
     font-weight: 400;
-    letter-spacing: .075em;
+    letter-spacing: .08em;
     line-height: 1.15;
     white-space: nowrap;
   }
@@ -116,19 +120,19 @@
 
   .m2-mode-switch > button {
     min-height: 6.35rem;
-    gap: .42rem;
-    padding: .62rem .2rem .58rem;
-    border-radius: .68rem;
+    gap: .24rem;
+    padding: .58rem .2rem .5rem;
+    border-radius: .9rem;
   }
 
   .m2-mode-icon,
   .m2-mode-icon svg {
-    width: 2.1rem;
-    height: 2.1rem;
+    width: 2.15rem;
+    height: 2.15rem;
   }
 
   .m2-mode-icon {
-    flex-basis: 2.1rem;
+    flex-basis: 2.15rem;
   }
 
   .m2-mode-switch > button > span:last-child::before {
