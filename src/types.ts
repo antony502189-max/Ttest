@@ -92,6 +92,7 @@ export interface Filters {
   minStay: string
   conditions: string[]
   tenantRequirement: TenantRequirementFilter
+  tenantRequirements: TenantRequirement[]
   bathroom: string
   kitchen: string
   furnished: boolean
