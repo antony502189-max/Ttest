@@ -135,19 +135,6 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [items, selectedId])
 
   useEffect(() => {
-    const screen = mapRef.current?.getDiv().closest('.m2-map-screen')
-    if (!(screen instanceof HTMLElement)) return
-    const previewOpen = Boolean(selected)
-    screen.classList.toggle('has-listing-preview', previewOpen)
-    const floatingControls = screen.querySelectorAll<HTMLElement>('.m2-map-controls, .m2-search-area, .m2-draw-actions')
-    floatingControls.forEach((control) => { control.hidden = previewOpen })
-    return () => {
-      screen.classList.remove('has-listing-preview')
-      floatingControls.forEach((control) => { control.hidden = false })
-    }
-  }, [mapReady, mapRef, selected])
-
-  useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
     const listener = map.addListener('idle', () => {
@@ -166,18 +153,9 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: selected.id } }))
   }
 
-  return <article
-    className="m2-map-listing-preview"
-    data-testid="mobile-map-listing-preview"
-    data-listing-id={selected.id}
-    style={{
-      bottom: 'calc(.65rem + env(safe-area-inset-bottom))',
-      maxHeight: 'calc(100dvh - 8.35rem - env(safe-area-inset-top))',
-      zIndex: 50,
-    }}
-  >
+  return <article className="m2-map-listing-preview" data-testid="mobile-map-listing-preview" data-listing-id={selected.id}>
     <div className="m2-map-listing-preview__media"><MediaImage src={selected.images[0]} alt={selected.title} /></div>
-    <div className="m2-map-listing-preview__body" style={{ overflowY: 'auto', overscrollBehavior: 'contain' }}>
+    <div className="m2-map-listing-preview__body">
       <button type="button" className="m2-map-listing-preview__close" onClick={() => setSelectedId('')} aria-label={t.close}><X /></button>
       <p><MapPin />{selected.area}, {selected.city}</p>
       <h2>{selected.title}</h2>
