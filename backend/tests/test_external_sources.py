@@ -209,6 +209,12 @@ def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
                 return httpx.Response(410, request=request)
             if path.endswith("/100403/"):
                 return httpx.Response(403, request=request)
+            if path.endswith("/100429/"):
+                return httpx.Response(429, request=request)
+            if path.endswith("/100500/"):
+                return httpx.Response(500, request=request)
+            if path.endswith("/100timeout/"):
+                raise httpx.ReadTimeout("test timeout", request=request)
             if path.endswith("/100002/"):
                 return httpx.Response(200, text="Anuncio eliminado", request=request)
             if path.endswith("/100004/"):
@@ -221,6 +227,9 @@ def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100404/") == "not_found"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100410/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100403/") == "temporary_error"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100429/") == "temporary_error"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100500/") == "temporary_error"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100timeout/") == "temporary_error"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100002/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100004/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100003/") == "removed"
