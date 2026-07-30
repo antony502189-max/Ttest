@@ -32,17 +32,19 @@ type ListingDto = {
   availableUntil: string | null
   minimumStayMonths: number | null
   minimumNights: number | null
-  depositAmount: number
-  billsIncluded: boolean
-  bathroom: Listing['bathroom']
-  kitchen: Listing['kitchen']
-  furnished: boolean
-  roomSizeM2: number
+  depositAmount: number | null
+  depositText: string | null
+  billsIncluded: boolean | null
+  billsText: string | null
+  bathroom: Listing['bathroom'] | null
+  kitchen: Listing['kitchen'] | null
+  furnished: boolean | null
+  roomSizeM2: number | null
   bedroomCount: number | null
   currentResidents: number
-  roomCapacity: 1 | 2
+  roomCapacity: 1 | 2 | null
   shower: Listing['shower']
-  tenantRequirement: TenantRequirement
+  tenantRequirement: TenantRequirement | null
   smokingAllowed: boolean | null
   petsAllowed: boolean | null
   childrenAllowed: boolean | null
@@ -54,7 +56,8 @@ type ListingDto = {
   longitude: number
   description: string
   homeDescription: string
-  advertiserType: Listing['advertiserType']
+  advertiserName: string | null
+  advertiserType: Listing['advertiserType'] | null
   source: string | null
   isExternal: boolean
   primarySource: string | null
@@ -119,20 +122,20 @@ export function toListing(dto: ListingDto): Listing {
       : dto.minimumStayMonths == null ? 'Consultar estancia mínima' : `Mínimo ${dto.minimumStayMonths} mes(es)`,
     minimumStayMonths: dto.minimumStayMonths,
     minimumNights: dto.minimumNights ?? undefined,
-    deposit: dto.depositAmount ? `${dto.depositAmount} € de fianza` : 'Sin fianza',
-    depositAmount: dto.depositAmount,
-    bills: dto.billsIncluded ? 'Gastos incluidos' : 'Gastos no incluidos',
-    billsIncluded: dto.billsIncluded,
-    bathroom: dto.bathroom,
-    kitchen: dto.kitchen,
-    furnished: dto.furnished,
-    roomSizeM2: dto.roomSizeM2,
+    deposit: dto.depositText ?? (dto.depositAmount != null ? `${dto.depositAmount} € de fianza` : 'Consultar fianza'),
+    depositAmount: dto.depositAmount ?? 0,
+    bills: dto.billsText ?? (dto.billsIncluded == null ? 'Consultar gastos' : dto.billsIncluded ? 'Gastos incluidos' : 'Gastos no incluidos'),
+    billsIncluded: dto.billsIncluded ?? false,
+    bathroom: dto.bathroom ?? 'Baño compartido',
+    kitchen: dto.kitchen ?? 'Cocina compartida',
+    furnished: dto.furnished ?? false,
+    roomSizeM2: dto.roomSizeM2 ?? 0,
     bedroomCount: dto.bedroomCount ?? undefined,
     currentResidents: dto.currentResidents,
-    roomCapacity: dto.roomCapacity,
+    roomCapacity: dto.roomCapacity ?? 1,
     shower: dto.shower,
     coordinates: { lat: dto.latitude, lng: dto.longitude },
-    tenantRequirement: dto.tenantRequirement,
+    tenantRequirement: dto.tenantRequirement ?? 'any',
     smokingAllowed: dto.smokingAllowed,
     petsAllowed: dto.petsAllowed,
     childrenAllowed: dto.childrenAllowed,
@@ -149,7 +152,7 @@ export function toListing(dto: ListingDto): Listing {
       response: dto.owner.response,
       verified: dto.owner.verified,
     },
-    advertiserType: dto.advertiserType,
+    advertiserType: dto.advertiserType ?? 'Particular',
     source: dto.source ?? undefined,
     isExternal: dto.isExternal,
     primarySource: dto.primarySource ?? undefined,
