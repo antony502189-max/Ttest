@@ -7,8 +7,8 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
-from app.external_sources import NormalizedListing
-from app.models import ExternalListingSource, Listing
+from app.external_sources import NormalizedListing, SourceBlocked
+from app.models import ExternalImportRun, ExternalListingSource, Listing
 from app.services.external_import import archive_missing, run_source, upsert
 
 pytestmark = pytest.mark.integration
@@ -43,6 +43,56 @@ class FailingSource:
 
     async def discover_listing_urls(self) -> list[str]:
         raise RuntimeError("public source unavailable")
+
+    async def close(self) -> None:
+        return None
+
+
+class PartiallyFailingSource:
+    name = "Fotocasa"
+
+    def __init__(self) -> None:
+        self.not_found_urls: set[str] = set()
+        self.blocked_diagnostic = None
+
+    async def discover_listing_urls(self) -> list[str]:
+        return ["https://example.test/failing", "https://example.test/working"]
+
+    async def fetch_listing(self, url: str) -> str:
+        if url.endswith("failing"):
+            raise RuntimeError("temporary detail error")
+        return "working"
+
+    def parse_listing(self, document: str, url: str) -> dict:
+        return {
+            "title": "Habitación individual en alquiler",
+            "description": "Se alquila habitación en piso compartido",
+            "category": "alquiler habitación",
+            "breadcrumbs": "Adeje, Santa Cruz de Tenerife",
+            "price_text": "710 €/mes",
+        }
+
+    def normalize_listing(self, data: dict, url: str) -> NormalizedListing:
+        return external_item(source=self.name, external_id="working", url=url)
+
+    async def close(self) -> None:
+        return None
+
+
+class BlockedSource:
+    name = "Milanuncios"
+
+    def __init__(self) -> None:
+        self.not_found_urls: set[str] = set()
+        self.blocked_diagnostic = {
+            "challenge_type": "geetest",
+            "status": 403,
+            "final_url": "https://example.test/blocked",
+            "paths": {"html": "var/error.html", "screenshot": "var/error.png"},
+        }
+
+    async def discover_listing_urls(self) -> list[str]:
+        raise SourceBlocked("public source access challenge")
 
     async def close(self) -> None:
         return None
@@ -114,3 +164,20 @@ async def test_complete_source_failure_does_not_mark_existing_external_listing_m
         assert source is not None
         assert source.current_status == "active"
         assert source.consecutive_missing_runs == 0
+
+
+async def test_detail_error_is_partial_and_blocked_source_records_diagnostics():
+    async with SessionLocal() as session:
+        partial = await run_source(session, PartiallyFailingSource(), "test-partial")  # type: ignore[arg-type]
+        assert partial["failed_details"] == 1
+        run = await session.scalar(select(ExternalImportRun).where(ExternalImportRun.run_id == "test-partial"))
+        assert run is not None and run.result == "partial"
+
+        blocked = await run_source(session, BlockedSource(), "test-blocked")  # type: ignore[arg-type]
+        assert blocked["failed"] == 1
+        blocked_run = await session.scalar(select(ExternalImportRun).where(ExternalImportRun.run_id == "test-blocked"))
+        assert blocked_run is not None
+        assert blocked_run.result == "blocked"
+        assert blocked_run.challenge_type == "geetest"
+        assert blocked_run.http_status == 403
+        assert blocked_run.next_check_at is not None
