@@ -1,13 +1,13 @@
 """separate unknown detail-state fallback from missing counters
 
-Revision ID: 0022_external_unknown_state_counter
-Revises: 0021_external_source_state_metadata
+Revision ID: 0022_unknown_state_counter
+Revises: 0021_source_state_metadata
 """
 
 from alembic import op
 
-revision = "0022_external_unknown_state_counter"
-down_revision = "0021_external_source_state_metadata"
+revision = "0022_unknown_state_counter"
+down_revision = "0021_source_state_metadata"
 branch_labels = None
 depends_on = None
 

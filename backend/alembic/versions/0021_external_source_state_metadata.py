@@ -1,12 +1,12 @@
 """persist discovery and detail-state checks for external source records
 
-Revision ID: 0021_external_source_state_metadata
+Revision ID: 0021_source_state_metadata
 Revises: 0020_external_lifecycle
 """
 
 from alembic import op
 
-revision = "0021_external_source_state_metadata"
+revision = "0021_source_state_metadata"
 down_revision = "0020_external_lifecycle"
 branch_labels = None
 depends_on = None
