@@ -160,23 +160,33 @@ async def loop() -> None:
     for name in ("SIGINT", "SIGTERM"):
         if hasattr(signal, name):
             event_loop.add_signal_handler(getattr(signal, name), stopping.set)
-    first_iteration = True
-    next_removal_check = datetime.now(UTC)
+    settings = get_settings()
+    now = datetime.now(UTC)
+    next_full_sync = now if settings.external_import_run_on_start else now + timedelta(
+        seconds=settings.external_import_interval_seconds
+    )
+    next_removal_check = now if settings.external_removal_check_enabled else None
     while not stopping.is_set():
-        if not first_iteration or get_settings().external_import_run_on_start:
+        now = datetime.now(UTC)
+        if now >= next_full_sync:
             try:
                 await run_once()
             except Exception:
                 logger.exception("external_import_iteration_failed")
-        first_iteration = False
-        if get_settings().external_removal_check_enabled and datetime.now(UTC) >= next_removal_check:
+            next_full_sync = datetime.now(UTC) + timedelta(seconds=settings.external_import_interval_seconds)
+        now = datetime.now(UTC)
+        if next_removal_check is not None and now >= next_removal_check:
             try:
                 await run_removal_once()
-                next_removal_check = datetime.now(UTC) + timedelta(seconds=get_settings().external_removal_check_interval_seconds)
             except Exception:
                 logger.exception("external_removal_check_failed")
+            next_removal_check = datetime.now(UTC) + timedelta(seconds=settings.external_removal_check_interval_seconds)
+        deadlines = [next_full_sync]
+        if next_removal_check is not None:
+            deadlines.append(next_removal_check)
+        timeout = max(0.0, min((deadline - datetime.now(UTC)).total_seconds() for deadline in deadlines))
         try:
-            await asyncio.wait_for(stopping.wait(), timeout=min(get_settings().external_import_interval_seconds, get_settings().external_removal_check_interval_seconds))
+            await asyncio.wait_for(stopping.wait(), timeout=timeout)
         except TimeoutError:
             pass
     await engine.dispose()

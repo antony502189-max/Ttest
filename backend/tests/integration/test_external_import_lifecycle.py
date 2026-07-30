@@ -12,6 +12,7 @@ from app.models import ExternalImportRun, ExternalListingSource, Listing
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
+    run_removal_check,
     run_source,
     upsert,
 )
@@ -125,6 +126,21 @@ class MissingDetailSource:
 
     async def close(self) -> None:
         return None
+
+
+class DirectlyRemovedDetailSource(MissingDetailSource):
+    """Models a detail request that explicitly returned HTTP 410/removed."""
+
+    def __init__(self, name: str, url: str) -> None:
+        super().__init__(name, "removed")
+        self.url = url
+        self.removed_urls: set[str] = set()
+
+    async def discover_listing_urls(self) -> DiscoveryResult:
+        return DiscoveryResult(urls={self.url}, complete=True, visited_pages=1, reached_last_page=True)
+
+    async def fetch_listing(self, url: str) -> None:
+        self.removed_urls.add(url)
 
 
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
@@ -251,6 +267,21 @@ async def test_confirmed_missing_detail_hides_listing_in_same_complete_cycle(cli
         assert all(row["id"] != str(listing.id) for row in public.json()["items"])
 
 
+async def test_410_returned_while_fetching_discovered_detail_closes_listing_immediately():
+    async with SessionLocal() as session:
+        url = "https://example.test/direct-410"
+        item = external_item(source="Idealista", external_id="direct-410", url=url)
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+
+        counters = await run_source(session, DirectlyRemovedDetailSource("Idealista", url), "direct-410")  # type: ignore[arg-type]
+        record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "direct-410"))
+        listing = await session.get(Listing, record.canonical_listing_id) if record else None
+        assert counters["archived"] == 1
+        assert record is not None and record.current_status == "missing" and record.removed_reason == "removed"
+        assert listing is not None and listing.status == "closed"
+
+
 @pytest.mark.parametrize("state", ["blocked", "temporary_error", "unknown"])
 async def test_ambiguous_missing_detail_keeps_listing_published(state: str):
     async with SessionLocal() as session:
@@ -332,3 +363,50 @@ async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_r
         await session.commit()
         await session.refresh(listing)
         assert listing.status == "published"
+
+
+async def test_removal_checker_restores_previously_missing_source():
+    async with SessionLocal() as session:
+        item = external_item(source="PisoCompartido", external_id="checker-restore", url="https://example.test/checker-restore")
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+        record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "checker-restore"))
+        assert record is not None
+        assert await deactivate_source_record(session, record, "removed") == 1
+        await session.commit()
+
+        # Ensure the stored record qualifies as stale for the lightweight run.
+        record.last_checked_at = datetime.now(UTC) - timedelta(hours=1)
+        await session.commit()
+        source = MissingDetailSource("PisoCompartido", "active")
+        assert await run_removal_check(session, source) == 0  # type: ignore[arg-type]
+        await session.commit()
+        await session.refresh(record)
+        listing = await session.get(Listing, record.canonical_listing_id)
+        assert record.current_status == "active"
+        assert listing is not None and listing.status == "published"
+
+
+async def test_catalog_version_changes_for_create_close_and_restore(client: AsyncClient):
+    async with SessionLocal() as session:
+        initial = await client.get("/api/v1/listings/catalog-version")
+        assert initial.status_code == 200
+        initial_version = int(initial.json()["version"])
+
+        item = external_item(source="Fotocasa", external_id="catalog-version", url="https://example.test/catalog-version")
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+        created_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+        assert created_version > initial_version
+
+        record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "catalog-version"))
+        assert record is not None
+        assert await deactivate_source_record(session, record, "removed") == 1
+        await session.commit()
+        closed_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+        assert closed_version > created_version
+
+        assert await upsert(session, item) == "restored"
+        await session.commit()
+        restored_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+        assert restored_version > closed_version

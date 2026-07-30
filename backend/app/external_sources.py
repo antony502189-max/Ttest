@@ -446,7 +446,7 @@ class ExternalListingSource(ABC):
     listing_url_pattern: re.Pattern[str]
     discovery_selectors: tuple[str, ...] = ()
     max_discovery_pages = 30
-    removed_markers = (
+    removed_markers: tuple[str, ...] = (
         "anuncio eliminado", "ya no está disponible", "ya no esta disponible", "anuncio caducado",
         "property unavailable", "listing unavailable", "anuncio no disponible",
     )
@@ -459,6 +459,10 @@ class ExternalListingSource(ABC):
             follow_redirects=True,
         )
         self.not_found_urls: set[str] = set()
+        # A 410 or a detail URL redirected to a non-detail page is a
+        # confirmed removal just like a 404, but keeping the reason lets the
+        # lifecycle record a useful diagnostic.
+        self.removed_urls: set[str] = set()
         self.discovery_diagnostics: dict[str, dict[str, Any]] = {}
         self.blocked_diagnostic: dict[str, Any] | None = None
         self._playwright: Any = None
@@ -534,6 +538,9 @@ class ExternalListingSource(ABC):
                 if response.status_code == 404:
                     self.not_found_urls.add(url)
                     return None
+                if response.status_code == 410:
+                    self.removed_urls.add(url)
+                    return None
                 if response.status_code in {403, 405, 429} or response.status_code >= 500:
                     if response.status_code in {403, 405} and get_settings().external_import_playwright_enabled:
                         rendered = await self.render_public_page(url)
@@ -551,6 +558,9 @@ class ExternalListingSource(ABC):
                         raise RuntimeError(f"HTTP {response.status_code}")
                     await asyncio.sleep(2**attempt)
                     continue
+                if self.is_listing_url(url) and not self.is_listing_url(str(response.url)):
+                    self.removed_urls.add(url)
+                    return None
                 response.raise_for_status()
                 return response.text
             except httpx.HTTPError as exc:
@@ -890,6 +900,7 @@ class IdealistaSource(ExternalListingSource):
     listing_url_pattern = re.compile(r"/inmueble/\d+/?$", re.IGNORECASE)
     discovery_selectors = ('a[href*="/inmueble/"]',)
     discovery_urls = ("https://www.idealista.com/alquiler-habitacion/santa-cruz-de-tenerife-provincia/",)
+    removed_markers = ExternalListingSource.removed_markers + ("este anuncio ya no existe", "inmueble no disponible")
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)
@@ -906,6 +917,7 @@ class FotocasaSource(ExternalListingSource):
     discovery_urls = (
         "https://www.fotocasa.es/es/compartir/viviendas/santa-cruz-de-tenerife-provincia/todas-las-zonas/1-habitacion/l",
     )
+    removed_markers = ExternalListingSource.removed_markers + ("esta vivienda ya no esta disponible", "inmueble retirado")
 
     def is_pagination_url(self, url: str) -> bool:
         """Stay in the selected Spanish result set rather than crawling locale switcher links."""
@@ -925,6 +937,7 @@ class MilanunciosSource(ExternalListingSource):
     listing_url_pattern = re.compile(r"/pisos-compartidos-[^?#]+\.htm$", re.IGNORECASE)
     discovery_selectors = ('a[href*="/pisos-compartidos-"][href$=".htm"]',)
     discovery_urls = ("https://www.milanuncios.com/pisos-compartidos-en-santa-cruz-de-tenerife-tenerife/habitacion.htm",)
+    removed_markers = ExternalListingSource.removed_markers + ("este anuncio ha caducado", "anuncio retirado")
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)
@@ -939,6 +952,7 @@ class PisoCompartidoSource(ExternalListingSource):
     listing_url_pattern = re.compile(r"/habitacion/\d+/?$", re.IGNORECASE)
     discovery_selectors = ('a[href^="/habitacion/"]', 'a[href*="pisocompartido.com/habitacion/"]')
     discovery_urls = ("https://www.pisocompartido.com/habitaciones-santa_cruz_de_tenerife/",)
+    removed_markers = ExternalListingSource.removed_markers + ("habitacion no disponible", "anuncio desactivado")
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)

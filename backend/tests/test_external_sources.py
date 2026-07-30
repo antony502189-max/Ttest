@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from io import BytesIO
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import pytest
 from PIL import Image
 
 from app.external_sources import (
+    ExternalListingSource,
     FotocasaSource,
     IdealistaSource,
     MilanunciosSource,
@@ -177,6 +179,108 @@ def test_html_meta_fallback_parses_public_listing_when_json_ld_is_missing():
     assert parsed["title"] == "Habitación individual en alquiler"
     assert parsed["description"] == "Habitación amueblada en Santa Cruz de Tenerife"
     assert parsed["images"] == ["https://images.example.test/room.jpg"]
+
+
+def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
+    async def verify() -> None:
+        source = IdealistaSource()
+        await source.client.aclose()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            path = request.url.path
+            if path.endswith("/100404/"):
+                return httpx.Response(404, request=request)
+            if path.endswith("/100410/"):
+                return httpx.Response(410, request=request)
+            if path.endswith("/100403/"):
+                return httpx.Response(403, request=request)
+            if path.endswith("/100002/"):
+                return httpx.Response(200, text="Anuncio eliminado", request=request)
+            if path.endswith("/100003/"):
+                return httpx.Response(302, headers={"location": "/alquiler-habitacion/"}, request=request)
+            return httpx.Response(200, text="HabitaciГіn individual en alquiler", request=request)
+
+        source.client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100404/") == "not_found"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100410/") == "removed"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100403/") == "temporary_error"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100002/") == "removed"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100003/") == "removed"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/123456/") == "active"
+        await source.close()
+
+    asyncio.run(verify())
+
+
+def test_detail_request_marks_410_and_catalog_redirect_as_confirmed_removals():
+    async def verify() -> None:
+        source = IdealistaSource()
+        await source.client.aclose()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/100410/"):
+                return httpx.Response(410, request=request)
+            if request.url.path.endswith("/100003/"):
+                return httpx.Response(302, headers={"location": "/alquiler-habitacion/"}, request=request)
+            return httpx.Response(200, text="catalog", request=request)
+
+        source.client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+        gone = "https://www.idealista.com/inmueble/100410/"
+        redirected = "https://www.idealista.com/inmueble/100003/"
+        assert await source.fetch_listing(gone) is None
+        assert await source.fetch_listing(redirected) is None
+        assert source.removed_urls == {gone, redirected}
+        await source.close()
+
+    asyncio.run(verify())
+
+
+def test_discovery_is_partial_when_pagination_limit_prevents_reaching_end():
+    class PagedSource(ExternalListingSource):
+        name = "Paged"
+        domain = "example.test"
+        url_tokens = ("/room/",)
+        listing_url_pattern = re.compile(r"/room/\d+/?$")
+        discovery_urls = ("https://example.test/search",)
+        max_discovery_pages = 1
+
+        async def request(self, url: str) -> str:
+            return '<a href="/room/1/">room</a><a href="/search?page=2">next</a><p>2 anuncios</p>'
+
+    async def verify() -> None:
+        source = PagedSource()
+        result = await source.discover_listing_urls()
+        assert result.urls == {"https://example.test/room/1/"}
+        assert result.complete is False
+        assert result.reached_last_page is False
+        assert result.expected_total == 2
+        await source.close()
+
+    asyncio.run(verify())
+
+
+def test_discovery_is_partial_when_a_pagination_page_fails():
+    class PagedSource(ExternalListingSource):
+        name = "Paged"
+        domain = "example.test"
+        url_tokens = ("/room/",)
+        listing_url_pattern = re.compile(r"/room/\d+/?$")
+        discovery_urls = ("https://example.test/search",)
+
+        async def request(self, url: str) -> str:
+            if "page=2" in url:
+                raise RuntimeError("temporary page error")
+            return '<a href="/room/1/">room</a><a href="/search?page=2">next</a>'
+
+    async def verify() -> None:
+        source = PagedSource()
+        result = await source.discover_listing_urls()
+        assert result.complete is False
+        assert result.failed_pages == ["https://example.test/search?page=2"]
+        assert result.reached_last_page is True
+        await source.close()
+
+    asyncio.run(verify())
 
 
 def test_embedded_public_json_fallback_parses_listing_state():

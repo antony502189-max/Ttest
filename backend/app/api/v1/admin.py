@@ -1,9 +1,11 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.config import get_settings
 from ...db.session import get_session
 from ...models import ExternalImportRun, ExternalWorkerState, User
 from ...schemas.admin import (
@@ -112,7 +114,13 @@ async def external_import_worker_state(
     if not state:
         return ExternalWorkerStateResponse(health="delayed", lastStartedAt=None, lastFinishedAt=None, lastSuccessAt=None,
                                            nextRunAt=None, heartbeatAt=None, lastError=None, lastRunId=None)
-    return ExternalWorkerStateResponse(health=state.health, lastStartedAt=state.last_started_at,
+    heartbeat_deadline = datetime.now(UTC) - timedelta(
+        seconds=max(120, get_settings().external_import_interval_seconds + 120)
+    )
+    health = "delayed" if state.health != "failed" and (
+        state.heartbeat_at is None or state.heartbeat_at < heartbeat_deadline
+    ) else state.health
+    return ExternalWorkerStateResponse(health=health, lastStartedAt=state.last_started_at,
                                        lastFinishedAt=state.last_finished_at, lastSuccessAt=state.last_success_at,
                                        nextRunAt=state.next_run_at, heartbeatAt=state.heartbeat_at,
                                        lastError=state.last_error, lastRunId=state.last_run_id)

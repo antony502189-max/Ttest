@@ -67,7 +67,9 @@ async function createBackendListing(unique: string, title: string) {
     data: listingPayload(title),
   })
   expect(created.status()).toBe(201)
+  const listing = await created.json() as { id: string }
   await api.dispose()
+  return { listingId: listing.id, accessToken: session.accessToken }
 }
 
 test('frontend renders a listing created through the real FastAPI backend', async ({ page }) => {
@@ -98,4 +100,26 @@ test('room count filter is executed by the backend and reflected in mobile resul
   await expect(page.getByTestId('mobile-results')).toBeVisible()
   await expect(page.locator('[data-listing-id]').first()).toBeVisible()
   expect(failedResponses).toEqual([])
+})
+
+test('an open catalog refreshes after its version changes on focus', async ({ page }) => {
+  const unique = `${Date.now()}-catalog-version`
+  const title = `HabitaciГіn catalog ${unique}`
+  const created = await createBackendListing(unique, title)
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
+
+  const api = await playwrightRequest.newContext({
+    baseURL: API,
+    extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174', Authorization: `Bearer ${created.accessToken}` },
+  })
+  const removed = await api.delete(`${API_PREFIX}/listings/${created.listingId}`)
+  expect(removed.status()).toBe(204)
+  await api.dispose()
+
+  // The provider also polls; focus gives the same version check immediately,
+  // without requiring a page reload or changing the visible layout.
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0)
 })

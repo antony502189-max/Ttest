@@ -561,7 +561,7 @@ async def run_removal_check(session: AsyncSession, source: ExternalListingSource
         await session.scalars(
             select(SourceRecord).where(
                 SourceRecord.source_name == source.name,
-                SourceRecord.current_status == "active",
+                SourceRecord.current_status.in_(("active", "missing")),
                 SourceRecord.last_checked_at < cutoff,
             ).limit(50)
         )
@@ -573,8 +573,19 @@ async def run_removal_check(session: AsyncSession, source: ExternalListingSource
         if state in {"removed", "expired", "not_found"}:
             archived += await deactivate_source_record(session, row, "not_found" if state == "not_found" else state)
         elif state == "active":
+            was_missing = row.current_status != "active"
+            row.current_status = "active"
             row.last_seen_at = datetime.now(UTC)
+            row.last_success_at = datetime.now(UTC)
             row.consecutive_missing_runs = 0
+            row.removed_at = None
+            row.removed_reason = None
+            row.last_error = None
+            if was_missing:
+                # Reuse the stored normalized source snapshot: a lightweight
+                # removal probe must not re-fetch images merely to restore a
+                # reappearing detail page.
+                await promote_best_active_source(session, row.canonical_listing_id)
         elif state in {"blocked", "temporary_error"}:
             row.last_error = state
     return archived
@@ -676,6 +687,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
             return counters
         source.not_found_urls.clear()
+        getattr(source, "removed_urls", set()).clear()
         if urls:
             rows = await session.scalars(
                 select(SourceRecord).where(SourceRecord.source_name == source.name, SourceRecord.source_url.in_(urls))
@@ -704,6 +716,15 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             if not document:
                 if url in source.not_found_urls:
                     counters["archived"] += await archive_confirmed_not_found(session, source.name, url)
+                elif url in getattr(source, "removed_urls", set()):
+                    removed_record = await session.scalar(
+                        select(SourceRecord).where(
+                            SourceRecord.source_name == source.name,
+                            SourceRecord.source_url == url,
+                        )
+                    )
+                    if removed_record:
+                        counters["archived"] += await deactivate_source_record(session, removed_record, "removed")
                 continue
             counters["fetched"] += 1
             counters["fetched_details"] += 1
