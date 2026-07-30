@@ -21,6 +21,23 @@ logger = logging.getLogger(__name__)
 local_import_lock = asyncio.Lock()
 
 
+async def _acquire_distributed_lock(redis, lock_key: str, token: str, ttl_seconds: int) -> bool:
+    """Acquire the one shared import/removal lock without masking Redis failures."""
+    try:
+        return bool(await redis.set(lock_key, token, ex=ttl_seconds, nx=True))
+    except RedisError:
+        logger.exception("external_import_lock_unavailable")
+        return False
+
+
+async def _release_distributed_lock(redis, lock_key: str, token: str) -> None:
+    try:
+        if await redis.get(lock_key) == token.encode():
+            await redis.delete(lock_key)
+    except RedisError:
+        logger.warning("external_import_lock_release_failed")
+
+
 async def worker_state(*, health: str | None = None, error: str | None = None, run_id: str | None = None) -> ExternalWorkerState:
     now = datetime.now(UTC)
     async with SessionLocal() as session:
@@ -61,25 +78,23 @@ async def run_once() -> dict[str, dict[str, int]]:
     result: dict[str, dict[str, int]] = {}
     try:
         run_id = str(uuid4())
-        await worker_state(health="running", run_id=run_id)
         if settings.redis_url:
             redis = from_url(settings.redis_url)
-            try:
-                acquired = await redis.set(
-                    # A full source run can download and normalize many public images.
-                    # Use a TTL longer than the permitted import window; deletion still
-                    # verifies the unique token so one worker never removes another lock.
-                    lock_key,
-                    token,
-                    ex=max(21_600, settings.external_import_interval_seconds * 2),
-                    nx=True,
-                )
-            except RedisError:
-                logger.exception("external_import_lock_unavailable")
-                return {}
+            acquired = await _acquire_distributed_lock(
+                redis,
+                lock_key,
+                token,
+                max(21_600, settings.external_import_interval_seconds * 2),
+            )
             if not acquired:
-                logger.info("external_import_already_running")
+                # A full source run can download and normalize many public images.
+                # Use a TTL longer than the permitted import window; deletion still
+                # verifies the unique token so one worker never removes another lock.
                 return {}
+        # Only the worker that holds the distributed lock may publish a
+        # running state; otherwise a passive replica would overwrite the
+        # heartbeat of the active worker.
+        await worker_state(health="running", run_id=run_id)
         for source in configured_sources():
             async with SessionLocal() as session:
                 result[source.name] = await run_source(session, source, run_id)
@@ -93,10 +108,47 @@ async def run_once() -> dict[str, dict[str, int]]:
     finally:
         if redis:
             try:
-                if await redis.get(lock_key) == token.encode():
-                    await redis.delete(lock_key)
-            except RedisError:
-                logger.warning("external_import_lock_release_failed")
+                await _release_distributed_lock(redis, lock_key, token)
+            finally:
+                await redis.aclose()
+        local_import_lock.release()
+
+
+async def run_removal_once() -> int:
+    """Run lightweight checks under the same local and Redis lock as full syncs."""
+    settings = get_settings()
+    if not settings.external_import_enabled or not settings.external_removal_check_enabled:
+        return 0
+    if local_import_lock.locked():
+        logger.info("external_removal_check_already_running")
+        return 0
+    await local_import_lock.acquire()
+    redis = None
+    token = str(uuid4())
+    lock_key = "ttest:external-listings-import"
+    try:
+        if settings.redis_url:
+            redis = from_url(settings.redis_url)
+            if not await _acquire_distributed_lock(
+                redis,
+                lock_key,
+                token,
+                max(1_800, settings.external_removal_check_interval_seconds * 2),
+            ):
+                return 0
+        archived = 0
+        for source in configured_sources():
+            async with SessionLocal() as session:
+                archived += await run_removal_check(session, source)
+                await session.commit()
+            # A removal probe is not a full import run.  It still supplies a
+            # heartbeat but must not change last_started_at/health to running.
+            await worker_state()
+        return archived
+    finally:
+        if redis:
+            try:
+                await _release_distributed_lock(redis, lock_key, token)
             finally:
                 await redis.aclose()
         local_import_lock.release()
@@ -119,10 +171,7 @@ async def loop() -> None:
         first_iteration = False
         if get_settings().external_removal_check_enabled and datetime.now(UTC) >= next_removal_check:
             try:
-                for source in configured_sources():
-                    async with SessionLocal() as session:
-                        await run_removal_check(session, source)
-                        await session.commit()
+                await run_removal_once()
                 next_removal_check = datetime.now(UTC) + timedelta(seconds=get_settings().external_removal_check_interval_seconds)
             except Exception:
                 logger.exception("external_removal_check_failed")

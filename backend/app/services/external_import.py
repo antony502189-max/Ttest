@@ -332,7 +332,18 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         if source
         else await canonical_for(session, item, await public_image_hashes(item.photos))
     )
-    if source and source.fingerprint == item.fingerprint and not force_primary:
+    # An identical payload is only a no-op while its canonical card is still
+    # visible.  A source may reappear after a confirmed removal; in that case
+    # the canonical listing must be restored even though its fingerprint did
+    # not change.
+    if (
+        source
+        and source.fingerprint == item.fingerprint
+        and not force_primary
+        and source.current_status == "active"
+        and listing is not None
+        and listing.status != "closed"
+    ):
         source.last_checked_at = source.last_success_at = source.last_seen_at = now
         source.consecutive_missing_runs = 0
         source.current_status = "active"
@@ -494,7 +505,7 @@ async def deactivate_source_record(session: AsyncSession, row: SourceRecord, rea
     """Deactivate one source and atomically promote an active duplicate or close the listing."""
     if row.current_status != "active":
         return 0
-    row.current_status = "missing" if reason in {"deleted", "expired", "not_found", "source_removed"} else reason
+    row.current_status = "missing" if reason in {"deleted", "removed", "expired", "not_found", "source_removed"} else reason
     row.removed_at = datetime.now(UTC)
     row.removed_reason = reason
     row.last_error = reason
@@ -511,7 +522,9 @@ async def deactivate_source_record(session: AsyncSession, row: SourceRecord, rea
 
 
 async def archive_missing(session: AsyncSession, source: ExternalListingSource | str, started_at: datetime) -> int:
-    source_name = source.name if isinstance(source, ExternalListingSource) else source
+    # Keep the public adapter protocol duck-typed: test adapters and future
+    # sources need only expose ``name`` and ``check_listing_state``.
+    source_name = source if isinstance(source, str) else source.name
     rows = (
         await session.scalars(
             select(SourceRecord).where(

@@ -9,7 +9,12 @@ from sqlalchemy import func, select
 from app.db.session import SessionLocal
 from app.external_sources import DiscoveryResult, NormalizedListing, SourceBlocked
 from app.models import ExternalImportRun, ExternalListingSource, Listing
-from app.services.external_import import archive_missing, run_source, upsert
+from app.services.external_import import (
+    archive_missing,
+    deactivate_source_record,
+    run_source,
+    upsert,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -101,6 +106,25 @@ class BlockedSource:
 class IncompleteDiscoverySource(PartiallyFailingSource):
     async def discover_listing_urls(self) -> DiscoveryResult:
         return DiscoveryResult(urls=set(), complete=False, visited_pages=1, failed_pages=["https://example.test/page/2"])
+
+
+class MissingDetailSource:
+    """A complete discovery with an injected detail-state response."""
+
+    def __init__(self, name: str, state: str) -> None:
+        self.name = name
+        self.state = state
+        self.not_found_urls: set[str] = set()
+        self.blocked_diagnostic = None
+
+    async def discover_listing_urls(self) -> DiscoveryResult:
+        return DiscoveryResult(urls=set(), complete=True, visited_pages=1, reached_last_page=True)
+
+    async def check_listing_state(self, source_url: str) -> str:
+        return self.state
+
+    async def close(self) -> None:
+        return None
 
 
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
@@ -202,5 +226,109 @@ async def test_incomplete_discovery_does_not_archive_active_source_or_catalog_en
         assert counters["archived"] == 0
         assert record is not None and record.current_status == "active" and record.consecutive_missing_runs == 0
         assert run is not None and run.result == "partial" and run.discovery_complete is False
+        after = await client.get("/api/v1/listings/catalog-version")
+        assert after.status_code == 200
+        assert after.json()["version"] == before.json()["version"]
         visible = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
         assert any(row["id"] for row in visible.json()["items"])
+
+
+@pytest.mark.parametrize("state", ["not_found", "removed", "expired"])
+async def test_confirmed_missing_detail_hides_listing_in_same_complete_cycle(client: AsyncClient, state: str):
+    async with SessionLocal() as session:
+        item = external_item(source="PisoCompartido", external_id=f"removed-{state}", url=f"https://example.test/{state}")
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+
+        counters = await run_source(session, MissingDetailSource("PisoCompartido", state), f"removed-{state}")  # type: ignore[arg-type]
+        assert counters["archived"] == 1
+        record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == f"removed-{state}"))
+        listing = await session.get(Listing, record.canonical_listing_id) if record else None
+        assert record is not None and record.current_status == "missing" and record.removed_reason == state
+        assert listing is not None and listing.status == "closed"
+
+        public = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
+        assert all(row["id"] != str(listing.id) for row in public.json()["items"])
+
+
+@pytest.mark.parametrize("state", ["blocked", "temporary_error", "unknown"])
+async def test_ambiguous_missing_detail_keeps_listing_published(state: str):
+    async with SessionLocal() as session:
+        item = external_item(source="Milanuncios", external_id=f"transient-{state}", url=f"https://example.test/{state}")
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+
+        counters = await run_source(session, MissingDetailSource("Milanuncios", state), f"transient-{state}")  # type: ignore[arg-type]
+        record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == f"transient-{state}"))
+        listing = await session.get(Listing, record.canonical_listing_id) if record else None
+        assert counters["archived"] == 0
+        expected_missing_runs = 1 if state == "unknown" else 0
+        assert record is not None and record.current_status == "active" and record.consecutive_missing_runs == expected_missing_runs
+        assert listing is not None and listing.status == "published"
+
+
+async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source():
+    async with SessionLocal() as session:
+        primary = external_item(
+            source="Idealista",
+            external_id="primary-source",
+            url="https://example.test/primary-source",
+            price=710,
+        )
+        primary.photos = []
+        assert await upsert(session, primary) == "imported"
+        await session.commit()
+
+        alternative = external_item(
+            source="Fotocasa",
+            external_id="alternative-source",
+            url="https://example.test/alternative-source",
+            price=680,
+        )
+        alternative.title = "Alternative room in Adeje"
+        alternative.description = "Alternative source description"
+        # Do not make an actual remote image request from the lifecycle test;
+        # inject the already-normalized source snapshot below instead.
+        alternative.photos = []
+        alternative.phone = "+34 611 000 000"
+        alternative.whatsapp = None
+        alternative.email = "alternative@example.test"
+        # Share one public contact only to deliberately exercise canonical deduplication.
+        alternative.raw_payload = {"fixture": "Fotocasa", "shared": primary.phone}
+        alternative.email = primary.email
+        assert await upsert(session, alternative) == "updated"
+        await session.commit()
+
+        alternative.photos = ["https://images.example.test/alternative.jpg"]
+        alternative_record = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "alternative-source")
+        )
+        assert alternative_record is not None
+        alternative_record.normalized_payload = {
+            **alternative_record.normalized_payload,
+            "photos": alternative.photos,
+        }
+        await session.commit()
+
+        source = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "primary-source"))
+        assert source is not None
+        assert await deactivate_source_record(session, source, "removed") == 0
+        await session.commit()
+
+        listing = await session.get(Listing, source.canonical_listing_id)
+        assert listing is not None and listing.status == "published"
+        assert listing.primary_source == "Fotocasa"
+        assert listing.primary_source_url == alternative.source_url
+        assert listing.source_price_text == alternative.source_price_text
+        assert listing.external_image_urls == alternative.photos
+        assert listing.external_contact_email == alternative.email
+
+        # The returned URL has the same content as before, but must reopen the
+        # canonical card after its only source was closed in a later cycle.
+        await deactivate_source_record(session, await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "alternative-source")), "removed")  # type: ignore[arg-type]
+        await session.commit()
+        assert listing.status == "closed"
+        assert await upsert(session, alternative) == "restored"
+        await session.commit()
+        await session.refresh(listing)
+        assert listing.status == "published"
