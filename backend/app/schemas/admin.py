@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ListingStatusRequest(BaseModel):
@@ -55,3 +55,8 @@ class ExternalImportRunResponse(BaseModel):
     result: str
     counters: dict
     lastError: str | None
+    challengeType: str | None = None
+    httpStatus: int | None = None
+    finalUrl: str | None = None
+    nextCheckAt: datetime | None = None
+    diagnosticPaths: dict = Field(default_factory=dict)

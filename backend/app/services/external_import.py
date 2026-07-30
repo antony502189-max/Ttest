@@ -5,7 +5,7 @@ import hashlib
 import logging
 import re
 import unicodedata
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from time import perf_counter
 
@@ -21,6 +21,7 @@ from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
 from ..external_sources import (
     ExternalListingSource,
     NormalizedListing,
+    SourceBlocked,
     is_in_target_province,
     is_rental,
     is_room_offer,
@@ -338,18 +339,32 @@ async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
             monthly_price=item.price_amount if item.rental_mode == "long" else None,
             nightly_price=item.price_amount if item.rental_mode == "holiday" else None,
             weekly_price=item.price_amount if item.price_period == "week" else None,
-            minimum_stay_months=None,
-            minimum_nights=None,
+            minimum_stay_months=item.minimum_stay_months,
+            minimum_nights=item.minimum_nights,
+            deposit_amount=item.deposit_amount,
+            deposit_text=item.deposit_text,
+            bills_included=item.bills_included,
+            bills_text=item.bills_text,
+            furnished=item.furnished,
+            bathroom=item.bathroom,
+            kitchen=item.kitchen,
+            room_size_m2=item.room_size_m2,
+            room_capacity=item.room_capacity,
+            tenant_requirement=item.tenant_requirement,
             room_type=item.room_type,
             location=point(coordinates[1], coordinates[0]),
             status="published",
-            published_at=now,
             is_external=True,
             imported_at=now,
-            smoking_allowed=None,
-            pets_allowed=None,
-            children_allowed=None,
-            empadronamiento_allowed=None,
+            smoking_allowed=item.smoking_allowed,
+            pets_allowed=item.pets_allowed,
+            children_allowed=item.children_allowed,
+            empadronamiento_allowed=item.empadronamiento_allowed,
+            amenities=item.amenities,
+            advertiser_name=item.advertiser_name,
+            advertiser_type=item.advertiser_type,
+            available_from=item.available_from,
+            published_at=item.published_at or now,
         )
         session.add(listing)
         await session.flush()
@@ -374,6 +389,28 @@ async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
         listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
         listing.nightly_price = item.price_amount if item.rental_mode == "holiday" else None
         listing.weekly_price = item.price_amount if item.price_period == "week" else None
+        listing.minimum_stay_months = item.minimum_stay_months
+        listing.minimum_nights = item.minimum_nights
+        listing.deposit_amount = item.deposit_amount
+        listing.deposit_text = item.deposit_text
+        listing.bills_included = item.bills_included
+        listing.bills_text = item.bills_text
+        listing.furnished = item.furnished
+        listing.bathroom = item.bathroom
+        listing.kitchen = item.kitchen
+        listing.room_size_m2 = item.room_size_m2
+        listing.room_capacity = item.room_capacity
+        listing.tenant_requirement = item.tenant_requirement
+        listing.pets_allowed = item.pets_allowed
+        listing.children_allowed = item.children_allowed
+        listing.smoking_allowed = item.smoking_allowed
+        listing.empadronamiento_allowed = item.empadronamiento_allowed
+        listing.amenities = item.amenities
+        listing.advertiser_name = item.advertiser_name
+        listing.advertiser_type = item.advertiser_type
+        listing.available_from = item.available_from
+        if item.published_at:
+            listing.published_at = item.published_at
         listing.external_image_urls = item.photos
         listing.primary_source = item.source_name
         listing.primary_source_url = item.source_url
@@ -473,6 +510,31 @@ async def archive_confirmed_not_found(session: AsyncSession, source_name: str, s
     return 1
 
 
+async def deactivate_rejected_source(session: AsyncSession, source_name: str, source_url: str) -> None:
+    """Do not keep an already imported record visible after strict room validation rejects it."""
+    row = await session.scalar(
+        select(SourceRecord).where(SourceRecord.source_name == source_name, SourceRecord.source_url == source_url)
+    )
+    if not row:
+        return
+    row.current_status = "rejected"
+    listing = await session.get(Listing, row.canonical_listing_id)
+    if not listing or listing.primary_source != source_name:
+        return
+    alternative = await session.scalar(
+        select(SourceRecord).where(
+            SourceRecord.canonical_listing_id == listing.id,
+            SourceRecord.current_status == "active",
+            SourceRecord.source_name != source_name,
+        )
+    )
+    if alternative:
+        listing.primary_source = alternative.source_name
+        listing.primary_source_url = alternative.source_url
+    else:
+        listing.status = "closed"
+
+
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> dict[str, int]:
     started = perf_counter()
     counters = {
@@ -494,24 +556,66 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "accepted_rooms",
             "archived",
             "failed",
+            "failed_details",
+            "rejected_invalid_price",
         )
     }
     run = ExternalImportRun(run_id=run_id, source_name=source.name)
     session.add(run)
     await session.commit()
     started_at = datetime.now(UTC)
+    previous_block = await session.scalar(
+        select(ExternalImportRun)
+        .where(
+            ExternalImportRun.source_name == source.name,
+            ExternalImportRun.result == "blocked",
+            ExternalImportRun.next_check_at > started_at,
+        )
+        .order_by(ExternalImportRun.next_check_at.desc())
+        .limit(1)
+    )
+    if previous_block:
+        run.result = "blocked"
+        run.last_error = previous_block.last_error
+        run.challenge_type = previous_block.challenge_type
+        run.http_status = previous_block.http_status
+        run.final_url = previous_block.final_url
+        run.next_check_at = previous_block.next_check_at
+        run.diagnostic_paths = previous_block.diagnostic_paths
+        run.counters = counters
+        run.finished_at = datetime.now(UTC)
+        await session.commit()
+        await source.close()
+        EXTERNAL_IMPORTS.labels(source.name, run.result).inc()
+        EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
+        return counters
     try:
         urls = await source.discover_listing_urls()
         counters["discovered"] = len(urls)
         counters["discovered_urls"] = len(urls)
         source.not_found_urls.clear()
+        if urls:
+            rows = await session.scalars(
+                select(SourceRecord).where(SourceRecord.source_name == source.name, SourceRecord.source_url.in_(urls))
+            )
+            for row in rows:
+                row.last_seen_at = started_at
+                row.consecutive_missing_runs = 0
         semaphore = asyncio.Semaphore(get_settings().external_import_max_concurrency_per_source)
 
         async def fetch(url: str):
             async with semaphore:
                 return url, await source.fetch_listing(url)
 
-        for url, document in await asyncio.gather(*(fetch(url) for url in urls)):
+        fetched_results = await asyncio.gather(*(fetch(url) for url in urls), return_exceptions=True)
+        partial = False
+        for result in fetched_results:
+            if isinstance(result, BaseException):
+                counters["failed_details"] += 1
+                partial = True
+                logger.warning("external_detail_failed", exc_info=result, extra={"source": source.name})
+                continue
+            url, document = result
             if not document:
                 if url in source.not_found_urls:
                     counters["archived"] += await archive_confirmed_not_found(session, source.name, url)
@@ -522,15 +626,17 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             if not (is_room_offer(parsed) and is_rental(parsed)):
                 counters["filtered_not_room"] += 1
                 counters["rejected_not_room"] += 1
+                await deactivate_rejected_source(session, source.name, url)
                 continue
             if not is_in_target_province(parsed):
                 counters["filtered_wrong_location"] += 1
                 counters["rejected_wrong_location"] += 1
+                await deactivate_rejected_source(session, source.name, url)
                 continue
             item = source.normalize_listing(parsed, url)
             if not item:
-                counters["filtered_not_room"] += 1
-                counters["rejected_not_room"] += 1
+                counters["rejected_invalid_price"] += 1
+                await deactivate_rejected_source(session, source.name, url)
                 continue
             counters["accepted_rooms"] += 1
             outcome = await upsert(session, item)
@@ -538,7 +644,24 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             if outcome == "imported":
                 counters["created"] += 1
         counters["archived"] = await archive_missing(session, source.name, started_at)
-        run.result = "success"
+        run.result = "partial" if partial else "success"
+    except SourceBlocked as exc:
+        run.result = "blocked"
+        run.last_error = str(exc)
+        diagnostic = source.blocked_diagnostic or {}
+        run.challenge_type = str(diagnostic.get("challenge_type") or "access_challenge")
+        run.http_status = diagnostic.get("status")
+        run.final_url = diagnostic.get("final_url")
+        run.diagnostic_paths = diagnostic.get("paths") or {}
+        previous_challenges = await session.scalar(
+            select(ExternalImportRun).where(
+                ExternalImportRun.source_name == source.name,
+                ExternalImportRun.result == "blocked",
+            )
+        )
+        delay_hours = 12 if previous_challenges else 6
+        run.next_check_at = datetime.now(UTC) + timedelta(hours=delay_hours)
+        counters["failed"] += 1
     except Exception as exc:
         await session.rollback()
         run.result = "failed"

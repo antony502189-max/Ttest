@@ -99,6 +99,11 @@ def test_price_parser_preserves_period_and_from_marker():
     assert parse_price("Consultar precio") == (None, None, None, False)
 
 
+def test_long_category_does_not_turn_an_unqualified_property_sale_price_into_room_rent():
+    item = room_offer(price_text="275.000€", category="compartir vivienda")
+    assert FotocasaSource().normalize_listing(item, "https://www.fotocasa.es/es/compartir/vivienda/arona/room/123456/d") is None
+
+
 def test_each_source_has_its_own_public_discovery_adapter():
     assert IdealistaSource().name == "Idealista"
     assert FotocasaSource().name == "Fotocasa"

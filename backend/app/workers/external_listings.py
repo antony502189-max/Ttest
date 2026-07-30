@@ -36,7 +36,13 @@ async def run_once() -> dict[str, dict[str, int]]:
             redis = from_url(settings.redis_url)
             try:
                 acquired = await redis.set(
-                    lock_key, token, ex=max(300, settings.external_import_request_timeout_seconds * 20), nx=True
+                    # A full source run can download and normalize many public images.
+                    # Use a TTL longer than the permitted import window; deletion still
+                    # verifies the unique token so one worker never removes another lock.
+                    lock_key,
+                    token,
+                    ex=max(21_600, settings.external_import_interval_seconds * 2),
+                    nx=True,
                 )
             except RedisError:
                 logger.exception("external_import_lock_unavailable")

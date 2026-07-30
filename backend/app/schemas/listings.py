@@ -181,17 +181,19 @@ class ListingResponse(BaseModel):
     availableUntil: date | None
     minimumStayMonths: int | None
     minimumNights: int | None
-    depositAmount: int
-    billsIncluded: bool
-    bathroom: str
-    kitchen: str
-    furnished: bool
-    roomSizeM2: int
+    depositAmount: int | None
+    depositText: str | None = None
+    billsIncluded: bool | None
+    billsText: str | None = None
+    bathroom: str | None
+    kitchen: str | None
+    furnished: bool | None
+    roomSizeM2: int | None
     bedroomCount: int | None
     currentResidents: int
-    roomCapacity: int
+    roomCapacity: int | None
     shower: str
-    tenantRequirement: str
+    tenantRequirement: str | None
     smokingAllowed: bool | None
     petsAllowed: bool | None
     childrenAllowed: bool | None
@@ -203,7 +205,8 @@ class ListingResponse(BaseModel):
     longitude: float
     description: str
     homeDescription: str
-    advertiserType: str
+    advertiserName: str | None = None
+    advertiserType: str | None
     source: str | None
     isExternal: bool = False
     primarySource: str | None = None

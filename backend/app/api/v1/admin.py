@@ -90,6 +90,11 @@ async def external_import_runs(
             result=row.result,
             counters=row.counters,
             lastError=row.last_error,
+            challengeType=row.challenge_type,
+            httpStatus=row.http_status,
+            finalUrl=row.final_url,
+            nextCheckAt=row.next_check_at,
+            diagnosticPaths=row.diagnostic_paths,
         )
         for row in rows
     ]

@@ -10,6 +10,7 @@ import logging
 import re
 from abc import ABC
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
@@ -18,6 +19,10 @@ import httpx
 from .core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+class SourceBlocked(RuntimeError):
+    """A public source showed an access challenge; never treat this as missing listings."""
 
 SPACE = re.compile(r"\s+")
 TAG = re.compile(r"<[^>]+>")
@@ -277,6 +282,66 @@ def meta_content(document: str, name: str) -> str:
     return clean(match.group(1)) if match else ""
 
 
+def parse_optional_date(value: Any) -> date | None:
+    text = clean(value)
+    for pattern in (r"\d{4}-\d{2}-\d{2}", r"\d{2}/\d{2}/\d{4}"):
+        match = re.search(pattern, text)
+        if match:
+            try:
+                return date.fromisoformat(match.group(0)) if "-" in match.group(0) else datetime.strptime(
+                    match.group(0), "%d/%m/%Y"
+                ).replace(tzinfo=UTC).date()
+            except ValueError:
+                return None
+    return None
+
+
+def explicit_bool(corpus: str, positive: tuple[str, ...], negative: tuple[str, ...]) -> bool | None:
+    if any(value in corpus for value in negative):
+        return False
+    if any(value in corpus for value in positive):
+        return True
+    return None
+
+
+def public_detail_fields(data: dict[str, Any]) -> dict[str, Any]:
+    """Conservative extraction of optional public room facts; missing remains None."""
+    corpus = clean(" ".join(str(data.get(key, "")) for key in ("title", "description", "category", "breadcrumbs"))).casefold()
+    result: dict[str, Any] = {"amenities": []}
+    stay = re.search(r"(?:estancia|alquiler)\s+m[ií]nima\s*(?:de)?\s*(\d+)\s*(mes(?:es)?|noche(?:s)?)", corpus)
+    if stay:
+        result["minimum_stay_months" if stay.group(2).startswith("mes") else "minimum_nights"] = int(stay.group(1))
+    deposit = re.search(r"(?:fianza|dep[oó]sito)\s*(?:de|:)??\s*([\d.]+(?:,\d+)?)\s*€", corpus)
+    if deposit:
+        result["deposit_amount"] = int(float(deposit.group(1).replace(".", "").replace(",", ".")))
+        result["deposit_text"] = deposit.group(0)
+    bills = re.search(r"(?:gastos|suministros|facturas)[^.]{0,80}", corpus)
+    if bills:
+        result["bills_text"] = bills.group(0).strip()
+    result["bills_included"] = explicit_bool(corpus, ("gastos incluidos", "suministros incluidos"), ("gastos no incluidos", "gastos aparte", "suministros aparte"))
+    result["furnished"] = explicit_bool(corpus, ("amueblado", "amueblada", "con muebles"), ("sin amueblar", "no amueblado"))
+    result["pets_allowed"] = explicit_bool(corpus, ("mascotas permitidas", "se aceptan mascotas"), ("no mascotas", "mascotas no", "no se admiten mascotas"))
+    result["children_allowed"] = explicit_bool(corpus, ("niños permitidos", "se aceptan niños"), ("sin niños", "no niños", "no se admiten niños"))
+    result["smoking_allowed"] = explicit_bool(corpus, ("se permite fumar", "fumadores permitidos"), ("no fumar", "no fumadores", "prohibido fumar"))
+    result["empadronamiento_allowed"] = explicit_bool(corpus, ("empadronamiento permitido", "se permite empadronamiento"), ("sin empadronamiento", "no empadronamiento"))
+    size = re.search(r"(\d{1,3})\s*m(?:²|2)\b", corpus)
+    if size:
+        result["room_size_m2"] = int(size.group(1))
+    capacity = re.search(r"(?:hasta|para)\s*(\d+)\s*personas", corpus)
+    if capacity:
+        result["room_capacity"] = int(capacity.group(1))
+    result["tenant_requirement"] = "women" if "solo mujeres" in corpus else "men" if "solo hombres" in corpus else "students" if "solo estudiantes" in corpus else None
+    result["bathroom"] = "Baño privado" if "baño privado" in corpus else "Baño compartido" if "baño compartido" in corpus else None
+    result["kitchen"] = "Cocina compartida" if "cocina compartida" in corpus else "Cocina privada" if "cocina privada" in corpus else None
+    amenities = {"wifi": "wifi", "internet": "internet", "aire acondicionado": "aire acondicionado", "ascensor": "ascensor", "terraza": "terraza", "parking": "parking"}
+    result["amenities"] = [label for token, label in amenities.items() if token in corpus]
+    result["available_from"] = parse_optional_date(data.get("available_from") or data.get("availableFrom") or data.get("availability"))
+    result["published_at"] = parse_optional_date(data.get("datePublished") or data.get("published_at"))
+    result["advertiser_name"] = clean(data.get("advertiser_name") or data.get("seller") or data.get("author")) or None
+    result["advertiser_type"] = clean(data.get("advertiser_type") or data.get("seller_type")) or None
+    return result
+
+
 @dataclass
 class NormalizedListing:
     source_name: str
@@ -300,6 +365,27 @@ class NormalizedListing:
     whatsapp: str | None = None
     email: str | None = None
     raw_payload: dict[str, Any] = field(default_factory=dict)
+    minimum_stay_months: int | None = None
+    minimum_nights: int | None = None
+    deposit_amount: int | None = None
+    deposit_text: str | None = None
+    bills_included: bool | None = None
+    bills_text: str | None = None
+    furnished: bool | None = None
+    bathroom: str | None = None
+    kitchen: str | None = None
+    room_size_m2: int | None = None
+    room_capacity: int | None = None
+    tenant_requirement: str | None = None
+    pets_allowed: bool | None = None
+    children_allowed: bool | None = None
+    smoking_allowed: bool | None = None
+    empadronamiento_allowed: bool | None = None
+    amenities: list[str] = field(default_factory=list)
+    advertiser_name: str | None = None
+    advertiser_type: str | None = None
+    available_from: date | None = None
+    published_at: datetime | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -318,6 +404,12 @@ class NormalizedListing:
                     self.phone or "",
                     self.whatsapp or "",
                     self.email or "",
+                    str(self.minimum_stay_months or ""),
+                    str(self.minimum_nights or ""),
+                    str(self.deposit_amount or ""),
+                    self.deposit_text or "",
+                    self.bills_text or "",
+                    "|".join(self.amenities),
                 )
             ).encode()
         ).hexdigest()
@@ -341,9 +433,21 @@ class ExternalListingSource(ABC):
         )
         self.not_found_urls: set[str] = set()
         self.discovery_diagnostics: dict[str, dict[str, Any]] = {}
+        self.blocked_diagnostic: dict[str, Any] | None = None
+        self._playwright: Any = None
+        self._browser: Any = None
+        self._browser_context: Any = None
+        self._browser_lock = asyncio.Lock()
 
     async def close(self) -> None:
         await self.client.aclose()
+        if self._browser_context:
+            await self._browser_context.close()
+        if self._browser:
+            await self._browser.close()
+        if self._playwright:
+            await self._playwright.stop()
+        self._browser_context = self._browser = self._playwright = None
 
     def _record_page(
         self, url: str, document: str | None, *, status: int | None, final_url: str | None, method: str = "GET"
@@ -362,21 +466,40 @@ class ExternalListingSource(ABC):
             "selectors": list(self.discovery_selectors),
         }
 
-    def _save_discovery_artifacts(self, url: str, document: str | None, screenshot: bytes | None = None) -> None:
+    def _save_discovery_artifacts(self, url: str, document: str | None, screenshot: bytes | None = None) -> dict[str, str]:
         """Persist anonymous error evidence outside the database for operator inspection."""
         digest = hashlib.sha256(url.encode()).hexdigest()[:16]
         directory = get_settings().media_root / "external-import-errors" / self.name.casefold()
         directory.mkdir(parents=True, exist_ok=True)
+        paths: dict[str, str] = {}
         if document is not None:
-            (directory / f"{digest}.html").write_text(document, encoding="utf-8")
+            html_path = directory / f"{digest}.html"
+            html_path.write_text(document, encoding="utf-8")
+            paths["html"] = str(html_path)
         if screenshot is not None:
-            (directory / f"{digest}.png").write_bytes(screenshot)
+            screenshot_path = directory / f"{digest}.png"
+            screenshot_path.write_bytes(screenshot)
+            paths["screenshot"] = str(screenshot_path)
+        return paths
+
+    def _raise_if_challenged(self, url: str, document: str) -> None:
+        challenge = "geetest" in document.casefold() or "pardon our interruption" in document.casefold()
+        if challenge:
+            diagnostic = self.discovery_diagnostics.get(url, {})
+            self.blocked_diagnostic = {"challenge_type": "geetest", **diagnostic, "paths": self._save_discovery_artifacts(url, document)}
+            raise SourceBlocked("public source access challenge")
 
     async def request(self, url: str) -> str | None:
         for attempt in range(3):
             try:
                 response = await self.client.get(url)
                 self._record_page(url, response.text, status=response.status_code, final_url=str(response.url))
+                if "geetest" in response.text.casefold() or "pardon our interruption" in response.text.casefold():
+                    # Capture the equivalent public Chromium response and screenshot once;
+                    # do not attempt to solve or interact with the challenge.
+                    if get_settings().external_import_playwright_enabled:
+                        await self.render_public_page(url)
+                    self._raise_if_challenged(url, response.text)
                 logger.info(
                     "external_source_http", extra={"source": self.name, "method": "GET", "url": url,
                                                    "status": response.status_code, "final_url": str(response.url)}
@@ -416,36 +539,39 @@ class ExternalListingSource(ABC):
         except ImportError:
             return None
         try:
-            async with async_playwright() as playwright:
-                browser = await playwright.chromium.launch(headless=True)
-                settings = get_settings()
-                context_options: dict[str, Any] = {"locale": "es-ES"}
-                # An operator may provide a real browser UA.  Do not send the HTTP
-                # collector label as a browser UA: it is neither a normal Chromium
-                # value nor required for a public anonymous browser session.
-                if settings.external_import_user_agent.startswith("Mozilla/"):
-                    context_options["user_agent"] = settings.external_import_user_agent
-                context = await browser.new_context(**context_options)
-                page = await context.new_page()
-                response = await page.goto(
-                    url,
-                    wait_until="domcontentloaded",
-                    timeout=get_settings().external_import_request_timeout_seconds * 1000,
-                )
-                # Pages are allowed to hydrate after DOMContentLoaded, but a hung network must not hold a run.
-                await page.wait_for_timeout(750)
-                document: str | None = await page.content()
-                status = response.status if response else None
-                final_url = page.url
-                self._record_page(url, document, status=status, final_url=final_url, method="BROWSER_GET")
-                logger.info("external_source_browser", extra={"source": self.name, "method": "BROWSER_GET", "url": url,
-                                                               "status": status, "final_url": final_url})
-                if status is not None and status >= 400:
-                    self._save_discovery_artifacts(url, document, await page.screenshot(full_page=True))
-                    document = None
-                await context.close()
-                await browser.close()
-                return document
+            async with self._browser_lock:
+                if not self._browser_context:
+                    self._playwright = await async_playwright().start()
+                    self._browser = await self._playwright.chromium.launch(headless=True)
+                    settings = get_settings()
+                    context_options: dict[str, Any] = {"locale": "es-ES"}
+                    if settings.external_import_user_agent.startswith("Mozilla/"):
+                        context_options["user_agent"] = settings.external_import_user_agent
+                    self._browser_context = await self._browser.new_context(**context_options)
+                page = await self._browser_context.new_page()
+                try:
+                    response = await page.goto(
+                        url,
+                        wait_until="domcontentloaded",
+                        timeout=get_settings().external_import_request_timeout_seconds * 1000,
+                    )
+                    # Pages are allowed to hydrate after DOMContentLoaded, but a hung network must not hold a run.
+                    await page.wait_for_timeout(750)
+                    document: str | None = await page.content()
+                    status = response.status if response else None
+                    final_url = page.url
+                    self._record_page(url, document, status=status, final_url=final_url, method="BROWSER_GET")
+                    logger.info("external_source_browser", extra={"source": self.name, "method": "BROWSER_GET", "url": url,
+                                                                   "status": status, "final_url": final_url})
+                    if status is not None and status >= 400:
+                        paths = self._save_discovery_artifacts(url, document, await page.screenshot(full_page=True))
+                        if document and ("geetest" in document.casefold() or "pardon our interruption" in document.casefold()):
+                            self.blocked_diagnostic = {"challenge_type": "geetest", **self.discovery_diagnostics[url], "paths": paths}
+                            raise SourceBlocked("public source access challenge")
+                        document = None
+                    return document
+                finally:
+                    await page.close()
         except (OSError, PlaywrightError, PlaywrightTimeoutError):
             diagnostic = self.discovery_diagnostics.get(url, {})
             self._save_discovery_artifacts(url, diagnostic.get("html"))
@@ -608,12 +734,15 @@ class ExternalListingSource(ABC):
         if not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
             return None
         amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
-        mode = "holiday" if period in {"night", "week"} else "long" if period == "month" else None
-        if amount is None or mode is None:
-            return None
         corpus = clean(
-            " ".join(str(data.get(x, "")) for x in ("title", "description", "category", "breadcrumbs"))
+            " ".join(str(data.get(x, "")) for x in ("title", "description", "category", "breadcrumbs", "url"))
         ).casefold()
+        long_hint = any(value in corpus for value in ("alquiler", "se alquila", "mensual", "al mes", "/compartir/"))
+        mode = "holiday" if period in {"night", "week"} else "long" if period == "month" or long_hint else None
+        # A source category can prove a long-room offer when it omits `/mes`,
+        # but it must not turn an obvious whole-property sale price into rent.
+        if amount is None or mode is None or (period is None and amount > 5_000):
+            return None
         room_type = (
             "Habitación compartida"
             if any(term in corpus for term in ("habitación compartida", "habitacion compartida", "shared room"))
@@ -642,6 +771,7 @@ class ExternalListingSource(ABC):
             latitude = longitude = None
         if latitude is not None and longitude is not None and not coordinates_in_target_province(latitude, longitude):
             return None
+        details = public_detail_fields(data)
         return NormalizedListing(
             self.name,
             external_id,
@@ -664,6 +794,7 @@ class ExternalListingSource(ABC):
             data.get("whatsapp"),
             data.get("email"),
             data.get("raw", data),
+            **details,
         )
 
 
@@ -674,6 +805,11 @@ class IdealistaSource(ExternalListingSource):
     listing_url_pattern = re.compile(r"/inmueble/\d+/?$", re.IGNORECASE)
     discovery_selectors = ('a[href*="/inmueble/"]',)
     discovery_urls = ("https://www.idealista.com/alquiler-habitacion/santa-cruz-de-tenerife-provincia/",)
+
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        data["category"] = f"alquiler habitación idealista {data['category']}"
+        return data
 
 
 class FotocasaSource(ExternalListingSource):
@@ -690,6 +826,12 @@ class FotocasaSource(ExternalListingSource):
         """Stay in the selected Spanish result set rather than crawling locale switcher links."""
         return urlparse(url).path.startswith("/es/compartir/viviendas/") and super().is_pagination_url(url)
 
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        # The public route itself is an explicit shared-home room category.
+        data["category"] = f"compartir vivienda alquiler habitación {data['category']}"
+        return data
+
 
 class MilanunciosSource(ExternalListingSource):
     name = "Milanuncios"
@@ -699,6 +841,11 @@ class MilanunciosSource(ExternalListingSource):
     discovery_selectors = ('a[href*="/pisos-compartidos-"][href$=".htm"]',)
     discovery_urls = ("https://www.milanuncios.com/pisos-compartidos-en-santa-cruz-de-tenerife-tenerife/habitacion.htm",)
 
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        data["category"] = f"pisos compartidos alquiler habitación {data['category']}"
+        return data
+
 
 class PisoCompartidoSource(ExternalListingSource):
     name = "PisoCompartido"
@@ -707,6 +854,11 @@ class PisoCompartidoSource(ExternalListingSource):
     listing_url_pattern = re.compile(r"/habitacion/\d+/?$", re.IGNORECASE)
     discovery_selectors = ('a[href^="/habitacion/"]', 'a[href*="pisocompartido.com/habitacion/"]')
     discovery_urls = ("https://www.pisocompartido.com/habitaciones-santa_cruz_de_tenerife/",)
+
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        data["category"] = f"pisocompartido alquiler habitación {data['category']}"
+        return data
 
 
 def configured_sources() -> list[ExternalListingSource]:
