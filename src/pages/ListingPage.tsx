@@ -11,7 +11,7 @@ import { ContactPanel, MapView, PriceBlock, PropertyBadge, PropertyCard, Propert
 import { useApp } from '@/contexts/app-context'
 import { getPublicListing } from '@/api/listings'
 import { formatPublishedAt } from '@/lib/search'
-import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicListing } from '@/lib/listings'
+import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicListing, unknownListingFact } from '@/lib/listings'
 import type { Listing } from '@/types'
 
 const preferenceTitle = (value?: string) => value === 'Solo hombre' ? 'Este anuncio busca a un hombre' : value === 'Solo mujer' ? 'Este anuncio busca a una mujer' : value
@@ -87,7 +87,7 @@ export function ListingPage() {
       <div className="container listing-layout">
         <div className="listing-main">
           <header className="listing-title"><div><h1>Habitación en {listing.area}, {listing.city}</h1><p>{listing.title}</p><span className="listing-address"><MapPin aria-hidden="true" />{listing.approximateAddress}</span></div><PriceBlock listing={listing} large /></header>
-          <div className="listing-keyfacts" tabIndex={0} role="region" aria-label="Resumen de la habitación"><span>{listing.roomType}</span><span>{listing.currentResidents} residentes · para {listing.roomCapacity}</span><span>{listing.roomSizeM2} m²</span><span>{listing.shower}</span></div>
+          <div className="listing-keyfacts" tabIndex={0} role="region" aria-label="Resumen de la habitación"><span>{listing.roomType}</span><span>{listing.currentResidents} residentes · para {listing.roomCapacity ?? unknownListingFact}</span><span>{listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}</span><span>{listing.shower}</span></div>
           <div className="listing-inline-actions" aria-label="Acciones del anuncio"><Button variant="ghost" onClick={() => toggleFavorite(listing.id)} aria-label={saved ? "Quitar de favoritos" : "Añadir a favoritos"} aria-pressed={saved}><Heart fill={saved ? 'currentColor' : 'none'} />{saved ? 'Guardado' : 'Guardar'}</Button><Button variant="ghost" onClick={discard} aria-label="Ocultar anuncio"><Trash2 />Descartar</Button><Button variant="ghost" onClick={share} aria-label="Enviar enlace del anuncio"><Share2 />Compartir</Button></div>
           {primaryRestriction ? <section className="listing-restriction-notice" aria-labelledby="restriction-title"><UsersRound aria-hidden="true" /><div><span>Condición principal</span><h2 id="restriction-title">{preferenceTitle(primaryRestriction)}</h2><p>Comprueba esta preferencia visible del anunciante antes de contactar. Puedes seguir consultando el anuncio sin interrupciones.</p></div></section> : null}
           <section className="listing-comments" aria-labelledby="listing-comments-title">
@@ -107,7 +107,7 @@ export function ListingPage() {
           <Separator />
           <section className="listing-section"><h2>Descripción</h2><p className="prose">{listing.description}</p></section>
           <Separator />
-          <section className="listing-section"><h2>Características básicas</h2><ul className="idealista-feature-list"><li><Home />Vivienda compartida con {listing.currentResidents} residentes</li><li><BedDouble />Habitación para {listing.roomCapacity} {listing.roomCapacity === 1 ? 'persona' : 'personas'}</li><li><Ruler />Superficie de la habitación: {listing.roomSizeM2} m²</li><li><Bath />{listing.bathroom} · {listing.shower}</li><li><CookingPot />{listing.kitchen}</li><li><CalendarDays />{listing.available}</li></ul></section>
+          <section className="listing-section"><h2>Características básicas</h2><ul className="idealista-feature-list"><li><Home />Vivienda compartida con {listing.currentResidents} residentes</li><li><BedDouble />Habitación para {listing.roomCapacity == null ? unknownListingFact : `${listing.roomCapacity} ${listing.roomCapacity === 1 ? 'persona' : 'personas'}`}</li><li><Ruler />Superficie de la habitación: {listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}</li><li><Bath />{listing.bathroom ?? unknownListingFact} · {listing.shower}</li><li><CookingPot />{listing.kitchen ?? unknownListingFact}</li><li><CalendarDays />{listing.available}</li></ul></section>
           <Separator />
           <section className="listing-section"><h2>Equipamiento</h2><div className="amenities-grid">{listing.amenities.map((amenity) => <span key={amenity}><Check />{amenity}</span>)}</div></section>
           <Separator />

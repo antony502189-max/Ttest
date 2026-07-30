@@ -54,7 +54,7 @@ const legacyIds = ['armeñime-luminosa-01', 'cristianos-mar-02', 'medano-teletra
 const legacyPlaceIndices = [1, 3, 5, 7, 6, 2, 0, 4]
 const rotatePhotos = (index: number) => Array.from({ length: 6 }, (_, offset) => photos[(index + offset * 2) % photos.length])
 
-const tenantLabels: Record<Listing['tenantRequirement'], string> = {
+const tenantLabels: Record<NonNullable<Listing['tenantRequirement']>, string> = {
   'single-man': 'Solo un hombre',
   'single-woman': 'Solo una mujer',
   'single-person': 'Una persona',
@@ -62,7 +62,7 @@ const tenantLabels: Record<Listing['tenantRequirement'], string> = {
   any: 'Sin restricción',
 }
 
-const tenantRequirementCycle: Listing['tenantRequirement'][] = [
+const tenantRequirementCycle: NonNullable<Listing['tenantRequirement']>[] = [
   'single-woman',
   'single-man',
   'single-person',
@@ -70,7 +70,7 @@ const tenantRequirementCycle: Listing['tenantRequirement'][] = [
   'any',
 ]
 
-const buildRestrictions = (index: number, mode: Listing['rentalMode'], tenantRequirement: Listing['tenantRequirement']) => {
+const buildRestrictions = (index: number, mode: Listing['rentalMode'], tenantRequirement: NonNullable<Listing['tenantRequirement']>) => {
   const restrictions = [tenantLabels[tenantRequirement]]
   restrictions.push(index % 4 === 0 ? 'Mascotas permitidas' : 'Sin mascotas')
   restrictions.push(index % 6 === 0 ? 'Se puede fumar' : 'No fumar')

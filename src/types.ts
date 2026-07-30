@@ -43,19 +43,19 @@ export interface Listing {
   minimumStayMonths: number | null
   minimumNights?: number
   deposit: string
-  depositAmount: number
+  depositAmount: number | null
   bills: string
-  billsIncluded: boolean
-  bathroom: 'Baño privado' | 'Baño compartido'
-  kitchen: 'Cocina privada' | 'Cocina compartida'
-  furnished: boolean
-  roomSizeM2: number
+  billsIncluded: boolean | null
+  bathroom: 'Baño privado' | 'Baño compartido' | null
+  kitchen: 'Cocina privada' | 'Cocina compartida' | null
+  furnished: boolean | null
+  roomSizeM2: number | null
   bedroomCount?: number
   currentResidents: number
-  roomCapacity: 1 | 2
+  roomCapacity: 1 | 2 | null
   shower: ShowerType
   coordinates: Coordinates
-  tenantRequirement: TenantRequirement
+  tenantRequirement: TenantRequirement | null
   smokingAllowed: boolean | null
   petsAllowed: boolean | null
   childrenAllowed: boolean | null
@@ -156,9 +156,9 @@ export interface ListingDraft {
   bedroomCount: number
   currentResidents: number
   roomCapacity: 1 | 2
-  bathroom: Listing['bathroom']
+  bathroom: NonNullable<Listing['bathroom']>
   shower: ShowerType
-  kitchen: Listing['kitchen']
+  kitchen: NonNullable<Listing['kitchen']>
   furnished: boolean
   amenities: string[]
   monthlyPrice: number

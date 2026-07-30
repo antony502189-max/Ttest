@@ -12,7 +12,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 
@@ -330,11 +330,17 @@ def public_detail_fields(data: dict[str, Any]) -> dict[str, Any]:
     capacity = re.search(r"(?:hasta|para)\s*(\d+)\s*personas", corpus)
     if capacity:
         result["room_capacity"] = int(capacity.group(1))
-    result["tenant_requirement"] = "women" if "solo mujeres" in corpus else "men" if "solo hombres" in corpus else "students" if "solo estudiantes" in corpus else None
+    # Keep this compatible with the persisted/API enum.  Student-only is a
+    # restriction, not a gender enum value.
+    result["tenant_requirement"] = (
+        "single-woman" if "solo mujeres" in corpus else "single-man" if "solo hombres" in corpus else None
+    )
     result["bathroom"] = "Baño privado" if "baño privado" in corpus else "Baño compartido" if "baño compartido" in corpus else None
     result["kitchen"] = "Cocina compartida" if "cocina compartida" in corpus else "Cocina privada" if "cocina privada" in corpus else None
     amenities = {"wifi": "wifi", "internet": "internet", "aire acondicionado": "aire acondicionado", "ascensor": "ascensor", "terraza": "terraza", "parking": "parking"}
     result["amenities"] = [label for token, label in amenities.items() if token in corpus]
+    if "solo estudiantes" in corpus:
+        result["amenities"].append("Solo estudiantes")
     result["available_from"] = parse_optional_date(data.get("available_from") or data.get("availableFrom") or data.get("availability"))
     result["published_at"] = parse_optional_date(data.get("datePublished") or data.get("published_at"))
     result["advertiser_name"] = clean(data.get("advertiser_name") or data.get("seller") or data.get("author")) or None
@@ -512,6 +518,14 @@ class ExternalListingSource(ABC):
                         rendered = await self.render_public_page(url)
                         if rendered:
                             return rendered
+                    if response.status_code == 403 and attempt == 2:
+                        diagnostic = self.discovery_diagnostics.get(url, {})
+                        self.blocked_diagnostic = {
+                            "challenge_type": "http_403",
+                            **diagnostic,
+                            "paths": self._save_discovery_artifacts(url, response.text),
+                        }
+                        raise SourceBlocked("public source denied anonymous access")
                     if attempt == 2:
                         raise RuntimeError(f"HTTP {response.status_code}")
                     await asyncio.sleep(2**attempt)
@@ -622,7 +636,7 @@ class ExternalListingSource(ABC):
                 elif self.is_pagination_url(url):
                     queue.append(url)
             diagnostics = self.discovery_diagnostics.get(page, {})
-            if not has_listing_link and re.search(
+            if not seen and not has_listing_link and re.search(
                 r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE
             ):
                 self._save_discovery_artifacts(page, document)
@@ -861,7 +875,78 @@ class PisoCompartidoSource(ExternalListingSource):
         return data
 
 
+class PisosSource(ExternalListingSource):
+    """Public Pisos.com room routes, kept independent from the other adapters."""
+
+    name = "Pisos"
+    domain = "pisos.com"
+    url_tokens = ("/alquilar/habitacion-",)
+    listing_url_pattern = re.compile(r"/alquilar/habitacion-[^/?#]+/?$", re.IGNORECASE)
+    discovery_selectors = ('a[href*="/alquilar/habitacion-"]',)
+    discovery_urls = (
+        "https://www.pisos.com/alquiler/habitaciones-tenerife/",
+        "https://www.pisos.com/alquiler_habitaciones/santa_cruz_de_tenerife",
+    )
+
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        data["category"] = f"pisos.com alquiler habitacion {data['category']}"
+        # Pisos detail URLs carry the public municipality slug even when the
+        # structured address omits it.  Treat it as source metadata, not a
+        # guessed geocode.
+        route = unquote(urlparse(url).path).replace("_", " ").casefold()
+        municipality = next(
+            (name for name in sorted(SANTA_CRUZ, key=len, reverse=True) if name not in PROVINCE_ONLY and name in route),
+            "",
+        )
+        if municipality and not data.get("city"):
+            data["city"] = municipality.title()
+            data["municipality"] = municipality.title()
+            data["province"] = "Santa Cruz de Tenerife"
+        return data
+
+
+class ThinkSpainSource(ExternalListingSource):
+    """ThinkSpain has no room search category: the detail classifier stays strict."""
+
+    name = "ThinkSpain"
+    domain = "thinkspain.com"
+    url_tokens = ("/property-to-rent-long-term/",)
+    listing_url_pattern = re.compile(r"/property-to-rent-long-term/\d+/?$", re.IGNORECASE)
+    discovery_selectors = ('a[href*="/property-to-rent-long-term/"]',)
+    discovery_urls = ("https://www.thinkspain.com/property-to-rent-long-term/tenerife",)
+
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        # Do not confer room status through a category: normalize_listing's
+        # strict text classifier must find an explicit room phrase.
+        data["category"] = f"thinkspain long term rental {data['category']}"
+        corpus = clean(f"{data.get('title', '')} {data.get('description', '')} {document}").casefold()
+        municipality = next(
+            (name for name in sorted(SANTA_CRUZ, key=len, reverse=True) if name not in PROVINCE_ONLY and name in corpus),
+            "",
+        )
+        if municipality and not data.get("city"):
+            data["city"] = municipality.title()
+            data["municipality"] = municipality.title()
+            data["province"] = "Santa Cruz de Tenerife"
+        return data
+
+    def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
+        corpus = clean(" ".join(str(data.get(key, "")) for key in ("title", "description", "category", "breadcrumbs"))).casefold()
+        explicit_room = (
+            "private room" in corpus
+            or "rooms available for rent" in corpus
+            or "room for rent" in corpus
+            or "habitación privada" in corpus
+            or "habitacion privada" in corpus
+            or "alquiler de habitación" in corpus
+            or "alquiler de habitacion" in corpus
+        )
+        return super().normalize_listing(data, url) if explicit_room else None
+
+
 def configured_sources() -> list[ExternalListingSource]:
     enabled = {x.strip().casefold() for x in get_settings().external_import_sources.split(",")}
-    source_types = (IdealistaSource, FotocasaSource, MilanunciosSource, PisoCompartidoSource)
+    source_types = (IdealistaSource, FotocasaSource, MilanunciosSource, PisoCompartidoSource, PisosSource, ThinkSpainSource)
     return [source_type() for source_type in source_types if source_type.name.casefold() in enabled]

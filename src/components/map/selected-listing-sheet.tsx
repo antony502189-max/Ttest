@@ -3,7 +3,7 @@ import { Heart, MessageSquare, Phone, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
-import { getCriticalRestrictions, getPrimaryCadence } from '@/lib/listings'
+import { getCriticalRestrictions, getPrimaryCadence, unknownListingFact } from '@/lib/listings'
 import { priceLabel } from '@/components/map/map-icons'
 import { cn } from '@/lib/utils'
 import type { Listing } from '@/types'
@@ -38,7 +38,7 @@ export function SelectedListingSheet({ listing, onClose, focusOnOpen = false, re
       {listing.isExternal && listing.sourceUrl ? <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer">{listing.title}</a> : <Link to={`/habitacion/${listing.id}`}>{listing.title}</Link>}
       <strong>{priceLabel(listing)} {listing.sourcePriceText ? null : <span>/{getPrimaryCadence(listing)}</span>}</strong>
       <p>{listing.area}, {listing.city}</p>
-      <p className="selected-listing-sheet__facts">{listing.roomType} · {listing.currentResidents} residentes · {listing.roomSizeM2} m²</p>
+      <p className="selected-listing-sheet__facts">{listing.roomType} · {listing.currentResidents} residentes · {listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}</p>
       <ul>{getCriticalRestrictions(listing).slice(0, 2).map((restriction) => <li key={restriction}>{restriction}</li>)}</ul>
     </div>
     <div className="selected-listing-sheet__actions">

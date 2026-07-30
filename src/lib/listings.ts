@@ -9,6 +9,8 @@ export const tenantRequirementLabels: Record<TenantRequirement, string> = {
   any: 'Sin restricciones',
 }
 
+export const unknownListingFact = 'Consultar con el anunciante'
+
 export function getPrimaryPrice(listing: Listing) {
   return listing.rentalMode === 'holiday'
     ? listing.nightlyPrice ?? listing.price
@@ -28,8 +30,8 @@ export function getBedroomCount(listing: Listing) {
 
 export function getCriticalRestrictions(listing: Listing): string[] {
   const restrictions = [
-    tenantRequirementLabels[listing.tenantRequirement],
-    `Habitación para ${listing.roomCapacity} ${listing.roomCapacity === 1 ? 'persona' : 'personas'}`,
+    listing.tenantRequirement == null ? unknownListingFact : tenantRequirementLabels[listing.tenantRequirement],
+    listing.roomCapacity == null ? unknownListingFact : `Habitación para ${listing.roomCapacity} ${listing.roomCapacity === 1 ? 'persona' : 'personas'}`,
     listing.petsAllowed == null ? '' : listing.petsAllowed ? 'Mascotas permitidas' : 'Sin mascotas',
     listing.smokingAllowed == null ? '' : listing.smokingAllowed ? 'Se puede fumar' : 'No fumar',
     listing.childrenAllowed == null ? '' : listing.childrenAllowed ? 'Niños permitidos' : 'Sin niños',
@@ -37,14 +39,14 @@ export function getCriticalRestrictions(listing: Listing): string[] {
     listing.rentalMode === 'holiday'
       ? listing.minimumNights == null ? '' : `Estancia mínima de ${listing.minimumNights} ${listing.minimumNights === 1 ? 'noche' : 'noches'}`
       : listing.minimumStayMonths == null ? '' : `Estancia mínima de ${listing.minimumStayMonths} ${listing.minimumStayMonths === 1 ? 'mes' : 'meses'}`,
-    listing.billsIncluded ? 'Gastos incluidos' : listing.bills,
+    listing.billsIncluded == null ? unknownListingFact : listing.billsIncluded ? 'Gastos incluidos' : listing.bills,
   ]
   return [...new Set(restrictions.filter(Boolean))]
 }
 
 export function getImageCriticalRestrictions(listing: Listing): string[] {
   const conditions: string[] = []
-  if (listing.tenantRequirement !== 'any') conditions.push(tenantRequirementLabels[listing.tenantRequirement])
+  if (listing.tenantRequirement && listing.tenantRequirement !== 'any') conditions.push(tenantRequirementLabels[listing.tenantRequirement])
   if (listing.petsAllowed === false) conditions.push('Sin mascotas')
   if (listing.childrenAllowed === false) conditions.push('Sin niños')
   if (listing.smokingAllowed === false) conditions.push('No fumar')

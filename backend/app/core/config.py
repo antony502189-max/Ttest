@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     external_import_enabled: bool = True
     external_import_interval_seconds: int = 7200
     external_import_run_on_start: bool = True
-    external_import_sources: str = "idealista,fotocasa,milanuncios,pisocompartido"
+    external_import_sources: str = "idealista,fotocasa,milanuncios,pisocompartido,pisos,thinkspain"
     external_import_request_timeout_seconds: int = 25
     external_import_max_concurrency_per_source: int = 3
     external_import_download_images: bool = True

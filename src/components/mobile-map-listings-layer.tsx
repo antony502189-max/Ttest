@@ -146,7 +146,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [mapReady, mapRef])
 
   if (!selected) return null
-  const capacity = t.capacity(selected.roomCapacity)
+  const capacity = selected.roomCapacity == null ? 'Consultar con el anunciante' : t.capacity(selected.roomCapacity)
   const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2), capacity]))
   const saved = favorites.has(selected.id)
   const openListing = () => {

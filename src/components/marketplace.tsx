@@ -111,6 +111,7 @@ import {
   getImageCriticalRestrictions,
   getPrimaryCadence,
   getPrimaryPrice,
+  unknownListingFact,
 } from "@/lib/listings";
 import { TENERIFE_LOCATIONS, resolveTenerifeLocation } from "@/lib/tenerife";
 import type {
@@ -603,7 +604,7 @@ export function PropertyCard({
           <p className="property-location"><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
           <div className="property-facts">
             <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
-            <span>{listing.currentResidents} residentes · {listing.roomSizeM2} m²</span>
+            <span>{listing.currentResidents} residentes · {listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}</span>
             <span><CalendarDays aria-hidden="true" />{listing.available}</span>
           </div>
           {compact ? null : <p className="property-description">{listing.description}</p>}

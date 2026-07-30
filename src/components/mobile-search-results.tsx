@@ -93,7 +93,8 @@ function formatPrice(listing: Listing, language: ResultsLanguage) {
   return `${value} € / ${cadence}`
 }
 
-function capacityLabel(language: ResultsLanguage, count: number) {
+function capacityLabel(language: ResultsLanguage, count: number | null) {
+  if (count == null) return 'Consultar con el anunciante'
   if (language === 'ru') return `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`
   if (language === 'en') return `Room for ${count} ${count === 1 ? 'person' : 'people'}`
   return `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`
@@ -131,7 +132,7 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
   return <article className="m2-result-card" data-listing-id={listing.id}>
     <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button>{index < 2 ? <span className="m2-result-card__top">{t.top}</span> : null}<span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
-    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2} m² · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
+    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? 'Consultar con el anunciante' : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
   </article>
@@ -251,10 +252,10 @@ export function MobileSearchResults() {
     if (order === 'saved-new') return Number(favorites.has(b.id)) - Number(favorites.has(a.id)) || +new Date(b.publishedAt) - +new Date(a.publishedAt)
     if (order === 'saved-old') return Number(favorites.has(b.id)) - Number(favorites.has(a.id)) || +new Date(a.publishedAt) - +new Date(b.publishedAt)
     if (order === 'reduced') return a.price - b.price || b.views - a.views
-    if (order === 'sqm-cheap') return a.price / Math.max(1, a.roomSizeM2) - b.price / Math.max(1, b.roomSizeM2)
-    if (order === 'sqm-expensive') return b.price / Math.max(1, b.roomSizeM2) - a.price / Math.max(1, a.roomSizeM2)
-    if (order === 'area-large') return b.roomSizeM2 - a.roomSizeM2
-    if (order === 'area-small') return a.roomSizeM2 - b.roomSizeM2
+    if (order === 'sqm-cheap') return a.price / Math.max(1, a.roomSizeM2 ?? Number.POSITIVE_INFINITY) - b.price / Math.max(1, b.roomSizeM2 ?? Number.POSITIVE_INFINITY)
+    if (order === 'sqm-expensive') return b.price / Math.max(1, b.roomSizeM2 ?? Number.NEGATIVE_INFINITY) - a.price / Math.max(1, a.roomSizeM2 ?? Number.NEGATIVE_INFINITY)
+    if (order === 'area-large') return (b.roomSizeM2 ?? Number.NEGATIVE_INFINITY) - (a.roomSizeM2 ?? Number.NEGATIVE_INFINITY)
+    if (order === 'area-small') return (a.roomSizeM2 ?? Number.POSITIVE_INFINITY) - (b.roomSizeM2 ?? Number.POSITIVE_INFINITY)
     if (order === 'floor-high') return stableFloor(b) - stableFloor(a)
     if (order === 'floor-low') return stableFloor(a) - stableFloor(b)
     return +new Date(b.publishedAt) - +new Date(a.publishedAt)

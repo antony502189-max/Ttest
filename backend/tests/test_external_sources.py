@@ -13,6 +13,8 @@ from app.external_sources import (
     IdealistaSource,
     MilanunciosSource,
     PisoCompartidoSource,
+    PisosSource,
+    ThinkSpainSource,
     is_in_target_province,
     is_rental,
     is_room_offer,
@@ -109,6 +111,45 @@ def test_each_source_has_its_own_public_discovery_adapter():
     assert FotocasaSource().name == "Fotocasa"
     assert MilanunciosSource().name == "Milanuncios"
     assert PisoCompartidoSource().name == "PisoCompartido"
+    assert PisosSource().name == "Pisos"
+    assert ThinkSpainSource().name == "ThinkSpain"
+
+
+def test_pisos_detail_url_and_public_municipality_slug_are_normalized():
+    source = PisosSource()
+    url = "https://www.pisos.com/alquilar/habitacion-el_rosario_la_esperanza-65036703493_106000/"
+    assert source.is_listing_url(url)
+    parsed = source.parse_listing(
+        "<title>Habitación en alquiler</title><body>520 €/mes alquiler habitación</body>", url
+    )
+    assert parsed["city"] == "El Rosario"
+    assert parsed["province"] == "Santa Cruz de Tenerife"
+
+
+def test_thinkspain_requires_an_explicit_room_phrase_not_a_one_bedroom_flat():
+    source = ThinkSpainSource()
+    url = "https://www.thinkspain.com/property-to-rent-long-term/8247202"
+    assert source.is_listing_url(url)
+    assert source.normalize_listing(room_offer(title="1 bedroom apartment for rent", description="Santa Cruz de Tenerife"), url) is None
+    accepted = source.normalize_listing(
+        room_offer(title="Private room for rent", description="Private room for rent in Santa Cruz de Tenerife"), url
+    )
+    assert accepted is not None
+
+
+@pytest.mark.parametrize(
+    ("source", "fixture", "url"),
+    [
+        (PisosSource, "pisos", "https://www.pisos.com/alquilar/habitacion-el_rosario-65036703493_106000/"),
+        (ThinkSpainSource, "thinkspain", "https://www.thinkspain.com/property-to-rent-long-term/8247202"),
+    ],
+)
+def test_new_source_fixtures_parse_confirmed_room_offers(source, fixture, url):
+    document = (Path(__file__).parent / "fixtures" / "external_sources" / fixture / "room.html").read_text(encoding="utf-8")
+    parsed = source().parse_listing(document, url)
+    normalized = source().normalize_listing(parsed, url)
+    assert normalized is not None
+    assert normalized.source_price_text.endswith("€/mes")
 
 
 def test_conservative_text_similarity_requires_substantial_shared_information():

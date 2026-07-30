@@ -20,7 +20,7 @@ export function PublishOccupancySync() {
 
   useEffect(() => {
     allListings.forEach((listing) => {
-      const capacity = expectedCapacity(listing.tenantRequirement)
+      const capacity = listing.tenantRequirement == null ? null : expectedCapacity(listing.tenantRequirement)
       if (!capacity || capacity === listing.roomCapacity || !canManageListing(listing) || pending.current.has(listing.id)) return
 
       const normalized: Listing = { ...listing, roomCapacity: capacity }
