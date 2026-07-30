@@ -211,6 +211,8 @@ def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
                 return httpx.Response(403, request=request)
             if path.endswith("/100002/"):
                 return httpx.Response(200, text="Anuncio eliminado", request=request)
+            if path.endswith("/100004/"):
+                return httpx.Response(200, text="Ya no disponible", request=request)
             if path.endswith("/100003/"):
                 return httpx.Response(302, headers={"location": "/alquiler-habitacion/"}, request=request)
             return httpx.Response(200, text="HabitaciГіn individual en alquiler", request=request)
@@ -220,6 +222,7 @@ def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100410/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100403/") == "temporary_error"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100002/") == "removed"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100004/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100003/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/123456/") == "active"
         await source.close()

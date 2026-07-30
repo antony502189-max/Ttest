@@ -463,7 +463,7 @@ class ExternalListingSource(ABC):
     discovery_selectors: tuple[str, ...] = ()
     max_discovery_pages = 30
     removed_markers: tuple[str, ...] = (
-        "anuncio eliminado", "ya no está disponible", "ya no esta disponible", "anuncio caducado",
+        "anuncio eliminado", "ya no está disponible", "ya no esta disponible", "ya no disponible", "anuncio caducado",
         "property unavailable", "listing unavailable", "anuncio no disponible",
     )
 
