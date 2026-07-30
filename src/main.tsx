@@ -8,6 +8,7 @@ import './mobile-search-results-overrides.css'
 import './mobile-search-results-panels.css'
 import './mobile-home-mode-cards.css'
 import './mobile-occupant-filters.css'
+import './listing-card-content-order.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
