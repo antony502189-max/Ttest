@@ -180,6 +180,7 @@ class ExternalListingSource(Base):
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     content_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     consecutive_missing_runs: Mapped[int] = mapped_column(Integer, default=0)
+    consecutive_unknown_state_runs: Mapped[int] = mapped_column(Integer, default=0)
     current_status: Mapped[str] = mapped_column(String(32), default="active", index=True)
     last_error: Mapped[str | None] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

@@ -328,8 +328,9 @@ async def test_ambiguous_missing_detail_keeps_listing_published(state: str):
         record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == f"transient-{state}"))
         listing = await session.get(Listing, record.canonical_listing_id) if record else None
         assert counters["archived"] == 0
-        expected_missing_runs = 1 if state == "unknown" else 0
-        assert record is not None and record.current_status == "active" and record.consecutive_missing_runs == expected_missing_runs
+        expected_unknown_runs = 1 if state == "unknown" else 0
+        assert record is not None and record.current_status == "active" and record.consecutive_missing_runs == 0
+        assert record.consecutive_unknown_state_runs == expected_unknown_runs
         assert listing is not None and listing.status == "published"
 
 

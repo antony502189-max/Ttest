@@ -488,6 +488,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     source.last_checked_at = source.last_success_at = source.last_seen_at = source.content_updated_at = now
     source.last_discovered_at = now
     source.consecutive_missing_runs = 0
+    source.consecutive_unknown_state_runs = 0
     source.current_status = "active"
     source.last_error = None
     source.removed_at = None
@@ -561,11 +562,15 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
         elif state == "active":
             row.last_seen_at = datetime.now(UTC)
             row.consecutive_missing_runs = 0
+            row.consecutive_unknown_state_runs = 0
         elif state in {"blocked", "temporary_error"}:
             row.last_error = state
         else:
-            row.consecutive_missing_runs += 1
-            if row.consecutive_missing_runs >= 2:
+            # Unknown is not a missing result.  Keep a separate conservative
+            # fallback counter so blocked/temporary outcomes never poison
+            # normal reconciliation diagnostics.
+            row.consecutive_unknown_state_runs += 1
+            if row.consecutive_unknown_state_runs >= 2:
                 archived += await deactivate_source_record(session, row, "source_removed")
     return archived
 
@@ -597,6 +602,7 @@ async def run_removal_check(session: AsyncSession, source: ExternalListingSource
             row.last_seen_at = datetime.now(UTC)
             row.last_success_at = datetime.now(UTC)
             row.consecutive_missing_runs = 0
+            row.consecutive_unknown_state_runs = 0
             row.removed_at = None
             row.removed_reason = None
             row.last_error = None
@@ -734,6 +740,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 row.last_seen_at = started_at
                 row.last_discovered_at = started_at
                 row.consecutive_missing_runs = 0
+                row.consecutive_unknown_state_runs = 0
             counters["new_discovered"] = len(urls - known_urls)
         semaphore = asyncio.Semaphore(get_settings().external_import_max_concurrency_per_source)
 
