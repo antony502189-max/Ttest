@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+import pytest
+
 from app.workers import external_listings as worker
 
 
@@ -55,5 +57,41 @@ def test_removal_probe_does_not_overlap_a_running_full_import(monkeypatch):
             assert await worker.run_removal_once() == 0
         finally:
             worker.local_import_lock.release()
+
+    asyncio.run(verify())
+
+
+def test_loop_runs_full_sync_on_start_before_waiting_for_the_interval(monkeypatch):
+    class StopLoop(Exception):
+        pass
+
+    class ControlledEvent:
+        def is_set(self) -> bool:
+            return False
+
+        def set(self) -> None:
+            return None
+
+        async def wait(self) -> None:
+            raise StopLoop()
+
+    class SignalLoop:
+        def add_signal_handler(self, *args) -> None:
+            return None
+
+    async def verify() -> None:
+        calls: list[str] = []
+
+        async def run() -> dict:
+            calls.append("full")
+            return {}
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(external_removal_check_enabled=False))
+        monkeypatch.setattr(worker, "run_once", run)
+        monkeypatch.setattr(worker.asyncio, "Event", ControlledEvent)
+        monkeypatch.setattr(worker.asyncio, "get_running_loop", SignalLoop)
+        with pytest.raises(StopLoop):
+            await worker.loop()
+        assert calls == ["full"]
 
     asyncio.run(verify())
