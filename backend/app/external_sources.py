@@ -24,6 +24,23 @@ logger = logging.getLogger(__name__)
 class SourceBlocked(RuntimeError):
     """A public source showed an access challenge; never treat this as missing listings."""
 
+
+@dataclass
+class DiscoveryResult:
+    urls: set[str] = field(default_factory=set)
+    complete: bool = False
+    visited_pages: int = 0
+    expected_total: int | None = None
+    failed_pages: list[str] = field(default_factory=list)
+    reached_last_page: bool = False
+    blocked: bool = False
+
+    def __iter__(self):
+        return iter(self.urls)
+
+    def __len__(self) -> int:
+        return len(self.urls)
+
 SPACE = re.compile(r"\s+")
 TAG = re.compile(r"<[^>]+>")
 LINK = re.compile(r"""href=["']([^"']+)["']""", re.IGNORECASE)
@@ -429,6 +446,10 @@ class ExternalListingSource(ABC):
     listing_url_pattern: re.Pattern[str]
     discovery_selectors: tuple[str, ...] = ()
     max_discovery_pages = 30
+    removed_markers = (
+        "anuncio eliminado", "ya no está disponible", "ya no esta disponible", "anuncio caducado",
+        "property unavailable", "listing unavailable", "anuncio no disponible",
+    )
 
     def __init__(self) -> None:
         settings = get_settings()
@@ -610,18 +631,36 @@ class ExternalListingSource(ABC):
             )
         )
 
-    async def discover_listing_urls(self) -> list[str]:
+    def visible_result_count(self, document: str) -> int | None:
+        match = re.search(r"\b([1-9]\d*)\s+(?:anuncios|resultados|viviendas|habitaciones|properties)\b", clean(document), re.IGNORECASE)
+        return int(match.group(1)) if match else None
+
+    async def discover_listing_urls(self) -> DiscoveryResult:
         seen: set[str] = set()
         visited: set[str] = set()
         queue = list(self.discovery_urls)
+        failed_pages: list[str] = []
+        expected_total: int | None = None
+        blocked = False
         while queue and len(visited) < self.max_discovery_pages:
             page = queue.pop(0)
             if page in visited:
                 continue
             visited.add(page)
-            document = await self.request(page)
-            if not document:
+            try:
+                document = await self.request(page)
+            except SourceBlocked:
+                blocked = True
+                failed_pages.append(page)
+                break
+            except (httpx.HTTPError, RuntimeError):
+                failed_pages.append(page)
                 continue
+            if not document:
+                failed_pages.append(page)
+                continue
+            if expected_total is None:
+                expected_total = self.visible_result_count(document)
             static_links = LINK.findall(document)
             has_listing_link = any(self.is_listing_url(urljoin(page, html.unescape(href))) for href in static_links)
             if not has_listing_link and get_settings().external_import_playwright_enabled:
@@ -635,13 +674,45 @@ class ExternalListingSource(ABC):
                     seen.add(url.split("?", 1)[0])
                 elif self.is_pagination_url(url):
                     queue.append(url)
-            diagnostics = self.discovery_diagnostics.get(page, {})
             if not seen and not has_listing_link and re.search(
                 r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE
             ):
                 self._save_discovery_artifacts(page, document)
-                raise RuntimeError(f"discovery returned zero URLs despite visible results: {json.dumps(diagnostics)}")
-        return list(seen)
+                failed_pages.append(page)
+                self._save_discovery_artifacts(page, document)
+        reached_last_page = not queue
+        complete = not blocked and not failed_pages and reached_last_page
+        if expected_total is not None and len(seen) < expected_total:
+            complete = False
+        return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked)
+
+    async def check_listing_state(self, source_url: str) -> str:
+        """Check a missing detail URL without treating access errors as removal."""
+        try:
+            response = await self.client.get(source_url)
+        except httpx.TimeoutException:
+            return "temporary_error"
+        except httpx.HTTPError:
+            return "temporary_error"
+        document = response.text
+        self._record_page(source_url, document, status=response.status_code, final_url=str(response.url))
+        if "geetest" in document.casefold() or "pardon our interruption" in document.casefold():
+            return "blocked"
+        if response.status_code == 404:
+            return "not_found"
+        if response.status_code == 410:
+            return "removed"
+        if response.status_code in {403, 429} or response.status_code >= 500:
+            return "temporary_error"
+        if response.status_code >= 400:
+            return "unknown"
+        final_url = str(response.url)
+        if final_url.rstrip("/") != source_url.rstrip("/") and not self.is_listing_url(final_url):
+            return "removed"
+        corpus = clean(document).casefold()
+        if any(marker in corpus for marker in self.removed_markers):
+            return "removed"
+        return "active" if self.is_listing_url(final_url) else "unknown"
 
     async def fetch_listing(self, url: str) -> str | None:
         return await self.request(url)

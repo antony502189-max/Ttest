@@ -49,7 +49,7 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
     const headers = new Headers(init.headers)
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
     if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: controller.signal })
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal })
     if (response.status === 401 && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
     if (!response.ok) {
       const body = await response.json().catch(() => ({})) as { detail?: string; message?: string; fieldErrors?: Record<string, string> }

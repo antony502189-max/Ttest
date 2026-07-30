@@ -8,6 +8,11 @@ ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estud
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
 
 
+class CatalogVersionResponse(BaseModel):
+    version: str
+    updatedAt: datetime
+
+
 class ListingWrite(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 

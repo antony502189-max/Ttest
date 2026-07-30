@@ -170,6 +170,7 @@ class ExternalListingSource(Base):
     source_url: Mapped[str] = mapped_column(Text)
     canonical_listing_id: Mapped[UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), index=True)
     raw_payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    normalized_payload: Mapped[dict] = mapped_column(JSONB, default=dict)
     fingerprint: Mapped[str] = mapped_column(String(64), index=True)
     source_price_text: Mapped[str | None] = mapped_column(String(120))
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -180,6 +181,8 @@ class ExternalListingSource(Base):
     consecutive_missing_runs: Mapped[int] = mapped_column(Integer, default=0)
     current_status: Mapped[str] = mapped_column(String(32), default="active", index=True)
     last_error: Mapped[str | None] = mapped_column(Text)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    removed_reason: Mapped[str | None] = mapped_column(String(32))
 
 
 class ExternalImportRun(Base):
@@ -197,6 +200,29 @@ class ExternalImportRun(Base):
     final_url: Mapped[str | None] = mapped_column(Text)
     next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     diagnostic_paths: Mapped[dict] = mapped_column(JSONB, default=dict)
+    discovery_complete: Mapped[bool | None] = mapped_column(Boolean)
+    discovery_pages: Mapped[int | None] = mapped_column(Integer)
+    discovery_failed_pages: Mapped[list[str]] = mapped_column(JSONB, default=list)
+
+
+class ExternalWorkerState(Base):
+    __tablename__ = "external_worker_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    health: Mapped[str] = mapped_column(String(16), default="healthy", index=True)
+    last_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    last_run_id: Mapped[str | None] = mapped_column(String(64))
+
+
+class CatalogState(Base):
+    __tablename__ = "catalog_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Favorite(Base):

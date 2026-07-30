@@ -6,7 +6,7 @@ import { ApiError, resolveApiUrl } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
-import { createRemoteListing, deleteRemoteListing, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
+import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
 import { syncListingImages } from '@/api/media'
 import { getRemoteThreads, sendRemoteMessage, type RemoteThread } from '@/api/messages'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
@@ -224,6 +224,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const orphanCleanupStarted = useRef(false)
   const authHydrationStarted = useRef(false)
   const listingsHydrationStarted = useRef(false)
+  const catalogVersion = useRef<string | null>(null)
+  const catalogRequest = useRef<AbortController | null>(null)
 
   const currentUser = users.find((user) => user.id === currentUserId) ?? null
   const scopeKey = currentUserId ?? 'guest'
@@ -284,10 +286,48 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     if (listingsHydrationStarted.current) return
     listingsHydrationStarted.current = true
     if (mockMode) return
-    void getPublicListings().then(setAllListings).catch(() => {
+    void getPublicListings().then((items) => {
+      setAllListings(items)
+      return getCatalogVersion()
+    }).then((version) => { catalogVersion.current = version.version }).catch(() => {
       setAllListings([])
       toast.error('No se pudo cargar el catálogo del servidor.')
     })
+  }, [])
+
+  useEffect(() => {
+    if (mockMode) return
+    const refreshIfChanged = () => {
+      const check = new AbortController()
+      void getCatalogVersion(check.signal).then((current) => {
+        if (catalogVersion.current === null) {
+          catalogVersion.current = current.version
+          return
+        }
+        if (catalogVersion.current === current.version) return
+        catalogRequest.current?.abort()
+        const request = new AbortController()
+        catalogRequest.current = request
+        return getPublicListings(request.signal).then((items) => {
+          if (!request.signal.aborted) {
+            setAllListings(items)
+            catalogVersion.current = current.version
+          }
+        })
+      }).catch(() => undefined)
+      return () => check.abort()
+    }
+    const interval = window.setInterval(refreshIfChanged, 60_000)
+    const onFocus = () => { refreshIfChanged() }
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.clearInterval(interval)
+      catalogRequest.current?.abort()
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [])
 
   useEffect(() => {

@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     external_import_download_images: bool = True
     external_import_user_agent: str = "112233.es room aggregator"
     external_import_playwright_enabled: bool = False
+    external_removal_check_enabled: bool = True
+    external_removal_check_interval_seconds: int = 900
 
     @property
     def origins(self) -> list[str]:

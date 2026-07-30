@@ -5,13 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
-from ...models import ExternalImportRun, User
+from ...models import ExternalImportRun, ExternalWorkerState, User
 from ...schemas.admin import (
     AdminListingResponse,
     AdminStatsResponse,
     AdminUserResponse,
     BlockUserRequest,
     ExternalImportRunResponse,
+    ExternalWorkerStateResponse,
     ListingStatusRequest,
 )
 from ...services.admin import (
@@ -95,9 +96,26 @@ async def external_import_runs(
             finalUrl=row.final_url,
             nextCheckAt=row.next_check_at,
             diagnosticPaths=row.diagnostic_paths,
+            discoveryComplete=row.discovery_complete,
+            discoveryPages=row.discovery_pages,
+            discoveryFailedPages=row.discovery_failed_pages,
         )
         for row in rows
     ]
+
+
+@router.get("/external-import/worker", response_model=ExternalWorkerStateResponse)
+async def external_import_worker_state(
+    user: User = Depends(require_role("admin")), session: AsyncSession = Depends(get_session)
+):
+    state = await session.get(ExternalWorkerState, 1)
+    if not state:
+        return ExternalWorkerStateResponse(health="delayed", lastStartedAt=None, lastFinishedAt=None, lastSuccessAt=None,
+                                           nextRunAt=None, heartbeatAt=None, lastError=None, lastRunId=None)
+    return ExternalWorkerStateResponse(health=state.health, lastStartedAt=state.last_started_at,
+                                       lastFinishedAt=state.last_finished_at, lastSuccessAt=state.last_success_at,
+                                       nextRunAt=state.next_run_at, heartbeatAt=state.heartbeat_at,
+                                       lastError=state.last_error, lastRunId=state.last_run_id)
 
 
 @router.post("/external-import/run")

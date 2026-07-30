@@ -176,14 +176,14 @@ export function toListing(dto: ListingDto): Listing {
   }
 }
 
-async function fetchAllSearch(body: Record<string, unknown>) {
+async function fetchAllSearch(body: Record<string, unknown>, signal?: AbortSignal) {
   const pageSize = 100
   const items: ListingDto[] = []
   let offset = 0
   let total = 0
   do {
     const response = await api<ListingSearchDto>('/listings/search', {
-      method: 'POST', body: JSON.stringify({ ...body, limit: pageSize, offset }),
+      method: 'POST', body: JSON.stringify({ ...body, limit: pageSize, offset }), signal,
     })
     items.push(...response.items)
     total = response.total
@@ -193,8 +193,12 @@ async function fetchAllSearch(body: Record<string, unknown>) {
   return items.map(toListing)
 }
 
-export function getPublicListings() {
-  return fetchAllSearch({ sort: 'newest' })
+export function getPublicListings(signal?: AbortSignal) {
+  return fetchAllSearch({ sort: 'newest' }, signal)
+}
+
+export function getCatalogVersion(signal?: AbortSignal) {
+  return api<{ version: string; updatedAt: string }>('/listings/catalog-version', { signal })
 }
 
 export async function getOwnedListings() {

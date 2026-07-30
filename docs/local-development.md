@@ -15,6 +15,12 @@ On PowerShell, use `$env:BACKEND_PORT='8001'` before starting Docker if port 800
 
 Copy `backend/.env.example` to `backend/.env` for non-Docker execution. Configure `GOOGLE_CLIENT_ID` on both backend and frontend only when Google sign-in is enabled. Set `SMTP_*` in production; development delivery writes to logs after running:
 
+## External listing worker
+
+Start the production-like services with `docker compose up -d migrate backend external-listings-worker` and watch imports with `docker compose logs -f external-listings-worker`. For a single local synchronization run `cd backend; python -m app.workers.external_listings --once`.
+
+The Milanuncios production browser smoke test remains a pending deployment verification: public CAPTCHA challenges are recorded as `blocked` and are never bypassed.
+
 ```bash
 docker compose run --rm backend python -m app.commands.deliver_outbox
 ```

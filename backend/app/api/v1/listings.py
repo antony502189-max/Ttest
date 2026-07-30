@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import Listing, ListingImage, MediaAsset, User
+from ...models import CatalogState, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
     anonymous_viewer_key,
     owned_query,
@@ -21,6 +21,7 @@ from ...repositories.listings import (
     visible_query,
 )
 from ...schemas.listings import (
+    CatalogVersionResponse,
     ListingImageResponse,
     ListingImagesRequest,
     ListingPatch,
@@ -48,6 +49,16 @@ from ...services.listings import (
 from ..dependencies import current_user, optional_user, require_role
 
 router = APIRouter(prefix="/listings", tags=["listings"])
+
+
+@router.get("/catalog-version", response_model=CatalogVersionResponse)
+async def catalog_version(session: AsyncSession = Depends(get_session)):
+    state = await session.get(CatalogState, 1)
+    if not state:
+        state = CatalogState(id=1, version=1, updated_at=datetime.now(UTC))
+        session.add(state)
+        await session.commit()
+    return CatalogVersionResponse(version=str(state.version), updatedAt=state.updated_at)
 
 
 @router.get("", response_model=list[ListingResponse])

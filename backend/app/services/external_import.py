@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import unicodedata
+from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from time import perf_counter
@@ -19,6 +21,7 @@ from ..api.v1.uploads import validate_and_normalize
 from ..core.config import get_settings
 from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
 from ..external_sources import (
+    DiscoveryResult,
     ExternalListingSource,
     NormalizedListing,
     SourceBlocked,
@@ -26,7 +29,7 @@ from ..external_sources import (
     is_rental,
     is_room_offer,
 )
-from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
+from ..models import CatalogState, ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
 from ..repositories.listings import point
 from ..storage import get_storage
@@ -304,7 +307,20 @@ async def canonical_for(session: AsyncSession, item: NormalizedListing, image_ha
     return None
 
 
-async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
+def normalized_snapshot(item: NormalizedListing) -> dict:
+    return json.loads(json.dumps(asdict(item), default=str))
+
+
+async def touch_catalog(session: AsyncSession) -> None:
+    state = await session.get(CatalogState, 1)
+    if not state:
+        state = CatalogState(id=1, version=1)
+        session.add(state)
+    state.version += 1
+    state.updated_at = datetime.now(UTC)
+
+
+async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False) -> str:
     now = datetime.now(UTC)
     source = await session.scalar(
         select(SourceRecord).where(
@@ -316,7 +332,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
         if source
         else await canonical_for(session, item, await public_image_hashes(item.photos))
     )
-    if source and source.fingerprint == item.fingerprint:
+    if source and source.fingerprint == item.fingerprint and not force_primary:
         source.last_checked_at = source.last_success_at = source.last_seen_at = now
         source.consecutive_missing_runs = 0
         source.current_status = "active"
@@ -375,6 +391,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
     replace_primary = (
         not listing.primary_source
         or listing.primary_source == item.source_name
+        or force_primary
         or completeness_score(item) >= listing_completeness_score(listing)
     )
     if replace_primary:
@@ -436,10 +453,12 @@ async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
             source_url=item.source_url,
             canonical_listing_id=listing.id,
             raw_payload=item.raw_payload,
+            normalized_payload=normalized_snapshot(item),
             fingerprint=item.fingerprint,
         )
         session.add(source)
     source.raw_payload = item.raw_payload
+    source.normalized_payload = normalized_snapshot(item)
     source.fingerprint = item.fingerprint
     source.source_url = item.source_url
     source.source_price_text = item.source_price_text
@@ -447,10 +466,52 @@ async def upsert(session: AsyncSession, item: NormalizedListing) -> str:
     source.consecutive_missing_runs = 0
     source.current_status = "active"
     source.last_error = None
+    source.removed_at = None
+    source.removed_reason = None
+    if action != "unchanged" or restored:
+        await touch_catalog(session)
     return "restored" if restored else action
 
 
-async def archive_missing(session: AsyncSession, source_name: str, started_at: datetime) -> int:
+async def promote_best_active_source(session: AsyncSession, canonical_listing_id) -> bool:
+    rows = (
+        await session.scalars(
+            select(SourceRecord).where(
+                SourceRecord.canonical_listing_id == canonical_listing_id,
+                SourceRecord.current_status == "active",
+            )
+        )
+    ).all()
+    snapshots = [row for row in rows if row.normalized_payload]
+    if not snapshots:
+        return False
+    best = max(snapshots, key=lambda row: completeness_score(NormalizedListing(**row.normalized_payload)))
+    await upsert(session, NormalizedListing(**best.normalized_payload), force_primary=True)
+    return True
+
+
+async def deactivate_source_record(session: AsyncSession, row: SourceRecord, reason: str) -> int:
+    """Deactivate one source and atomically promote an active duplicate or close the listing."""
+    if row.current_status != "active":
+        return 0
+    row.current_status = "missing" if reason in {"deleted", "expired", "not_found", "source_removed"} else reason
+    row.removed_at = datetime.now(UTC)
+    row.removed_reason = reason
+    row.last_error = reason
+    listing = await session.get(Listing, row.canonical_listing_id)
+    if not listing or listing.primary_source != row.source_name:
+        return 0
+    if await promote_best_active_source(session, listing.id):
+        return 0
+    listing.status = "closed"
+    listing.closed_reason = reason
+    listing.last_synced_at = datetime.now(UTC)
+    await touch_catalog(session)
+    return 1
+
+
+async def archive_missing(session: AsyncSession, source: ExternalListingSource | str, started_at: datetime) -> int:
+    source_name = source.name if isinstance(source, ExternalListingSource) else source
     rows = (
         await session.scalars(
             select(SourceRecord).where(
@@ -462,52 +523,58 @@ async def archive_missing(session: AsyncSession, source_name: str, started_at: d
     ).all()
     archived = 0
     for row in rows:
-        row.consecutive_missing_runs += 1
-        if row.consecutive_missing_runs >= 2:
-            row.current_status = "missing"
-            listing = await session.get(Listing, row.canonical_listing_id)
-            if listing and listing.primary_source == source_name:
-                alternatives = await session.scalar(
-                    select(SourceRecord).where(
-                        SourceRecord.canonical_listing_id == listing.id,
-                        SourceRecord.current_status == "active",
-                        SourceRecord.source_name != source_name,
-                    )
-                )
-                if alternatives:
-                    listing.primary_source = alternatives.source_name
-                    listing.primary_source_url = alternatives.source_url
-                else:
-                    listing.status = "closed"
-                    archived += 1
+        if isinstance(source, str):
+            state = "unknown"
+        else:
+            state = await source.check_listing_state(row.source_url)
+        if state in {"removed", "expired", "not_found"}:
+            archived += await deactivate_source_record(session, row, "not_found" if state == "not_found" else state)
+        elif state == "active":
+            row.last_seen_at = datetime.now(UTC)
+            row.consecutive_missing_runs = 0
+        elif state in {"blocked", "temporary_error"}:
+            row.last_error = state
+        else:
+            row.consecutive_missing_runs += 1
+            if row.consecutive_missing_runs >= 2:
+                archived += await deactivate_source_record(session, row, "source_removed")
+    return archived
+
+
+async def run_removal_check(session: AsyncSession, source: ExternalListingSource) -> int:
+    """Lightweight safety check; it never performs discovery or image imports."""
+    cutoff = datetime.now(UTC) - timedelta(seconds=get_settings().external_removal_check_interval_seconds)
+    rows = (
+        await session.scalars(
+            select(SourceRecord).where(
+                SourceRecord.source_name == source.name,
+                SourceRecord.current_status == "active",
+                SourceRecord.last_checked_at < cutoff,
+            ).limit(50)
+        )
+    ).all()
+    archived = 0
+    for row in rows:
+        state = await source.check_listing_state(row.source_url)
+        row.last_checked_at = datetime.now(UTC)
+        if state in {"removed", "expired", "not_found"}:
+            archived += await deactivate_source_record(session, row, "not_found" if state == "not_found" else state)
+        elif state == "active":
+            row.last_seen_at = datetime.now(UTC)
+            row.consecutive_missing_runs = 0
+        elif state in {"blocked", "temporary_error"}:
+            row.last_error = state
     return archived
 
 
 async def archive_confirmed_not_found(session: AsyncSession, source_name: str, source_url: str) -> int:
-    """Archive a source immediately only after its public detail URL answered HTTP 404."""
+    """Compatibility wrapper for detail fetches that already proved a 404."""
     row = await session.scalar(
         select(SourceRecord).where(SourceRecord.source_name == source_name, SourceRecord.source_url == source_url)
     )
-    if not row or row.current_status != "active":
+    if not row:
         return 0
-    row.current_status = "missing"
-    row.consecutive_missing_runs = max(row.consecutive_missing_runs, 2)
-    listing = await session.get(Listing, row.canonical_listing_id)
-    if not listing or listing.primary_source != source_name:
-        return 0
-    alternative = await session.scalar(
-        select(SourceRecord).where(
-            SourceRecord.canonical_listing_id == listing.id,
-            SourceRecord.current_status == "active",
-            SourceRecord.source_name != source_name,
-        )
-    )
-    if alternative:
-        listing.primary_source = alternative.source_name
-        listing.primary_source_url = alternative.source_url
-        return 0
-    listing.status = "closed"
-    return 1
+    return await deactivate_source_record(session, row, "not_found")
 
 
 async def deactivate_rejected_source(session: AsyncSession, source_name: str, source_url: str) -> None:
@@ -517,22 +584,7 @@ async def deactivate_rejected_source(session: AsyncSession, source_name: str, so
     )
     if not row:
         return
-    row.current_status = "rejected"
-    listing = await session.get(Listing, row.canonical_listing_id)
-    if not listing or listing.primary_source != source_name:
-        return
-    alternative = await session.scalar(
-        select(SourceRecord).where(
-            SourceRecord.canonical_listing_id == listing.id,
-            SourceRecord.current_status == "active",
-            SourceRecord.source_name != source_name,
-        )
-    )
-    if alternative:
-        listing.primary_source = alternative.source_name
-        listing.primary_source_url = alternative.source_url
-    else:
-        listing.status = "closed"
+    await deactivate_source_record(session, row, "rejected")
 
 
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> dict[str, int]:
@@ -542,6 +594,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         for key in (
             "discovered",
             "discovered_urls",
+            "new_discovered",
             "fetched",
             "fetched_details",
             "imported",
@@ -590,17 +643,36 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
         return counters
     try:
-        urls = await source.discover_listing_urls()
+        discovery = await source.discover_listing_urls()
+        if isinstance(discovery, list):
+            discovery = DiscoveryResult(urls=set(discovery), complete=True, visited_pages=1, reached_last_page=True)
+        urls = discovery.urls
         counters["discovered"] = len(urls)
         counters["discovered_urls"] = len(urls)
+        run.discovery_complete = discovery.complete
+        run.discovery_pages = discovery.visited_pages
+        run.discovery_failed_pages = discovery.failed_pages
+        if discovery.blocked:
+            run.result = "blocked"
+            run.last_error = "discovery blocked"
+            run.counters = counters
+            run.finished_at = datetime.now(UTC)
+            await session.commit()
+            await source.close()
+            EXTERNAL_IMPORTS.labels(source.name, run.result).inc()
+            EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
+            return counters
         source.not_found_urls.clear()
         if urls:
             rows = await session.scalars(
                 select(SourceRecord).where(SourceRecord.source_name == source.name, SourceRecord.source_url.in_(urls))
             )
+            known_urls = set()
             for row in rows:
+                known_urls.add(row.source_url)
                 row.last_seen_at = started_at
                 row.consecutive_missing_runs = 0
+            counters["new_discovered"] = len(urls - known_urls)
         semaphore = asyncio.Semaphore(get_settings().external_import_max_concurrency_per_source)
 
         async def fetch(url: str):
@@ -643,8 +715,9 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             counters[outcome] += 1
             if outcome == "imported":
                 counters["created"] += 1
-        counters["archived"] = await archive_missing(session, source.name, started_at)
-        run.result = "partial" if partial else "success"
+        if discovery.complete and not partial:
+            counters["archived"] += await archive_missing(session, source, started_at)
+        run.result = "partial" if partial or not discovery.complete else "success"
     except SourceBlocked as exc:
         run.result = "blocked"
         run.last_error = str(exc)
