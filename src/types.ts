@@ -52,7 +52,7 @@ export interface Listing {
   roomSizeM2: number | null
   bedroomCount?: number
   currentResidents: number
-  roomCapacity: 1 | 2 | null
+  roomCapacity: number | null
   shower: ShowerType
   coordinates: Coordinates
   tenantRequirement: TenantRequirement | null

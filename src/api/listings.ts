@@ -42,7 +42,7 @@ type ListingDto = {
   roomSizeM2: number | null
   bedroomCount: number | null
   currentResidents: number
-  roomCapacity: 1 | 2 | null
+  roomCapacity: number | null
   shower: Listing['shower']
   tenantRequirement: TenantRequirement | null
   smokingAllowed: boolean | null

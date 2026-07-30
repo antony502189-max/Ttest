@@ -20,6 +20,8 @@ from app.external_sources import (
     is_in_target_province,
     is_rental,
     is_room_offer,
+    parse_optional_date,
+    parse_optional_datetime,
     parse_price,
 )
 from app.services.external_import import completeness_score, perceptual_hash, similarity
@@ -101,6 +103,19 @@ def test_source_adapters_normalize_a_long_and_holiday_room_without_inventing_dat
 def test_price_parser_preserves_period_and_from_marker():
     assert parse_price("300 € por semana") == (300, "EUR", "week", False)
     assert parse_price("Consultar precio") == (None, None, None, False)
+
+
+def test_external_dates_keep_date_and_datetime_semantics_and_student_is_a_restriction():
+    published = parse_optional_datetime("2026-07-30T10:30:00Z")
+    assert parse_optional_date("30/07/2026").isoformat() == "2026-07-30"
+    assert published is not None and published.isoformat().startswith("2026-07-30T10:30:00")
+    item = IdealistaSource().normalize_listing(
+        room_offer(description="Solo estudiantes. Disponible desde 30/07/2026."),
+        "https://www.idealista.com/inmueble/123456/",
+    )
+    assert item is not None
+    assert item.tenant_requirement is None
+    assert "Solo estudiantes" in item.restrictions
 
 
 def test_long_category_does_not_turn_an_unqualified_property_sale_price_into_room_rent():
@@ -296,6 +311,24 @@ def test_embedded_public_json_fallback_parses_listing_state():
     assert parsed["images"] == ["https://images.example.test/room.jpg"]
     assert parsed["phone"] == "+34 612 345 678"
     assert parsed["email"] == "owner@example.test"
+
+
+def test_fotocasa_and_pisocompartido_use_their_own_detail_field_fallbacks():
+    fotocasa = FotocasaSource().parse_listing(
+        '''<h1>Habitación Fotocasa</h1><script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"property":{"title":"Habitación JSON","description":"Detalle compartido","priceText":"680 €/mes","city":"Adeje","agencyName":"Agencia pública","availableFrom":"2026-08-01","publishedAt":"2026-07-30T08:00:00Z"}}}}</script>''',
+        "https://www.fotocasa.es/es/compartir/vivienda/adeje/123456/d",
+    )
+    piso = PisoCompartidoSource().parse_listing(
+        '<h1>Habitación PisoCompartido</h1><div class="descripcion">Detalle de habitación compartida</div>'
+        '<p>Precio: 640 € al mes</p><img data-src="https://images.example.test/piso.jpg">'
+        '<p>Disponible desde 2026-08-15</p>',
+        "https://www.pisocompartido.com/habitacion/123456/",
+    )
+    assert fotocasa["title"] == "Habitación JSON"
+    assert fotocasa["advertiser_name"] == "Agencia pública"
+    assert piso["title"] == "Habitación PisoCompartido"
+    assert piso["images"] == ["https://images.example.test/piso.jpg"]
 
 
 def test_structured_items_are_merged_for_public_address_coordinates_and_all_photos():

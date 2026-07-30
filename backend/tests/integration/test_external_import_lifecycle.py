@@ -109,6 +109,11 @@ class IncompleteDiscoverySource(PartiallyFailingSource):
         return DiscoveryResult(urls=set(), complete=False, visited_pages=1, failed_pages=["https://example.test/page/2"])
 
 
+class EmptyDiscoverySource(PartiallyFailingSource):
+    async def discover_listing_urls(self) -> DiscoveryResult:
+        return DiscoveryResult(urls=set(), complete=True, visited_pages=1, reached_last_page=True)
+
+
 class MissingDetailSource:
     """A complete discovery with an injected detail-state response."""
 
@@ -154,6 +159,13 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         await session.commit()
         assert await upsert(session, idealista) == "unchanged"
         await session.commit()
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "idealista-1")
+        )
+        assert source_record is not None
+        assert source_record.normalized_payload["external_id"] == "idealista-1"
+        assert source_record.last_discovered_at is not None
 
         fotocasa = external_item(
             source="Fotocasa",
@@ -247,6 +259,28 @@ async def test_incomplete_discovery_does_not_archive_active_source_or_catalog_en
         assert after.json()["version"] == before.json()["version"]
         visible = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
         assert any(row["id"] for row in visible.json()["items"])
+
+
+async def test_sudden_drop_to_zero_urls_is_partial_and_never_archives_existing_source():
+    async with SessionLocal() as session:
+        item = external_item(source="Fotocasa", external_id="volume-drop", url="https://example.test/volume-drop")
+        assert await upsert(session, item) == "imported"
+        session.add(
+            ExternalImportRun(
+                run_id="previous-volume",
+                source_name="Fotocasa",
+                result="success",
+                finished_at=datetime.now(UTC),
+                counters={"discovered_urls": 10},
+            )
+        )
+        await session.commit()
+        counters = await run_source(session, EmptyDiscoverySource(), "volume-drop")  # type: ignore[arg-type]
+        record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "volume-drop"))
+        run = await session.scalar(select(ExternalImportRun).where(ExternalImportRun.run_id == "volume-drop"))
+        assert counters["archived"] == 0
+        assert record is not None and record.current_status == "active"
+        assert run is not None and run.result == "partial" and run.discovery_complete is False
 
 
 @pytest.mark.parametrize("state", ["not_found", "removed", "expired"])

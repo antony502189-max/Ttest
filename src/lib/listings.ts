@@ -69,12 +69,12 @@ type LegacyListing = Partial<Listing> & {
   couplesAllowed?: boolean
 }
 
-function inferTenantRequirement(listing: LegacyListing): TenantRequirement {
+function inferTenantRequirement(listing: LegacyListing): TenantRequirement | null {
   if (listing.tenantRequirement) return listing.tenantRequirement
   if (listing.genderPreference === 'Solo hombre') return 'single-man'
   if (listing.genderPreference === 'Solo mujer') return 'single-woman'
   if (listing.couplesAllowed && listing.roomType !== 'Habitación individual') return 'couple'
-  return 'any'
+  return listing.isExternal ? null : 'any'
 }
 
 export function isListingLike(value: unknown): value is Partial<Listing> & Pick<Listing, 'id' | 'title' | 'rentalMode' | 'images' | 'publishedAt'> {
@@ -104,7 +104,9 @@ export function normalizeListing(value: unknown): Listing | null {
   const legacy = value as LegacyListing
   const rentalMode = value.rentalMode
   const tenantRequirement = inferTenantRequirement(legacy)
-  const roomCapacity: 1 | 2 = legacy.roomCapacity === 2 || (!legacy.roomCapacity && tenantRequirement === 'couple') ? 2 : 1
+  const roomCapacity = typeof legacy.roomCapacity === 'number' && legacy.roomCapacity >= 1
+    ? Math.round(legacy.roomCapacity)
+    : tenantRequirement === 'couple' ? 2 : legacy.isExternal ? null : 1
   const price = typeof legacy.price === 'number' ? legacy.price : 0
   const monthlyPrice = typeof legacy.monthlyPrice === 'number'
     ? legacy.monthlyPrice
@@ -131,14 +133,14 @@ export function normalizeListing(value: unknown): Listing | null {
     minimumStay: legacy.minimumStay ?? (legacy.isExternal ? 'Consultar estancia mínima' : rentalMode === 'holiday' ? 'Mínimo 1 noche' : 'Mínimo 1 mes'),
     minimumStayMonths: typeof legacy.minimumStayMonths === 'number' ? legacy.minimumStayMonths : legacy.isExternal ? null : rentalMode === 'long' ? 1 : 0,
     minimumNights: typeof legacy.minimumNights === 'number' ? legacy.minimumNights : legacy.isExternal ? undefined : rentalMode === 'holiday' ? 1 : undefined,
-    deposit: legacy.deposit ?? 'Sin fianza',
-    depositAmount: typeof legacy.depositAmount === 'number' ? legacy.depositAmount : 0,
-    bills: legacy.bills ?? 'Gastos no especificados',
-    billsIncluded: Boolean(legacy.billsIncluded),
-    bathroom: legacy.bathroom ?? 'Baño compartido',
-    kitchen: legacy.kitchen ?? 'Cocina compartida',
-    furnished: legacy.furnished ?? true,
-    roomSizeM2: typeof legacy.roomSizeM2 === 'number' ? legacy.roomSizeM2 : typeof legacy.size === 'number' ? legacy.size : 12,
+    deposit: legacy.deposit ?? (legacy.isExternal ? unknownListingFact : 'Sin fianza'),
+    depositAmount: typeof legacy.depositAmount === 'number' ? legacy.depositAmount : legacy.isExternal ? null : 0,
+    bills: legacy.bills ?? (legacy.isExternal ? unknownListingFact : 'Gastos no especificados'),
+    billsIncluded: typeof legacy.billsIncluded === 'boolean' ? legacy.billsIncluded : legacy.isExternal ? null : false,
+    bathroom: legacy.bathroom ?? (legacy.isExternal ? null : 'Baño compartido'),
+    kitchen: legacy.kitchen ?? (legacy.isExternal ? null : 'Cocina compartida'),
+    furnished: typeof legacy.furnished === 'boolean' ? legacy.furnished : legacy.isExternal ? null : true,
+    roomSizeM2: typeof legacy.roomSizeM2 === 'number' ? legacy.roomSizeM2 : typeof legacy.size === 'number' ? legacy.size : legacy.isExternal ? null : 12,
     bedroomCount: typeof legacy.bedroomCount === 'number' && Number.isFinite(legacy.bedroomCount)
       ? Math.min(99, Math.max(1, Math.round(legacy.bedroomCount)))
       : legacy.roomType === 'Estudio' ? 1 : Math.min(99, Math.max(1, Math.round((legacy.currentResidents ?? legacy.occupants ?? 1) + 1))),

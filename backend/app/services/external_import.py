@@ -28,6 +28,8 @@ from ..external_sources import (
     is_in_target_province,
     is_rental,
     is_room_offer,
+    parse_optional_date,
+    parse_optional_datetime,
 )
 from ..models import CatalogState, ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
@@ -311,6 +313,14 @@ def normalized_snapshot(item: NormalizedListing) -> dict:
     return json.loads(json.dumps(asdict(item), default=str))
 
 
+def listing_from_snapshot(payload: dict) -> NormalizedListing:
+    """Restore date types after JSONB serialisation before a primary promotion."""
+    value = dict(payload)
+    value["available_from"] = parse_optional_date(value.get("available_from"))
+    value["published_at"] = parse_optional_datetime(value.get("published_at"))
+    return NormalizedListing(**value)
+
+
 async def touch_catalog(session: AsyncSession) -> None:
     state = await session.get(CatalogState, 1)
     if not state:
@@ -388,6 +398,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             children_allowed=item.children_allowed,
             empadronamiento_allowed=item.empadronamiento_allowed,
             amenities=item.amenities,
+            restrictions=item.restrictions,
             advertiser_name=item.advertiser_name,
             advertiser_type=item.advertiser_type,
             available_from=item.available_from,
@@ -434,6 +445,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.smoking_allowed = item.smoking_allowed
         listing.empadronamiento_allowed = item.empadronamiento_allowed
         listing.amenities = item.amenities
+        listing.restrictions = item.restrictions
         listing.advertiser_name = item.advertiser_name
         listing.advertiser_type = item.advertiser_type
         listing.available_from = item.available_from
@@ -474,6 +486,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     source.source_url = item.source_url
     source.source_price_text = item.source_price_text
     source.last_checked_at = source.last_success_at = source.last_seen_at = source.content_updated_at = now
+    source.last_discovered_at = now
     source.consecutive_missing_runs = 0
     source.current_status = "active"
     source.last_error = None
@@ -496,8 +509,8 @@ async def promote_best_active_source(session: AsyncSession, canonical_listing_id
     snapshots = [row for row in rows if row.normalized_payload]
     if not snapshots:
         return False
-    best = max(snapshots, key=lambda row: completeness_score(NormalizedListing(**row.normalized_payload)))
-    await upsert(session, NormalizedListing(**best.normalized_payload), force_primary=True)
+    best = max(snapshots, key=lambda row: completeness_score(listing_from_snapshot(row.normalized_payload)))
+    await upsert(session, listing_from_snapshot(best.normalized_payload), force_primary=True)
     return True
 
 
@@ -540,6 +553,8 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
             state = "unknown"
         else:
             state = await source.check_listing_state(row.source_url)
+        row.last_state_check_at = datetime.now(UTC)
+        row.last_state_check_result = state
         if state in {"removed", "expired", "not_found"}:
             reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
             archived += await deactivate_source_record(session, row, reason)
@@ -571,6 +586,8 @@ async def run_removal_check(session: AsyncSession, source: ExternalListingSource
     for row in rows:
         state = await source.check_listing_state(row.source_url)
         row.last_checked_at = datetime.now(UTC)
+        row.last_state_check_at = row.last_checked_at
+        row.last_state_check_result = state
         if state in {"removed", "expired", "not_found"}:
             reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
             archived += await deactivate_source_record(session, row, reason)
@@ -600,6 +617,8 @@ async def archive_confirmed_not_found(session: AsyncSession, source_name: str, s
     )
     if not row:
         return 0
+    row.last_state_check_at = datetime.now(UTC)
+    row.last_state_check_result = "not_found"
     return await deactivate_source_record(session, row, "not_found")
 
 
@@ -673,6 +692,21 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         if isinstance(discovery, list):
             discovery = DiscoveryResult(urls=set(discovery), complete=True, visited_pages=1, reached_last_page=True)
         urls = discovery.urls
+        previous_success = await session.scalar(
+            select(ExternalImportRun)
+            .where(
+                ExternalImportRun.source_name == source.name,
+                ExternalImportRun.result == "success",
+                ExternalImportRun.id != run.id,
+            )
+            .order_by(ExternalImportRun.finished_at.desc())
+            .limit(1)
+        )
+        previous_discovered = int((previous_success.counters or {}).get("discovered_urls", 0)) if previous_success else 0
+        suspicious_drop = bool(previous_discovered) and len(urls) < max(1, previous_discovered * 0.3)
+        if (not urls and previous_discovered) or suspicious_drop:
+            discovery.complete = False
+            discovery.failed_pages.append("suspicious_discovery_volume_drop")
         counters["discovered"] = len(urls)
         counters["discovered_urls"] = len(urls)
         run.discovery_complete = discovery.complete
@@ -698,6 +732,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             for row in rows:
                 known_urls.add(row.source_url)
                 row.last_seen_at = started_at
+                row.last_discovered_at = started_at
                 row.consecutive_missing_runs = 0
             counters["new_discovered"] = len(urls - known_urls)
         semaphore = asyncio.Semaphore(get_settings().external_import_max_concurrency_per_source)
@@ -726,6 +761,8 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                         )
                     )
                     if removed_record:
+                        removed_record.last_state_check_at = datetime.now(UTC)
+                        removed_record.last_state_check_result = "removed"
                         counters["archived"] += await deactivate_source_record(session, removed_record, "deleted")
                 continue
             counters["fetched"] += 1

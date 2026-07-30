@@ -313,6 +313,19 @@ def parse_optional_date(value: Any) -> date | None:
     return None
 
 
+def parse_optional_datetime(value: Any) -> datetime | None:
+    text = clean(value)
+    if not text:
+        return None
+    normalized = text.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        parsed_date = parse_optional_date(text)
+        return datetime.combine(parsed_date, datetime.min.time(), tzinfo=UTC) if parsed_date else None
+    return parsed.replace(tzinfo=parsed.tzinfo or UTC)
+
+
 def explicit_bool(corpus: str, positive: tuple[str, ...], negative: tuple[str, ...]) -> bool | None:
     if any(value in corpus for value in negative):
         return False
@@ -356,10 +369,11 @@ def public_detail_fields(data: dict[str, Any]) -> dict[str, Any]:
     result["kitchen"] = "Cocina compartida" if "cocina compartida" in corpus else "Cocina privada" if "cocina privada" in corpus else None
     amenities = {"wifi": "wifi", "internet": "internet", "aire acondicionado": "aire acondicionado", "ascensor": "ascensor", "terraza": "terraza", "parking": "parking"}
     result["amenities"] = [label for token, label in amenities.items() if token in corpus]
+    result["restrictions"] = []
     if "solo estudiantes" in corpus:
-        result["amenities"].append("Solo estudiantes")
+        result["restrictions"].append("Solo estudiantes")
     result["available_from"] = parse_optional_date(data.get("available_from") or data.get("availableFrom") or data.get("availability"))
-    result["published_at"] = parse_optional_date(data.get("datePublished") or data.get("published_at"))
+    result["published_at"] = parse_optional_datetime(data.get("datePublished") or data.get("published_at"))
     result["advertiser_name"] = clean(data.get("advertiser_name") or data.get("seller") or data.get("author")) or None
     result["advertiser_type"] = clean(data.get("advertiser_type") or data.get("seller_type")) or None
     return result
@@ -405,6 +419,7 @@ class NormalizedListing:
     smoking_allowed: bool | None = None
     empadronamiento_allowed: bool | None = None
     amenities: list[str] = field(default_factory=list)
+    restrictions: list[str] = field(default_factory=list)
     advertiser_name: str | None = None
     advertiser_type: str | None = None
     available_from: date | None = None
@@ -433,6 +448,7 @@ class NormalizedListing:
                     self.deposit_text or "",
                     self.bills_text or "",
                     "|".join(self.amenities),
+                    "|".join(self.restrictions),
                 )
             ).encode()
         ).hexdigest()
@@ -924,8 +940,33 @@ class FotocasaSource(ExternalListingSource):
         return urlparse(url).path.startswith("/es/compartir/viviendas/") and super().is_pagination_url(url)
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        """Extract Fotocasa's public shared-home fields before generic fallbacks."""
         data = super().parse_listing(document, url)
-        # The public route itself is an explicit shared-home room category.
+        state = embedded_json(document)
+        candidate = next(
+            (
+                value
+                for item in state
+                for value in item.values()
+                if isinstance(value, dict) and first_text(value, "title", "description", "price")
+            ),
+            {},
+        )
+        heading = re.search(r'<h1[^>]*>(.*?)</h1>', document, re.IGNORECASE | re.DOTALL)
+        description = re.search(r'<(?:div|section)[^>]*(?:description|property-description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
+        price = re.search(r'"(?:price|priceValue|amount)"\s*:\s*"?([\d.]+(?:,\d+)?)"?', document, re.IGNORECASE)
+        image_urls = re.findall(r'"(?:image|imageUrl|url)"\s*:\s*"(https?[^"\\]+)"', document, re.IGNORECASE)
+        data.update({
+            "title": first_text(candidate, "title", "headline") or (clean(heading.group(1)) if heading else data["title"]),
+            "description": first_text(candidate, "description", "detail", "body") or (clean(description.group(1)) if description else data["description"]),
+            "price_text": first_text(candidate, "priceText", "price", "displayPrice") or (f"{price.group(1)} € /mes" if price else data["price_text"]),
+            "images": list(dict.fromkeys([*data["images"], *[html.unescape(value) for value in image_urls]])),
+            "city": first_text(candidate, "location", "municipality", "city", "address") or data["city"],
+            "advertiser_name": first_text(candidate, "agencyName", "advertiserName", "contactName") or data.get("advertiser_name"),
+            "advertiser_type": first_text(candidate, "advertiserType", "agencyType") or data.get("advertiser_type"),
+            "available_from": candidate.get("availableFrom") or data.get("available_from"),
+            "published_at": candidate.get("publishedAt") or data.get("published_at"),
+        })
         data["category"] = f"compartir vivienda alquiler habitación {data['category']}"
         return data
 
@@ -955,7 +996,22 @@ class PisoCompartidoSource(ExternalListingSource):
     removed_markers = ExternalListingSource.removed_markers + ("habitacion no disponible", "anuncio desactivado")
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        """Extract PisoCompartido's server-rendered detail fields independently."""
         data = super().parse_listing(document, url)
+        heading = re.search(r'<h1[^>]*>(.*?)</h1>', document, re.IGNORECASE | re.DOTALL)
+        description = re.search(r'<(?:div|section)[^>]*(?:descripcion|description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
+        price = re.search(r'(?:precio|alquiler)[^0-9€]{0,40}([\d.]+(?:,\d+)?\s*€(?:\s*(?:/|al|por)\s*\w+)?)', document, re.IGNORECASE)
+        images = re.findall(r'<img[^>]+(?:src|data-src)=["\'](https?[^"\']+)["\']', document, re.IGNORECASE)
+        advertiser = re.search(r'(?:anunciante|propietario)[^<]{0,80}</[^>]+>\s*<[^>]+>([^<]+)', document, re.IGNORECASE)
+        availability = re.search(r'(?:disponible(?:\s+desde)?|fecha disponible)\s*[:\-]?\s*([^<\n]{4,40})', clean(document), re.IGNORECASE)
+        data.update({
+            "title": clean(heading.group(1)) if heading else data["title"],
+            "description": clean(description.group(1)) if description else data["description"],
+            "price_text": clean(price.group(1)) if price else data["price_text"],
+            "images": list(dict.fromkeys([*data["images"], *images])),
+            "advertiser_name": clean(advertiser.group(1)) if advertiser else data.get("advertiser_name"),
+            "available_from": availability.group(1) if availability else data.get("available_from"),
+        })
         data["category"] = f"pisocompartido alquiler habitación {data['category']}"
         return data
 

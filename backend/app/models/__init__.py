@@ -174,6 +174,7 @@ class ExternalListingSource(Base):
     fingerprint: Mapped[str] = mapped_column(String(64), index=True)
     source_price_text: Mapped[str | None] = mapped_column(String(120))
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_discovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -183,6 +184,8 @@ class ExternalListingSource(Base):
     last_error: Mapped[str | None] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     removed_reason: Mapped[str | None] = mapped_column(String(32))
+    last_state_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_state_check_result: Mapped[str | None] = mapped_column(String(32))
 
 
 class ExternalImportRun(Base):

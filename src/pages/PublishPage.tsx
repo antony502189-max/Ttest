@@ -81,7 +81,7 @@ const toDraft = (listing: Listing): ListingDraft => ({
   roomSizeM2: listing.roomSizeM2!,
   bedroomCount: listing.bedroomCount ?? (listing.roomType === 'Estudio' ? 1 : Math.max(1, listing.currentResidents + 1)),
   currentResidents: listing.currentResidents,
-  roomCapacity: listing.roomCapacity!,
+  roomCapacity: listing.roomCapacity === 2 ? 2 : 1,
   bathroom: listing.bathroom!,
   shower: listing.shower,
   kitchen: listing.kitchen!,
