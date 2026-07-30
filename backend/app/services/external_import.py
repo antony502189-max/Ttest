@@ -541,7 +541,8 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
         else:
             state = await source.check_listing_state(row.source_url)
         if state in {"removed", "expired", "not_found"}:
-            archived += await deactivate_source_record(session, row, "not_found" if state == "not_found" else state)
+            reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
+            archived += await deactivate_source_record(session, row, reason)
         elif state == "active":
             row.last_seen_at = datetime.now(UTC)
             row.consecutive_missing_runs = 0
@@ -571,7 +572,8 @@ async def run_removal_check(session: AsyncSession, source: ExternalListingSource
         state = await source.check_listing_state(row.source_url)
         row.last_checked_at = datetime.now(UTC)
         if state in {"removed", "expired", "not_found"}:
-            archived += await deactivate_source_record(session, row, "not_found" if state == "not_found" else state)
+            reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
+            archived += await deactivate_source_record(session, row, reason)
         elif state == "active":
             was_missing = row.current_status != "active"
             row.current_status = "active"
@@ -724,7 +726,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                         )
                     )
                     if removed_record:
-                        counters["archived"] += await deactivate_source_record(session, removed_record, "removed")
+                        counters["archived"] += await deactivate_source_record(session, removed_record, "deleted")
                 continue
             counters["fetched"] += 1
             counters["fetched_details"] += 1

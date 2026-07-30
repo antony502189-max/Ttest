@@ -260,7 +260,8 @@ async def test_confirmed_missing_detail_hides_listing_in_same_complete_cycle(cli
         assert counters["archived"] == 1
         record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == f"removed-{state}"))
         listing = await session.get(Listing, record.canonical_listing_id) if record else None
-        assert record is not None and record.current_status == "missing" and record.removed_reason == state
+        expected_reason = "deleted" if state == "removed" else state
+        assert record is not None and record.current_status == "missing" and record.removed_reason == expected_reason
         assert listing is not None and listing.status == "closed"
 
         public = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
@@ -278,7 +279,7 @@ async def test_410_returned_while_fetching_discovered_detail_closes_listing_imme
         record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "direct-410"))
         listing = await session.get(Listing, record.canonical_listing_id) if record else None
         assert counters["archived"] == 1
-        assert record is not None and record.current_status == "missing" and record.removed_reason == "removed"
+        assert record is not None and record.current_status == "missing" and record.removed_reason == "deleted"
         assert listing is not None and listing.status == "closed"
 
 
@@ -372,7 +373,7 @@ async def test_removal_checker_restores_previously_missing_source():
         await session.commit()
         record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "checker-restore"))
         assert record is not None
-        assert await deactivate_source_record(session, record, "removed") == 1
+        assert await deactivate_source_record(session, record, "deleted") == 1
         await session.commit()
 
         # Ensure the stored record qualifies as stale for the lightweight run.
