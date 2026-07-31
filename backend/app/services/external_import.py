@@ -38,6 +38,13 @@ from ..storage import get_storage
 
 logger = logging.getLogger(__name__)
 SYSTEM_EMAIL = "external-import@112233.es"
+
+
+class SourceRunCounters(dict[str, int]):
+    """Counters plus the terminal state for the worker's aggregate health."""
+
+    result: str = "failed"
+
 MUNICIPALITY_POINTS = {
     "santa cruz de tenerife": (28.4636, -16.2518),
     "la laguna": (28.4874, -16.3159),
@@ -640,7 +647,7 @@ async def deactivate_rejected_source(session: AsyncSession, source_name: str, so
 
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> dict[str, int]:
     started = perf_counter()
-    counters = {
+    counters = SourceRunCounters({
         key: 0
         for key in (
             "discovered",
@@ -663,7 +670,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "failed_details",
             "rejected_invalid_price",
         )
-    }
+    })
     run = ExternalImportRun(run_id=run_id, source_name=source.name)
     session.add(run)
     await session.commit()
@@ -692,6 +699,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         await source.close()
         EXTERNAL_IMPORTS.labels(source.name, run.result).inc()
         EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
+        counters.result = run.result
         return counters
     try:
         discovery = await source.discover_listing_urls()
@@ -828,4 +836,5 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     await source.close()
     EXTERNAL_IMPORTS.labels(source.name, run.result).inc()
     EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
+    counters.result = run.result
     return counters

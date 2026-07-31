@@ -61,6 +61,42 @@ def test_removal_probe_does_not_overlap_a_running_full_import(monkeypatch):
     asyncio.run(verify())
 
 
+def test_all_failed_sources_mark_the_worker_unhealthy(monkeypatch):
+    class FailedSource:
+        name = "Idealista"
+
+    async def verify() -> None:
+        states: list[dict] = []
+
+        async def record_state(**kwargs):
+            states.append(kwargs)
+            return SimpleNamespace()
+
+        class EmptySession:
+            async def __aenter__(self):
+                return object()
+
+            async def __aexit__(self, *args):
+                return None
+
+        async def failed_run(*args, **kwargs):
+            counters = {"failed": 1}
+            counters = type("Counters", (dict,), {"result": "failed"})(counters)
+            return counters
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(redis_url=""))
+        monkeypatch.setattr(worker, "configured_sources", lambda: [FailedSource()])
+        monkeypatch.setattr(worker, "SessionLocal", EmptySession)
+        monkeypatch.setattr(worker, "run_source", failed_run)
+        monkeypatch.setattr(worker, "worker_state", record_state)
+
+        await worker.run_once()
+        assert states[-1]["health"] == "failed"
+        assert "successful import" in states[-1]["error"]
+
+    asyncio.run(verify())
+
+
 def test_loop_runs_full_sync_on_start_before_waiting_for_the_interval(monkeypatch):
     class StopLoop(Exception):
         pass
