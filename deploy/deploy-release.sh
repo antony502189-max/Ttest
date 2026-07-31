@@ -27,6 +27,29 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.produ
 "${compose[@]}" config --quiet
 old_sha="none"
 [[ -L "$CURRENT" ]] && old_sha="$(basename "$(readlink -f "$CURRENT")")"
+metadata="$ROOT/releases/$SHA.deploy-info"
+failure_log="$ROOT/releases/$SHA.failed.log"
+
+rollback_after_failure() {
+  local exit_code=$?
+  trap - ERR
+  set +e
+  "${compose[@]}" logs --no-color > "$failure_log" 2>&1
+  if [[ "$old_sha" != "none" && -d "$RELEASES/$old_sha" ]]; then
+    previous_compose=(docker compose --env-file "$ENV_FILE" -f "$RELEASES/$old_sha/docker-compose.production.yml")
+    "${previous_compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
+    if "${previous_compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then
+      ln -sfn "$RELEASES/$old_sha" "$CURRENT"
+    fi
+  else
+    "${compose[@]}" stop frontend backend mail-worker external-listings-worker
+  fi
+  printf 'status=failed\nfailed_at=%s\nfailed_log=%s\n' "$(date -u +%FT%TZ)" "$failure_log" >> "$metadata"
+  exit "$exit_code"
+}
+trap rollback_after_failure ERR
+
+printf 'old_sha=%s\nnew_sha=%s\nstatus=in_progress\ntimestamp=%s\n' "$old_sha" "$SHA" "$(date -u +%FT%TZ)" > "$metadata"
 postgres_volume="ttest-production_postgres-data"
 minio_volume="ttest-production_minio-data"
 has_existing_postgres=0
@@ -44,13 +67,17 @@ if (( has_existing_minio )); then
   if [[ "$backups" == "first_deploy:"* ]]; then backups="minio=$minio_backup"; else backups="$backups minio=$minio_backup"; fi
 fi
 revision="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
-printf 'old_sha=%s\nnew_sha=%s\nbackups=%s\nrevision_before=%s\ntimestamp=%s\n' "$old_sha" "$SHA" "$backups" "$revision" "$(date -u +%FT%TZ)" > "$ROOT/releases/$SHA.deploy-info"
+printf 'backups=%s\nrevision_before=%s\n' "$backups" "$revision" >> "$metadata"
 "${compose[@]}" run --rm migrate
+revision_after="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
 for _ in $(seq 1 30); do
   if "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then break; fi
   sleep 2
 done
 "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
+image_ids="$("${compose[@]}" images -q backend mail-worker external-listings-worker frontend | sort -u | paste -sd, -)"
 ln -sfn "$release" "$CURRENT"
+printf 'revision_after=%s\nimage_ids=%s\nstatus=success\n' "$revision_after" "$image_ids" >> "$metadata"
+trap - ERR
 printf 'deployed %s (previous: %s)\n' "$SHA" "$old_sha"
