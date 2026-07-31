@@ -54,6 +54,9 @@ jobs:
           docker --version
           docker compose version
 
+      - name: Validate production deployment configuration
+        run: bash scripts/check-production-config.sh
+
       - name: Run complete local audit
         run: |
           mkdir -p output
