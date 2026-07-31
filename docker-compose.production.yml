@@ -152,6 +152,8 @@ services:
         VITE_GOOGLE_MAPS_MAP_ID: ${VITE_GOOGLE_MAPS_MAP_ID:-}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
     labels:
       traefik.enable: "true"
       traefik.http.routers.ttest.rule: Host(`${APP_DOMAIN:?APP_DOMAIN is required}`) || Host(`www.${APP_DOMAIN}`)

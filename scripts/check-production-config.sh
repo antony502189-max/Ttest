@@ -42,4 +42,6 @@ if "healthcheck" not in services["external-listings-worker"]:
     raise SystemExit("external-listings-worker must have a healthcheck")
 if services["frontend"].get("labels", {}).get("traefik.enable") != "true":
     raise SystemExit("frontend must be exposed only through Traefik")
+if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
+    raise SystemExit("frontend must wait for a ready backend")
 '
