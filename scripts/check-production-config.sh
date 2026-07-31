@@ -40,6 +40,8 @@ for name in {"postgres", "redis", "minio", "backend", "mail-worker", "external-l
         raise SystemExit(f"{name} must use restart: unless-stopped")
 if "healthcheck" not in services["external-listings-worker"]:
     raise SystemExit("external-listings-worker must have a healthcheck")
+if "healthcheck" not in services["mail-worker"]:
+    raise SystemExit("mail-worker must have a healthcheck")
 if services["frontend"].get("labels", {}).get("traefik.enable") != "true":
     raise SystemExit("frontend must be exposed only through Traefik")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":

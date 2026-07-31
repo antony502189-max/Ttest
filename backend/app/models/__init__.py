@@ -222,6 +222,15 @@ class ExternalWorkerState(Base):
     last_run_id: Mapped[str | None] = mapped_column(String(64))
 
 
+class MailWorkerState(Base):
+    __tablename__ = "mail_worker_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    health: Mapped[str] = mapped_column(String(16), default="healthy", index=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
 class CatalogState(Base):
     __tablename__ = "catalog_state"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)

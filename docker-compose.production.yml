@@ -125,6 +125,11 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.commands.outbox_worker", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   external-listings-worker:
     build: { context: ./backend }
