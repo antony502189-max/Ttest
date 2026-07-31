@@ -28,9 +28,9 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.produ
 old_sha="none"
 [[ -L "$CURRENT" ]] && old_sha="$(basename "$(readlink -f "$CURRENT")")"
 "${compose[@]}" up -d postgres redis minio minio-init
-backup="$($release/deploy/backup-postgres.sh)"
+backups="$($release/deploy/backup-postgres.sh; $release/deploy/backup-minio.sh)"
 revision="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
-printf 'old_sha=%s\nnew_sha=%s\nbackup=%s\nrevision_before=%s\ntimestamp=%s\n' "$old_sha" "$SHA" "$backup" "$revision" "$(date -u +%FT%TZ)" > "$ROOT/releases/$SHA.deploy-info"
+printf 'old_sha=%s\nnew_sha=%s\nbackups=%s\nrevision_before=%s\ntimestamp=%s\n' "$old_sha" "$SHA" "$backups" "$revision" "$(date -u +%FT%TZ)" > "$ROOT/releases/$SHA.deploy-info"
 "${compose[@]}" run --rm migrate
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
 for _ in $(seq 1 30); do

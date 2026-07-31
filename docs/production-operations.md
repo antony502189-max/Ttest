@@ -18,7 +18,7 @@ workers -> PostgreSQL/PostGIS | Redis | private MinIO | SMTP
 - secret env file: `/srv/112233.es/shared/production.env` (mode `600`)
 - dumps and checksums: `/srv/112233.es/backups` (mode `700`)
 
-Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including `BACKUP_ENCRYPTION_KEY`), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. Backups are AES-256-CBC/PBKDF2 encrypted on the VPS and checksummed. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
+Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including `BACKUP_ENCRYPTION_KEY`), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. PostgreSQL dumps and MinIO object archives are AES-256-CBC/PBKDF2 encrypted on the VPS and checksummed. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
 
 `APP_DOMAIN` must resolve directly to `31.97.185.84` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://112233.es/*` and `https://www.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
 
@@ -57,12 +57,13 @@ curl -I https://112233.es/
 ## Backup, restore and rollback
 
 ```bash
-/srv/112233.es/current/deploy/backup-postgres.sh
+/srv/112233.es/current/deploy/backup-production.sh
 /srv/112233.es/current/deploy/restore-verify.sh /srv/112233.es/backups/postgres-YYYYMMDD-HHMMSS.dump.enc
+/srv/112233.es/current/deploy/restore-minio-verify.sh /srv/112233.es/backups/minio-YYYYMMDD-HHMMSS.tar.enc
 /srv/112233.es/current/deploy/rollback-release.sh
 ```
 
-`restore-verify.sh` verifies the checksum, restores only into a timestamped temporary database, performs a minimal PostGIS/users query, and drops only that temporary database. `rollback-release.sh` switches only code/images after readiness succeeds; it does not run destructive database migrations and does not remove PostgreSQL, Redis, MinIO, Traefik, volumes, releases, or backups.
+`restore-verify.sh` verifies the checksum, restores only into a timestamped temporary database, performs a minimal PostGIS/users query, and drops only that temporary database. `restore-minio-verify.sh` restores only into a timestamped temporary bucket, lists the restored objects, and deletes only that temporary bucket. `rollback-release.sh` switches only code/images after readiness succeeds; it does not run destructive database migrations and does not remove PostgreSQL, Redis, MinIO, Traefik, volumes, releases, or backups.
 
 ## Incidents and credential rotation
 
