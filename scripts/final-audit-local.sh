@@ -18,7 +18,8 @@ mkdir -p output backups
 echo '[1/9] Starting local infrastructure'
 docker compose up -d postgres redis minio minio-init mailpit
 
-until docker compose exec -T postgres pg_isready -U ttest -d postgres >/dev/null 2>&1; do sleep 2; done
+postgres_id="$(docker compose ps -q postgres)"
+until [[ "$(docker inspect --format '{{.State.Health.Status}}' "$postgres_id")" == "healthy" ]]; do sleep 2; done
 
 echo '[2/9] Creating isolated PostgreSQL/PostGIS test database'
 if ! docker compose exec -T postgres psql -U ttest -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='ttest_test'" | grep -q 1; then
