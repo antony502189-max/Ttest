@@ -18,7 +18,7 @@ workers -> PostgreSQL/PostGIS | Redis | private MinIO | SMTP
 - secret env file: `/srv/112233.es/shared/production.env` (mode `600`)
 - dumps and checksums: `/srv/112233.es/backups` (mode `700`)
 
-Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret, URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
+Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including `BACKUP_ENCRYPTION_KEY`), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. Backups are AES-256-CBC/PBKDF2 encrypted on the VPS and checksummed. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
 
 `APP_DOMAIN` must resolve directly to `31.97.185.84` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://112233.es/*` and `https://www.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
 
@@ -58,7 +58,7 @@ curl -I https://112233.es/
 
 ```bash
 /srv/112233.es/current/deploy/backup-postgres.sh
-/srv/112233.es/current/deploy/restore-verify.sh /srv/112233.es/backups/postgres-YYYYMMDD-HHMMSS.dump
+/srv/112233.es/current/deploy/restore-verify.sh /srv/112233.es/backups/postgres-YYYYMMDD-HHMMSS.dump.enc
 /srv/112233.es/current/deploy/rollback-release.sh
 ```
 
