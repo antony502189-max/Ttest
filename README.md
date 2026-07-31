@@ -1,6 +1,6 @@
 # 112233.es
 
-[Abrir la versión pública](https://antony502189-max.github.io/Ttest/)
+[Abrir 112233.es](https://112233.es/)
 
 Marketplace full-stack de alquiler de habitaciones en Tenerife. El frontend conserva el diseño aprobado y consume una API FastAPI con PostgreSQL/PostGIS. Google Maps es el único proveedor cartográfico.
 
@@ -128,25 +128,23 @@ pytest -q
 docker compose --profile tools run --rm db-backup
 ```
 
-Файлы появляются в локальном каталоге `backups/`, который исключён из Git. Production должен использовать автоматизированные encrypted backups managed PostgreSQL и регулярно проверяемое восстановление.
+Файлы появляются в локальном каталоге `backups/`, который исключён из Git. Production использует self-hosted PostGIS volume и проверяемую backup/restore-процедуру на VPS; см. [Production operations](docs/production-operations.md).
 
 ## Production checklist
 
 Перед production deployment обязательны:
 
-- отдельный домен API и HTTPS;
+- DNS `112233.es` и `www.112233.es`, направленный на VPS, и HTTPS через существующий Traefik;
 - точные HTTPS origins в `FRONTEND_ORIGINS`;
 - сильный `JWT_SECRET`;
-- managed PostgreSQL/PostGIS и backups;
-- Redis;
-- S3-compatible storage;
+- self-hosted PostgreSQL/PostGIS, Redis и MinIO с persistent volumes;
 - SMTP и outbox worker;
 - Google OAuth client для production origins;
 - Google Maps HTTP-referrer/API restrictions;
 - `SENTRY_DSN` или другой error-tracking provider;
 - reverse proxy с TLS и ограничениями размера request body.
 
-GitHub Pages до появления backend-домена остаётся в mock-mode. Чтобы перевести его на реальный API, владелец один раз добавляет Actions Secret `VITE_API_BASE_URL=https://<backend-domain>/api/v1` и повторно запускает deployment; workflow сам выключит mock-mode. Подробности: [Deployment](docs/deployment.md).
+GitHub Pages не является production-поверхностью этого проекта. Production frontend и API работают на VPS за `https://112233.es`, используют `/api/v1` и `VITE_ENABLE_MOCK_MODE=0`. Команды deploy, backup, restore и rollback описаны в [Production operations](docs/production-operations.md).
 
 Backend специально отказывается запускаться в `APP_ENV=production`, если критическая конфигурация небезопасна или отсутствует.
 
