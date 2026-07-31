@@ -61,8 +61,7 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=()",
     "Cross-Origin-Opener-Policy": "same-origin",
-    # Public media is consumed by the GitHub Pages frontend on another origin.
-    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
 
 
