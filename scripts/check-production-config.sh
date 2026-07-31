@@ -15,6 +15,9 @@ export S3_ACCESS_KEY=ci-minio
 export S3_SECRET_KEY=ci-placeholder-password
 export SMTP_HOST=smtp.example.test
 export SMTP_FROM=noreply@example.test
+export TRAEFIK_NETWORK=traefik-public
+export TRAEFIK_ENTRYPOINT=websecure
+export TRAEFIK_CERT_RESOLVER=letsencrypt
 
 docker compose --profile ops -f docker-compose.production.yml config --quiet
 for script in deploy/*.sh; do
@@ -27,7 +30,8 @@ docker compose --profile ops -f docker-compose.production.yml config --format js
 import json
 import sys
 
-services = json.load(sys.stdin)["services"]
+config = json.load(sys.stdin)
+services = config["services"]
 required = {"postgres", "redis", "minio", "minio-init", "migrate", "backend", "mail-worker", "external-listings-worker", "frontend"}
 missing = required - services.keys()
 if missing:
@@ -46,4 +50,13 @@ if services["frontend"].get("labels", {}).get("traefik.enable") != "true":
     raise SystemExit("frontend must be exposed only through Traefik")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
+if config["networks"].get("application", {}).get("internal") is not True:
+    raise SystemExit("application network must be internal")
+if not config["networks"].get("traefik", {}).get("external"):
+    raise SystemExit("Traefik network must be an existing external network")
+for name in {"postgres", "redis", "minio", "minio-init", "migrate", "backend", "mail-worker", "external-listings-worker"}:
+    if set(services[name].get("networks", [])) != {"application"}:
+        raise SystemExit(f"{name} must only join the application network")
+if set(services["frontend"].get("networks", [])) != {"application", "traefik"}:
+    raise SystemExit("frontend must join both application and Traefik networks")
 '

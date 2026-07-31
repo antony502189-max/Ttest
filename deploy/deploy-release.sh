@@ -27,8 +27,22 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.produ
 "${compose[@]}" config --quiet
 old_sha="none"
 [[ -L "$CURRENT" ]] && old_sha="$(basename "$(readlink -f "$CURRENT")")"
+postgres_volume="ttest-production_postgres-data"
+minio_volume="ttest-production_minio-data"
+has_existing_postgres=0
+has_existing_minio=0
+docker volume inspect "$postgres_volume" >/dev/null 2>&1 && has_existing_postgres=1
+docker volume inspect "$minio_volume" >/dev/null 2>&1 && has_existing_minio=1
 "${compose[@]}" up -d postgres redis minio minio-init
-backups="$($release/deploy/backup-postgres.sh; $release/deploy/backup-minio.sh)"
+backups="first_deploy:no_existing_persistent_data"
+if (( has_existing_postgres )); then
+  postgres_backup="$(COMPOSE_FILE="$release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-postgres.sh")"
+  backups="postgres=$postgres_backup"
+fi
+if (( has_existing_minio )); then
+  minio_backup="$(COMPOSE_FILE="$release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-minio.sh")"
+  if [[ "$backups" == "first_deploy:"* ]]; then backups="minio=$minio_backup"; else backups="$backups minio=$minio_backup"; fi
+fi
 revision="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
 printf 'old_sha=%s\nnew_sha=%s\nbackups=%s\nrevision_before=%s\ntimestamp=%s\n' "$old_sha" "$SHA" "$backups" "$revision" "$(date -u +%FT%TZ)" > "$ROOT/releases/$SHA.deploy-info"
 "${compose[@]}" run --rm migrate

@@ -7,7 +7,8 @@ ENV_FILE="${ENV_FILE:-$ROOT/shared/production.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT/current/docker-compose.production.yml}"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups}"
 [[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
-BACKUP_ENCRYPTION_KEY="$(grep '^BACKUP_ENCRYPTION_KEY=' "$ENV_FILE" | cut -d= -f2-)"
+# Preserve the dotenv value after the first '=' verbatim; secrets may contain '='.
+BACKUP_ENCRYPTION_KEY="$(sed -n 's/^BACKUP_ENCRYPTION_KEY=//p' "$ENV_FILE" | tail -n 1)"
 export BACKUP_ENCRYPTION_KEY
 [[ -n "$BACKUP_ENCRYPTION_KEY" ]] || { echo "BACKUP_ENCRYPTION_KEY is required" >&2; exit 65; }
 mkdir -p "$BACKUP_DIR"
@@ -18,8 +19,7 @@ dump="$BACKUP_DIR/postgres-$stamp.dump.enc"
 checksum="$dump.sha256"
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
-  pg_dump -U "$(grep '^POSTGRES_USER=' "$ENV_FILE" | cut -d= -f2-)" \
-  -d "$(grep '^POSTGRES_DB=' "$ENV_FILE" | cut -d= -f2-)" --format=custom \
+  sh -ec 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
   | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_ENCRYPTION_KEY -out "$dump"
 sha256sum "$dump" > "$checksum"
 chmod 600 "$dump" "$checksum"

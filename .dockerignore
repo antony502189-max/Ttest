@@ -12,3 +12,4 @@ backups
 .venv
 .audit-venv
 .playwright-cli
+backend

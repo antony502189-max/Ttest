@@ -2,7 +2,8 @@ FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
 
@@ -17,8 +18,10 @@ RUN pip install .
 # capable of providing the configured Playwright fallback without a host browser.
 RUN python -m playwright install --with-deps chromium
 
-RUN mkdir -p /app/var/media && chown -R app:app /app
+RUN mkdir -p /app/var/media /ms-playwright \
+    && chown -R app:app /app /ms-playwright \
+    && chmod -R a+rX /ms-playwright
 USER app
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
