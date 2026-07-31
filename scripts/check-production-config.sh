@@ -20,6 +20,8 @@ docker compose --profile ops -f docker-compose.production.yml config --quiet
 for script in deploy/*.sh; do
   bash -n "$script"
 done
+grep -Fq 'location /api/' deploy/nginx.conf
+grep -Fq 'proxy_pass http://backend:8000;' deploy/nginx.conf
 
 docker compose --profile ops -f docker-compose.production.yml config --format json | python3 -c '
 import json
