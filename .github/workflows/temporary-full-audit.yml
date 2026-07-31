@@ -57,6 +57,9 @@ jobs:
       - name: Validate production deployment configuration
         run: bash scripts/check-production-config.sh
 
+      - name: Validate dependency security policy
+        run: npm run test:security
+
       - name: Run complete local audit
         run: |
           mkdir -p output
