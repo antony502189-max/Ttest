@@ -15,7 +15,9 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The complete serial Playwright suite currently contains 160 tests.
+    # Keep every mobile/visual gate enabled and give the full suite enough time.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Checkout approved visual baselines
