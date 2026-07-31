@@ -54,6 +54,14 @@ docker compose -f /docker/traefik/docker-compose.yml ps
 curl -I https://112233.es/
 ```
 
+## External listing sources
+
+The `external-listings-worker` is a persistent production service. It uses the configured public adapters, Redis's distributed lock, bounded per-source concurrency, request timeouts and exponential retries. It starts after a VPS reboot through `restart: unless-stopped`; its healthcheck fails if the worker has no recent heartbeat or reports a failed all-source cycle.
+
+Use the admin API's `GET /api/v1/admin/external-import/worker` and `GET /api/v1/admin/external-import/runs` endpoints (with an administrator session) to see the last successful run, source counters, partial runs, blocks and diagnostics. The worker logs only source/run metadata and counters; do not place credentials, cookies or challenge-solving data in a source configuration.
+
+To add a source, first confirm that anonymous public access and the source's terms/robots policy permit the adapter. Implement an `ExternalListingSource` subclass in `backend/app/external_sources.py` with independent discovery URLs, URL matching, parsing, normalization and confirmed-removal handling; register its lower-case name both in `configured_sources()` and `SUPPORTED_EXTERNAL_IMPORT_SOURCES`. Add parser fixtures plus lifecycle integration coverage for create, idempotent re-import, update and unavailable-source behavior. After review, add that name to the VPS-only `EXTERNAL_IMPORT_SOURCES` setting and deploy a merged `main` SHA. Do not bypass CAPTCHA, authentication, robots policy or access controls. A blocked adapter is recorded with diagnostics and does not stop other configured adapters or trigger mass deactivation.
+
 ## Backup, restore and rollback
 
 ```bash

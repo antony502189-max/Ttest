@@ -202,6 +202,7 @@ async def loop() -> None:
 
 def main() -> None:
     configure_logging()
+    get_settings().validate_runtime()
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--loop", action="store_true")
