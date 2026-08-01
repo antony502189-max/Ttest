@@ -62,7 +62,7 @@ async def test_host_must_confirm_six_digit_email_code_before_creating_listing(cl
         )
         assert message is not None
         assert "token=" not in message.body
-        code = re.search(r"\b(\d{6})\b", message.body)
+        code = re.search(r"es:\s*(\d{6})\b", message.body)
         assert code
 
     invalid_code = "000000" if code.group(1) != "000000" else "000001"
@@ -88,7 +88,7 @@ async def test_verification_code_is_consumed_after_five_failed_attempts(client):
     async with SessionLocal() as session:
         message = await session.scalar(select(MailOutbox).order_by(MailOutbox.created_at.desc()))
         assert message is not None
-        code = re.search(r"\b(\d{6})\b", message.body)
+        code = re.search(r"es:\s*(\d{6})\b", message.body)
         assert code
     invalid_code = "000000" if code.group(1) != "000000" else "000001"
 
