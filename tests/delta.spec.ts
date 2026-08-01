@@ -206,7 +206,7 @@ test('CONTACT-01..06 confirmation gates channels and local form handles abuse st
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
   await expect(page.locator('.property-card').first()).not.toContainText('+34 600 112 233')
   const confirmation = page.getByText(/Confirmo que cumplo estas condiciones/).first()
-  await expect(confirmation).toContainText(/solo una mujer/i)
+  await expect(confirmation).toContainText(/solo mujer/i)
   await expect(confirmation).toContainText(/habitación para 1 persona/i)
   await expect(page.getByRole('button', { name: /Mostrar teléfono/ })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'WhatsApp' })).toBeDisabled()

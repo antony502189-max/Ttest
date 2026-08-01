@@ -7,9 +7,9 @@ const externalListing = {
   approximateAddress: 'Adeje · ubicación aproximada', price: 710, monthlyPrice: 710, rentalMode: 'long',
   images: ['https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=800&q=80'],
   publishedAt: '2026-07-30T12:00:00.000Z', expiresAt: '2099-12-31', coordinates: { lat: 28.1227, lng: -16.7244 },
-  isExternal: true, primarySource: 'Idealista', sourceUrl: 'https://www.idealista.com/inmueble/123456/',
+  isExternal: true, primarySource: 'Idealista', sourceUrl: 'https://www.idealista.com/inmueble/123456/', status: 'Publicado',
   sourcePriceText: '710 €/mes', contactPhone: '+34 612 345 678', contactWhatsapp: '+34 612 345 678',
-  contactEmail: 'owner@example.test', showPhone: true, showWhatsApp: true, allowContactForm: false,
+  contactEmail: 'owner@example.test', roomSizeM2: 12, showPhone: true, showWhatsApp: true, allowContactForm: false,
 }
 
 async function finishOnboarding(page: Page) {
@@ -31,7 +31,7 @@ test('external mobile result and map preview open the original source', async ({
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
   await finishOnboarding(page)
-  await page.getByRole('button', { name: /HABITACIONES Vivienda/i }).click()
+  await page.getByRole('button', { name: 'Vivienda', exact: true }).click()
   await page.getByRole('button', { name: 'Buscar', exact: true }).click()
 
   const card = page.locator('.m2-result-card').first()

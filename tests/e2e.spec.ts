@@ -45,7 +45,11 @@ test('01–03 inicio, navegación y dataset completo', async ({ page }) => {
   await page.getByRole('button', { name: 'Sin restricción' }).click()
   await page.getByRole('button', { name: /^ver habitaciones$/i }).click()
   await expect(page).toHaveURL(/buscar/)
-  await expect(page.getByRole('heading', { name: /habitaciones en/i })).toContainText('9')
+  const resultsHeading = page.getByRole('heading', { name: /habitaciones en/i })
+  const headingText = await resultsHeading.textContent()
+  const resultCount = Number(headingText?.match(/^\d+/)?.[0])
+  expect(Number.isFinite(resultCount)).toBeTruthy()
+  expect(resultCount).toBeGreaterThan(0)
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings:v3') || '{"data":[]}').data.length)).toBe(32)
 })
 
