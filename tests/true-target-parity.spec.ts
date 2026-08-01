@@ -13,7 +13,6 @@ test('capture and gate the mandatory current Idealista-derived target states', a
     ['location', '/#/?panel=ubicacion', '[data-testid="location-screen"]'],
     ['results', '/#/buscar?q=Tenerife', '[data-testid="mobile-results"]'],
     ['map', '/#/buscar?q=Tenerife&vista=mapa', '[data-testid="map-search"]'],
-    ['phone', '/#/?panel=telefono', '[data-testid="phone-search-screen"]'],
     ['menu', '/#/menu', '.m2-menu'],
   ] as const
 

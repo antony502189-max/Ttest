@@ -80,11 +80,11 @@ test('location screen contains the four APK actions and address submit opens map
   await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
   await expect(page.getByText('Búsqueda en Tenerife')).toBeVisible()
-  await expect(page.locator('.m2-location-action')).toHaveCount(4)
+  await expect(page.locator('.m2-location-action')).toHaveCount(3)
   await expect(page.getByText('Dibujar tu zona', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar en el mapa', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar alrededor de ti', { exact: true })).toBeVisible()
-  await expect(page.getByText('Buscar por teléfono', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('search-phone')).toHaveCount(0)
 
   const input = page.getByPlaceholder('Municipio, zona o dirección')
   await input.fill('Santa Cruz de Tenerife')

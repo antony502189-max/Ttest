@@ -52,7 +52,7 @@ test('master current mobile list, map, drawing and location states', async ({ pa
 
   await open(page, '/#/?panel=ubicacion', 390, 844)
   await expect(page.getByTestId('location-screen')).toBeVisible()
-  await expect(page.locator('.m2-location-action')).toHaveCount(4)
+  await expect(page.locator('.m2-location-action')).toHaveCount(3)
   await shot(page, 'master-current-location-390x844')
 })
 
