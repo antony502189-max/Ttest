@@ -36,7 +36,7 @@ class ResetPasswordRequest(BaseModel):
 
 
 class VerifyEmailRequest(BaseModel):
-    token: str = Field(min_length=32, max_length=512)
+    code: str = Field(pattern=r"^\d{6}$")
 
 
 class UserResponse(BaseModel):

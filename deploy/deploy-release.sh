@@ -20,7 +20,7 @@ fi
 git -C "$REPO" fetch origin --prune --tags
 git -C "$REPO" merge-base --is-ancestor "$SHA" origin/main || { echo "$SHA is not reachable from origin/main" >&2; exit 65; }
 release="$RELEASES/$SHA"
-if [[ ! -d "$release/.git" ]]; then
+if [[ ! -e "$release/.git" ]]; then
   git -C "$REPO" worktree add --detach "$release" "$SHA"
 fi
 compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.production.yml")

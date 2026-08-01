@@ -20,8 +20,9 @@ os.environ.setdefault("STORAGE_BACKEND", "local")
 os.environ.setdefault("MEDIA_ROOT", "var/test-media")
 os.environ.setdefault("FRONTEND_ORIGINS", "http://testserver")
 
-from app.db.session import engine
+from app.db.session import SessionLocal, engine
 from app.main import app, rate_limiter
+from app.models import User
 
 
 @pytest.fixture(scope="session")
@@ -73,6 +74,13 @@ async def register(client: AsyncClient, *, email: str, role: str = "tenant") -> 
     )
     assert response.status_code == 201, response.text
     body = response.json()
+    # Most integration tests exercise unrelated flows.  They receive a
+    # verified fixture account; dedicated verification tests cover the gate.
+    async with SessionLocal() as session:
+        user = await session.get(User, body["user"]["id"])
+        assert user is not None
+        user.email_verified = True
+        await session.commit()
     return body["accessToken"], body["user"]
 
 

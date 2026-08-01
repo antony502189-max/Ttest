@@ -32,13 +32,16 @@ def enqueue_password_reset(session: AsyncSession, recipient: str, token: str) ->
     )
 
 
-def enqueue_email_verification(session: AsyncSession, recipient: str, token: str) -> None:
+def enqueue_email_verification(session: AsyncSession, recipient: str, code: str) -> None:
     enqueue_mail(
         session,
         kind="email_verification",
         recipient=recipient,
         subject="Confirma tu correo electrónico",
-        body=f"Abre este enlace para confirmar tu correo: {frontend_link(f'/verificar-email?token={token}')}",
+        body=(
+            f"Tu código de confirmación de 112233.es es: {code}. "
+            f"Caduca en {get_settings().email_verification_minutes} minutos. No lo compartas con nadie."
+        ),
     )
 
 

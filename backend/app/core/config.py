@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     password_reset_minutes: int = 30
-    email_verification_minutes: int = 60 * 24
+    email_verification_minutes: int = 10
     frontend_app_url: str = "http://localhost:5173"
     frontend_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"

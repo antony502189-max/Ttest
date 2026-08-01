@@ -5,6 +5,7 @@ from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -133,6 +134,15 @@ async def create_listing(
     user: User = Depends(require_role("host", "admin")),
     session: AsyncSession = Depends(get_session),
 ):
+    if not user.email_verified:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "code": "EMAIL_VERIFICATION_REQUIRED",
+                "message": "Confirm your email with a six-digit code before publishing a listing.",
+                "fieldErrors": {},
+            },
+        )
     return await create_listing_service(payload, user, session)
 
 

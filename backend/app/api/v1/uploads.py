@@ -62,7 +62,7 @@ def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
         raise HTTPException(422, "Image dimensions are not allowed") from exc
     except Image.DecompressionBombError as exc:
         raise HTTPException(422, "Image dimensions are not allowed") from exc
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as exc:
         raise HTTPException(415, "Invalid image file") from exc
 
 

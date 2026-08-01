@@ -52,6 +52,7 @@ import { useApp } from "@/contexts/app-context";
 import { areaCenters, createDefaultDraft } from "@/data/listings";
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
 import { removeUnusedMediaReferences } from "@/lib/media-storage";
+import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
 import type { DemoUser, Listing, ListingDraft } from "@/types";
 
 const steps = [
@@ -257,6 +258,12 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const [maxVisited, setMaxVisited] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [published, setPublished] = useState(false);
+  const [verificationOpen, setVerificationOpen] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [verificationCooldown, setVerificationCooldown] = useState(0);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const nonDraftMedia = useMemo(() => {
     const references = new Set(allListings.flatMap((listing) => listing.images));
@@ -291,6 +298,11 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     document.addEventListener("click", intercept, true);
     return () => document.removeEventListener("click", intercept, true);
   }, [isDirty, published]);
+  useEffect(() => {
+    if (verificationCooldown <= 0) return;
+    const timer = window.setTimeout(() => setVerificationCooldown((seconds) => seconds - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [verificationCooldown]);
   if (editing && (!existing || !canManageListing(existing))) return <Navigate to="/mis-anuncios" replace />;
 
   const validate = () => {
@@ -338,6 +350,19 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const finish = async () => {
+    if (!editing) {
+      try {
+        const verification = await getEmailVerificationStatus();
+        if (!verification.verified) {
+          setVerificationEmail(verification.email);
+          setVerificationOpen(true);
+          return;
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo comprobar el email.");
+        return;
+      }
+    }
     const authoritativeDraft = currentUser ? { ...draft, contactEmail: currentUser.email } : draft;
     const listing = toListing(authoritativeDraft, existing, currentUser?.id);
     const saved = existing
@@ -1122,6 +1147,20 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
         </section>
       </div>
     </div>
+    <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}>
+      <DialogContent aria-describedby="email-verification-description">
+        <DialogHeader>
+          <DialogTitle>Confirma tu email para publicar</DialogTitle>
+          <DialogDescription id="email-verification-description">Enviaremos un código de seis dígitos a {verificationEmail || "tu email"}. Tu borrador y tus fotos seguirán guardados.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" aria-label="Código de seis dígitos" aria-invalid={Boolean(verificationError)} />
+          {verificationError ? <p className="field-error" role="alert">{verificationError}</p> : null}
+          <Button type="button" variant="outline" disabled={verificationBusy || verificationCooldown > 0} onClick={async () => { setVerificationBusy(true); try { const result = await requestEmailVerification(); setVerificationEmail(result.email); setVerificationCooldown(result.cooldownSeconds); setVerificationError(""); toast.success("Código enviado"); } catch (error) { setVerificationError(error instanceof Error ? error.message : "No se pudo enviar el código."); } finally { setVerificationBusy(false); } }}>{verificationCooldown > 0 ? `Reenviar en ${verificationCooldown}s` : "Enviar código"}</Button>
+          <Button type="button" disabled={verificationBusy || verificationCode.length !== 6} onClick={async () => { setVerificationBusy(true); try { await verifyEmail(verificationCode); setVerificationOpen(false); setVerificationCode(""); setVerificationError(""); await finish(); } catch (error) { setVerificationError(error instanceof Error ? error.message : "Código no válido."); } finally { setVerificationBusy(false); } }}>Confirmar y publicar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     <AlertDialog open={Boolean(pendingRoute)} onOpenChange={(open) => { if (!open) setPendingRoute(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader><AlertDialogTitle>¿Salir del editor?</AlertDialogTitle><AlertDialogDescription>Hay cambios sin guardar. El borrador automático se conserva, pero puedes guardar manualmente antes de salir.</AlertDialogDescription></AlertDialogHeader>

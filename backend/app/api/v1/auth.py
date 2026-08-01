@@ -20,6 +20,7 @@ from ...services.auth import (
     AuthResult,
     google_login_user,
     login_user,
+    masked_email,
     public_user,
     refresh_user_session,
     register_user,
@@ -131,17 +132,25 @@ async def reset_password(payload: ResetPasswordRequest, session: AsyncSession = 
     await reset_user_password(payload.token, payload.password, session)
 
 
-@router.post("/request-email-verification", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/email-verification/request", status_code=status.HTTP_202_ACCEPTED)
 async def request_email_verification(
+    request: Request,
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    require_cookie_origin(request)
     return await request_verification(user, session)
 
 
-@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
-async def verify_email(payload: VerifyEmailRequest, session: AsyncSession = Depends(get_session)):
-    await verify_user_email(payload.token, session)
+@router.post("/email-verification/confirm", status_code=status.HTTP_204_NO_CONTENT)
+async def verify_email(payload: VerifyEmailRequest, request: Request, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    require_cookie_origin(request)
+    await verify_user_email(user, payload.code, session)
+
+
+@router.get("/email-verification/status")
+async def email_verification_status(user: User = Depends(current_user)):
+    return {"verified": user.email_verified, "email": masked_email(user.email)}
 
 
 @router.get("/me", response_model=UserResponse)

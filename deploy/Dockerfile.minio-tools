@@ -1,0 +1,8 @@
+FROM busybox:1.37.0-musl AS busybox
+
+FROM minio/mc:RELEASE.2025-04-16T18-13-26Z
+
+# The pinned mc image deliberately contains no archive utility.  Copy the
+# static BusyBox binary so backup and restore scripts can stream tar archives
+# without adding a mutable package manager to the production image.
+COPY --from=busybox /bin/busybox /usr/local/bin/busybox

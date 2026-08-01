@@ -87,6 +87,17 @@ async def change_listing_status(
     listing = await session.get(Listing, listing_id)
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
+    if new_status == "published":
+        owner = await session.get(User, listing.owner_user_id)
+        if not owner or not owner.email_verified:
+            raise HTTPException(
+                409,
+                detail={
+                    "code": "EMAIL_VERIFICATION_REQUIRED",
+                    "message": "The listing owner must confirm their email before publication.",
+                    "fieldErrors": {},
+                },
+            )
     previous = listing.status
     listing.status = new_status
     if new_status == "published" and listing.published_at is None:
