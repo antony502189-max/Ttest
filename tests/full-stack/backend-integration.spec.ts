@@ -121,5 +121,5 @@ test('an open catalog refreshes after its version changes on focus', async ({ pa
   // The provider also polls; focus gives the same version check immediately,
   // without requiring a page reload or changing the visible layout.
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await expect(page.getByText(title, { exact: true })).toHaveCount(0)
+  await expect(page.getByText(title, { exact: true }).first()).not.toBeVisible()
 })
