@@ -149,14 +149,24 @@ async def google_login_user(
         )
     except ValueError as exc:
         raise HTTPException(401, "Invalid Google credential") from exc
+    # google-auth validates the JWT signature, audience and expiry.  Keep the
+    # issuer check explicit here so this contract remains true if the verifier
+    # implementation changes.
+    if claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
+        raise HTTPException(401, "Invalid Google credential")
     subject = claims.get("sub")
     email = str(claims.get("email", "")).lower()
-    if not subject or not email or not claims.get("email_verified"):
+    if not subject or not email or claims.get("email_verified") is not True:
         raise HTTPException(401, "Google account email is not verified")
     user = await session.scalar(select(User).where(User.google_subject == subject))
     if not user:
         user = await session.scalar(select(User).where(func.lower(User.email) == email))
         if user:
+            domain = email.rsplit("@", 1)[-1]
+            # Only Google-owned Gmail addresses and verified Workspace domains
+            # are authoritative enough to link automatically by email.
+            if domain != "gmail.com" and not claims.get("hd"):
+                raise HTTPException(409, "Confirm the existing account before linking Google")
             user.google_subject = subject
             user.email_verified = True
         else:
@@ -165,7 +175,7 @@ async def google_login_user(
                 email=email,
                 google_subject=subject,
                 name=name,
-                role="tenant",
+                role="pending",
                 password_hash=None,
                 initials="".join(part[:1].upper() for part in name.split()[:2]),
                 email_verified=True,

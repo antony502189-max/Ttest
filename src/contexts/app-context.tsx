@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { hydrateSession, loginWithGoogle, loginWithPassword, logoutSession, registerAccount } from '@/api/auth'
+import { hydrateSession, loginWithGoogle, loginWithPassword, logoutSession, registerAccount, selectGoogleRole as saveGoogleRole } from '@/api/auth'
 import { getAdminUsers, moderateRemoteListing, setRemoteUserBlocked } from '@/api/admin'
 import { ApiError, resolveApiUrl } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
@@ -79,6 +79,7 @@ export interface AppState {
   currentUser: DemoUser | null
   login: (email: string, password: string) => Promise<string | null>
   loginGoogle: (credential: string) => Promise<string | null>
+  selectGoogleRole: (role: 'tenant' | 'host') => Promise<string | null>
   register: (input: RegisterInput) => Promise<string | null>
   logout: () => void
   updateProfile: (changes: ProfileUpdate) => void
@@ -619,6 +620,14 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return error instanceof ApiError ? error.message : 'No se pudo iniciar sesión con Google.'
     }
   }, [setRemoteUser])
+  const selectGoogleRole = useCallback(async (role: 'tenant' | 'host') => {
+    try {
+      setRemoteUser(await saveGoogleRole(role))
+      return null
+    } catch (error) {
+      return error instanceof ApiError ? error.message : 'No se pudo guardar tu elección.'
+    }
+  }, [setRemoteUser])
   const register = useCallback(async (input: RegisterInput) => {
     try {
       setRemoteUser(await registerAccount(input))
@@ -708,7 +717,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

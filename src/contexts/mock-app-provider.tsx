@@ -406,6 +406,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   }, [users])
 
   const loginGoogle = useCallback(async () => 'Google no está configurado en el modo de demostración.', [])
+  const selectGoogleRole = useCallback(async () => 'Google no está configurado en el modo de demostración.', [])
 
   const register = useCallback(async (input: RegisterInput) => {
     const normalizedEmail = input.email.trim().toLowerCase()
@@ -492,7 +493,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing,
     setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport,
     localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment,
-    users, currentUser, login, loginGoogle, register, logout, updateProfile, deleteAccount, toggleUserBlocked,
+    users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked,
     storageError, clearStorageError: () => setStorageError(null),
   }), [
     rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters,
@@ -500,7 +501,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings,
     createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle,
     canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment,
-    updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, register, logout, updateProfile,
+    updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile,
     deleteAccount, toggleUserBlocked, storageError,
   ])
 

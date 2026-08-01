@@ -22,6 +22,10 @@ class GoogleLoginRequest(BaseModel):
     credential: str = Field(min_length=20, max_length=10_000)
 
 
+class GoogleRoleRequest(BaseModel):
+    role: Literal["tenant", "host"]
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 

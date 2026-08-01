@@ -60,7 +60,7 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=()",
-    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
     "Cross-Origin-Resource-Policy": "same-origin",
 }
 
