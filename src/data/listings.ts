@@ -69,6 +69,9 @@ const tenantRequirementCycle: NonNullable<Listing['tenantRequirement']>[] = [
   'couple',
   'any',
 ]
+// Keep a deterministic representative set for the narrow mobile filter path:
+// six published long-stay individual rooms under €500 and 12 m².
+const compactSingleRoomSeedIndexes = new Set([0, 1, 10, 20, 21, 30])
 
 const buildRestrictions = (index: number, mode: Listing['rentalMode'], tenantRequirement: NonNullable<Listing['tenantRequirement']>) => {
   const restrictions = [tenantLabels[tenantRequirement]]
@@ -90,7 +93,7 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
   const price = rentalMode === 'holiday' ? 44 + (index % 8) * 7 : 350 + (index % 10) * 45
   const tenantRequirement = tenantRequirementCycle[index % tenantRequirementCycle.length]
   const roomCapacity: Listing['roomCapacity'] = tenantRequirement === 'couple' || (tenantRequirement === 'any' && index % 4 === 1) ? 2 : 1
-  const bedroomCount = index % 9 === 5 ? 1 : 1 + (index % 12)
+  const bedroomCount = compactSingleRoomSeedIndexes.has(index) || index % 9 === 5 ? 1 : 1 + (index % 12)
   const publishedDate = new Date(Date.UTC(2026, 6, 20 - (index % 31), 12 - (index % 8)))
   const restrictions = buildRestrictions(index, rentalMode, tenantRequirement)
   const [ownerName, initials] = owners[index % owners.length]
