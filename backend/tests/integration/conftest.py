@@ -32,9 +32,12 @@ def anyio_backend() -> str:
 @pytest_asyncio.fixture(autouse=True)
 async def clean_database() -> AsyncIterator[None]:
     # Integration clients all share the in-process ASGI app.  Reset its
-    # fallback limiter with the database so one test cannot exhaust the
-    # registration budget of the next test.
+    # limiter with the database so one test cannot exhaust the registration
+    # budget of the next test.  The audit uses Redis DB 15, which is isolated
+    # specifically for these tests.
     rate_limiter._memory._attempts.clear()
+    if rate_limiter._redis:
+        await rate_limiter._redis._client.flushdb()
     async with engine.begin() as connection:
         table_names = (
             (
