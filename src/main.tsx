@@ -6,7 +6,6 @@ import App from './App.tsx'
 import './mobile-app-v2-hardening.css'
 import './mobile-search-results-overrides.css'
 import './mobile-search-results-panels.css'
-import './mobile-home-mode-cards.css'
 import './mobile-occupant-filters.css'
 import './listing-card-content-order.css'
 
