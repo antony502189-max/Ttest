@@ -116,6 +116,14 @@ export function UnifiedAuthPage() {
     }
 
     const initialize = () => { frame = window.requestAnimationFrame(renderGoogleButton) }
+    if (window.google?.accounts.id) {
+      initialize()
+      return () => {
+        cancelled = true
+        window.cancelAnimationFrame(frame)
+        window.google?.accounts.id.cancel?.()
+      }
+    }
     const existing = document.getElementById('google-identity-services') as HTMLScriptElement | null
     if (existing) {
       existing.addEventListener('load', initialize)
