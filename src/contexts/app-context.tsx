@@ -298,12 +298,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (mockMode) return
-    const refreshIfChanged = () => {
+    const refreshIfChanged = (force = false) => {
       const check = new AbortController()
       void getCatalogVersion(check.signal).then((current) => {
-        if (catalogVersion.current === null) {
-          catalogVersion.current = current.version
-        } else if (catalogVersion.current === current.version) return
+        if (!force && catalogVersion.current === current.version) return
         catalogRequest.current?.abort()
         const request = new AbortController()
         catalogRequest.current = request
@@ -317,8 +315,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return () => check.abort()
     }
     const interval = window.setInterval(refreshIfChanged, 60_000)
-    const onFocus = () => { refreshIfChanged() }
-    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged() }
+    const onFocus = () => { refreshIfChanged(true) }
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged(true) }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
