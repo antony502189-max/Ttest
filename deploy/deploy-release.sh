@@ -68,6 +68,7 @@ if (( has_existing_minio )); then
 fi
 revision="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
 printf 'backups=%s\nrevision_before=%s\n' "$backups" "$revision" >> "$metadata"
+"${compose[@]}" build migrate
 "${compose[@]}" run --rm migrate
 revision_after="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
