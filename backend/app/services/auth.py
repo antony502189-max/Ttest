@@ -25,6 +25,11 @@ class AuthResult:
     user: User
 
 
+def google_email_is_authoritative(claims: dict, email: str) -> bool:
+    """Whether Google can safely prove ownership of an existing local email."""
+    return email.rsplit("@", 1)[-1] == "gmail.com" or bool(claims.get("hd"))
+
+
 def public_user(user: User) -> dict:
     return {
         "id": str(user.id),
@@ -162,10 +167,9 @@ async def google_login_user(
     if not user:
         user = await session.scalar(select(User).where(func.lower(User.email) == email))
         if user:
-            domain = email.rsplit("@", 1)[-1]
             # Only Google-owned Gmail addresses and verified Workspace domains
             # are authoritative enough to link automatically by email.
-            if domain != "gmail.com" and not claims.get("hd"):
+            if not google_email_is_authoritative(claims, email):
                 raise HTTPException(409, "Confirm the existing account before linking Google")
             user.google_subject = subject
             user.email_verified = True
@@ -193,6 +197,8 @@ async def google_login_user(
         if not user or user.blocked or user.deleted_at:
             raise HTTPException(409, "Google account could not be linked") from exc
         if user.google_subject is None:
+            if not google_email_is_authoritative(claims, email):
+                raise HTTPException(409, "Confirm the existing account before linking Google") from exc
             user.google_subject = subject
             user.email_verified = True
             try:

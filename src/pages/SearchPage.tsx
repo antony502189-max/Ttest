@@ -318,7 +318,14 @@ export function SearchPage() {
   };
   const changeSort = (value: string) => {
     setLoading(true);
-    commitFilters({ ...filters, sort: value });
+    // Search params are the source of truth.  Use the updater form so two
+    // quick sort changes cannot apply the second value to a stale render.
+    setParams((current) => {
+      const nextFilters = { ...filtersFromParams(current), sort: value };
+      const next = filtersToParams(nextFilters, new URLSearchParams(current));
+      next.delete("pagina");
+      return next;
+    });
     window.setTimeout(() => setLoading(false), 180);
   };
   const changePage = (nextPage: number) => {

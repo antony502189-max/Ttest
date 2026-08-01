@@ -6,6 +6,7 @@ from jwt import InvalidTokenError
 
 from app.core.config import Settings
 from app.core.security import decode_access_token, verify_password
+from app.services.auth import google_email_is_authoritative
 from app.services.rate_limit import MemoryRateLimiter
 
 
@@ -63,3 +64,9 @@ async def test_memory_rate_limiter_has_bounded_key_count():
     assert (await limiter.consume("third", 10, 60)).allowed
     assert len(limiter._attempts) == 2
     assert "first" not in limiter._attempts
+
+
+def test_google_account_linking_only_trusts_google_authoritative_emails():
+    assert google_email_is_authoritative({}, "person@gmail.com") is True
+    assert google_email_is_authoritative({"hd": "example.edu"}, "person@example.edu") is True
+    assert google_email_is_authoritative({}, "person@example.edu") is False

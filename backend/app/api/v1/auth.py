@@ -108,9 +108,11 @@ async def google_login(
 @router.post("/google/role", response_model=UserResponse)
 async def select_google_role(
     payload: GoogleRoleRequest,
+    request: Request,
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    require_cookie_origin(request)
     if user.role != "pending" or not user.google_subject:
         raise HTTPException(409, "Google account role is already set")
     user.role = payload.role
