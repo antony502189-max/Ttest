@@ -1,3 +1,4 @@
+import ssl
 from types import SimpleNamespace
 
 from app.services import mail
@@ -16,8 +17,9 @@ def test_smtp_uses_configured_sender_display_name(monkeypatch):
         def __exit__(self, *args) -> None:
             return None
 
-        def starttls(self) -> None:
+        def starttls(self, *, context=None) -> None:
             sent["starttls"] = True
+            sent["tls_context"] = context
 
         def login(self, username: str, password: str) -> None:
             sent["login"] = (username, password)
@@ -42,3 +44,7 @@ def test_smtp_uses_configured_sender_display_name(monkeypatch):
     from_header = sent["message"]["From"]
     assert from_header.addresses[0].display_name == "112233.es"
     assert from_header.addresses[0].addr_spec == "sender@example.test"
+    assert sent["starttls"] is True
+    assert isinstance(sent["tls_context"], ssl.SSLContext)
+    assert sent["tls_context"].verify_mode == ssl.CERT_REQUIRED
+    assert sent["tls_context"].check_hostname is True
