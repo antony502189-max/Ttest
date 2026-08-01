@@ -134,7 +134,7 @@ docker compose --profile tools run --rm db-backup
 
 Перед production deployment обязательны:
 
-- DNS `112233.es` и `www.112233.es`, направленный на VPS, и HTTPS через существующий Traefik;
+- DNS `app.112233.es`, направленный на VPS, и HTTPS через существующий Traefik;
 - точные HTTPS origins в `FRONTEND_ORIGINS`;
 - сильный `JWT_SECRET`;
 - self-hosted PostgreSQL/PostGIS, Redis и MinIO с persistent volumes;
@@ -144,7 +144,7 @@ docker compose --profile tools run --rm db-backup
 - `SENTRY_DSN` или другой error-tracking provider;
 - reverse proxy с TLS и ограничениями размера request body.
 
-GitHub Pages не является production-поверхностью этого проекта. Production frontend и API работают на VPS за `https://112233.es`, используют `/api/v1` и `VITE_ENABLE_MOCK_MODE=0`. Команды deploy, backup, restore и rollback описаны в [Production operations](docs/production-operations.md).
+GitHub Pages не является production-поверхностью этого проекта. Production frontend и API работают на VPS за `https://app.112233.es`, используют `/api/v1` и `VITE_ENABLE_MOCK_MODE=0`. Команды deploy, backup, restore и rollback описаны в [Production operations](docs/production-operations.md).
 
 Backend специально отказывается запускаться в `APP_ENV=production`, если критическая конфигурация небезопасна или отсутствует.
 

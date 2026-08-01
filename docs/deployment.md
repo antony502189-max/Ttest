@@ -1,6 +1,6 @@
 # Deployment
 
-Production deployment is self-hosted on the VPS `31.97.185.84`. The React frontend is built into the `frontend` nginx container and is routed by the existing Traefik instance together with FastAPI under `https://112233.es`. It does not use GitHub Pages, Vercel, Netlify, a separate static host, localhost, or a mock backend.
+Production deployment is self-hosted on the VPS `31.97.185.84`. The React frontend is built into the `frontend` nginx container and is routed by the existing Traefik instance together with FastAPI under `https://app.112233.es`. It does not use GitHub Pages, Vercel, Netlify, a separate static host, localhost, or a mock backend.
 
 The production compose stack is `docker-compose.production.yml`. It provides PostgreSQL 16/PostGIS, Redis with AOF persistence, private MinIO media storage, FastAPI, a persistent SMTP outbox worker, an external-listings worker, and the frontend. Only Traefik publishes ports 80 and 443; application services are isolated on the Docker network.
 

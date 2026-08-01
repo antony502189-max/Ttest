@@ -20,7 +20,7 @@ workers -> PostgreSQL/PostGIS | Redis | private MinIO | SMTP
 
 Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including `BACKUP_ENCRYPTION_KEY`), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. PostgreSQL dumps and MinIO object archives are AES-256-CBC/PBKDF2 encrypted on the VPS and checksummed. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
 
-`APP_DOMAIN` must resolve directly to `31.97.185.84` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://112233.es/*` and `https://www.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
+`APP_DOMAIN` must be `app.112233.es` and resolve directly to `31.97.185.84` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://app.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
 
 Bootstrap the server once after DNS and SMTP are ready. This creates directories and a source checkout only; it does not start application containers:
 
@@ -51,7 +51,7 @@ Inspect services and logs:
 docker compose --env-file /srv/112233.es/shared/production.env -f /srv/112233.es/current/docker-compose.production.yml ps
 docker compose --env-file /srv/112233.es/shared/production.env -f /srv/112233.es/current/docker-compose.production.yml logs --tail=200 backend mail-worker external-listings-worker
 docker compose -f /docker/traefik/docker-compose.yml ps
-curl -I https://112233.es/
+curl -I https://app.112233.es/
 ```
 
 ## External listing sources
