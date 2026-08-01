@@ -161,7 +161,7 @@ test('login opened from an app tab uses the canonical account route', async ({ p
   await page.getByRole('button', { name: 'Favoritos' }).click()
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page).toHaveURL(/#\/acceso/)
-  await expect(page.getByRole('heading', { name: 'Bienvenido de nuevo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Inicia sesión o regístrate' })).toBeVisible()
   await page.goBack()
   await expect(page.getByText('No tienes viviendas en favoritos')).toBeVisible()
   await expect(page.getByText('Gracias por instalar nuestra aplicación')).toHaveCount(0)

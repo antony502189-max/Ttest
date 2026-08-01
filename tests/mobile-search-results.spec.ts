@@ -130,7 +130,7 @@ test('contact opens the existing authentication flow and map returns to Google M
   let results = await openResults(page, 'Vivienda')
   await results.getByRole('button', { name: 'Contactar' }).first().click()
   await expect(page).toHaveURL(/#\/acceso/)
-  await expect(page.getByRole('heading', { name: 'Bienvenido de nuevo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Inicia sesión o regístrate' })).toBeVisible()
 
   await finishOnboarding(page)
   results = await openResults(page, 'Vivienda')
