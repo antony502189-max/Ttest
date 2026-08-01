@@ -55,6 +55,8 @@ import { removeUnusedMediaReferences } from "@/lib/media-storage";
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
 import type { DemoUser, Listing, ListingDraft } from "@/types";
 
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === "1";
+
 const steps = [
   "Tipo de alquiler",
   "Ubicación",
@@ -350,7 +352,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const finish = async () => {
-    if (!editing) {
+    if (!editing && !mockMode) {
       try {
         const verification = await getEmailVerificationStatus();
         if (!verification.verified) {
