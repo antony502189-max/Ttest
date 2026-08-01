@@ -19,6 +19,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python visual-audit dependency
+        run: python -m pip install --disable-pip-version-check -r requirements-ci.txt
+
       - name: Enable Docker BuildKit
         run: |
           echo 'DOCKER_BUILDKIT=1' >> "$GITHUB_ENV"

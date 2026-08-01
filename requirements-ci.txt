@@ -1,0 +1,2 @@
+# Python dependency used by scripts/build-true-target-parity.py in visual CI jobs.
+Pillow==12.2.0
