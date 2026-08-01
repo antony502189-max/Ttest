@@ -80,6 +80,7 @@ export function SearchPage() {
   const [highlighted, setHighlighted] = useState("");
   const [loading, setLoading] = useState(false);
   const [serverItems, setServerItems] = useState<Listing[] | null>(null);
+  const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
@@ -105,6 +106,12 @@ export function SearchPage() {
     // paramString captures the complete serialized filter state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramString]);
+
+  useEffect(() => {
+    const refresh = () => setCatalogEpoch((current) => current + 1);
+    window.addEventListener('catalog:updated', refresh);
+    return () => window.removeEventListener('catalog:updated', refresh);
+  }, []);
 
   useEffect(() => {
     if (!invalidLocation) addSearchHistory(query);
@@ -197,7 +204,7 @@ export function SearchPage() {
       if (!cancelled) setServerLoading(false);
     });
     return () => { cancelled = true; };
-  }, [filters, mapBounds, mapPolygon, rentalMode]);
+  }, [catalogEpoch, filters, mapBounds, mapPolygon, rentalMode]);
 
   const filteredItems = useMemo(
     () =>

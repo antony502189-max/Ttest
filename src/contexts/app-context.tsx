@@ -309,6 +309,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
           if (!request.signal.aborted) {
             setAllListings(items)
             catalogVersion.current = current.version
+            window.dispatchEvent(new Event('catalog:updated'))
           }
         })
       }).catch(() => undefined)
