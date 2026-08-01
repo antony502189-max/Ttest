@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
-import { ArrowLeft, LogOut, UserRound } from 'lucide-react'
+import { ArrowLeft, LogOut, Trash2, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ProfilePage as DesktopProfilePage } from '@/pages/AccountPages'
@@ -8,6 +8,7 @@ import { useI18n } from '@/contexts/i18n-context'
 import { useMediaUrl } from '@/components/media-image'
 import { logoutSession } from '@/api/auth'
 import { MediaStorageError, saveMediaFile } from '@/lib/media-storage'
+import { ConfirmDialog } from '@/components/forms'
 import '@/mobile-app-v2.css'
 import '@/auth-account.css'
 
@@ -31,7 +32,7 @@ function useMobileProfileLayout() {
 function MobileProfilePage() {
   const navigate = useNavigate()
   const { language } = useI18n()
-  const { currentUser, updateProfile, logout } = useApp()
+  const { currentUser, updateProfile, logout, deleteAccount } = useApp()
   const t = copy[language]
   const [name, setName] = useState(currentUser?.name ?? '')
   const [saveState, setSaveState] = useState('')
@@ -133,6 +134,14 @@ function MobileProfilePage() {
           <LogOut aria-hidden="true" />
           <span>{loggingOut ? '…' : t.logout}</span>
         </button>
+        <ConfirmDialog
+          trigger={<button type="button" className="m2-account-delete"><Trash2 aria-hidden="true" /><span>Eliminar cuenta</span></button>}
+          title="¿Eliminar tu cuenta?"
+          description="Se eliminarán esta cuenta local, su sesión, anuncios, borrador, búsquedas, favoritos, historial, comentarios y archivos multimedia sin uso. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar definitivamente"
+          destructive
+          onConfirm={() => { void deleteAccount().then((deleted) => { if (deleted) navigate('/acceso', { replace: true }) }) }}
+        />
       </div>
     </main>
   </div>

@@ -160,6 +160,23 @@
 }
 .m2-account-logout svg { width: 1.35rem; height: 1.35rem; }
 .m2-account-logout:disabled { opacity: .55; }
+.m2-account-delete {
+  width: calc(100% + .5rem);
+  min-height: 4.6rem;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin: 0 -.25rem;
+  padding: 0 1rem;
+  border: 0;
+  border-bottom: 1px solid #3f3f3f;
+  background: transparent;
+  color: var(--m2-auth-danger);
+  font-size: 1.02rem;
+  text-align: left;
+}
+.m2-account-delete svg { width: 1.35rem; height: 1.35rem; }
+.m2-account-delete:focus-visible { outline: 2px solid var(--m2-auth-lime); outline-offset: 3px; }
 
 @media (min-width: 768px) {
   .m2-auth-screen { width: min(100%, 430px); }
