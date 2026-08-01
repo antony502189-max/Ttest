@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { ArrowLeft, LogOut, Trash2, UserRound } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { ProfilePage as DesktopProfilePage } from '@/pages/AccountPages'
 import { useApp } from '@/contexts/app-context'

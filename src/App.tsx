@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from 'react'
-import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { AppProvider, useApp } from '@/contexts/app-context'
 import { I18nProvider } from '@/contexts/i18n-context'
 import { AppLayout } from '@/components/layout'

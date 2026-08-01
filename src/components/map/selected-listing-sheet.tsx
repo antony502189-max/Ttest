@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Heart, MessageSquare, Phone, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
 import { getCriticalRestrictions, getPrimaryCadence, unknownListingFact } from '@/lib/listings'

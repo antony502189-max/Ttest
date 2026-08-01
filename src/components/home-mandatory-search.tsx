@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Baby, Cigarette, CigaretteOff, Dog, PawPrint, Search, UserRound, UsersRound } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { RentalTypeSwitch, SearchLocationInput } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
