@@ -51,6 +51,11 @@ if "healthcheck" not in services["mail-worker"]:
     raise SystemExit("mail-worker must have a healthcheck")
 if services["frontend"].get("labels", {}).get("traefik.enable") != "true":
     raise SystemExit("frontend must be exposed only through Traefik")
+router_rule = services["frontend"].get("labels", {}).get("traefik.http.routers.ttest.rule", "")
+if "www." in router_rule or router_rule.count("Host(") != 1:
+    raise SystemExit("frontend must expose exactly one application host")
+if services["backend"].get("environment", {}).get("FRONTEND_ORIGINS") != "https://example.test":
+    raise SystemExit("backend CORS must allow only the application host")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
 if config["networks"].get("application", {}).get("internal") is not True:
