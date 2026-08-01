@@ -14,7 +14,7 @@ const RegisterPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ 
 const LoginPage = lazy(() => import('@/pages/UnifiedAuthPage').then((module) => ({ default: module.UnifiedAuthPage })))
 const RecoverPasswordPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.RecoverPasswordPage })))
 const ResetPasswordPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.ResetPasswordPage })))
-const VerifyEmailPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.VerifyEmailPage })))
+const VerifyEmailPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.VerifyEmailCodePage })))
 const FavoritesPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.FavoritesPage })))
 const SavedSearchesPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.SavedSearchesPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))

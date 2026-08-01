@@ -49,7 +49,9 @@ export async function registerAccount(input: { name: string; email: string; pass
 
 export const requestPasswordReset = (email: string) => api<{ message: string; resetToken?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) })
 export const resetPassword = (token: string, password: string) => api<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) })
-export const verifyEmail = (token: string) => api<void>('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) })
+export const requestEmailVerification = () => api<{ message: string; email: string; cooldownSeconds: number }>('/auth/email-verification/request', { method: 'POST' })
+export const verifyEmail = (code: string) => api<void>('/auth/email-verification/confirm', { method: 'POST', body: JSON.stringify({ code }) })
+export const getEmailVerificationStatus = () => api<{ verified: boolean; email: string }>('/auth/email-verification/status')
 
 export async function hydrateSession() {
   if (!hasSessionHint()) {

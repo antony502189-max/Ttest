@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +47,11 @@ def public_user(user: User) -> dict:
         "allowContactForm": user.allow_contact_form,
         "avatarUrl": f"/api/v1/media/{user.avatar_asset_id}" if user.avatar_asset_id else None,
     }
+
+
+def masked_email(email: str) -> str:
+    local, domain = email.split("@", 1)
+    return f"{local[:1]}{'*' * max(1, len(local) - 1)}@{domain}"
 
 
 async def issue_session(
@@ -104,15 +110,6 @@ async def register_user(
     except IntegrityError as exc:
         await session.rollback()
         raise HTTPException(409, "Email already registered") from exc
-    verification_token = new_refresh_token()
-    session.add(
-        EmailVerificationToken(
-            user_id=user.id,
-            token_hash=token_hash(verification_token),
-            expires_at=datetime.now(UTC) + timedelta(minutes=get_settings().email_verification_minutes),
-        )
-    )
-    enqueue_email_verification(session, user.email, verification_token)
     return await issue_session(user, session, user_agent=user_agent, client_ip=client_ip)
 
 
@@ -230,7 +227,7 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
     )
     enqueue_password_reset(session, user.email, raw_token)
     await session.commit()
-    if get_settings().app_env == "development":
+    if get_settings().app_env in {"development", "test"}:
         response["resetToken"] = raw_token
     return response
 
@@ -261,47 +258,67 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
     await session.commit()
 
 
-async def request_verification(user: User, session: AsyncSession) -> dict[str, str]:
-    response = {"message": "If needed, a verification link has been sent."}
+async def request_verification(user: User, session: AsyncSession) -> dict[str, str | int]:
+    response: dict[str, str | int] = {"message": "If needed, a six-digit verification code has been sent.", "email": masked_email(user.email), "cooldownSeconds": 60}
     if user.email_verified:
         return response
     now = datetime.now(UTC)
+    # Serialise requests for one account.  This prevents two concurrent resend
+    # calls from both passing the cooldown and issuing different valid codes.
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"email-verification:{user.id}"},
+    )
+    issued_in_hour = (
+        await session.scalars(
+            select(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user.id, EmailVerificationToken.created_at > now - timedelta(hours=1))
+            .order_by(EmailVerificationToken.created_at.desc())
+        )
+    ).all()
+    if len(issued_in_hour) >= 5:
+        raise HTTPException(429, "Too many verification codes requested; try again later")
+    if issued_in_hour and issued_in_hour[0].created_at > now - timedelta(seconds=60):
+        raise HTTPException(429, "Wait before requesting another verification code")
     await session.execute(
         update(EmailVerificationToken)
         .where(EmailVerificationToken.user_id == user.id, EmailVerificationToken.consumed_at.is_(None))
         .values(consumed_at=now)
     )
-    raw_token = new_refresh_token()
+    verification_code = f"{secrets.randbelow(1_000_000):06d}"
     session.add(
         EmailVerificationToken(
             user_id=user.id,
-            token_hash=token_hash(raw_token),
+            token_hash=token_hash(verification_code),
             expires_at=now + timedelta(minutes=get_settings().email_verification_minutes),
         )
     )
-    enqueue_email_verification(session, user.email, raw_token)
+    enqueue_email_verification(session, user.email, verification_code)
     await session.commit()
     if get_settings().app_env == "development":
-        response["verificationToken"] = raw_token
+        response["verificationCode"] = verification_code
     return response
 
 
-async def verify_user_email(raw_token: str, session: AsyncSession) -> None:
+async def verify_user_email(user: User, code: str, session: AsyncSession) -> None:
     now = datetime.now(UTC)
     verification = await session.scalar(
         select(EmailVerificationToken)
         .where(
-            EmailVerificationToken.token_hash == token_hash(raw_token),
+            EmailVerificationToken.user_id == user.id,
             EmailVerificationToken.consumed_at.is_(None),
-            EmailVerificationToken.expires_at > now,
         )
+        .order_by(EmailVerificationToken.created_at.desc())
         .with_for_update()
     )
-    if not verification:
-        raise HTTPException(400, "The email verification link is invalid or has expired")
-    user = await session.get(User, verification.user_id)
-    if not user or user.blocked or user.deleted_at:
-        raise HTTPException(400, "The email verification link is invalid or has expired")
+    if not verification or verification.expires_at <= now:
+        raise HTTPException(400, "The email verification code is invalid or has expired")
+    if not secrets.compare_digest(verification.token_hash, token_hash(code)):
+        verification.attempts += 1
+        if verification.attempts >= 5:
+            verification.consumed_at = now
+        await session.commit()
+        raise HTTPException(400, "The email verification code is invalid or has expired")
     user.email_verified = True
     verification.consumed_at = now
     await session.commit()

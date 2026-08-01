@@ -52,8 +52,17 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
     const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal })
     if (response.status === 401 && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
     if (!response.ok) {
-      const body = await response.json().catch(() => ({})) as { detail?: string; message?: string; fieldErrors?: Record<string, string> }
-      throw new ApiError(response.status, body.message ?? body.detail ?? 'No se pudo completar la solicitud.', body.fieldErrors)
+      const body = await response.json().catch(() => ({})) as {
+        detail?: string | { message?: string; fieldErrors?: Record<string, string> }
+        message?: string
+        fieldErrors?: Record<string, string>
+      }
+      const detail = typeof body.detail === 'object' ? body.detail : undefined
+      throw new ApiError(
+        response.status,
+        body.message ?? detail?.message ?? (typeof body.detail === 'string' ? body.detail : undefined) ?? 'No se pudo completar la solicitud.',
+        body.fieldErrors ?? detail?.fieldErrors,
+      )
     }
     return response.status === 204 ? undefined as T : response.json() as Promise<T>
   } finally { window.clearTimeout(timeout) }

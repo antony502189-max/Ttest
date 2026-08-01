@@ -47,8 +47,8 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/auth/google"): (10, 60),
     ("POST", "/api/v1/auth/forgot-password"): (5, 60),
     ("POST", "/api/v1/auth/reset-password"): (10, 60),
-    ("POST", "/api/v1/auth/request-email-verification"): (5, 60),
-    ("POST", "/api/v1/auth/verify-email"): (10, 60),
+    ("POST", "/api/v1/auth/email-verification/request"): (5, 3600),
+    ("POST", "/api/v1/auth/email-verification/confirm"): (10, 60),
     ("POST", "/api/v1/messages"): (30, 60),
     ("POST", "/api/v1/reports"): (10, 60),
     ("POST", "/api/v1/uploads"): (20, 60),
@@ -137,6 +137,17 @@ async def request_context(request: Request, call_next):
         },
     )
     return response
+
+
+@app.exception_handler(HTTPException)
+async def http_error(request: Request, exc: HTTPException):
+    """Keep machine-readable API errors at the top level without changing legacy errors."""
+    content = exc.detail if isinstance(exc.detail, dict) and "code" in exc.detail else {"detail": exc.detail}
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+        headers={**(exc.headers or {}), "X-Request-ID": request.headers.get("X-Request-ID", "unknown"), **SECURITY_HEADERS},
+    )
 
 
 @app.exception_handler(Exception)

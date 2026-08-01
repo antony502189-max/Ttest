@@ -60,11 +60,16 @@ if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition"
     raise SystemExit("frontend must wait for a ready backend")
 if config["networks"].get("application", {}).get("internal") is not True:
     raise SystemExit("application network must be internal")
+if config["networks"].get("egress", {}).get("internal") is True:
+    raise SystemExit("egress network must allow outbound connectivity")
 if not config["networks"].get("traefik", {}).get("external"):
     raise SystemExit("Traefik network must be an existing external network")
-for name in {"postgres", "redis", "minio", "minio-init", "migrate", "backend", "mail-worker", "external-listings-worker"}:
+for name in {"postgres", "redis", "minio", "minio-init", "migrate"}:
     if set(services[name].get("networks", [])) != {"application"}:
         raise SystemExit(f"{name} must only join the application network")
+for name in {"backend", "mail-worker", "external-listings-worker"}:
+    if set(services[name].get("networks", [])) != {"application", "egress"}:
+        raise SystemExit(f"{name} must join application and egress networks")
 if set(services["frontend"].get("networks", [])) != {"application", "traefik"}:
     raise SystemExit("frontend must join both application and Traefik networks")
 '

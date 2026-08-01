@@ -34,9 +34,10 @@ def test_search_schema_rejects_reversed_room_size_range():
         ListingSearchRequest(minRoomSizeM2=30, maxRoomSizeM2=10)
 
 
-def test_email_verification_token_requires_secure_length():
+def test_email_verification_code_requires_six_digits():
     with pytest.raises(ValidationError):
-        VerifyEmailRequest(token="too-short")
+        VerifyEmailRequest(code="too-short")
+    assert VerifyEmailRequest(code="012345").code == "012345"
 
 
 def test_mail_links_use_existing_hash_routes():

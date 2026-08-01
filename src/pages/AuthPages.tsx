@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FormField } from '@/components/forms'
 import { Logo } from '@/components/layout'
 import { useApp } from '@/contexts/app-context'
-import { requestPasswordReset, resetPassword, verifyEmail } from '@/api/auth'
+import { requestEmailVerification, requestPasswordReset, resetPassword, verifyEmail } from '@/api/auth'
 import type { UserRole } from '@/types'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
@@ -43,7 +43,7 @@ export function RegisterPage() {
     setErrors(next)
     if (Object.keys(next).length) window.setTimeout(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 0)
   }
-  if (success) return <AuthShell title="Cuenta creada" description="Tu sesión ya está activa."><Alert><CheckCircle2 /><AlertTitle>Registro completado</AlertTitle><AlertDescription>{mockMode ? 'La cuenta se ha creado en esta demostración y ya puedes continuar.' : 'La cuenta se ha creado. Revisa tu correo para confirmar la dirección cuando recibas el enlace.'}</AlertDescription></Alert><Button asChild className="w-full"><Link to="/perfil">Abrir mi perfil</Link></Button></AuthShell>
+  if (success) return <AuthShell title="Cuenta creada" description="Tu sesión ya está activa."><Alert><CheckCircle2 /><AlertTitle>Registro completado</AlertTitle><AlertDescription>{mockMode ? 'La cuenta se ha creado en esta demostración y ya puedes continuar.' : 'La cuenta se ha creado. Podrás confirmar tu email con un código cuando publiques tu primer anuncio.'}</AlertDescription></Alert><Button asChild className="w-full"><Link to="/perfil">Abrir mi perfil</Link></Button></AuthShell>
   return <AuthShell title="Crea tu cuenta" description="Tardarás menos de dos minutos."><form className="auth-form" onSubmit={submit} noValidate><FormField label="Nombre" htmlFor="register-name" error={errors.name}><Input id="register-name" name="name" autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? 'register-name-error' : undefined} /></FormField><FormField label="Email" htmlFor="register-email" error={errors.email}><Input id="register-email" name="email" type="email" autoComplete="email" aria-invalid={!!errors.email} /></FormField><FormField label="Contraseña" htmlFor="register-password" description="Mínimo 12 caracteres." error={errors.password}><Input id="register-password" name="password" type="password" minLength={12} autoComplete="new-password" aria-invalid={!!errors.password} /></FormField><FormField label="Repite la contraseña" htmlFor="register-confirm" error={errors.confirm}><Input id="register-confirm" name="confirm" type="password" minLength={12} autoComplete="new-password" aria-invalid={!!errors.confirm} /></FormField><fieldset className="role-choice"><legend>¿Qué quieres hacer?</legend><label><input type="radio" name="role" value="tenant" defaultChecked /><span>Busco habitación<small>Guardar, comparar y contactar</small></span></label><label><input type="radio" name="role" value="host" /><span>Publico habitaciones<small>Crear y gestionar anuncios</small></span></label></fieldset><label className="terms-check"><Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} aria-invalid={!!errors.terms} /><span>Acepto los <Link to="/terminos">términos</Link>, la <Link to="/privacidad">privacidad</Link> y las <Link to="/normas-de-publicacion">normas de publicación</Link>.</span></label>{errors.terms ? <p className="field-error" role="alert">{errors.terms}</p> : null}<Button type="submit" size="lg">Crear cuenta</Button><p className="auth-switch">¿Ya tienes cuenta? <Link to="/acceso">Accede</Link></p></form></AuthShell>
 }
 
@@ -82,15 +82,20 @@ export function ResetPasswordPage() {
   return <AuthShell title={done ? 'Contraseña actualizada' : 'Crea una nueva contraseña'} description={done ? 'Ya puedes acceder con tu nueva contraseña.' : 'Usa al menos 12 caracteres.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Tu contraseña se ha actualizado y las sesiones anteriores se han cerrado.</AlertDescription></Alert><Button asChild><Link to="/acceso">Acceder</Link></Button></> : <form className="auth-form" onSubmit={submit}><FormField label="Nueva contraseña" htmlFor="reset-password" error={error}><Input id="reset-password" name="password" type="password" minLength={12} required aria-invalid={!!error} /></FormField><FormField label="Repite la contraseña" htmlFor="reset-confirm"><Input id="reset-confirm" name="confirm" type="password" minLength={12} required /></FormField><Button size="lg"><KeyRound data-icon="inline-start" />Guardar contraseña</Button></form>}</AuthShell>
 }
 
-export function VerifyEmailPage() {
+export function VerifyEmailCodePage() {
   const [done, setDone] = useState(false)
+  const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
-  const [params] = useSearchParams()
-  const submit = async () => {
-    const token = params.get('token')
-    if (!token) { setError('El enlace de confirmación no es válido o ha caducado.'); return }
-    try { if (!mockMode) await verifyEmail(token); setError(''); setDone(true) }
+  const sendCode = async () => {
+    try { if (!mockMode) await requestEmailVerification(); setSent(true); setError('') }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo enviar el código.') }
+  }
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const code = String(new FormData(event.currentTarget).get('code') ?? '').replace(/\s/g, '')
+    if (!/^\d{6}$/.test(code)) { setError('Introduce el código de seis dígitos.'); return }
+    try { if (!mockMode) await verifyEmail(code); setDone(true); setError('') }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo confirmar el correo.') }
   }
-  return <AuthShell title={done ? 'Correo confirmado' : 'Confirma tu correo'} description={done ? 'Tu dirección de correo ya está verificada.' : 'Confirma tu dirección para completar la seguridad de tu cuenta.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Ya puedes continuar usando tu cuenta.</AlertDescription></Alert><Button asChild><Link to="/">Ir al inicio</Link></Button></> : <><FormField label="Enlace de confirmación" htmlFor="verification-token" error={error}><Input id="verification-token" value={params.get('token') ?? ''} readOnly aria-invalid={!!error} /></FormField><Button size="lg" onClick={submit}><Mail data-icon="inline-start" />Confirmar correo</Button></>}</AuthShell>
+  return <AuthShell title={done ? 'Correo confirmado' : 'Confirma tu correo'} description={done ? 'Tu dirección de correo ya está verificada.' : 'Solicita un código de seis dígitos antes de publicar tu anuncio.'}>{done ? <><Alert><CheckCircle2 /><AlertTitle>Todo listo</AlertTitle><AlertDescription>Ya puedes publicar tu anuncio.</AlertDescription></Alert><Button asChild><Link to="/publicar">Publicar anuncio</Link></Button></> : <form className="auth-form" onSubmit={submit}><FormField label="Código de seis dígitos" htmlFor="verification-code" error={error}><Input id="verification-code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-invalid={!!error} /></FormField><Button type="button" variant="outline" onClick={sendCode}><Mail data-icon="inline-start" />{sent ? 'Código enviado' : 'Enviar código'}</Button><Button size="lg"><ShieldCheck data-icon="inline-start" />Confirmar correo</Button></form>}</AuthShell>
 }
