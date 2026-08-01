@@ -12,12 +12,12 @@ BACKUP_ENCRYPTION_KEY="$(grep '^BACKUP_ENCRYPTION_KEY=' "$ENV_FILE" | cut -d= -f
 export BACKUP_ENCRYPTION_KEY
 [[ -n "$BACKUP_ENCRYPTION_KEY" ]] || { echo "BACKUP_ENCRYPTION_KEY is required" >&2; exit 65; }
 sha256sum -c "$ARCHIVE.sha256"
-bucket="restore-verify-$(date -u +%s)"
+bucket="restore-verify-$(date -u +%s)-$$"
 compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 
 cleanup() {
   "${compose[@]}" run --rm -T -e "RESTORE_VERIFY_BUCKET=$bucket" --entrypoint /bin/sh minio-init -ec '
-    mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+    mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
     mc rb --force "local/$RESTORE_VERIFY_BUCKET" || true
   ' >/dev/null 2>&1 || true
 }
@@ -25,19 +25,21 @@ trap cleanup EXIT
 
 openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY -in "$ARCHIVE" \
   | "${compose[@]}" run --rm -T -e "RESTORE_VERIFY_BUCKET=$bucket" --entrypoint /bin/sh minio-init -ec '
-      mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+      mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
       busybox mkdir -p /tmp/minio-restore
       busybox tar -C /tmp/minio-restore -xf -
-      test -s /tmp/minio-restore/.backup-manifest
+      test -f /tmp/minio-restore/.backup-manifest
       expected="$(busybox wc -l < /tmp/minio-restore/.backup-manifest)"
       busybox cp /tmp/minio-restore/.backup-manifest /tmp/backup-manifest
       busybox rm -f /tmp/minio-restore/.backup-manifest
-      mc mb "local/$RESTORE_VERIFY_BUCKET"
-      mc mirror --overwrite /tmp/minio-restore "local/$RESTORE_VERIFY_BUCKET"
+      mc mb "local/$RESTORE_VERIFY_BUCKET" >/dev/null
+      mc mirror --overwrite /tmp/minio-restore "local/$RESTORE_VERIFY_BUCKET" >/dev/null
       busybox mkdir -p /tmp/minio-restored
-      mc mirror --overwrite "local/$RESTORE_VERIFY_BUCKET" /tmp/minio-restored
+      mc mirror --overwrite "local/$RESTORE_VERIFY_BUCKET" /tmp/minio-restored >/dev/null
       actual="$(busybox find /tmp/minio-restored -type f | busybox wc -l)"
       test "$actual" -eq "$expected"
-      (cd /tmp/minio-restored && busybox sha256sum -c /tmp/backup-manifest >/dev/null)
+      if [ "$expected" -gt 0 ]; then
+        (cd /tmp/minio-restored && busybox sha256sum -c /tmp/backup-manifest >/dev/null)
+      fi
       printf "verified_objects=%s\n" "$actual"
     '
