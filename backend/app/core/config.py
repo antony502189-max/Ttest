@@ -125,6 +125,8 @@ class Settings(BaseSettings):
                 problems.append("S3 storage requires bucket and credentials")
             if not self.smtp_host:
                 problems.append("SMTP_HOST is required in production")
+            if not self.google_client_id:
+                problems.append("GOOGLE_CLIENT_ID is required in production")
             if not self.redis_url:
                 problems.append("REDIS_URL is required for distributed production rate limiting")
             if self.auto_publish_listings:

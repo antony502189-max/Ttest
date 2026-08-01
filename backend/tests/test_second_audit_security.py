@@ -21,6 +21,7 @@ def production_settings(**overrides) -> Settings:
         "s3_access_key": "access",
         "s3_secret_key": "secret",
         "smtp_host": "smtp.example.test",
+        "google_client_id": "example-client.apps.googleusercontent.com",
         "redis_url": "redis://redis:6379/0",
         "auto_publish_listings": False,
     }
@@ -35,6 +36,11 @@ def test_production_configuration_rejects_local_media_and_http_frontend():
 
 def test_valid_production_configuration_passes():
     production_settings().validate_runtime()
+
+
+def test_production_configuration_requires_google_client_id():
+    with pytest.raises(RuntimeError, match="GOOGLE_CLIENT_ID"):
+        production_settings(google_client_id="").validate_runtime()
 
 
 def test_access_token_decoder_requires_access_type(monkeypatch):
