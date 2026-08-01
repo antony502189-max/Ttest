@@ -26,7 +26,12 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
   mc mirror --overwrite "local/$S3_BUCKET" /tmp/minio-backup >/dev/null
   (
     cd /tmp/minio-backup
-    busybox find . -type f -print | LC_ALL=C busybox sort | while IFS= read -r object; do busybox sha256sum "$object"; done > .backup-manifest
+    # Build the manifest outside the mirrored tree so it can never include or
+    # checksum itself. Copy it into the archive only after enumeration ends.
+    busybox find . -type f -print | LC_ALL=C busybox sort | while IFS= read -r object; do
+      busybox sha256sum "$object"
+    done > /tmp/backup-manifest
+    busybox cp /tmp/backup-manifest .backup-manifest
   )
   busybox tar -C /tmp/minio-backup -cf - .
 ' | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_ENCRYPTION_KEY -out "$archive"

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -52,6 +54,13 @@ def public_user(user: User) -> dict:
 def masked_email(email: str) -> str:
     local, domain = email.split("@", 1)
     return f"{local[:1]}{'*' * max(1, len(local) - 1)}@{domain}"
+
+
+def verification_code_hash(user_id: object, code: str) -> str:
+    """Key a low-entropy OTP so a database leak cannot be brute-forced offline."""
+    secret = get_settings().verification_hmac_secret.encode()
+    message = f"{user_id}:{code}".encode()
+    return hmac.new(secret, message, hashlib.sha256).hexdigest()
 
 
 async def issue_session(
@@ -151,9 +160,6 @@ async def google_login_user(
         )
     except ValueError as exc:
         raise HTTPException(401, "Invalid Google credential") from exc
-    # google-auth validates the JWT signature, audience and expiry.  Keep the
-    # issuer check explicit here so this contract remains true if the verifier
-    # implementation changes.
     if claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
         raise HTTPException(401, "Invalid Google credential")
     subject = claims.get("sub")
@@ -164,8 +170,6 @@ async def google_login_user(
     if not user:
         user = await session.scalar(select(User).where(func.lower(User.email) == email))
         if user:
-            # Only Google-owned Gmail addresses and verified Workspace domains
-            # are authoritative enough to link automatically by email.
             if not google_email_is_authoritative(claims, email):
                 raise HTTPException(409, "Confirm the existing account before linking Google")
             user.google_subject = subject
@@ -259,12 +263,14 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
 
 
 async def request_verification(user: User, session: AsyncSession) -> dict[str, str | int]:
-    response: dict[str, str | int] = {"message": "If needed, a six-digit verification code has been sent.", "email": masked_email(user.email), "cooldownSeconds": 60}
+    response: dict[str, str | int] = {
+        "message": "If needed, a six-digit verification code has been sent.",
+        "email": masked_email(user.email),
+        "cooldownSeconds": 60,
+    }
     if user.email_verified:
         return response
     now = datetime.now(UTC)
-    # Serialise requests for one account.  This prevents two concurrent resend
-    # calls from both passing the cooldown and issuing different valid codes.
     await session.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
         {"lock_key": f"email-verification:{user.id}"},
@@ -272,7 +278,10 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
     issued_in_hour = (
         await session.scalars(
             select(EmailVerificationToken)
-            .where(EmailVerificationToken.user_id == user.id, EmailVerificationToken.created_at > now - timedelta(hours=1))
+            .where(
+                EmailVerificationToken.user_id == user.id,
+                EmailVerificationToken.created_at > now - timedelta(hours=1),
+            )
             .order_by(EmailVerificationToken.created_at.desc())
         )
     ).all()
@@ -289,7 +298,7 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
     session.add(
         EmailVerificationToken(
             user_id=user.id,
-            token_hash=token_hash(verification_code),
+            token_hash=verification_code_hash(user.id, verification_code),
             expires_at=now + timedelta(minutes=get_settings().email_verification_minutes),
         )
     )
@@ -313,7 +322,8 @@ async def verify_user_email(user: User, code: str, session: AsyncSession) -> Non
     )
     if not verification or verification.expires_at <= now:
         raise HTTPException(400, "The email verification code is invalid or has expired")
-    if not secrets.compare_digest(verification.token_hash, token_hash(code)):
+    candidate_hash = verification_code_hash(user.id, code)
+    if not hmac.compare_digest(verification.token_hash, candidate_hash):
         verification.attempts += 1
         if verification.attempts >= 5:
             verification.consumed_at = now

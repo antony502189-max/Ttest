@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     password_reset_minutes: int = 30
     email_verification_minutes: int = 10
+    # A dedicated secret is preferred. Existing deployments safely fall back
+    # to JWT_SECRET until EMAIL_VERIFICATION_HMAC_SECRET is provisioned.
+    email_verification_hmac_secret: str = ""
     frontend_app_url: str = "http://localhost:5173"
     frontend_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
@@ -86,6 +89,10 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
 
+    @property
+    def verification_hmac_secret(self) -> str:
+        return self.email_verification_hmac_secret or self.jwt_secret
+
     def validate_runtime(self) -> None:
         """Fail fast instead of silently starting with unsafe or contradictory configuration."""
         problems: list[str] = []
@@ -116,6 +123,8 @@ class Settings(BaseSettings):
         if self.is_production:
             if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:
                 problems.append("JWT_SECRET must be a strong production secret")
+            if self.email_verification_hmac_secret and len(self.email_verification_hmac_secret) < 32:
+                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must contain at least 32 characters")
             if not self.origins or any(origin.startswith("http://") for origin in self.origins):
                 problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
             if not self.frontend_app_url.startswith("https://"):
