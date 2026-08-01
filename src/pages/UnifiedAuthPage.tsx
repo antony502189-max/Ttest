@@ -36,19 +36,19 @@ const mockGoogleAccount = {
 
 const copy = {
   es: {
-    title: 'Bienvenido de nuevo', google: 'Continuar con Google', email: 'Iniciar sesión con email',
+    title: 'Inicia sesión o regístrate', google: 'Continuar con Google', email: 'Iniciar sesión con email',
     legal: 'Consulta la siguiente información:', privacy: 'Política de privacidad', terms: 'Términos y condiciones',
     back: 'Volver', country: 'España y Andorra', changeCountry: 'Cambiar país', password: 'Contraseña',
     create: 'Crear una cuenta', forgot: '¿Has olvidado tu contraseña?', googleMissing: 'Google todavía no está configurado para este entorno.',
   },
   en: {
-    title: 'Welcome back', google: 'Continue with Google', email: 'Sign in with email',
+    title: 'Sign in or create an account', google: 'Continue with Google', email: 'Sign in with email',
     legal: 'Review the following information:', privacy: 'Privacy policy', terms: 'Terms and conditions',
     back: 'Back', country: 'Spain and Andorra', changeCountry: 'Change country', password: 'Password',
     create: 'Create an account', forgot: 'Forgot your password?', googleMissing: 'Google is not configured for this environment yet.',
   },
   ru: {
-    title: 'С возвращением', google: 'Продолжить с Google', email: 'Войти с помощью email',
+    title: 'Войти в аккаунт или зарегистрироваться', google: 'Продолжить с Google', email: 'Войти с помощью email',
     legal: 'Ознакомьтесь со следующей информацией:', privacy: 'Политика конфиденциальности', terms: 'Общие положения и условия',
     back: 'Назад', country: 'Испания и Андорра', changeCountry: 'Изменить страну', password: 'Пароль',
     create: 'Создать аккаунт', forgot: 'Забыли пароль?', googleMissing: 'Google ещё не настроен для этого окружения.',
