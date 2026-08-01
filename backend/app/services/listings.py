@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import Listing, ListingImage, ListingStatusHistory, MediaAsset, User
+from ..models import CatalogState, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
     ListingImageResponse,
@@ -24,6 +24,15 @@ from ..storage import get_storage
 def ensure_owner_or_admin(listing: Listing, user: User) -> None:
     if listing.owner_user_id != user.id and user.role != "admin":
         raise HTTPException(403, "Forbidden")
+
+
+async def touch_catalog(session: AsyncSession) -> None:
+    state = await session.get(CatalogState, 1)
+    if not state:
+        state = CatalogState(id=1, version=1)
+        session.add(state)
+    state.version += 1
+    state.updated_at = datetime.now(UTC)
 
 
 async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> list[str]:
@@ -139,6 +148,7 @@ async def create_listing(payload: ListingWrite, user: User, session: AsyncSessio
             changed_by=user.id,
         )
     )
+    await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
     return owned_response_from(row)
@@ -229,6 +239,7 @@ async def update_listing(
                 changed_by=user.id,
             )
         )
+    await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
     return owned_response_from(row)
@@ -256,6 +267,7 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
                 changed_by=user.id,
             )
         )
+    await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
     return owned_response_from(row)
@@ -285,6 +297,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
             changed_by=user.id,
         )
     )
+    await touch_catalog(session)
     await session.commit()
     await delete_storage_keys(storage_keys)
 

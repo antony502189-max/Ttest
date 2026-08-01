@@ -37,6 +37,9 @@ export async function loginWithGoogle(credential: string) {
   return session.user
 }
 
+export const selectGoogleRole = (role: 'tenant' | 'host') =>
+  api<RemoteUser>('/auth/google/role', { method: 'POST', body: JSON.stringify({ role }) })
+
 export async function registerAccount(input: { name: string; email: string; password: string; role: UserRole }) {
   const session = await api<Session>('/auth/register', { method: 'POST', body: JSON.stringify(input) })
   setAccessToken(session.accessToken)

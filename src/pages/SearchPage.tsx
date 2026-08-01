@@ -10,7 +10,7 @@ import {
   ArrowUpDown,
   X,
 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -80,6 +80,7 @@ export function SearchPage() {
   const [highlighted, setHighlighted] = useState("");
   const [loading, setLoading] = useState(false);
   const [serverItems, setServerItems] = useState<Listing[] | null>(null);
+  const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
@@ -105,6 +106,12 @@ export function SearchPage() {
     // paramString captures the complete serialized filter state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramString]);
+
+  useEffect(() => {
+    const refresh = () => setCatalogEpoch((current) => current + 1);
+    window.addEventListener('catalog:updated', refresh);
+    return () => window.removeEventListener('catalog:updated', refresh);
+  }, []);
 
   useEffect(() => {
     if (!invalidLocation) addSearchHistory(query);
@@ -197,7 +204,7 @@ export function SearchPage() {
       if (!cancelled) setServerLoading(false);
     });
     return () => { cancelled = true; };
-  }, [filters, mapBounds, mapPolygon, rentalMode]);
+  }, [catalogEpoch, filters, mapBounds, mapPolygon, rentalMode]);
 
   const filteredItems = useMemo(
     () =>
@@ -318,7 +325,14 @@ export function SearchPage() {
   };
   const changeSort = (value: string) => {
     setLoading(true);
-    commitFilters({ ...filters, sort: value });
+    // Search params are the source of truth.  Use the updater form so two
+    // quick sort changes cannot apply the second value to a stale render.
+    setParams((current) => {
+      const nextFilters = { ...filtersFromParams(current), sort: value };
+      const next = filtersToParams(nextFilters, new URLSearchParams(current));
+      next.delete("pagina");
+      return next;
+    });
     window.setTimeout(() => setLoading(false), 180);
   };
   const changePage = (nextPage: number) => {

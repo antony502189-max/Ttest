@@ -16,12 +16,10 @@ async function allowTenerifeLocation(context: BrowserContext) {
 test.describe('PR43 regression recovery', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('location keeps all four APK actions and phone lookup is reachable', async ({ page }) => {
+  test('location keeps the approved three actions and hides phone lookup', async ({ page }) => {
     await openLocation(page)
-    await expect(page.locator('.m2-location-action')).toHaveCount(4)
-    await page.getByTestId('search-phone').click()
-    await expect(page).toHaveURL(/panel=telefono/)
-    await expect(page.getByTestId('phone-search-screen')).toBeVisible()
+    await expect(page.locator('.m2-location-action')).toHaveCount(3)
+    await expect(page.getByTestId('search-phone')).toHaveCount(0)
   })
 
   test('nearby success stores coordinates and radius in the URL', async ({ page, context }) => {

@@ -74,25 +74,19 @@ test.describe('APK shell connected to the canonical web app', () => {
     await expect(page).toHaveURL(/panel=ubicacion/)
   })
 
-  test('missing APK location actions work: nearby and phone lookup', async ({ page, context }) => {
+  test('location actions keep nearby search connected', async ({ page, context }) => {
     await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
     await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
     await finishOnboarding(page)
     await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
-    await expect(page.locator('.m2-location-action')).toHaveCount(4)
+    await expect(page.locator('.m2-location-action')).toHaveCount(3)
 
     await page.getByTestId('search-nearby').click()
     await expect(page).toHaveURL(/vista=mapa.*cerca=1.*lat=28\.2916.*lng=-16\.6291/)
     await expect(page.getByTestId('map-search')).toBeVisible()
 
     await page.getByRole('button', { name: 'Volver' }).click()
-    await page.getByTestId('search-phone').click()
-    await expect(page).toHaveURL(/panel=telefono/)
-    await expect(page.getByTestId('phone-search-screen')).toBeVisible()
-    await page.getByLabel('Teléfono').fill('600 112 233')
-    await page.getByTestId('submit-phone-search').click()
-    await expect(page).toHaveURL(/#\/habitacion\//)
-    await expect(page.locator('.idealista-listing-page')).toBeVisible()
+    await expect(page.getByTestId('search-phone')).toHaveCount(0)
   })
 })
 

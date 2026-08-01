@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, Mail } from 'lucide-react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import '@/mobile-app-v2.css'
@@ -59,7 +59,7 @@ export function UnifiedAuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { language } = useI18n()
-  const { currentUser, login, loginGoogle, register } = useApp()
+  const { currentUser, login, loginGoogle, selectGoogleRole, register } = useApp()
   const t = copy[language]
   const googleButtonRef = useRef<HTMLDivElement>(null)
   const [showEmail, setShowEmail] = useState(false)
@@ -80,7 +80,7 @@ export function UnifiedAuthPage() {
   }, [])
 
   useEffect(() => {
-    if (currentUser) finishLogin()
+    if (currentUser && currentUser.role !== 'pending') finishLogin()
   }, [currentUser, finishLogin])
 
   const acceptGoogleCredential = useCallback(async (credential: string) => {
@@ -116,6 +116,14 @@ export function UnifiedAuthPage() {
     }
 
     const initialize = () => { frame = window.requestAnimationFrame(renderGoogleButton) }
+    if (window.google?.accounts.id) {
+      initialize()
+      return () => {
+        cancelled = true
+        window.cancelAnimationFrame(frame)
+        window.google?.accounts.id.cancel?.()
+      }
+    }
     const existing = document.getElementById('google-identity-services') as HTMLScriptElement | null
     if (existing) {
       existing.addEventListener('load', initialize)
@@ -153,6 +161,14 @@ export function UnifiedAuthPage() {
     finishLogin()
   }
 
+  const chooseGoogleRole = async (role: 'tenant' | 'host') => {
+    setError('')
+    setSubmitting(true)
+    const message = await selectGoogleRole(role)
+    setSubmitting(false)
+    if (message) setError(message)
+  }
+
   const back = () => {
     if (window.history.length > 1) navigate(-1)
     else navigate('/', { replace: true })
@@ -178,7 +194,11 @@ export function UnifiedAuthPage() {
       <div className="m2-auth-region"><span>{t.country}</span><button type="button" onClick={() => navigate('/?panel=ubicacion')}>{t.changeCountry}</button></div>
       <h1>{t.title}</h1>
 
-      {mockMode ? <button type="button" className="m2-auth-choice" disabled={submitting} onClick={() => { void runMockGoogle() }}><b className="m2-google-mark">G</b>{t.google}</button>
+      {currentUser?.role === 'pending' ? <>
+        <h2>¿Qué quieres hacer?</h2>
+        <button type="button" className="m2-auth-choice" disabled={submitting} onClick={() => { void chooseGoogleRole('tenant') }}>Busco vivienda</button>
+        <button type="button" className="m2-auth-choice" disabled={submitting} onClick={() => { void chooseGoogleRole('host') }}>Publico vivienda</button>
+      </> : mockMode ? <button type="button" className="m2-auth-choice" disabled={submitting} onClick={() => { void runMockGoogle() }}><b className="m2-google-mark">G</b>{t.google}</button>
         : googleClientId ? <div ref={googleButtonRef} className="m2-auth-google-slot" aria-label={t.google} data-ready={googleReady ? '1' : '0'} />
           : <button type="button" className="m2-auth-choice" disabled title={t.googleMissing}><b className="m2-google-mark">G</b>{t.google}</button>}
 

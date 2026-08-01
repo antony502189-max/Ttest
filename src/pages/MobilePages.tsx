@@ -1,5 +1,5 @@
 import { Bell, ChevronRight, CircleHelp, FileText, Heart, Home, Languages, LogOut, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'

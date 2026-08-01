@@ -100,6 +100,14 @@ async def run_once() -> dict[str, dict[str, int]]:
                 result[source.name] = await run_source(session, source, run_id)
             await worker_state(health="running", run_id=run_id)
         logger.info("external_import_finished", extra={"run_id": run_id, "sources": result})
+        successful_sources = [
+            name for name, counters in result.items() if getattr(counters, "result", "failed") == "success"
+        ]
+        if not successful_sources:
+            failure_summary = "No external source completed a successful import"
+            logger.error("external_import_no_successful_sources", extra={"run_id": run_id, "sources": result})
+            await worker_state(health="failed", error=failure_summary, run_id=run_id)
+            return result
         await worker_state(health="healthy", run_id=run_id)
         return result
     except Exception as exc:
@@ -194,6 +202,7 @@ async def loop() -> None:
 
 def main() -> None:
     configure_logging()
+    get_settings().validate_runtime()
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--loop", action="store_true")

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import { useApp } from '@/contexts/app-context'
 import { filtersToParams } from '@/lib/search'
 import type { Filters, RentalMode, TenantRequirement } from '@/types'

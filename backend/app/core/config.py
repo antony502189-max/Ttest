@@ -3,6 +3,15 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+SUPPORTED_EXTERNAL_IMPORT_SOURCES = {
+    "idealista",
+    "fotocasa",
+    "milanuncios",
+    "pisocompartido",
+    "pisos",
+    "thinkspain",
+}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -31,6 +40,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = "noreply@112233.es"
+    smtp_from_name: str = ""
     smtp_starttls: bool = True
     mail_worker_interval_seconds: int = 10
     mail_worker_batch_size: int = 50
@@ -116,10 +126,19 @@ class Settings(BaseSettings):
                 problems.append("S3 storage requires bucket and credentials")
             if not self.smtp_host:
                 problems.append("SMTP_HOST is required in production")
+            if not self.google_client_id:
+                problems.append("GOOGLE_CLIENT_ID is required in production")
             if not self.redis_url:
                 problems.append("REDIS_URL is required for distributed production rate limiting")
             if self.auto_publish_listings:
                 problems.append("AUTO_PUBLISH_LISTINGS must be false in production")
+            if self.external_import_enabled:
+                configured_sources = {item.strip().casefold() for item in self.external_import_sources.split(",") if item.strip()}
+                if not configured_sources:
+                    problems.append("EXTERNAL_IMPORT_SOURCES must enable at least one source in production")
+                unknown_sources = configured_sources - SUPPORTED_EXTERNAL_IMPORT_SOURCES
+                if unknown_sources:
+                    problems.append("EXTERNAL_IMPORT_SOURCES contains unsupported sources")
 
         if problems:
             raise RuntimeError("Invalid runtime configuration: " + "; ".join(problems))

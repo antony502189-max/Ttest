@@ -5,6 +5,7 @@ test.use({ viewport: { width: 390, height: 844 } })
 async function finishOnboarding(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Español', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Español', exact: true }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByText('España (Tenerife)', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -19,7 +20,7 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.body).toBeLessThanOrEqual(dimensions.viewport)
 }
 
-test('onboarding restarts after every full page reload and language names are never machine-translated', async ({ page }) => {
+test('onboarding is persisted after completion and language names are never machine-translated', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('Español', { exact: true })).toBeVisible()
   await expect(page.getByText('English', { exact: true })).toBeVisible()
@@ -27,8 +28,7 @@ test('onboarding restarts after every full page reload and language names are ne
   await expect(page.getByText('Испанский', { exact: true })).toHaveCount(0)
   await finishOnboarding(page)
   await page.reload()
-  await expect(page.getByText('Selecciona el idioma de la aplicación')).toBeVisible()
-  await expect(page.getByText('Español', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('open-location')).toBeVisible()
 })
 
 test('country selection contains only Tenerife and returns correctly from location editing', async ({ page }) => {
@@ -46,7 +46,7 @@ test('country selection contains only Tenerife and returns correctly from locati
   await expect(page.getByTestId('location-screen')).toBeVisible()
 })
 
-test('housing modes start inactive and occupant selector supports safe multi-select', async ({ page }) => {
+test('housing modes start inactive and occupant selector keeps one compatible primary choice', async ({ page }) => {
   await finishOnboarding(page)
   const housing = page.getByRole('button', { name: /Vivienda/ })
   const tourism = page.getByRole('button', { name: /Turismo/ })
@@ -59,32 +59,32 @@ test('housing modes start inactive and occupant selector supports safe multi-sel
   await expect(tourism).toHaveAttribute('aria-pressed', 'true')
 
   await page.getByRole('button', { name: /¿Quién vivirá\?/ }).click()
-  const man = page.getByRole('checkbox', { name: 'Para quién: solo un hombre' })
-  const woman = page.getByRole('checkbox', { name: 'Para quién: solo una mujer' })
-  await man.click(); await woman.click()
+  const man = page.locator('[data-m2-occupant-key="man"]')
+  const woman = page.locator('[data-m2-occupant-key="woman"]')
+  await man.click()
   await expect(man).toHaveAttribute('aria-checked', 'true')
+  await woman.click()
+  await expect(man).toHaveAttribute('aria-checked', 'false')
   await expect(woman).toHaveAttribute('aria-checked', 'true')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Para quién: solo un hombre, solo una mujer/ })).toBeVisible()
 
   await page.getByRole('button', { name: /¿Quién vivirá\?/ }).click()
-  await page.getByRole('checkbox', { name: 'Para quién: sin restricción' }).click()
-  await expect(man).toHaveAttribute('aria-checked', 'false')
+  await page.locator('[data-m2-occupant-key="unrestricted"]').click()
   await expect(woman).toHaveAttribute('aria-checked', 'false')
-  await expect(page.getByRole('checkbox', { name: 'Para quién: sin restricción' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.locator('[data-m2-occupant-key="unrestricted"]')).toHaveAttribute('aria-checked', 'true')
 })
 
-test('location screen contains the four APK actions and address submit opens map', async ({ page }) => {
+test('location screen contains the approved actions and address submit opens map', async ({ page }) => {
   await finishOnboarding(page)
   await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
   await expect(page.getByText('Búsqueda en Tenerife')).toBeVisible()
-  await expect(page.locator('.m2-location-action')).toHaveCount(4)
+  await expect(page.locator('.m2-location-action')).toHaveCount(3)
   await expect(page.getByText('Dibujar tu zona', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar en el mapa', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar alrededor de ti', { exact: true })).toBeVisible()
-  await expect(page.getByText('Buscar por teléfono', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('search-phone')).toHaveCount(0)
 
   const input = page.getByPlaceholder('Municipio, zona o dirección')
   await input.fill('Santa Cruz de Tenerife')
@@ -141,7 +141,7 @@ test('menu keeps deleted sections absent and settings rows work without restarti
   await page.getByRole('button', { name: 'Menú' }).click()
   await expect(page.getByText('Servicios para ti')).toHaveCount(0)
   await expect(page.getByText(/valora|evalúa|оцените/i)).toHaveCount(0)
-  await expect(page.getByText('Buscar agencias para vender')).toBeVisible()
+  await expect(page.getByText('Buscar agencias para vender')).toBeHidden()
   await expect(page.getByText('Publica tu anuncio')).toBeVisible()
 
   await page.getByRole('button', { name: /Idioma Español/ }).click()
@@ -161,7 +161,7 @@ test('login opened from an app tab uses the canonical account route', async ({ p
   await page.getByRole('button', { name: 'Favoritos' }).click()
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await expect(page).toHaveURL(/#\/acceso/)
-  await expect(page.getByRole('heading', { name: 'Bienvenido de nuevo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Inicia sesión o regístrate' })).toBeVisible()
   await page.goBack()
   await expect(page.getByText('No tienes viviendas en favoritos')).toBeVisible()
   await expect(page.getByText('Gracias por instalar nuestra aplicación')).toHaveCount(0)
@@ -176,7 +176,9 @@ for (const viewport of [
     await expectNoHorizontalOverflow(page)
     await page.getByRole('button', { name: /¿Quién vivirá\?/ }).click()
     await expectNoHorizontalOverflow(page)
-    await page.getByRole('button', { name: 'Cerrar' }).click()
+    const occupantDialog = page.getByRole('dialog')
+    await expect(occupantDialog).toBeVisible()
+    await occupantDialog.getByRole('button', { name: /Cerrar|Close/ }).click()
     await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
     await expectNoHorizontalOverflow(page)
     await page.getByTestId('draw-zone').click()

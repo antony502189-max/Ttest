@@ -24,7 +24,7 @@ test('DELTA-MOBILE-01 home, occupant selector and location actions stay connecte
   await page.keyboard.press('Escape')
   await page.locator('.m2-select-row').click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
-  await expect(page.locator('.m2-location-action')).toHaveCount(4)
+  await expect(page.locator('.m2-location-action')).toHaveCount(3)
   await expect(page).toHaveURL(/panel=ubicacion/)
 })
 
@@ -67,16 +67,10 @@ test('DELTA-MOBILE-03 drawing and nearby search expose dedicated working map sta
   await expect(page).toHaveURL(/cerca=1.*lat=28\.2916.*lng=-16\.6291/)
 })
 
-test('DELTA-MOBILE-04 phone lookup opens a real listing and canonical detail remains usable', async ({ page }) => {
+test('DELTA-MOBILE-04 location never exposes the removed phone lookup', async ({ page }) => {
   await readyMobile(page, '/#/?panel=ubicacion')
-  await page.getByTestId('search-phone').click()
-  await expect(page.getByTestId('phone-search-screen')).toBeVisible()
-  await page.getByLabel('Teléfono').fill('600 112 233')
-  await page.getByTestId('submit-phone-search').click()
-  await expect(page).toHaveURL(/#\/habitacion\//)
-  await expect(page.locator('.idealista-listing-page')).toBeVisible()
-  await expect(page.locator('.listing-actionbar')).toBeVisible()
-  await expect(page.locator('.mobile-contact-bar')).toBeVisible()
+  await expect(page.getByTestId('search-phone')).toHaveCount(0)
+  await expect(page.getByTestId('phone-search-screen')).toHaveCount(0)
 })
 
 test('DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are real routes', async ({ page }) => {

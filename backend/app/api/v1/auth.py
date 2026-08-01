@@ -9,6 +9,7 @@ from ...models import User
 from ...schemas.auth import (
     ForgotPasswordRequest,
     GoogleLoginRequest,
+    GoogleRoleRequest,
     LoginRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -102,6 +103,22 @@ async def google_login(
     user_agent, client_ip = request_metadata(request)
     result = await google_login_user(payload, session, user_agent=user_agent, client_ip=client_ip)
     return set_refresh_cookie(response, result)
+
+
+@router.post("/google/role", response_model=UserResponse)
+async def select_google_role(
+    payload: GoogleRoleRequest,
+    request: Request,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    require_cookie_origin(request)
+    if user.role != "pending" or not user.google_subject:
+        raise HTTPException(409, "Google account role is already set")
+    user.role = payload.role
+    await session.commit()
+    await session.refresh(user)
+    return public_user(user)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)

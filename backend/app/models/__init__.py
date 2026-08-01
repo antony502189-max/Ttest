@@ -24,7 +24,7 @@ class User(Timestamped, Base):
     password_hash: Mapped[str | None] = mapped_column(String(512))
     google_subject: Mapped[str | None] = mapped_column(String(255), unique=True)
     name: Mapped[str] = mapped_column(String(120))
-    role: Mapped[str] = mapped_column(Enum("tenant", "host", "admin", name="user_role"), default="tenant")
+    role: Mapped[str] = mapped_column(Enum("tenant", "host", "admin", "pending", name="user_role"), default="tenant")
     phone: Mapped[str] = mapped_column(String(64), default="")
     whatsapp: Mapped[str] = mapped_column(String(64), default="")
     telegram: Mapped[str] = mapped_column(String(64), default="")
@@ -220,6 +220,15 @@ class ExternalWorkerState(Base):
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     last_error: Mapped[str | None] = mapped_column(Text)
     last_run_id: Mapped[str | None] = mapped_column(String(64))
+
+
+class MailWorkerState(Base):
+    __tablename__ = "mail_worker_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    health: Mapped[str] = mapped_column(String(16), default="healthy", index=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
 
 
 class CatalogState(Base):

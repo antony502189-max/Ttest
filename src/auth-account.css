@@ -1,4 +1,3 @@
-.m2-auth-screen,
 .m2-account-screen {
   --m2-auth-bg: #181818;
   --m2-auth-panel: #202020;
@@ -11,7 +10,6 @@
   color: var(--m2-auth-text);
 }
 
-.m2-auth-appbar,
 .m2-account-appbar {
   min-height: 4.15rem;
   display: grid;
@@ -22,7 +20,6 @@
   background: #202020;
 }
 
-.m2-auth-appbar > button,
 .m2-account-appbar > button {
   width: 2.55rem;
   height: 2.55rem;
@@ -33,78 +30,11 @@
   color: var(--m2-auth-lime);
 }
 
-.m2-auth-appbar svg,
 .m2-account-appbar svg { width: 1.45rem; height: 1.45rem; }
-.m2-auth-appbar strong,
 .m2-account-appbar strong { overflow: hidden; text-align: left; font-size: 1rem; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-
-.m2-auth-content {
-  min-height: calc(100dvh - 4.15rem);
-  display: flex;
-  flex-direction: column;
-  padding: 2.25rem 1.15rem max(1.5rem, env(safe-area-inset-bottom));
-}
-
-.m2-auth-content > .m2-brand { margin: .2rem 0 .55rem; font-size: 2.1rem; }
-.m2-auth-region { display: flex; justify-content: center; align-items: baseline; gap: .55rem; color: #d8d8d8; font-size: .82rem; }
-.m2-auth-region button { padding: 0; border: 0; background: transparent; color: var(--m2-auth-lime); font: inherit; font-weight: 700; }
-.m2-auth-content > h1 { margin: 2.25rem 0 1.55rem; max-width: 21rem; color: var(--m2-auth-text); font-size: 1.48rem; font-weight: 650; line-height: 1.45; text-align: left; }
-
-.m2-auth-choice,
-.m2-auth-google-slot {
-  width: 100%;
-  min-height: 3.85rem;
-  margin-bottom: 1rem;
-}
-
-.m2-auth-choice {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .7rem;
-  padding: .75rem 1rem;
-  border: 2px solid #747474;
-  border-radius: .22rem;
-  background: transparent;
-  color: var(--m2-auth-text);
-  font-size: 1.02rem;
-  font-weight: 650;
-}
-
-.m2-auth-choice svg { width: 1.25rem; height: 1.25rem; }
-.m2-auth-choice:disabled { opacity: .5; cursor: not-allowed; }
-.m2-auth-choice:focus-visible,
-.m2-auth-region button:focus-visible,
 .m2-account-appbar button:focus-visible,
-.m2-auth-appbar button:focus-visible,
 .m2-account-photo-action:focus-visible,
 .m2-account-logout:focus-visible { outline: 2px solid var(--m2-auth-lime); outline-offset: 3px; }
-
-.m2-google-mark { font-family: Arial, sans-serif; font-size: 1.15rem; color: #fff; }
-.m2-auth-google-slot { display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: .22rem; }
-.m2-auth-google-slot > div { width: 100% !important; }
-.m2-auth-google-slot iframe { width: 100% !important; min-height: 44px !important; }
-
-.m2-auth-form--expanded { display: grid; gap: .8rem; margin-bottom: .45rem; }
-.m2-auth-form--expanded input,
-.m2-auth-form--expanded > button {
-  width: 100%;
-  min-height: 3.7rem;
-  border: 2px solid #747474;
-  border-radius: .22rem;
-  background: transparent;
-  color: var(--m2-auth-text);
-  padding: 0 .9rem;
-  font-size: 1rem;
-}
-.m2-auth-form--expanded > button { color: var(--m2-auth-lime); font-weight: 700; }
-.m2-auth-form-links { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.m2-auth-form-links a { color: var(--m2-auth-lime); font-size: .78rem; }
-.m2-auth-error { margin: .25rem 0 0; color: #ff9aaa; font-size: .8rem; line-height: 1.4; }
-.m2-auth-status { margin: .25rem 0; color: var(--m2-auth-muted); text-align: center; }
-.m2-auth-legal { margin-top: auto; padding-top: 4.4rem; display: flex; flex-direction: column; align-items: center; gap: .8rem; text-align: center; }
-.m2-auth-legal p { margin: 0; color: #d2d2d2; font-size: .82rem; }
-.m2-auth-legal a { color: #e3e3e3; font-size: .83rem; text-decoration: none; }
 
 .m2-account-screen { min-height: 100dvh; }
 .m2-account-content { min-height: calc(100dvh - 4.15rem); padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
@@ -160,14 +90,20 @@
 }
 .m2-account-logout svg { width: 1.35rem; height: 1.35rem; }
 .m2-account-logout:disabled { opacity: .55; }
-
-@media (min-width: 768px) {
-  .m2-auth-screen { width: min(100%, 430px); }
+.m2-account-delete {
+  width: calc(100% + .5rem);
+  min-height: 4.6rem;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin: 0 -.25rem;
+  padding: 0 1rem;
+  border: 0;
+  border-bottom: 1px solid #3f3f3f;
+  background: transparent;
+  color: var(--m2-auth-danger);
+  font-size: 1.02rem;
+  text-align: left;
 }
-
-@media (max-width: 360px) {
-  .m2-auth-content { padding-inline: .9rem; }
-  .m2-auth-content > h1 { font-size: 1.32rem; }
-  .m2-auth-choice { font-size: .94rem; }
-  .m2-auth-legal { padding-top: 3rem; }
-}
+.m2-account-delete svg { width: 1.35rem; height: 1.35rem; }
+.m2-account-delete:focus-visible { outline: 2px solid var(--m2-auth-lime); outline-offset: 3px; }

@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+dist
+output
+test-results
+artifacts
+backups
+.env
+.env.*
+!.env.example
+.venv
+.audit-venv
+.playwright-cli
+backend

@@ -1,6 +1,6 @@
 export type RentalMode = 'long' | 'holiday'
 export type ListingStatus = 'Borrador' | 'Pendiente' | 'Publicado' | 'Oculto' | 'Finalizado' | 'Rechazado'
-export type UserRole = 'tenant' | 'host' | 'admin'
+export type UserRole = 'tenant' | 'host' | 'admin' | 'pending'
 export type AdvertiserType = 'Particular' | 'Profesional'
 export type YesNoAny = 'Cualquiera' | 'Sí' | 'No'
 export type TenantRequirement = 'single-man' | 'single-woman' | 'single-person' | 'couple' | 'any'

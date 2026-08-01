@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import {
   Bell,
   BriefcaseBusiness,
@@ -17,7 +17,6 @@ import {
   Menu,
   MessageCircle,
   PenTool,
-  Phone,
   Plus,
   Search,
   SlidersHorizontal,
@@ -43,7 +42,7 @@ type OnboardingOrigin = 'startup' | 'language-settings' | 'region-settings' | 'r
 type MobileTab = 'home' | 'searches' | 'favorites' | 'messages' | 'menu'
 type AppLanguage = Language
 type SearchMode = 'vivienda' | 'turismo' | null
-type AppPage = 'tabs' | 'location' | 'phone' | 'map'
+type AppPage = 'tabs' | 'location' | 'map'
 type MapMode = 'draw' | 'search'
 type OccupantOption = 'anyone' | 'man' | 'woman' | 'person' | 'couple' | 'unrestricted'
 type MapStatus = 'loading' | 'ready' | 'error'
@@ -242,7 +241,7 @@ function OccupantSelector({ t }: { t: MobileCopy }) {
 }
 
 function HomeScreen({ t, mode, onMode, onLocation, onSearch, onPublish }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onSearch: () => void; onPublish: () => void }) {
-  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className="m2-hero" role="img" aria-label={t.heroAlt} /><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
+  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className="m2-hero" role="img" aria-label={t.heroAlt} /><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
 }
 
 function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
@@ -257,50 +256,18 @@ function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
   return ''
 }
 
-function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, onPhone, nearbyStatus }: {
+function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, nearbyStatus }: {
   t: MobileCopy
   onBack: () => void
   onChangeRegion: () => void
   onMap: (mode: MapMode, query?: string) => void
   onNearby: () => void
-  onPhone: () => void
   nearbyStatus: LocationStatus
 }) {
   const [query, setQuery] = useState('')
   const submit = (event: React.FormEvent) => { event.preventDefault(); onMap('search', query.trim()) }
   const statusMessage = locationStatusMessage(t, nearbyStatus)
-  return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onPhone} data-testid="search-phone"><span><Phone /></span><strong>{t.searchByPhone}</strong><ChevronRight /></button>{statusMessage ? <p className={cn('m2-location-feedback', !['loading', 'success'].includes(nearbyStatus) && 'is-error')} role={nearbyStatus === 'loading' ? 'status' : 'alert'}>{statusMessage}</p> : null}</div></section>
-}
-
-
-function PhoneSearchScreen({ t, listings, onBack, onOpen }: {
-  t: MobileCopy
-  listings: Listing[]
-  onBack: () => void
-  onOpen: (listingId: string) => void
-}) {
-  const [phone, setPhone] = useState('')
-  const [error, setError] = useState('')
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault()
-    const digits = phone.replace(/\D/g, '')
-    if (digits.length < 7) {
-      setError(t.invalidPhone)
-      return
-    }
-    const listing = listings.find((item) => {
-      if (!item.showPhone || !item.contactPhone || item.status !== 'Publicado') return false
-      const listingDigits = item.contactPhone.replace(/\D/g, '')
-      return listingDigits === digits || listingDigits.endsWith(digits) || digits.endsWith(listingDigits)
-    })
-    if (!listing) {
-      setError(t.phoneNotFound)
-      return
-    }
-    setError('')
-    onOpen(listing.id)
-  }
-  return <section className="m2-screen m2-location m2-phone-search" data-testid="phone-search-screen"><BackHeader title={t.searchByPhone} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><p>{t.phoneIntro}</p><form className="m2-location-search" onSubmit={submit}><Phone /><label><span className="m2-sr-only">{t.phone}</span><input value={phone} onChange={(event) => { setPhone(event.target.value); setError('') }} inputMode="tel" autoComplete="tel" aria-label={t.phone} placeholder={t.phone} /></label><PrimaryButton type="submit" testId="submit-phone-search">{t.search}</PrimaryButton></form>{error ? <p className="m2-location-feedback is-error" role="alert">{error}</p> : null}</div></section>
+  return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button>{statusMessage ? <p className={cn('m2-location-feedback', !['loading', 'success'].includes(nearbyStatus) && 'is-error')} role={nearbyStatus === 'loading' ? 'status' : 'alert'}>{statusMessage}</p> : null}</div></section>
 }
 
 function GoogleMapCanvas({ language, t, mapRef, query, initialCenter, onStatus }: { language: AppLanguage; t: MobileCopy; mapRef: MutableRefObject<google.maps.Map | null>; query: string; initialCenter?: MapPoint; onStatus: (status: MapStatus) => void }) {
@@ -635,10 +602,6 @@ export function MobileAppV2() {
       setPage('location')
       return
     }
-    if (location.pathname === '/' && params.get('panel') === 'telefono') {
-      setPage('phone')
-      return
-    }
     setPage('tabs')
     setTab(tabFromPath(location.pathname))
   }, [location.pathname, location.search, step])
@@ -723,8 +686,7 @@ export function MobileAppV2() {
   const openPublication = () => navigate(`${location.pathname}?gate=publicar`)
   if (!shellActive) return null
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
-  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} onPhone={() => navigate('/?panel=telefono')} nearbyStatus={nearbyStatus} /></div>
-  if (page === 'phone') return <div className="m2-app notranslate" translate="no"><PhoneSearchScreen t={t} listings={allListings} onBack={() => navigate('/?panel=ubicacion')} onOpen={(listingId) => navigate(`/habitacion/${listingId}`)} /></div>
+  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
   return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={favoriteItems} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }

@@ -18,17 +18,23 @@ async function shot(page: Page, name: string) {
   })
 }
 
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth }))
+  expect(dimensions.body).toBeLessThanOrEqual(dimensions.viewport)
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('master current home responsive matrix', async ({ page }) => {
+test('master approved home design and responsive matrix', async ({ page }) => {
   test.setTimeout(180_000)
   for (const [width, height] of [[360, 800], [390, 844], [430, 932], [768, 1024], [1024, 900], [1440, 900]] as const) {
     await open(page, '/#/', width, height)
     if (width < 768) await expect(page.locator('.m2-home')).toBeVisible()
     else await expect(page.locator('.home-hero')).toBeVisible()
-    await shot(page, `master-current-home-${width}x${height}`)
+    await expectNoHorizontalOverflow(page)
+    if (width === 390 && height === 844) await shot(page, 'current-home-390x844')
   }
 })
 
@@ -36,24 +42,24 @@ test('master current mobile list, map, drawing and location states', async ({ pa
   test.setTimeout(180_000)
   await open(page, '/#/buscar?q=Tenerife', 390, 844)
   await expect(page.getByTestId('mobile-results')).toBeVisible()
-  await shot(page, 'master-current-results-list-390x844')
+  await shot(page, 'current-search-390x844')
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa', 390, 844)
   await expect(page.getByTestId('map-search')).toBeVisible()
   await expect(page.locator('.m2-map-toolbar')).toBeVisible()
   await expect(page.locator('.m2-map-canvas')).toBeVisible()
-  await shot(page, 'master-current-results-map-390x844')
+  await shot(page, 'current-map-390x844')
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa&dibujar=1', 390, 844)
   await expect(page.getByTestId('map-draw')).toBeVisible()
   await page.getByRole('button', { name: 'Dibujar tu zona' }).click()
   await expect(page.getByTestId('freehand-overlay')).toBeVisible()
-  await shot(page, 'master-current-results-map-drawing-390x844')
+  await expectNoHorizontalOverflow(page)
 
   await open(page, '/#/?panel=ubicacion', 390, 844)
   await expect(page.getByTestId('location-screen')).toBeVisible()
-  await expect(page.locator('.m2-location-action')).toHaveCount(4)
-  await shot(page, 'master-current-location-390x844')
+  await expect(page.locator('.m2-location-action')).toHaveCount(3)
+  await shot(page, 'current-location-390x844')
 })
 
 test('master desktop municipality selection and split map states', async ({ page }) => {
@@ -64,11 +70,11 @@ test('master desktop municipality selection and split map states', async ({ page
   const browser = page.getByRole('region', { name: 'Seleccionar zonas de Tenerife' })
   await browser.getByRole('button', { name: /^Adeje\b/ }).click()
   await browser.getByRole('button', { name: /^Arona\b/ }).click()
-  await shot(page, 'master-current-zone-selection-1024x844')
+  await expectNoHorizontalOverflow(page)
   await page.keyboard.press('Escape')
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa', 1440, 900)
   await expect(page.locator('.map-results-split')).toBeVisible()
   await expect(page.locator('.results-map__canvas.google-map-canvas')).toHaveAttribute('data-map-instance', 'google-ready', { timeout: 20_000 })
-  await shot(page, 'master-current-results-split-1440x900')
+  await expectNoHorizontalOverflow(page)
 })

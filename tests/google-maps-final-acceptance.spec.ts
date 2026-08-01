@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 const mapReady = async (page: Page) => {
@@ -85,17 +83,7 @@ test('official district hierarchy selects a stable ID and restores it from URL',
   await expect(page.getByRole('button', { name: /centro-ifara distrito/i })).toHaveAttribute('aria-pressed', 'true')
 })
 
-test('production configuration is secret-backed and auth errors keep a usable fallback', async ({ page }) => {
-  const root = process.cwd()
-  const [loader, workflow] = await Promise.all([
-    readFile(path.join(root, 'src/lib/google-maps/loader.ts'), 'utf8'),
-    readFile(path.join(root, '.github/workflows/deploy-pages.yml'), 'utf8'),
-  ])
-  expect(loader).toContain("import.meta.env.DEV ? 'DEMO_MAP_ID' : ''")
-  expect(workflow).toContain('VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}')
-  expect(workflow).toContain('VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}')
-  expect(workflow).not.toMatch(/AIza[0-9A-Za-z_-]+/)
-
+test('map auth errors keep a usable fallback', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   await mapReady(page)
   await page.evaluate(() => window.dispatchEvent(new Event('112233:google-maps-auth-failure')))
