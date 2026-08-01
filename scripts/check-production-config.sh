@@ -6,6 +6,8 @@ export APP_DOMAIN=example.test
 export POSTGRES_PASSWORD=ci-placeholder-password
 export DATABASE_URL=postgresql+asyncpg://ttest:ci-placeholder-password@postgres:5432/ttest
 export JWT_SECRET=ci-placeholder-secret-with-at-least-32-characters
+export GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com
+export VITE_GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com
 export REDIS_URL=redis://redis:6379/0
 export MINIO_ROOT_USER=ci-minio
 export MINIO_ROOT_PASSWORD=ci-placeholder-password
@@ -25,6 +27,7 @@ for script in deploy/*.sh; do
 done
 grep -Fq 'location /api/' deploy/nginx.conf
 grep -Fq 'proxy_pass http://backend:8000;' deploy/nginx.conf
+grep -Fq 'Cross-Origin-Opener-Policy "same-origin-allow-popups"' deploy/nginx.conf
 
 docker compose --profile ops -f docker-compose.production.yml config --format json | python3 -c '
 import json
