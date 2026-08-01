@@ -58,8 +58,8 @@ def masked_email(email: str) -> str:
 
 def verification_code_hash(user_id: object, code: str) -> str:
     """Key a low-entropy OTP so a database leak cannot be brute-forced offline."""
-    secret = get_settings().verification_hmac_secret.encode("utf-8")
-    message = f"{user_id}:{code}".encode("utf-8")
+    secret = get_settings().verification_hmac_secret.encode()
+    message = f"{user_id}:{code}".encode()
     return hmac.new(secret, message, hashlib.sha256).hexdigest()
 
 
