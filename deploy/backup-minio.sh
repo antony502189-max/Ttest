@@ -21,9 +21,9 @@ checksum="$archive.sha256"
 compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 
 "${compose[@]}" run --rm -T --entrypoint /bin/sh minio-init -ec '
-  mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+  mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
   busybox mkdir -p /tmp/minio-backup
-  mc mirror --overwrite "local/$S3_BUCKET" /tmp/minio-backup
+  mc mirror --overwrite "local/$S3_BUCKET" /tmp/minio-backup >/dev/null
   (
     cd /tmp/minio-backup
     busybox find . -type f -print | LC_ALL=C busybox sort | while IFS= read -r object; do busybox sha256sum "$object"; done > .backup-manifest
