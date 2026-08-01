@@ -75,7 +75,7 @@ test('housing modes start inactive and occupant selector supports safe multi-sel
   await expect(page.getByRole('checkbox', { name: 'Para quién: sin restricción' })).toHaveAttribute('aria-checked', 'true')
 })
 
-test('location screen contains the four APK actions and address submit opens map', async ({ page }) => {
+test('location screen contains the approved actions and address submit opens map', async ({ page }) => {
   await finishOnboarding(page)
   await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
