@@ -21,7 +21,7 @@ os.environ.setdefault("MEDIA_ROOT", "var/test-media")
 os.environ.setdefault("FRONTEND_ORIGINS", "http://testserver")
 
 from app.db.session import engine
-from app.main import app
+from app.main import app, rate_limiter
 
 
 @pytest.fixture(scope="session")
@@ -31,6 +31,10 @@ def anyio_backend() -> str:
 
 @pytest_asyncio.fixture(autouse=True)
 async def clean_database() -> AsyncIterator[None]:
+    # Integration clients all share the in-process ASGI app.  Reset its
+    # fallback limiter with the database so one test cannot exhaust the
+    # registration budget of the next test.
+    rate_limiter._memory._attempts.clear()
     async with engine.begin() as connection:
         table_names = (
             (
