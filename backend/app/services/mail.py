@@ -3,6 +3,7 @@ import logging
 import smtplib
 from datetime import UTC, datetime
 from email.message import EmailMessage
+from email.utils import formataddr
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +56,7 @@ def send_smtp(item: MailOutbox, settings: Settings) -> None:
     if not settings.smtp_host:
         raise RuntimeError("SMTP_HOST is not configured")
     message = EmailMessage()
-    message["From"] = settings.smtp_from
+    message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from)) if settings.smtp_from_name else settings.smtp_from
     message["To"] = item.recipient
     message["Subject"] = item.subject
     message.set_content(item.body)

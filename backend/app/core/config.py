@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = "noreply@112233.es"
+    smtp_from_name: str = ""
     smtp_starttls: bool = True
     mail_worker_interval_seconds: int = 10
     mail_worker_batch_size: int = 50
