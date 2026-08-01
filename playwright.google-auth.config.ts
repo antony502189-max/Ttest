@@ -9,7 +9,7 @@ export default defineConfig({
   use: { baseURL: 'http://127.0.0.1:4174' },
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 4174',
-    env: { ...process.env, VITE_GOOGLE_CLIENT_ID: 'test-google-client.apps.googleusercontent.com' },
+    env: { ...process.env, VITE_ENABLE_MOCK_MODE: '0', VITE_GOOGLE_CLIENT_ID: 'test-google-client.apps.googleusercontent.com' },
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: false,
     timeout: 120_000,
