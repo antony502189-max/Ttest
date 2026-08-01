@@ -22,11 +22,11 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 
 "${compose[@]}" run --rm -T --entrypoint /bin/sh minio-init -ec '
   mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-  mkdir -p /tmp/minio-backup
+  busybox mkdir -p /tmp/minio-backup
   mc mirror --overwrite "local/$S3_BUCKET" /tmp/minio-backup
   (
     cd /tmp/minio-backup
-    find . -type f -print | LC_ALL=C sort | while IFS= read -r object; do sha256sum "$object"; done > .backup-manifest
+    busybox find . -type f -print | LC_ALL=C busybox sort | while IFS= read -r object; do busybox sha256sum "$object"; done > .backup-manifest
   )
   busybox tar -C /tmp/minio-backup -cf - .
 ' | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_ENCRYPTION_KEY -out "$archive"

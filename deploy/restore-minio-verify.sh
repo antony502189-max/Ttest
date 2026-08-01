@@ -26,18 +26,18 @@ trap cleanup EXIT
 openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY -in "$ARCHIVE" \
   | "${compose[@]}" run --rm -T -e "RESTORE_VERIFY_BUCKET=$bucket" --entrypoint /bin/sh minio-init -ec '
       mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-      mkdir -p /tmp/minio-restore
+      busybox mkdir -p /tmp/minio-restore
       busybox tar -C /tmp/minio-restore -xf -
       test -s /tmp/minio-restore/.backup-manifest
-      expected="$(wc -l < /tmp/minio-restore/.backup-manifest)"
-      cp /tmp/minio-restore/.backup-manifest /tmp/backup-manifest
-      rm -f /tmp/minio-restore/.backup-manifest
+      expected="$(busybox wc -l < /tmp/minio-restore/.backup-manifest)"
+      busybox cp /tmp/minio-restore/.backup-manifest /tmp/backup-manifest
+      busybox rm -f /tmp/minio-restore/.backup-manifest
       mc mb "local/$RESTORE_VERIFY_BUCKET"
       mc mirror --overwrite /tmp/minio-restore "local/$RESTORE_VERIFY_BUCKET"
-      mkdir -p /tmp/minio-restored
+      busybox mkdir -p /tmp/minio-restored
       mc mirror --overwrite "local/$RESTORE_VERIFY_BUCKET" /tmp/minio-restored
-      actual="$(find /tmp/minio-restored -type f | wc -l)"
+      actual="$(busybox find /tmp/minio-restored -type f | busybox wc -l)"
       test "$actual" -eq "$expected"
-      (cd /tmp/minio-restored && sha256sum -c /tmp/backup-manifest >/dev/null)
+      (cd /tmp/minio-restored && busybox sha256sum -c /tmp/backup-manifest >/dev/null)
       printf "verified_objects=%s\n" "$actual"
     '
