@@ -227,7 +227,7 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
     )
     enqueue_password_reset(session, user.email, raw_token)
     await session.commit()
-    if get_settings().app_env == "development":
+    if get_settings().app_env in {"development", "test"}:
         response["resetToken"] = raw_token
     return response
 

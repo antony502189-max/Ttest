@@ -62,6 +62,17 @@ async function createBackendListing(unique: string, title: string) {
   })
   expect(registration.status()).toBe(201)
   const session = await registration.json() as { accessToken: string }
+  const verification = await api.post(`${API_PREFIX}/auth/email-verification/request`, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  })
+  expect(verification.status()).toBe(202)
+  const { verificationCode } = await verification.json() as { verificationCode: string }
+  expect(verificationCode).toMatch(/^\d{6}$/)
+  const confirmed = await api.post(`${API_PREFIX}/auth/email-verification/confirm`, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+    data: { code: verificationCode },
+  })
+  expect(confirmed.status()).toBe(204)
   const created = await api.post(`${API_PREFIX}/listings`, {
     headers: { Authorization: `Bearer ${session.accessToken}` },
     data: listingPayload(title),
