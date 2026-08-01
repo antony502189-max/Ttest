@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import smtplib
+import ssl
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from email.utils import formataddr
@@ -12,6 +13,8 @@ from ..core.config import Settings, get_settings
 from ..models import MailOutbox
 
 logger = logging.getLogger(__name__)
+SENSITIVE_MAIL_KINDS = {"email_verification", "password_reset"}
+REDACTED_BODY = "[redacted after successful delivery]"
 
 
 def frontend_link(path: str) -> str:
@@ -59,13 +62,17 @@ def send_smtp(item: MailOutbox, settings: Settings) -> None:
     if not settings.smtp_host:
         raise RuntimeError("SMTP_HOST is not configured")
     message = EmailMessage()
-    message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from)) if settings.smtp_from_name else settings.smtp_from
+    message["From"] = (
+        formataddr((settings.smtp_from_name, settings.smtp_from))
+        if settings.smtp_from_name
+        else settings.smtp_from
+    )
     message["To"] = item.recipient
     message["Subject"] = item.subject
     message.set_content(item.body)
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
         if settings.smtp_starttls:
-            smtp.starttls()
+            smtp.starttls(context=ssl.create_default_context())
         if settings.smtp_username:
             smtp.login(settings.smtp_username, settings.smtp_password)
         smtp.send_message(message)
@@ -96,6 +103,10 @@ async def deliver_pending_mail(session: AsyncSession, *, limit: int | None = Non
             item.status = "sent"
             item.sent_at = datetime.now(UTC)
             item.last_error = None
+            if item.kind in SENSITIVE_MAIL_KINDS:
+                # The SMTP payload must exist while pending, but codes and reset
+                # tokens should not remain in the database after delivery.
+                item.body = REDACTED_BODY
             delivered += 1
         except (OSError, RuntimeError, smtplib.SMTPException) as exc:
             item.last_error = str(exc)[:2_000]
