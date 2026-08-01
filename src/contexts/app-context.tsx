@@ -303,9 +303,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       void getCatalogVersion(check.signal).then((current) => {
         if (catalogVersion.current === null) {
           catalogVersion.current = current.version
-          return
-        }
-        if (catalogVersion.current === current.version) return
+        } else if (catalogVersion.current === current.version) return
         catalogRequest.current?.abort()
         const request = new AbortController()
         catalogRequest.current = request
