@@ -1,14 +1,14 @@
 """track email verification code attempts
 
-Revision ID: 0025_email_verification_code_attempts
+Revision ID: 0025_email_verification_codes
 Revises: 0024_google_role_selection
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
-
-revision = "0025_email_verification_code_attempts"
+revision = "0025_email_verification_codes"
 down_revision = "0024_google_role_selection"
 branch_labels = None
 depends_on = None
