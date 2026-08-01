@@ -2,11 +2,13 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
+from fastapi import HTTPException
 from jwt import InvalidTokenError
 
 from app.core.config import Settings
 from app.core.security import decode_access_token, verify_password
-from app.services.auth import google_email_is_authoritative
+from app.schemas.auth import GoogleLoginRequest
+from app.services.auth import google_email_is_authoritative, google_login_user
 from app.services.rate_limit import MemoryRateLimiter
 
 
@@ -76,3 +78,37 @@ def test_google_account_linking_only_trusts_google_authoritative_emails():
     assert google_email_is_authoritative({}, "person@gmail.com") is True
     assert google_email_is_authoritative({"hd": "example.edu"}, "person@example.edu") is True
     assert google_email_is_authoritative({}, "person@example.edu") is False
+
+
+class _UnusedSession:
+    async def scalar(self, *_args, **_kwargs):  # pragma: no cover - invalid tokens must not query storage
+        raise AssertionError("invalid Google credential must not query storage")
+
+
+async def test_google_login_rejects_invalid_signature_before_querying_users(monkeypatch):
+    monkeypatch.setattr("app.services.auth.get_settings", lambda: Settings(google_client_id="test-client"))
+    monkeypatch.setattr(
+        "app.services.auth.google_id_token.verify_oauth2_token",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad signature")),
+    )
+
+    with pytest.raises(HTTPException, match="Invalid Google credential") as error:
+        await google_login_user(GoogleLoginRequest(credential="x" * 20), _UnusedSession(), user_agent="test", client_ip="127.0.0.1")
+    assert error.value.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "claims, message",
+    [
+        ({"iss": "evil.example", "sub": "subject", "email": "person@gmail.com", "email_verified": True}, "Invalid Google credential"),
+        ({"iss": "accounts.google.com", "email": "person@gmail.com", "email_verified": True}, "Google account email is not verified"),
+        ({"iss": "accounts.google.com", "sub": "subject", "email": "person@gmail.com", "email_verified": False}, "Google account email is not verified"),
+    ],
+)
+async def test_google_login_rejects_invalid_claims_before_querying_users(monkeypatch, claims, message):
+    monkeypatch.setattr("app.services.auth.get_settings", lambda: Settings(google_client_id="test-client"))
+    monkeypatch.setattr("app.services.auth.google_id_token.verify_oauth2_token", lambda *_args, **_kwargs: claims)
+
+    with pytest.raises(HTTPException, match=message) as error:
+        await google_login_user(GoogleLoginRequest(credential="x" * 20), _UnusedSession(), user_agent="test", client_ip="127.0.0.1")
+    assert error.value.status_code == 401
