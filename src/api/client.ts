@@ -10,7 +10,11 @@ export class ApiError extends Error {
 
 export function setAccessToken(token: string | null) { accessToken = token }
 export function resolveApiUrl(path: string) {
-  return /^https?:\/\//.test(path) ? path : new URL(path, `${API_BASE_URL}/`).toString()
+  if (/^https?:\/\//.test(path)) return path
+  const base = /^https?:\/\//.test(API_BASE_URL)
+    ? API_BASE_URL
+    : new URL(API_BASE_URL || '/', window.location.origin).toString().replace(/\/$/, '')
+  return new URL(path, `${base}/`).toString()
 }
 
 async function performRefresh() {
