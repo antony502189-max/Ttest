@@ -8,7 +8,7 @@ from starlette.requests import Request
 import app.main as main_module
 from app.api.v1.auth import require_cookie_origin
 from app.core.config import get_settings
-from app.main import RATE_LIMITS, app
+from app.main import RATE_LIMITS, api_schema_enabled, app
 from app.services.rate_limit import MemoryRateLimiter
 
 
@@ -20,6 +20,17 @@ def test_live_and_openapi_are_available() -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["referrer-policy"] == "no-referrer"
     assert client.get("/api/openapi.json").status_code == 200
+
+
+def test_api_health_aliases_are_available() -> None:
+    client = TestClient(app)
+    assert client.get("/api/health/live").json() == {"status": "ok"}
+
+
+def test_production_disables_interactive_api_schema(monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "app_env", "production")
+    assert not api_schema_enabled()
 
 
 def test_sensitive_endpoints_have_rate_limits() -> None:

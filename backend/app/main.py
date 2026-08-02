@@ -41,6 +41,11 @@ if settings.sentry_dsn:
 logger = logging.getLogger(__name__)
 rate_limiter = ResilientRateLimiter()
 
+
+def api_schema_enabled() -> bool:
+    """Keep interactive API metadata out of the public production surface."""
+    return not settings.is_production
+
 RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/auth/login"): (10, 60),
     ("POST", "/api/v1/auth/register"): (10, 60),
@@ -89,8 +94,8 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title="112233.es API",
     version="1.1.0",
-    openapi_url="/api/openapi.json",
-    docs_url="/api/docs",
+    openapi_url="/api/openapi.json" if api_schema_enabled() else None,
+    docs_url="/api/docs" if api_schema_enabled() else None,
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -165,11 +170,13 @@ async def internal_error(request: Request, exc: Exception):
     )
 
 
+@app.get("/api/health/live", include_in_schema=False)
 @app.get("/health/live")
 async def live():
     return {"status": "ok"}
 
 
+@app.get("/api/health/ready", include_in_schema=False)
 @app.get("/health/ready")
 async def ready():
     try:
