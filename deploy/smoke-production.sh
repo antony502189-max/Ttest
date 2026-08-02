@@ -11,4 +11,15 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 "${compose[@]}" exec -T postgres psql -U "$(grep '^POSTGRES_USER=' "$ENV_FILE" | cut -d= -f2-)" -d "$(grep '^POSTGRES_DB=' "$ENV_FILE" | cut -d= -f2-)" -tAc 'SELECT PostGIS_Version();'
 "${compose[@]}" exec -T redis redis-cli ping
 curl --fail --silent --show-error --location "https://$domain/" >/dev/null
-curl --fail --silent --show-error "https://$domain/api/openapi.json" >/dev/null
+curl --fail --silent --show-error "https://$domain/api/health/live" >/dev/null
+curl --fail --silent --show-error "https://$domain/api/health/ready" >/dev/null
+curl --fail --silent --show-error "https://$domain/api/v1/listings" >/dev/null
+curl --fail --silent --show-error "https://$domain/privacidad" >/dev/null
+curl --fail --silent --show-error "https://$domain/terminos" >/dev/null
+
+# Interactive API metadata is useful in development, but must not be exposed
+# from the public production origin.
+for path in /api/docs /api/openapi.json; do
+  status="$(curl --silent --output /dev/null --write-out '%{http_code}' "https://$domain$path")"
+  [[ "$status" == "404" ]] || { echo "expected $path to return 404, got $status" >&2; exit 65; }
+done
