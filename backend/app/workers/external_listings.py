@@ -38,6 +38,38 @@ async def _release_distributed_lock(redis, lock_key: str, token: str) -> None:
         logger.warning("external_import_lock_release_failed")
 
 
+async def _recover_stale_distributed_lock(redis, lock_key: str, max_age_seconds: int) -> bool:
+    """Release an orphaned lock only when its recorded owner has stopped heartbeating."""
+    try:
+        token = await redis.get(lock_key)
+        if not token:
+            return False
+        async with SessionLocal() as session:
+            state = await session.get(ExternalWorkerState, 1)
+        if (
+            not state
+            or state.health != "running"
+            or not state.heartbeat_at
+            or state.last_run_id != token.decode()
+            or state.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=max_age_seconds)
+        ):
+            return False
+        return bool(await redis.delete(lock_key))
+    except (RedisError, UnicodeDecodeError):
+        logger.exception("external_import_stale_lock_recovery_failed")
+        return False
+
+
+async def _heartbeat_while_running(stopping: asyncio.Event, run_id: str) -> None:
+    """Keep the health state fresh while a source import is legitimately slow."""
+    interval = min(60, max(15, get_settings().external_import_interval_seconds // 2))
+    while not stopping.is_set():
+        try:
+            await asyncio.wait_for(stopping.wait(), timeout=interval)
+        except TimeoutError:
+            await worker_state(run_id=run_id)
+
+
 async def worker_state(*, health: str | None = None, error: str | None = None, run_id: str | None = None) -> ExternalWorkerState:
     now = datetime.now(UTC)
     async with SessionLocal() as session:
@@ -73,28 +105,34 @@ async def run_once() -> dict[str, dict[str, int]]:
         return {}
     await local_import_lock.acquire()
     redis = None
-    token = str(uuid4())
+    run_id = str(uuid4())
+    token = run_id
     lock_key = "ttest:external-listings-import"
     result: dict[str, dict[str, int]] = {}
+    heartbeat_stop: asyncio.Event | None = None
+    heartbeat_task: asyncio.Task[None] | None = None
     try:
-        run_id = str(uuid4())
         if settings.redis_url:
             redis = from_url(settings.redis_url)
+            lock_ttl = max(21_600, settings.external_import_interval_seconds * 2)
             acquired = await _acquire_distributed_lock(
                 redis,
                 lock_key,
                 token,
-                max(21_600, settings.external_import_interval_seconds * 2),
+                lock_ttl,
             )
             if not acquired:
-                # A full source run can download and normalize many public images.
-                # Use a TTL longer than the permitted import window; deletion still
-                # verifies the unique token so one worker never removes another lock.
-                return {}
+                max_age = max(120, settings.external_import_interval_seconds + 120)
+                if not await _recover_stale_distributed_lock(redis, lock_key, max_age):
+                    return {}
+                if not await _acquire_distributed_lock(redis, lock_key, token, lock_ttl):
+                    return {}
         # Only the worker that holds the distributed lock may publish a
         # running state; otherwise a passive replica would overwrite the
         # heartbeat of the active worker.
         await worker_state(health="running", run_id=run_id)
+        heartbeat_stop = asyncio.Event()
+        heartbeat_task = asyncio.create_task(_heartbeat_while_running(heartbeat_stop, run_id))
         for source in configured_sources():
             async with SessionLocal() as session:
                 result[source.name] = await run_source(session, source, run_id)
@@ -111,9 +149,12 @@ async def run_once() -> dict[str, dict[str, int]]:
         await worker_state(health="healthy", run_id=run_id)
         return result
     except Exception as exc:
-        await worker_state(health="failed", error=str(exc), run_id=run_id if "run_id" in locals() else None)
+        await worker_state(health="failed", error=str(exc), run_id=run_id)
         raise
     finally:
+        if heartbeat_stop and heartbeat_task:
+            heartbeat_stop.set()
+            await heartbeat_task
         if redis:
             try:
                 await _release_distributed_lock(redis, lock_key, token)
