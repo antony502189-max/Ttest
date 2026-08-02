@@ -8,7 +8,7 @@ from starlette.requests import Request
 import app.main as main_module
 from app.api.v1.auth import require_cookie_origin
 from app.core.config import get_settings
-from app.main import RATE_LIMITS, api_schema_enabled, app
+from app.main import RATE_LIMITS, api_schema_enabled, app, rate_limit_client
 from app.services.rate_limit import MemoryRateLimiter
 
 
@@ -47,6 +47,15 @@ def test_rate_limiter_returns_retry_after() -> None:
     assert first.allowed
     assert not second.allowed
     assert second.retry_after >= 1
+
+
+def test_rate_limit_client_uses_forwarded_public_address() -> None:
+    request = Request({
+        "type": "http",
+        "client": ("172.16.0.3", 12345),
+        "headers": [(b"x-forwarded-for", b"198.51.100.10, 172.16.0.3")],
+    })
+    assert rate_limit_client(request) == "198.51.100.10"
 
 
 def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:

@@ -79,6 +79,15 @@ def rate_rule(method: str, path: str) -> tuple[int, int] | None:
     return None
 
 
+def rate_limit_client(request: Request) -> str:
+    # The backend is private to Compose and receives public traffic only through
+    # the frontend proxy, which appends the client address to X-Forwarded-For.
+    # Using request.client here would rate-limit every visitor under that proxy.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    client = forwarded.split(",", 1)[0].strip()
+    return client or (request.client.host if request.client else "unknown")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings.validate_runtime()
@@ -114,7 +123,7 @@ async def request_context(request: Request, call_next):
     started = perf_counter()
     rate = rate_rule(request.method, request.url.path)
     if rate:
-        client = request.client.host if request.client else "unknown"
+        client = rate_limit_client(request)
         result = await rate_limiter.consume(f"ttest:rate:{client}:{request.method}:{request.url.path}", *rate)
         if not result.allowed:
             return JSONResponse(
