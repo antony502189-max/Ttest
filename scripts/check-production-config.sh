@@ -35,6 +35,7 @@ grep -Fq 'https://$domain/api/health/live' deploy/smoke-production.sh
 grep -Fq 'https://$domain/api/health/ready' deploy/smoke-production.sh
 grep -Fq 'https://$domain/api/v1/listings' deploy/smoke-production.sh
 grep -Fq 'expected $path to return 404' deploy/smoke-production.sh
+grep -Fq 'for _ in $(seq 1 30); do' deploy/smoke-production.sh
 test -s public/privacidad/index.html
 test -s public/terminos/index.html
 grep -Fq 'Política de privacidad' public/privacidad/index.html

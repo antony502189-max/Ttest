@@ -10,6 +10,15 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=3); urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
 "${compose[@]}" exec -T postgres psql -U "$(grep '^POSTGRES_USER=' "$ENV_FILE" | cut -d= -f2-)" -d "$(grep '^POSTGRES_DB=' "$ENV_FILE" | cut -d= -f2-)" -tAc 'SELECT PostGIS_Version();'
 "${compose[@]}" exec -T redis redis-cli ping
+
+# The frontend starts after the backend health gate; give Traefik and Nginx a
+# bounded window to publish the new container before asserting public routes.
+for _ in $(seq 1 30); do
+  if curl --fail --silent --show-error --location "https://$domain/" >/dev/null; then
+    break
+  fi
+  sleep 2
+done
 curl --fail --silent --show-error --location "https://$domain/" >/dev/null
 curl --fail --silent --show-error "https://$domain/api/health/live" >/dev/null
 curl --fail --silent --show-error "https://$domain/api/health/ready" >/dev/null
