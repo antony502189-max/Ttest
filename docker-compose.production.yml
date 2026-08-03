@@ -3,8 +3,12 @@ name: ttest-production
 x-backend-env: &backend-env
   APP_ENV: production
   DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+  DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-5}
+  DATABASE_POOL_TIMEOUT_SECONDS: ${DATABASE_POOL_TIMEOUT_SECONDS:-30}
+  DATABASE_POOL_RECYCLE_SECONDS: ${DATABASE_POOL_RECYCLE_SECONDS:-1800}
   JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-  EMAIL_VERIFICATION_HMAC_SECRET: ${EMAIL_VERIFICATION_HMAC_SECRET:-}
+  EMAIL_VERIFICATION_HMAC_SECRET: ${EMAIL_VERIFICATION_HMAC_SECRET:?EMAIL_VERIFICATION_HMAC_SECRET is required}
   REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
   STORAGE_BACKEND: s3
   S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
@@ -13,6 +17,14 @@ x-backend-env: &backend-env
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}
   S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
   S3_FORCE_PATH_STYLE: "true"
+  S3_CONNECT_TIMEOUT_SECONDS: ${S3_CONNECT_TIMEOUT_SECONDS:-3}
+  S3_READ_TIMEOUT_SECONDS: ${S3_READ_TIMEOUT_SECONDS:-10}
+  S3_MAX_ATTEMPTS: ${S3_MAX_ATTEMPTS:-3}
+  S3_MAX_POOL_CONNECTIONS: ${S3_MAX_POOL_CONNECTIONS:-32}
+  MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-8388608}
+  MAX_IMAGE_DIMENSION: ${MAX_IMAGE_DIMENSION:-8000}
+  MAX_IMAGE_PIXELS: ${MAX_IMAGE_PIXELS:-25000000}
+  IMAGE_PROCESSING_CONCURRENCY: ${IMAGE_PROCESSING_CONCURRENCY:-2}
   FRONTEND_APP_URL: https://${APP_DOMAIN:?APP_DOMAIN is required}
   FRONTEND_ORIGINS: https://${APP_DOMAIN}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
@@ -38,6 +50,14 @@ x-backend-env: &backend-env
   EXTERNAL_IMPORT_PLAYWRIGHT_ENABLED: ${EXTERNAL_IMPORT_PLAYWRIGHT_ENABLED:-1}
   EXTERNAL_REMOVAL_CHECK_ENABLED: ${EXTERNAL_REMOVAL_CHECK_ENABLED:-1}
   EXTERNAL_REMOVAL_CHECK_INTERVAL_SECONDS: ${EXTERNAL_REMOVAL_CHECK_INTERVAL_SECONDS:-900}
+  EXTERNAL_WORKER_STALE_AFTER_SECONDS: ${EXTERNAL_WORKER_STALE_AFTER_SECONDS:-300}
+
+x-python-hardening: &python-hardening
+  init: true
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  stop_grace_period: 30s
 
 services:
   postgres:
@@ -123,8 +143,13 @@ services:
     networks: [application]
 
   backend:
+    <<: *python-hardening
     build: { context: ./backend }
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    pids_limit: 256
     environment: *backend-env
     depends_on:
       postgres: { condition: service_healthy }
@@ -138,8 +163,13 @@ services:
     networks: [application, egress]
 
   mail-worker:
+    <<: *python-hardening
     build: { context: ./backend }
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    pids_limit: 128
     command: ["python", "-m", "app.commands.outbox_worker"]
     environment: *backend-env
     depends_on:
@@ -155,8 +185,13 @@ services:
     networks: [application, egress]
 
   external-listings-worker:
+    <<: *python-hardening
     build: { context: ./backend }
     restart: unless-stopped
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+      - /dev/shm:size=256m,mode=1777
+    pids_limit: 768
     command: ["python", "-m", "app.workers.external_listings", "--loop"]
     environment: *backend-env
     depends_on:
