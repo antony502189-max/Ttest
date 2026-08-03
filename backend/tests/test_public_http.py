@@ -19,6 +19,14 @@ class ChunkStream(httpx.AsyncByteStream):
         self.closed = True
 
 
+class PeerStream:
+    def __init__(self, host: str):
+        self.host = host
+
+    def get_extra_info(self, name: str):
+        return (self.host, 443) if name == "server_addr" else None
+
+
 def test_private_literal_address_is_blocked():
     async def verify() -> None:
         with pytest.raises(httpx.ConnectError, match="non-public"):
@@ -72,5 +80,43 @@ def test_content_length_above_budget_is_rejected(monkeypatch):
         )
         with pytest.raises(httpx.StreamError, match="size limit"):
             await public_http.limit_public_response(response)
+
+    asyncio.run(verify())
+
+
+def test_compressed_response_is_rejected_before_decompression():
+    async def verify() -> None:
+        response = httpx.Response(
+            200,
+            headers={"content-encoding": "gzip"},
+            stream=ChunkStream(b"compressed"),
+        )
+        with pytest.raises(httpx.StreamError, match="Compressed"):
+            await public_http.limit_public_response(response)
+
+    asyncio.run(verify())
+
+
+def test_private_connected_peer_is_blocked_after_dns_validation():
+    async def verify() -> None:
+        response = httpx.Response(
+            200,
+            stream=ChunkStream(b"body"),
+            extensions={"network_stream": PeerStream("172.18.0.5")},
+        )
+        with pytest.raises(httpx.ConnectError, match="non-public"):
+            await public_http.limit_public_response(response)
+
+    asyncio.run(verify())
+
+
+def test_guarded_client_forces_identity_encoding_and_ignores_env_proxy():
+    async def verify() -> None:
+        client = public_http.PublicNetworkAsyncClient(headers={"User-Agent": "test"})
+        try:
+            assert client.headers["accept-encoding"] == "identity"
+            assert client._trust_env is False
+        finally:
+            await client.aclose()
 
     asyncio.run(verify())
