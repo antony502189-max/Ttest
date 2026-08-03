@@ -24,15 +24,31 @@ load_backup_keys() {
     echo "backup encryption and authentication keys must be independent" >&2
     return 65
   }
+  command -v python3 >/dev/null 2>&1 || {
+    echo "python3 is required for authenticated backup operations" >&2
+    return 65
+  }
 }
 
 write_backup_hmac() {
   local encrypted_file="$1"
   local temporary_mac
   temporary_mac="$(mktemp "${encrypted_file}.hmac.tmp.XXXXXX")"
-  if ! openssl dgst -sha256 -mac HMAC \
-    -macopt keyenv:BACKUP_AUTHENTICATION_KEY \
-    -binary "$encrypted_file" > "$temporary_mac"; then
+  if ! python3 - "$encrypted_file" "$temporary_mac" <<'PY'
+import hashlib
+import hmac
+import os
+import sys
+
+source, destination = sys.argv[1:3]
+mac = hmac.new(os.environ["BACKUP_AUTHENTICATION_KEY"].encode(), digestmod=hashlib.sha256)
+with open(source, "rb") as stream:
+    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        mac.update(chunk)
+with open(destination, "wb") as output:
+    output.write(mac.digest())
+PY
+  then
     rm -f "$temporary_mac"
     return 1
   fi
@@ -43,7 +59,6 @@ write_backup_hmac() {
 verify_backup_authentication() {
   local encrypted_file="$1"
   local stored_mac="${encrypted_file}.hmac"
-  local calculated_mac
 
   if [[ ! -f "$stored_mac" ]]; then
     if [[ "${ALLOW_LEGACY_UNAUTHENTICATED_BACKUP:-0}" == "1" && -f "${encrypted_file}.sha256" ]]; then
@@ -56,17 +71,24 @@ verify_backup_authentication() {
     return 65
   fi
 
-  calculated_mac="$(mktemp "${encrypted_file}.verify.tmp.XXXXXX")"
-  if ! openssl dgst -sha256 -mac HMAC \
-    -macopt keyenv:BACKUP_AUTHENTICATION_KEY \
-    -binary "$encrypted_file" > "$calculated_mac"; then
-    rm -f "$calculated_mac"
-    return 1
-  fi
-  if ! cmp -s "$stored_mac" "$calculated_mac"; then
-    rm -f "$calculated_mac"
+  if ! python3 - "$encrypted_file" "$stored_mac" <<'PY'
+import hashlib
+import hmac
+import os
+import sys
+
+source, stored_path = sys.argv[1:3]
+mac = hmac.new(os.environ["BACKUP_AUTHENTICATION_KEY"].encode(), digestmod=hashlib.sha256)
+with open(source, "rb") as stream:
+    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        mac.update(chunk)
+with open(stored_path, "rb") as stored:
+    expected = stored.read()
+if len(expected) != hashlib.sha256().digest_size or not hmac.compare_digest(expected, mac.digest()):
+    raise SystemExit(1)
+PY
+  then
     echo "backup authentication failed: $encrypted_file" >&2
     return 65
   fi
-  rm -f "$calculated_mac"
 }
