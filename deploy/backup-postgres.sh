@@ -1,26 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 # Run on the VPS. This creates a new immutable dump; it never removes backups.
 ROOT="${ROOT:-/srv/112233.es}"
 ENV_FILE="${ENV_FILE:-$ROOT/shared/production.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT/current/docker-compose.production.yml}"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups}"
-[[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
-# Preserve the dotenv value after the first '=' verbatim; secrets may contain '='.
-BACKUP_ENCRYPTION_KEY="$(sed -n 's/^BACKUP_ENCRYPTION_KEY=//p' "$ENV_FILE" | tail -n 1)"
-export BACKUP_ENCRYPTION_KEY
-[[ -n "$BACKUP_ENCRYPTION_KEY" ]] || { echo "BACKUP_ENCRYPTION_KEY is required" >&2; exit 65; }
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/backup-crypto.sh
+source "$SCRIPT_DIR/backup-crypto.sh"
+load_backup_keys "$ENV_FILE"
+
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
-stamp="$(date -u +%Y%m%d-%H%M%S)"
+stamp="$(date -u +%Y%m%d-%H%M%S)-$$-$RANDOM"
 dump="$BACKUP_DIR/postgres-$stamp.dump.enc"
-checksum="$dump.sha256"
+temporary_dump="$(mktemp "$BACKUP_DIR/.postgres-$stamp.XXXXXX.tmp")"
+cleanup() { rm -f "$temporary_dump"; }
+trap cleanup EXIT
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
   sh -ec 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
-  | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_ENCRYPTION_KEY -out "$dump"
-sha256sum "$dump" > "$checksum"
-chmod 600 "$dump" "$checksum"
+  | openssl enc -aes-256-cbc -pbkdf2 -salt \
+      -pass env:BACKUP_ENCRYPTION_KEY -out "$temporary_dump"
+
+[[ -s "$temporary_dump" ]] || { echo "PostgreSQL backup is empty" >&2; exit 65; }
+chmod 600 "$temporary_dump"
+mv "$temporary_dump" "$dump"
+write_backup_hmac "$dump"
+trap - EXIT
 printf '%s\n' "$dump"
