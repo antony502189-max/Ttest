@@ -4,7 +4,6 @@ import asyncio
 import socket
 from collections.abc import AsyncIterator, Awaitable, Callable
 from ipaddress import ip_address
-from urllib.parse import urlsplit
 
 import httpx
 
