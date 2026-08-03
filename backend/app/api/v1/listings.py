@@ -88,11 +88,20 @@ async def search_listings(payload: ListingSearchRequest, session: AsyncSession =
 
 
 @router.get("/mine", response_model=list[OwnedListingResponse])
-async def list_my_listings(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def list_my_listings(
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
     query = owned_query().where(Listing.deleted_at.is_(None))
     if user.role != "admin":
         query = query.where(Listing.owner_user_id == user.id)
-    rows = (await session.execute(query.order_by(Listing.created_at.desc()))).all()
+    rows = (
+        await session.execute(
+            query.order_by(Listing.created_at.desc(), Listing.id.desc()).limit(limit).offset(offset)
+        )
+    ).all()
     return [owned_response_from(row) for row in rows]
 
 
