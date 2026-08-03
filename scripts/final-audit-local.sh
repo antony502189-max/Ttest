@@ -27,9 +27,15 @@ if ! docker compose exec -T postgres psql -U ttest -d postgres -tAc "SELECT 1 FR
 fi
 
 echo '[3/9] Installing local backend audit environment'
+case "$AUDIT_VENV" in
+  "$ROOT"/*) ;;
+  *) echo 'AUDIT_VENV must be inside the repository root' >&2; exit 64 ;;
+esac
+rm -rf "$AUDIT_VENV"
 python3 -m venv "$AUDIT_VENV"
 "$AUDIT_VENV/bin/python" -m pip install --upgrade pip
-"$AUDIT_VENV/bin/python" -m pip install -e "$ROOT/backend[dev]"
+"$AUDIT_VENV/bin/python" -m pip install --constraint "$ROOT/backend/constraints.txt" -e "$ROOT/backend[dev]"
+"$AUDIT_VENV/bin/python" -m pip check
 
 export APP_ENV=test
 export DATABASE_URL="$TEST_DATABASE_URL"

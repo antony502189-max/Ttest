@@ -298,7 +298,7 @@ class ListingSearchRequest(BaseModel):
     polygon: list[SearchPoint] = Field(default_factory=list, max_length=100)
     sort: str = "newest"
     limit: int = Field(default=20, ge=1, le=100)
-    offset: int = Field(default=0, ge=0)
+    offset: int = Field(default=0, ge=0, le=10_000)
 
     @model_validator(mode="after")
     def validate_filters(self):

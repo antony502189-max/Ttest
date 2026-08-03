@@ -27,6 +27,10 @@ from ..models import AuthSession, EmailVerificationToken, PasswordResetToken, Us
 from ..schemas.auth import GoogleLoginRequest, RegisterRequest
 from .mail import enqueue_email_verification, enqueue_password_reset
 
+PASSWORD_RESET_COOLDOWN = timedelta(seconds=60)
+PASSWORD_RESET_WINDOW = timedelta(hours=1)
+MAX_PASSWORD_RESETS_PER_HOUR = 3
+
 
 @dataclass(frozen=True)
 class AuthResult:
@@ -296,11 +300,40 @@ async def google_login_user(
 
 
 async def request_password_reset(email: str, session: AsyncSession) -> dict[str, str]:
-    user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
     response = {"message": "If the account exists, password reset instructions have been sent."}
+    user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
     if not user or user.blocked or user.deleted_at:
         return response
+
     now = datetime.now(UTC)
+    settings = get_settings()
+    # Serialize by account so distributed callers cannot race the cooldown and
+    # create multiple valid tokens or outbox rows. Suppression remains silent:
+    # callers receive the same generic response as for an unknown account.
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"password-reset:{user.id}"},
+    )
+    issued_at = list(
+        (
+            await session.scalars(
+                select(PasswordResetToken.created_at)
+                .where(
+                    PasswordResetToken.user_id == user.id,
+                    PasswordResetToken.created_at > now - PASSWORD_RESET_WINDOW,
+                )
+                .order_by(PasswordResetToken.created_at.desc())
+                .limit(MAX_PASSWORD_RESETS_PER_HOUR)
+            )
+        ).all()
+    )
+    quota_reached = len(issued_at) >= MAX_PASSWORD_RESETS_PER_HOUR
+    cooling_down = bool(issued_at and issued_at[0] > now - PASSWORD_RESET_COOLDOWN)
+    if quota_reached or cooling_down:
+        # End the advisory-lock transaction even though no state changed.
+        await session.commit()
+        return response
+
     await session.execute(
         update(PasswordResetToken)
         .where(PasswordResetToken.user_id == user.id, PasswordResetToken.consumed_at.is_(None))
@@ -311,12 +344,12 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
         PasswordResetToken(
             user_id=user.id,
             token_hash=token_hash(raw_token),
-            expires_at=now + timedelta(minutes=get_settings().password_reset_minutes),
+            expires_at=now + timedelta(minutes=settings.password_reset_minutes),
         )
     )
     enqueue_password_reset(session, user.email, raw_token)
     await session.commit()
-    if get_settings().app_env in {"development", "test"}:
+    if settings.app_env in {"development", "test"}:
         response["resetToken"] = raw_token
     return response
 
