@@ -1,6 +1,6 @@
 """Index external-import history retention and baseline lookups.
 
-Revision ID: 0029_external_import_run_retention
+Revision ID: 0029_import_run_retention
 Revises: 0028_data_retention_indexes
 """
 
@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0029_external_import_run_retention"
+revision: str = "0029_import_run_retention"
 down_revision: str | None = "0028_data_retention_indexes"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
