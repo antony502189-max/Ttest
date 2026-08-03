@@ -3,13 +3,20 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import AuthSession, EmailVerificationToken, MailOutbox, PasswordResetToken
+from ..models import (
+    AuthSession,
+    EmailVerificationToken,
+    ExternalImportRun,
+    MailOutbox,
+    PasswordResetToken,
+)
 
 MAIL_OUTBOX_RETENTION_DAYS = 30
 SECURITY_RECORD_RETENTION_DAYS = 7
+EXTERNAL_IMPORT_RUN_RETENTION_DAYS = 30
 RETENTION_BATCH_SIZE = 1_000
 RETENTION_RUN_INTERVAL = timedelta(hours=1)
 
@@ -24,6 +31,41 @@ async def _delete_selected_ids(
         return 0
     await session.execute(delete(model).where(model.id.in_(ids)))
     return len(ids)
+
+
+def old_external_import_run_ids(current: datetime, cutoff: datetime, batch_size: int):
+    """Select disposable history while preserving importer state-machine inputs."""
+    # Reconciliation compares discovery volume with the most recent successful
+    # run for each source. Keep that baseline even if a source has been blocked
+    # or offline longer than the normal history-retention window.
+    latest_success_ids = (
+        select(ExternalImportRun.id)
+        .where(
+            ExternalImportRun.result == "success",
+            ExternalImportRun.finished_at.is_not(None),
+        )
+        .distinct(ExternalImportRun.source_name)
+        .order_by(
+            ExternalImportRun.source_name,
+            ExternalImportRun.finished_at.desc(),
+            ExternalImportRun.id.desc(),
+        )
+    )
+    return (
+        select(ExternalImportRun.id)
+        .where(
+            ExternalImportRun.finished_at.is_not(None),
+            ExternalImportRun.finished_at <= cutoff,
+            ExternalImportRun.id.not_in(latest_success_ids),
+            or_(
+                ExternalImportRun.result != "blocked",
+                ExternalImportRun.next_check_at.is_(None),
+                ExternalImportRun.next_check_at <= current,
+            ),
+        )
+        .order_by(ExternalImportRun.finished_at, ExternalImportRun.id)
+        .limit(batch_size)
+    )
 
 
 async def prune_expired_records(
@@ -44,6 +86,7 @@ async def prune_expired_records(
     current = now or datetime.now(UTC)
     mail_cutoff = current - timedelta(days=MAIL_OUTBOX_RETENTION_DAYS)
     security_cutoff = current - timedelta(days=SECURITY_RECORD_RETENTION_DAYS)
+    external_run_cutoff = current - timedelta(days=EXTERNAL_IMPORT_RUN_RETENTION_DAYS)
 
     counts = {
         "mail_outbox": await _delete_selected_ids(
@@ -80,6 +123,11 @@ async def prune_expired_records(
             .where(EmailVerificationToken.expires_at <= security_cutoff)
             .order_by(EmailVerificationToken.expires_at, EmailVerificationToken.id)
             .limit(batch_size),
+        ),
+        "external_import_runs": await _delete_selected_ids(
+            session,
+            ExternalImportRun,
+            old_external_import_run_ids(current, external_run_cutoff, batch_size),
         ),
     }
     await session.commit()
