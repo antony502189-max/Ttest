@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     database_max_overflow: int = 20
     database_pool_timeout_seconds: int = 30
     database_pool_recycle_seconds: int = 1_800
+    database_statement_timeout_ms: int = 60_000
+    database_lock_timeout_ms: int = 10_000
     jwt_secret: str = "unsafe-development-secret-change-me-32"
     access_token_minutes: int = 15
     refresh_token_days: int = 30
@@ -157,8 +159,14 @@ class Settings(BaseSettings):
             or self.database_max_overflow < 0
             or self.database_pool_timeout_seconds < 1
             or self.database_pool_recycle_seconds < 1
+            or self.database_statement_timeout_ms < 1
+            or self.database_lock_timeout_ms < 1
+            or self.database_lock_timeout_ms >= self.database_statement_timeout_ms
         ):
-            problems.append("Database pool settings must be positive and overflow cannot be negative")
+            problems.append(
+                "Database pool and execution settings must be positive, overflow cannot be negative, "
+                "and lock timeout must be shorter than statement timeout"
+            )
         if (
             self.max_upload_bytes < 1
             or self.max_image_dimension < 1
