@@ -4,6 +4,7 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from botocore.exceptions import EndpointConnectionError
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
@@ -89,6 +90,14 @@ class ProbeSource:
         assert not self.session.in_transaction()
         self.calls += 1
         return "active"
+
+
+class FailingS3Storage:
+    def put(self, key: str, content: bytes) -> None:
+        raise EndpointConnectionError(endpoint_url="http://minio:9000")
+
+    def delete(self, key: str) -> None:
+        raise EndpointConnectionError(endpoint_url="http://minio:9000")
 
 
 class RecordingStorage:
@@ -195,6 +204,61 @@ async def test_image_download_and_storage_do_not_reuse_another_users_private_ass
         assert attached_asset.owner_id == system_owner.id
         assert attached_asset.kind == "listing_image"
         assert storage.objects == {f"external/{checksum}.webp": normalized}
+
+
+async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatch):
+    normalized = b"unavailable-s3-image"
+    checksum = hashlib.sha256(normalized).hexdigest()
+
+    async with SessionLocal() as session:
+        async def image_hashes(urls: list[str]) -> set[str]:
+            assert not session.in_transaction()
+            return set()
+
+        async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
+            assert not session.in_transaction()
+            return importer.PreparedExternalImage(
+                content=normalized,
+                width=16,
+                height=16,
+                checksum=checksum,
+                perceptual_hash="2" * 16,
+            )
+
+        monkeypatch.setattr(importer, "public_image_hashes", image_hashes)
+        monkeypatch.setattr(importer, "download_external_image", prepared_image)
+        monkeypatch.setattr(importer, "get_storage", FailingS3Storage)
+
+        item = external_item(
+            source="Idealista",
+            external_id="s3-failure-boundary",
+            url="https://www.idealista.com/inmueble/s3-failure-boundary/",
+            photos=["https://images.example.test/unavailable.webp"],
+        )
+        assert await importer.upsert(session, item) == "imported"
+        assert not session.in_transaction()
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert source_record is not None
+        attached_count = len(
+            (
+                await session.scalars(
+                    select(ListingImage.id).where(
+                        ListingImage.listing_id == source_record.canonical_listing_id
+                    )
+                )
+            ).all()
+        )
+        persisted_asset = await session.scalar(
+            select(MediaAsset.id).where(MediaAsset.checksum == checksum)
+        )
+        assert attached_count == 0
+        assert persisted_asset is None
 
 
 async def test_reconciliation_probes_run_without_database_transaction(monkeypatch):

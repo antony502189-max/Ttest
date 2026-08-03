@@ -13,6 +13,7 @@ from time import perf_counter
 from uuid import UUID
 
 import httpx
+from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import HTTPException
 from PIL import Image
 from sqlalchemy import or_, select
@@ -276,7 +277,7 @@ async def import_images(
                     require_no_active_transaction(session, "external image storage")
                     try:
                         await asyncio.to_thread(storage.put, created_storage_key, prepared.content)
-                    except OSError:
+                    except (OSError, BotoCoreError, ClientError):
                         logger.exception(
                             "external_image_storage_failed",
                             extra={"listing_id": str(listing_id), "image_position": image_position},
@@ -312,7 +313,7 @@ async def import_images(
                 if created_storage_key is not None:
                     try:
                         await asyncio.to_thread(storage.delete, created_storage_key)
-                    except OSError:
+                    except (OSError, BotoCoreError, ClientError):
                         logger.exception(
                             "external_image_cleanup_failed",
                             extra={"listing_id": str(listing_id), "image_position": image_position},
