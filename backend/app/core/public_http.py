@@ -14,7 +14,7 @@ _ORIGINAL_ASYNC_CLIENT = httpx.AsyncClient
 async def resolve_host(host: str, port: int) -> set[str]:
     loop = asyncio.get_running_loop()
     records = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-    return {record[4][0] for record in records}
+    return {str(record[4][0]) for record in records}
 
 
 async def validate_public_url(url: httpx.URL) -> None:
@@ -78,7 +78,11 @@ async def limit_public_response(response: httpx.Response) -> None:
                 raise httpx.StreamError("Outbound response exceeded the configured size limit")
         except ValueError:
             pass
-    response.stream = LimitedAsyncStream(response.stream, MAX_PUBLIC_RESPONSE_BYTES)
+    stream = response.stream
+    if not isinstance(stream, httpx.AsyncByteStream):
+        await response.aclose()
+        raise httpx.StreamError("Outbound response did not provide an async stream")
+    response.stream = LimitedAsyncStream(stream, MAX_PUBLIC_RESPONSE_BYTES)
 
 
 def _append_hook(
