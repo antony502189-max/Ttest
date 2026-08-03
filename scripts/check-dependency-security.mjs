@@ -17,7 +17,7 @@ try {
 
 const unexpected = []
 for (const [name, vulnerability] of Object.entries(audit.vulnerabilities ?? {})) {
-  if (!['high', 'critical'].includes(vulnerability.severity)) continue
+  if (!['moderate', 'high', 'critical'].includes(vulnerability.severity)) continue
   unexpected.push({
     name,
     severity: vulnerability.severity,
@@ -41,7 +41,7 @@ for (const [name, vulnerability] of Object.entries(audit.vulnerabilities ?? {}))
 if (unexpected.length) {
   console.error(JSON.stringify({ dependencyAuditFindings: unexpected }, null, 2))
   throw new Error(
-    `Unexpected high or critical dependency audit findings: ${unexpected.map(({ name }) => name).join(', ')}`,
+    `Unexpected moderate, high, or critical production dependency audit findings: ${unexpected.map(({ name }) => name).join(', ')}`,
   )
 }
 console.log('dependency-security-policy: ok')
