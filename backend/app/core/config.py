@@ -52,9 +52,13 @@ class Settings(BaseSettings):
     smtp_from: str = "noreply@112233.es"
     smtp_from_name: str = ""
     smtp_starttls: bool = True
+    smtp_timeout_seconds: int = 15
     mail_worker_interval_seconds: int = 10
     mail_worker_batch_size: int = 50
     mail_max_attempts: int = 8
+    mail_lease_seconds: int = 1_200
+    mail_retry_base_seconds: int = 30
+    mail_retry_max_seconds: int = 3_600
 
     # In production new listings wait for moderation unless explicitly enabled.
     auto_publish_listings: bool = False
@@ -125,8 +129,16 @@ class Settings(BaseSettings):
             problems.append("Password reset and email verification lifetimes must be positive")
         if self.password_work_concurrency < 1:
             problems.append("PASSWORD_WORK_CONCURRENCY must be positive")
-        if self.mail_worker_interval_seconds < 1 or self.mail_worker_batch_size < 1 or self.mail_max_attempts < 1:
-            problems.append("Mail worker limits must be positive")
+        if (
+            self.mail_worker_interval_seconds < 1
+            or self.mail_worker_batch_size < 1
+            or self.mail_max_attempts < 1
+            or self.smtp_timeout_seconds < 1
+            or self.mail_retry_base_seconds < 1
+            or self.mail_retry_max_seconds < self.mail_retry_base_seconds
+            or self.mail_lease_seconds < self.mail_worker_batch_size * self.smtp_timeout_seconds + 60
+        ):
+            problems.append("Mail worker lease, timeout, retry and batch limits are invalid")
         if (
             self.database_pool_size < 1
             or self.database_max_overflow < 0
