@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -14,6 +15,9 @@ class BusyRedis:
 
     async def get(self, *args, **kwargs):
         return None
+
+    async def eval(self, *args, **kwargs) -> int:
+        return 0
 
     async def aclose(self) -> None:
         return None
@@ -129,5 +133,64 @@ def test_loop_runs_full_sync_on_start_before_waiting_for_the_interval(monkeypatc
         with pytest.raises(StopLoop):
             await worker.loop()
         assert calls == ["full"]
+
+    asyncio.run(verify())
+
+
+def test_release_does_not_delete_a_lock_owned_by_another_worker():
+    class Redis:
+        def __init__(self):
+            self.value = "new-owner"
+
+        async def eval(self, _script, _keys, _key, token):
+            if self.value == token:
+                self.value = None
+                return 1
+            return 0
+
+    async def verify() -> None:
+        redis = Redis()
+        await worker._release_distributed_lock(redis, "lock", "old-owner")
+        assert redis.value == "new-owner"
+
+    asyncio.run(verify())
+
+
+def test_stale_recovery_cannot_delete_a_reacquired_lock(monkeypatch):
+    class Redis:
+        def __init__(self):
+            self.value = b"old-owner"
+
+        async def get(self, _key):
+            return self.value
+
+        async def eval(self, _script, _keys, _key, token):
+            # Simulate expiry and acquisition by a new worker between GET and EVAL.
+            self.value = b"new-owner"
+            if self.value == token.encode():
+                self.value = None
+                return 1
+            return 0
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, *_args):
+            return SimpleNamespace(
+                health="running",
+                heartbeat_at=datetime.now(UTC) - timedelta(hours=3),
+                last_run_id="old-owner",
+            )
+
+    async def verify() -> None:
+        redis = Redis()
+        monkeypatch.setattr(worker, "SessionLocal", Session)
+        recovered = await worker._recover_stale_distributed_lock(redis, "lock", 60)
+        assert recovered is False
+        assert redis.value == b"new-owner"
 
     asyncio.run(verify())
