@@ -77,7 +77,7 @@ async def _recover_stale_distributed_lock(redis, lock_key: str, max_age_seconds:
 
 async def _heartbeat_while_running(stopping: asyncio.Event, run_id: str) -> None:
     """Keep the health state fresh while a source import is legitimately slow."""
-    interval = min(60, max(15, get_settings().external_import_interval_seconds // 2))
+    interval = min(60, max(15, get_settings().external_worker_stale_after_seconds // 3))
     while not stopping.is_set():
         try:
             await asyncio.wait_for(stopping.wait(), timeout=interval)
@@ -135,15 +135,13 @@ async def run_once() -> dict[str, dict[str, int]]:
         if settings.redis_url:
             redis = from_url(settings.redis_url)
             lock_ttl = max(21_600, settings.external_import_interval_seconds * 2)
-            acquired = await _acquire_distributed_lock(
-                redis,
-                lock_key,
-                token,
-                lock_ttl,
-            )
+            acquired = await _acquire_distributed_lock(redis, lock_key, token, lock_ttl)
             if not acquired:
-                max_age = max(120, settings.external_import_interval_seconds + 120)
-                if not await _recover_stale_distributed_lock(redis, lock_key, max_age):
+                if not await _recover_stale_distributed_lock(
+                    redis,
+                    lock_key,
+                    settings.external_worker_stale_after_seconds,
+                ):
                     return {}
                 if not await _acquire_distributed_lock(redis, lock_key, token, lock_ttl):
                     return {}
@@ -276,7 +274,7 @@ def main() -> None:
                 state = await session.get(ExternalWorkerState, 1)
                 if not state or state.health == "failed" or not state.heartbeat_at:
                     raise SystemExit(1)
-                max_age = max(120, get_settings().external_import_interval_seconds + 120)
+                max_age = get_settings().external_worker_stale_after_seconds
                 if state.heartbeat_at < datetime.now(UTC) - timedelta(seconds=max_age):
                     raise SystemExit(1)
 
