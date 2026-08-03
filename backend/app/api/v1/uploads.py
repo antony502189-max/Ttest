@@ -8,10 +8,10 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.config import get_settings
+from ...core.config import Settings, get_settings
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
 from ...schemas.media import MediaAssetResponse
@@ -32,6 +32,19 @@ def public_asset(asset: MediaAsset) -> MediaAssetResponse:
         width=asset.width,
         height=asset.height,
         kind=asset.kind,
+    )
+
+
+def media_quota_exceeded(
+    *,
+    active_assets: int,
+    active_bytes: int,
+    new_bytes: int,
+    settings: Settings,
+) -> bool:
+    return (
+        active_assets >= settings.max_media_assets_per_user
+        or active_bytes + new_bytes > settings.max_media_bytes_per_user
     )
 
 
@@ -85,6 +98,32 @@ async def upload_image(
     # Keep them off the event loop and cap concurrent jobs to bound memory use.
     async with image_processing_slots:
         normalized, width, height = await asyncio.to_thread(validate_and_normalize, content)
+
+    # Serialize quota checks only for this user. Without the transaction-scoped
+    # advisory lock, concurrent uploads could all observe the same free quota.
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"media-upload:{user.id}"},
+    )
+    active_assets, active_bytes = (
+        await session.execute(
+            select(
+                func.count(MediaAsset.id),
+                func.coalesce(func.sum(MediaAsset.size_bytes), 0),
+            ).where(
+                MediaAsset.owner_id == user.id,
+                MediaAsset.deleted_at.is_(None),
+            )
+        )
+    ).one()
+    if media_quota_exceeded(
+        active_assets=int(active_assets),
+        active_bytes=int(active_bytes),
+        new_bytes=len(normalized),
+        settings=settings,
+    ):
+        raise HTTPException(413, "Media storage quota exceeded")
+
     storage_key = f"{user.id}/{uuid4().hex}.webp"
     storage = get_storage()
     await asyncio.to_thread(storage.put, storage_key, normalized)
