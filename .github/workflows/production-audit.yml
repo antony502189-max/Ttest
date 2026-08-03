@@ -33,6 +33,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate immutable supply-chain pins
+        run: python3 scripts/check-supply-chain.py
+
       - name: Validate production Compose, scripts, and nginx
         run: ./scripts/check-production-config.sh
 
