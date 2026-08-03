@@ -16,6 +16,11 @@ from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 
+from .core.browser_network import (
+    configure_public_browser_context,
+    hostname_matches_domain,
+    validate_public_browser_url,
+)
 from .core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -600,15 +605,23 @@ class ExternalListingSource(ABC):
         except ImportError:
             return None
         try:
+            if not hostname_matches_domain(url, self.domain):
+                return None
+            await validate_public_browser_url(url)
             async with self._browser_lock:
                 if not self._browser_context:
                     self._playwright = await async_playwright().start()
                     self._browser = await self._playwright.chromium.launch(headless=True)
                     settings = get_settings()
-                    context_options: dict[str, Any] = {"locale": "es-ES"}
+                    context_options: dict[str, Any] = {
+                        "locale": "es-ES",
+                        "service_workers": "block",
+                        "accept_downloads": False,
+                    }
                     if settings.external_import_user_agent.startswith("Mozilla/"):
                         context_options["user_agent"] = settings.external_import_user_agent
                     self._browser_context = await self._browser.new_context(**context_options)
+                    await configure_public_browser_context(self._browser_context)
                 page = await self._browser_context.new_page()
                 try:
                     response = await page.goto(
@@ -621,6 +634,9 @@ class ExternalListingSource(ABC):
                     document: str | None = await page.content()
                     status = response.status if response else None
                     final_url = page.url
+                    await validate_public_browser_url(final_url)
+                    if not hostname_matches_domain(final_url, self.domain):
+                        return None
                     self._record_page(url, document, status=status, final_url=final_url, method="BROWSER_GET")
                     logger.info("external_source_browser", extra={"source": self.name, "method": "BROWSER_GET", "url": url,
                                                                    "status": status, "final_url": final_url})
@@ -633,7 +649,7 @@ class ExternalListingSource(ABC):
                     return document
                 finally:
                     await page.close()
-        except (OSError, PlaywrightError, PlaywrightTimeoutError):
+        except (OSError, httpx.HTTPError, PlaywrightError, PlaywrightTimeoutError, ValueError):
             diagnostic = self.discovery_diagnostics.get(url, {})
             self._save_discovery_artifacts(url, diagnostic.get("html"))
             return None
@@ -641,7 +657,8 @@ class ExternalListingSource(ABC):
     def is_listing_url(self, url: str) -> bool:
         parsed = urlparse(url)
         return (
-            parsed.netloc.endswith(self.domain)
+            parsed.scheme in {"http", "https"}
+            and hostname_matches_domain(url, self.domain)
             and url.rstrip("/") not in {discovery.rstrip("/") for discovery in self.discovery_urls}
             and bool(self.listing_url_pattern.search(parsed.path))
         )
@@ -649,7 +666,7 @@ class ExternalListingSource(ABC):
     def is_pagination_url(self, url: str) -> bool:
         parsed = urlparse(url)
         location = parsed.path + (f"?{parsed.query}" if parsed.query else "")
-        return parsed.netloc.endswith(self.domain) and bool(
+        return parsed.scheme in {"http", "https"} and hostname_matches_domain(url, self.domain) and bool(
             re.search(
                 r"(?:[?&](?:pagina|page)=\d+|/pagina/\d+|/\d+/?$)",
                 location,
