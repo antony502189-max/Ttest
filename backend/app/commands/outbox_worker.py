@@ -10,6 +10,7 @@ from ..core.config import get_settings
 from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
 from ..models import MailWorkerState
+from ..services.data_retention import RETENTION_RUN_INTERVAL, prune_expired_records
 from ..services.mail import deliver_pending_mail
 
 logger = logging.getLogger(__name__)
@@ -44,15 +45,27 @@ async def run() -> None:
             loop.add_signal_handler(getattr(signal, name), stopping.set)
 
     logger.info("mail_worker_started")
+    next_retention_at = datetime.min.replace(tzinfo=UTC)
     try:
         await worker_state(health="running")
         while not stopping.is_set():
             try:
+                now = datetime.now(UTC)
                 async with SessionLocal() as session:
                     delivered = await deliver_pending_mail(session)
+                    pruned: dict[str, int] = {}
+                    if now >= next_retention_at:
+                        pruned = await prune_expired_records(session, now=now)
+                        next_retention_at = now + RETENTION_RUN_INTERVAL
                 await worker_state(health="healthy")
                 if delivered:
                     logger.info("mail_batch_delivered", extra={"delivered": delivered})
+                total_pruned = sum(pruned.values())
+                if total_pruned:
+                    logger.info(
+                        "expired_records_pruned",
+                        extra={"total": total_pruned, "tables": pruned},
+                    )
             except Exception as exc:
                 await worker_state(health="failed", error=type(exc).__name__)
                 logger.exception("mail_worker_iteration_failed")
