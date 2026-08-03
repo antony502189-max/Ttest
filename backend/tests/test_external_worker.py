@@ -30,6 +30,7 @@ def worker_settings(**overrides):
         "external_import_interval_seconds": 7200,
         "external_removal_check_interval_seconds": 900,
         "external_import_run_on_start": True,
+        "external_worker_stale_after_seconds": 300,
         "redis_url": "redis://test",
     }
     values.update(overrides)
