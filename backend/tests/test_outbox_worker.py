@@ -33,6 +33,7 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
 
     async def verify() -> None:
         states: list[dict] = []
+        retention_calls = 0
 
         async def record_state(**kwargs):
             states.append(kwargs)
@@ -41,15 +42,26 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
         async def empty_batch(session) -> int:
             return 0
 
-        monkeypatch.setattr(worker, "get_settings", lambda: SimpleNamespace(mail_worker_interval_seconds=1, validate_runtime=lambda: None))
+        async def empty_retention(session, *, now):
+            nonlocal retention_calls
+            retention_calls += 1
+            return {}
+
+        monkeypatch.setattr(
+            worker,
+            "get_settings",
+            lambda: SimpleNamespace(mail_worker_interval_seconds=1, validate_runtime=lambda: None),
+        )
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "worker_state", record_state)
         monkeypatch.setattr(worker, "deliver_pending_mail", empty_batch)
+        monkeypatch.setattr(worker, "prune_expired_records", empty_retention)
         monkeypatch.setattr(worker.asyncio, "Event", ControlledEvent)
         monkeypatch.setattr(worker.asyncio, "get_running_loop", SignalLoop)
         monkeypatch.setattr(worker, "engine", SimpleNamespace(dispose=lambda: asyncio.sleep(0)))
 
         await worker.run()
         assert [state["health"] for state in states] == ["running", "healthy"]
+        assert retention_calls == 1
 
     asyncio.run(verify())
