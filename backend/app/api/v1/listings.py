@@ -14,10 +14,8 @@ from ...core.http import client_ip
 from ...db.session import get_session
 from ...models import CatalogState, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
-    anonymous_viewer_key,
     owned_query,
     owned_response_from,
-    register_view,
     response_from,
     search_public,
     visible_query,
@@ -34,6 +32,7 @@ from ...schemas.listings import (
     OwnedListingResponse,
 )
 from ...services.listing_limits import enforce_listing_creation_limits
+from ...services.listing_views import anonymous_viewer_key, register_view
 from ...services.listings import (
     create_listing as create_listing_service,
 )
