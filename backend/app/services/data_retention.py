@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import TypeVar
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import DeclarativeBase
 
 from ..models import AuthSession, EmailVerificationToken, MailOutbox, PasswordResetToken
 
@@ -14,13 +13,11 @@ SECURITY_RECORD_RETENTION_DAYS = 7
 RETENTION_BATCH_SIZE = 1_000
 RETENTION_RUN_INTERVAL = timedelta(hours=1)
 
-ModelT = TypeVar("ModelT", bound=DeclarativeBase)
-
 
 async def _delete_selected_ids(
     session: AsyncSession,
-    model: type[ModelT],
-    id_query,
+    model: Any,
+    id_query: Any,
 ) -> int:
     ids = list((await session.scalars(id_query)).all())
     if not ids:
