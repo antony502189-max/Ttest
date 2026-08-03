@@ -5,10 +5,11 @@ from fastapi import HTTPException
 from PIL import Image
 
 from app.api.v1.uploads import validate_and_normalize
+from app.core.config import Settings
 
 
-def png_bytes() -> bytes:
-    image = Image.new("RGBA", (12, 8), (20, 40, 60, 128))
+def png_bytes(width: int = 12, height: int = 8) -> bytes:
+    image = Image.new("RGBA", (width, height), (20, 40, 60, 128))
     output = BytesIO()
     image.save(output, format="PNG")
     return output.getvalue()
@@ -34,3 +35,13 @@ def test_corrupt_image_stream_is_rejected():
         validate_and_normalize(b"\x89PNG\r\n\x1a\nbroken-image-data")
 
     assert error.value.status_code == 415
+
+
+def test_image_above_pixel_budget_is_rejected(monkeypatch):
+    settings = Settings(max_image_pixels=100, max_image_dimension=1_000)
+    monkeypatch.setattr("app.api.v1.uploads.get_settings", lambda: settings)
+
+    with pytest.raises(HTTPException) as error:
+        validate_and_normalize(png_bytes(11, 10))
+
+    assert error.value.status_code == 422
