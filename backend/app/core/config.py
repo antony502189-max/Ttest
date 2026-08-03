@@ -64,6 +64,8 @@ class Settings(BaseSettings):
 
     # In production new listings wait for moderation unless explicitly enabled.
     auto_publish_listings: bool = False
+    max_active_listings_per_user: int = 200
+    max_listing_creations_per_day: int = 50
 
     media_root: Path = Path("var/media")
     storage_backend: str = "local"
@@ -148,6 +150,8 @@ class Settings(BaseSettings):
             or self.mail_lease_seconds < self.mail_worker_batch_size * self.smtp_timeout_seconds + 60
         ):
             problems.append("Mail worker lease, timeout, retry and batch limits are invalid")
+        if self.max_active_listings_per_user < 1 or self.max_listing_creations_per_day < 1:
+            problems.append("Listing count and creation limits must be positive")
         if (
             self.database_pool_size < 1
             or self.database_max_overflow < 0
