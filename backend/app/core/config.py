@@ -19,13 +19,18 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_name: str = "112233-api"
     database_url: str = "postgresql+asyncpg://ttest:ttest@localhost:5432/ttest"
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_pool_timeout_seconds: int = 30
+    database_pool_recycle_seconds: int = 1_800
     jwt_secret: str = "unsafe-development-secret-change-me-32"
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     password_reset_minutes: int = 30
     email_verification_minutes: int = 10
-    # A dedicated secret is preferred. Existing deployments safely fall back
-    # to JWT_SECRET until EMAIL_VERIFICATION_HMAC_SECRET is provisioned.
+    # Development and tests may fall back to JWT_SECRET. Production must use
+    # an independent secret so access-token and low-entropy OTP domains remain
+    # cryptographically separated.
     email_verification_hmac_secret: str = ""
     frontend_app_url: str = "http://localhost:5173"
     frontend_origins: str = (
@@ -60,8 +65,14 @@ class Settings(BaseSettings):
     s3_access_key: str = ""
     s3_secret_key: str = ""
     s3_force_path_style: bool = True
+    s3_connect_timeout_seconds: int = 3
+    s3_read_timeout_seconds: int = 10
+    s3_max_attempts: int = 3
+    s3_max_pool_connections: int = 32
     max_upload_bytes: int = 8 * 1024 * 1024
     max_image_dimension: int = 8_000
+    max_image_pixels: int = 25_000_000
+    image_processing_concurrency: int = 2
 
     redis_url: str = ""
     metrics_enabled: bool = True
@@ -80,6 +91,7 @@ class Settings(BaseSettings):
     external_import_playwright_enabled: bool = False
     external_removal_check_enabled: bool = True
     external_removal_check_interval_seconds: int = 900
+    external_worker_stale_after_seconds: int = 300
 
     @property
     def origins(self) -> list[str]:
@@ -109,22 +121,44 @@ class Settings(BaseSettings):
             problems.append("Password reset and email verification lifetimes must be positive")
         if self.mail_worker_interval_seconds < 1 or self.mail_worker_batch_size < 1 or self.mail_max_attempts < 1:
             problems.append("Mail worker limits must be positive")
-        if self.max_upload_bytes < 1 or self.max_image_dimension < 1:
-            problems.append("Media upload limits must be positive")
+        if (
+            self.database_pool_size < 1
+            or self.database_max_overflow < 0
+            or self.database_pool_timeout_seconds < 1
+            or self.database_pool_recycle_seconds < 1
+        ):
+            problems.append("Database pool settings must be positive and overflow cannot be negative")
+        if (
+            self.max_upload_bytes < 1
+            or self.max_image_dimension < 1
+            or self.max_image_pixels < 1
+            or self.image_processing_concurrency < 1
+        ):
+            problems.append("Media upload and processing limits must be positive")
+        if (
+            self.s3_connect_timeout_seconds < 1
+            or self.s3_read_timeout_seconds < 1
+            or self.s3_max_attempts < 1
+            or self.s3_max_pool_connections < 1
+        ):
+            problems.append("S3 timeout, retry and pool settings must be positive")
         if (
             self.external_import_interval_seconds < 1
             or self.external_import_request_timeout_seconds < 1
             or self.external_import_max_concurrency_per_source < 1
+            or self.external_worker_stale_after_seconds < 120
         ):
-            problems.append("External import limits must be positive")
+            problems.append("External import limits are invalid")
         if not 0 <= self.sentry_traces_sample_rate <= 1:
             problems.append("SENTRY_TRACES_SAMPLE_RATE must be between 0 and 1")
 
         if self.is_production:
             if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:
                 problems.append("JWT_SECRET must be a strong production secret")
-            if self.email_verification_hmac_secret and len(self.email_verification_hmac_secret) < 32:
-                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must contain at least 32 characters")
+            if len(self.email_verification_hmac_secret) < 32:
+                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must contain at least 32 characters in production")
+            elif hmac_compare(self.email_verification_hmac_secret, self.jwt_secret):
+                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must be independent from JWT_SECRET")
             if not self.origins or any(origin.startswith("http://") for origin in self.origins):
                 problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
             if not self.frontend_app_url.startswith("https://"):
@@ -151,6 +185,14 @@ class Settings(BaseSettings):
 
         if problems:
             raise RuntimeError("Invalid runtime configuration: " + "; ".join(problems))
+
+
+
+def hmac_compare(left: str, right: str) -> bool:
+    """Compare secrets without introducing value-dependent timing."""
+    from hmac import compare_digest
+
+    return compare_digest(left.encode(), right.encode())
 
 
 @lru_cache
