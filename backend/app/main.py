@@ -105,7 +105,11 @@ def rate_limit_client(request: Request) -> str:
         candidate = _normalized_ip(part)
         if candidate:
             return candidate
-    return _normalized_ip(request.client.host) if request.client else None or "unknown"
+    if request.client:
+        direct = _normalized_ip(request.client.host)
+        if direct:
+            return direct
+    return "unknown"
 
 
 def request_id_for(request: Request) -> str:
@@ -183,20 +187,17 @@ async def request_context(request: Request, call_next):
 async def http_error(request: Request, exc: HTTPException):
     """Keep machine-readable API errors at the top level without changing legacy errors."""
     content = exc.detail if isinstance(exc.detail, dict) and "code" in exc.detail else {"detail": exc.detail}
+    request_id = getattr(request.state, "request_id", None) or request_id_for(request)
     return JSONResponse(
         status_code=exc.status_code,
         content=content,
-        headers={
-            **(exc.headers or {}),
-            "X-Request-ID": getattr(request.state, "request_id", request_id_for(request)),
-            **SECURITY_HEADERS,
-        },
+        headers={**(exc.headers or {}), "X-Request-ID": request_id, **SECURITY_HEADERS},
     )
 
 
 @app.exception_handler(Exception)
 async def internal_error(request: Request, exc: Exception):
-    request_id = getattr(request.state, "request_id", request_id_for(request))
+    request_id = getattr(request.state, "request_id", None) or request_id_for(request)
     UNHANDLED_ERRORS.labels(type(exc).__name__).inc()
     logger.exception(
         "unhandled_request_error",
