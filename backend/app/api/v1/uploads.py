@@ -20,6 +20,7 @@ from ..dependencies import current_user, optional_user
 
 router = APIRouter(tags=["uploads"])
 SUPPORTED_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+image_processing_slots = asyncio.Semaphore(get_settings().image_processing_concurrency)
 
 
 def public_asset(asset: MediaAsset) -> MediaAssetResponse:
@@ -48,6 +49,7 @@ def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
                     or height < 1
                     or width > settings.max_image_dimension
                     or height > settings.max_image_dimension
+                    or width * height > settings.max_image_pixels
                 ):
                     raise HTTPException(422, "Image dimensions are not allowed")
                 probe.verify()
@@ -76,9 +78,13 @@ async def upload_image(
     if file.content_type not in SUPPORTED_FORMATS.values():
         raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
     content = await file.read(settings.max_upload_bytes + 1)
+    await file.close()
     if not content or len(content) > settings.max_upload_bytes:
         raise HTTPException(413, "Image is too large")
-    normalized, width, height = validate_and_normalize(content)
+    # Pillow decoding and WebP encoding are CPU-heavy synchronous operations.
+    # Keep them off the event loop and cap concurrent jobs to bound memory use.
+    async with image_processing_slots:
+        normalized, width, height = await asyncio.to_thread(validate_and_normalize, content)
     storage_key = f"{user.id}/{uuid4().hex}.webp"
     storage = get_storage()
     await asyncio.to_thread(storage.put, storage_key, normalized)
