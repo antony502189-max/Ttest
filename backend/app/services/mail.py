@@ -21,9 +21,14 @@ REDACTED_BODY = "[redacted after successful delivery]"
 
 
 class MailPayload(Protocol):
-    recipient: str
-    subject: str
-    body: str
+    @property
+    def recipient(self) -> str: ...
+
+    @property
+    def subject(self) -> str: ...
+
+    @property
+    def body(self) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -190,9 +195,11 @@ async def finalize_mail_claim(
             MailOutbox.lease_token == claim.lease_token,
         )
         .values(**values)
+        .returning(MailOutbox.id)
     )
+    updated_id = result.scalar_one_or_none()
     await session.commit()
-    return bool(result.rowcount)
+    return updated_id is not None
 
 
 async def deliver_pending_mail(session: AsyncSession, *, limit: int | None = None) -> int:
