@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 from PIL import Image
 
-from app.api.v1.uploads import validate_and_normalize
+from app.api.v1.uploads import media_quota_exceeded, validate_and_normalize
 from app.core.config import Settings
 
 
@@ -45,3 +45,39 @@ def test_image_above_pixel_budget_is_rejected(monkeypatch):
         validate_and_normalize(png_bytes(11, 10))
 
     assert error.value.status_code == 422
+
+
+def test_media_quota_rejects_asset_count_boundary():
+    settings = Settings(
+        max_upload_bytes=10,
+        max_media_assets_per_user=2,
+        max_media_bytes_per_user=100,
+    )
+
+    assert media_quota_exceeded(
+        active_assets=2,
+        active_bytes=20,
+        new_bytes=5,
+        settings=settings,
+    )
+
+
+def test_media_quota_rejects_byte_overflow_but_accepts_exact_boundary():
+    settings = Settings(
+        max_upload_bytes=10,
+        max_media_assets_per_user=10,
+        max_media_bytes_per_user=100,
+    )
+
+    assert media_quota_exceeded(
+        active_assets=1,
+        active_bytes=95,
+        new_bytes=6,
+        settings=settings,
+    )
+    assert not media_quota_exceeded(
+        active_assets=1,
+        active_bytes=90,
+        new_bytes=10,
+        settings=settings,
+    )
