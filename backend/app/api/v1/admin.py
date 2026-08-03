@@ -42,10 +42,12 @@ async def stats(
 async def list_listings_route(
     status: str | None = None,
     search: str | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await list_listings(session, status, search)
+    return await list_listings(session, status, search, limit=limit, offset=offset)
 
 
 @router.patch("/listings/{listing_id}/status", response_model=AdminListingResponse)
@@ -61,10 +63,12 @@ async def change_listing_status_route(
 @router.get("/users", response_model=list[AdminUserResponse])
 async def list_users_route(
     search: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await list_users(session, search)
+    return await list_users(session, search, limit=limit, offset=offset)
 
 
 @router.patch("/users/{user_id}/blocked", response_model=AdminUserResponse)
@@ -79,10 +83,18 @@ async def set_user_blocked_route(
 
 @router.get("/external-import/runs", response_model=list[ExternalImportRunResponse])
 async def external_import_runs(
-    user: User = Depends(require_role("admin")), session: AsyncSession = Depends(get_session)
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(require_role("admin")),
+    session: AsyncSession = Depends(get_session),
 ):
     rows = (
-        await session.scalars(select(ExternalImportRun).order_by(ExternalImportRun.started_at.desc()).limit(100))
+        await session.scalars(
+            select(ExternalImportRun)
+            .order_by(ExternalImportRun.started_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
     ).all()
     return [
         ExternalImportRunResponse(
@@ -112,18 +124,34 @@ async def external_import_worker_state(
 ):
     state = await session.get(ExternalWorkerState, 1)
     if not state:
-        return ExternalWorkerStateResponse(health="delayed", lastStartedAt=None, lastFinishedAt=None, lastSuccessAt=None,
-                                           nextRunAt=None, heartbeatAt=None, lastError=None, lastRunId=None)
+        return ExternalWorkerStateResponse(
+            health="delayed",
+            lastStartedAt=None,
+            lastFinishedAt=None,
+            lastSuccessAt=None,
+            nextRunAt=None,
+            heartbeatAt=None,
+            lastError=None,
+            lastRunId=None,
+        )
     heartbeat_deadline = datetime.now(UTC) - timedelta(
-        seconds=max(120, get_settings().external_import_interval_seconds + 120)
+        seconds=get_settings().external_worker_stale_after_seconds
     )
-    health = "delayed" if state.health != "failed" and (
-        state.heartbeat_at is None or state.heartbeat_at < heartbeat_deadline
-    ) else state.health
-    return ExternalWorkerStateResponse(health=health, lastStartedAt=state.last_started_at,
-                                       lastFinishedAt=state.last_finished_at, lastSuccessAt=state.last_success_at,
-                                       nextRunAt=state.next_run_at, heartbeatAt=state.heartbeat_at,
-                                       lastError=state.last_error, lastRunId=state.last_run_id)
+    health = (
+        "delayed"
+        if state.health != "failed" and (state.heartbeat_at is None or state.heartbeat_at < heartbeat_deadline)
+        else state.health
+    )
+    return ExternalWorkerStateResponse(
+        health=health,
+        lastStartedAt=state.last_started_at,
+        lastFinishedAt=state.last_finished_at,
+        lastSuccessAt=state.last_success_at,
+        nextRunAt=state.next_run_at,
+        heartbeatAt=state.heartbeat_at,
+        lastError=state.last_error,
+        lastRunId=state.last_run_id,
+    )
 
 
 @router.post("/external-import/run")
