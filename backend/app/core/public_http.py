@@ -4,6 +4,7 @@ import asyncio
 import socket
 from collections.abc import AsyncIterator, Awaitable, Callable
 from ipaddress import ip_address
+from typing import Any
 
 import httpx
 
@@ -15,6 +16,15 @@ async def resolve_host(host: str, port: int) -> set[str]:
     loop = asyncio.get_running_loop()
     records = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     return {str(record[4][0]) for record in records}
+
+
+def require_global_address(value: str, message: str) -> None:
+    try:
+        address = ip_address(value)
+    except ValueError as exc:
+        raise httpx.ConnectError(message) from exc
+    if not address.is_global:
+        raise httpx.ConnectError(message)
 
 
 async def validate_public_url(url: httpx.URL) -> None:
@@ -29,12 +39,7 @@ async def validate_public_url(url: httpx.URL) -> None:
     if not addresses:
         raise httpx.ConnectError("Outbound host has no addresses")
     for value in addresses:
-        try:
-            address = ip_address(value)
-        except ValueError as exc:
-            raise httpx.ConnectError("Outbound host resolved to an invalid address") from exc
-        if not address.is_global:
-            raise httpx.ConnectError("Outbound request to a non-public address is blocked")
+        require_global_address(value, "Outbound request to a non-public address is blocked")
 
 
 def _is_ip_literal(host: str) -> bool:
@@ -69,7 +74,33 @@ async def validate_public_request(request: httpx.Request) -> None:
     await validate_public_url(request.url)
 
 
+def response_peer_ip(response: httpx.Response) -> str | None:
+    network_stream: Any = response.extensions.get("network_stream")
+    get_extra_info = getattr(network_stream, "get_extra_info", None)
+    if not callable(get_extra_info):
+        return None
+    peer = get_extra_info("server_addr")
+    if isinstance(peer, tuple) and peer:
+        return str(peer[0])
+    return str(peer) if peer else None
+
+
 async def limit_public_response(response: httpx.Response) -> None:
+    # Force identity encoding on requests and reject a server that ignores it.
+    # This makes the byte budget apply to the actual body and blocks gzip bombs.
+    encoding = response.headers.get("content-encoding", "identity").strip().casefold()
+    if encoding not in {"", "identity"}:
+        await response.aclose()
+        raise httpx.StreamError("Compressed outbound responses are blocked")
+
+    peer_ip = response_peer_ip(response)
+    if peer_ip:
+        try:
+            require_global_address(peer_ip, "Outbound connection reached a non-public address")
+        except httpx.ConnectError:
+            await response.aclose()
+            raise
+
     content_length = response.headers.get("content-length")
     if content_length:
         try:
@@ -107,7 +138,13 @@ class PublicNetworkAsyncClient(_ORIGINAL_ASYNC_CLIENT):
             hooks = {name: list(values) for name, values in configured.items()}
             _append_hook(hooks, "request", validate_public_request)
             _append_hook(hooks, "response", limit_public_response)
+            headers = httpx.Headers(kwargs.get("headers"))
+            headers["Accept-Encoding"] = "identity"
+            kwargs["headers"] = headers
             kwargs["event_hooks"] = hooks
+            # Do not allow HTTP(S)_PROXY environment variables to turn a
+            # validated direct destination into an unvalidated proxy request.
+            kwargs["trust_env"] = False
         super().__init__(*args, **kwargs)
 
 
