@@ -12,15 +12,24 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: update-approved-visual-baselines
+  cancel-in-progress: false
+
 jobs:
   update:
-    if: inputs.visual_review_confirmed == true
-    runs-on: ubuntu-latest
+    # Baseline replacement is an exceptional owner-only write operation. The
+    # boolean acknowledgement alone must never be sufficient for collaborators.
+    if: github.actor == github.repository_owner && inputs.visual_review_confirmed == true
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -34,7 +43,10 @@ jobs:
         run: npx playwright test tests/visual-parity.spec.ts --update-snapshots
 
       - name: Commit reviewed baseline to dedicated branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           mkdir -p /tmp/visual-baselines
           cp -R tests/visual-snapshots/. /tmp/visual-baselines/
           git config user.name 'github-actions[bot]'
@@ -47,4 +59,9 @@ jobs:
           git add -f tests/visual-snapshots
           git diff --cached --quiet && exit 0
           git commit -m 'test: update approved visual baselines'
-          git push origin visual-baselines
+
+          # Checkout never stores the workflow token. Expose it only through a
+          # temporary credential callback for this single explicit push.
+          git config --local credential.helper '!f() { echo username=x-access-token; echo password="$GH_TOKEN"; }; f'
+          trap 'git config --local --unset-all credential.helper || true' EXIT
+          git push "https://github.com/${GITHUB_REPOSITORY}.git" visual-baselines
