@@ -4,7 +4,14 @@ import pytest
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models import AuthSession, EmailVerificationToken, MailOutbox, PasswordResetToken, User
+from app.models import (
+    AuthSession,
+    EmailVerificationToken,
+    ExternalImportRun,
+    MailOutbox,
+    PasswordResetToken,
+    User,
+)
 from app.services.data_retention import prune_expired_records
 
 pytestmark = pytest.mark.integration
@@ -118,6 +125,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
         "auth_sessions": 1,
         "password_reset_tokens": 1,
         "email_verification_tokens": 1,
+        "external_import_runs": 0,
     }
 
     async with SessionLocal() as check:
@@ -153,3 +161,76 @@ async def test_retention_batch_size_is_enforced_per_table():
 
     async with SessionLocal() as check:
         assert len((await check.scalars(select(MailOutbox.id))).all()) == 2
+
+
+async def test_external_import_retention_keeps_latest_success_and_active_backoff():
+    now = datetime.now(UTC)
+    old = now - timedelta(days=31)
+    async with SessionLocal() as setup:
+        older_success = ExternalImportRun(
+            run_id="retention-older-success",
+            source_name="idealista",
+            started_at=old - timedelta(hours=1),
+            finished_at=old - timedelta(hours=1),
+            result="success",
+            counters={"discovered_urls": 120},
+        )
+        latest_success = ExternalImportRun(
+            run_id="retention-latest-success",
+            source_name="idealista",
+            started_at=old,
+            finished_at=old,
+            result="success",
+            counters={"discovered_urls": 100},
+        )
+        old_failed = ExternalImportRun(
+            run_id="retention-old-failed",
+            source_name="idealista",
+            started_at=old,
+            finished_at=old,
+            result="failed",
+            last_error="old failure",
+        )
+        active_block = ExternalImportRun(
+            run_id="retention-active-block",
+            source_name="fotocasa",
+            started_at=old,
+            finished_at=old,
+            result="blocked",
+            next_check_at=now + timedelta(hours=1),
+        )
+        expired_block = ExternalImportRun(
+            run_id="retention-expired-block",
+            source_name="fotocasa",
+            started_at=old,
+            finished_at=old,
+            result="blocked",
+            next_check_at=now - timedelta(hours=1),
+        )
+        recent_failed = ExternalImportRun(
+            run_id="retention-recent-failed",
+            source_name="pisos",
+            started_at=now - timedelta(days=1),
+            finished_at=now - timedelta(days=1),
+            result="failed",
+        )
+        setup.add_all(
+            [
+                older_success,
+                latest_success,
+                old_failed,
+                active_block,
+                expired_block,
+                recent_failed,
+            ]
+        )
+        await setup.commit()
+        retained_ids = {latest_success.id, active_block.id, recent_failed.id}
+
+    async with SessionLocal() as maintenance:
+        counts = await prune_expired_records(maintenance, now=now, batch_size=100)
+    assert counts["external_import_runs"] == 3
+
+    async with SessionLocal() as check:
+        remaining = set((await check.scalars(select(ExternalImportRun.id))).all())
+        assert remaining == retained_ids
