@@ -14,11 +14,13 @@ def test_database_server_settings_use_explicit_millisecond_values() -> None:
     settings = Settings(
         database_statement_timeout_ms=45_000,
         database_lock_timeout_ms=7_500,
+        database_idle_transaction_timeout_ms=90_000,
     )
 
     assert database_server_settings(settings) == {
         "statement_timeout": "45000ms",
         "lock_timeout": "7500ms",
+        "idle_in_transaction_session_timeout": "90000ms",
     }
 
 
@@ -39,5 +41,7 @@ def test_production_files_wire_database_execution_budgets() -> None:
 
     assert "DATABASE_STATEMENT_TIMEOUT_MS: ${DATABASE_STATEMENT_TIMEOUT_MS:-60000}" in compose
     assert "DATABASE_LOCK_TIMEOUT_MS: ${DATABASE_LOCK_TIMEOUT_MS:-10000}" in compose
+    assert "DATABASE_IDLE_TRANSACTION_TIMEOUT_MS: ${DATABASE_IDLE_TRANSACTION_TIMEOUT_MS:-60000}" in compose
     assert "DATABASE_STATEMENT_TIMEOUT_MS=60000" in example
     assert "DATABASE_LOCK_TIMEOUT_MS=10000" in example
+    assert "DATABASE_IDLE_TRANSACTION_TIMEOUT_MS=60000" in example

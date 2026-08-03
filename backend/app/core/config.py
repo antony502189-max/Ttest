@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     database_pool_recycle_seconds: int = 1_800
     database_statement_timeout_ms: int = 60_000
     database_lock_timeout_ms: int = 10_000
+    database_idle_transaction_timeout_ms: int = 60_000
     jwt_secret: str = "unsafe-development-secret-change-me-32"
     access_token_minutes: int = 15
     refresh_token_days: int = 30
@@ -161,6 +162,7 @@ class Settings(BaseSettings):
             or self.database_pool_recycle_seconds < 1
             or self.database_statement_timeout_ms < 1
             or self.database_lock_timeout_ms < 1
+            or self.database_idle_transaction_timeout_ms < 1
             or self.database_lock_timeout_ms >= self.database_statement_timeout_ms
         ):
             problems.append(

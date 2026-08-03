@@ -10,6 +10,7 @@ def database_server_settings(settings: Settings) -> dict[str, str]:
     return {
         "statement_timeout": f"{settings.database_statement_timeout_ms}ms",
         "lock_timeout": f"{settings.database_lock_timeout_ms}ms",
+        "idle_in_transaction_session_timeout": f"{settings.database_idle_transaction_timeout_ms}ms",
     }
 
 
