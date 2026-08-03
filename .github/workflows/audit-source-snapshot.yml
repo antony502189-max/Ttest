@@ -11,6 +11,7 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -19,16 +20,25 @@ jobs:
         with:
           name: audit-source-${{ github.sha }}
           retention-days: 1
+          if-no-files-found: error
+          include-hidden-files: true
           path: |
-            src/**
-            tests/**
+            .github/workflows/**
+            backend/alembic/**
+            backend/app/**
             backend/tests/**
             backend/constraints.txt
-            package.json
-            package-lock.json
-            playwright.config.ts
-            vite.config.ts
-            tsconfig*.json
-            .github/workflows/**
+            backend/pyproject.toml
+            backend/Dockerfile
+            deploy/**
+            scripts/**
+            src/**
+            tests/**
+            Dockerfile
             docker-compose.yml
             docker-compose.production.yml
+            package.json
+            package-lock.json
+            playwright*.config.ts
+            vite.config.ts
+            tsconfig*.json
