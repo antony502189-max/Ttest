@@ -40,8 +40,14 @@ def public_message(message: Message) -> MessageResponse:
     )
 
 
-async def list_user_threads(user: User, session: AsyncSession) -> list[ThreadResponse]:
-    rows = (await session.execute(thread_list_query(user.id))).all()
+async def list_user_threads(
+    user: User,
+    session: AsyncSession,
+    *,
+    limit: int,
+    offset: int,
+) -> list[ThreadResponse]:
+    rows = (await session.execute(thread_list_query(user.id, limit=limit, offset=offset))).all()
     return [public_thread(thread, preview) for thread, preview in rows]
 
 
@@ -117,11 +123,14 @@ async def list_thread_messages(
     thread_id: UUID,
     user: User,
     session: AsyncSession,
+    *,
+    limit: int,
+    offset: int,
 ) -> list[MessageResponse]:
     thread = await session.get(MessageThread, thread_id)
     if not thread or not participant(thread, user):
         raise HTTPException(404, "Thread not found")
-    messages = await thread_messages(session, thread.id)
+    messages = await thread_messages(session, thread.id, limit=limit, offset=offset)
     now = datetime.now(UTC)
     changed = False
     for message in messages:
