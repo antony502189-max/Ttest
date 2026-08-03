@@ -151,7 +151,9 @@ async def get_media(
         raise HTTPException(404, "Media not found")
 
     etag = f'"{asset.checksum}"'
-    cache_control = "public, max-age=3600, must-revalidate" if publicly_visible else "private, no-store"
+    # Visibility is mutable. Permit a private browser cache, but force every
+    # reuse to revalidate through FastAPI so unpublishing/blocking takes effect.
+    cache_control = "private, max-age=0, must-revalidate" if publicly_visible else "private, no-store"
     headers = {"ETag": etag, "Cache-Control": cache_control, "Vary": "Authorization"}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
