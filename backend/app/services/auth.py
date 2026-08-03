@@ -6,11 +6,12 @@ import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi import HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from sqlalchemy import func, or_, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,6 +81,45 @@ def verification_code_hash(user_id: object, code: str) -> str:
     return hmac.new(secret, message, hashlib.sha256).hexdigest()
 
 
+async def lock_user_sessions(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize all session issuance and rotation for one account."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"auth-session:{user_id}"},
+    )
+
+
+async def prepare_session_issuance(
+    user_id: UUID,
+    session: AsyncSession,
+    now: datetime,
+    *,
+    lock_required: bool,
+) -> None:
+    settings = get_settings()
+    if lock_required:
+        await lock_user_sessions(user_id, session)
+
+    # Expired refresh tokens can no longer be replayed, so retaining their rows
+    # has no security value and would otherwise make rotation history unbounded.
+    await session.execute(
+        delete(AuthSession).where(
+            AuthSession.user_id == user_id,
+            AuthSession.expires_at <= now,
+        )
+    )
+    issued_recently = await session.scalar(
+        select(func.count())
+        .select_from(AuthSession)
+        .where(
+            AuthSession.user_id == user_id,
+            AuthSession.issued_at > now - timedelta(minutes=1),
+        )
+    )
+    if int(issued_recently or 0) >= settings.max_session_issues_per_minute:
+        raise HTTPException(429, "Too many session rotations; try again later")
+
+
 async def issue_session(
     user: User,
     session: AsyncSession,
@@ -87,9 +127,19 @@ async def issue_session(
     user_agent: str,
     client_ip: str,
     previous_session: AuthSession | None = None,
+    sessions_locked: bool = False,
 ) -> AuthResult:
+    settings = get_settings()
+    now = datetime.now(UTC)
+    await prepare_session_issuance(
+        user.id,
+        session,
+        now,
+        lock_required=not sessions_locked,
+    )
+
     raw_refresh = new_refresh_token()
-    expires = datetime.now(UTC) + timedelta(days=get_settings().refresh_token_days)
+    expires = now + timedelta(days=settings.refresh_token_days)
     auth_session = AuthSession(
         user_id=user.id,
         token_hash=token_hash(raw_refresh),
@@ -100,8 +150,28 @@ async def issue_session(
     session.add(auth_session)
     await session.flush()
     if previous_session:
-        previous_session.revoked_at = datetime.now(UTC)
+        previous_session.revoked_at = now
         previous_session.replaced_by = auth_session.id
+
+    excess_active_ids = (
+        await session.scalars(
+            select(AuthSession.id)
+            .where(
+                AuthSession.user_id == user.id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > now,
+            )
+            .order_by(AuthSession.issued_at.desc(), AuthSession.id.desc())
+            .offset(settings.max_active_sessions_per_user)
+        )
+    ).all()
+    if excess_active_ids:
+        await session.execute(
+            update(AuthSession)
+            .where(AuthSession.id.in_(excess_active_ids))
+            .values(revoked_at=now)
+        )
+
     await session.commit()
     return AuthResult(
         access_token=create_access_token(str(user.id), user.role),
@@ -269,6 +339,7 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
         raise HTTPException(400, "The password reset link is invalid or has expired")
     user.password_hash = await hash_password_async(password)
     reset.consumed_at = now
+    await lock_user_sessions(user.id, session)
     await session.execute(
         update(AuthSession)
         .where(AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None))
@@ -357,8 +428,16 @@ async def refresh_user_session(
     client_ip: str,
 ) -> AuthResult:
     now = datetime.now(UTC)
+    hashed_token = token_hash(raw_refresh)
+    candidate = await session.scalar(select(AuthSession).where(AuthSession.token_hash == hashed_token))
+    if not candidate or candidate.expires_at <= now:
+        raise HTTPException(401, "Invalid refresh token")
+
+    # Establish the same account-level lock order used by login/session issuance
+    # before taking the row lock, preventing cross-flow deadlocks.
+    await lock_user_sessions(candidate.user_id, session)
     auth = await session.scalar(
-        select(AuthSession).where(AuthSession.token_hash == token_hash(raw_refresh)).with_for_update()
+        select(AuthSession).where(AuthSession.token_hash == hashed_token).with_for_update()
     )
     if not auth or auth.expires_at <= now:
         raise HTTPException(401, "Invalid refresh token")
@@ -382,6 +461,7 @@ async def refresh_user_session(
         user_agent=user_agent,
         client_ip=client_ip,
         previous_session=auth,
+        sessions_locked=True,
     )
 
 
@@ -395,5 +475,6 @@ async def revoke_session(raw_refresh: str | None, session: AsyncSession) -> None
         )
     )
     if auth:
+        await lock_user_sessions(auth.user_id, session)
         auth.revoked_at = datetime.now(UTC)
         await session.commit()
