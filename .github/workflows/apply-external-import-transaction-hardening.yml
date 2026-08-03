@@ -1,0 +1,69 @@
+name: Apply importer transaction hardening
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'antony502189-max'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Apply reviewed patch and verify its scope
+        id: patch
+        run: |
+          set -euo pipefail
+          current="$(sha256sum backend/app/services/external_import.py | awk '{print $1}')"
+          if [ "$current" = 'f4d5d1b00b5323adccb26f162617d7c0ce7c81fc89f843f12c9ef8e81e47602e' ]; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/apply-external-import-transaction-hardening.py
+          python3 -m py_compile backend/app/services/external_import.py
+          git diff --check
+          test "$(git diff --name-only | tr -d '\r')" = 'backend/app/services/external_import.py'
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Commit patched source through GitHub API
+        if: steps.patch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          base_sha="$(git rev-parse HEAD)"
+          remote_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$HEAD_REF" --jq .object.sha)"
+          test "$remote_sha" = "$base_sha"
+          current_blob="$(gh api "repos/$GITHUB_REPOSITORY/contents/backend/app/services/external_import.py?ref=$HEAD_REF" --jq .sha)"
+          export CURRENT_BLOB="$current_blob"
+          python3 - <<'PY' > /tmp/importer-update.json
+          import base64
+          import json
+          import os
+          from pathlib import Path
+
+          print(json.dumps({
+              "message": "fix: release DB transactions during importer I/O",
+              "content": base64.b64encode(
+                  Path("backend/app/services/external_import.py").read_bytes()
+              ).decode(),
+              "sha": os.environ["CURRENT_BLOB"],
+              "branch": os.environ["HEAD_REF"],
+          }))
+          PY
+          gh api --method PUT \
+            "repos/$GITHUB_REPOSITORY/contents/backend/app/services/external_import.py" \
+            --input /tmp/importer-update.json >/dev/null
