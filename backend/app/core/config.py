@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     password_reset_minutes: int = 30
     email_verification_minutes: int = 10
     password_work_concurrency: int = 2
+    max_active_sessions_per_user: int = 10
+    max_session_issues_per_minute: int = 10
     # Development and tests may fall back to JWT_SECRET. Production must use
     # an independent secret so access-token and low-entropy OTP domains remain
     # cryptographically separated.
@@ -127,8 +129,12 @@ class Settings(BaseSettings):
             problems.append("REFRESH_TOKEN_DAYS must be positive")
         if self.password_reset_minutes < 1 or self.email_verification_minutes < 1:
             problems.append("Password reset and email verification lifetimes must be positive")
-        if self.password_work_concurrency < 1:
-            problems.append("PASSWORD_WORK_CONCURRENCY must be positive")
+        if (
+            self.password_work_concurrency < 1
+            or self.max_active_sessions_per_user < 1
+            or self.max_session_issues_per_minute < 1
+        ):
+            problems.append("Authentication concurrency and session limits must be positive")
         if (
             self.mail_worker_interval_seconds < 1
             or self.mail_worker_batch_size < 1
