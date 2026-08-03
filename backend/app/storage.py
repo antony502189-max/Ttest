@@ -53,6 +53,11 @@ class S3Storage:
         access_key: str,
         secret_key: str,
         force_path_style: bool = True,
+        *,
+        connect_timeout_seconds: int = 3,
+        read_timeout_seconds: int = 10,
+        max_attempts: int = 3,
+        max_pool_connections: int = 32,
     ):
         try:
             import boto3  # type: ignore[import-not-found,import-untyped]
@@ -70,6 +75,10 @@ class S3Storage:
             aws_secret_access_key=secret_key or None,
             config=Config(
                 signature_version="s3v4",
+                connect_timeout=connect_timeout_seconds,
+                read_timeout=read_timeout_seconds,
+                retries={"max_attempts": max_attempts, "mode": "standard"},
+                max_pool_connections=max_pool_connections,
                 s3={"addressing_style": "path" if force_path_style else "virtual"},
             ),
         )
@@ -111,5 +120,9 @@ def get_storage() -> Storage:
             settings.s3_access_key,
             settings.s3_secret_key,
             settings.s3_force_path_style,
+            connect_timeout_seconds=settings.s3_connect_timeout_seconds,
+            read_timeout_seconds=settings.s3_read_timeout_seconds,
+            max_attempts=settings.s3_max_attempts,
+            max_pool_connections=settings.s3_max_pool_connections,
         )
     return LocalStorage(settings.media_root)
