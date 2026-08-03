@@ -57,12 +57,16 @@ verify_backup_authentication() {
   fi
 
   calculated_mac="$(mktemp "${encrypted_file}.verify.tmp.XXXXXX")"
-  trap 'rm -f "$calculated_mac"' RETURN
-  openssl dgst -sha256 -mac HMAC \
+  if ! openssl dgst -sha256 -mac HMAC \
     -macopt keyenv:BACKUP_AUTHENTICATION_KEY \
-    -binary "$encrypted_file" > "$calculated_mac"
+    -binary "$encrypted_file" > "$calculated_mac"; then
+    rm -f "$calculated_mac"
+    return 1
+  fi
   if ! cmp -s "$stored_mac" "$calculated_mac"; then
+    rm -f "$calculated_mac"
     echo "backup authentication failed: $encrypted_file" >&2
     return 65
   fi
+  rm -f "$calculated_mac"
 }
