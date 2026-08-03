@@ -3,10 +3,11 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.config import get_settings
 from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHistory, User
 from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
 
@@ -75,6 +76,20 @@ def valid_uuid_values(values: list[str]) -> list[UUID]:
     return result
 
 
+async def lock_saved_searches(user_id: UUID, session: AsyncSession) -> None:
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"saved-searches:{user_id}"},
+    )
+
+
+async def saved_search_count(user_id: UUID, session: AsyncSession) -> int:
+    value = await session.scalar(
+        select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id)
+    )
+    return int(value or 0)
+
+
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:
     requested_ids = valid_uuid_values(payload.favoriteIds)
     valid_listing_ids = (
@@ -96,7 +111,13 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
             .values([{"user_id": user.id, "listing_id": listing_id} for listing_id in valid_listing_ids])
             .on_conflict_do_nothing(constraint="uq_favorites_user_listing")
         )
+
+    settings = get_settings()
+    await lock_saved_searches(user.id, session)
+    current_count = await saved_search_count(user.id, session)
     for item in payload.savedSearches:
+        if current_count >= settings.max_saved_searches_per_user:
+            break
         polygon = [point.model_dump() for point in item.polygon]
         duplicate = await session.scalar(
             select(SavedSearch.id).where(
@@ -119,6 +140,7 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
                     alerts_enabled=item.alertsEnabled,
                 )
             )
+            current_count += 1
     await session.commit()
 
 
@@ -139,7 +161,10 @@ def public_search(search: SavedSearch) -> SavedSearchResponse:
 async def list_saved_searches(user: User, session: AsyncSession) -> list[SavedSearchResponse]:
     searches = (
         await session.scalars(
-            select(SavedSearch).where(SavedSearch.user_id == user.id).order_by(SavedSearch.created_at.desc())
+            select(SavedSearch)
+            .where(SavedSearch.user_id == user.id)
+            .order_by(SavedSearch.created_at.desc())
+            .limit(get_settings().max_saved_searches_per_user)
         )
     ).all()
     return [public_search(search) for search in searches]
@@ -150,6 +175,10 @@ async def create_saved_search(
     user: User,
     session: AsyncSession,
 ) -> SavedSearchResponse:
+    settings = get_settings()
+    await lock_saved_searches(user.id, session)
+    if await saved_search_count(user.id, session) >= settings.max_saved_searches_per_user:
+        raise HTTPException(409, "Saved search limit reached")
     search = SavedSearch(
         user_id=user.id,
         name=payload.name.strip(),
