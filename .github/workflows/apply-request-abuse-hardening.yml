@@ -1,0 +1,103 @@
+name: Apply request abuse hardening
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'antony502189-max'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Apply exact patch and verify its scope
+        id: patch
+        run: |
+          if grep -q 'MAX_PASSWORD_RESETS_PER_HOUR = 3' backend/app/services/auth.py; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/apply-request-abuse-hardening.py
+          git diff --check
+          actual="$(git diff --name-only | sort | tr '\n' ' ')"
+          expected='backend/app/schemas/listings.py backend/app/services/auth.py scripts/final-audit-local.sh '
+          test "$actual" = "$expected"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Commit all patched files atomically
+        if: steps.patch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          base_sha="$(git rev-parse HEAD)"
+          remote_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$HEAD_REF" --jq .object.sha)"
+          test "$remote_sha" = "$base_sha"
+          base_tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$base_sha" --jq .tree.sha)"
+
+          create_blob() {
+            local path="$1"
+            local payload
+            payload="$(mktemp)"
+            FILE_PATH="$path" python3 - <<'PY' > "$payload"
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["FILE_PATH"])
+          print(json.dumps({"content": path.read_text(encoding="utf-8"), "encoding": "utf-8"}))
+          PY
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$payload" --jq .sha
+          }
+
+          auth_blob="$(create_blob backend/app/services/auth.py)"
+          listings_blob="$(create_blob backend/app/schemas/listings.py)"
+          audit_blob="$(create_blob scripts/final-audit-local.sh)"
+          export BASE_TREE="$base_tree" AUTH_BLOB="$auth_blob" LISTINGS_BLOB="$listings_blob" AUDIT_BLOB="$audit_blob"
+          python3 - <<'PY' > /tmp/tree.json
+          import json
+          import os
+
+          print(json.dumps({
+              "base_tree": os.environ["BASE_TREE"],
+              "tree": [
+                  {"path": "backend/app/services/auth.py", "mode": "100644", "type": "blob", "sha": os.environ["AUTH_BLOB"]},
+                  {"path": "backend/app/schemas/listings.py", "mode": "100644", "type": "blob", "sha": os.environ["LISTINGS_BLOB"]},
+                  {"path": "scripts/final-audit-local.sh", "mode": "100755", "type": "blob", "sha": os.environ["AUDIT_BLOB"]},
+              ],
+          }))
+          PY
+          tree_sha="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/trees" --input /tmp/tree.json --jq .sha)"
+          export TREE_SHA="$tree_sha" BASE_SHA="$base_sha"
+          python3 - <<'PY' > /tmp/commit.json
+          import json
+          import os
+
+          print(json.dumps({
+              "message": "fix: bound search and password reset abuse",
+              "tree": os.environ["TREE_SHA"],
+              "parents": [os.environ["BASE_SHA"]],
+          }))
+          PY
+          commit_sha="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/commits" --input /tmp/commit.json --jq .sha)"
+          export COMMIT_SHA="$commit_sha"
+          python3 - <<'PY' > /tmp/ref.json
+          import json
+          import os
+
+          print(json.dumps({"sha": os.environ["COMMIT_SHA"], "force": False}))
+          PY
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$HEAD_REF" --input /tmp/ref.json >/dev/null
