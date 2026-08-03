@@ -53,6 +53,9 @@ test -s public/privacidad/index.html
 test -s public/terminos/index.html
 grep -Fq 'Política de privacidad' public/privacidad/index.html
 grep -Fq 'Términos de uso' public/terminos/index.html
+grep -Fq 'BACKUP_AUTHENTICATION_KEY=' deploy/production.env.example
+grep -Fq 'MAX_MEDIA_ASSETS_PER_USER=100' deploy/production.env.example
+grep -Fq 'MAX_MEDIA_BYTES_PER_USER=268435456' deploy/production.env.example
 # A backup manifest must be generated outside the mirrored tree to avoid
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
@@ -60,7 +63,7 @@ grep -Fq 'cp /tmp/backup-manifest .backup-manifest' deploy/backup-minio.sh
 grep -Fq 'verify_backup_authentication' deploy/restore-verify.sh
 grep -Fq 'verify_backup_authentication' deploy/restore-minio-verify.sh
 
-# Exercise the exact OpenSSL HMAC command used on the VPS. A modified encrypted
+# Exercise the exact HMAC implementation used on the VPS. A modified encrypted
 # file must fail authentication even when an attacker can replace plain hashes.
 backup_test_dir="$(mktemp -d)"
 cleanup_backup_test() { rm -rf "$backup_test_dir"; }
@@ -117,6 +120,10 @@ if backend_env.get("EMAIL_VERIFICATION_HMAC_SECRET") != "ci-independent-verifica
     raise SystemExit("backend must receive the dedicated verification HMAC secret")
 if backend_env.get("PASSWORD_WORK_CONCURRENCY") != "2":
     raise SystemExit("backend must receive the bounded password-work setting")
+if backend_env.get("MAX_MEDIA_ASSETS_PER_USER") != "100":
+    raise SystemExit("backend must receive the per-user media asset quota")
+if backend_env.get("MAX_MEDIA_BYTES_PER_USER") != "268435456":
+    raise SystemExit("backend must receive the per-user media byte quota")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
 if config["networks"].get("application", {}).get("internal") is not True:
