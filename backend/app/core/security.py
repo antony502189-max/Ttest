@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
@@ -11,6 +12,7 @@ from jwt import InvalidTokenError
 from .config import get_settings
 
 _passwords = PasswordHasher()
+_password_work_slots = asyncio.Semaphore(get_settings().password_work_concurrency)
 
 
 def hash_password(password: str) -> str:
@@ -22,6 +24,16 @@ def verify_password(password: str, password_hash: str) -> bool:
         return _passwords.verify(password_hash, password)
     except (VerificationError, InvalidHashError):
         return False
+
+
+async def hash_password_async(password: str) -> str:
+    async with _password_work_slots:
+        return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(password: str, password_hash: str) -> bool:
+    async with _password_work_slots:
+        return await asyncio.to_thread(verify_password, password, password_hash)
 
 
 def create_access_token(user_id: str, role: str) -> str:
