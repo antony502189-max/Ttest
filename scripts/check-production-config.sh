@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Static CI gate: use deliberately fake values and never start a container.
+# Static CI gate: use deliberately fake values and never start application containers.
 export APP_DOMAIN=example.test
 export POSTGRES_PASSWORD=ci-placeholder-password
 export DATABASE_URL=postgresql+asyncpg://ttest:ci-placeholder-password@postgres:5432/ttest
@@ -26,9 +26,13 @@ docker compose --profile ops -f docker-compose.production.yml config --quiet
 for script in deploy/*.sh; do
   bash -n "$script"
 done
+
 grep -Fq 'location /api/' deploy/nginx.conf
 grep -Fq 'proxy_pass http://backend:8000;' deploy/nginx.conf
+grep -Fq 'proxy_set_header X-Real-IP $trusted_client_ip;' deploy/nginx.conf
+grep -Fq 'proxy_set_header X-Forwarded-For $trusted_client_ip;' deploy/nginx.conf
 grep -Fq 'Cross-Origin-Opener-Policy "same-origin-allow-popups"' deploy/nginx.conf
+grep -Fq 'Strict-Transport-Security "max-age=31536000"' deploy/nginx.conf
 grep -Fq 'location = /privacidad' deploy/nginx.conf
 grep -Fq 'location = /terminos' deploy/nginx.conf
 grep -Fq 'https://$domain/api/health/live' deploy/smoke-production.sh
@@ -44,6 +48,13 @@ grep -Fq 'Términos de uso' public/terminos/index.html
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
 grep -Fq 'cp /tmp/backup-manifest .backup-manifest' deploy/backup-minio.sh
+
+# Parse the exact production nginx file in the pinned runtime image. The fake
+# backend host avoids DNS failure during nginx -t without starting the stack.
+docker run --rm \
+  --add-host backend:127.0.0.1 \
+  --mount type=bind,src="$PWD/deploy/nginx.conf",dst=/etc/nginx/conf.d/default.conf,readonly \
+  nginxinc/nginx-unprivileged:1.27-alpine nginx -t
 
 docker compose --profile ops -f docker-compose.production.yml config --format json | python3 -c '
 import json
