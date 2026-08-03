@@ -54,6 +54,7 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/auth/login"): (10, 60),
     ("POST", "/api/v1/auth/register"): (10, 60),
     ("POST", "/api/v1/auth/google"): (10, 60),
+    ("POST", "/api/v1/auth/refresh"): (10, 60),
     ("POST", "/api/v1/auth/forgot-password"): (5, 60),
     ("POST", "/api/v1/auth/reset-password"): (10, 60),
     ("POST", "/api/v1/auth/email-verification/request"): (5, 3600),
