@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import secrets
@@ -14,7 +15,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..core.security import create_access_token, hash_password, new_refresh_token, token_hash, verify_password
+from ..core.security import (
+    create_access_token,
+    hash_password_async,
+    new_refresh_token,
+    token_hash,
+    verify_password_async,
+)
 from ..models import AuthSession, EmailVerificationToken, PasswordResetToken, User
 from ..schemas.auth import GoogleLoginRequest, RegisterRequest
 from .mail import enqueue_email_verification, enqueue_password_reset
@@ -31,6 +38,16 @@ class AuthResult:
 def google_email_is_authoritative(claims: dict, email: str) -> bool:
     """Whether Google can safely prove ownership of an existing local email."""
     return email.rsplit("@", 1)[-1] == "gmail.com" or bool(claims.get("hd"))
+
+
+def verify_google_credential(credential: str, client_id: str) -> dict:
+    return dict(
+        google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            client_id,
+        )
+    )
 
 
 def public_user(user: User) -> dict:
@@ -108,7 +125,7 @@ async def register_user(
         raise HTTPException(409, "Email already registered")
     user = User(
         email=email,
-        password_hash=hash_password(payload.password),
+        password_hash=await hash_password_async(payload.password),
         name=payload.name,
         role=payload.role,
         initials="".join(part[:1].upper() for part in payload.name.split()[:2]),
@@ -131,13 +148,11 @@ async def login_user(
     client_ip: str,
 ) -> AuthResult:
     user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
-    if (
-        not user
-        or not user.password_hash
-        or not verify_password(password, user.password_hash)
-        or user.blocked
-        or user.deleted_at
-    ):
+    password_valid = await verify_password_async(
+        password,
+        user.password_hash if user else None,
+    )
+    if not user or not password_valid or user.blocked or user.deleted_at:
         raise HTTPException(401, "Invalid credentials")
     return await issue_session(user, session, user_agent=user_agent, client_ip=client_ip)
 
@@ -153,9 +168,9 @@ async def google_login_user(
     if not settings.google_client_id:
         raise HTTPException(503, "Google sign-in is not configured")
     try:
-        claims = google_id_token.verify_oauth2_token(
+        claims = await asyncio.to_thread(
+            verify_google_credential,
             payload.credential,
-            google_requests.Request(),
             settings.google_client_id,
         )
     except ValueError as exc:
@@ -252,7 +267,7 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
     user = await session.get(User, reset.user_id)
     if not user or user.blocked or user.deleted_at:
         raise HTTPException(400, "The password reset link is invalid or has expired")
-    user.password_hash = hash_password(password)
+    user.password_hash = await hash_password_async(password)
     reset.consumed_at = now
     await session.execute(
         update(AuthSession)
