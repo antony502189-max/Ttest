@@ -49,13 +49,25 @@ def test_rate_limiter_returns_retry_after() -> None:
     assert second.retry_after >= 1
 
 
-def test_rate_limit_client_uses_forwarded_public_address() -> None:
+def test_rate_limit_client_uses_sanitized_proxy_address() -> None:
+    request = Request({
+        "type": "http",
+        "client": ("172.16.0.3", 12345),
+        "headers": [
+            (b"x-real-ip", b"198.51.100.10"),
+            (b"x-forwarded-for", b"198.51.100.10"),
+        ],
+    })
+    assert rate_limit_client(request) == "198.51.100.10"
+
+
+def test_unsanitized_forwarded_chain_does_not_trust_attacker_prefix() -> None:
     request = Request({
         "type": "http",
         "client": ("172.16.0.3", 12345),
         "headers": [(b"x-forwarded-for", b"198.51.100.10, 172.16.0.3")],
     })
-    assert rate_limit_client(request) == "198.51.100.10"
+    assert rate_limit_client(request) == "172.16.0.3"
 
 
 def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
