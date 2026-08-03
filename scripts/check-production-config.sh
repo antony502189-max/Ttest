@@ -21,6 +21,8 @@ export SMTP_FROM=noreply@example.test
 export TRAEFIK_NETWORK=traefik-public
 export TRAEFIK_ENTRYPOINT=websecure
 export TRAEFIK_CERT_RESOLVER=letsencrypt
+export BACKUP_ENCRYPTION_KEY=ci-encryption-secret-with-at-least-32-characters
+export BACKUP_AUTHENTICATION_KEY=ci-authentication-secret-with-at-least-32-characters
 
 docker compose --profile ops -f docker-compose.production.yml config --quiet
 for script in deploy/*.sh; do
@@ -31,6 +33,13 @@ grep -Fq 'location /api/' deploy/nginx.conf
 grep -Fq 'proxy_pass http://backend:8000;' deploy/nginx.conf
 grep -Fq 'proxy_set_header X-Real-IP $trusted_client_ip;' deploy/nginx.conf
 grep -Fq 'proxy_set_header X-Forwarded-For $trusted_client_ip;' deploy/nginx.conf
+grep -Fq 'limit_req zone=api_per_ip' deploy/nginx.conf
+grep -Fq 'limit_req zone=api_writes_per_ip' deploy/nginx.conf
+grep -Fq 'limit_conn connections_per_ip' deploy/nginx.conf
+if grep -Eq '^[[:space:]]*proxy_cache(_path|[[:space:]])' deploy/nginx.conf; then
+  echo 'shared proxy caching is forbidden for mutable-visibility media' >&2
+  exit 1
+fi
 grep -Fq 'Cross-Origin-Opener-Policy "same-origin-allow-popups"' deploy/nginx.conf
 grep -Fq 'Strict-Transport-Security "max-age=31536000"' deploy/nginx.conf
 grep -Fq 'location = /privacidad' deploy/nginx.conf
@@ -48,6 +57,26 @@ grep -Fq 'Términos de uso' public/terminos/index.html
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
 grep -Fq 'cp /tmp/backup-manifest .backup-manifest' deploy/backup-minio.sh
+grep -Fq 'verify_backup_authentication' deploy/restore-verify.sh
+grep -Fq 'verify_backup_authentication' deploy/restore-minio-verify.sh
+
+# Exercise the exact OpenSSL HMAC command used on the VPS. A modified encrypted
+# file must fail authentication even when an attacker can replace plain hashes.
+backup_test_dir="$(mktemp -d)"
+cleanup_backup_test() { rm -rf "$backup_test_dir"; }
+trap cleanup_backup_test EXIT
+# shellcheck source=deploy/backup-crypto.sh
+source deploy/backup-crypto.sh
+printf 'encrypted-backup-placeholder' > "$backup_test_dir/backup.enc"
+write_backup_hmac "$backup_test_dir/backup.enc"
+verify_backup_authentication "$backup_test_dir/backup.enc"
+printf 'tampered' >> "$backup_test_dir/backup.enc"
+if verify_backup_authentication "$backup_test_dir/backup.enc" 2>/dev/null; then
+  echo 'tampered backup unexpectedly passed authentication' >&2
+  exit 1
+fi
+cleanup_backup_test
+trap - EXIT
 
 # Parse the exact production nginx file in the pinned runtime image. The fake
 # backend host avoids DNS failure during nginx -t without starting the stack.
@@ -86,6 +115,8 @@ if backend_env.get("FRONTEND_ORIGINS") != "https://example.test":
     raise SystemExit("backend CORS must allow only the application host")
 if backend_env.get("EMAIL_VERIFICATION_HMAC_SECRET") != "ci-independent-verification-secret-32-plus":
     raise SystemExit("backend must receive the dedicated verification HMAC secret")
+if backend_env.get("PASSWORD_WORK_CONCURRENCY") != "2":
+    raise SystemExit("backend must receive the bounded password-work setting")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
 if config["networks"].get("application", {}).get("internal") is not True:
