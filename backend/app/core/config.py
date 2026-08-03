@@ -1,4 +1,5 @@
 from functools import lru_cache
+from hmac import compare_digest
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -157,7 +158,10 @@ class Settings(BaseSettings):
                 problems.append("JWT_SECRET must be a strong production secret")
             if len(self.email_verification_hmac_secret) < 32:
                 problems.append("EMAIL_VERIFICATION_HMAC_SECRET must contain at least 32 characters in production")
-            elif hmac_compare(self.email_verification_hmac_secret, self.jwt_secret):
+            elif compare_digest(
+                self.email_verification_hmac_secret.encode(),
+                self.jwt_secret.encode(),
+            ):
                 problems.append("EMAIL_VERIFICATION_HMAC_SECRET must be independent from JWT_SECRET")
             if not self.origins or any(origin.startswith("http://") for origin in self.origins):
                 problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
@@ -176,7 +180,11 @@ class Settings(BaseSettings):
             if self.auto_publish_listings:
                 problems.append("AUTO_PUBLISH_LISTINGS must be false in production")
             if self.external_import_enabled:
-                configured_sources = {item.strip().casefold() for item in self.external_import_sources.split(",") if item.strip()}
+                configured_sources = {
+                    item.strip().casefold()
+                    for item in self.external_import_sources.split(",")
+                    if item.strip()
+                }
                 if not configured_sources:
                     problems.append("EXTERNAL_IMPORT_SOURCES must enable at least one source in production")
                 unknown_sources = configured_sources - SUPPORTED_EXTERNAL_IMPORT_SOURCES
@@ -185,14 +193,6 @@ class Settings(BaseSettings):
 
         if problems:
             raise RuntimeError("Invalid runtime configuration: " + "; ".join(problems))
-
-
-
-def hmac_compare(left: str, right: str) -> bool:
-    """Compare secrets without introducing value-dependent timing."""
-    from hmac import compare_digest
-
-    return compare_digest(left.encode(), right.encode())
 
 
 @lru_cache
