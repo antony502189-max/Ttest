@@ -32,6 +32,7 @@ from ...schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
+from ...services.listing_limits import enforce_listing_creation_limits
 from ...services.listings import (
     create_listing as create_listing_service,
 )
@@ -152,6 +153,7 @@ async def create_listing(
                 "fieldErrors": {},
             },
         )
+    await enforce_listing_creation_limits(user, session)
     return await create_listing_service(payload, user, session)
 
 
