@@ -9,11 +9,11 @@ WORKDIR /app
 
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app
 
-COPY pyproject.toml ./
+COPY pyproject.toml constraints.txt ./
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
-RUN pip install .
+RUN pip install --constraint constraints.txt .
 # Public-page rendering is optional at runtime, but the worker image must be
 # capable of providing the configured Playwright fallback without a host browser.
 RUN python -m playwright install --with-deps chromium
