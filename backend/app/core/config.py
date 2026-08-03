@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     max_image_dimension: int = 8_000
     max_image_pixels: int = 25_000_000
     image_processing_concurrency: int = 2
+    max_media_assets_per_user: int = 100
+    max_media_bytes_per_user: int = 256 * 1024 * 1024
 
     redis_url: str = ""
     metrics_enabled: bool = True
@@ -137,8 +139,10 @@ class Settings(BaseSettings):
             or self.max_image_dimension < 1
             or self.max_image_pixels < 1
             or self.image_processing_concurrency < 1
+            or self.max_media_assets_per_user < 1
+            or self.max_media_bytes_per_user < self.max_upload_bytes
         ):
-            problems.append("Media upload and processing limits must be positive")
+            problems.append("Media upload, processing and quota limits are invalid")
         if (
             self.s3_connect_timeout_seconds < 1
             or self.s3_read_timeout_seconds < 1
