@@ -126,3 +126,50 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:security
+
+  refresh-lockfile:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'antony502189-max'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Regenerate lockfile without package lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit regenerated lockfile through the GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo 'Lockfile already matches package.json'
+            exit 0
+          fi
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/package-lock.json?ref=$HEAD_REF" --jq .sha)"
+          export CURRENT_SHA="$current_sha"
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "message": "chore: regenerate npm lockfile",
+              "content": base64.b64encode(Path("package-lock.json").read_bytes()).decode(),
+              "sha": os.environ["CURRENT_SHA"],
+              "branch": os.environ["HEAD_REF"],
+          }
+          Path("/tmp/lockfile-update.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/package-lock.json" --input /tmp/lockfile-update.json
