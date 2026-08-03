@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
+from ipaddress import ip_address
 from time import perf_counter
 from uuid import uuid4
 
@@ -40,11 +42,13 @@ if settings.sentry_dsn:
     )
 logger = logging.getLogger(__name__)
 rate_limiter = ResilientRateLimiter()
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
 def api_schema_enabled() -> bool:
     """Keep interactive API metadata out of the public production surface."""
     return not settings.is_production
+
 
 RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/auth/login"): (10, 60),
@@ -79,13 +83,34 @@ def rate_rule(method: str, path: str) -> tuple[int, int] | None:
     return None
 
 
+def _normalized_ip(value: str) -> str | None:
+    candidate = value.strip()
+    if not candidate:
+        return None
+    try:
+        return ip_address(candidate).compressed
+    except ValueError:
+        return None
+
+
 def rate_limit_client(request: Request) -> str:
-    # The backend is private to Compose and receives public traffic only through
-    # the frontend proxy, which appends the client address to X-Forwarded-For.
-    # Using request.client here would rate-limit every visitor under that proxy.
-    forwarded = request.headers.get("x-forwarded-for", "")
-    client = forwarded.split(",", 1)[0].strip()
-    return client or (request.client.host if request.client else "unknown")
+    # The public backend is reachable only through Traefik and the frontend
+    # nginx proxy. nginx sanitizes X-Real-IP/X-Forwarded-For to one validated
+    # client hop before forwarding the request here.
+    real_ip = _normalized_ip(request.headers.get("x-real-ip", ""))
+    if real_ip:
+        return real_ip
+    forwarded = [part for part in request.headers.get("x-forwarded-for", "").split(",") if part.strip()]
+    for part in reversed(forwarded):
+        candidate = _normalized_ip(part)
+        if candidate:
+            return candidate
+    return _normalized_ip(request.client.host) if request.client else None or "unknown"
+
+
+def request_id_for(request: Request) -> str:
+    candidate = request.headers.get("X-Request-ID", "")
+    return candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else str(uuid4())
 
 
 @asynccontextmanager
@@ -119,7 +144,8 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", str(uuid4()))
+    request_id = request_id_for(request)
+    request.state.request_id = request_id
     started = perf_counter()
     rate = rate_rule(request.method, request.url.path)
     if rate:
@@ -160,13 +186,17 @@ async def http_error(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content=content,
-        headers={**(exc.headers or {}), "X-Request-ID": request.headers.get("X-Request-ID", "unknown"), **SECURITY_HEADERS},
+        headers={
+            **(exc.headers or {}),
+            "X-Request-ID": getattr(request.state, "request_id", request_id_for(request)),
+            **SECURITY_HEADERS,
+        },
     )
 
 
 @app.exception_handler(Exception)
 async def internal_error(request: Request, exc: Exception):
-    request_id = request.headers.get("X-Request-ID", "unknown")
+    request_id = getattr(request.state, "request_id", request_id_for(request))
     UNHANDLED_ERRORS.labels(type(exc).__name__).inc()
     logger.exception(
         "unhandled_request_error",
