@@ -14,6 +14,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      'shadcn/tailwind.css': path.resolve(__dirname, './src/styles/shadcn-tailwind.css'),
       '@/components/marketplace': path.resolve(__dirname, './src/components/marketplace-localized.tsx'),
       '@': path.resolve(__dirname, './src'),
     },
