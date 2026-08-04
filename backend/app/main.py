@@ -82,10 +82,7 @@ def rate_rule(method: str, path: str) -> tuple[int, int] | None:
         return direct
     if method == "POST" and path.startswith("/api/v1/messages/threads/"):
         return 30, 60
-    if method == "PUT" and (
-        path.startswith("/api/v1/favorites/")
-        or path.startswith("/api/v1/discarded-listings/")
-    ):
+    if method == "PUT" and path.startswith(("/api/v1/favorites/", "/api/v1/discarded-listings/")):
         return 60, 60
     return None
 
