@@ -134,6 +134,17 @@ test('20–22 login erróneo, demo y ruta protegida', async ({ page }) => {
   await expect(page).toHaveURL(/perfil/)
 })
 
+test('mock Google login creates a passwordless local session', async ({ page }) => {
+  await page.goto('/#/acceso')
+  await page.getByRole('button', { name: 'Continuar con Google' }).click()
+  await expect(page).not.toHaveURL(/acceso/)
+  await expect.poll(() => page.evaluate(() => {
+    const users = JSON.parse(localStorage.getItem('112233:users:v1') || '[]') as Array<{ id: string; email: string; passwordHash: string }>
+    const user = users.find((item) => item.email === 'google.demo@112233.es')
+    return user ? { id: user.id, passwordHash: user.passwordHash, session: JSON.parse(localStorage.getItem('112233:session:v1') || 'null') } : null
+  })).toEqual({ id: 'google-demo', passwordHash: '', session: 'google-demo' })
+})
+
 test('23–26 registro y perfil persistente', async ({ page }) => {
   await page.goto('/#/registro')
   await page.getByLabel(/^nombre/i).fill('Persona Prueba')

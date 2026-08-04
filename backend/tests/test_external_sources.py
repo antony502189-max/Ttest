@@ -4,6 +4,7 @@ import os
 import re
 from io import BytesIO
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -24,7 +25,7 @@ from app.external_sources import (
     parse_optional_datetime,
     parse_price,
 )
-from app.services.external_import import completeness_score, perceptual_hash, similarity
+from app.services.external_import import completeness_score, external_storage_key, perceptual_hash, similarity
 
 
 def room_offer(**overrides):
@@ -73,6 +74,16 @@ def test_geo_filter_covers_the_whole_santa_cruz_province_not_just_tenerife():
 def test_coordinates_outside_the_province_are_rejected_even_when_text_mentions_tenerife():
     listing = room_offer(latitude=28.128, longitude=-15.438)  # Gran Canaria
     assert IdealistaSource().normalize_listing(listing, "https://www.idealista.com/inmueble/123456/") is None
+
+
+def test_external_storage_keys_are_unique_per_asset_attempt():
+    owner_id = uuid4()
+    first = external_storage_key(owner_id, uuid4())
+    second = external_storage_key(owner_id, uuid4())
+
+    assert first != second
+    assert first.startswith(f"external/{owner_id}/")
+    assert first.endswith(".webp")
 
 
 def test_perceptual_hash_is_stable_for_the_same_public_image():

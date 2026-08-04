@@ -203,7 +203,9 @@ async def test_image_download_and_storage_do_not_reuse_another_users_private_ass
         assert attached_asset.id != private_asset.id
         assert attached_asset.owner_id == system_owner.id
         assert attached_asset.kind == "listing_image"
-        assert storage.objects == {f"external/{checksum}.webp": normalized}
+        assert storage.objects == {attached_asset.storage_key: normalized}
+        assert attached_asset.storage_key.startswith(f"external/{system_owner.id}/")
+        assert attached_asset.storage_key.endswith(".webp")
 
 
 async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatch):

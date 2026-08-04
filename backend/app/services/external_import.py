@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from time import perf_counter
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
@@ -168,7 +168,7 @@ def listing_completeness_score(listing: Listing) -> int:
 def perceptual_hash(content: bytes) -> str:
     """A stable average hash for conservative duplicate-photo matching."""
     with Image.open(BytesIO(content)) as image:
-        pixels = list(image.convert("L").resize((8, 8)).getdata())
+        pixels = list(image.convert("L").resize((8, 8)).get_flattened_data())
     average = sum(pixels) / len(pixels)
     return f"{sum((1 << index) for index, value in enumerate(pixels) if value >= average):016x}"
 
@@ -191,6 +191,11 @@ async def public_image_hashes(urls: list[str]) -> set[str]:
             except (HTTPException, OSError, ValueError, httpx.HTTPError):
                 continue
     return result
+
+
+def external_storage_key(owner_id: UUID, asset_id: UUID) -> str:
+    """Return a collision-free key so one failed concurrent insert cannot delete another asset."""
+    return f"external/{owner_id}/{asset_id}.webp"
 
 
 @dataclass(frozen=True)
@@ -273,7 +278,8 @@ async def import_images(
                 if not asset:
                     # Close the checksum lookup transaction before S3/MinIO I/O.
                     await session.commit()
-                    created_storage_key = f"external/{prepared.checksum}.webp"
+                    asset_id = uuid4()
+                    created_storage_key = external_storage_key(owner_id, asset_id)
                     require_no_active_transaction(session, "external image storage")
                     try:
                         await asyncio.to_thread(storage.put, created_storage_key, prepared.content)
@@ -284,6 +290,7 @@ async def import_images(
                         )
                         continue
                     asset = MediaAsset(
+                        id=asset_id,
                         owner_id=owner_id,
                         storage_key=created_storage_key,
                         mime_type="image/webp",
