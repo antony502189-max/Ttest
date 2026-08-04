@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-
 import asyncio
 import hashlib
 import json
 import logging
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
