@@ -76,7 +76,7 @@ x-python-hardening: &python-hardening
 
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ttest}
@@ -91,7 +91,7 @@ services:
     networks: [application]
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes: [redis-data:/data]
@@ -103,7 +103,7 @@ services:
     networks: [application]
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     restart: unless-stopped
     command: server /data
     environment:

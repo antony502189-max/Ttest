@@ -10,6 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 ACTION_USE = re.compile(r"^\s*uses:\s*([^\s#]+)", re.MULTILINE)
 FULL_SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
+CONTAINER_DIGEST = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
+DOCKER_FROM = re.compile(r"^\s*FROM\s+(?:--platform=\S+\s+)?([^\s]+)", re.IGNORECASE | re.MULTILINE)
+COMPOSE_IMAGE = re.compile(r"^\s*image:\s*([^\s#]+)", re.MULTILINE)
 
 
 def fail(message: str) -> None:
@@ -58,9 +61,31 @@ def check_backend_constraints() -> None:
         fail("Production audit does not enforce the backend dependency graph")
 
 
+def check_container_images() -> None:
+    dockerfiles = sorted(ROOT.rglob("Dockerfile*"))
+    if not dockerfiles:
+        fail("no Dockerfiles found")
+    for path in dockerfiles:
+        content = path.read_text(encoding="utf-8")
+        for image in DOCKER_FROM.findall(content):
+            if image.casefold() == "scratch":
+                continue
+            if not CONTAINER_DIGEST.fullmatch(image):
+                fail(f"{path.relative_to(ROOT)} uses an unpinned base image: {image}")
+
+    compose_files = [ROOT / "docker-compose.yml", ROOT / "docker-compose.production.yml"]
+    for path in compose_files:
+        if not path.is_file():
+            fail(f"missing compose file: {path.relative_to(ROOT)}")
+        for image in COMPOSE_IMAGE.findall(path.read_text(encoding="utf-8")):
+            if not CONTAINER_DIGEST.fullmatch(image):
+                fail(f"{path.relative_to(ROOT)} uses an unpinned service image: {image}")
+
+
 def main() -> None:
     check_workflows()
     check_backend_constraints()
+    check_container_images()
     print("Supply-chain pins are valid")
 
 
