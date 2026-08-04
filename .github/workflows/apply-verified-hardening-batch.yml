@@ -28,7 +28,6 @@ jobs:
         run: |
           set -euo pipefail
           if test -f scripts/check-production-bundle.mjs \
-            && ! test -f .github/workflows/final-audit-temporary.yml \
             && grep -Fq 'external_storage_key(owner_id, asset_id)' backend/app/services/external_import.py \
             && ! grep -Fq 'GoogleDemo112233!' src/pages/UnifiedAuthPage.tsx; then
             echo 'changed=false' >> "$GITHUB_OUTPUT"
@@ -61,7 +60,7 @@ jobs:
           python3 scripts/check-supply-chain.py
           echo 'changed=true' >> "$GITHUB_OUTPUT"
 
-      - name: Commit patched tree atomically
+      - name: Commit non-workflow files
         if: steps.patch.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -72,6 +71,28 @@ jobs:
           base_sha="$(git rev-parse HEAD)"
           remote_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$HEAD_REF" --jq .object.sha)"
           test "$remote_sha" = "$base_sha"
+
+          git restore --staged --worktree \
+            .github/workflows/audit-source-snapshot.yml \
+            .github/workflows/production-audit.yml \
+            .github/workflows/final-audit-temporary.yml
+
+          expected=$(cat <<'EOF'
+          Dockerfile
+          backend/app/services/external_import.py
+          backend/tests/integration/test_external_import_transaction_boundaries.py
+          backend/tests/test_external_sources.py
+          package.json
+          scripts/check-production-bundle.mjs
+          scripts/final-audit-local.sh
+          src/contexts/mock-app-provider.tsx
+          src/pages/UnifiedAuthPage.tsx
+          tests/e2e.spec.ts
+          EOF
+          )
+          actual="$(git diff --cached --name-only | sort)"
+          test "$actual" = "$(printf '%s\n' "$expected" | sed 's/^          //' | sort)"
+          git diff --cached --check
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
