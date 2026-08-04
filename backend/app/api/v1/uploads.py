@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from io import BytesIO
 from uuid import UUID, uuid4
 
+from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
@@ -15,6 +16,7 @@ from ...core.config import Settings, get_settings
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
 from ...schemas.media import MediaAssetResponse
+from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import get_storage
 from ..dependencies import current_user, optional_user
 
@@ -141,7 +143,12 @@ async def upload_image(
     try:
         await session.commit()
     except Exception:
-        await asyncio.to_thread(storage.delete, storage_key)
+        await session.rollback()
+        try:
+            await asyncio.to_thread(storage.delete, storage_key)
+        except (OSError, BotoCoreError, ClientError):
+            await enqueue_storage_deletion(session, storage_key)
+            await session.commit()
         raise
     await session.refresh(asset)
     return public_asset(asset)
@@ -219,5 +226,5 @@ async def delete_upload(
     if active_avatar or listing_attachment:
         raise HTTPException(409, "Media is still attached to an active resource")
     asset.deleted_at = datetime.now(UTC)
+    await enqueue_storage_deletion(session, asset.storage_key)
     await session.commit()
-    await asyncio.to_thread(get_storage().delete, asset.storage_key)

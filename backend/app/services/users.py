@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -22,7 +21,7 @@ from ..models import (
     User,
 )
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
-from ..storage import get_storage
+from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
 
 
 async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
@@ -43,8 +42,6 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
     previous_id = user.avatar_asset_id
-    previous_key: str | None = None
-
     if payload.assetId is None:
         user.avatar_asset_id = None
     else:
@@ -66,14 +63,12 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
         )
         if previous and not previous_attachment:
             previous.deleted_at = datetime.now(UTC)
-            previous_key = previous.storage_key
+            await enqueue_storage_deletion(session, previous.storage_key)
         elif previous and previous_attachment:
             previous.kind = "listing_image"
 
     await session.commit()
     await session.refresh(user)
-    if previous_key:
-        await asyncio.to_thread(get_storage().delete, previous_key)
     return user
 
 
@@ -112,9 +107,5 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     user.show_phone = user.show_whatsapp = False
     user.allow_contact_form = False
     user.avatar_asset_id = None
+    await enqueue_storage_deletions(session, media_paths)
     await session.commit()
-
-    await asyncio.gather(
-        *(asyncio.to_thread(get_storage().delete, storage_key) for storage_key in media_paths),
-        return_exceptions=True,
-    )

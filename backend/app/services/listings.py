@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -18,7 +17,7 @@ from ..schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
-from ..storage import get_storage
+from .storage_deletions import enqueue_storage_deletions
 
 
 def ensure_owner_or_admin(listing: Listing, user: User) -> None:
@@ -35,9 +34,9 @@ async def touch_catalog(session: AsyncSession) -> None:
     state.updated_at = datetime.now(UTC)
 
 
-async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> list[str]:
+async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> int:
     if not candidate_ids:
-        return []
+        return 0
     attached = set(
         (
             await session.scalars(
@@ -54,7 +53,7 @@ async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -
     }
     orphan_ids = candidate_ids - attached - avatars
     if not orphan_ids:
-        return []
+        return 0
     assets = list(
         (
             await session.scalars(
@@ -65,16 +64,8 @@ async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -
     now = datetime.now(UTC)
     for asset in assets:
         asset.deleted_at = now
-    return [asset.storage_key for asset in assets]
-
-
-async def delete_storage_keys(storage_keys: list[str]) -> None:
-    if not storage_keys:
-        return
-    await asyncio.gather(
-        *(asyncio.to_thread(get_storage().delete, storage_key) for storage_key in storage_keys),
-        return_exceptions=True,
-    )
+    await enqueue_storage_deletions(session, {asset.storage_key for asset in assets})
+    return len(assets)
 
 
 def apply_write(listing: Listing, payload: ListingWrite) -> None:
@@ -198,39 +189,22 @@ async def update_listing(
         "advertiserType": "advertiser_type",
         "expiresAt": "expires_at",
     }
-    coordinates_changed = "latitude" in changes or "longitude" in changes
+    previous_status = listing.status
     latitude = changes.pop("latitude", None)
     longitude = changes.pop("longitude", None)
-    if coordinates_changed:
-        listing.location = point(longitude, latitude)
-
-    exact_changed = "exactLatitude" in changes or "exactLongitude" in changes
     exact_latitude = changes.pop("exactLatitude", None)
     exact_longitude = changes.pop("exactLongitude", None)
-    if exact_changed:
+    if latitude is not None and longitude is not None:
+        listing.location = point(longitude, latitude)
+    if "exactLatitude" in payload.model_fields_set or "exactLongitude" in payload.model_fields_set:
         listing.exact_location = (
             point(exact_longitude, exact_latitude)
             if exact_latitude is not None and exact_longitude is not None
             else None
         )
-
-    previous_status = listing.status
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value)
-    if listing.rental_mode == "long" and listing.monthly_price is None:
-        raise HTTPException(422, "monthlyPrice is required for long rentals")
-    if listing.rental_mode == "holiday" and listing.nightly_price is None:
-        raise HTTPException(422, "nightlyPrice is required for holiday rentals")
-    if listing.available_from and listing.available_until and listing.available_until < listing.available_from:
-        raise HTTPException(422, "availableUntil cannot be before availableFrom")
-
     if listing.status != previous_status:
-        if listing.status == "published" and listing.published_at is None:
-            listing.published_at = datetime.now(UTC)
-        if listing.status == "closed" and user.role != "admin":
-            listing.closed_reason = "owner"
-        elif listing.status != "closed":
-            listing.closed_reason = None
         session.add(
             ListingStatusHistory(
                 listing_id=listing.id,
@@ -239,6 +213,8 @@ async def update_listing(
                 changed_by=user.id,
             )
         )
+        if listing.status == "published" and listing.published_at is None:
+            listing.published_at = datetime.now(UTC)
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -283,7 +259,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     )
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     await session.flush()
-    storage_keys = await mark_orphaned_media(session, attached_ids)
+    await mark_orphaned_media(session, attached_ids)
 
     previous_status = listing.status
     listing.deleted_at = datetime.now(UTC)
@@ -299,7 +275,6 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     )
     await touch_catalog(session)
     await session.commit()
-    await delete_storage_keys(storage_keys)
 
 
 async def replace_listing_images(
@@ -340,9 +315,8 @@ async def replace_listing_images(
             )
         )
     await session.flush()
-    storage_keys = await mark_orphaned_media(session, previous_ids - set(payload.assetIds))
+    await mark_orphaned_media(session, previous_ids - set(payload.assetIds))
     await session.commit()
-    await delete_storage_keys(storage_keys)
     return [
         ListingImageResponse(
             assetId=asset_id,

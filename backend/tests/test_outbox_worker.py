@@ -42,6 +42,9 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
         async def empty_batch(session) -> int:
             return 0
 
+        async def empty_storage_deletions(session):
+            return {"deleted": 0, "failed": 0}
+
         async def empty_retention(session, *, now):
             nonlocal retention_calls
             retention_calls += 1
@@ -55,6 +58,7 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "worker_state", record_state)
         monkeypatch.setattr(worker, "deliver_pending_mail", empty_batch)
+        monkeypatch.setattr(worker, "process_storage_deletions", empty_storage_deletions)
         monkeypatch.setattr(worker, "prune_expired_records", empty_retention)
         monkeypatch.setattr(worker.asyncio, "Event", ControlledEvent)
         monkeypatch.setattr(worker.asyncio, "get_running_loop", SignalLoop)
