@@ -1,0 +1,75 @@
+name: Apply mock production isolation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'antony502189-max'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply verified source patch
+        id: patch
+        run: |
+          set -euo pipefail
+          python3 scripts/apply-mock-production-isolation.py
+          expected="src/components/marketplace.tsx
+          src/contexts/app-context.tsx
+          src/contexts/mock-app-provider.production.tsx
+          src/contexts/mock-app-provider.tsx
+          src/data/listings.ts
+          src/data/mock-listings.ts
+          src/lib/listings.ts
+          vite.config.ts"
+          actual="$(git diff --name-only | sort)"
+          test "$actual" = "$(printf '%s\n' "$expected" | sed 's/^[[:space:]]*//' | sort)"
+          git diff --check
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Validate production and mock builds
+        if: steps.patch.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run lint
+          npm run typecheck
+          VITE_ENABLE_MOCK_MODE=0 npm run build
+          npm run test:bundle-security
+          VITE_ENABLE_MOCK_MODE=1 npm run build
+
+      - name: Commit verified isolation
+        if: steps.patch.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            src/components/marketplace.tsx \
+            src/contexts/app-context.tsx \
+            src/contexts/mock-app-provider.production.tsx \
+            src/contexts/mock-app-provider.tsx \
+            src/data/listings.ts \
+            src/data/mock-listings.ts \
+            src/lib/listings.ts \
+            vite.config.ts
+          git commit -m "fix: exclude mock accounts from production bundle"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
