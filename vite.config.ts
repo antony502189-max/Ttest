@@ -7,17 +7,25 @@ const legacyMockOwnerExpression = "legacy.ownerUserId ?? (legacy.userCreated ? '
 
 function isolateMockOwnerFromProduction(): Plugin {
   const mockMode = process.env.VITE_ENABLE_MOCK_MODE === '1'
+  let transformedModules = 0
   return {
     name: 'isolate-mock-owner-from-production',
     enforce: 'pre',
     transform(code, id) {
-      if (mockMode || !id.replaceAll('\\', '/').endsWith('/src/lib/listings.ts')) return null
+      const sourceId = id.split('?', 1)[0].replaceAll('\\', '/')
+      if (mockMode || !sourceId.includes('/src/lib/listings.ts')) return null
       if (!code.includes(legacyMockOwnerExpression)) {
         throw new Error('Expected legacy mock owner expression was not found')
       }
+      transformedModules += 1
       return {
         code: code.replace(legacyMockOwnerExpression, 'legacy.ownerUserId'),
         map: null,
+      }
+    },
+    buildEnd(error) {
+      if (!mockMode && !error && transformedModules !== 1) {
+        this.error(`Expected one production mock-owner transformation, got ${transformedModules}`)
       }
     },
   }
