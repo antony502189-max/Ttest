@@ -3,29 +3,50 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-const legacyMockOwnerExpression = "legacy.ownerUserId ?? (legacy.userCreated ? 'host-demo' : undefined)"
+type ProductionReplacement = {
+  sourceSuffix: string
+  mockExpression: string
+  productionExpression: string
+}
 
-function isolateMockOwnerFromProduction(): Plugin {
+const productionReplacements: ProductionReplacement[] = [
+  {
+    sourceSuffix: '/src/lib/listings.ts',
+    mockExpression: "legacy.ownerUserId ?? (legacy.userCreated ? 'host-demo' : undefined)",
+    productionExpression: 'legacy.ownerUserId',
+  },
+  {
+    sourceSuffix: '/src/data/listings.ts',
+    mockExpression: "ownerUserId: index < 3 ? 'host-demo' : undefined",
+    productionExpression: 'ownerUserId: undefined',
+  },
+]
+
+function isolateMockDataFromProduction(): Plugin {
   const mockMode = process.env.VITE_ENABLE_MOCK_MODE === '1'
-  let transformedModules = 0
+  const transformedSources = new Set<string>()
   return {
-    name: 'isolate-mock-owner-from-production',
+    name: 'isolate-mock-data-from-production',
     enforce: 'pre',
     transform(code, id) {
+      if (mockMode) return null
       const sourceId = id.split('?', 1)[0].replaceAll('\\', '/')
-      if (mockMode || !sourceId.includes('/src/lib/listings.ts')) return null
-      if (!code.includes(legacyMockOwnerExpression)) {
-        throw new Error('Expected legacy mock owner expression was not found')
+      const replacement = productionReplacements.find(({ sourceSuffix }) => sourceId.includes(sourceSuffix))
+      if (!replacement) return null
+      if (!code.includes(replacement.mockExpression)) {
+        throw new Error(`Expected mock expression was not found in ${replacement.sourceSuffix}`)
       }
-      transformedModules += 1
+      transformedSources.add(replacement.sourceSuffix)
       return {
-        code: code.replace(legacyMockOwnerExpression, 'legacy.ownerUserId'),
+        code: code.replace(replacement.mockExpression, replacement.productionExpression),
         map: null,
       }
     },
     buildEnd(error) {
-      if (!mockMode && !error && transformedModules !== 1) {
-        this.error(`Expected one production mock-owner transformation, got ${transformedModules}`)
+      if (!mockMode && !error && transformedSources.size !== productionReplacements.length) {
+        this.error(
+          `Expected ${productionReplacements.length} production mock-data transformations, got ${transformedSources.size}`,
+        )
       }
     },
   }
@@ -34,7 +55,7 @@ function isolateMockOwnerFromProduction(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
-  plugins: [isolateMockOwnerFromProduction(), react(), tailwindcss()],
+  plugins: [isolateMockDataFromProduction(), react(), tailwindcss()],
   server: {
     watch: {
       ignored: ['**/artifacts/**', '**/test-results/**'],
