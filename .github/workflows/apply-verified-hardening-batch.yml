@@ -84,6 +84,8 @@ jobs:
 
           def gh(method: str, endpoint: str, payload: dict | None = None) -> dict:
               command = ['gh', 'api', '--method', method, endpoint]
+              if payload is not None:
+                  command.extend(['--input', '-'])
               output = run(*command, input_text=json.dumps(payload) if payload is not None else None)
               return json.loads(output)
 
