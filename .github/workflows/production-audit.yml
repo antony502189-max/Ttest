@@ -130,7 +130,7 @@ jobs:
 
   resolve-container-digests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Resolve immutable production image manifests
         shell: bash
@@ -147,7 +147,9 @@ jobs:
             minio/minio:RELEASE.2025-04-22T22-12-26Z
           )
           for image in "${images[@]}"; do
-            digest="$(docker buildx imagetools inspect "$image" | awk '$1 == "Digest:" { print $2; exit }')"
+            docker pull --quiet "$image" >&2
+            resolved="$(docker image inspect --format '{{index .RepoDigests 0}}' "$image")"
+            digest="${resolved##*@}"
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
             printf '%s@%s\n' "$image" "$digest"
           done
