@@ -1,4 +1,4 @@
-name: Temporary Full Audit
+name: Full audit
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: temporary-full-audit-${{ github.event.pull_request.number || github.ref }}
+  group: full-audit-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -83,7 +83,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: temporary-full-audit-${{ github.run_attempt }}
+          name: full-audit-${{ github.run_attempt }}
           if-no-files-found: ignore
           retention-days: 7
           path: |

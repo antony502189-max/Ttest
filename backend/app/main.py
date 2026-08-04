@@ -163,10 +163,17 @@ async def request_context(request: Request, call_next):
             return JSONResponse(
                 status_code=429,
                 content={"code": "rate_limited", "message": "Too many attempts", "fieldErrors": {}},
-                headers={"Retry-After": str(result.retry_after), "X-Request-ID": request_id, **SECURITY_HEADERS},
+                headers={
+                    "Retry-After": str(result.retry_after),
+                    "X-Request-ID": request_id,
+                    "Cache-Control": "no-store",
+                    **SECURITY_HEADERS,
+                },
             )
 
     response = await call_next(request)
+    if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
+        response.headers["Cache-Control"] = "no-store"
     duration = perf_counter() - started
     route = request.scope.get("route")
     route_path = getattr(route, "path", request.url.path)

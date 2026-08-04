@@ -44,6 +44,8 @@ grep -Fq 'Cross-Origin-Opener-Policy "same-origin-allow-popups"' deploy/nginx.co
 grep -Fq 'Strict-Transport-Security "max-age=31536000"' deploy/nginx.conf
 grep -Fq 'location = /privacidad' deploy/nginx.conf
 grep -Fq 'location = /terminos' deploy/nginx.conf
+grep -Fq 'location = /favicon.svg' deploy/nginx.conf
+grep -Fq 'try_files /favicon.svg =404;' deploy/nginx.conf
 grep -Fq 'https://$domain/api/health/live' deploy/smoke-production.sh
 grep -Fq 'https://$domain/api/health/ready' deploy/smoke-production.sh
 grep -Fq 'https://$domain/api/v1/listings' deploy/smoke-production.sh
