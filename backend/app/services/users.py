@@ -78,12 +78,21 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     )
     original_email = user.email
     now = datetime.now(UTC)
+    owned_listing_ids = select(Listing.id).where(Listing.owner_user_id == user.id)
 
     await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
     await session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user.id))
     await session.execute(delete(EmailVerificationToken).where(EmailVerificationToken.user_id == user.id))
-    await session.execute(delete(Favorite).where(Favorite.user_id == user.id))
-    await session.execute(delete(DiscardedListing).where(DiscardedListing.user_id == user.id))
+    await session.execute(
+        delete(Favorite).where(
+            (Favorite.user_id == user.id) | (Favorite.listing_id.in_(owned_listing_ids))
+        )
+    )
+    await session.execute(
+        delete(DiscardedListing).where(
+            (DiscardedListing.user_id == user.id) | (DiscardedListing.listing_id.in_(owned_listing_ids))
+        )
+    )
     await session.execute(delete(SavedSearch).where(SavedSearch.user_id == user.id))
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == user.id))
     await session.execute(delete(MailOutbox).where(MailOutbox.recipient == original_email))

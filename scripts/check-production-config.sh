@@ -56,6 +56,7 @@ grep -Fq 'Términos de uso' public/terminos/index.html
 grep -Fq 'BACKUP_AUTHENTICATION_KEY=' deploy/production.env.example
 grep -Fq 'MAX_MEDIA_ASSETS_PER_USER=100' deploy/production.env.example
 grep -Fq 'MAX_MEDIA_BYTES_PER_USER=268435456' deploy/production.env.example
+grep -Fq 'MAX_LISTING_COLLECTION_ITEMS_PER_USER=500' deploy/production.env.example
 # A backup manifest must be generated outside the mirrored tree to avoid
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
@@ -86,7 +87,7 @@ trap - EXIT
 docker run --rm \
   --add-host backend:127.0.0.1 \
   --mount type=bind,src="$PWD/deploy/nginx.conf",dst=/etc/nginx/conf.d/default.conf,readonly \
-  nginxinc/nginx-unprivileged:1.27-alpine nginx -t
+  nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0 nginx -t
 
 docker compose --profile ops -f docker-compose.production.yml config --format json | python3 -c '
 import json
@@ -124,8 +125,12 @@ if backend_env.get("MAX_MEDIA_ASSETS_PER_USER") != "100":
     raise SystemExit("backend must receive the per-user media asset quota")
 if backend_env.get("MAX_MEDIA_BYTES_PER_USER") != "268435456":
     raise SystemExit("backend must receive the per-user media byte quota")
+if backend_env.get("MAX_LISTING_COLLECTION_ITEMS_PER_USER") != "500":
+    raise SystemExit("backend must receive the per-user listing collection quota")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
+if config["networks"].get("data", {}).get("internal") is not True:
+    raise SystemExit("data network must be internal")
 if config["networks"].get("application", {}).get("internal") is not True:
     raise SystemExit("application network must be internal")
 if config["networks"].get("egress", {}).get("internal") is True:
@@ -133,11 +138,17 @@ if config["networks"].get("egress", {}).get("internal") is True:
 if not config["networks"].get("traefik", {}).get("external"):
     raise SystemExit("Traefik network must be an existing external network")
 for name in {"postgres", "redis", "minio", "minio-init", "migrate"}:
-    if set(services[name].get("networks", [])) != {"application"}:
-        raise SystemExit(f"{name} must only join the application network")
-for name in {"backend", "mail-worker", "external-listings-worker"}:
-    if set(services[name].get("networks", [])) != {"application", "egress"}:
-        raise SystemExit(f"{name} must join application and egress networks")
+    if set(services[name].get("networks", [])) != {"data"}:
+        raise SystemExit(f"{name} must only join the data network")
+if set(services["backend"].get("networks", [])) != {"application", "data", "egress"}:
+    raise SystemExit("backend must join application, data, and egress networks")
+for name in {"mail-worker", "external-listings-worker"}:
+    if set(services[name].get("networks", [])) != {"data", "egress"}:
+        raise SystemExit(f"{name} must join data and egress networks")
 if set(services["frontend"].get("networks", [])) != {"application", "traefik"}:
-    raise SystemExit("frontend must join both application and Traefik networks")
+    raise SystemExit("frontend must join only application and Traefik networks")
+frontend_networks = set(services["frontend"].get("networks", []))
+for name in {"postgres", "redis", "minio"}:
+    if frontend_networks & set(services[name].get("networks", [])):
+        raise SystemExit(f"frontend must not share a network with {name}")
 '

@@ -8,7 +8,16 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import CatalogState, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
+from ..models import (
+    CatalogState,
+    DiscardedListing,
+    Favorite,
+    Listing,
+    ListingImage,
+    ListingStatusHistory,
+    MediaAsset,
+    User,
+)
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
     ListingImageResponse,
@@ -258,6 +267,8 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
+    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
+    await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
     await session.flush()
     await mark_orphaned_media(session, attached_ids)
 

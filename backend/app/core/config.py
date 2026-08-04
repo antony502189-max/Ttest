@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     max_saved_searches_per_user: int = 50
     max_saved_search_filter_bytes: int = 16 * 1024
     max_saved_search_filter_nodes: int = 500
+    max_listing_collection_items_per_user: int = 500
 
     redis_url: str = ""
     metrics_enabled: bool = True
@@ -182,8 +183,9 @@ class Settings(BaseSettings):
             self.max_saved_searches_per_user < 1
             or self.max_saved_search_filter_bytes < 256
             or self.max_saved_search_filter_nodes < 10
+            or self.max_listing_collection_items_per_user < 1
         ):
-            problems.append("Saved-search count and filter limits are invalid")
+            problems.append("Saved-search and listing-collection limits are invalid")
         if (
             self.s3_connect_timeout_seconds < 1
             or self.s3_read_timeout_seconds < 1

@@ -13,6 +13,8 @@ FULL_SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 CONTAINER_DIGEST = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
 DOCKER_FROM = re.compile(r"^\s*FROM\s+(?:--platform=\S+\s+)?([^\s]+)", re.IGNORECASE | re.MULTILINE)
 COMPOSE_IMAGE = re.compile(r"^\s*image:\s*([^\s#]+)", re.MULTILINE)
+DOCKER_RUN = re.compile(r"\bdocker\s+run\b")
+PINNED_IMAGE_IN_COMMAND = re.compile(r"[^\s\'\"]+@sha256:[0-9a-f]{64}")
 
 
 def fail(message: str) -> None:
@@ -82,10 +84,20 @@ def check_container_images() -> None:
                 fail(f"{path.relative_to(ROOT)} uses an unpinned service image: {image}")
 
 
+def check_docker_run_images() -> None:
+    paths = sorted(ROOT.rglob("*.sh")) + sorted(WORKFLOW_DIR.glob("*.yml")) + sorted(WORKFLOW_DIR.glob("*.yaml"))
+    for path in paths:
+        content = path.read_text(encoding="utf-8").replace("\\\n", " ")
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            if DOCKER_RUN.search(line) and not PINNED_IMAGE_IN_COMMAND.search(line):
+                fail(f"{path.relative_to(ROOT)}:{line_number} uses docker run without an immutable image digest")
+
+
 def main() -> None:
     check_workflows()
     check_backend_constraints()
     check_container_images()
+    check_docker_run_images()
     print("Supply-chain pins are valid")
 
 

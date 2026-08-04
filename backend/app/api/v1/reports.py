@@ -24,7 +24,7 @@ async def create_report_route(
 @router.get("", response_model=list[ReportResponse])
 async def list_reports_route(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_session),
 ):

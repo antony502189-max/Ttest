@@ -91,7 +91,7 @@ async def search_listings(payload: ListingSearchRequest, session: AsyncSession =
 @router.get("/mine", response_model=list[OwnedListingResponse])
 async def list_my_listings(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):

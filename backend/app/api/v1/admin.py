@@ -43,7 +43,7 @@ async def list_listings_route(
     status: str | None = None,
     search: str | None = None,
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_session),
 ):
@@ -64,7 +64,7 @@ async def change_listing_status_route(
 async def list_users_route(
     search: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_session),
 ):
@@ -84,7 +84,7 @@ async def set_user_blocked_route(
 @router.get("/external-import/runs", response_model=list[ExternalImportRunResponse])
 async def external_import_runs(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(require_role("admin")),
     session: AsyncSession = Depends(get_session),
 ):

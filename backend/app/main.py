@@ -63,6 +63,7 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/reports"): (10, 60),
     ("POST", "/api/v1/uploads"): (20, 60),
     ("POST", "/api/v1/listings"): (20, 60),
+    ("POST", "/api/v1/account/import-guest-state"): (5, 60),
 }
 
 SECURITY_HEADERS = {
@@ -81,6 +82,11 @@ def rate_rule(method: str, path: str) -> tuple[int, int] | None:
         return direct
     if method == "POST" and path.startswith("/api/v1/messages/threads/"):
         return 30, 60
+    if method == "PUT" and (
+        path.startswith("/api/v1/favorites/")
+        or path.startswith("/api/v1/discarded-listings/")
+    ):
+        return 60, 60
     return None
 
 

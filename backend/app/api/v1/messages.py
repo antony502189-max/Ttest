@@ -20,7 +20,7 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 @router.get("/threads", response_model=list[ThreadResponse])
 async def list_threads(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -50,7 +50,7 @@ async def reply_message(
 async def list_messages(
     thread_id: UUID,
     limit: int = Query(default=200, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10_000),
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
