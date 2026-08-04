@@ -168,7 +168,7 @@ def listing_completeness_score(listing: Listing) -> int:
 def perceptual_hash(content: bytes) -> str:
     """A stable average hash for conservative duplicate-photo matching."""
     with Image.open(BytesIO(content)) as image:
-        pixels = list(image.convert("L").resize((8, 8)).get_flattened_data())
+        pixels = [int(value) for value in image.convert("L").resize((8, 8)).get_flattened_data()]
     average = sum(pixels) / len(pixels)
     return f"{sum((1 << index) for index, value in enumerate(pixels) if value >= average):016x}"
 
