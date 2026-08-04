@@ -145,6 +145,7 @@ jobs:
             postgis/postgis:16-3.4
             redis:7.4-alpine
             minio/minio:RELEASE.2025-04-22T22-12-26Z
+            axllent/mailpit:v1.27
           )
           for image in "${images[@]}"; do
             docker pull --quiet "$image" >&2
