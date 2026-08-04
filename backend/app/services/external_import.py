@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import asyncio
 import hashlib
 import json
@@ -10,6 +12,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from time import perf_counter
+from typing import cast
 from uuid import UUID, uuid4
 
 import httpx
@@ -168,7 +171,7 @@ def listing_completeness_score(listing: Listing) -> int:
 def perceptual_hash(content: bytes) -> str:
     """A stable average hash for conservative duplicate-photo matching."""
     with Image.open(BytesIO(content)) as image:
-        pixels = [int(value) for value in image.convert("L").resize((8, 8)).get_flattened_data()]
+        pixels = list(cast("Iterable[int]", image.convert("L").resize((8, 8)).get_flattened_data()))
     average = sum(pixels) / len(pixels)
     return f"{sum((1 << index) for index, value in enumerate(pixels) if value >= average):016x}"
 
