@@ -74,13 +74,26 @@ jobs:
           import json
           import os
           import subprocess
+          import sys
           from pathlib import Path
 
           repo = os.environ['GITHUB_REPOSITORY']
           head_ref = os.environ['HEAD_REF']
 
           def run(*args: str, input_text: str | None = None) -> str:
-              return subprocess.run(args, input=input_text, text=True, check=True, capture_output=True).stdout.strip()
+              completed = subprocess.run(args, input=input_text, text=True, capture_output=True)
+              if completed.returncode != 0:
+                  if completed.stdout:
+                      print(completed.stdout, file=sys.stderr)
+                  if completed.stderr:
+                      print(completed.stderr, file=sys.stderr)
+                  raise subprocess.CalledProcessError(
+                      completed.returncode,
+                      args,
+                      output=completed.stdout,
+                      stderr=completed.stderr,
+                  )
+              return completed.stdout.strip()
 
           def gh(method: str, endpoint: str, payload: dict | None = None) -> dict:
               command = ['gh', 'api', '--method', method, endpoint]
@@ -118,7 +131,7 @@ jobs:
           for name in expected_paths:
               path = Path(name)
               if not path.exists():
-                  entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': None})
+                  entries.append({'path': name, 'sha': None})
                   continue
               index_line = run('git', 'ls-files', '-s', '--', name)
               mode = index_line.split()[0] if index_line else '100644'
