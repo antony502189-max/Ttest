@@ -16,29 +16,20 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+
+      - name: Archive every tracked source file
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > audit-source.commit
+          git ls-files -z | tar --null --files-from=- --create --gzip --file=audit-source.tar.gz
+          sha256sum audit-source.tar.gz > audit-source.tar.gz.sha256
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: audit-source-${{ github.sha }}
           retention-days: 1
           if-no-files-found: error
-          include-hidden-files: true
           path: |
-            .github/workflows/**
-            backend/alembic/**
-            backend/app/**
-            backend/tests/**
-            backend/constraints.txt
-            backend/pyproject.toml
-            backend/Dockerfile
-            deploy/**
-            scripts/**
-            src/**
-            tests/**
-            Dockerfile
-            docker-compose.yml
-            docker-compose.production.yml
-            package.json
-            package-lock.json
-            playwright*.config.ts
-            vite.config.ts
-            tsconfig*.json
+            audit-source.commit
+            audit-source.tar.gz
+            audit-source.tar.gz.sha256
