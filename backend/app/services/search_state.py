@@ -115,6 +115,14 @@ async def lock_saved_searches(user_id: UUID, session: AsyncSession) -> None:
     )
 
 
+async def lock_search_history(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize per-user deduplication and overflow pruning."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"search-history:{user_id}"},
+    )
+
+
 async def saved_search_count(user_id: UUID, session: AsyncSession) -> int:
     value = await session.scalar(
         select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id)
@@ -291,6 +299,7 @@ async def add_history(query: str, user: User, session: AsyncSession) -> None:
     normalized = " ".join(query.split())
     if not normalized:
         return
+    await lock_search_history(user.id, session)
     await session.execute(
         delete(SearchHistory).where(
             SearchHistory.user_id == user.id,
@@ -313,6 +322,7 @@ async def add_history(query: str, user: User, session: AsyncSession) -> None:
 
 
 async def clear_history(user: User, session: AsyncSession) -> None:
+    await lock_search_history(user.id, session)
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == user.id))
     await session.commit()
 

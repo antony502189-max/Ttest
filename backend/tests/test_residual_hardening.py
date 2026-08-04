@@ -1,8 +1,9 @@
 import pytest
 from pydantic import ValidationError
 
-from app.main import app, rate_rule
+from app.main import app, rate_limit_rule, rate_rule
 from app.schemas.auth import LoginRequest
+from app.schemas.searches import SavedSearchPatch
 
 PAGINATED_GETS = (
     "/api/v1/messages/threads",
@@ -34,3 +35,37 @@ def test_listing_collection_mutations_are_rate_limited():
     assert rate_rule("PUT", "/api/v1/favorites/00000000-0000-4000-8000-000000000001") == (60, 60)
     assert rate_rule("PUT", "/api/v1/discarded-listings/00000000-0000-4000-8000-000000000001") == (60, 60)
     assert rate_rule("POST", "/api/v1/account/import-guest-state") == (5, 60)
+
+
+def test_dynamic_rate_limits_share_stable_buckets_and_cover_deletes():
+    favorite_one = rate_limit_rule("PUT", "/api/v1/favorites/00000000-0000-4000-8000-000000000001")
+    favorite_two = rate_limit_rule("PUT", "/api/v1/favorites/00000000-0000-4000-8000-000000000002")
+    assert favorite_one == favorite_two == ("/api/v1/favorites/{listing_id}", 60, 60)
+    assert rate_limit_rule(
+        "DELETE",
+        "/api/v1/favorites/00000000-0000-4000-8000-000000000003",
+    ) == ("/api/v1/favorites/{listing_id}", 60, 60)
+    assert rate_limit_rule(
+        "DELETE",
+        "/api/v1/discarded-listings/00000000-0000-4000-8000-000000000004",
+    ) == ("/api/v1/discarded-listings/{listing_id}", 60, 60)
+    assert rate_limit_rule("DELETE", "/api/v1/discarded-listings") == (
+        "/api/v1/discarded-listings",
+        60,
+        60,
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"name": None},
+        {"query": None},
+        {"filters": None},
+        {"polygon": None},
+        {"alertsEnabled": None},
+    ],
+)
+def test_saved_search_patch_rejects_explicit_nulls(payload):
+    with pytest.raises(ValidationError):
+        SavedSearchPatch.model_validate(payload)

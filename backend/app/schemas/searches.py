@@ -3,7 +3,7 @@ import math
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..core.config import get_settings
 
@@ -100,6 +100,13 @@ class SavedSearchPatch(BaseModel):
     @classmethod
     def valid_filters(cls, value: dict | None) -> dict | None:
         return validate_filter_payload(value)
+
+    @model_validator(mode="after")
+    def reject_explicit_nulls(self):
+        for field in self.model_fields_set:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
 
 
 class SavedSearchResponse(BaseModel):

@@ -64,6 +64,7 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/uploads"): (20, 60),
     ("POST", "/api/v1/listings"): (20, 60),
     ("POST", "/api/v1/account/import-guest-state"): (5, 60),
+    ("DELETE", "/api/v1/discarded-listings"): (60, 60),
 }
 
 SECURITY_HEADERS = {
@@ -76,15 +77,27 @@ SECURITY_HEADERS = {
 }
 
 
-def rate_rule(method: str, path: str) -> tuple[int, int] | None:
+def rate_limit_rule(method: str, path: str) -> tuple[str, int, int] | None:
+    """Return a stable bucket name and its budget for one request.
+
+    Dynamic UUID path components must never become part of the Redis key;
+    otherwise callers can rotate identifiers to create unlimited buckets.
+    """
     direct = RATE_LIMITS.get((method, path))
     if direct:
-        return direct
+        return path, *direct
     if method == "POST" and path.startswith("/api/v1/messages/threads/"):
-        return 30, 60
-    if method == "PUT" and path.startswith(("/api/v1/favorites/", "/api/v1/discarded-listings/")):
-        return 60, 60
+        return "/api/v1/messages/threads/{thread_id}", 30, 60
+    if method in {"PUT", "DELETE"} and path.startswith("/api/v1/favorites/"):
+        return "/api/v1/favorites/{listing_id}", 60, 60
+    if method in {"PUT", "DELETE"} and path.startswith("/api/v1/discarded-listings/"):
+        return "/api/v1/discarded-listings/{listing_id}", 60, 60
     return None
+
+
+def rate_rule(method: str, path: str) -> tuple[int, int] | None:
+    rule = rate_limit_rule(method, path)
+    return (rule[1], rule[2]) if rule else None
 
 
 def _normalized_ip(value: str) -> str | None:
@@ -155,10 +168,15 @@ async def request_context(request: Request, call_next):
     request_id = request_id_for(request)
     request.state.request_id = request_id
     started = perf_counter()
-    rate = rate_rule(request.method, request.url.path)
+    rate = rate_limit_rule(request.method, request.url.path)
     if rate:
+        bucket, limit, window_seconds = rate
         client = rate_limit_client(request)
-        result = await rate_limiter.consume(f"ttest:rate:{client}:{request.method}:{request.url.path}", *rate)
+        result = await rate_limiter.consume(
+            f"ttest:rate:{client}:{request.method}:{bucket}",
+            limit,
+            window_seconds,
+        )
         if not result.allowed:
             return JSONResponse(
                 status_code=429,
