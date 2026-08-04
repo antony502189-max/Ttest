@@ -31,7 +31,7 @@ jobs:
         id: patch
         run: |
           set -euo pipefail
-          python3 scripts/apply-mock-production-isolation.py
+          python3 scripts/apply-mock-production-isolation-repaired.py
           expected="src/components/marketplace.tsx
           src/contexts/app-context.tsx
           src/contexts/mock-app-provider.production.tsx
