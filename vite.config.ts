@@ -9,6 +9,11 @@ type ProductionReplacement = {
   productionExpression: string
 }
 
+const mockMode = process.env.VITE_ENABLE_MOCK_MODE === '1'
+const mockProviderModule = mockMode
+  ? './src/contexts/mock-app-provider.tsx'
+  : './src/contexts/mock-app-provider.production.tsx'
+
 const productionReplacements: ProductionReplacement[] = [
   {
     sourceSuffix: '/src/lib/listings.ts',
@@ -23,7 +28,6 @@ const productionReplacements: ProductionReplacement[] = [
 ]
 
 function isolateMockDataFromProduction(): Plugin {
-  const mockMode = process.env.VITE_ENABLE_MOCK_MODE === '1'
   const transformedSources = new Set<string>()
   return {
     name: 'isolate-mock-data-from-production',
@@ -65,6 +69,7 @@ export default defineConfig({
     alias: {
       'shadcn/tailwind.css': path.resolve(__dirname, './src/styles/shadcn-tailwind.css'),
       '@/components/marketplace': path.resolve(__dirname, './src/components/marketplace-localized.tsx'),
+      '@/contexts/mock-app-provider': path.resolve(__dirname, mockProviderModule),
       '@': path.resolve(__dirname, './src'),
     },
   },
