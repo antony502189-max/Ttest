@@ -1,9 +1,8 @@
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
 
 from app.main import app, rate_rule
 from app.schemas.auth import LoginRequest
-
 
 PAGINATED_GETS = (
     "/api/v1/messages/threads",
