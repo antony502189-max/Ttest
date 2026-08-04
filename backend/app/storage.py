@@ -4,7 +4,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
+from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
+
 from .core.config import get_settings
+from .core.storage_failure_buffer import record_failed_storage_deletion
 
 
 class Storage(Protocol):
@@ -62,11 +65,11 @@ class S3Storage:
         try:
             import boto3  # type: ignore[import-not-found,import-untyped]
             from botocore.config import Config  # type: ignore[import-not-found,import-untyped]
-            from botocore.exceptions import ClientError  # type: ignore[import-not-found,import-untyped]
+            from botocore.exceptions import ClientError as S3ClientError  # type: ignore[import-not-found,import-untyped]
         except ImportError as error:  # pragma: no cover - configuration error
             raise RuntimeError("boto3 is required for STORAGE_BACKEND=s3") from error
         self.bucket = bucket
-        self.client_error = ClientError
+        self.client_error = S3ClientError
         self.client = boto3.client(
             "s3",
             endpoint_url=endpoint_url or None,
@@ -107,13 +110,36 @@ class S3Storage:
         self.client.head_bucket(Bucket=self.bucket)
 
 
+class BufferedDeleteStorage:
+    """Record failed physical deletes before propagating the storage error."""
+
+    def __init__(self, delegate: Storage):
+        self.delegate = delegate
+
+    def put(self, key: str, content: bytes) -> None:
+        self.delegate.put(key, content)
+
+    def get(self, key: str) -> bytes | None:
+        return self.delegate.get(key)
+
+    def delete(self, key: str) -> None:
+        try:
+            self.delegate.delete(key)
+        except (OSError, BotoCoreError, ClientError):
+            record_failed_storage_deletion(key)
+            raise
+
+    def healthcheck(self) -> None:
+        self.delegate.healthcheck()
+
+
 @lru_cache
 def get_storage() -> Storage:
     settings = get_settings()
     if settings.storage_backend == "s3":
         if not settings.s3_bucket:
             raise RuntimeError("S3_BUCKET is required for STORAGE_BACKEND=s3")
-        return S3Storage(
+        storage: Storage = S3Storage(
             settings.s3_bucket,
             settings.s3_endpoint_url,
             settings.s3_region,
@@ -125,4 +151,6 @@ def get_storage() -> Storage:
             max_attempts=settings.s3_max_attempts,
             max_pool_connections=settings.s3_max_pool_connections,
         )
-    return LocalStorage(settings.media_root)
+    else:
+        storage = LocalStorage(settings.media_root)
+    return BufferedDeleteStorage(storage)

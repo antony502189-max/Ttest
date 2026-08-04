@@ -11,6 +11,10 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.storage_failure_buffer import (
+    acknowledge_failed_storage_deletions,
+    read_failed_storage_deletions,
+)
 from ..models.storage_deletion import StorageDeletionJob
 from ..storage import get_storage
 
@@ -128,11 +132,26 @@ async def finalize_storage_deletion(
     return updated_id is not None
 
 
+async def drain_failed_storage_deletion_buffer(
+    session: AsyncSession,
+    *,
+    limit: int = STORAGE_DELETION_BATCH_SIZE,
+) -> int:
+    storage_keys = await read_failed_storage_deletions(limit)
+    if not storage_keys:
+        return 0
+    await enqueue_storage_deletions(session, set(storage_keys))
+    await session.commit()
+    await acknowledge_failed_storage_deletions(storage_keys)
+    return len(storage_keys)
+
+
 async def process_storage_deletions(
     session: AsyncSession,
     *,
     limit: int = STORAGE_DELETION_BATCH_SIZE,
 ) -> dict[str, int]:
+    await drain_failed_storage_deletion_buffer(session, limit=limit)
     claims = await claim_storage_deletions(session, batch_size=limit)
     storage = get_storage()
     deleted_count = 0
