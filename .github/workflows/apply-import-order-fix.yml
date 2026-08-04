@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
 
+# One-time owner-only workflow. It is deleted immediately after the verified source commit.
 jobs:
   apply:
     if: >-
