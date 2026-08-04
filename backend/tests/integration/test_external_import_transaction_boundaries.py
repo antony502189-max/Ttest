@@ -248,7 +248,7 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
         attached_count = len(
             (
                 await session.scalars(
-                    select(ListingImage.id).where(
+                    select(ListingImage.media_asset_id).where(
                         ListingImage.listing_id == source_record.canonical_listing_id
                     )
                 )
