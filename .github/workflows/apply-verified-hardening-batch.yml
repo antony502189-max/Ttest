@@ -1,0 +1,137 @@
+name: Apply verified hardening batch
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == github.repository_owner
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Apply reviewed patch and verify scope
+        id: patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -f scripts/check-production-bundle.mjs \
+            && ! test -f .github/workflows/final-audit-temporary.yml \
+            && grep -Fq 'external_storage_key(owner_id, asset_id)' backend/app/services/external_import.py \
+            && ! grep -Fq 'GoogleDemo112233!' src/pages/UnifiedAuthPage.tsx; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          python3 scripts/apply-verified-hardening-batch.py
+          expected=$(cat <<'EOF'
+          .github/workflows/audit-source-snapshot.yml
+          .github/workflows/final-audit-temporary.yml
+          .github/workflows/production-audit.yml
+          Dockerfile
+          backend/app/services/external_import.py
+          backend/tests/integration/test_external_import_transaction_boundaries.py
+          backend/tests/test_external_sources.py
+          package.json
+          scripts/check-production-bundle.mjs
+          scripts/final-audit-local.sh
+          src/contexts/mock-app-provider.tsx
+          src/pages/UnifiedAuthPage.tsx
+          tests/e2e.spec.ts
+          EOF
+          )
+          actual="$(git diff --cached --name-only | sort)"
+          test "$actual" = "$(printf '%s\n' "$expected" | sed 's/^          //' | sort)"
+          git diff --cached --check
+          python3 -m compileall -q backend/app backend/tests
+          node --check scripts/check-production-bundle.mjs
+          bash -n scripts/final-audit-local.sh
+          python3 scripts/check-supply-chain.py
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Commit patched tree atomically
+        if: steps.patch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          head_ref = os.environ['HEAD_REF']
+
+          def run(*args: str, input_text: str | None = None) -> str:
+              return subprocess.run(args, input=input_text, text=True, check=True, capture_output=True).stdout.strip()
+
+          def gh(method: str, endpoint: str, payload: dict | None = None) -> dict:
+              command = ['gh', 'api', '--method', method, endpoint]
+              output = run(*command, input_text=json.dumps(payload) if payload is not None else None)
+              return json.loads(output)
+
+          base_sha = run('git', 'rev-parse', 'HEAD')
+          remote_sha = gh('GET', f'repos/{repo}/git/ref/heads/{head_ref}')['object']['sha']
+          if remote_sha != base_sha:
+              raise SystemExit(f'branch moved during patch: {base_sha} != {remote_sha}')
+
+          expected_paths = [
+              '.github/workflows/audit-source-snapshot.yml',
+              '.github/workflows/final-audit-temporary.yml',
+              '.github/workflows/production-audit.yml',
+              'Dockerfile',
+              'backend/app/services/external_import.py',
+              'backend/tests/integration/test_external_import_transaction_boundaries.py',
+              'backend/tests/test_external_sources.py',
+              'package.json',
+              'scripts/check-production-bundle.mjs',
+              'scripts/final-audit-local.sh',
+              'src/contexts/mock-app-provider.tsx',
+              'src/pages/UnifiedAuthPage.tsx',
+              'tests/e2e.spec.ts',
+          ]
+          changed = sorted(filter(None, run('git', 'diff', '--cached', '--name-only').splitlines()))
+          if changed != sorted(expected_paths):
+              raise SystemExit(f'unexpected patch scope: {changed}')
+
+          base_tree = gh('GET', f'repos/{repo}/git/commits/{base_sha}')['tree']['sha']
+          entries = []
+          for name in expected_paths:
+              path = Path(name)
+              if not path.exists():
+                  entries.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': None})
+                  continue
+              index_line = run('git', 'ls-files', '-s', '--', name)
+              mode = index_line.split()[0] if index_line else '100644'
+              blob = gh('POST', f'repos/{repo}/git/blobs', {
+                  'content': base64.b64encode(path.read_bytes()).decode(),
+                  'encoding': 'base64',
+              })['sha']
+              entries.append({'path': name, 'mode': mode, 'type': 'blob', 'sha': blob})
+
+          tree_sha = gh('POST', f'repos/{repo}/git/trees', {'base_tree': base_tree, 'tree': entries})['sha']
+          commit_sha = gh('POST', f'repos/{repo}/git/commits', {
+              'message': 'fix: close re-audited production hardening gaps',
+              'tree': tree_sha,
+              'parents': [base_sha],
+          })['sha']
+          gh('PATCH', f'repos/{repo}/git/refs/heads/{head_ref}', {'sha': commit_sha, 'force': False})
+          print(commit_sha)
+          PY
