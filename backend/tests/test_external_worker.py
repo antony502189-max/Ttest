@@ -127,7 +127,11 @@ def test_loop_runs_full_sync_on_start_before_waiting_for_the_interval(monkeypatc
             calls.append("full")
             return {}
 
-        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(external_removal_check_enabled=False))
+        monkeypatch.setattr(
+            worker,
+            "get_settings",
+            lambda: worker_settings(external_removal_check_enabled=False, redis_url=""),
+        )
         monkeypatch.setattr(worker, "run_once", run)
         monkeypatch.setattr(worker.asyncio, "Event", ControlledEvent)
         monkeypatch.setattr(worker.asyncio, "get_running_loop", SignalLoop)
@@ -193,5 +197,46 @@ def test_stale_recovery_cannot_delete_a_reacquired_lock(monkeypatch):
         recovered = await worker._recover_stale_distributed_lock(redis, "lock", 60)
         assert recovered is False
         assert redis.value == b"new-owner"
+
+    asyncio.run(verify())
+
+
+def test_idle_wait_refreshes_heartbeat_before_the_stale_deadline(monkeypatch):
+    async def verify() -> None:
+        heartbeats: list[dict] = []
+
+        async def record_state(**kwargs):
+            heartbeats.append(kwargs)
+            return SimpleNamespace()
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(redis_url=""))
+        monkeypatch.setattr(worker, "worker_state", record_state)
+        await worker._wait_with_idle_heartbeat(asyncio.Event(), 0.045, heartbeat_interval=0.01)
+        assert len(heartbeats) >= 3
+        assert all(state == {} for state in heartbeats)
+
+    asyncio.run(verify())
+
+
+def test_idle_replica_does_not_refresh_heartbeat_while_import_lock_is_owned(monkeypatch):
+    class LockedRedis:
+        async def get(self, _key):
+            return b"active-worker"
+
+        async def aclose(self) -> None:
+            return None
+
+    async def verify() -> None:
+        heartbeats: list[dict] = []
+
+        async def record_state(**kwargs):
+            heartbeats.append(kwargs)
+            return SimpleNamespace()
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings())
+        monkeypatch.setattr(worker, "from_url", lambda _url: LockedRedis())
+        monkeypatch.setattr(worker, "worker_state", record_state)
+        await worker._wait_with_idle_heartbeat(asyncio.Event(), 0.035, heartbeat_interval=0.01)
+        assert heartbeats == []
 
     asyncio.run(verify())

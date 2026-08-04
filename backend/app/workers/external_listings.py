@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import logging
 import signal
+from time import monotonic
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -88,6 +89,49 @@ async def _heartbeat_while_running(stopping: asyncio.Event, run_id: str) -> None
                 # A temporary database failure must not terminate the heartbeat
                 # task and later mask the import result from the main task.
                 logger.exception("external_import_heartbeat_failed", extra={"run_id": run_id})
+
+
+async def _wait_with_idle_heartbeat(
+    stopping: asyncio.Event,
+    timeout: float,
+    *,
+    heartbeat_interval: float | None = None,
+) -> None:
+    """Wait for the next scheduled job without letting the worker appear stale.
+
+    An idle replica publishes a heartbeat only while the shared import lock is
+    free. This keeps the normal single worker healthy without allowing a
+    passive replica to hide a crashed lock owner.
+    """
+    if timeout <= 0 or stopping.is_set():
+        return
+    settings = get_settings()
+    interval = heartbeat_interval or min(60, max(15, settings.external_worker_stale_after_seconds // 3))
+    deadline = monotonic() + timeout
+    redis = from_url(settings.redis_url) if settings.redis_url else None
+    lock_key = "ttest:external-listings-import"
+    try:
+        while not stopping.is_set():
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                return
+            try:
+                await asyncio.wait_for(stopping.wait(), timeout=min(interval, remaining))
+                return
+            except TimeoutError:
+                if deadline - monotonic() <= 0:
+                    return
+                try:
+                    if redis is not None and await redis.get(lock_key):
+                        continue
+                    await worker_state()
+                except RedisError:
+                    logger.exception("external_import_idle_lock_check_failed")
+                except Exception:
+                    logger.exception("external_import_idle_heartbeat_failed")
+    finally:
+        if redis is not None:
+            await redis.aclose()
 
 
 async def worker_state(*, health: str | None = None, error: str | None = None, run_id: str | None = None) -> ExternalWorkerState:
@@ -252,10 +296,7 @@ async def loop() -> None:
         if next_removal_check is not None:
             deadlines.append(next_removal_check)
         timeout = max(0.0, min((deadline - datetime.now(UTC)).total_seconds() for deadline in deadlines))
-        try:
-            await asyncio.wait_for(stopping.wait(), timeout=timeout)
-        except TimeoutError:
-            pass
+        await _wait_with_idle_heartbeat(stopping, timeout)
     await engine.dispose()
 
 

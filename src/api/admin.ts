@@ -28,8 +28,30 @@ export const moderateRemoteListing = (id: string, status: ListingStatus) =>
 export const setRemoteUserBlocked = (id: string, blocked: boolean) =>
   api<AdminUserDto>(`/admin/users/${id}/blocked`, { method: 'PATCH', body: JSON.stringify({ blocked }) })
 
+const ADMIN_USER_PAGE_SIZE = 200
+
+async function getAllAdminUserDtos(): Promise<AdminUserDto[]> {
+  const users: AdminUserDto[] = []
+  const seen = new Set<string>()
+  let offset = 0
+
+  while (true) {
+    const page = await api<AdminUserDto[]>(`/admin/users?limit=${ADMIN_USER_PAGE_SIZE}&offset=${offset}`)
+    let added = 0
+    for (const user of page) {
+      if (seen.has(user.id)) continue
+      seen.add(user.id)
+      users.push(user)
+      added += 1
+    }
+    if (page.length < ADMIN_USER_PAGE_SIZE) return users
+    if (added === 0) throw new Error('La paginación de usuarios no avanzó.')
+    offset += page.length
+  }
+}
+
 export async function getAdminUsers(): Promise<DemoUser[]> {
-  const users = await api<AdminUserDto[]>('/admin/users')
+  const users = await getAllAdminUserDtos()
   return users.map((user) => ({
     id: user.id,
     email: user.email,
