@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 # Deploy the exact current origin/main commit. Run on the VPS as root.
 [[ $# -eq 1 ]] || { echo "usage: $0 <main-commit-sha>" >&2; exit 64; }
