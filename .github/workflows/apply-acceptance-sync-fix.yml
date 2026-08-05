@@ -1,0 +1,43 @@
+name: Apply acceptance sync fix
+
+on:
+  push:
+    branches:
+      - fix/production-release-transaction-20260805
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-acceptance-sync-fix
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: fix/production-release-transaction-20260805
+          fetch-depth: 0
+
+      - name: Apply exact test replacement
+        run: python scripts/.apply-acceptance-sync-fix.py
+
+      - name: Commit replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          if git diff --quiet -- tests/acceptance-flows.spec.ts; then
+            echo "Expected acceptance test diff was not produced." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- tests/acceptance-flows.spec.ts
+          git commit -m "test: wait for committed sort before pagination"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
