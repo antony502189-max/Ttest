@@ -11,12 +11,13 @@ ROOT="${ROOT:-/srv/112233.es}"
 ENV_FILE="$ROOT/shared/production.env"
 CURRENT="$ROOT/current"
 LOCK_FILE="$ROOT/shared/release.lock"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 [[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
 [[ "$(stat -c %a "$ENV_FILE")" == "600" ]] || { echo "$ENV_FILE must have mode 600" >&2; exit 65; }
 command -v flock >/dev/null || { echo "flock is required for production release serialization" >&2; exit 69; }
 exec 9>"$LOCK_FILE"
 chmod 600 "$LOCK_FILE"
-flock -n 9 || { echo "another production deploy or rollback is already running" >&2; exit 75; }
+flock -n 9 || { echo "another production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
 [[ -L "$CURRENT" ]] || { echo "no current release" >&2; exit 65; }
 current="$(readlink -f "$CURRENT")"
 current_sha="$(basename "$current")"
@@ -47,12 +48,20 @@ previous="$ROOT/releases/$target_sha"
 
 compose=(docker compose --env-file "$ENV_FILE" -f "$previous/docker-compose.production.yml")
 "${compose[@]}" config --quiet
+current_data_images="$("${current_compose[@]}" config --format json | python3 "$SCRIPT_DIR/data-service-images.py")"
+target_data_images="$("${compose[@]}" config --format json | python3 "$SCRIPT_DIR/data-service-images.py")"
+[[ "$target_data_images" == "$current_data_images" ]] || {
+  echo "rollback across stateful service image changes requires a separate controlled data-service recovery" >&2
+  diff -u <(printf '%s\n' "$current_data_images") <(printf '%s\n' "$target_data_images") >&2 || true
+  exit 65
+}
 
 restore_current_after_failure() {
   local exit_code=$?
   trap - ERR
   set +e
   echo "rollback target failed readiness; restoring current release $current_sha" >&2
+  "${current_compose[@]}" up -d postgres redis minio minio-init
   "${current_compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
   restored=0
   for _ in $(seq 1 30); do
@@ -69,6 +78,7 @@ restore_current_after_failure() {
 }
 trap restore_current_after_failure ERR
 
+"${compose[@]}" up -d postgres redis minio minio-init
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
 for _ in $(seq 1 30); do
   if "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then break; fi
