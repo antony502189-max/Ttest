@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Print the exact stateful-service images from Docker Compose JSON."""
+"""Print non-secret fingerprints for resolved stateful Compose services."""
 
+import hashlib
 import json
 import sys
 
@@ -17,4 +18,6 @@ for name in ("postgres", "redis", "minio"):
     image = service.get("image")
     if not isinstance(image, str) or "@sha256:" not in image:
         raise SystemExit(f"{name} must use an immutable digest-pinned image")
-    print(f"{name}={image}")
+    canonical = json.dumps(service, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    contract_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    print(f"{name} image={image} contract_sha256={contract_hash}")
