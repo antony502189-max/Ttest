@@ -11,7 +11,8 @@ LOCK_FILE="$ROOT/shared/release.lock"
 command -v flock >/dev/null || { echo "flock is required for production backup serialization" >&2; exit 69; }
 exec 9>"$LOCK_FILE"
 chmod 600 "$LOCK_FILE"
-flock -n 9 || { echo "a production deploy, rollback, or backup is already running" >&2; exit 75; }
+flock -n 9 || { echo "a production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
+export RELEASE_LOCK_HELD=1
 release_dir="$(dirname "$COMPOSE_FILE")"
 COMPOSE_FILE="$COMPOSE_FILE" ENV_FILE="$ENV_FILE" BACKUP_DIR="$BACKUP_DIR" "$release_dir/deploy/backup-postgres.sh"
 COMPOSE_FILE="$COMPOSE_FILE" ENV_FILE="$ENV_FILE" BACKUP_DIR="$BACKUP_DIR" "$release_dir/deploy/backup-minio.sh"
