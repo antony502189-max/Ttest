@@ -29,6 +29,7 @@ for script in deploy/*.sh; do
   bash -n "$script"
 done
 python3 scripts/check-deploy-safety.py
+python3 scripts/check-migration-compatibility.py
 
 grep -Fq 'location /api/' deploy/nginx.conf
 grep -Fq 'proxy_pass http://backend:8000;' deploy/nginx.conf
