@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 # Roll back application code/images only. Persistent database, Redis and media
 # volumes are never removed. With no argument, use the exact old_sha recorded
