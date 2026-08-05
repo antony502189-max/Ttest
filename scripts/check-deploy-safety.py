@@ -14,12 +14,15 @@ required_fragments = {
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
     "non-blocking release serialization": "flock -n 9",
     "inherited release lock": "export RELEASE_LOCK_HELD=1",
+    "stateful image comparison": 'python3 "$release/deploy/data-service-images.py"',
+    "stateful image refusal": "stateful service image changes require a separate controlled data-service migration",
     "writer quiescence": '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker',
     "old PostgreSQL backup runtime": 'COMPOSE_FILE="$old_release/docker-compose.production.yml"',
     "audited PostgreSQL backup script": '"$release/deploy/backup-postgres.sh"',
     "audited MinIO backup script": '"$release/deploy/backup-minio.sh"',
     "orphan-volume refusal": "persistent production volumes exist but there is no current release",
     "backup runtime metadata": "backup_runtime_sha=%s",
+    "dependency rollback": '"${previous_compose[@]}" up -d postgres redis minio minio-init',
     "bounded automatic rollback readiness": "automatic rollback failed readiness",
 }
 for description, fragment in required_fragments.items():
@@ -32,18 +35,23 @@ if not lock_position < fetch_position:
     raise SystemExit("release lock must be acquired before repository or runtime mutation")
 
 orphan_refusal_position = text.index("persistent production volumes exist but there is no current release")
+image_gate_position = text.index("stateful service image changes require a separate controlled data-service migration")
 metadata_position = text.index("status=in_progress")
 if not orphan_refusal_position < metadata_position:
     raise SystemExit("orphan persistent volumes must fail before deployment metadata enters in_progress")
+if not image_gate_position < metadata_position:
+    raise SystemExit("stateful image changes must fail before deployment metadata or runtime mutation")
 
 stop_position = text.index(
     '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker'
 )
 postgres_backup_position = text.index('"$release/deploy/backup-postgres.sh"')
 minio_backup_position = text.index('"$release/deploy/backup-minio.sh"')
-new_dependencies_position = text.index('"${compose[@]}" up -d postgres redis minio minio-init')
+new_dependencies_position = text.rindex('"${compose[@]}" up -d postgres redis minio minio-init')
 migration_position = text.index('"${compose[@]}" run --rm migrate')
 
+if not image_gate_position < stop_position:
+    raise SystemExit("stateful image compatibility must be verified before writers stop")
 if not stop_position < postgres_backup_position < new_dependencies_position:
     raise SystemExit("PostgreSQL backup must run after writer quiescence and before new dependency images")
 if not stop_position < minio_backup_position < new_dependencies_position:
@@ -54,6 +62,11 @@ if not new_dependencies_position < migration_position:
 ancestor_gate = 'merge-base --is-ancestor "$SHA" origin/main'
 if ancestor_gate in text:
     raise SystemExit("historical commits must not pass the normal production deploy path")
+
+image_helper = Path("deploy/data-service-images.py").read_text(encoding="utf-8")
+for fragment in ('("postgres", "redis", "minio")', '"@sha256:"', "Compose config is missing"):
+    if fragment not in image_helper:
+        raise SystemExit(f"stateful image helper requirement missing: {fragment}")
 
 print("production deploy transaction ordering is fail-closed")
 
@@ -67,6 +80,10 @@ rollback_required = {
     "exact target directory": 'previous="$ROOT/releases/$target_sha"',
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
     "non-blocking release serialization": "flock -n 9",
+    "rollback image comparison": 'python3 "$SCRIPT_DIR/data-service-images.py"',
+    "rollback image refusal": "rollback across stateful service image changes requires a separate controlled data-service recovery",
+    "target dependency activation": '"${compose[@]}" up -d postgres redis minio minio-init',
+    "current dependency recovery": '"${current_compose[@]}" up -d postgres redis minio minio-init',
     "current release recovery": "restore_current_after_failure",
     "bounded target readiness": "for _ in $(seq 1 30); do",
     "manual incident escalation": "manual incident response is required",
@@ -78,8 +95,10 @@ if 'find "$ROOT/releases"' in rollback_text or "sort -nr" in rollback_text:
     raise SystemExit("rollback must not infer the target from directory modification times")
 if rollback_text.index("flock -n 9") > rollback_text.index('current="$(readlink -f "$CURRENT")"'):
     raise SystemExit("rollback lock must be acquired before release state is read")
-if rollback_text.index("trap restore_current_after_failure ERR") > rollback_text.index('"${compose[@]}" up -d --build'):
-    raise SystemExit("rollback recovery trap must be armed before target containers are changed")
+if rollback_text.index("rollback across stateful service image changes") > rollback_text.index("trap restore_current_after_failure ERR"):
+    raise SystemExit("rollback image compatibility must fail before target runtime mutation")
+if rollback_text.index("trap restore_current_after_failure ERR") > rollback_text.index('"${compose[@]}" up -d postgres redis minio minio-init'):
+    raise SystemExit("rollback recovery trap must be armed before target dependencies are changed")
 
 backup_production_text = Path("deploy/backup-production.sh").read_text(encoding="utf-8")
 for fragment in ("umask 077", 'LOCK_FILE="$ROOT/shared/release.lock"', "flock -n 9", "export RELEASE_LOCK_HELD=1"):
