@@ -209,12 +209,26 @@ def is_in_target_province(data: dict[str, Any]) -> bool:
             return True
     except (TypeError, ValueError):
         pass
-    corpus = clean(
+    explicit_location = clean(
         " ".join(
-            str(data.get(key, "")) for key in ("province", "city", "municipality", "address", "breadcrumbs", "postcode")
+            str(data.get(key, ""))
+            for key in ("province", "city", "municipality", "address", "breadcrumbs", "postcode")
         )
     ).casefold()
-    return not any(term in corpus for term in LAS_PALMAS) and any(term in corpus for term in SANTA_CRUZ)
+    if any(term in explicit_location for term in LAS_PALMAS):
+        return False
+    if any(term in explicit_location for term in SANTA_CRUZ):
+        return True
+
+    # Listing title and description are a safe fallback when a source omits
+    # structured address data. Never use arbitrary whole-page text here:
+    # global navigation can mention other islands and property operations.
+    listing_copy = clean(
+        " ".join(str(data.get(key, "")) for key in ("title", "description"))
+    ).casefold()
+    return not any(term in listing_copy for term in LAS_PALMAS) and any(
+        term in listing_copy for term in SANTA_CRUZ
+    )
 
 
 def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
