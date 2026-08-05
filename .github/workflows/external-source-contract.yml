@@ -1,4 +1,4 @@
-# Public external-source contract schema: 2
+# Public external-source contract schema: 3
 name: External source contract audit
 
 on:
@@ -63,7 +63,7 @@ jobs:
             --max-details 2 \
             --source-timeout 120 \
             --detail-timeout 35 \
-            --minimum-healthy 2
+            --minimum-healthy 3
       - name: Upload external source report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
