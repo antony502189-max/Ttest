@@ -27,6 +27,8 @@ from ..external_sources import (
     PisosSource,
     SourceBlocked,
     ThinkSpainSource,
+    clean,
+    embedded_json,
     is_in_target_province,
     is_rental,
     is_room_offer,
@@ -54,6 +56,13 @@ class DetailAudit:
     title: str = ""
     city: str = ""
     source_price_text: str = ""
+    document_bytes: int = 0
+    fetch_method: str = ""
+    http_status: int | None = None
+    final_url: str = ""
+    html_title: str = ""
+    h1_count: int = 0
+    embedded_json_objects: int = 0
     error: str | None = None
 
 
@@ -71,6 +80,7 @@ class SourceAudit:
     fetched_details: int = 0
     normalized_details: int = 0
     details: list[DetailAudit] = field(default_factory=list)
+    page_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
 
 
@@ -117,6 +127,16 @@ async def audit_source(
             result.visited_pages = 1
 
         result.discovered_urls = len(urls)
+        result.page_diagnostics = [
+            {
+                "method": diagnostic.get("method"),
+                "status": diagnostic.get("status"),
+                "final_url": diagnostic.get("final_url"),
+                "title": clean(diagnostic.get("title"))[:160],
+                "anchor_count": diagnostic.get("anchor_count"),
+            }
+            for diagnostic in source.discovery_diagnostics.values()
+        ]
         for url in urls[:max_details]:
             detail = DetailAudit(url=url)
             result.details.append(detail)
@@ -127,8 +147,19 @@ async def audit_source(
                     continue
                 detail.fetched = True
                 result.fetched_details += 1
+                detail.document_bytes = len(document.encode("utf-8", errors="replace"))
+                diagnostic = source.discovery_diagnostics.get(url, {})
+                detail.fetch_method = str(diagnostic.get("method") or "")
+                detail.http_status = diagnostic.get("status")
+                detail.final_url = str(diagnostic.get("final_url") or "")[:500]
+                detail.html_title = clean(diagnostic.get("title"))[:160]
+                detail.h1_count = document.casefold().count("<h1")
+                detail.embedded_json_objects = len(embedded_json(document))
                 data = source.parse_listing(document, url)
                 detail.parsed = True
+                detail.title = clean(data.get("title"))[:160]
+                detail.city = clean(data.get("city") or data.get("municipality"))[:100]
+                detail.source_price_text = clean(data.get("price_text"))[:80]
                 detail.room_offer = is_room_offer(data)
                 detail.rental = is_rental(data)
                 detail.target_province = is_in_target_province(data)
