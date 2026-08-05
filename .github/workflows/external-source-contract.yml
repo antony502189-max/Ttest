@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 35
     env:
       APP_ENV: test
+      PYTHONUNBUFFERED: "1"
       EXTERNAL_IMPORT_PLAYWRIGHT_ENABLED: "1"
       EXTERNAL_IMPORT_REQUEST_TIMEOUT_SECONDS: "25"
       EXTERNAL_IMPORT_USER_AGENT: "112233.es public room availability audit"
