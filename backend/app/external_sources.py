@@ -216,9 +216,10 @@ def is_room_offer(data: dict[str, Any]) -> bool:
 
     opening = description[:500]
     offer_markers = ("se alquila", "alquilo", "ofrezco", "disponible", "para alquilar", "en alquiler")
-    if any(term in opening for term in wanted_terms) and not any(marker in opening for marker in offer_markers):
-        return False
-    return True
+    return not (
+        any(term in opening for term in wanted_terms)
+        and not any(marker in opening for marker in offer_markers)
+    )
 
 
 def is_rental(data: dict[str, Any]) -> bool:
