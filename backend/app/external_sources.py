@@ -183,10 +183,43 @@ def strict_check(data: dict[str, Any]) -> bool:
 
 
 def is_room_offer(data: dict[str, Any]) -> bool:
-    corpus = clean(
-        " ".join(str(data.get(key, "")) for key in ("title", "description", "category", "breadcrumbs", "url"))
+    title = clean(data.get("title")).casefold()
+    description = clean(data.get("description")).casefold()
+    identity = clean(
+        " ".join(
+            str(data.get(key, ""))
+            for key in ("title", "category", "breadcrumbs", "url")
+        )
     ).casefold()
-    return any(term in corpus for term in POSITIVE) and not any(term in corpus for term in NEGATIVE)
+    corpus = clean(f"{identity} {description}").casefold()
+    if not any(term in corpus for term in POSITIVE):
+        return False
+
+    wanted_terms = (
+        "busco habitacion",
+        "busco habitación",
+        "busco cuarto",
+        "buscando habitacion",
+        "buscando habitación",
+        "necesito habitacion",
+        "necesito habitación",
+        "busco piso",
+        "busco alojamiento",
+        "se busca habitacion",
+        "se busca habitación",
+    )
+    hard_negative_terms = tuple(term for term in NEGATIVE if term not in wanted_terms)
+    if any(term in identity for term in hard_negative_terms):
+        return False
+    if any(term in clean(f"{title} {data.get('category', '')}").casefold() for term in wanted_terms):
+        return False
+
+    opening = description[:500]
+    offer_markers = ("se alquila", "alquilo", "ofrezco", "disponible", "para alquilar", "en alquiler")
+    return not (
+        any(term in opening for term in wanted_terms)
+        and not any(marker in opening for marker in offer_markers)
+    )
 
 
 def is_rental(data: dict[str, Any]) -> bool:
@@ -209,12 +242,26 @@ def is_in_target_province(data: dict[str, Any]) -> bool:
             return True
     except (TypeError, ValueError):
         pass
-    corpus = clean(
+    explicit_location = clean(
         " ".join(
-            str(data.get(key, "")) for key in ("province", "city", "municipality", "address", "breadcrumbs", "postcode")
+            str(data.get(key, ""))
+            for key in ("province", "city", "municipality", "address", "breadcrumbs", "postcode")
         )
     ).casefold()
-    return not any(term in corpus for term in LAS_PALMAS) and any(term in corpus for term in SANTA_CRUZ)
+    if any(term in explicit_location for term in LAS_PALMAS):
+        return False
+    if any(term in explicit_location for term in SANTA_CRUZ):
+        return True
+
+    # Listing title and description are a safe fallback when a source omits
+    # structured address data. Never use arbitrary whole-page text here:
+    # global navigation can mention other islands and property operations.
+    listing_copy = clean(
+        " ".join(str(data.get(key, "")) for key in ("title", "description"))
+    ).casefold()
+    return not any(term in listing_copy for term in LAS_PALMAS) and any(
+        term in listing_copy for term in SANTA_CRUZ
+    )
 
 
 def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
@@ -293,6 +340,91 @@ def embedded_json(document: str) -> list[dict[str, Any]]:
 
 def first_text(item: dict[str, Any], *keys: str) -> str:
     return next((clean(item.get(key)) for key in keys if clean(item.get(key))), "")
+
+
+def structured_classification(structured_items: list[dict[str, Any]]) -> tuple[str, str]:
+    """Extract only explicit listing taxonomy and breadcrumb metadata.
+
+    Whole-page text is intentionally excluded: global navigation commonly contains
+    sale actions such as ``Comprar`` or ``Pisos en venta`` and must not classify
+    an otherwise valid room-rental detail page.
+    """
+    categories: list[str] = []
+    breadcrumbs: list[str] = []
+
+    def add(values: list[str], value: Any) -> None:
+        if isinstance(value, dict):
+            value = value.get("name") or value.get("label") or value.get("title")
+        if isinstance(value, list):
+            for child in value:
+                add(values, child)
+            return
+        text = clean(value)[:300]
+        if text and text not in values:
+            values.append(text)
+
+    category_keys = (
+        "category",
+        "propertyType",
+        "property_type",
+        "listingType",
+        "offerType",
+        "businessType",
+        "transactionType",
+        "operation",
+        "typology",
+    )
+    for item in structured_items:
+        for key in category_keys:
+            add(categories, item.get(key))
+        item_type = clean(item.get("@type")).casefold()
+        if item_type == "breadcrumblist":
+            for element in item.get("itemListElement", []):
+                add(breadcrumbs, element)
+
+    return " | ".join(categories)[:1200], " | ".join(breadcrumbs)[:1800]
+
+
+def html_breadcrumbs(document: str) -> str:
+    """Return text from actual breadcrumb containers, never arbitrary page chrome."""
+    values: list[str] = []
+    pattern = re.compile(
+        r'<(?P<tag>nav|ol|ul|div)\b(?=[^>]*(?:class|id|aria-label)=["\'][^"\']*(?:breadcrumb|migas)[^"\']*["\'])[^>]*>'
+        r'(?P<body>.*?)</(?P=tag)>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in pattern.finditer(document):
+        text = clean(match.group("body"))[:600]
+        if text and text not in values:
+            values.append(text)
+    return " | ".join(values)[:1800]
+
+
+def detail_document_has_listing_signals(document: str) -> bool:
+    """Return whether a detail response contains usable public listing data.
+
+    A 200 response can be only an application shell. In that case the caller
+    may use the existing anonymous Chromium fallback, without interacting with
+    challenges or authentication.
+    """
+    title = meta_content(document, "og:title")
+    if not title:
+        heading = re.search(r"<h1[^>]*>(.*?)</h1>", document, re.IGNORECASE | re.DOTALL)
+        title = clean(heading.group(1)) if heading else ""
+    if not title:
+        structured = json_ld(document) + embedded_json(document)
+        title = next(
+            (
+                first_text(item, "name", "title", "headline")
+                for item in structured
+                if first_text(item, "name", "title", "headline")
+            ),
+            "",
+        )
+    corpus = clean(document).casefold()
+    has_price = bool(re.search(r"[\d.]+(?:,\d+)?\s*€", corpus))
+    has_room = any(term in corpus for term in POSITIVE)
+    return bool(title and has_price and has_room)
 
 
 def meta_content(document: str, name: str) -> str:
@@ -467,6 +599,7 @@ class ExternalListingSource(ABC):
     listing_url_pattern: re.Pattern[str]
     discovery_selectors: tuple[str, ...] = ()
     max_discovery_pages = 30
+    render_incomplete_detail = False
     removed_markers: tuple[str, ...] = (
         "anuncio eliminado", "ya no está disponible", "ya no esta disponible", "ya no disponible", "anuncio caducado",
         "property unavailable", "listing unavailable", "anuncio no disponible",
@@ -668,7 +801,7 @@ class ExternalListingSource(ABC):
         location = parsed.path + (f"?{parsed.query}" if parsed.query else "")
         return parsed.scheme in {"http", "https"} and hostname_matches_domain(url, self.domain) and bool(
             re.search(
-                r"(?:[?&](?:pagina|page)=\d+|/pagina/\d+|/\d+/?$)",
+                r"(?:[?&](?:pagina|page)=\d+|/pagina(?:-|/)\d+(?:\.html?)?/?|/\d+/?$)",
                 location,
                 re.IGNORECASE,
             )
@@ -758,7 +891,14 @@ class ExternalListingSource(ABC):
         return "active" if self.is_listing_url(final_url) else "unknown"
 
     async def fetch_listing(self, url: str) -> str | None:
-        return await self.request(url)
+        document = await self.request(url)
+        if not self.render_incomplete_detail or not document or detail_document_has_listing_signals(document):
+            return document
+        if get_settings().external_import_playwright_enabled:
+            rendered = await self.render_public_page(url)
+            if rendered:
+                return rendered
+        return document
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         ld = json_ld(document)
@@ -819,6 +959,10 @@ class ExternalListingSource(ABC):
             )
             if coordinate_match:
                 latitude, longitude = coordinate_match.groups()
+        structured_category, structured_breadcrumbs = structured_classification(structured_items)
+        breadcrumbs = " | ".join(
+            value for value in (structured_breadcrumbs, html_breadcrumbs(document)) if value
+        )[:1800]
         return {
             "title": first_text(item, "name", "title", "headline")
             or meta_content(document, "og:title")
@@ -826,8 +970,8 @@ class ExternalListingSource(ABC):
             "description": first_text(item, "description", "body", "text")
             or meta_content(document, "og:description")
             or meta_content(document, "description"),
-            "category": body[:1200],
-            "breadcrumbs": body[:1800],
+            "category": structured_category,
+            "breadcrumbs": breadcrumbs,
             "url": url,
             "price_text": price_match.group(0) if price_match else "",
             "images": images,
@@ -859,7 +1003,8 @@ class ExternalListingSource(ABC):
     def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
         if data.get("deleted") or clean(data.get("status")).casefold() in {"deleted", "removed", "not found"}:
             return None
-        if not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
+        title = clean(data.get("title"))
+        if not title or not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
             return None
         amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
         corpus = clean(
@@ -869,7 +1014,7 @@ class ExternalListingSource(ABC):
         mode = "holiday" if period in {"night", "week"} else "long" if period == "month" or long_hint else None
         # A source category can prove a long-room offer when it omits `/mes`,
         # but it must not turn an obvious whole-property sale price into rent.
-        if amount is None or mode is None or (period is None and amount > 5_000):
+        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
             return None
         room_type = (
             "Habitación compartida"
@@ -904,7 +1049,7 @@ class ExternalListingSource(ABC):
             self.name,
             external_id,
             url,
-            clean(data.get("title"))[:240],
+            title[:240],
             clean(data.get("description")),
             city,
             city,
@@ -943,6 +1088,7 @@ class IdealistaSource(ExternalListingSource):
 
 class FotocasaSource(ExternalListingSource):
     name = "Fotocasa"
+    render_incomplete_detail = True
     domain = "fotocasa.es"
     url_tokens = ("/es/compartir/vivienda/",)
     listing_url_pattern = re.compile(r"/es/compartir/vivienda/.+/\d+/d/?$", re.IGNORECASE)
@@ -960,14 +1106,33 @@ class FotocasaSource(ExternalListingSource):
         """Extract Fotocasa's public shared-home fields before generic fallbacks."""
         data = super().parse_listing(document, url)
         state = embedded_json(document)
-        candidate = next(
-            (
-                value
-                for item in state
-                for value in item.values()
-                if isinstance(value, dict) and first_text(value, "title", "description", "price")
+        candidates = [
+            item
+            for item in state
+            if first_text(item, "title", "headline", "name")
+            and (
+                first_text(item, "description", "detail", "body")
+                or first_text(item, "priceText", "price", "displayPrice")
+            )
+        ]
+        candidate = max(
+            candidates,
+            key=lambda item: sum(
+                bool(first_text(item, key))
+                for key in (
+                    "title",
+                    "headline",
+                    "description",
+                    "detail",
+                    "priceText",
+                    "price",
+                    "displayPrice",
+                    "location",
+                    "municipality",
+                    "city",
+                )
             ),
-            {},
+            default={},
         )
         heading = re.search(r'<h1[^>]*>(.*?)</h1>', document, re.IGNORECASE | re.DOTALL)
         description = re.search(r'<(?:div|section)[^>]*(?:description|property-description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
