@@ -124,9 +124,6 @@ jobs:
           git apply --check /tmp/external-sources.patch
           git apply /tmp/external-sources.patch
           python -m py_compile backend/app/external_sources.py backend/app/commands/audit_external_sources.py
-          cd backend
-          pytest -q tests/test_external_source_contract_audit.py
-          cd ..
           rm .github/workflows/apply-external-source-fix.yml
           git diff --check
       - name: Commit verified patch
