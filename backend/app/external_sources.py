@@ -367,7 +367,6 @@ def html_breadcrumbs(document: str) -> str:
     return " | ".join(values)[:1800]
 
 
-\
 def detail_document_has_listing_signals(document: str) -> bool:
     """Return whether a detail response contains usable public listing data.
 
@@ -868,7 +867,6 @@ class ExternalListingSource(ABC):
                 return rendered
         return document
 
-
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         ld = json_ld(document)
         state = embedded_json(document)
@@ -1102,7 +1100,6 @@ class FotocasaSource(ExternalListingSource):
             ),
             default={},
         )
-
         heading = re.search(r'<h1[^>]*>(.*?)</h1>', document, re.IGNORECASE | re.DOTALL)
         description = re.search(r'<(?:div|section)[^>]*(?:description|property-description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
         price = re.search(r'"(?:price|priceValue|amount)"\s*:\s*"?([\d.]+(?:,\d+)?)"?', document, re.IGNORECASE)
