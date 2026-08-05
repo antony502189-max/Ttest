@@ -367,6 +367,34 @@ def html_breadcrumbs(document: str) -> str:
     return " | ".join(values)[:1800]
 
 
+\
+def detail_document_has_listing_signals(document: str) -> bool:
+    """Return whether a detail response contains usable public listing data.
+
+    A 200 response can be only an application shell. In that case the caller
+    may use the existing anonymous Chromium fallback, without interacting with
+    challenges or authentication.
+    """
+    title = meta_content(document, "og:title")
+    if not title:
+        heading = re.search(r"<h1[^>]*>(.*?)</h1>", document, re.IGNORECASE | re.DOTALL)
+        title = clean(heading.group(1)) if heading else ""
+    if not title:
+        structured = json_ld(document) + embedded_json(document)
+        title = next(
+            (
+                first_text(item, "name", "title", "headline")
+                for item in structured
+                if first_text(item, "name", "title", "headline")
+            ),
+            "",
+        )
+    corpus = clean(document).casefold()
+    has_price = bool(re.search(r"[\d.]+(?:,\d+)?\s*€", corpus))
+    has_room = any(term in corpus for term in POSITIVE)
+    return bool(title and has_price and has_room)
+
+
 def meta_content(document: str, name: str) -> str:
     pattern = rf'<meta[^>]+(?:property|name)=["\']{re.escape(name)}["\'][^>]+content=["\']([^"\']+)["\']'
     match = re.search(pattern, document, re.IGNORECASE)
@@ -539,6 +567,7 @@ class ExternalListingSource(ABC):
     listing_url_pattern: re.Pattern[str]
     discovery_selectors: tuple[str, ...] = ()
     max_discovery_pages = 30
+    render_incomplete_detail = False
     removed_markers: tuple[str, ...] = (
         "anuncio eliminado", "ya no está disponible", "ya no esta disponible", "ya no disponible", "anuncio caducado",
         "property unavailable", "listing unavailable", "anuncio no disponible",
@@ -830,7 +859,15 @@ class ExternalListingSource(ABC):
         return "active" if self.is_listing_url(final_url) else "unknown"
 
     async def fetch_listing(self, url: str) -> str | None:
-        return await self.request(url)
+        document = await self.request(url)
+        if not self.render_incomplete_detail or not document or detail_document_has_listing_signals(document):
+            return document
+        if get_settings().external_import_playwright_enabled:
+            rendered = await self.render_public_page(url)
+            if rendered:
+                return rendered
+        return document
+
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         ld = json_ld(document)
@@ -1019,6 +1056,7 @@ class IdealistaSource(ExternalListingSource):
 
 class FotocasaSource(ExternalListingSource):
     name = "Fotocasa"
+    render_incomplete_detail = True
     domain = "fotocasa.es"
     url_tokens = ("/es/compartir/vivienda/",)
     listing_url_pattern = re.compile(r"/es/compartir/vivienda/.+/\d+/d/?$", re.IGNORECASE)
@@ -1036,15 +1074,35 @@ class FotocasaSource(ExternalListingSource):
         """Extract Fotocasa's public shared-home fields before generic fallbacks."""
         data = super().parse_listing(document, url)
         state = embedded_json(document)
-        candidate = next(
-            (
-                value
-                for item in state
-                for value in item.values()
-                if isinstance(value, dict) and first_text(value, "title", "description", "price")
+        candidates = [
+            item
+            for item in state
+            if first_text(item, "title", "headline", "name")
+            and (
+                first_text(item, "description", "detail", "body")
+                or first_text(item, "priceText", "price", "displayPrice")
+            )
+        ]
+        candidate = max(
+            candidates,
+            key=lambda item: sum(
+                bool(first_text(item, key))
+                for key in (
+                    "title",
+                    "headline",
+                    "description",
+                    "detail",
+                    "priceText",
+                    "price",
+                    "displayPrice",
+                    "location",
+                    "municipality",
+                    "city",
+                )
             ),
-            {},
+            default={},
         )
+
         heading = re.search(r'<h1[^>]*>(.*?)</h1>', document, re.IGNORECASE | re.DOTALL)
         description = re.search(r'<(?:div|section)[^>]*(?:description|property-description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
         price = re.search(r'"(?:price|priceValue|amount)"\s*:\s*"?([\d.]+(?:,\d+)?)"?', document, re.IGNORECASE)
