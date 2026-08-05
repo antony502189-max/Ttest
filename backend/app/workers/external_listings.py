@@ -4,8 +4,8 @@ import argparse
 import asyncio
 import logging
 import signal
-from time import monotonic
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from uuid import uuid4
 
 from redis.asyncio import from_url
