@@ -9,6 +9,7 @@ from app.external_sources import DiscoveryResult, NormalizedListing, SourceBlock
 class HealthySource:
     name = "Healthy"
     max_discovery_pages = 30
+    discovery_diagnostics: dict[str, dict] = {}
 
     async def discover_listing_urls(self):
         return DiscoveryResult(
