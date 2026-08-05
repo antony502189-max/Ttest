@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -22,7 +21,8 @@ from ..models import (
     User,
 )
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
-from ..storage import get_storage
+from .media_lifecycle import lock_media_assets, lock_media_owner
+from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
 
 
 async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
@@ -42,14 +42,18 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
 
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
-    previous_id = user.avatar_asset_id
-    previous_key: str | None = None
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not locked_user or locked_user.deleted_at is not None:
+        raise HTTPException(404, "User not found")
+    previous_id = locked_user.avatar_asset_id
+    asset_ids = {asset_id for asset_id in (previous_id, payload.assetId) if asset_id is not None}
+    assets_by_id = {asset.id: asset for asset in await lock_media_assets(session, asset_ids)}
 
     if payload.assetId is None:
-        user.avatar_asset_id = None
+        locked_user.avatar_asset_id = None
     else:
-        asset = await session.get(MediaAsset, payload.assetId)
-        if not asset or asset.owner_id != user.id or asset.deleted_at:
+        asset = assets_by_id.get(payload.assetId)
+        if not asset or asset.owner_id != locked_user.id or asset.deleted_at:
             raise HTTPException(404, "Media not found")
         listing_attachment = await session.scalar(
             select(ListingImage.listing_id).where(ListingImage.media_asset_id == asset.id).limit(1)
@@ -57,64 +61,79 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
         if listing_attachment and asset.id != previous_id:
             raise HTTPException(409, "A listing image cannot also be used as an avatar")
         asset.kind = "avatar"
-        user.avatar_asset_id = asset.id
+        locked_user.avatar_asset_id = asset.id
 
-    if previous_id and previous_id != user.avatar_asset_id:
-        previous = await session.get(MediaAsset, previous_id)
+    if previous_id and previous_id != locked_user.avatar_asset_id:
+        previous = assets_by_id.get(previous_id)
         previous_attachment = await session.scalar(
             select(ListingImage.listing_id).where(ListingImage.media_asset_id == previous_id).limit(1)
         )
         if previous and not previous_attachment:
             previous.deleted_at = datetime.now(UTC)
-            previous_key = previous.storage_key
+            await enqueue_storage_deletion(session, previous.storage_key)
         elif previous and previous_attachment:
             previous.kind = "listing_image"
 
     await session.commit()
-    await session.refresh(user)
-    if previous_key:
-        await asyncio.to_thread(get_storage().delete, previous_key)
-    return user
+    await session.refresh(locked_user)
+    return locked_user
 
 
 async def delete_account(user: User, session: AsyncSession) -> None:
-    media_paths = list(
-        (await session.scalars(select(MediaAsset.storage_key).where(MediaAsset.owner_id == user.id))).all()
+    await lock_media_owner(session, user.id)
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not locked_user or locked_user.deleted_at is not None:
+        raise HTTPException(404, "User not found")
+    owned_listing_ids = select(Listing.id).where(Listing.owner_user_id == locked_user.id)
+    await session.scalars(owned_listing_ids.order_by(Listing.id).with_for_update())
+    media_ids = set(
+        (await session.scalars(select(MediaAsset.id).where(MediaAsset.owner_id == locked_user.id))).all()
     )
-    original_email = user.email
+    locked_assets = await lock_media_assets(session, media_ids)
+    media_paths = [asset.storage_key for asset in locked_assets]
+    original_email = locked_user.email
     now = datetime.now(UTC)
 
-    await session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
-    await session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user.id))
-    await session.execute(delete(EmailVerificationToken).where(EmailVerificationToken.user_id == user.id))
-    await session.execute(delete(Favorite).where(Favorite.user_id == user.id))
-    await session.execute(delete(DiscardedListing).where(DiscardedListing.user_id == user.id))
-    await session.execute(delete(SavedSearch).where(SavedSearch.user_id == user.id))
-    await session.execute(delete(SearchHistory).where(SearchHistory.user_id == user.id))
+    await session.execute(delete(AuthSession).where(AuthSession.user_id == locked_user.id))
+    await session.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == locked_user.id))
+    await session.execute(delete(EmailVerificationToken).where(EmailVerificationToken.user_id == locked_user.id))
+    await session.execute(
+        delete(Favorite).where(
+            (Favorite.user_id == locked_user.id) | (Favorite.listing_id.in_(owned_listing_ids))
+        )
+    )
+    await session.execute(
+        delete(DiscardedListing).where(
+            (DiscardedListing.user_id == locked_user.id)
+            | (DiscardedListing.listing_id.in_(owned_listing_ids))
+        )
+    )
+    await session.execute(delete(SavedSearch).where(SavedSearch.user_id == locked_user.id))
+    await session.execute(delete(SearchHistory).where(SearchHistory.user_id == locked_user.id))
     await session.execute(delete(MailOutbox).where(MailOutbox.recipient == original_email))
+    if media_ids:
+        await session.execute(delete(ListingImage).where(ListingImage.media_asset_id.in_(media_ids)))
     await session.execute(
         update(Listing)
-        .where(Listing.owner_user_id == user.id, Listing.deleted_at.is_(None))
+        .where(Listing.owner_user_id == locked_user.id, Listing.deleted_at.is_(None))
         .values(deleted_at=now, status="closed", closed_reason="account_deleted")
     )
     await session.execute(
-        update(MediaAsset).where(MediaAsset.owner_id == user.id, MediaAsset.deleted_at.is_(None)).values(deleted_at=now)
+        update(MediaAsset)
+        .where(MediaAsset.owner_id == locked_user.id, MediaAsset.deleted_at.is_(None))
+        .values(deleted_at=now)
     )
 
-    user.deleted_at = now
-    user.blocked = True
-    user.email_verified = False
-    user.email = f"deleted-{user.id}@deleted.invalid"
-    user.google_subject = None
-    user.password_hash = None
-    user.name = "Deleted user"
-    user.phone = user.whatsapp = user.telegram = user.about = ""
-    user.show_phone = user.show_whatsapp = False
-    user.allow_contact_form = False
-    user.avatar_asset_id = None
+    locked_user.deleted_at = now
+    locked_user.blocked = True
+    locked_user.email_verified = False
+    locked_user.email = f"deleted-{locked_user.id}@deleted.invalid"
+    locked_user.google_subject = None
+    locked_user.password_hash = None
+    locked_user.name = "Deleted user"
+    locked_user.phone = locked_user.whatsapp = locked_user.telegram = locked_user.about = ""
+    locked_user.show_phone = locked_user.show_whatsapp = False
+    locked_user.allow_contact_form = False
+    locked_user.avatar_asset_id = None
+    await enqueue_storage_deletions(session, media_paths)
     await session.commit()
-
-    await asyncio.gather(
-        *(asyncio.to_thread(get_storage().delete, storage_key) for storage_key in media_paths),
-        return_exceptions=True,
-    )

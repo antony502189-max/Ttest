@@ -4,6 +4,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
+from ...core.http import client_ip
 from ...db.session import get_session
 from ...models import User
 from ...schemas.auth import (
@@ -44,7 +45,7 @@ def require_cookie_origin(request: Request) -> None:
 
 
 def request_metadata(request: Request) -> tuple[str, str]:
-    return request.headers.get("user-agent", ""), request.client.host if request.client else "unknown"
+    return request.headers.get("user-agent", ""), client_ip(request)
 
 
 def set_refresh_cookie(response: Response, result: AuthResult) -> dict:
@@ -54,7 +55,9 @@ def set_refresh_cookie(response: Response, result: AuthResult) -> dict:
         result.refresh_token,
         httponly=True,
         secure=settings.is_production,
-        samesite="none" if settings.is_production else "lax",
+        # Frontend and API intentionally share one origin. Lax blocks ambient
+        # cross-site POST cookies while preserving normal navigation and OAuth.
+        samesite="lax",
         max_age=max(1, int((result.refresh_expires_at - datetime.now(UTC)).total_seconds())),
         path="/api/v1/auth",
     )
@@ -69,8 +72,8 @@ async def register(
     session: AsyncSession = Depends(get_session),
 ):
     require_cookie_origin(request)
-    user_agent, client_ip = request_metadata(request)
-    result = await register_user(payload, session, user_agent=user_agent, client_ip=client_ip)
+    user_agent, request_ip = request_metadata(request)
+    result = await register_user(payload, session, user_agent=user_agent, client_ip=request_ip)
     return set_refresh_cookie(response, result)
 
 
@@ -82,13 +85,13 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ):
     require_cookie_origin(request)
-    user_agent, client_ip = request_metadata(request)
+    user_agent, request_ip = request_metadata(request)
     result = await login_user(
         str(payload.email),
         payload.password,
         session,
         user_agent=user_agent,
-        client_ip=client_ip,
+        client_ip=request_ip,
     )
     return set_refresh_cookie(response, result)
 
@@ -101,8 +104,8 @@ async def google_login(
     session: AsyncSession = Depends(get_session),
 ):
     require_cookie_origin(request)
-    user_agent, client_ip = request_metadata(request)
-    result = await google_login_user(payload, session, user_agent=user_agent, client_ip=client_ip)
+    user_agent, request_ip = request_metadata(request)
+    result = await google_login_user(payload, session, user_agent=user_agent, client_ip=request_ip)
     return set_refresh_cookie(response, result)
 
 
@@ -143,7 +146,12 @@ async def request_email_verification(
 
 
 @router.post("/email-verification/confirm", status_code=status.HTTP_204_NO_CONTENT)
-async def verify_email(payload: VerifyEmailRequest, request: Request, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def verify_email(
+    payload: VerifyEmailRequest,
+    request: Request,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
     require_cookie_origin(request)
     await verify_user_email(user, payload.code, session)
 
@@ -168,12 +176,12 @@ async def refresh(
     require_cookie_origin(request)
     if not refresh_token:
         raise HTTPException(401, "Refresh token required")
-    user_agent, client_ip = request_metadata(request)
+    user_agent, request_ip = request_metadata(request)
     result = await refresh_user_session(
         refresh_token,
         session,
         user_agent=user_agent,
-        client_ip=client_ip,
+        client_ip=request_ip,
     )
     return set_refresh_cookie(response, result)
 
@@ -187,4 +195,11 @@ async def logout(
 ):
     require_cookie_origin(request)
     await revoke_session(refresh_token, session)
-    response.delete_cookie("refresh_token", path="/api/v1/auth")
+    settings = get_settings()
+    response.delete_cookie(
+        "refresh_token",
+        path="/api/v1/auth",
+        secure=settings.is_production,
+        httponly=True,
+        samesite="lax",
+    )

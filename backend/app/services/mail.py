@@ -2,11 +2,14 @@ import asyncio
 import logging
 import smtplib
 import ssl
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from email.utils import formataddr
+from typing import Protocol
+from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import Settings, get_settings
@@ -15,6 +18,28 @@ from ..models import MailOutbox
 logger = logging.getLogger(__name__)
 SENSITIVE_MAIL_KINDS = {"email_verification", "password_reset"}
 REDACTED_BODY = "[redacted after successful delivery]"
+
+
+class MailPayload(Protocol):
+    @property
+    def recipient(self) -> str: ...
+
+    @property
+    def subject(self) -> str: ...
+
+    @property
+    def body(self) -> str: ...
+
+
+@dataclass(frozen=True)
+class ClaimedMail:
+    id: UUID
+    lease_token: str
+    kind: str
+    recipient: str
+    subject: str
+    body: str
+    attempts: int
 
 
 def frontend_link(path: str) -> str:
@@ -58,7 +83,7 @@ def enqueue_message_notification(session: AsyncSession, recipient: str, listing_
     )
 
 
-def send_smtp(item: MailOutbox, settings: Settings) -> None:
+def send_smtp(item: MailPayload, settings: Settings) -> None:
     if not settings.smtp_host:
         raise RuntimeError("SMTP_HOST is not configured")
     message = EmailMessage()
@@ -70,7 +95,11 @@ def send_smtp(item: MailOutbox, settings: Settings) -> None:
     message["To"] = item.recipient
     message["Subject"] = item.subject
     message.set_content(item.body)
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
+    with smtplib.SMTP(
+        settings.smtp_host,
+        settings.smtp_port,
+        timeout=settings.smtp_timeout_seconds,
+    ) as smtp:
         if settings.smtp_starttls:
             smtp.starttls(context=ssl.create_default_context())
         if settings.smtp_username:
@@ -78,40 +107,133 @@ def send_smtp(item: MailOutbox, settings: Settings) -> None:
         smtp.send_message(message)
 
 
-async def deliver_pending_mail(session: AsyncSession, *, limit: int | None = None) -> int:
-    settings = get_settings()
-    batch_size = limit or settings.mail_worker_batch_size
+def retry_delay_seconds(attempts: int, settings: Settings) -> int:
+    exponent = max(0, attempts - 1)
+    return min(settings.mail_retry_max_seconds, settings.mail_retry_base_seconds * (2**exponent))
+
+
+async def claim_pending_mail(
+    session: AsyncSession,
+    *,
+    batch_size: int,
+    settings: Settings,
+) -> list[ClaimedMail]:
+    """Lease a batch in one short transaction, then release all row locks."""
+    now = datetime.now(UTC)
+    lease_token = str(uuid4())
     items = (
         await session.scalars(
             select(MailOutbox)
-            .where(MailOutbox.status == "pending", MailOutbox.attempts < settings.mail_max_attempts)
-            .order_by(MailOutbox.created_at)
+            .where(
+                MailOutbox.status == "pending",
+                MailOutbox.attempts < settings.mail_max_attempts,
+                MailOutbox.next_attempt_at <= now,
+                or_(MailOutbox.lease_expires_at.is_(None), MailOutbox.lease_expires_at <= now),
+            )
+            .order_by(MailOutbox.next_attempt_at, MailOutbox.created_at, MailOutbox.id)
             .limit(batch_size)
             .with_for_update(skip_locked=True)
         )
     ).all()
-    delivered = 0
+    lease_expires_at = now + timedelta(seconds=settings.mail_lease_seconds)
+    claims: list[ClaimedMail] = []
     for item in items:
         item.attempts += 1
+        item.lease_token = lease_token
+        item.lease_expires_at = lease_expires_at
+        claims.append(
+            ClaimedMail(
+                id=item.id,
+                lease_token=lease_token,
+                kind=item.kind,
+                recipient=item.recipient,
+                subject=item.subject,
+                body=item.body,
+                attempts=item.attempts,
+            )
+        )
+    await session.commit()
+    return claims
+
+
+async def finalize_mail_claim(
+    session: AsyncSession,
+    claim: ClaimedMail,
+    *,
+    delivered: bool,
+    error: str | None,
+    settings: Settings,
+) -> bool:
+    """Finalize only the lease still owned by this worker."""
+    now = datetime.now(UTC)
+    values: dict[str, object] = {
+        "lease_token": None,
+        "lease_expires_at": None,
+    }
+    if delivered:
+        values.update(
+            status="sent",
+            sent_at=now,
+            last_error=None,
+            body=REDACTED_BODY if claim.kind in SENSITIVE_MAIL_KINDS else claim.body,
+        )
+    else:
+        terminal = claim.attempts >= settings.mail_max_attempts
+        values.update(
+            status="failed" if terminal else "pending",
+            last_error=(error or "mail delivery failed")[:2_000],
+            next_attempt_at=now + timedelta(seconds=retry_delay_seconds(claim.attempts, settings)),
+        )
+        if terminal and claim.kind in SENSITIVE_MAIL_KINDS:
+            values["body"] = REDACTED_BODY
+
+    result = await session.execute(
+        update(MailOutbox)
+        .where(
+            MailOutbox.id == claim.id,
+            MailOutbox.status == "pending",
+            MailOutbox.lease_token == claim.lease_token,
+        )
+        .values(**values)
+        .returning(MailOutbox.id)
+    )
+    updated_id = result.scalar_one_or_none()
+    await session.commit()
+    return updated_id is not None
+
+
+async def deliver_pending_mail(session: AsyncSession, *, limit: int | None = None) -> int:
+    settings = get_settings()
+    batch_size = limit or settings.mail_worker_batch_size
+    claims = await claim_pending_mail(session, batch_size=batch_size, settings=settings)
+    delivered = 0
+
+    # No database transaction or row lock is held while SMTP performs DNS,
+    # TLS, authentication and network I/O. A crashed worker leaves a lease that
+    # becomes claimable again after MAIL_LEASE_SECONDS.
+    for claim in claims:
+        error: str | None = None
+        success = False
         try:
             if settings.smtp_host:
-                await asyncio.to_thread(send_smtp, item, settings)
+                await asyncio.to_thread(send_smtp, claim, settings)
             elif settings.app_env == "development":
-                logger.info("dev_mail", extra={"recipient": item.recipient, "kind": item.kind})
+                logger.info("dev_mail", extra={"recipient": claim.recipient, "kind": claim.kind})
             else:
                 raise RuntimeError("SMTP_HOST is required outside development")
-            item.status = "sent"
-            item.sent_at = datetime.now(UTC)
-            item.last_error = None
-            if item.kind in SENSITIVE_MAIL_KINDS:
-                # The SMTP payload must exist while pending, but codes and reset
-                # tokens should not remain in the database after delivery.
-                item.body = REDACTED_BODY
-            delivered += 1
+            success = True
         except (OSError, RuntimeError, smtplib.SMTPException) as exc:
-            item.last_error = str(exc)[:2_000]
-            if item.attempts >= settings.mail_max_attempts:
-                item.status = "failed"
-            logger.warning("mail_delivery_failed", extra={"mail_id": str(item.id), "kind": item.kind})
-    await session.commit()
+            error = str(exc)
+            logger.warning("mail_delivery_failed", extra={"mail_id": str(claim.id), "kind": claim.kind})
+
+        if await finalize_mail_claim(
+            session,
+            claim,
+            delivered=success,
+            error=error,
+            settings=settings,
+        ):
+            delivered += int(success)
+        else:
+            logger.warning("mail_lease_lost", extra={"mail_id": str(claim.id), "kind": claim.kind})
     return delivered

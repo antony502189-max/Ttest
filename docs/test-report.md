@@ -1,6 +1,8 @@
 # Test report
 
-Latest local verification after the full-stack integration update:
+> Historical verification snapshot recorded after the original full-stack integration update. It is retained for traceability and is not the current release gate. Current validation is defined by the GitHub workflows and `scripts/final-audit-local.sh`.
+
+The recorded local verification was:
 
 ```text
 backend: ruff check app tests        PASS
@@ -10,7 +12,7 @@ backend: pytest -q tests/integration 7 passed, 1 skipped
 frontend: npm run typecheck          PASS
 frontend: npm run lint               PASS (one existing unused-helper warning)
 frontend: npm run build              PASS
-Docker PostGIS: alembic upgrade head PASS (0015_integrity_constraints)
+Docker PostGIS: alembic upgrade head PASS (historical head: 0015_integrity_constraints)
 Playwright full-stack                3 passed, 1 skipped (desktop + 390×844)
 Playwright accessibility (Axe)      28 passed (no serious/critical violations)
 S3-compatible MinIO round-trip      1 passed (put/read/delete)
@@ -29,6 +31,6 @@ Runtime checks used Docker PostGIS and FastAPI:
 - `POST /listings/search` was exercised against the running PostGIS API.
 - The full-stack tests register a host through FastAPI, create a PostgreSQL/PostGIS listing, then confirm that the SPA renders it from the real API on desktop and mobile. The mobile room-count filter request is also verified against the backend.
 
-Visual regression is intentionally not marked passing: the repository has no committed `tests/visual-snapshots/` baseline, and the map routes need a configured Google Maps key or a dedicated Maps stub to capture the normal map state. The visual command was run; no generated snapshot was accepted as a new baseline.
+At the time of this snapshot, visual regression was intentionally not marked passing because the repository had no approved visual baseline available to that local run, and map routes required a configured Google Maps key or dedicated Maps stub. No generated snapshot was accepted as a new baseline.
 
-Playwright CLI snapshots are local ephemeral artifacts under `.playwright-cli/`; they are not committed. CI runs frontend lint/typecheck/build and backend lint/typecheck/tests/migrations/Docker build. Full visual/a11y and all end-to-end coverage remain separate CI work where configured.
+Playwright CLI snapshots are local ephemeral artifacts under `.playwright-cli/`; they are not committed. For the current release gate and current migration head, use the workflows under `.github/workflows/` and `docs/database.md`.

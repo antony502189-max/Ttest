@@ -1,23 +1,35 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi import HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from sqlalchemy import func, or_, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..core.security import create_access_token, hash_password, new_refresh_token, token_hash, verify_password
+from ..core.security import (
+    create_access_token,
+    hash_password_async,
+    new_refresh_token,
+    token_hash,
+    verify_password_async,
+)
 from ..models import AuthSession, EmailVerificationToken, PasswordResetToken, User
 from ..schemas.auth import GoogleLoginRequest, RegisterRequest
 from .mail import enqueue_email_verification, enqueue_password_reset
+
+PASSWORD_RESET_COOLDOWN = timedelta(seconds=60)
+PASSWORD_RESET_WINDOW = timedelta(hours=1)
+MAX_PASSWORD_RESETS_PER_HOUR = 3
 
 
 @dataclass(frozen=True)
@@ -31,6 +43,16 @@ class AuthResult:
 def google_email_is_authoritative(claims: dict, email: str) -> bool:
     """Whether Google can safely prove ownership of an existing local email."""
     return email.rsplit("@", 1)[-1] == "gmail.com" or bool(claims.get("hd"))
+
+
+def verify_google_credential(credential: str, client_id: str) -> dict:
+    return dict(
+        google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            client_id,
+        )
+    )
 
 
 def public_user(user: User) -> dict:
@@ -63,6 +85,45 @@ def verification_code_hash(user_id: object, code: str) -> str:
     return hmac.new(secret, message, hashlib.sha256).hexdigest()
 
 
+async def lock_user_sessions(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize all session issuance and rotation for one account."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"auth-session:{user_id}"},
+    )
+
+
+async def prepare_session_issuance(
+    user_id: UUID,
+    session: AsyncSession,
+    now: datetime,
+    *,
+    lock_required: bool,
+) -> None:
+    settings = get_settings()
+    if lock_required:
+        await lock_user_sessions(user_id, session)
+
+    # Expired refresh tokens can no longer be replayed, so retaining their rows
+    # has no security value and would otherwise make rotation history unbounded.
+    await session.execute(
+        delete(AuthSession).where(
+            AuthSession.user_id == user_id,
+            AuthSession.expires_at <= now,
+        )
+    )
+    issued_recently = await session.scalar(
+        select(func.count())
+        .select_from(AuthSession)
+        .where(
+            AuthSession.user_id == user_id,
+            AuthSession.issued_at > now - timedelta(minutes=1),
+        )
+    )
+    if int(issued_recently or 0) >= settings.max_session_issues_per_minute:
+        raise HTTPException(429, "Too many session rotations; try again later")
+
+
 async def issue_session(
     user: User,
     session: AsyncSession,
@@ -70,9 +131,19 @@ async def issue_session(
     user_agent: str,
     client_ip: str,
     previous_session: AuthSession | None = None,
+    sessions_locked: bool = False,
 ) -> AuthResult:
+    settings = get_settings()
+    now = datetime.now(UTC)
+    await prepare_session_issuance(
+        user.id,
+        session,
+        now,
+        lock_required=not sessions_locked,
+    )
+
     raw_refresh = new_refresh_token()
-    expires = datetime.now(UTC) + timedelta(days=get_settings().refresh_token_days)
+    expires = now + timedelta(days=settings.refresh_token_days)
     auth_session = AuthSession(
         user_id=user.id,
         token_hash=token_hash(raw_refresh),
@@ -83,8 +154,28 @@ async def issue_session(
     session.add(auth_session)
     await session.flush()
     if previous_session:
-        previous_session.revoked_at = datetime.now(UTC)
+        previous_session.revoked_at = now
         previous_session.replaced_by = auth_session.id
+
+    excess_active_ids = (
+        await session.scalars(
+            select(AuthSession.id)
+            .where(
+                AuthSession.user_id == user.id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > now,
+            )
+            .order_by(AuthSession.issued_at.desc(), AuthSession.id.desc())
+            .offset(settings.max_active_sessions_per_user)
+        )
+    ).all()
+    if excess_active_ids:
+        await session.execute(
+            update(AuthSession)
+            .where(AuthSession.id.in_(excess_active_ids))
+            .values(revoked_at=now)
+        )
+
     await session.commit()
     return AuthResult(
         access_token=create_access_token(str(user.id), user.role),
@@ -108,7 +199,7 @@ async def register_user(
         raise HTTPException(409, "Email already registered")
     user = User(
         email=email,
-        password_hash=hash_password(payload.password),
+        password_hash=await hash_password_async(payload.password),
         name=payload.name,
         role=payload.role,
         initials="".join(part[:1].upper() for part in payload.name.split()[:2]),
@@ -131,13 +222,11 @@ async def login_user(
     client_ip: str,
 ) -> AuthResult:
     user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
-    if (
-        not user
-        or not user.password_hash
-        or not verify_password(password, user.password_hash)
-        or user.blocked
-        or user.deleted_at
-    ):
+    password_valid = await verify_password_async(
+        password,
+        user.password_hash if user else None,
+    )
+    if not user or not password_valid or user.blocked or user.deleted_at:
         raise HTTPException(401, "Invalid credentials")
     return await issue_session(user, session, user_agent=user_agent, client_ip=client_ip)
 
@@ -153,9 +242,9 @@ async def google_login_user(
     if not settings.google_client_id:
         raise HTTPException(503, "Google sign-in is not configured")
     try:
-        claims = google_id_token.verify_oauth2_token(
+        claims = await asyncio.to_thread(
+            verify_google_credential,
             payload.credential,
-            google_requests.Request(),
             settings.google_client_id,
         )
     except ValueError as exc:
@@ -211,11 +300,40 @@ async def google_login_user(
 
 
 async def request_password_reset(email: str, session: AsyncSession) -> dict[str, str]:
-    user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
     response = {"message": "If the account exists, password reset instructions have been sent."}
+    user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
     if not user or user.blocked or user.deleted_at:
         return response
+
     now = datetime.now(UTC)
+    settings = get_settings()
+    # Serialize by account so distributed callers cannot race the cooldown and
+    # create multiple valid tokens or outbox rows. Suppression remains silent:
+    # callers receive the same generic response as for an unknown account.
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"password-reset:{user.id}"},
+    )
+    issued_at = list(
+        (
+            await session.scalars(
+                select(PasswordResetToken.created_at)
+                .where(
+                    PasswordResetToken.user_id == user.id,
+                    PasswordResetToken.created_at > now - PASSWORD_RESET_WINDOW,
+                )
+                .order_by(PasswordResetToken.created_at.desc())
+                .limit(MAX_PASSWORD_RESETS_PER_HOUR)
+            )
+        ).all()
+    )
+    quota_reached = len(issued_at) >= MAX_PASSWORD_RESETS_PER_HOUR
+    cooling_down = bool(issued_at and issued_at[0] > now - PASSWORD_RESET_COOLDOWN)
+    if quota_reached or cooling_down:
+        # End the advisory-lock transaction even though no state changed.
+        await session.commit()
+        return response
+
     await session.execute(
         update(PasswordResetToken)
         .where(PasswordResetToken.user_id == user.id, PasswordResetToken.consumed_at.is_(None))
@@ -226,12 +344,12 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
         PasswordResetToken(
             user_id=user.id,
             token_hash=token_hash(raw_token),
-            expires_at=now + timedelta(minutes=get_settings().password_reset_minutes),
+            expires_at=now + timedelta(minutes=settings.password_reset_minutes),
         )
     )
     enqueue_password_reset(session, user.email, raw_token)
     await session.commit()
-    if get_settings().app_env in {"development", "test"}:
+    if settings.app_env in {"development", "test"}:
         response["resetToken"] = raw_token
     return response
 
@@ -252,8 +370,9 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
     user = await session.get(User, reset.user_id)
     if not user or user.blocked or user.deleted_at:
         raise HTTPException(400, "The password reset link is invalid or has expired")
-    user.password_hash = hash_password(password)
+    user.password_hash = await hash_password_async(password)
     reset.consumed_at = now
+    await lock_user_sessions(user.id, session)
     await session.execute(
         update(AuthSession)
         .where(AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None))
@@ -342,8 +461,16 @@ async def refresh_user_session(
     client_ip: str,
 ) -> AuthResult:
     now = datetime.now(UTC)
+    hashed_token = token_hash(raw_refresh)
+    candidate = await session.scalar(select(AuthSession).where(AuthSession.token_hash == hashed_token))
+    if not candidate or candidate.expires_at <= now:
+        raise HTTPException(401, "Invalid refresh token")
+
+    # Establish the same account-level lock order used by login/session issuance
+    # before taking the row lock, preventing cross-flow deadlocks.
+    await lock_user_sessions(candidate.user_id, session)
     auth = await session.scalar(
-        select(AuthSession).where(AuthSession.token_hash == token_hash(raw_refresh)).with_for_update()
+        select(AuthSession).where(AuthSession.token_hash == hashed_token).with_for_update()
     )
     if not auth or auth.expires_at <= now:
         raise HTTPException(401, "Invalid refresh token")
@@ -367,6 +494,7 @@ async def refresh_user_session(
         user_agent=user_agent,
         client_ip=client_ip,
         previous_session=auth,
+        sessions_locked=True,
     )
 
 
@@ -380,5 +508,6 @@ async def revoke_session(raw_refresh: str | None, session: AsyncSession) -> None
         )
     )
     if auth:
+        await lock_user_sessions(auth.user_id, session)
         auth.revoked_at = datetime.now(UTC)
         await session.commit()

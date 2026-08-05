@@ -22,9 +22,11 @@ def test_live_and_openapi_are_available() -> None:
     assert client.get("/api/openapi.json").status_code == 200
 
 
-def test_api_health_aliases_are_available() -> None:
+def test_api_health_aliases_are_available_and_not_cacheable() -> None:
     client = TestClient(app)
-    assert client.get("/api/health/live").json() == {"status": "ok"}
+    response = client.get("/api/health/live")
+    assert response.json() == {"status": "ok"}
+    assert response.headers["cache-control"] == "no-store"
 
 
 def test_production_disables_interactive_api_schema(monkeypatch) -> None:
@@ -38,6 +40,7 @@ def test_sensitive_endpoints_have_rate_limits() -> None:
     assert ("POST", "/api/v1/messages") in RATE_LIMITS
     assert ("POST", "/api/v1/reports") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/forgot-password") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/refresh") in RATE_LIMITS
 
 
 def test_rate_limiter_returns_retry_after() -> None:
@@ -49,13 +52,25 @@ def test_rate_limiter_returns_retry_after() -> None:
     assert second.retry_after >= 1
 
 
-def test_rate_limit_client_uses_forwarded_public_address() -> None:
+def test_rate_limit_client_uses_sanitized_proxy_address() -> None:
+    request = Request({
+        "type": "http",
+        "client": ("172.16.0.3", 12345),
+        "headers": [
+            (b"x-real-ip", b"198.51.100.10"),
+            (b"x-forwarded-for", b"198.51.100.10"),
+        ],
+    })
+    assert rate_limit_client(request) == "198.51.100.10"
+
+
+def test_unsanitized_forwarded_chain_does_not_trust_attacker_prefix() -> None:
     request = Request({
         "type": "http",
         "client": ("172.16.0.3", 12345),
         "headers": [(b"x-forwarded-for", b"198.51.100.10, 172.16.0.3")],
     })
-    assert rate_limit_client(request) == "198.51.100.10"
+    assert rate_limit_client(request) == "172.16.0.3"
 
 
 def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
@@ -69,6 +84,7 @@ def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
         assert limited.status_code == 429
         assert limited.json()["code"] == "rate_limited"
         assert limited.headers["retry-after"]
+        assert limited.headers["cache-control"] == "no-store"
     finally:
         RATE_LIMITS.pop(route, None)
 

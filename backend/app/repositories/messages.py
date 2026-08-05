@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Message, MessageThread
 
 
-def thread_list_query(user_id: UUID) -> Select:
+def thread_list_query(user_id: UUID, *, limit: int, offset: int) -> Select:
     latest_message = (
         select(Message.body)
         .where(Message.thread_id == MessageThread.id, Message.deleted_at.is_(None))
@@ -22,6 +22,8 @@ def thread_list_query(user_id: UUID) -> Select:
         select(MessageThread, latest_message.label("last_message_preview"))
         .where(or_(MessageThread.tenant_id == user_id, MessageThread.host_id == user_id))
         .order_by(MessageThread.last_message_at.desc(), MessageThread.id)
+        .limit(limit)
+        .offset(offset)
     )
 
 
@@ -52,13 +54,26 @@ async def get_or_create_thread(
     return thread
 
 
-async def thread_messages(session: AsyncSession, thread_id: UUID) -> list[Message]:
-    return list(
+async def thread_messages(
+    session: AsyncSession,
+    thread_id: UUID,
+    *,
+    limit: int,
+    offset: int,
+) -> list[Message]:
+    # Read the newest bounded page, then restore chronological display order.
+    # This prevents a long-lived thread from loading its complete history into
+    # memory while keeping the existing response shape for the frontend.
+    messages = list(
         (
             await session.scalars(
                 select(Message)
                 .where(Message.thread_id == thread_id, Message.deleted_at.is_(None))
-                .order_by(Message.created_at, Message.id)
+                .order_by(Message.created_at.desc(), Message.id.desc())
+                .limit(limit)
+                .offset(offset)
             )
         ).all()
     )
+    messages.reverse()
+    return messages

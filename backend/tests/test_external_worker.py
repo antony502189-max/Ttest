@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +16,9 @@ class BusyRedis:
     async def get(self, *args, **kwargs):
         return None
 
+    async def eval(self, *args, **kwargs) -> int:
+        return 0
+
     async def aclose(self) -> None:
         return None
 
@@ -26,6 +30,7 @@ def worker_settings(**overrides):
         "external_import_interval_seconds": 7200,
         "external_removal_check_interval_seconds": 900,
         "external_import_run_on_start": True,
+        "external_worker_stale_after_seconds": 300,
         "redis_url": "redis://test",
     }
     values.update(overrides)
@@ -122,12 +127,116 @@ def test_loop_runs_full_sync_on_start_before_waiting_for_the_interval(monkeypatc
             calls.append("full")
             return {}
 
-        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(external_removal_check_enabled=False))
+        monkeypatch.setattr(
+            worker,
+            "get_settings",
+            lambda: worker_settings(external_removal_check_enabled=False, redis_url=""),
+        )
         monkeypatch.setattr(worker, "run_once", run)
         monkeypatch.setattr(worker.asyncio, "Event", ControlledEvent)
         monkeypatch.setattr(worker.asyncio, "get_running_loop", SignalLoop)
         with pytest.raises(StopLoop):
             await worker.loop()
         assert calls == ["full"]
+
+    asyncio.run(verify())
+
+
+def test_release_does_not_delete_a_lock_owned_by_another_worker():
+    class Redis:
+        def __init__(self):
+            self.value = "new-owner"
+
+        async def eval(self, _script, _keys, _key, token):
+            if self.value == token:
+                self.value = None
+                return 1
+            return 0
+
+    async def verify() -> None:
+        redis = Redis()
+        await worker._release_distributed_lock(redis, "lock", "old-owner")
+        assert redis.value == "new-owner"
+
+    asyncio.run(verify())
+
+
+def test_stale_recovery_cannot_delete_a_reacquired_lock(monkeypatch):
+    class Redis:
+        def __init__(self):
+            self.value = b"old-owner"
+
+        async def get(self, _key):
+            return self.value
+
+        async def eval(self, _script, _keys, _key, token):
+            # Simulate expiry and acquisition by a new worker between GET and EVAL.
+            self.value = b"new-owner"
+            if self.value == token.encode():
+                self.value = None
+                return 1
+            return 0
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, *_args):
+            return SimpleNamespace(
+                health="running",
+                heartbeat_at=datetime.now(UTC) - timedelta(hours=3),
+                last_run_id="old-owner",
+            )
+
+    async def verify() -> None:
+        redis = Redis()
+        monkeypatch.setattr(worker, "SessionLocal", Session)
+        recovered = await worker._recover_stale_distributed_lock(redis, "lock", 60)
+        assert recovered is False
+        assert redis.value == b"new-owner"
+
+    asyncio.run(verify())
+
+
+def test_idle_wait_refreshes_heartbeat_before_the_stale_deadline(monkeypatch):
+    async def verify() -> None:
+        heartbeats: list[dict] = []
+
+        async def record_state(**kwargs):
+            heartbeats.append(kwargs)
+            return SimpleNamespace()
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(redis_url=""))
+        monkeypatch.setattr(worker, "worker_state", record_state)
+        await worker._wait_with_idle_heartbeat(asyncio.Event(), 0.045, heartbeat_interval=0.01)
+        assert len(heartbeats) >= 3
+        assert all(state == {} for state in heartbeats)
+
+    asyncio.run(verify())
+
+
+def test_idle_replica_does_not_refresh_heartbeat_while_import_lock_is_owned(monkeypatch):
+    class LockedRedis:
+        async def get(self, _key):
+            return b"active-worker"
+
+        async def aclose(self) -> None:
+            return None
+
+    async def verify() -> None:
+        heartbeats: list[dict] = []
+
+        async def record_state(**kwargs):
+            heartbeats.append(kwargs)
+            return SimpleNamespace()
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings())
+        monkeypatch.setattr(worker, "from_url", lambda _url: LockedRedis())
+        monkeypatch.setattr(worker, "worker_state", record_state)
+        await worker._wait_with_idle_heartbeat(asyncio.Event(), 0.035, heartbeat_interval=0.01)
+        assert heartbeats == []
 
     asyncio.run(verify())

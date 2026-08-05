@@ -1,6 +1,6 @@
-FROM busybox:1.37.0-musl AS busybox
+FROM busybox:1.37.0-musl@sha256:fc6dddc4c44b1bfe37f41cae8e67d1693828e8f42a91862816d7953e2c9d3f23 AS busybox
 
-FROM minio/mc:RELEASE.2025-04-16T18-13-26Z
+FROM minio/mc:RELEASE.2025-04-16T18-13-26Z@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
 
 # The pinned mc image deliberately contains no archive utility.  Copy the
 # static BusyBox binary so backup and restore scripts can stream tar archives

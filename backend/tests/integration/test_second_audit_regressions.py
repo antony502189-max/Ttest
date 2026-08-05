@@ -130,6 +130,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
         json=listing_payload(title="Media lifecycle listing"),
     )
     assert listing.status_code == 201, listing.text
+    listing_id = listing.json()["id"]
 
     upload = await client.post(
         "/api/v1/uploads",
@@ -146,7 +147,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
     assert (await client.get(media_url)).status_code == 404
 
     attached = await client.put(
-        f"/api/v1/listings/{listing.json()['id']}/images",
+        f"/api/v1/listings/{listing_id}/images",
         headers=auth(token),
         json={"assetIds": [asset_id]},
     )
@@ -154,7 +155,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
 
     public_media = await client.get(media_url)
     assert public_media.status_code == 200
-    assert public_media.headers["cache-control"].startswith("public")
+    assert public_media.headers["cache-control"] == "private, max-age=0, must-revalidate"
     etag = public_media.headers["etag"]
     cached = await client.get(media_url, headers={"If-None-Match": etag})
     assert cached.status_code == 304
@@ -165,6 +166,11 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
         json={"assetId": asset_id},
     )
     assert avatar_conflict.status_code == 409
+
+    deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(token))
+    assert deleted.status_code == 204
+    revoked_cache = await client.get(media_url, headers={"If-None-Match": etag})
+    assert revoked_cache.status_code == 404
 
 
 async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: AsyncClient, register_user):

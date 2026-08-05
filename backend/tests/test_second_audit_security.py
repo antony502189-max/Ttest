@@ -2,11 +2,12 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from jwt import InvalidTokenError
 
 from app.core.config import Settings
 from app.core.security import decode_access_token, verify_password
+from app.main import rate_limit_client, request_id_for
 from app.schemas.auth import GoogleLoginRequest
 from app.services.auth import google_email_is_authoritative, google_login_user
 from app.services.rate_limit import MemoryRateLimiter
@@ -16,6 +17,7 @@ def production_settings(**overrides) -> Settings:
     values = {
         "app_env": "production",
         "jwt_secret": "a-strong-production-secret-with-more-than-32-characters",
+        "email_verification_hmac_secret": "an-independent-verification-secret-with-32-plus-characters",
         "frontend_origins": "https://www.example.test",
         "frontend_app_url": "https://www.example.test",
         "storage_backend": "s3",
@@ -31,6 +33,23 @@ def production_settings(**overrides) -> Settings:
     return Settings(**values)
 
 
+def request_with_headers(*headers: tuple[bytes, bytes], client: tuple[str, int] = ("127.0.0.1", 1234)) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "https",
+            "path": "/",
+            "raw_path": b"/",
+            "query_string": b"",
+            "headers": list(headers),
+            "client": client,
+            "server": ("testserver", 443),
+        }
+    )
+
+
 def test_production_configuration_rejects_local_media_and_http_frontend():
     with pytest.raises(RuntimeError):
         production_settings(storage_backend="local", frontend_app_url="http://example.test").validate_runtime()
@@ -43,6 +62,14 @@ def test_valid_production_configuration_passes():
 def test_production_configuration_requires_google_client_id():
     with pytest.raises(RuntimeError, match="GOOGLE_CLIENT_ID"):
         production_settings(google_client_id="").validate_runtime()
+
+
+def test_production_configuration_requires_independent_email_hmac_secret():
+    with pytest.raises(RuntimeError, match="EMAIL_VERIFICATION_HMAC_SECRET"):
+        production_settings(email_verification_hmac_secret="").validate_runtime()
+    secret = "a-strong-production-secret-with-more-than-32-characters"
+    with pytest.raises(RuntimeError, match="independent"):
+        production_settings(jwt_secret=secret, email_verification_hmac_secret=secret).validate_runtime()
 
 
 def test_access_token_decoder_requires_access_type(monkeypatch):
@@ -74,6 +101,33 @@ async def test_memory_rate_limiter_has_bounded_key_count():
     assert "first" not in limiter._attempts
 
 
+def test_proxy_rate_limit_identity_prefers_valid_sanitized_real_ip():
+    request = request_with_headers(
+        (b"x-real-ip", b"203.0.113.10"),
+        (b"x-forwarded-for", b"198.51.100.20"),
+    )
+    assert rate_limit_client(request) == "203.0.113.10"
+
+
+def test_proxy_rate_limit_identity_ignores_malformed_values():
+    request = request_with_headers(
+        (b"x-real-ip", b"not-an-ip"),
+        (b"x-forwarded-for", b"attacker, 198.51.100.20"),
+    )
+    assert rate_limit_client(request) == "198.51.100.20"
+
+
+def test_request_id_is_bounded_and_validated():
+    valid = request_with_headers((b"x-request-id", b"request-123"))
+    assert request_id_for(valid) == "request-123"
+    invalid = request_with_headers((b"x-request-id", b"bad\nvalue"))
+    generated = request_id_for(invalid)
+    assert generated != "bad\nvalue"
+    assert len(generated) == 36
+    oversized = request_with_headers((b"x-request-id", b"x" * 500))
+    assert len(request_id_for(oversized)) == 36
+
+
 def test_google_account_linking_only_trusts_google_authoritative_emails():
     assert google_email_is_authoritative({}, "person@gmail.com") is True
     assert google_email_is_authoritative({"hd": "example.edu"}, "person@example.edu") is True
@@ -93,16 +147,30 @@ async def test_google_login_rejects_invalid_signature_before_querying_users(monk
     )
 
     with pytest.raises(HTTPException, match="Invalid Google credential") as error:
-        await google_login_user(GoogleLoginRequest(credential="x" * 20), _UnusedSession(), user_agent="test", client_ip="127.0.0.1")
+        await google_login_user(
+            GoogleLoginRequest(credential="x" * 20),
+            _UnusedSession(),
+            user_agent="test",
+            client_ip="127.0.0.1",
+        )
     assert error.value.status_code == 401
 
 
 @pytest.mark.parametrize(
     "claims, message",
     [
-        ({"iss": "evil.example", "sub": "subject", "email": "person@gmail.com", "email_verified": True}, "Invalid Google credential"),
-        ({"iss": "accounts.google.com", "email": "person@gmail.com", "email_verified": True}, "Google account email is not verified"),
-        ({"iss": "accounts.google.com", "sub": "subject", "email": "person@gmail.com", "email_verified": False}, "Google account email is not verified"),
+        (
+            {"iss": "evil.example", "sub": "subject", "email": "person@gmail.com", "email_verified": True},
+            "Invalid Google credential",
+        ),
+        (
+            {"iss": "accounts.google.com", "email": "person@gmail.com", "email_verified": True},
+            "Google account email is not verified",
+        ),
+        (
+            {"iss": "accounts.google.com", "sub": "subject", "email": "person@gmail.com", "email_verified": False},
+            "Google account email is not verified",
+        ),
     ],
 )
 async def test_google_login_rejects_invalid_claims_before_querying_users(monkeypatch, claims, message):
@@ -110,5 +178,10 @@ async def test_google_login_rejects_invalid_claims_before_querying_users(monkeyp
     monkeypatch.setattr("app.services.auth.google_id_token.verify_oauth2_token", lambda *_args, **_kwargs: claims)
 
     with pytest.raises(HTTPException, match=message) as error:
-        await google_login_user(GoogleLoginRequest(credential="x" * 20), _UnusedSession(), user_agent="test", client_ip="127.0.0.1")
+        await google_login_user(
+            GoogleLoginRequest(credential="x" * 20),
+            _UnusedSession(),
+            user_agent="test",
+            client_ip="127.0.0.1",
+        )
     assert error.value.status_code == 401

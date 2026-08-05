@@ -14,7 +14,7 @@ docker compose run --rm backend alembic upgrade head
 docker compose run --rm backend alembic current
 ```
 
-The current migration head is `0015_integrity_constraints`. Development demo data is idempotent and is prohibited when `APP_ENV=production`:
+The current migration head is `0032_media_reference_guard`. Development demo data is idempotent and is prohibited when `APP_ENV=production`:
 
 ```bash
 docker compose --profile tools run --rm seed

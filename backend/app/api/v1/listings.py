@@ -4,19 +4,18 @@ from datetime import UTC, datetime
 from secrets import token_urlsafe
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
+from ...core.http import client_ip
 from ...db.session import get_session
 from ...models import CatalogState, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
-    anonymous_viewer_key,
     owned_query,
     owned_response_from,
-    register_view,
     response_from,
     search_public,
     visible_query,
@@ -32,6 +31,8 @@ from ...schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
+from ...services.listing_limits import enforce_listing_creation_limits
+from ...services.listing_views import anonymous_viewer_key, register_view
 from ...services.listings import (
     create_listing as create_listing_service,
 )
@@ -88,17 +89,27 @@ async def search_listings(payload: ListingSearchRequest, session: AsyncSession =
 
 
 @router.get("/mine", response_model=list[OwnedListingResponse])
-async def list_my_listings(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def list_my_listings(
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0, le=10_000),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
     query = owned_query().where(Listing.deleted_at.is_(None))
     if user.role != "admin":
         query = query.where(Listing.owner_user_id == user.id)
-    rows = (await session.execute(query.order_by(Listing.created_at.desc()))).all()
+    rows = (
+        await session.execute(
+            query.order_by(Listing.created_at.desc(), Listing.id.desc()).limit(limit).offset(offset)
+        )
+    ).all()
     return [owned_response_from(row) for row in rows]
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)
 async def get_listing(
     listing_id: UUID,
+    request: Request,
     response: Response,
     visitor_token: str | None = Cookie(default=None, alias="listing_visitor"),
     user: User | None = Depends(optional_user),
@@ -118,11 +129,15 @@ async def get_listing(
                 visitor_token,
                 httponly=True,
                 secure=settings.is_production,
-                samesite="none" if settings.is_production else "lax",
+                samesite="lax",
                 max_age=90 * 24 * 60 * 60,
                 path="/api/v1/listings",
             )
-        viewer_key = anonymous_viewer_key(visitor_token)
+        # The cookie remains for compatibility, but it is not a trustworthy
+        # anti-abuse identity: a client can discard or vary it per request.
+        # The trusted proxy-sanitized address produces at most one anonymous
+        # view row per listing/day for each source address.
+        viewer_key = anonymous_viewer_key(client_ip(request))
     if await register_view(row[0], viewer_key, session):
         row = (await session.execute(visible_query().where(Listing.id == listing_id))).one()
     return response_from(row)
@@ -143,6 +158,7 @@ async def create_listing(
                 "fieldErrors": {},
             },
         )
+    await enforce_listing_creation_limits(user, session)
     return await create_listing_service(payload, user, session)
 
 

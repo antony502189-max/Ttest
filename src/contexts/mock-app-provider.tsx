@@ -405,7 +405,36 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     return null
   }, [users])
 
-  const loginGoogle = useCallback(async () => 'Google no está configurado en el modo de demostración.', [])
+  const loginGoogle = useCallback(async () => {
+    const email = 'google.demo@112233.es'
+    const existing = users.find((user) => user.email.toLowerCase() === email)
+    if (existing) {
+      if (existing.blocked) return 'Esta cuenta está bloqueada.'
+      setCurrentUserId(existing.id)
+      return null
+    }
+    const user: MockUser = {
+      id: 'google-demo',
+      name: 'Usuario Google Demo',
+      email,
+      password: '',
+      passwordHash: '',
+      role: 'tenant',
+      phone: '',
+      whatsapp: '',
+      telegram: '',
+      about: '',
+      initials: 'GD',
+      showPhone: false,
+      showWhatsApp: false,
+      allowContactForm: true,
+      allowMessaging: true,
+      blocked: false,
+    }
+    setUsers((current) => current.some((item) => item.email.toLowerCase() === email) ? current : [...current, user])
+    setCurrentUserId(user.id)
+    return null
+  }, [users])
   const selectGoogleRole = useCallback(async () => 'Google no está configurado en el modo de demostración.', [])
 
   const register = useCallback(async (input: RegisterInput) => {

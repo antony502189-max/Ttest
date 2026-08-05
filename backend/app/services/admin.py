@@ -66,13 +66,21 @@ async def dashboard_stats(session: AsyncSession) -> AdminStatsResponse:
     return AdminStatsResponse(users=users, listings=listings, pendingListings=pending, openReports=reports)
 
 
-async def list_listings(session: AsyncSession, status: str | None, search: str | None) -> list[AdminListingResponse]:
+async def list_listings(
+    session: AsyncSession,
+    status: str | None,
+    search: str | None,
+    *,
+    limit: int,
+    offset: int,
+) -> list[AdminListingResponse]:
     query = select(Listing).where(Listing.deleted_at.is_(None)).order_by(Listing.created_at.desc())
     if status:
         query = query.where(Listing.status == status)
     if search:
         term = f"%{search.strip()}%"
         query = query.where(Listing.title.ilike(term) | Listing.city.ilike(term) | Listing.area.ilike(term))
+    query = query.limit(limit).offset(offset)
     return [public_listing(listing) for listing in (await session.scalars(query)).all()]
 
 
@@ -112,16 +120,31 @@ async def change_listing_status(
             changed_by=actor.id,
         )
     )
-    session.add(audit(actor.id, "listing.status_changed", "listing", listing.id, {"from": previous, "to": new_status}))
+    session.add(
+        audit(
+            actor.id,
+            "listing.status_changed",
+            "listing",
+            listing.id,
+            {"from": previous, "to": new_status},
+        )
+    )
     await session.commit()
     return public_listing(listing)
 
 
-async def list_users(session: AsyncSession, search: str | None) -> list[AdminUserResponse]:
+async def list_users(
+    session: AsyncSession,
+    search: str | None,
+    *,
+    limit: int,
+    offset: int,
+) -> list[AdminUserResponse]:
     query = select(User).where(User.deleted_at.is_(None)).order_by(User.created_at.desc())
     if search:
         term = f"%{search.strip()}%"
         query = query.where(User.name.ilike(term) | User.email.ilike(term))
+    query = query.limit(limit).offset(offset)
     return [public_user(user) for user in (await session.scalars(query)).all()]
 
 

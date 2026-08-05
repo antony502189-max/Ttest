@@ -136,7 +136,7 @@ docker compose --profile tools run --rm db-backup
 
 - DNS `app.112233.es`, направленный на VPS, и HTTPS через существующий Traefik;
 - точные HTTPS origins в `FRONTEND_ORIGINS`;
-- сильный `JWT_SECRET`;
+- сильный `JWT_SECRET` и отдельный независимый `EMAIL_VERIFICATION_HMAC_SECRET`;
 - self-hosted PostgreSQL/PostGIS, Redis и MinIO с persistent volumes;
 - SMTP и outbox worker;
 - Google OAuth client для production origins;

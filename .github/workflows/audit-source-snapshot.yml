@@ -10,21 +10,26 @@ permissions:
 
 jobs:
   snapshot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Archive every tracked source file
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > audit-source.commit
+          git ls-files -z | tar --null --files-from=- --create --gzip --file=audit-source.tar.gz
+          sha256sum audit-source.tar.gz > audit-source.tar.gz.sha256
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: audit-source-${{ github.sha }}
           retention-days: 1
+          if-no-files-found: error
           path: |
-            src/**
-            tests/**
-            backend/tests/**
-            package.json
-            package-lock.json
-            playwright.config.ts
-            vite.config.ts
-            tsconfig*.json
-            .github/workflows/**
-            docker-compose.yml
+            audit-source.commit
+            audit-source.tar.gz
+            audit-source.tar.gz.sha256

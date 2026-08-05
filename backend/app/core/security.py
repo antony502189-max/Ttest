@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
@@ -11,6 +12,8 @@ from jwt import InvalidTokenError
 from .config import get_settings
 
 _passwords = PasswordHasher()
+_password_work_slots = asyncio.Semaphore(get_settings().password_work_concurrency)
+_dummy_password_hash = _passwords.hash("112233.invalid-login-placeholder")
 
 
 def hash_password(password: str) -> str:
@@ -22,6 +25,20 @@ def verify_password(password: str, password_hash: str) -> bool:
         return _passwords.verify(password_hash, password)
     except (VerificationError, InvalidHashError):
         return False
+
+
+async def hash_password_async(password: str) -> str:
+    async with _password_work_slots:
+        return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(password: str, password_hash: str | None) -> bool:
+    # Verify a real Argon2 hash even when the account does not exist, reducing
+    # the timing signal for email enumeration while keeping work bounded.
+    target_hash = password_hash or _dummy_password_hash
+    async with _password_work_slots:
+        verified = await asyncio.to_thread(verify_password, password, target_hash)
+    return bool(password_hash) and verified
 
 
 def create_access_token(user_id: str, role: str) -> str:

@@ -4,7 +4,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
+from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
+
 from .core.config import get_settings
+from .core.storage_failure_buffer import record_failed_storage_deletion
 
 
 class Storage(Protocol):
@@ -53,11 +56,15 @@ class S3Storage:
         access_key: str,
         secret_key: str,
         force_path_style: bool = True,
+        *,
+        connect_timeout_seconds: int = 3,
+        read_timeout_seconds: int = 10,
+        max_attempts: int = 3,
+        max_pool_connections: int = 32,
     ):
         try:
             import boto3  # type: ignore[import-not-found,import-untyped]
             from botocore.config import Config  # type: ignore[import-not-found,import-untyped]
-            from botocore.exceptions import ClientError  # type: ignore[import-not-found,import-untyped]
         except ImportError as error:  # pragma: no cover - configuration error
             raise RuntimeError("boto3 is required for STORAGE_BACKEND=s3") from error
         self.bucket = bucket
@@ -70,6 +77,10 @@ class S3Storage:
             aws_secret_access_key=secret_key or None,
             config=Config(
                 signature_version="s3v4",
+                connect_timeout=connect_timeout_seconds,
+                read_timeout=read_timeout_seconds,
+                retries={"max_attempts": max_attempts, "mode": "standard"},
+                max_pool_connections=max_pool_connections,
                 s3={"addressing_style": "path" if force_path_style else "virtual"},
             ),
         )
@@ -98,18 +109,47 @@ class S3Storage:
         self.client.head_bucket(Bucket=self.bucket)
 
 
+class BufferedDeleteStorage:
+    """Record failed physical deletes before propagating the storage error."""
+
+    def __init__(self, delegate: Storage):
+        self.delegate = delegate
+
+    def put(self, key: str, content: bytes) -> None:
+        self.delegate.put(key, content)
+
+    def get(self, key: str) -> bytes | None:
+        return self.delegate.get(key)
+
+    def delete(self, key: str) -> None:
+        try:
+            self.delegate.delete(key)
+        except (OSError, BotoCoreError, ClientError):
+            record_failed_storage_deletion(key)
+            raise
+
+    def healthcheck(self) -> None:
+        self.delegate.healthcheck()
+
+
 @lru_cache
 def get_storage() -> Storage:
     settings = get_settings()
     if settings.storage_backend == "s3":
         if not settings.s3_bucket:
             raise RuntimeError("S3_BUCKET is required for STORAGE_BACKEND=s3")
-        return S3Storage(
+        storage: Storage = S3Storage(
             settings.s3_bucket,
             settings.s3_endpoint_url,
             settings.s3_region,
             settings.s3_access_key,
             settings.s3_secret_key,
             settings.s3_force_path_style,
+            connect_timeout_seconds=settings.s3_connect_timeout_seconds,
+            read_timeout_seconds=settings.s3_read_timeout_seconds,
+            max_attempts=settings.s3_max_attempts,
+            max_pool_connections=settings.s3_max_pool_connections,
         )
-    return LocalStorage(settings.media_root)
+    else:
+        storage = LocalStorage(settings.media_root)
+    return BufferedDeleteStorage(storage)

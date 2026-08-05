@@ -1,4 +1,5 @@
 from functools import lru_cache
+from hmac import compare_digest
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,13 +20,24 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_name: str = "112233-api"
     database_url: str = "postgresql+asyncpg://ttest:ttest@localhost:5432/ttest"
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_pool_timeout_seconds: int = 30
+    database_pool_recycle_seconds: int = 1_800
+    database_statement_timeout_ms: int = 60_000
+    database_lock_timeout_ms: int = 10_000
+    database_idle_transaction_timeout_ms: int = 60_000
     jwt_secret: str = "unsafe-development-secret-change-me-32"
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     password_reset_minutes: int = 30
     email_verification_minutes: int = 10
-    # A dedicated secret is preferred. Existing deployments safely fall back
-    # to JWT_SECRET until EMAIL_VERIFICATION_HMAC_SECRET is provisioned.
+    password_work_concurrency: int = 2
+    max_active_sessions_per_user: int = 10
+    max_session_issues_per_minute: int = 10
+    # Development and tests may fall back to JWT_SECRET. Production must use
+    # an independent secret so access-token and low-entropy OTP domains remain
+    # cryptographically separated.
     email_verification_hmac_secret: str = ""
     frontend_app_url: str = "http://localhost:5173"
     frontend_origins: str = (
@@ -45,12 +57,18 @@ class Settings(BaseSettings):
     smtp_from: str = "noreply@112233.es"
     smtp_from_name: str = ""
     smtp_starttls: bool = True
+    smtp_timeout_seconds: int = 15
     mail_worker_interval_seconds: int = 10
     mail_worker_batch_size: int = 50
     mail_max_attempts: int = 8
+    mail_lease_seconds: int = 1_200
+    mail_retry_base_seconds: int = 30
+    mail_retry_max_seconds: int = 3_600
 
     # In production new listings wait for moderation unless explicitly enabled.
     auto_publish_listings: bool = False
+    max_active_listings_per_user: int = 200
+    max_listing_creations_per_day: int = 50
 
     media_root: Path = Path("var/media")
     storage_backend: str = "local"
@@ -60,8 +78,20 @@ class Settings(BaseSettings):
     s3_access_key: str = ""
     s3_secret_key: str = ""
     s3_force_path_style: bool = True
+    s3_connect_timeout_seconds: int = 3
+    s3_read_timeout_seconds: int = 10
+    s3_max_attempts: int = 3
+    s3_max_pool_connections: int = 32
     max_upload_bytes: int = 8 * 1024 * 1024
     max_image_dimension: int = 8_000
+    max_image_pixels: int = 25_000_000
+    image_processing_concurrency: int = 2
+    max_media_assets_per_user: int = 100
+    max_media_bytes_per_user: int = 256 * 1024 * 1024
+    max_saved_searches_per_user: int = 50
+    max_saved_search_filter_bytes: int = 16 * 1024
+    max_saved_search_filter_nodes: int = 500
+    max_listing_collection_items_per_user: int = 500
 
     redis_url: str = ""
     metrics_enabled: bool = True
@@ -80,6 +110,7 @@ class Settings(BaseSettings):
     external_import_playwright_enabled: bool = False
     external_removal_check_enabled: bool = True
     external_removal_check_interval_seconds: int = 900
+    external_worker_stale_after_seconds: int = 300
 
     @property
     def origins(self) -> list[str]:
@@ -107,24 +138,81 @@ class Settings(BaseSettings):
             problems.append("REFRESH_TOKEN_DAYS must be positive")
         if self.password_reset_minutes < 1 or self.email_verification_minutes < 1:
             problems.append("Password reset and email verification lifetimes must be positive")
-        if self.mail_worker_interval_seconds < 1 or self.mail_worker_batch_size < 1 or self.mail_max_attempts < 1:
-            problems.append("Mail worker limits must be positive")
-        if self.max_upload_bytes < 1 or self.max_image_dimension < 1:
-            problems.append("Media upload limits must be positive")
+        if (
+            self.password_work_concurrency < 1
+            or self.max_active_sessions_per_user < 1
+            or self.max_session_issues_per_minute < 1
+        ):
+            problems.append("Authentication concurrency and session limits must be positive")
+        if (
+            self.mail_worker_interval_seconds < 1
+            or self.mail_worker_batch_size < 1
+            or self.mail_max_attempts < 1
+            or self.smtp_timeout_seconds < 1
+            or self.mail_retry_base_seconds < 1
+            or self.mail_retry_max_seconds < self.mail_retry_base_seconds
+            or self.mail_lease_seconds < self.mail_worker_batch_size * self.smtp_timeout_seconds + 60
+        ):
+            problems.append("Mail worker lease, timeout, retry and batch limits are invalid")
+        if self.max_active_listings_per_user < 1 or self.max_listing_creations_per_day < 1:
+            problems.append("Listing count and creation limits must be positive")
+        if (
+            self.database_pool_size < 1
+            or self.database_max_overflow < 0
+            or self.database_pool_timeout_seconds < 1
+            or self.database_pool_recycle_seconds < 1
+            or self.database_statement_timeout_ms < 1
+            or self.database_lock_timeout_ms < 1
+            or self.database_idle_transaction_timeout_ms < 1
+            or self.database_lock_timeout_ms >= self.database_statement_timeout_ms
+        ):
+            problems.append(
+                "Database pool and execution settings must be positive, overflow cannot be negative, "
+                "and lock timeout must be shorter than statement timeout"
+            )
+        if (
+            self.max_upload_bytes < 1
+            or self.max_image_dimension < 1
+            or self.max_image_pixels < 1
+            or self.image_processing_concurrency < 1
+            or self.max_media_assets_per_user < 1
+            or self.max_media_bytes_per_user < self.max_upload_bytes
+        ):
+            problems.append("Media upload, processing and quota limits are invalid")
+        if (
+            self.max_saved_searches_per_user < 1
+            or self.max_saved_search_filter_bytes < 256
+            or self.max_saved_search_filter_nodes < 10
+            or self.max_listing_collection_items_per_user < 1
+        ):
+            problems.append("Saved-search and listing-collection limits are invalid")
+        if (
+            self.s3_connect_timeout_seconds < 1
+            or self.s3_read_timeout_seconds < 1
+            or self.s3_max_attempts < 1
+            or self.s3_max_pool_connections < 1
+        ):
+            problems.append("S3 timeout, retry and pool settings must be positive")
         if (
             self.external_import_interval_seconds < 1
             or self.external_import_request_timeout_seconds < 1
             or self.external_import_max_concurrency_per_source < 1
+            or self.external_worker_stale_after_seconds < 120
         ):
-            problems.append("External import limits must be positive")
+            problems.append("External import limits are invalid")
         if not 0 <= self.sentry_traces_sample_rate <= 1:
             problems.append("SENTRY_TRACES_SAMPLE_RATE must be between 0 and 1")
 
         if self.is_production:
             if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:
                 problems.append("JWT_SECRET must be a strong production secret")
-            if self.email_verification_hmac_secret and len(self.email_verification_hmac_secret) < 32:
-                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must contain at least 32 characters")
+            if len(self.email_verification_hmac_secret) < 32:
+                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must contain at least 32 characters in production")
+            elif compare_digest(
+                self.email_verification_hmac_secret.encode(),
+                self.jwt_secret.encode(),
+            ):
+                problems.append("EMAIL_VERIFICATION_HMAC_SECRET must be independent from JWT_SECRET")
             if not self.origins or any(origin.startswith("http://") for origin in self.origins):
                 problems.append("FRONTEND_ORIGINS must contain explicit HTTPS origins")
             if not self.frontend_app_url.startswith("https://"):
@@ -142,7 +230,11 @@ class Settings(BaseSettings):
             if self.auto_publish_listings:
                 problems.append("AUTO_PUBLISH_LISTINGS must be false in production")
             if self.external_import_enabled:
-                configured_sources = {item.strip().casefold() for item in self.external_import_sources.split(",") if item.strip()}
+                configured_sources = {
+                    item.strip().casefold()
+                    for item in self.external_import_sources.split(",")
+                    if item.strip()
+                }
                 if not configured_sources:
                     problems.append("EXTERNAL_IMPORT_SOURCES must enable at least one source in production")
                 unknown_sources = configured_sources - SUPPORTED_EXTERNAL_IMPORT_SOURCES

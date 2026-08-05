@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -9,7 +8,15 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import CatalogState, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
+from ..models import (
+    CatalogState,
+    DiscardedListing,
+    Favorite,
+    Listing,
+    ListingImage,
+    ListingStatusHistory,
+    User,
+)
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
     ListingImageResponse,
@@ -18,7 +25,8 @@ from ..schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
-from ..storage import get_storage
+from .media_lifecycle import lock_media_assets
+from .storage_deletions import enqueue_storage_deletions
 
 
 def ensure_owner_or_admin(listing: Listing, user: User) -> None:
@@ -35,46 +43,35 @@ async def touch_catalog(session: AsyncSession) -> None:
     state.updated_at = datetime.now(UTC)
 
 
-async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> list[str]:
-    if not candidate_ids:
-        return []
+async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> int:
+    locked_assets = await lock_media_assets(session, candidate_ids)
+    active_assets = {asset.id: asset for asset in locked_assets if asset.deleted_at is None}
+    active_ids = set(active_assets)
+    if not active_ids:
+        return 0
     attached = set(
         (
             await session.scalars(
-                select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(candidate_ids))
+                select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(active_ids))
             )
         ).all()
     )
     avatars = {
         value
         for value in (
-            await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))
+            await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(active_ids)))
         ).all()
         if value is not None
     }
-    orphan_ids = candidate_ids - attached - avatars
-    if not orphan_ids:
-        return []
-    assets = list(
-        (
-            await session.scalars(
-                select(MediaAsset).where(MediaAsset.id.in_(orphan_ids), MediaAsset.deleted_at.is_(None))
-            )
-        ).all()
-    )
+    orphan_ids = active_ids - attached - avatars
+    assets = [active_assets[asset_id] for asset_id in sorted(orphan_ids, key=str)]
+    if not assets:
+        return 0
     now = datetime.now(UTC)
     for asset in assets:
         asset.deleted_at = now
-    return [asset.storage_key for asset in assets]
-
-
-async def delete_storage_keys(storage_keys: list[str]) -> None:
-    if not storage_keys:
-        return
-    await asyncio.gather(
-        *(asyncio.to_thread(get_storage().delete, storage_key) for storage_key in storage_keys),
-        return_exceptions=True,
-    )
+    await enqueue_storage_deletions(session, {asset.storage_key for asset in assets})
+    return len(assets)
 
 
 def apply_write(listing: Listing, payload: ListingWrite) -> None:
@@ -198,39 +195,22 @@ async def update_listing(
         "advertiserType": "advertiser_type",
         "expiresAt": "expires_at",
     }
-    coordinates_changed = "latitude" in changes or "longitude" in changes
+    previous_status = listing.status
     latitude = changes.pop("latitude", None)
     longitude = changes.pop("longitude", None)
-    if coordinates_changed:
-        listing.location = point(longitude, latitude)
-
-    exact_changed = "exactLatitude" in changes or "exactLongitude" in changes
     exact_latitude = changes.pop("exactLatitude", None)
     exact_longitude = changes.pop("exactLongitude", None)
-    if exact_changed:
+    if latitude is not None and longitude is not None:
+        listing.location = point(longitude, latitude)
+    if "exactLatitude" in payload.model_fields_set or "exactLongitude" in payload.model_fields_set:
         listing.exact_location = (
             point(exact_longitude, exact_latitude)
             if exact_latitude is not None and exact_longitude is not None
             else None
         )
-
-    previous_status = listing.status
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value)
-    if listing.rental_mode == "long" and listing.monthly_price is None:
-        raise HTTPException(422, "monthlyPrice is required for long rentals")
-    if listing.rental_mode == "holiday" and listing.nightly_price is None:
-        raise HTTPException(422, "nightlyPrice is required for holiday rentals")
-    if listing.available_from and listing.available_until and listing.available_until < listing.available_from:
-        raise HTTPException(422, "availableUntil cannot be before availableFrom")
-
     if listing.status != previous_status:
-        if listing.status == "published" and listing.published_at is None:
-            listing.published_at = datetime.now(UTC)
-        if listing.status == "closed" and user.role != "admin":
-            listing.closed_reason = "owner"
-        elif listing.status != "closed":
-            listing.closed_reason = None
         session.add(
             ListingStatusHistory(
                 listing_id=listing.id,
@@ -239,6 +219,8 @@ async def update_listing(
                 changed_by=user.id,
             )
         )
+        if listing.status == "published" and listing.published_at is None:
+            listing.published_at = datetime.now(UTC)
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -274,16 +256,19 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
 
 
 async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) -> None:
-    listing = await session.get(Listing, listing_id)
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
+    await lock_media_assets(session, attached_ids)
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
+    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
+    await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
     await session.flush()
-    storage_keys = await mark_orphaned_media(session, attached_ids)
+    await mark_orphaned_media(session, attached_ids)
 
     previous_status = listing.status
     listing.deleted_at = datetime.now(UTC)
@@ -299,7 +284,6 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     )
     await touch_catalog(session)
     await session.commit()
-    await delete_storage_keys(storage_keys)
 
 
 async def replace_listing_images(
@@ -308,27 +292,26 @@ async def replace_listing_images(
     user: User,
     session: AsyncSession,
 ) -> list[ListingImageResponse]:
-    listing = await session.get(Listing, listing_id)
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
-    assets = (
-        await session.scalars(
-            select(MediaAsset).where(
-                MediaAsset.id.in_(payload.assetIds),
-                MediaAsset.deleted_at.is_(None),
-                MediaAsset.kind == "listing_image",
-            )
-        )
-    ).all()
-    if len(assets) != len(payload.assetIds) or any(
-        asset.owner_id != user.id for asset in assets if user.role != "admin"
-    ):
-        raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
-
     previous_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
+    requested_ids = set(payload.assetIds)
+    locked_assets = await lock_media_assets(session, previous_ids | requested_ids)
+    assets_by_id = {asset.id: asset for asset in locked_assets}
+    requested_assets = [assets_by_id.get(asset_id) for asset_id in payload.assetIds]
+    if any(
+        asset is None
+        or asset.deleted_at is not None
+        or asset.kind != "listing_image"
+        or (user.role != "admin" and asset.owner_id != user.id)
+        for asset in requested_assets
+    ):
+        raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
+
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     for sort_order, asset_id in enumerate(payload.assetIds):
         session.add(
@@ -340,9 +323,8 @@ async def replace_listing_images(
             )
         )
     await session.flush()
-    storage_keys = await mark_orphaned_media(session, previous_ids - set(payload.assetIds))
+    await mark_orphaned_media(session, previous_ids - requested_ids)
     await session.commit()
-    await delete_storage_keys(storage_keys)
     return [
         ListingImageResponse(
             assetId=asset_id,

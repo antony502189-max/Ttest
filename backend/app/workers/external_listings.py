@@ -5,6 +5,7 @@ import asyncio
 import logging
 import signal
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from uuid import uuid4
 
 from redis.asyncio import from_url
@@ -20,6 +21,13 @@ from ..services.external_import import run_removal_check, run_source
 logger = logging.getLogger(__name__)
 local_import_lock = asyncio.Lock()
 
+_COMPARE_AND_DELETE_SCRIPT = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
+
 
 async def _acquire_distributed_lock(redis, lock_key: str, token: str, ttl_seconds: int) -> bool:
     """Acquire the one shared import/removal lock without masking Redis failures."""
@@ -30,10 +38,14 @@ async def _acquire_distributed_lock(redis, lock_key: str, token: str, ttl_second
         return False
 
 
+async def _delete_distributed_lock_if_owned(redis, lock_key: str, token: str) -> bool:
+    """Atomically delete a lock only while it still contains our token."""
+    return bool(await redis.eval(_COMPARE_AND_DELETE_SCRIPT, 1, lock_key, token))
+
+
 async def _release_distributed_lock(redis, lock_key: str, token: str) -> None:
     try:
-        if await redis.get(lock_key) == token.encode():
-            await redis.delete(lock_key)
+        await _delete_distributed_lock_if_owned(redis, lock_key, token)
     except RedisError:
         logger.warning("external_import_lock_release_failed")
 
@@ -44,17 +56,21 @@ async def _recover_stale_distributed_lock(redis, lock_key: str, max_age_seconds:
         token = await redis.get(lock_key)
         if not token:
             return False
+        decoded_token = token.decode("utf-8") if isinstance(token, bytes) else str(token)
         async with SessionLocal() as session:
             state = await session.get(ExternalWorkerState, 1)
         if (
             not state
             or state.health != "running"
             or not state.heartbeat_at
-            or state.last_run_id != token.decode()
+            or state.last_run_id != decoded_token
             or state.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=max_age_seconds)
         ):
             return False
-        return bool(await redis.delete(lock_key))
+        # The lock may have expired and been acquired by another worker while
+        # the database state was checked. Compare-and-delete prevents removing
+        # that newer worker's token.
+        return await _delete_distributed_lock_if_owned(redis, lock_key, decoded_token)
     except (RedisError, UnicodeDecodeError):
         logger.exception("external_import_stale_lock_recovery_failed")
         return False
@@ -62,12 +78,60 @@ async def _recover_stale_distributed_lock(redis, lock_key: str, max_age_seconds:
 
 async def _heartbeat_while_running(stopping: asyncio.Event, run_id: str) -> None:
     """Keep the health state fresh while a source import is legitimately slow."""
-    interval = min(60, max(15, get_settings().external_import_interval_seconds // 2))
+    interval = min(60, max(15, get_settings().external_worker_stale_after_seconds // 3))
     while not stopping.is_set():
         try:
             await asyncio.wait_for(stopping.wait(), timeout=interval)
         except TimeoutError:
-            await worker_state(run_id=run_id)
+            try:
+                await worker_state(run_id=run_id)
+            except Exception:
+                # A temporary database failure must not terminate the heartbeat
+                # task and later mask the import result from the main task.
+                logger.exception("external_import_heartbeat_failed", extra={"run_id": run_id})
+
+
+async def _wait_with_idle_heartbeat(
+    stopping: asyncio.Event,
+    timeout: float,
+    *,
+    heartbeat_interval: float | None = None,
+) -> None:
+    """Wait for the next scheduled job without letting the worker appear stale.
+
+    An idle replica publishes a heartbeat only while the shared import lock is
+    free. This keeps the normal single worker healthy without allowing a
+    passive replica to hide a crashed lock owner.
+    """
+    if timeout <= 0 or stopping.is_set():
+        return
+    settings = get_settings()
+    interval = heartbeat_interval or min(60, max(15, settings.external_worker_stale_after_seconds // 3))
+    deadline = monotonic() + timeout
+    redis = from_url(settings.redis_url) if settings.redis_url else None
+    lock_key = "ttest:external-listings-import"
+    try:
+        while not stopping.is_set():
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                return
+            try:
+                await asyncio.wait_for(stopping.wait(), timeout=min(interval, remaining))
+                return
+            except TimeoutError:
+                if deadline - monotonic() <= 0:
+                    return
+                try:
+                    if redis is not None and await redis.get(lock_key):
+                        continue
+                    await worker_state()
+                except RedisError:
+                    logger.exception("external_import_idle_lock_check_failed")
+                except Exception:
+                    logger.exception("external_import_idle_heartbeat_failed")
+    finally:
+        if redis is not None:
+            await redis.aclose()
 
 
 async def worker_state(*, health: str | None = None, error: str | None = None, run_id: str | None = None) -> ExternalWorkerState:
@@ -115,15 +179,13 @@ async def run_once() -> dict[str, dict[str, int]]:
         if settings.redis_url:
             redis = from_url(settings.redis_url)
             lock_ttl = max(21_600, settings.external_import_interval_seconds * 2)
-            acquired = await _acquire_distributed_lock(
-                redis,
-                lock_key,
-                token,
-                lock_ttl,
-            )
+            acquired = await _acquire_distributed_lock(redis, lock_key, token, lock_ttl)
             if not acquired:
-                max_age = max(120, settings.external_import_interval_seconds + 120)
-                if not await _recover_stale_distributed_lock(redis, lock_key, max_age):
+                if not await _recover_stale_distributed_lock(
+                    redis,
+                    lock_key,
+                    settings.external_worker_stale_after_seconds,
+                ):
                     return {}
                 if not await _acquire_distributed_lock(redis, lock_key, token, lock_ttl):
                     return {}
@@ -190,7 +252,7 @@ async def run_removal_once() -> int:
             async with SessionLocal() as session:
                 archived += await run_removal_check(session, source)
                 await session.commit()
-            # A removal probe is not a full import run.  It still supplies a
+            # A removal probe is not a full import run. It still supplies a
             # heartbeat but must not change last_started_at/health to running.
             await worker_state()
         return archived
@@ -234,10 +296,7 @@ async def loop() -> None:
         if next_removal_check is not None:
             deadlines.append(next_removal_check)
         timeout = max(0.0, min((deadline - datetime.now(UTC)).total_seconds() for deadline in deadlines))
-        try:
-            await asyncio.wait_for(stopping.wait(), timeout=timeout)
-        except TimeoutError:
-            pass
+        await _wait_with_idle_heartbeat(stopping, timeout)
     await engine.dispose()
 
 
@@ -250,14 +309,16 @@ def main() -> None:
     parser.add_argument("--healthcheck", action="store_true")
     args = parser.parse_args()
     if args.healthcheck:
+
         async def check() -> None:
             async with SessionLocal() as session:
                 state = await session.get(ExternalWorkerState, 1)
                 if not state or state.health == "failed" or not state.heartbeat_at:
                     raise SystemExit(1)
-                max_age = max(120, get_settings().external_import_interval_seconds + 120)
+                max_age = get_settings().external_worker_stale_after_seconds
                 if state.heartbeat_at < datetime.now(UTC) - timedelta(seconds=max_age):
                     raise SystemExit(1)
+
         asyncio.run(check())
     else:
         asyncio.run(run_once() if args.once else loop())

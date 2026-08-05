@@ -28,12 +28,6 @@ declare global { interface Window { google?: GoogleIdentityApi } }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
-const mockGoogleAccount = {
-  name: 'Usuario Google Demo',
-  email: 'google.demo@112233.es',
-  password: 'GoogleDemo112233!',
-} as const
-
 const copy = {
   es: {
     title: 'Inicia sesión o regístrate', google: 'Continuar con Google', email: 'Iniciar sesión con email',
@@ -59,7 +53,7 @@ export function UnifiedAuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { language } = useI18n()
-  const { currentUser, login, loginGoogle, selectGoogleRole, register } = useApp()
+  const { currentUser, login, loginGoogle, selectGoogleRole } = useApp()
   const t = copy[language]
   const googleButtonRef = useRef<HTMLDivElement>(null)
   const [showEmail, setShowEmail] = useState(false)
@@ -154,8 +148,7 @@ export function UnifiedAuthPage() {
   const runMockGoogle = async () => {
     setError('')
     setSubmitting(true)
-    const registrationError = await register({ ...mockGoogleAccount, role: 'tenant' })
-    const message = registrationError ? await login(mockGoogleAccount.email, mockGoogleAccount.password) : null
+    const message = await loginGoogle('mock-google-demo')
     setSubmitting(false)
     if (message) { setError(message); return }
     finishLogin()

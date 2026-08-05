@@ -55,8 +55,20 @@ async def create_report(payload: CreateReportRequest, user: User | None, session
     return public_report(report)
 
 
-async def list_reports(session: AsyncSession) -> list[ReportResponse]:
-    reports = (await session.scalars(select(Report).order_by(Report.created_at.desc()))).all()
+async def list_reports(
+    session: AsyncSession,
+    *,
+    limit: int,
+    offset: int,
+) -> list[ReportResponse]:
+    reports = (
+        await session.scalars(
+            select(Report)
+            .order_by(Report.created_at.desc(), Report.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
     return [public_report(report) for report in reports]
 
 
