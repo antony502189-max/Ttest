@@ -44,7 +44,7 @@ for description, fragment in required_fragments.items():
 lock_position = text.index("flock -n 9")
 fetch_position = text.index('git -C "$REPO" fetch')
 new_verify_position = text.index('verify_release_worktree "$release" "$SHA"')
-new_compose_position = text.index('compose=(docker compose')
+new_compose_position = text.index('\ncompose=(docker compose')
 if not lock_position < fetch_position:
     raise SystemExit("release lock must be acquired before repository or runtime mutation")
 if not new_verify_position < new_compose_position:
@@ -118,7 +118,7 @@ if rollback_text.index("flock -n 9") > rollback_text.index('current="$(readlink 
     raise SystemExit("rollback lock must be acquired before release state is read")
 if rollback_text.index('verify_release_worktree "$current" "$current_sha"') > rollback_text.index('current_compose=(docker compose'):
     raise SystemExit("current release worktree must be verified before Compose reads it")
-if rollback_text.index('verify_release_worktree "$previous" "$target_sha"') > rollback_text.index('compose=(docker compose'):
+if rollback_text.index('verify_release_worktree "$previous" "$target_sha"') > rollback_text.index('\ncompose=(docker compose'):
     raise SystemExit("rollback target worktree must be verified before Compose reads it")
 if rollback_text.index("rollback across stateful service image changes") > rollback_text.index("trap restore_current_after_failure ERR"):
     raise SystemExit("rollback image compatibility must fail before target runtime mutation")
