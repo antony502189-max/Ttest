@@ -1,0 +1,120 @@
+name: Apply external listing quality guards
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-external-quality-guards.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Apply fail-closed quality and classification guards
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          from textwrap import dedent
+
+          path = Path("backend/app/external_sources.py")
+          text = path.read_text(encoding="utf-8")
+
+          room_offer = dedent('''\
+          def is_room_offer(data: dict[str, Any]) -> bool:
+              title = clean(data.get("title")).casefold()
+              description = clean(data.get("description")).casefold()
+              identity = clean(
+                  " ".join(
+                      str(data.get(key, ""))
+                      for key in ("title", "category", "breadcrumbs", "url")
+                  )
+              ).casefold()
+              corpus = clean(f"{identity} {description}").casefold()
+              if not any(term in corpus for term in POSITIVE):
+                  return False
+
+              wanted_terms = (
+                  "busco habitacion",
+                  "busco habitación",
+                  "busco cuarto",
+                  "buscando habitacion",
+                  "buscando habitación",
+                  "necesito habitacion",
+                  "necesito habitación",
+                  "busco piso",
+                  "busco alojamiento",
+                  "se busca habitacion",
+                  "se busca habitación",
+              )
+              hard_negative_terms = tuple(term for term in NEGATIVE if term not in wanted_terms)
+              if any(term in identity for term in hard_negative_terms):
+                  return False
+              if any(term in clean(f"{title} {data.get('category', '')}").casefold() for term in wanted_terms):
+                  return False
+
+              opening = description[:500]
+              offer_markers = ("se alquila", "alquilo", "ofrezco", "disponible", "para alquilar", "en alquiler")
+              if any(term in opening for term in wanted_terms) and not any(marker in opening for marker in offer_markers):
+                  return False
+              return True
+
+
+          def is_rental''')
+          pattern = r"def is_room_offer\(data: dict\[str, Any\]\) -> bool:\n.*?\n\n\ndef is_rental"
+          text, count = re.subn(pattern, lambda _: room_offer, text, count=1, flags=re.DOTALL)
+          if count != 1:
+              raise SystemExit(f"expected one is_room_offer function, replaced {count}")
+
+          old_gate = '''        if not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
+              return None
+          amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
+          '''
+          new_gate = '''        title = clean(data.get("title"))
+          if not title or not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
+              return None
+          amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
+          '''
+          if text.count(old_gate) != 1:
+              raise SystemExit("unexpected normalization classification gate")
+          text = text.replace(old_gate, new_gate)
+
+          old_price = '''        if amount is None or mode is None or (period is None and amount > 5_000):
+              return None
+          '''
+          new_price = '''        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
+              return None
+          '''
+          if text.count(old_price) != 1:
+              raise SystemExit("unexpected normalization price gate")
+          text = text.replace(old_price, new_price)
+
+          old_title = '''            clean(data.get("title"))[:240],
+          '''
+          new_title = '''            title[:240],
+          '''
+          if text.count(old_title) != 1:
+              raise SystemExit("unexpected normalized title assignment")
+          text = text.replace(old_title, new_title)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m py_compile backend/app/external_sources.py backend/app/commands/audit_external_sources.py
+          rm .github/workflows/apply-external-quality-guards.yml
+          git diff --check
+      - name: Commit verified guards
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/external_sources.py .github/workflows/apply-external-quality-guards.yml
+          git commit -m "fix: reject malformed external listing records"
+          git push origin HEAD:${{ github.head_ref }}
