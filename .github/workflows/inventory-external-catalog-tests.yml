@@ -1,0 +1,26 @@
+name: Inventory external catalog tests
+
+on:
+  push:
+    branches:
+      - audit/external-import-public-catalog-20260805
+    paths:
+      - .github/workflows/inventory-external-catalog-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Inventory relevant tests and symbols
+        run: |
+          echo '=== TEST FILES ==='
+          find backend/tests -maxdepth 1 -type f -printf '%f\n' | sort
+          echo '=== EXTERNAL CATALOG REFERENCES ==='
+          grep -RInE 'upsert\(|search_public\(|SourceRecord|CatalogState|is_external' backend/tests || true
