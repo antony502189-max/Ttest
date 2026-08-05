@@ -295,6 +295,64 @@ def first_text(item: dict[str, Any], *keys: str) -> str:
     return next((clean(item.get(key)) for key in keys if clean(item.get(key))), "")
 
 
+def structured_classification(structured_items: list[dict[str, Any]]) -> tuple[str, str]:
+    """Extract only explicit listing taxonomy and breadcrumb metadata.
+
+    Whole-page text is intentionally excluded: global navigation commonly contains
+    sale actions such as ``Comprar`` or ``Pisos en venta`` and must not classify
+    an otherwise valid room-rental detail page.
+    """
+    categories: list[str] = []
+    breadcrumbs: list[str] = []
+
+    def add(values: list[str], value: Any) -> None:
+        if isinstance(value, dict):
+            value = value.get("name") or value.get("label") or value.get("title")
+        if isinstance(value, list):
+            for child in value:
+                add(values, child)
+            return
+        text = clean(value)[:300]
+        if text and text not in values:
+            values.append(text)
+
+    category_keys = (
+        "category",
+        "propertyType",
+        "property_type",
+        "listingType",
+        "offerType",
+        "businessType",
+        "transactionType",
+        "operation",
+        "typology",
+    )
+    for item in structured_items:
+        for key in category_keys:
+            add(categories, item.get(key))
+        item_type = clean(item.get("@type")).casefold()
+        if item_type == "breadcrumblist":
+            for element in item.get("itemListElement", []):
+                add(breadcrumbs, element)
+
+    return " | ".join(categories)[:1200], " | ".join(breadcrumbs)[:1800]
+
+
+def html_breadcrumbs(document: str) -> str:
+    """Return text from actual breadcrumb containers, never arbitrary page chrome."""
+    values: list[str] = []
+    pattern = re.compile(
+        r'<(?P<tag>nav|ol|ul|div)\b(?=[^>]*(?:class|id|aria-label)=["\'][^"\']*(?:breadcrumb|migas)[^"\']*["\'])[^>]*>'
+        r'(?P<body>.*?)</(?P=tag)>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in pattern.finditer(document):
+        text = clean(match.group("body"))[:600]
+        if text and text not in values:
+            values.append(text)
+    return " | ".join(values)[:1800]
+
+
 def meta_content(document: str, name: str) -> str:
     pattern = rf'<meta[^>]+(?:property|name)=["\']{re.escape(name)}["\'][^>]+content=["\']([^"\']+)["\']'
     match = re.search(pattern, document, re.IGNORECASE)
@@ -668,7 +726,7 @@ class ExternalListingSource(ABC):
         location = parsed.path + (f"?{parsed.query}" if parsed.query else "")
         return parsed.scheme in {"http", "https"} and hostname_matches_domain(url, self.domain) and bool(
             re.search(
-                r"(?:[?&](?:pagina|page)=\d+|/pagina/\d+|/\d+/?$)",
+                r"(?:[?&](?:pagina|page)=\d+|/pagina(?:-|/)\d+(?:\.html?)?/?|/\d+/?$)",
                 location,
                 re.IGNORECASE,
             )
@@ -819,6 +877,10 @@ class ExternalListingSource(ABC):
             )
             if coordinate_match:
                 latitude, longitude = coordinate_match.groups()
+        structured_category, structured_breadcrumbs = structured_classification(structured_items)
+        breadcrumbs = " | ".join(
+            value for value in (structured_breadcrumbs, html_breadcrumbs(document)) if value
+        )[:1800]
         return {
             "title": first_text(item, "name", "title", "headline")
             or meta_content(document, "og:title")
@@ -826,8 +888,8 @@ class ExternalListingSource(ABC):
             "description": first_text(item, "description", "body", "text")
             or meta_content(document, "og:description")
             or meta_content(document, "description"),
-            "category": body[:1200],
-            "breadcrumbs": body[:1800],
+            "category": structured_category,
+            "breadcrumbs": breadcrumbs,
             "url": url,
             "price_text": price_match.group(0) if price_match else "",
             "images": images,
