@@ -149,6 +149,10 @@ class DirectlyRemovedDetailSource(MissingDetailSource):
 
 
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
+    before_catalog = await client.get("/api/v1/listings/catalog-version")
+    assert before_catalog.status_code == 200, before_catalog.text
+    before_version = int(before_catalog.json()["version"])
+
     async with SessionLocal() as session:
         idealista = external_item(
             source="Idealista",
@@ -157,6 +161,11 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         )
         assert await upsert(session, idealista) == "imported"
         await session.commit()
+        after_import_catalog = await client.get("/api/v1/listings/catalog-version")
+        assert after_import_catalog.status_code == 200, after_import_catalog.text
+        after_import_version = int(after_import_catalog.json()["version"])
+        assert after_import_version > before_version
+
         assert await upsert(session, idealista) == "unchanged"
         await session.commit()
 
@@ -175,6 +184,10 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         )
         assert await upsert(session, fotocasa) == "updated"
         await session.commit()
+        after_update_catalog = await client.get("/api/v1/listings/catalog-version")
+        assert after_update_catalog.status_code == 200, after_update_catalog.text
+        after_update_version = int(after_update_catalog.json()["version"])
+        assert after_update_version > after_import_version
 
         assert await session.scalar(select(func.count()).select_from(Listing).where(Listing.is_external.is_(True))) == 1
         assert await session.scalar(select(func.count()).select_from(ExternalListingSource)) == 2
@@ -201,6 +214,14 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         await session.commit()
         await session.refresh(listing)
         assert listing.status == "closed"
+
+        closed_catalog = await client.get("/api/v1/listings/catalog-version")
+        assert closed_catalog.status_code == 200, closed_catalog.text
+        assert int(closed_catalog.json()["version"]) > after_update_version
+
+        hidden = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
+        assert hidden.status_code == 200, hidden.text
+        assert all(item["id"] != str(listing.id) for item in hidden.json()["items"])
 
 
 async def test_complete_source_failure_does_not_mark_existing_external_listing_missing():
