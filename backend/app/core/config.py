@@ -103,6 +103,7 @@ class Settings(BaseSettings):
     external_import_interval_seconds: int = 7200
     external_import_run_on_start: bool = True
     external_import_sources: str = "idealista,fotocasa,milanuncios,pisocompartido,pisos,thinkspain"
+    external_import_min_healthy_sources: int = 1
     external_import_request_timeout_seconds: int = 25
     external_import_max_concurrency_per_source: int = 3
     external_import_download_images: bool = True
@@ -195,6 +196,7 @@ class Settings(BaseSettings):
             problems.append("S3 timeout, retry and pool settings must be positive")
         if (
             self.external_import_interval_seconds < 1
+            or self.external_import_min_healthy_sources < 1
             or self.external_import_request_timeout_seconds < 1
             or self.external_import_max_concurrency_per_source < 1
             or self.external_worker_stale_after_seconds < 120
@@ -237,6 +239,10 @@ class Settings(BaseSettings):
                 }
                 if not configured_sources:
                     problems.append("EXTERNAL_IMPORT_SOURCES must enable at least one source in production")
+                if self.external_import_min_healthy_sources > len(configured_sources):
+                    problems.append(
+                        "EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES cannot exceed configured sources"
+                    )
                 unknown_sources = configured_sources - SUPPORTED_EXTERNAL_IMPORT_SOURCES
                 if unknown_sources:
                     problems.append("EXTERNAL_IMPORT_SOURCES contains unsupported sources")

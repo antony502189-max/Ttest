@@ -16,7 +16,7 @@ from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
 from ..external_sources import configured_sources
 from ..models import ExternalWorkerState
-from ..services.external_import import run_removal_check, run_source
+from ..services.external_import import completed_source_contract, run_removal_check, run_source
 
 logger = logging.getLogger(__name__)
 local_import_lock = asyncio.Lock()
@@ -160,6 +160,15 @@ async def worker_state(*, health: str | None = None, error: str | None = None, r
         return state
 
 
+def _successful_source_names(result: dict[str, dict[str, int]]) -> list[str]:
+    return [
+        name
+        for name, counters in result.items()
+        if getattr(counters, "result", "failed") == "success"
+        and completed_source_contract(counters)
+    ]
+
+
 async def run_once() -> dict[str, dict[str, int]]:
     settings = get_settings()
     if not settings.external_import_enabled:
@@ -200,12 +209,22 @@ async def run_once() -> dict[str, dict[str, int]]:
                 result[source.name] = await run_source(session, source, run_id)
             await worker_state(health="running", run_id=run_id)
         logger.info("external_import_finished", extra={"run_id": run_id, "sources": result})
-        successful_sources = [
-            name for name, counters in result.items() if getattr(counters, "result", "failed") == "success"
-        ]
-        if not successful_sources:
-            failure_summary = "No external source completed a successful import"
-            logger.error("external_import_no_successful_sources", extra={"run_id": run_id, "sources": result})
+        successful_sources = _successful_source_names(result)
+        required_sources = settings.external_import_min_healthy_sources
+        if len(successful_sources) < required_sources:
+            failure_summary = (
+                f"Only {len(successful_sources)} external sources completed a useful import; "
+                f"{required_sources} required"
+            )
+            logger.error(
+                "external_import_insufficient_healthy_sources",
+                extra={
+                    "run_id": run_id,
+                    "successful_sources": successful_sources,
+                    "required_sources": required_sources,
+                    "sources": result,
+                },
+            )
             await worker_state(health="failed", error=failure_summary, run_id=run_id)
             return result
         await worker_state(health="healthy", run_id=run_id)
