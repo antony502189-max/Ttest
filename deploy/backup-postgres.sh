@@ -8,6 +8,13 @@ ENV_FILE="${ENV_FILE:-$ROOT/shared/production.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT/current/docker-compose.production.yml}"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${RELEASE_LOCK_HELD:-0}" != "1" ]]; then
+  command -v flock >/dev/null || { echo "flock is required for production backup serialization" >&2; exit 69; }
+  exec 9>"$ROOT/shared/release.lock"
+  chmod 600 "$ROOT/shared/release.lock"
+  flock -n 9 || { echo "a production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
+  export RELEASE_LOCK_HELD=1
+fi
 # shellcheck source=deploy/backup-crypto.sh
 source "$SCRIPT_DIR/backup-crypto.sh"
 load_backup_keys "$ENV_FILE"
