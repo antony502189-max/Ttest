@@ -21,7 +21,15 @@ temporary_dump="$(mktemp "$BACKUP_DIR/.postgres-$stamp.XXXXXX.tmp")"
 cleanup() { rm -f "$temporary_dump"; }
 trap cleanup EXIT
 
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
+compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+for _ in $(seq 1 60); do
+  if "${compose[@]}" exec -T postgres sh -ec 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+"${compose[@]}" exec -T postgres sh -ec 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null
+"${compose[@]}" exec -T postgres \
   sh -ec 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
   | openssl enc -aes-256-cbc -pbkdf2 -salt \
       -pass env:BACKUP_ENCRYPTION_KEY -out "$temporary_dump"
