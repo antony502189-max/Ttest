@@ -141,3 +141,53 @@ def test_idealista_style_html_pagination_is_discovered():
     assert source.is_pagination_url(
         "https://www.idealista.com/alquiler-habitacion/santa-cruz-de-tenerife-provincia/pagina-2.htm"
     )
+
+
+def test_detail_shell_uses_anonymous_browser_fallback(monkeypatch):
+    from app.external_sources import FotocasaSource
+
+    class Source(FotocasaSource):
+        def __init__(self):
+            self.rendered = False
+
+        async def request(self, _url):
+            return '<html><head><title>Fotocasa</title></head><body><div id="root"></div></body></html>'
+
+        async def render_public_page(self, _url):
+            self.rendered = True
+            return '<h1>Habitación en Arona</h1><p>Se alquila habitación</p><strong>650 €/mes</strong>'
+
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.external_sources.get_settings",
+        lambda: SimpleNamespace(external_import_playwright_enabled=True),
+    )
+    source = Source()
+    document = asyncio.run(source.fetch_listing("https://www.fotocasa.es/es/compartir/vivienda/arona/x/123456789/d"))
+    assert source.rendered is True
+    assert "650 €/mes" in (document or "")
+
+
+def test_fotocasa_reads_the_nested_listing_object_itself():
+    from app.external_sources import FotocasaSource
+
+    document = '''
+    <script id="__NEXT_DATA__" type="application/json">
+      {"props":{"pageProps":{"property":{
+        "title":"Habitación en Arona",
+        "description":"Se alquila habitación amueblada en Santa Cruz de Tenerife",
+        "priceText":"650 €/mes",
+        "municipality":"Arona"
+      }}}}
+    </script>
+    '''
+    source = FotocasaSource()
+    url = "https://www.fotocasa.es/es/compartir/vivienda/arona/amueblado/123456789/d"
+    parsed = source.parse_listing(document, url)
+    normalized = source.normalize_listing(parsed, url)
+    assert parsed["title"] == "Habitación en Arona"
+    assert parsed["price_text"] == "650 €/mes"
+    assert normalized is not None
+    assert normalized.city == "Arona"
+    assert normalized.price_amount == 650
