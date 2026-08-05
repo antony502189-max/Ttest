@@ -60,6 +60,18 @@ if [[ -z "$old_release" ]] && (( has_existing_postgres || has_existing_minio ));
   exit 65
 fi
 
+if [[ -n "$old_release" ]]; then
+  previous_compose=(docker compose --env-file "$ENV_FILE" -f "$old_release/docker-compose.production.yml")
+  "${previous_compose[@]}" config --quiet
+  previous_data_images="$("${previous_compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py")"
+  new_data_images="$("${compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py")"
+  [[ "$new_data_images" == "$previous_data_images" ]] || {
+    echo "stateful service image changes require a separate controlled data-service migration" >&2
+    diff -u <(printf '%s\n' "$previous_data_images") <(printf '%s\n' "$new_data_images") >&2 || true
+    exit 65
+  }
+fi
+
 metadata="$ROOT/releases/$SHA.deploy-info"
 failure_log="$ROOT/releases/$SHA.failed.log"
 
@@ -70,6 +82,7 @@ rollback_after_failure() {
   "${compose[@]}" logs --no-color > "$failure_log" 2>&1
   if [[ "$old_sha" != "none" && -d "$RELEASES/$old_sha" ]]; then
     previous_compose=(docker compose --env-file "$ENV_FILE" -f "$RELEASES/$old_sha/docker-compose.production.yml")
+    "${previous_compose[@]}" up -d postgres redis minio minio-init
     "${previous_compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
     restored=0
     for _ in $(seq 1 30); do
@@ -97,9 +110,6 @@ printf 'old_sha=%s\nnew_sha=%s\nstatus=in_progress\ntimestamp=%s\n' "$old_sha" "
 backups="first_deploy:no_existing_persistent_data"
 revision="none"
 if [[ -n "$old_release" ]]; then
-  previous_compose=(docker compose --env-file "$ENV_FILE" -f "$old_release/docker-compose.production.yml")
-  "${previous_compose[@]}" config --quiet
-
   # Quiesce every writer before the backup and migration boundary. The ERR
   # trap restores the previous application services if any later step fails.
   "${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker
