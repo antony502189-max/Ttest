@@ -2,7 +2,7 @@
 
 Audit baseline: Codex result ending at `e46b45a596566b1470328d6a3b8d7755cdbd50d6`.
 
-This audit intentionally does **not** use GitHub Actions. The reproducible runtime audit is local-only through `scripts/final-audit-local.sh`.
+> Historical audit record. This document describes the implementation state at the baseline above. The current release gate also runs GitHub Actions (`Audit Source Snapshot`, `Production audit`, `Mobile validation` and `Full audit`), while `scripts/final-audit-local.sh` remains the reproducible local equivalent. The current migration head is documented in `docs/database.md`.
 
 ## Codex report findings reviewed
 
@@ -39,7 +39,7 @@ FastAPI routes for auth, listings, users, messages, reports, admin, favorites, s
 
 ### PostgreSQL/PostGIS
 
-Migration head is `0015_integrity_constraints`. It normalizes legacy data and adds database-level checks for listing prices, deposit, room size, bedroom count, residents, capacity, minimum stay, dates and rental-mode primary price. It adds partial/composite indexes for public search, owner listings, room counts and pending outbox delivery.
+At this audit baseline, the migration head was `0015_integrity_constraints`. It normalized legacy data and added database-level checks for listing prices, deposit, room size, bedroom count, residents, capacity, minimum stay, dates and rental-mode primary price. It added partial/composite indexes for public search, owner listings, room counts and pending outbox delivery. Later migrations are tracked in `docs/database.md`; deployments must always run `alembic upgrade head` rather than target this historical revision explicitly.
 
 Server search supports:
 
@@ -109,7 +109,7 @@ Run from a clean checkout:
 bash scripts/final-audit-local.sh
 ```
 
-The script runs locally only and performs:
+The script performs:
 
 - PostGIS/Redis/MinIO/Mailpit startup;
 - isolated test database creation;
