@@ -1,140 +1,131 @@
-# 112233.es — marketplace de alquiler
+# 112233.es
 
-Full-stack marketplace with a React/Vite frontend and a FastAPI/PostgreSQL backend.
+[Abrir 112233.es](https://112233.es/)
 
-## Start the complete local stack
+Marketplace full-stack de alquiler de habitaciones en Tenerife. El frontend conserva el diseño aprobado y consume una API FastAPI con PostgreSQL/PostGIS. Google Maps es el único proveedor cartográfico.
 
-```bash
-docker compose up -d --build
-```
+## Inicio local completo
 
-Services:
-
-- frontend: `http://localhost:4174`
-- API: `http://localhost:8000/api/v1`
-- OpenAPI: `http://localhost:8000/docs`
-- PostgreSQL/PostGIS: `localhost:5432`
-- Redis: `localhost:6379`
-- MinIO API: `http://localhost:9000`
-- MinIO console: `http://localhost:9001`
-- Mailpit SMTP: `localhost:1025`
-- Mailpit UI: `http://localhost:8025`
-
-Run migrations and seed the development dataset:
+Requisitos: Docker Compose, Python 3.12+, Node.js 22+ y npm.
 
 ```bash
-docker compose up -d postgres redis minio minio-init mailpit
-docker compose run --rm migrate
-docker compose --profile tools run --rm seed
-docker compose up -d backend mail-worker frontend
-```
-
-The seed command is idempotent and refuses to run when `APP_ENV=production`.
-
-## Frontend
-
-```bash
+git clone https://github.com/antony502189-max/Ttest.git
+cd Ttest
+cp .env.example .env.local
+cp backend/.env.example backend/.env
+docker compose up -d migrate backend mail-worker
 npm ci
 npm run dev
 ```
 
-Important variables are listed in `.env.example`. The browser uses the real backend by default. Local-only mock mode is explicit:
+Servicios locales incluidos:
+
+- PostgreSQL + PostGIS: `localhost:5432`;
+- FastAPI/OpenAPI: `http://localhost:8000/api/docs`;
+- Redis: `localhost:6379`;
+- MinIO S3 API: `http://localhost:9000`;
+- MinIO console: `http://localhost:9001`;
+- Mailpit SMTP: `localhost:1025`;
+- Mailpit UI: `http://localhost:8025`.
+
+Para cargar datos de desarrollo:
 
 ```bash
-VITE_ENABLE_MOCK_MODE=1 npm run dev
+docker compose --profile tools run --rm seed
 ```
 
-## Backend
+Frontend `.env.local`:
+
+```dotenv
+VITE_GOOGLE_MAPS_API_KEY=
+VITE_GOOGLE_MAPS_MAP_ID=
+VITE_GOOGLE_CLIENT_ID=
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_ENABLE_MOCK_MODE=0
+VITE_BASE_PATH=/Ttest/
+```
+
+Google Maps debe autorizar estos HTTP referrers:
+
+```text
+https://antony502189-max.github.io/Ttest/
+https://antony502189-max.github.io/Ttest/*
+```
+
+## Backend без Docker
 
 ```bash
-cd backend
 python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -e "backend[dev]"
+cd backend
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Copy `backend/.env.example` to `backend/.env` and set local credentials as needed.
-
-## Database
-
-PostgreSQL with PostGIS is mandatory. Apply all migrations from an empty database:
-
-```bash
-cd backend
-alembic upgrade head
-alembic current
-```
-
 PostgreSQL с PostGIS всё равно должен быть доступен через `DATABASE_URL`. SQLite не является поддерживаемой production или integration-test базой.
 
-## Mail
+## Почта
 
-The application writes verification and password-reset messages into `mail_outbox`. Start the persistent worker:
+Письма создаются транзакционно в `mail_outbox`. Постоянный worker запускается сервисом `mail-worker`:
 
 ```bash
-cd backend
-python -m app.commands.outbox_worker
+docker compose up -d mail-worker
 ```
 
 В локальном Compose письма доставляются в Mailpit. В production обязательны реальные `SMTP_*` значения и постоянно работающий worker.
 
-## Media storage
+## Media
 
 В обычном production-режиме используется S3-compatible storage. Локальный Compose уже подключает реальный MinIO и проверяет операции put/read/delete. Filesystem adapter остаётся для изолированной разработки и тестов.
 
-## Quality gates
+## Полный локальный аудит
 
-Backend:
+Полная проверка выполняется локально:
 
 ```bash
+bash scripts/final-audit-local.sh
+```
+
+Скрипт:
+
+1. поднимает PostGIS, Redis, MinIO и Mailpit;
+2. создаёт отдельную `ttest_test`;
+3. применяет Alembic с пустой базы;
+4. запускает Ruff, Mypy и pytest;
+5. проверяет PostgreSQL/PostGIS и MinIO integration tests;
+6. запускает API, mail worker и seed;
+7. выполняет frontend lint, typecheck и production build;
+8. выполняет полный Playwright, a11y и visual suite;
+9. выполняет отдельный real full-stack Playwright suite без mock backend.
+
+Результаты Playwright сохраняются только в `output/` и исключены из Git.
+
+CI берёт утверждённые snapshots из ветки `visual-baselines`, а actual/expected/diff и HTML-report публикует как GitHub Actions artifacts. Обычный CI никогда не обновляет baseline. Обновление разрешено только ручным запуском workflow **Update Approved Visual Baselines** после визуального ревью.
+
+Отдельные команды:
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run test:e2e
+npm run test:a11y
+npm run test:visual
+npm run test:fullstack
+
 cd backend
 ruff check app tests
 mypy app
 pytest -q
 ```
 
-Frontend:
+## Backup
 
-```bash
-npm run lint
-npm run typecheck
-npm run build
-npm run test:bundle-security
-npm run test:e2e
-npm run test:a11y
-npm run test:visual
-npm run test:fullstack
-```
-
-Complete local audit:
-
-```bash
-bash scripts/final-audit-local.sh
-```
-
-The script:
-
-1. starts PostGIS, Redis, MinIO and Mailpit;
-2. creates an isolated test database;
-3. installs a clean constrained backend environment;
-4. applies the complete Alembic chain;
-5. runs Ruff, Mypy, unit, PostgreSQL/PostGIS and MinIO tests;
-6. starts the migrated backend and mail worker;
-7. performs frontend lint, typecheck and production build;
-8. runs complete Playwright mock-mode regression, a11y and visual suites;
-9. runs the real frontend + FastAPI + PostgreSQL full-stack suite.
-
-## Backups
-
-Local helpers:
+Создать PostgreSQL backup:
 
 ```bash
 docker compose --profile tools run --rm db-backup
-docker compose --profile tools run --rm db-restore -- --file /backups/ttest-YYYYMMDDTHHMMSSZ.dump
-docker compose --profile tools run --rm minio-backup
-docker compose --profile tools run --rm minio-restore -- --file /backups/minio-YYYYMMDDTHHMMSSZ.tar.gz
 ```
 
 Файлы появляются в локальном каталоге `backups/`, который исключён из Git. Production использует self-hosted PostGIS volume и проверяемую backup/restore-процедуру на VPS; см. [Production operations](docs/production-operations.md).
@@ -159,9 +150,23 @@ Backend специально отказывается запускаться в 
 
 ## Документация
 
-- [Architecture](docs/architecture.md)
-- [API surface](docs/api.md)
-- [Database and migrations](docs/database.md)
-- [Test report](docs/test-report.md)
-- [Final audit](docs/final-audit.md)
-- [Production operations](docs/production-operations.md)
+- [Архитектура](docs/architecture.md)
+- [API](docs/api.md)
+- [База данных](docs/database.md)
+- [Локальная разработка](docs/local-development.md)
+- [Deployment](docs/deployment.md)
+- [Design freeze](docs/frontend-freeze-report.md)
+- [Тестирование](docs/test-report.md)
+- [Финальный аудит](docs/final-audit.md)
+
+## Stack
+
+- React 19 + TypeScript + Vite 8
+- FastAPI + SQLAlchemy async + Alembic
+- PostgreSQL + PostGIS
+- Redis
+- MinIO/S3-compatible media storage
+- Mail outbox + SMTP worker
+- Prometheus metrics + structured JSON logs + optional Sentry
+- Google Maps JavaScript API
+- Playwright + axe-core
