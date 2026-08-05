@@ -13,6 +13,7 @@ required_fragments = {
     "historical release guidance": "use rollback-release.sh for an older release",
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
     "non-blocking release serialization": "flock -n 9",
+    "inherited release lock": "export RELEASE_LOCK_HELD=1",
     "writer quiescence": '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker',
     "old PostgreSQL backup runtime": 'COMPOSE_FILE="$old_release/docker-compose.production.yml"',
     "audited PostgreSQL backup script": '"$release/deploy/backup-postgres.sh"',
@@ -81,15 +82,23 @@ if rollback_text.index("trap restore_current_after_failure ERR") > rollback_text
     raise SystemExit("rollback recovery trap must be armed before target containers are changed")
 
 backup_production_text = Path("deploy/backup-production.sh").read_text(encoding="utf-8")
-for fragment in ("umask 077", 'LOCK_FILE="$ROOT/shared/release.lock"', "flock -n 9"):
+for fragment in ("umask 077", 'LOCK_FILE="$ROOT/shared/release.lock"', "flock -n 9", "export RELEASE_LOCK_HELD=1"):
     if fragment not in backup_production_text:
         raise SystemExit(f"production backup must share release serialization: {fragment}")
 if backup_production_text.index("flock -n 9") > backup_production_text.index('"$release_dir/deploy/backup-postgres.sh"'):
     raise SystemExit("production backup must acquire the shared lock before child backups")
 
 postgres_backup_text = Path("deploy/backup-postgres.sh").read_text(encoding="utf-8")
-if "pg_isready" not in postgres_backup_text or "seq 1 60" not in postgres_backup_text:
-    raise SystemExit("PostgreSQL backup must wait for database readiness with a bounded retry")
+for fragment in ('${RELEASE_LOCK_HELD:-0}', "flock -n 9", "pg_isready", "seq 1 60"):
+    if fragment not in postgres_backup_text:
+        raise SystemExit(f"PostgreSQL backup safety requirement missing: {fragment}")
 minio_backup_text = Path("deploy/backup-minio.sh").read_text(encoding="utf-8")
-if "MinIO did not become ready for backup" not in minio_backup_text or '"$attempt" -lt 60' not in minio_backup_text:
-    raise SystemExit("MinIO backup must wait for service readiness with a bounded retry")
+for fragment in ('${RELEASE_LOCK_HELD:-0}', "flock -n 9", "MinIO did not become ready for backup", '"$attempt" -lt 60'):
+    if fragment not in minio_backup_text:
+        raise SystemExit(f"MinIO backup safety requirement missing: {fragment}")
+
+for restore_path in (Path("deploy/restore-verify.sh"), Path("deploy/restore-minio-verify.sh")):
+    restore_text = restore_path.read_text(encoding="utf-8")
+    for fragment in ("umask 077", '"$ROOT/shared/release.lock"', "flock -n 9"):
+        if fragment not in restore_text:
+            raise SystemExit(f"{restore_path} must serialize restore drills: {fragment}")
