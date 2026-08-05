@@ -88,14 +88,22 @@ for fragment in ("umask 077", 'LOCK_FILE="$ROOT/shared/release.lock"', "flock -n
 if backup_production_text.index("flock -n 9") > backup_production_text.index('"$release_dir/deploy/backup-postgres.sh"'):
     raise SystemExit("production backup must acquire the shared lock before child backups")
 
-postgres_backup_text = Path("deploy/backup-postgres.sh").read_text(encoding="utf-8")
-for fragment in ('${RELEASE_LOCK_HELD:-0}', "flock -n 9", "pg_isready", "seq 1 60"):
-    if fragment not in postgres_backup_text:
-        raise SystemExit(f"PostgreSQL backup safety requirement missing: {fragment}")
-minio_backup_text = Path("deploy/backup-minio.sh").read_text(encoding="utf-8")
-for fragment in ('${RELEASE_LOCK_HELD:-0}', "flock -n 9", "MinIO did not become ready for backup", '"$attempt" -lt 60'):
-    if fragment not in minio_backup_text:
-        raise SystemExit(f"MinIO backup safety requirement missing: {fragment}")
+for backup_path, readiness_fragments in (
+    (Path("deploy/backup-postgres.sh"), ("pg_isready", "seq 1 60")),
+    (Path("deploy/backup-minio.sh"), ("MinIO did not become ready for backup", '"$attempt" -lt 60')),
+):
+    backup_text = backup_path.read_text(encoding="utf-8")
+    required = (
+        '${RELEASE_LOCK_HELD:-0}',
+        'readlink -f "/proc/$$/fd/9"',
+        'readlink -f "$LOCK_FILE"',
+        "RELEASE_LOCK_HELD is set without the inherited production release lock",
+        "flock -n 9",
+        *readiness_fragments,
+    )
+    for fragment in required:
+        if fragment not in backup_text:
+            raise SystemExit(f"{backup_path} safety requirement missing: {fragment}")
 
 for restore_path in (Path("deploy/restore-verify.sh"), Path("deploy/restore-minio-verify.sh")):
     restore_text = restore_path.read_text(encoding="utf-8")
