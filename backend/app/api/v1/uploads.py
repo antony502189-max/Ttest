@@ -9,13 +9,14 @@ from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[impor
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from PIL import Image, UnidentifiedImageError
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import Settings, get_settings
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
 from ...schemas.media import MediaAssetResponse
+from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import get_storage
 from ..dependencies import current_user, optional_user
@@ -101,19 +102,18 @@ async def upload_image(
     async with image_processing_slots:
         normalized, width, height = await asyncio.to_thread(validate_and_normalize, content)
 
-    # Serialize quota checks only for this user. Without the transaction-scoped
-    # advisory lock, concurrent uploads could all observe the same free quota.
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-        {"lock_key": f"media-upload:{user.id}"},
-    )
+    # Serialize quota checks with both concurrent uploads and account deletion.
+    await lock_media_owner(session, user.id)
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+        raise HTTPException(403, "Account is not active")
     active_assets, active_bytes = (
         await session.execute(
             select(
                 func.count(MediaAsset.id),
                 func.coalesce(func.sum(MediaAsset.size_bytes), 0),
             ).where(
-                MediaAsset.owner_id == user.id,
+                MediaAsset.owner_id == locked_user.id,
                 MediaAsset.deleted_at.is_(None),
             )
         )
@@ -126,11 +126,11 @@ async def upload_image(
     ):
         raise HTTPException(413, "Media storage quota exceeded")
 
-    storage_key = f"{user.id}/{uuid4().hex}.webp"
+    storage_key = f"{locked_user.id}/{uuid4().hex}.webp"
     storage = get_storage()
     await asyncio.to_thread(storage.put, storage_key, normalized)
     asset = MediaAsset(
-        owner_id=user.id,
+        owner_id=locked_user.id,
         storage_key=storage_key,
         mime_type="image/webp",
         size_bytes=len(normalized),
@@ -216,7 +216,8 @@ async def delete_upload(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    asset = await session.get(MediaAsset, asset_id)
+    locked_assets = await lock_media_assets(session, {asset_id})
+    asset = locked_assets[0] if locked_assets else None
     if not asset or asset.deleted_at or (asset.owner_id != user.id and user.role != "admin"):
         raise HTTPException(404, "Media not found")
     active_avatar = await session.scalar(select(User.id).where(User.avatar_asset_id == asset.id).limit(1))

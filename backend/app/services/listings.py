@@ -26,6 +26,7 @@ from ..schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
+from .media_lifecycle import lock_media_assets
 from .storage_deletions import enqueue_storage_deletions
 
 
@@ -44,32 +45,29 @@ async def touch_catalog(session: AsyncSession) -> None:
 
 
 async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> int:
-    if not candidate_ids:
+    locked_assets = await lock_media_assets(session, candidate_ids)
+    active_assets = {asset.id: asset for asset in locked_assets if asset.deleted_at is None}
+    active_ids = set(active_assets)
+    if not active_ids:
         return 0
     attached = set(
         (
             await session.scalars(
-                select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(candidate_ids))
+                select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(active_ids))
             )
         ).all()
     )
     avatars = {
         value
         for value in (
-            await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(candidate_ids)))
+            await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(active_ids)))
         ).all()
         if value is not None
     }
-    orphan_ids = candidate_ids - attached - avatars
-    if not orphan_ids:
+    orphan_ids = active_ids - attached - avatars
+    assets = [active_assets[asset_id] for asset_id in sorted(orphan_ids, key=str)]
+    if not assets:
         return 0
-    assets = list(
-        (
-            await session.scalars(
-                select(MediaAsset).where(MediaAsset.id.in_(orphan_ids), MediaAsset.deleted_at.is_(None))
-            )
-        ).all()
-    )
     now = datetime.now(UTC)
     for asset in assets:
         asset.deleted_at = now
@@ -259,13 +257,14 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
 
 
 async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) -> None:
-    listing = await session.get(Listing, listing_id)
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
+    await lock_media_assets(session, attached_ids)
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
     await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
@@ -294,27 +293,26 @@ async def replace_listing_images(
     user: User,
     session: AsyncSession,
 ) -> list[ListingImageResponse]:
-    listing = await session.get(Listing, listing_id)
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     ensure_owner_or_admin(listing, user)
-    assets = (
-        await session.scalars(
-            select(MediaAsset).where(
-                MediaAsset.id.in_(payload.assetIds),
-                MediaAsset.deleted_at.is_(None),
-                MediaAsset.kind == "listing_image",
-            )
-        )
-    ).all()
-    if len(assets) != len(payload.assetIds) or any(
-        asset.owner_id != user.id for asset in assets if user.role != "admin"
-    ):
-        raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
-
     previous_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
+    requested_ids = set(payload.assetIds)
+    locked_assets = await lock_media_assets(session, previous_ids | requested_ids)
+    assets_by_id = {asset.id: asset for asset in locked_assets}
+    requested_assets = [assets_by_id.get(asset_id) for asset_id in payload.assetIds]
+    if any(
+        asset is None
+        or asset.deleted_at is not None
+        or asset.kind != "listing_image"
+        or (user.role != "admin" and asset.owner_id != user.id)
+        for asset in requested_assets
+    ):
+        raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
+
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     for sort_order, asset_id in enumerate(payload.assetIds):
         session.add(
@@ -326,7 +324,7 @@ async def replace_listing_images(
             )
         )
     await session.flush()
-    await mark_orphaned_media(session, previous_ids - set(payload.assetIds))
+    await mark_orphaned_media(session, previous_ids - requested_ids)
     await session.commit()
     return [
         ListingImageResponse(
