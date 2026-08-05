@@ -137,4 +137,4 @@ These cannot be completed or truthfully verified from repository code alone and 
 - Sentry DSN or another error-tracking project;
 - scheduled encrypted managed-database backups and restoration drill.
 
-Exact variables and requirements are documented in `backend/.env.example` and `README.md`. No production secrets are committed.
+Exact production variables and requirements are documented in `deploy/production.env.example`, `docs/production-operations.md` and `README.md`; `backend/.env.example` remains the local-development template. No production secrets are committed.
