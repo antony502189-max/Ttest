@@ -10,8 +10,13 @@ REPO="$ROOT/repo"
 RELEASES="$ROOT/releases"
 CURRENT="$ROOT/current"
 ENV_FILE="$ROOT/shared/production.env"
+LOCK_FILE="$ROOT/shared/release.lock"
 [[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
 [[ "$(stat -c %a "$ENV_FILE")" == "600" ]] || { echo "$ENV_FILE must have mode 600" >&2; exit 65; }
+command -v flock >/dev/null || { echo "flock is required for production release serialization" >&2; exit 69; }
+exec 9>"$LOCK_FILE"
+chmod 600 "$LOCK_FILE"
+flock -n 9 || { echo "another production deploy or rollback is already running" >&2; exit 75; }
 mkdir -p "$RELEASES" "$ROOT/backups"
 
 if [[ ! -d "$REPO/.git" ]]; then
@@ -64,8 +69,18 @@ rollback_after_failure() {
   if [[ "$old_sha" != "none" && -d "$RELEASES/$old_sha" ]]; then
     previous_compose=(docker compose --env-file "$ENV_FILE" -f "$RELEASES/$old_sha/docker-compose.production.yml")
     "${previous_compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
-    if "${previous_compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then
+    restored=0
+    for _ in $(seq 1 30); do
+      if "${previous_compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then
+        restored=1
+        break
+      fi
+      sleep 2
+    done
+    if (( restored )); then
       ln -sfn "$RELEASES/$old_sha" "$CURRENT"
+    else
+      echo "automatic rollback failed readiness; current symlink was not advanced" >&2
     fi
   else
     "${compose[@]}" stop frontend backend mail-worker external-listings-worker
