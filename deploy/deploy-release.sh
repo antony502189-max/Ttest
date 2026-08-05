@@ -12,6 +12,36 @@ RELEASES="$ROOT/releases"
 CURRENT="$ROOT/current"
 ENV_FILE="$ROOT/shared/production.env"
 LOCK_FILE="$ROOT/shared/release.lock"
+
+verify_release_worktree() {
+  local path="$1" expected_sha="$2"
+  local actual_sha common_dir expected_common dirty
+  [[ "$(readlink -f "$path")" == "$(readlink -f "$RELEASES/$expected_sha")" ]] || {
+    echo "release path does not match its expected immutable location: $path" >&2
+    return 65
+  }
+  [[ -e "$path/.git" ]] || { echo "release is not a Git worktree: $path" >&2; return 65; }
+  actual_sha="$(git -C "$path" rev-parse --verify HEAD)"
+  [[ "$actual_sha" == "$expected_sha" ]] || {
+    echo "release HEAD mismatch: expected $expected_sha, found $actual_sha" >&2
+    return 65
+  }
+  common_dir="$(git -C "$path" rev-parse --git-common-dir)"
+  [[ "$common_dir" == /* ]] || common_dir="$path/$common_dir"
+  common_dir="$(readlink -f "$common_dir")"
+  expected_common="$(readlink -f "$REPO/.git")"
+  [[ "$common_dir" == "$expected_common" ]] || {
+    echo "release worktree is not attached to the production repository: $path" >&2
+    return 65
+  }
+  dirty="$(git -C "$path" status --porcelain --untracked-files=all)"
+  [[ -z "$dirty" ]] || {
+    echo "release worktree is not immutable and clean: $path" >&2
+    printf '%s\n' "$dirty" >&2
+    return 65
+  }
+}
+
 [[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
 [[ "$(stat -c %a "$ENV_FILE")" == "600" ]] || { echo "$ENV_FILE must have mode 600" >&2; exit 65; }
 command -v flock >/dev/null || { echo "flock is required for production release serialization" >&2; exit 69; }
@@ -35,6 +65,7 @@ release="$RELEASES/$SHA"
 if [[ ! -e "$release/.git" ]]; then
   git -C "$REPO" worktree add --detach "$release" "$SHA"
 fi
+verify_release_worktree "$release" "$SHA"
 compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.production.yml")
 "${compose[@]}" config --quiet
 
@@ -47,6 +78,8 @@ if [[ -L "$CURRENT" ]]; then
     exit 65
   }
   old_sha="$(basename "$old_release")"
+  [[ "$old_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "current release directory is not a full commit SHA" >&2; exit 65; }
+  verify_release_worktree "$old_release" "$old_sha"
 fi
 
 postgres_volume="ttest-production_postgres-data"
