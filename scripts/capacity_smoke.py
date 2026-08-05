@@ -123,13 +123,15 @@ def resolve_addresses(origin: str, loopback_test: bool = False) -> tuple[str, ..
 @contextlib.contextmanager
 def release_lock(root: Path):
     path = root / "shared" / "release.lock"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
+    descriptor: int | None = None
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
         os.fchmod(descriptor, 0o600)
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError as exc:
-        os.close(descriptor)
+        if descriptor is not None:
+            os.close(descriptor)
         raise ConfigurationError("another release-state operation is running") from exc
     try:
         yield
@@ -175,7 +177,11 @@ def verify_metadata(root: Path, sha: str) -> None:
     if path.is_symlink() or not path.is_file() or stat.st_size > MAX_BYTES or stat.st_mode & 0o077:
         raise ConfigurationError("deployment metadata must be a private regular file no larger than 64 KiB")
     values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise ConfigurationError(f"could not read deployment metadata: {exc}") from exc
+    for line in lines:
         if "=" in line:
             key, value = line.split("=", 1)
             values[key.strip()] = value.strip()
@@ -185,27 +191,43 @@ def verify_metadata(root: Path, sha: str) -> None:
         raise ConfigurationError("deployment metadata lacks migration or image evidence")
 
 
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.perf_counter()
+    if remaining <= 0:
+        raise TimeoutError("absolute request deadline exceeded")
+    return remaining
+
+
 class PinnedHTTPSConnection(http.client.HTTPSConnection):
-    def __init__(self, host: str, address: str, **kwargs: Any) -> None:
+    def __init__(self, host: str, address: str, deadline: float, **kwargs: Any) -> None:
         self.address = address
+        self.deadline = deadline
         super().__init__(host, **kwargs)
 
     def connect(self) -> None:
-        raw = socket.create_connection((self.address, self.port), self.timeout, self.source_address)
+        raw = socket.create_connection(
+            (self.address, self.port), _remaining(self.deadline), self.source_address
+        )
         try:
+            raw.settimeout(_remaining(self.deadline))
             self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+            self.sock.settimeout(_remaining(self.deadline))
         except BaseException:
             raw.close()
             raise
 
 
 class PinnedHTTPConnection(http.client.HTTPConnection):
-    def __init__(self, host: str, address: str, **kwargs: Any) -> None:
+    def __init__(self, host: str, address: str, deadline: float, **kwargs: Any) -> None:
         self.address = address
+        self.deadline = deadline
         super().__init__(host, **kwargs)
 
     def connect(self) -> None:
-        self.sock = socket.create_connection((self.address, self.port), self.timeout, self.source_address)
+        self.sock = socket.create_connection(
+            (self.address, self.port), _remaining(self.deadline), self.source_address
+        )
+        self.sock.settimeout(_remaining(self.deadline))
 
 
 def validate_payload(path: str, payload: Any) -> None:
@@ -228,9 +250,15 @@ def request_once(origin: str, path: str, sha: str, timeout: float, address: str 
     try:
         host, port = parsed.hostname or "", parsed.port or (443 if parsed.scheme == "https" else 80)
         if parsed.scheme == "https":
-            connection = PinnedHTTPSConnection(host, address, port=port, timeout=timeout, context=ssl.create_default_context()) if address else http.client.HTTPSConnection(host, port=port, timeout=timeout, context=ssl.create_default_context())
+            connection = PinnedHTTPSConnection(
+                host, address, deadline, port=port, timeout=timeout, context=ssl.create_default_context()
+            ) if address else http.client.HTTPSConnection(
+                host, port=port, timeout=timeout, context=ssl.create_default_context()
+            )
         else:
-            connection = PinnedHTTPConnection(host, address, port=port, timeout=timeout) if address else http.client.HTTPConnection(host, port=port, timeout=timeout)
+            connection = PinnedHTTPConnection(
+                host, address, deadline, port=port, timeout=timeout
+            ) if address else http.client.HTTPConnection(host, port=port, timeout=timeout)
         connection.request("GET", path, headers={
             "Accept": "application/json",
             "Cache-Control": "no-cache",
@@ -239,13 +267,13 @@ def request_once(origin: str, path: str, sha: str, timeout: float, address: str 
             "User-Agent": "112233-capacity-smoke/1",
             "X-Capacity-Smoke-Release": sha,
         })
+        if connection.sock is not None:
+            connection.sock.settimeout(_remaining(deadline))
         response = connection.getresponse()
         status = response.status
         body = bytearray()
         while len(body) <= MAX_BYTES:
-            remaining = deadline - time.perf_counter()
-            if remaining <= 0:
-                raise TimeoutError("absolute request deadline exceeded")
+            remaining = _remaining(deadline)
             if connection.sock is not None:
                 connection.sock.settimeout(remaining)
             chunk = response.read1(min(8192, MAX_BYTES + 1 - len(body)))
@@ -357,7 +385,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--min-success-rate", type=float, default=1.0)
     parser.add_argument("--max-p95-ms", type=float)
-    parser.add_argument("--allow-http-loopback", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
@@ -365,12 +392,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         sha = validate_sha(args.expected_sha, args.confirm_sha)
-        origin = validate_origin(args.base_url, args.allow_host, args.allow_http_loopback)
-        addresses = resolve_addresses(origin, args.allow_http_loopback)  # Deliberately before release lock.
+        origin = validate_origin(args.base_url, args.allow_host)
+        validate_budget(args.requests, args.concurrency, args.rate, args.timeout)
         if not 0.0 <= args.min_success_rate <= 1.0 or not math.isfinite(args.min_success_rate):
             raise ConfigurationError("minimum success rate must be between 0 and 1")
         if args.max_p95_ms is not None and (not math.isfinite(args.max_p95_ms) or args.max_p95_ms <= 0):
             raise ConfigurationError("maximum p95 must be positive")
+        addresses = resolve_addresses(origin)  # Deliberately before release lock.
         with release_lock(args.release_root):
             verify_release(args.release_root, sha)
             verify_metadata(args.release_root, sha)
