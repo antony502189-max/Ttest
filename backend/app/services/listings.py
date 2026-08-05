@@ -15,7 +15,6 @@ from ..models import (
     Listing,
     ListingImage,
     ListingStatusHistory,
-    MediaAsset,
     User,
 )
 from ..repositories.listings import owned_query, owned_response_from, point
