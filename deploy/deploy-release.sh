@@ -17,7 +17,8 @@ LOCK_FILE="$ROOT/shared/release.lock"
 command -v flock >/dev/null || { echo "flock is required for production release serialization" >&2; exit 69; }
 exec 9>"$LOCK_FILE"
 chmod 600 "$LOCK_FILE"
-flock -n 9 || { echo "another production deploy or rollback is already running" >&2; exit 75; }
+flock -n 9 || { echo "another production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
+export RELEASE_LOCK_HELD=1
 mkdir -p "$RELEASES" "$ROOT/backups"
 
 if [[ ! -d "$REPO/.git" ]]; then
