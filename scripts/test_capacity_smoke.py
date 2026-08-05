@@ -29,6 +29,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", "/api/health/live")
             self.end_headers()
             return
+        if self.mode == "slow_headers":
+            time.sleep(0.5)
         if self.mode == "slow":
             payload = json.dumps({"status": "ok"}).encode()
             self.send_response(200)
@@ -57,7 +59,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
-        self.wfile.write(payload)
+        try:
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -210,6 +215,10 @@ class CapacitySmokeTests(unittest.TestCase):
         metadata.chmod(0o644)
         with self.assertRaises(capacity_smoke.ConfigurationError):
             capacity_smoke.verify_metadata(root, sha)
+        metadata.write_bytes(b"\xff\xfe")
+        metadata.chmod(0o600)
+        with self.assertRaises(capacity_smoke.ConfigurationError):
+            capacity_smoke.verify_metadata(root, sha)
 
     def test_capacity_paths_are_fixed_read_only_cache_bypasses(self) -> None:
         self.assertEqual(len(capacity_smoke.PATHS), 3)
@@ -266,6 +275,13 @@ class CapacitySmokeTests(unittest.TestCase):
         self.assertIn("deadline", sample.error or "")
         self.assertLess(elapsed, 0.8)
 
+    def test_absolute_deadline_includes_response_headers(self) -> None:
+        Handler.mode = "slow_headers"
+        started = time.perf_counter()
+        sample = capacity_smoke.request_once(self.base_url, "/api/health/live", SHA, 0.2)
+        self.assertFalse(sample.ok)
+        self.assertLess(time.perf_counter() - started, 0.8)
+
     def test_non_json_response_fails_closed(self) -> None:
         Handler.mode = "html"
         sample = capacity_smoke.request_once(self.base_url, "/api/health/live", SHA, 2)
@@ -319,6 +335,9 @@ class CapacitySmokeTests(unittest.TestCase):
         self.assertEqual(result["measuredRequests"], 12)
         self.assertEqual(result["totalRequests"], 12 + len(capacity_smoke.PATHS))
         self.assertLessEqual((capacity_smoke.MAX_TOTAL - len(capacity_smoke.PATHS)) + len(capacity_smoke.PATHS), capacity_smoke.MAX_TOTAL)
+
+    def test_cli_has_no_loopback_bypass(self) -> None:
+        self.assertNotIn("--allow-http-loopback", capacity_smoke.build_parser().format_help())
 
     def test_release_sha_confirmation_is_exact_and_lowercase(self) -> None:
         self.assertEqual(capacity_smoke.validate_sha(SHA, SHA), SHA)
