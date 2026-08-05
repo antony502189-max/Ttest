@@ -8,6 +8,7 @@ SCRIPT = Path("deploy/deploy-release.sh")
 text = SCRIPT.read_text(encoding="utf-8")
 
 required_fragments = {
+    "restrictive process umask": "umask 077",
     "exact main SHA gate": '[[ "$SHA" == "$main_sha" ]]',
     "historical release guidance": "use rollback-release.sh for an older release",
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
@@ -58,6 +59,7 @@ print("production deploy transaction ordering is fail-closed")
 
 rollback_text = Path("deploy/rollback-release.sh").read_text(encoding="utf-8")
 rollback_required = {
+    "restrictive process umask": "umask 077",
     "deployment metadata lookup": 'metadata="$ROOT/releases/$current_sha.deploy-info"',
     "recorded previous SHA": "s/^old_sha=//p",
     "explicit recovery target": "usage: $0 [target-release-sha]",
@@ -77,6 +79,13 @@ if rollback_text.index("flock -n 9") > rollback_text.index('current="$(readlink 
     raise SystemExit("rollback lock must be acquired before release state is read")
 if rollback_text.index("trap restore_current_after_failure ERR") > rollback_text.index('"${compose[@]}" up -d --build'):
     raise SystemExit("rollback recovery trap must be armed before target containers are changed")
+
+backup_production_text = Path("deploy/backup-production.sh").read_text(encoding="utf-8")
+for fragment in ("umask 077", 'LOCK_FILE="$ROOT/shared/release.lock"', "flock -n 9"):
+    if fragment not in backup_production_text:
+        raise SystemExit(f"production backup must share release serialization: {fragment}")
+if backup_production_text.index("flock -n 9") > backup_production_text.index('"$release_dir/deploy/backup-postgres.sh"'):
+    raise SystemExit("production backup must acquire the shared lock before child backups")
 
 postgres_backup_text = Path("deploy/backup-postgres.sh").read_text(encoding="utf-8")
 if "pg_isready" not in postgres_backup_text or "seq 1 60" not in postgres_backup_text:
