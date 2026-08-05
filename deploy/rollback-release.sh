@@ -8,19 +8,54 @@ umask 077
 # recovery of installations that predate deployment metadata.
 [[ $# -le 1 ]] || { echo "usage: $0 [target-release-sha]" >&2; exit 64; }
 ROOT="${ROOT:-/srv/112233.es}"
+REPO="$ROOT/repo"
+RELEASES="$ROOT/releases"
 ENV_FILE="$ROOT/shared/production.env"
 CURRENT="$ROOT/current"
 LOCK_FILE="$ROOT/shared/release.lock"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+verify_release_worktree() {
+  local path="$1" expected_sha="$2"
+  local actual_sha common_dir expected_common dirty
+  [[ "$(readlink -f "$path")" == "$(readlink -f "$RELEASES/$expected_sha")" ]] || {
+    echo "release path does not match its expected immutable location: $path" >&2
+    return 65
+  }
+  [[ -e "$path/.git" ]] || { echo "release is not a Git worktree: $path" >&2; return 65; }
+  actual_sha="$(git -C "$path" rev-parse --verify HEAD)"
+  [[ "$actual_sha" == "$expected_sha" ]] || {
+    echo "release HEAD mismatch: expected $expected_sha, found $actual_sha" >&2
+    return 65
+  }
+  common_dir="$(git -C "$path" rev-parse --git-common-dir)"
+  [[ "$common_dir" == /* ]] || common_dir="$path/$common_dir"
+  common_dir="$(readlink -f "$common_dir")"
+  expected_common="$(readlink -f "$REPO/.git")"
+  [[ "$common_dir" == "$expected_common" ]] || {
+    echo "release worktree is not attached to the production repository: $path" >&2
+    return 65
+  }
+  dirty="$(git -C "$path" status --porcelain --untracked-files=all)"
+  [[ -z "$dirty" ]] || {
+    echo "release worktree is not immutable and clean: $path" >&2
+    printf '%s\n' "$dirty" >&2
+    return 65
+  }
+}
+
 [[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
 [[ "$(stat -c %a "$ENV_FILE")" == "600" ]] || { echo "$ENV_FILE must have mode 600" >&2; exit 65; }
+[[ -d "$REPO/.git" ]] || { echo "missing production repository: $REPO" >&2; exit 65; }
 command -v flock >/dev/null || { echo "flock is required for production release serialization" >&2; exit 69; }
 exec 9>"$LOCK_FILE"
 chmod 600 "$LOCK_FILE"
-flock -n 9 || { echo "another production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
+flock -n 9 || { echo "another production deploy or rollback is already running" >&2; exit 75; }
 [[ -L "$CURRENT" ]] || { echo "no current release" >&2; exit 65; }
 current="$(readlink -f "$CURRENT")"
 current_sha="$(basename "$current")"
+[[ "$current_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "current release directory is not a full commit SHA" >&2; exit 65; }
+verify_release_worktree "$current" "$current_sha"
 current_compose=(docker compose --env-file "$ENV_FILE" -f "$current/docker-compose.production.yml")
 "${current_compose[@]}" config --quiet
 
@@ -40,11 +75,12 @@ fi
   exit 65
 }
 [[ "$target_sha" != "$current_sha" ]] || { echo "target release is already current" >&2; exit 65; }
-previous="$ROOT/releases/$target_sha"
+previous="$RELEASES/$target_sha"
 [[ -f "$previous/docker-compose.production.yml" ]] || {
   echo "target release is unavailable: $previous" >&2
   exit 65
 }
+verify_release_worktree "$previous" "$target_sha"
 
 compose=(docker compose --env-file "$ENV_FILE" -f "$previous/docker-compose.production.yml")
 "${compose[@]}" config --quiet
