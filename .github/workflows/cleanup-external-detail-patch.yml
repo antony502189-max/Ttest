@@ -1,0 +1,46 @@
+name: Clean generated external detail patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/cleanup-external-detail-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Remove generator artifacts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("backend/app/external_sources.py")
+          text = path.read_text(encoding="utf-8")
+          old = "\n\n\\\ndef detail_document_has_listing_signals"
+          if text.count(old) != 1:
+              raise SystemExit("expected one generated continuation marker")
+          text = text.replace(old, "\n\ndef detail_document_has_listing_signals")
+          text = text.replace("        return document\n\n\n    def parse_listing", "        return document\n\n    def parse_listing")
+          text = text.replace("            default={},\n        )\n\n        heading =", "            default={},\n        )\n        heading =")
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m py_compile backend/app/external_sources.py backend/app/commands/audit_external_sources.py
+          rm .github/workflows/cleanup-external-detail-patch.yml
+          git diff --check
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/external_sources.py .github/workflows/cleanup-external-detail-patch.yml
+          git commit -m "chore: clean generated external source patch"
+          git push origin HEAD:${{ github.head_ref }}
