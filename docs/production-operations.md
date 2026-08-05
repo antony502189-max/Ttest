@@ -43,7 +43,7 @@ After a green PR is merged, fetch local main, use its full SHA, and run on the V
 /srv/112233.es/current/deploy/smoke-production.sh
 ```
 
-The deploy script refuses non-main commits, validates compose, starts persistent dependencies, creates a pre-migration dump with checksum, migrates, builds/starts application services, and requires backend readiness. It records release metadata under `/srv/112233.es/releases/`. It never deletes volumes, releases, or backups.
+The deploy script accepts only the exact current `origin/main` SHA. For an existing installation it enters a bounded maintenance window by stopping all write-producing application services, starts PostgreSQL/MinIO from the **previous** release definition, creates encrypted authenticated backups, and only then starts dependency images from the new release and applies migrations. Existing persistent volumes without a known `current` release fail closed. The script then builds/starts application services and requires backend readiness. It records the previous/new SHA, backup runtime SHA, migration revisions and image IDs under `/srv/112233.es/releases/`. It never deletes volumes, releases or backups; older code must be selected through `rollback-release.sh`, not the normal deploy path.
 
 Inspect services and logs:
 
@@ -69,9 +69,11 @@ To add a source, first confirm that anonymous public access and the source's ter
 /srv/112233.es/current/deploy/restore-verify.sh /srv/112233.es/backups/postgres-YYYYMMDD-HHMMSS.dump.enc
 /srv/112233.es/current/deploy/restore-minio-verify.sh /srv/112233.es/backups/minio-YYYYMMDD-HHMMSS.tar.enc
 /srv/112233.es/current/deploy/rollback-release.sh
+# For a legacy installation without deploy metadata only:
+/srv/112233.es/current/deploy/rollback-release.sh <40-character-target-sha>
 ```
 
-`restore-verify.sh` verifies the checksum, restores only into a timestamped temporary database, performs a minimal PostGIS/users query, and drops only that temporary database. `restore-minio-verify.sh` restores only into a timestamped temporary bucket, lists the restored objects, and deletes only that temporary bucket. `rollback-release.sh` switches only code/images after readiness succeeds; it does not run destructive database migrations and does not remove PostgreSQL, Redis, MinIO, Traefik, volumes, releases, or backups.
+`restore-verify.sh` verifies the checksum, restores only into a timestamped temporary database, performs a minimal PostGIS/users query, and drops only that temporary database. `restore-minio-verify.sh` restores only into a timestamped temporary bucket, lists the restored objects, and deletes only that temporary bucket. Without arguments, `rollback-release.sh` uses the exact `old_sha` recorded by the current deployment instead of guessing from directory timestamps; the explicit SHA form is only for legacy recovery when metadata is absent. Rollback switches only code/images after readiness succeeds; it does not run destructive database migrations and does not remove PostgreSQL, Redis, MinIO, Traefik, volumes, releases, or backups.
 
 ## Incidents and credential rotation
 
