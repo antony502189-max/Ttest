@@ -24,7 +24,17 @@ cleanup() { rm -f "$temporary_archive"; }
 trap cleanup EXIT
 
 "${compose[@]}" run --rm -T --entrypoint /bin/sh minio-init -ec '
-  mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
+  ready=0
+  attempt=0
+  while [ "$attempt" -lt 60 ]; do
+    if mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+  [ "$ready" -eq 1 ] || { echo "MinIO did not become ready for backup" >&2; exit 65; }
   busybox mkdir -p /tmp/minio-backup
   mc mirror --overwrite "local/$S3_BUCKET" /tmp/minio-backup >/dev/null
   (
