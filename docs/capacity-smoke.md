@@ -15,10 +15,10 @@ The tool fails closed unless all of the following are true:
 - redirects, environment proxies, cache reuse, non-JSON responses and responses above 64 KiB are rejected;
 - requests, concurrency, start rate and timeout remain inside hard-coded limits.
 
-Run it on the VPS against the public production origin after deploying a merged `main` SHA:
+Run it on the VPS against the public production origin after deploying a merged `main` SHA. Copy the exact 40-character squash commit from GitHub; do not derive it from the VPS `current` symlink:
 
 ```bash
-sha="$(basename "$(readlink -f /srv/112233.es/current)")"
+sha="<40-character merged main SHA>"
 python3 /srv/112233.es/current/scripts/capacity_smoke.py \
   --base-url "https://app.112233.es" \
   --allow-host "app.112233.es" \
