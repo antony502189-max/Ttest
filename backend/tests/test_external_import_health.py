@@ -34,3 +34,7 @@ def test_worker_counts_only_useful_successful_sources() -> None:
         "Idealista": counters(result="blocked"),
     }
     assert _successful_source_names(result) == ["Fotocasa"]
+
+
+def test_partial_source_never_counts_as_healthy() -> None:
+    assert _successful_source_names({"Pisos": counters(result="partial")}) == []
