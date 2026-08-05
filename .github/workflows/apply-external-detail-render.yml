@@ -24,12 +24,14 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
+          from textwrap import dedent, indent
 
           path = Path("backend/app/external_sources.py")
           text = path.read_text(encoding="utf-8")
 
           marker = "def meta_content(document: str, name: str) -> str:\n"
-          helper = '''def detail_document_has_listing_signals(document: str) -> bool:
+          helper = dedent(r'''\
+          def detail_document_has_listing_signals(document: str) -> bool:
               """Return whether a detail response contains usable public listing data.
 
               A 200 response can be only an application shell. In that case the caller
@@ -56,60 +58,92 @@ jobs:
               return bool(title and has_price and has_room)
 
 
-          '''
+          ''')
           if text.count(marker) != 1 or "def detail_document_has_listing_signals" in text:
               raise SystemExit("unexpected detail signal helper state")
           text = text.replace(marker, helper + marker)
 
-          fetch_replacement = '''    async def fetch_listing(self, url: str) -> str | None:
-              document = await self.request(url)
-              if not document or detail_document_has_listing_signals(document):
-                  return document
-              if get_settings().external_import_playwright_enabled:
-                  rendered = await self.render_public_page(url)
-                  if rendered:
-                      return rendered
-              return document
+          class_marker = "    max_discovery_pages = 30\n    removed_markers: tuple[str, ...] = ("
+          class_replacement = "    max_discovery_pages = 30\n    render_incomplete_detail = False\n    removed_markers: tuple[str, ...] = ("
+          if text.count(class_marker) != 1:
+              raise SystemExit("unexpected source class configuration")
+          text = text.replace(class_marker, class_replacement)
 
-              def parse_listing'''
+          fetch_block = indent(
+              dedent('''\
+              async def fetch_listing(self, url: str) -> str | None:
+                  document = await self.request(url)
+                  if not self.render_incomplete_detail or not document or detail_document_has_listing_signals(document):
+                      return document
+                  if get_settings().external_import_playwright_enabled:
+                      rendered = await self.render_public_page(url)
+                      if rendered:
+                          return rendered
+                  return document
+              '''),
+              "    ",
+          )
           fetch_pattern = r"    async def fetch_listing\(self, url: str\) -> str \| None:\n.*?\n\n    def parse_listing"
-          text, fetch_count = re.subn(fetch_pattern, fetch_replacement, text, count=1, flags=re.DOTALL)
+          fetch_replacement = fetch_block + "\n\n    def parse_listing"
+          text, fetch_count = re.subn(
+              fetch_pattern,
+              lambda _: fetch_replacement,
+              text,
+              count=1,
+              flags=re.DOTALL,
+          )
           if fetch_count != 1:
               raise SystemExit(f"expected one fetch_listing, replaced {fetch_count}")
 
-          candidate_replacement = '''        candidates = [
-              item
-              for item in state
-              if first_text(item, "title", "headline", "name")
-              and (
-                  first_text(item, "description", "detail", "body")
-                  or first_text(item, "priceText", "price", "displayPrice")
-              )
-          ]
-          candidate = max(
-              candidates,
-              key=lambda item: sum(
-                  bool(first_text(item, key))
-                  for key in (
-                      "title",
-                      "headline",
-                      "description",
-                      "detail",
-                      "priceText",
-                      "price",
-                      "displayPrice",
-                      "location",
-                      "municipality",
-                      "city",
+          fotocasa_marker = '''class FotocasaSource(ExternalListingSource):
+              name = "Fotocasa"
+          '''
+          fotocasa_replacement = '''class FotocasaSource(ExternalListingSource):
+              name = "Fotocasa"
+              render_incomplete_detail = True
+          '''
+          if text.count(fotocasa_marker) != 1:
+              raise SystemExit("unexpected Fotocasa class header")
+          text = text.replace(fotocasa_marker, fotocasa_replacement)
+
+          candidate_block = indent(
+              dedent('''\
+              candidates = [
+                  item
+                  for item in state
+                  if first_text(item, "title", "headline", "name")
+                  and (
+                      first_text(item, "description", "detail", "body")
+                      or first_text(item, "priceText", "price", "displayPrice")
                   )
-              ),
-              default={},
+              ]
+              candidate = max(
+                  candidates,
+                  key=lambda item: sum(
+                      bool(first_text(item, key))
+                      for key in (
+                          "title",
+                          "headline",
+                          "description",
+                          "detail",
+                          "priceText",
+                          "price",
+                          "displayPrice",
+                          "location",
+                          "municipality",
+                          "city",
+                      )
+                  ),
+                  default={},
+              )
+              '''),
+              "        ",
           )
-                  heading ='''
           candidate_pattern = r"        candidate = next\(\n.*?\n        \)\n        heading ="
+          candidate_replacement = candidate_block + "\n        heading ="
           text, candidate_count = re.subn(
               candidate_pattern,
-              candidate_replacement,
+              lambda _: candidate_replacement,
               text,
               count=1,
               flags=re.DOTALL,
@@ -127,5 +161,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add backend/app/external_sources.py .github/workflows/apply-external-detail-render.yml
-          git commit -m "fix: render incomplete external detail pages"
+          git commit -m "fix: render incomplete Fotocasa detail pages"
           git push origin HEAD:${{ github.head_ref }}
