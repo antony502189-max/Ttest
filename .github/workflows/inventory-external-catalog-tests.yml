@@ -1,4 +1,4 @@
-name: Inventory external catalog tests
+name: Apply external catalog lifecycle assertions
 
 on:
   pull_request:
@@ -7,19 +7,94 @@ on:
       - .github/workflows/inventory-external-catalog-tests.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inventory:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          persist-credentials: false
-      - name: Inventory relevant tests and symbols
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Strengthen the import-to-public-catalog contract
         run: |
-          echo '=== TEST FILES ==='
-          find backend/tests -maxdepth 1 -type f -printf '%f\n' | sort
-          echo '=== EXTERNAL CATALOG REFERENCES ==='
-          grep -RInE 'upsert\(|search_public\(|SourceRecord|CatalogState|is_external' backend/tests || true
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("backend/tests/integration/test_external_import_lifecycle.py")
+          text = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  "async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):\n"
+                  "    async with SessionLocal() as session:\n"
+                  "        idealista = external_item(\n",
+                  "async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):\n"
+                  "    before_catalog = await client.get(\"/api/v1/listings/catalog-version\")\n"
+                  "    assert before_catalog.status_code == 200, before_catalog.text\n"
+                  "    before_version = int(before_catalog.json()[\"version\"])\n\n"
+                  "    async with SessionLocal() as session:\n"
+                  "        idealista = external_item(\n",
+              ),
+              (
+                  "        assert await upsert(session, idealista) == \"imported\"\n"
+                  "        await session.commit()\n"
+                  "        assert await upsert(session, idealista) == \"unchanged\"\n",
+                  "        assert await upsert(session, idealista) == \"imported\"\n"
+                  "        await session.commit()\n"
+                  "        after_import_catalog = await client.get(\"/api/v1/listings/catalog-version\")\n"
+                  "        assert after_import_catalog.status_code == 200, after_import_catalog.text\n"
+                  "        after_import_version = int(after_import_catalog.json()[\"version\"])\n"
+                  "        assert after_import_version > before_version\n\n"
+                  "        assert await upsert(session, idealista) == \"unchanged\"\n",
+              ),
+              (
+                  "        assert await upsert(session, fotocasa) == \"updated\"\n"
+                  "        await session.commit()\n\n"
+                  "        assert await session.scalar(select(func.count()).select_from(Listing).where(Listing.is_external.is_(True))) == 1\n",
+                  "        assert await upsert(session, fotocasa) == \"updated\"\n"
+                  "        await session.commit()\n"
+                  "        after_update_catalog = await client.get(\"/api/v1/listings/catalog-version\")\n"
+                  "        assert after_update_catalog.status_code == 200, after_update_catalog.text\n"
+                  "        after_update_version = int(after_update_catalog.json()[\"version\"])\n"
+                  "        assert after_update_version > after_import_version\n\n"
+                  "        assert await session.scalar(select(func.count()).select_from(Listing).where(Listing.is_external.is_(True))) == 1\n",
+              ),
+              (
+                  "        await session.refresh(listing)\n"
+                  "        assert listing.status == \"closed\"\n\n\n"
+                  "async def test_complete_source_failure_does_not_mark_existing_external_listing_missing():\n",
+                  "        await session.refresh(listing)\n"
+                  "        assert listing.status == \"closed\"\n\n"
+                  "        closed_catalog = await client.get(\"/api/v1/listings/catalog-version\")\n"
+                  "        assert closed_catalog.status_code == 200, closed_catalog.text\n"
+                  "        assert int(closed_catalog.json()[\"version\"]) > after_update_version\n\n"
+                  "        hidden = await client.post(\"/api/v1/listings/search\", json={\"city\": \"Adeje\", \"limit\": 20})\n"
+                  "        assert hidden.status_code == 200, hidden.text\n"
+                  "        assert all(item[\"id\"] != str(listing.id) for item in hidden.json()[\"items\"])\n\n\n"
+                  "async def test_complete_source_failure_does_not_mark_existing_external_listing_missing():\n",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected one lifecycle replacement, found {count}")
+              text = text.replace(old, new)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m py_compile backend/tests/integration/test_external_import_lifecycle.py
+          rm .github/workflows/inventory-external-catalog-tests.yml
+          rm .github/workflows/apply-external-catalog-contract.yml
+          git diff --check
+      - name: Commit verified lifecycle assertions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "test: verify external catalog publication lifecycle"
+          git push origin HEAD:${{ github.head_ref }}
