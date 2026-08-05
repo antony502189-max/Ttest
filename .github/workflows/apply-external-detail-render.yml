@@ -61,10 +61,7 @@ jobs:
               raise SystemExit("unexpected detail signal helper state")
           text = text.replace(marker, helper + marker)
 
-          old_fetch = '''    async def fetch_listing(self, url: str) -> str | None:
-              return await self.request(url)
-          '''
-          new_fetch = '''    async def fetch_listing(self, url: str) -> str | None:
+          fetch_replacement = '''    async def fetch_listing(self, url: str) -> str | None:
               document = await self.request(url)
               if not document or detail_document_has_listing_signals(document):
                   return document
@@ -73,22 +70,14 @@ jobs:
                   if rendered:
                       return rendered
               return document
-          '''
-          if text.count(old_fetch) != 1:
-              raise SystemExit("unexpected fetch_listing implementation")
-          text = text.replace(old_fetch, new_fetch)
 
-          old_candidate = '''        candidate = next(
-              (
-                  value
-                  for item in state
-                  for value in item.values()
-                  if isinstance(value, dict) and first_text(value, "title", "description", "price")
-              ),
-              {},
-          )
-          '''
-          new_candidate = '''        candidates = [
+              def parse_listing'''
+          fetch_pattern = r"    async def fetch_listing\(self, url: str\) -> str \| None:\n.*?\n\n    def parse_listing"
+          text, fetch_count = re.subn(fetch_pattern, fetch_replacement, text, count=1, flags=re.DOTALL)
+          if fetch_count != 1:
+              raise SystemExit(f"expected one fetch_listing, replaced {fetch_count}")
+
+          candidate_replacement = '''        candidates = [
               item
               for item in state
               if first_text(item, "title", "headline", "name")
@@ -116,10 +105,18 @@ jobs:
               ),
               default={},
           )
-          '''
-          if text.count(old_candidate) != 1:
-              raise SystemExit("unexpected Fotocasa candidate implementation")
-          text = text.replace(old_candidate, new_candidate)
+                  heading ='''
+          candidate_pattern = r"        candidate = next\(\n.*?\n        \)\n        heading ="
+          text, candidate_count = re.subn(
+              candidate_pattern,
+              candidate_replacement,
+              text,
+              count=1,
+              flags=re.DOTALL,
+          )
+          if candidate_count != 1:
+              raise SystemExit(f"expected one Fotocasa candidate, replaced {candidate_count}")
+
           path.write_text(text, encoding="utf-8")
           PY
           python -m py_compile backend/app/external_sources.py backend/app/commands/audit_external_sources.py
