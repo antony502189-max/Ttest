@@ -183,10 +183,42 @@ def strict_check(data: dict[str, Any]) -> bool:
 
 
 def is_room_offer(data: dict[str, Any]) -> bool:
-    corpus = clean(
-        " ".join(str(data.get(key, "")) for key in ("title", "description", "category", "breadcrumbs", "url"))
+    title = clean(data.get("title")).casefold()
+    description = clean(data.get("description")).casefold()
+    identity = clean(
+        " ".join(
+            str(data.get(key, ""))
+            for key in ("title", "category", "breadcrumbs", "url")
+        )
     ).casefold()
-    return any(term in corpus for term in POSITIVE) and not any(term in corpus for term in NEGATIVE)
+    corpus = clean(f"{identity} {description}").casefold()
+    if not any(term in corpus for term in POSITIVE):
+        return False
+
+    wanted_terms = (
+        "busco habitacion",
+        "busco habitación",
+        "busco cuarto",
+        "buscando habitacion",
+        "buscando habitación",
+        "necesito habitacion",
+        "necesito habitación",
+        "busco piso",
+        "busco alojamiento",
+        "se busca habitacion",
+        "se busca habitación",
+    )
+    hard_negative_terms = tuple(term for term in NEGATIVE if term not in wanted_terms)
+    if any(term in identity for term in hard_negative_terms):
+        return False
+    if any(term in clean(f"{title} {data.get('category', '')}").casefold() for term in wanted_terms):
+        return False
+
+    opening = description[:500]
+    offer_markers = ("se alquila", "alquilo", "ofrezco", "disponible", "para alquilar", "en alquiler")
+    if any(term in opening for term in wanted_terms) and not any(marker in opening for marker in offer_markers):
+        return False
+    return True
 
 
 def is_rental(data: dict[str, Any]) -> bool:
@@ -970,7 +1002,8 @@ class ExternalListingSource(ABC):
     def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
         if data.get("deleted") or clean(data.get("status")).casefold() in {"deleted", "removed", "not found"}:
             return None
-        if not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
+        title = clean(data.get("title"))
+        if not title or not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
             return None
         amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
         corpus = clean(
@@ -980,7 +1013,7 @@ class ExternalListingSource(ABC):
         mode = "holiday" if period in {"night", "week"} else "long" if period == "month" or long_hint else None
         # A source category can prove a long-room offer when it omits `/mes`,
         # but it must not turn an obvious whole-property sale price into rent.
-        if amount is None or mode is None or (period is None and amount > 5_000):
+        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
             return None
         room_type = (
             "Habitación compartida"
@@ -1015,7 +1048,7 @@ class ExternalListingSource(ABC):
             self.name,
             external_id,
             url,
-            clean(data.get("title"))[:240],
+            title[:240],
             clean(data.get("description")),
             city,
             city,
