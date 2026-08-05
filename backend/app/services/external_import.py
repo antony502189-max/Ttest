@@ -56,6 +56,15 @@ class SourceRunCounters(dict[str, int]):
 
     result: str = "failed"
 
+
+def completed_source_contract(counters: dict[str, int]) -> bool:
+    """Require evidence that discovery reached at least one valid room detail."""
+    return all(
+        counters.get(key, 0) > 0
+        for key in ("discovered_urls", "fetched_details", "accepted_rooms")
+    )
+
+
 MUNICIPALITY_POINTS = {
     "santa cruz de tenerife": (28.4636, -16.2518),
     "la laguna": (28.4874, -16.3159),
@@ -936,7 +945,13 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         await session.commit()
         if discovery.complete and not partial:
             counters["archived"] += await archive_missing(session, source, started_at)
-        run.result = "partial" if partial or not discovery.complete else "success"
+        completed_contract = completed_source_contract(counters)
+        if discovery.complete and not partial and completed_contract:
+            run.result = "success"
+        else:
+            run.result = "partial"
+            if not completed_contract:
+                run.last_error = "No valid room detail completed the external import contract"
     except SourceBlocked as exc:
         run.result = "blocked"
         run.last_error = str(exc)

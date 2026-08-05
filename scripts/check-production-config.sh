@@ -61,6 +61,7 @@ grep -Fq 'BACKUP_AUTHENTICATION_KEY=' deploy/production.env.example
 grep -Fq 'MAX_MEDIA_ASSETS_PER_USER=100' deploy/production.env.example
 grep -Fq 'MAX_MEDIA_BYTES_PER_USER=268435456' deploy/production.env.example
 grep -Fq 'MAX_LISTING_COLLECTION_ITEMS_PER_USER=500' deploy/production.env.example
+grep -Fq 'EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES=3' deploy/production.env.example
 # A backup manifest must be generated outside the mirrored tree to avoid
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
@@ -131,6 +132,8 @@ if backend_env.get("MAX_MEDIA_BYTES_PER_USER") != "268435456":
     raise SystemExit("backend must receive the per-user media byte quota")
 if backend_env.get("MAX_LISTING_COLLECTION_ITEMS_PER_USER") != "500":
     raise SystemExit("backend must receive the per-user listing collection quota")
+if backend_env.get("EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES") != "3":
+    raise SystemExit("external worker must require three healthy production sources")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
 if config["networks"].get("data", {}).get("internal") is not True:

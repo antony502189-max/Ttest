@@ -1,14 +1,18 @@
-# Public external-source contract schema: 4
+# Public external-source contract schema: 5
 name: External source contract audit
 
 on:
   pull_request:
     branches: [main]
     paths:
+      - backend/app/core/config.py
       - backend/app/external_sources.py
+      - backend/app/services/external_import.py
+      - backend/app/workers/external_listings.py
       - backend/app/commands/audit_external_sources.py
       - backend/tests/test_external_sources.py
       - backend/tests/test_external_source_contract_audit.py
+      - backend/tests/test_external_import_health.py
       - .github/workflows/external-source-contract.yml
   schedule:
     - cron: "17 5 * * *"
@@ -54,6 +58,7 @@ jobs:
         run: |
           pytest -q tests/test_external_sources.py -k 'not live_public_source'
           pytest -q tests/test_external_source_contract_audit.py
+          pytest -q tests/test_external_import_health.py
       - name: Audit public discovery and detail contracts
         working-directory: backend
         run: |

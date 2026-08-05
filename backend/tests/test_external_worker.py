@@ -28,6 +28,7 @@ def worker_settings(**overrides):
         "external_import_enabled": True,
         "external_removal_check_enabled": True,
         "external_import_interval_seconds": 7200,
+        "external_import_min_healthy_sources": 1,
         "external_removal_check_interval_seconds": 900,
         "external_import_run_on_start": True,
         "external_worker_stale_after_seconds": 300,
@@ -97,7 +98,60 @@ def test_all_failed_sources_mark_the_worker_unhealthy(monkeypatch):
 
         await worker.run_once()
         assert states[-1]["health"] == "failed"
-        assert "successful import" in states[-1]["error"]
+        assert "useful import" in states[-1]["error"]
+
+    asyncio.run(verify())
+
+
+def test_worker_fails_when_only_two_of_three_required_sources_are_useful(monkeypatch):
+    class Source:
+        def __init__(self, name: str):
+            self.name = name
+
+    async def verify() -> None:
+        states: list[dict] = []
+
+        async def record_state(**kwargs):
+            states.append(kwargs)
+            return SimpleNamespace()
+
+        class EmptySession:
+            async def __aenter__(self):
+                return object()
+
+            async def __aexit__(self, *args):
+                return None
+
+        async def source_run(_session, source, _run_id):
+            useful = source.name in {"Fotocasa", "Pisos"}
+            values = {
+                "discovered_urls": 1 if useful else 0,
+                "fetched_details": 1 if useful else 0,
+                "accepted_rooms": 1 if useful else 0,
+            }
+            return type(
+                "Counters",
+                (dict,),
+                {"result": "success" if useful else "partial"},
+            )(values)
+
+        monkeypatch.setattr(
+            worker,
+            "get_settings",
+            lambda: worker_settings(redis_url="", external_import_min_healthy_sources=3),
+        )
+        monkeypatch.setattr(
+            worker,
+            "configured_sources",
+            lambda: [Source("Fotocasa"), Source("Pisos"), Source("ThinkSpain")],
+        )
+        monkeypatch.setattr(worker, "SessionLocal", EmptySession)
+        monkeypatch.setattr(worker, "run_source", source_run)
+        monkeypatch.setattr(worker, "worker_state", record_state)
+
+        await worker.run_once()
+        assert states[-1]["health"] == "failed"
+        assert states[-1]["error"] == "Only 2 external sources completed a useful import; 3 required"
 
     asyncio.run(verify())
 
