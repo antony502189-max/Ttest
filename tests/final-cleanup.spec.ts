@@ -170,9 +170,11 @@ test('ACCOUNT-01 deletion clears owned local data, draft and unused media after 
 
 test('CONTACT-07 cooldown survives dialog close and sensitive values are cleared', async ({ page }) => {
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
-  const open = () => page.getByRole('button', { name: 'Enviar mensaje' }).first().click()
+  const contactPanel = page.getByRole('complementary', { name: 'Contactar con el anunciante' })
+  const open = () => contactPanel.getByRole('button', { name: 'Enviar mensaje' }).click()
   await open()
   let dialog = page.getByRole('dialog', { name: 'Enviar un mensaje' })
+  await expect(dialog).toBeVisible()
   await dialog.getByLabel('Nombre').fill('Lucía')
   await dialog.getByLabel('Email o teléfono').fill('lucia@example.es')
   await dialog.getByLabel('Mensaje').fill('Me interesa la habitación y cumplo las condiciones.')
@@ -181,8 +183,10 @@ test('CONTACT-07 cooldown survives dialog close and sensitive values are cleared
   await dialog.getByRole('button', { name: 'Enviar mensaje' }).click()
   await expect(dialog.getByRole('status')).toContainText('Mensaje enviado al anunciante')
   await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
   await open()
   dialog = page.getByRole('dialog', { name: 'Enviar un mensaje' })
+  await expect(dialog).toBeVisible()
   await expect(dialog.getByLabel('Nombre')).toHaveValue('')
   await expect(dialog.getByLabel('Email o teléfono')).toHaveValue('')
   await expect(dialog.getByLabel('Mensaje')).toHaveValue('')

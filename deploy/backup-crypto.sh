@@ -5,6 +5,10 @@
 load_backup_keys() {
   local env_file="$1"
   [[ -r "$env_file" ]] || { echo "missing $env_file" >&2; return 65; }
+  [[ "$(stat -c %a "$env_file")" == "600" ]] || {
+    echo "$env_file must have mode 600" >&2
+    return 65
+  }
 
   # Preserve dotenv values after the first '=' verbatim. Production secrets in
   # this file are intentionally unquoted single-line values.

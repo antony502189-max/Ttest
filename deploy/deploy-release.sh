@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
-# Deploy a commit already reachable from origin/main. Run on the VPS as root.
+# Deploy the exact current origin/main commit. Run on the VPS as root.
 [[ $# -eq 1 ]] || { echo "usage: $0 <main-commit-sha>" >&2; exit 64; }
 SHA="$1"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "a full 40-character SHA is required" >&2; exit 64; }
@@ -10,23 +11,100 @@ REPO="$ROOT/repo"
 RELEASES="$ROOT/releases"
 CURRENT="$ROOT/current"
 ENV_FILE="$ROOT/shared/production.env"
+LOCK_FILE="$ROOT/shared/release.lock"
+
+verify_release_worktree() {
+  local path="$1" expected_sha="$2"
+  local actual_sha common_dir expected_common dirty
+  [[ "$(readlink -f "$path")" == "$(readlink -f "$RELEASES/$expected_sha")" ]] || {
+    echo "release path does not match its expected immutable location: $path" >&2
+    return 65
+  }
+  [[ -e "$path/.git" ]] || { echo "release is not a Git worktree: $path" >&2; return 65; }
+  actual_sha="$(git -C "$path" rev-parse --verify HEAD)"
+  [[ "$actual_sha" == "$expected_sha" ]] || {
+    echo "release HEAD mismatch: expected $expected_sha, found $actual_sha" >&2
+    return 65
+  }
+  common_dir="$(git -C "$path" rev-parse --git-common-dir)"
+  [[ "$common_dir" == /* ]] || common_dir="$path/$common_dir"
+  common_dir="$(readlink -f "$common_dir")"
+  expected_common="$(readlink -f "$REPO/.git")"
+  [[ "$common_dir" == "$expected_common" ]] || {
+    echo "release worktree is not attached to the production repository: $path" >&2
+    return 65
+  }
+  dirty="$(git -C "$path" status --porcelain --untracked-files=all)"
+  [[ -z "$dirty" ]] || {
+    echo "release worktree is not immutable and clean: $path" >&2
+    printf '%s\n' "$dirty" >&2
+    return 65
+  }
+}
+
 [[ -r "$ENV_FILE" ]] || { echo "missing $ENV_FILE" >&2; exit 65; }
 [[ "$(stat -c %a "$ENV_FILE")" == "600" ]] || { echo "$ENV_FILE must have mode 600" >&2; exit 65; }
-mkdir -p "$REPO" "$RELEASES" "$ROOT/backups"
+command -v flock >/dev/null || { echo "flock is required for production release serialization" >&2; exit 69; }
+exec 9>"$LOCK_FILE"
+chmod 600 "$LOCK_FILE"
+flock -n 9 || { echo "another production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
+export RELEASE_LOCK_HELD=1
+mkdir -p "$RELEASES" "$ROOT/backups"
 
 if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/antony502189-max/Ttest.git "$REPO"
 fi
 git -C "$REPO" fetch origin --prune --tags
-git -C "$REPO" merge-base --is-ancestor "$SHA" origin/main || { echo "$SHA is not reachable from origin/main" >&2; exit 65; }
+main_sha="$(git -C "$REPO" rev-parse origin/main)"
+[[ "$SHA" == "$main_sha" ]] || {
+  echo "$SHA is not the current origin/main commit ($main_sha); use rollback-release.sh for an older release" >&2
+  exit 65
+}
+
 release="$RELEASES/$SHA"
 if [[ ! -e "$release/.git" ]]; then
   git -C "$REPO" worktree add --detach "$release" "$SHA"
 fi
+verify_release_worktree "$release" "$SHA"
 compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.production.yml")
 "${compose[@]}" config --quiet
+
 old_sha="none"
-[[ -L "$CURRENT" ]] && old_sha="$(basename "$(readlink -f "$CURRENT")")"
+old_release=""
+if [[ -L "$CURRENT" ]]; then
+  old_release="$(readlink -f "$CURRENT")"
+  [[ -f "$old_release/docker-compose.production.yml" ]] || {
+    echo "current release has no production compose file: $old_release" >&2
+    exit 65
+  }
+  old_sha="$(basename "$old_release")"
+  [[ "$old_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "current release directory is not a full commit SHA" >&2; exit 65; }
+  verify_release_worktree "$old_release" "$old_sha"
+fi
+
+postgres_volume="ttest-production_postgres-data"
+minio_volume="ttest-production_minio-data"
+has_existing_postgres=0
+has_existing_minio=0
+docker volume inspect "$postgres_volume" >/dev/null 2>&1 && has_existing_postgres=1
+docker volume inspect "$minio_volume" >/dev/null 2>&1 && has_existing_minio=1
+if [[ -z "$old_release" ]] && (( has_existing_postgres || has_existing_minio )); then
+  echo "persistent production volumes exist but there is no current release; refusing to touch them without a known backup runtime" >&2
+  exit 65
+fi
+
+if [[ -n "$old_release" ]]; then
+  previous_compose=(docker compose --env-file "$ENV_FILE" -f "$old_release/docker-compose.production.yml")
+  "${previous_compose[@]}" config --quiet
+  previous_data_images="$("${previous_compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py")"
+  new_data_images="$("${compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py")"
+  [[ "$new_data_images" == "$previous_data_images" ]] || {
+    echo "stateful service image changes require a separate controlled data-service migration" >&2
+    diff -u <(printf '%s\n' "$previous_data_images") <(printf '%s\n' "$new_data_images") >&2 || true
+    exit 65
+  }
+fi
+
 metadata="$ROOT/releases/$SHA.deploy-info"
 failure_log="$ROOT/releases/$SHA.failed.log"
 
@@ -37,9 +115,20 @@ rollback_after_failure() {
   "${compose[@]}" logs --no-color > "$failure_log" 2>&1
   if [[ "$old_sha" != "none" && -d "$RELEASES/$old_sha" ]]; then
     previous_compose=(docker compose --env-file "$ENV_FILE" -f "$RELEASES/$old_sha/docker-compose.production.yml")
+    "${previous_compose[@]}" up -d postgres redis minio minio-init
     "${previous_compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
-    if "${previous_compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then
+    restored=0
+    for _ in $(seq 1 30); do
+      if "${previous_compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then
+        restored=1
+        break
+      fi
+      sleep 2
+    done
+    if (( restored )); then
       ln -sfn "$RELEASES/$old_sha" "$CURRENT"
+    else
+      echo "automatic rollback failed readiness; current symlink was not advanced" >&2
     fi
   else
     "${compose[@]}" stop frontend backend mail-worker external-listings-worker
@@ -50,27 +139,41 @@ rollback_after_failure() {
 trap rollback_after_failure ERR
 
 printf 'old_sha=%s\nnew_sha=%s\nstatus=in_progress\ntimestamp=%s\n' "$old_sha" "$SHA" "$(date -u +%FT%TZ)" > "$metadata"
-postgres_volume="ttest-production_postgres-data"
-minio_volume="ttest-production_minio-data"
-has_existing_postgres=0
-has_existing_minio=0
-docker volume inspect "$postgres_volume" >/dev/null 2>&1 && has_existing_postgres=1
-docker volume inspect "$minio_volume" >/dev/null 2>&1 && has_existing_minio=1
-"${compose[@]}" up -d postgres redis minio minio-init
+
 backups="first_deploy:no_existing_persistent_data"
-if (( has_existing_postgres )); then
-  postgres_backup="$(COMPOSE_FILE="$release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-postgres.sh")"
-  backups="postgres=$postgres_backup"
+revision="none"
+if [[ -n "$old_release" ]]; then
+  # Quiesce every writer before the backup and migration boundary. The ERR
+  # trap restores the previous application services if any later step fails.
+  "${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker
+
+  previous_dependencies=()
+  (( has_existing_postgres )) && previous_dependencies+=(postgres)
+  if (( has_existing_minio )); then
+    previous_dependencies+=(minio minio-init)
+  fi
+  if (( ${#previous_dependencies[@]} )); then
+    "${previous_compose[@]}" up -d "${previous_dependencies[@]}"
+  fi
+
+  if (( has_existing_postgres )); then
+    postgres_backup="$(COMPOSE_FILE="$old_release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-postgres.sh")"
+    backups="postgres=$postgres_backup"
+    revision="$("${previous_compose[@]}" run --rm migrate alembic current 2>/dev/null || true)"
+  fi
+  if (( has_existing_minio )); then
+    minio_backup="$(COMPOSE_FILE="$old_release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-minio.sh")"
+    if [[ "$backups" == "first_deploy:"* ]]; then backups="minio=$minio_backup"; else backups="$backups minio=$minio_backup"; fi
+  fi
 fi
-if (( has_existing_minio )); then
-  minio_backup="$(COMPOSE_FILE="$release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-minio.sh")"
-  if [[ "$backups" == "first_deploy:"* ]]; then backups="minio=$minio_backup"; else backups="$backups minio=$minio_backup"; fi
-fi
-revision="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
-printf 'backups=%s\nrevision_before=%s\n' "$backups" "$revision" >> "$metadata"
+printf 'backups=%s\nrevision_before=%s\nbackup_runtime_sha=%s\n' "$backups" "$revision" "$old_sha" >> "$metadata"
+
+# Only after the old runtime has been quiesced and its persistent data backed
+# up may the new release start dependency images or apply migrations.
+"${compose[@]}" up -d postgres redis minio minio-init
 "${compose[@]}" build migrate
 "${compose[@]}" run --rm migrate
-revision_after="$(${compose[@]} run --rm migrate alembic current 2>/dev/null || true)"
+revision_after="$("${compose[@]}" run --rm migrate alembic current 2>/dev/null || true)"
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
 for _ in $(seq 1 30); do
   if "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then break; fi

@@ -9,6 +9,10 @@ ENV_FILE="${ENV_FILE:-$ROOT/shared/production.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-$ROOT/current/docker-compose.production.yml}"
 ARCHIVE="$1"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+command -v flock >/dev/null || { echo "flock is required for production restore serialization" >&2; exit 69; }
+exec 9>"$ROOT/shared/release.lock"
+chmod 600 "$ROOT/shared/release.lock"
+flock -n 9 || { echo "a production deploy, rollback, backup, or restore drill is already running" >&2; exit 75; }
 # shellcheck source=deploy/backup-crypto.sh
 source "$SCRIPT_DIR/backup-crypto.sh"
 
