@@ -69,3 +69,24 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
         assert retention_calls == 1
 
     asyncio.run(verify())
+
+
+def test_worker_heartbeats_during_a_long_iteration(monkeypatch):
+    async def verify() -> None:
+        states: list[dict] = []
+        stopping = asyncio.Event()
+
+        async def record_state(**kwargs):
+            states.append(kwargs)
+            return SimpleNamespace()
+
+        monkeypatch.setattr(worker, "worker_state", record_state)
+        task = asyncio.create_task(worker.heartbeat_while_running(stopping, interval_seconds=0.001))
+        await asyncio.sleep(0.01)
+        stopping.set()
+        await task
+
+        assert states
+        assert all(state == {} for state in states)
+
+    asyncio.run(verify())
