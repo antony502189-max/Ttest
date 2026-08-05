@@ -192,3 +192,35 @@ def test_fotocasa_reads_the_nested_listing_object_itself():
     assert normalized is not None
     assert normalized.city == "Arona"
     assert normalized.price_amount == 650
+
+
+def test_normalization_rejects_blank_title_and_nonpositive_price():
+    from app.external_sources import PisoCompartidoSource
+
+    source = PisoCompartidoSource()
+    url = "https://www.pisocompartido.com/habitacion/1007092/"
+    base = {
+        "title": "Habitación en alquiler en Arona",
+        "description": "Se alquila habitación amueblada.",
+        "category": "alquiler habitación",
+        "breadcrumbs": "Arona, Santa Cruz de Tenerife",
+        "url": url,
+        "price_text": "450 €/mes",
+        "city": "Arona",
+    }
+    assert source.normalize_listing({**base, "title": ""}, url) is None
+    assert source.normalize_listing({**base, "price_text": "0 €/mes"}, url) is None
+
+
+def test_listing_identity_is_not_poisoned_by_incidental_description_terms():
+    from app.external_sources import is_room_offer
+
+    assert is_room_offer(
+        {
+            "title": "Habitación en Río Tajo, La Salud",
+            "description": "La vivienda tiene una zona de estudio y busco compañero tranquilo.",
+            "category": "compartir vivienda alquiler habitación",
+            "breadcrumbs": "Santa Cruz de Tenerife",
+            "url": "https://www.fotocasa.es/es/compartir/vivienda/santa-cruz/190133286/d",
+        }
+    )
