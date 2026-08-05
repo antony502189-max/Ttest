@@ -171,37 +171,45 @@ jobs:
               '    raise SystemExit("external worker must require three healthy production sources")\n',
           )
 
+          test_content = """from app.services.external_import import SourceRunCounters, completed_source_contract
+          from app.workers.external_listings import _successful_source_names
+
+
+          def counters(
+              *,
+              result: str = "success",
+              discovered: int = 1,
+              fetched: int = 1,
+              accepted: int = 1,
+          ) -> SourceRunCounters:
+              value = SourceRunCounters(
+                  {
+                      "discovered_urls": discovered,
+                      "fetched_details": fetched,
+                      "accepted_rooms": accepted,
+                  }
+              )
+              value.result = result
+              return value
+
+
+          def test_completed_source_contract_requires_a_valid_room_detail() -> None:
+              assert completed_source_contract(counters())
+              assert not completed_source_contract(counters(discovered=0))
+              assert not completed_source_contract(counters(fetched=0))
+              assert not completed_source_contract(counters(accepted=0))
+
+
+          def test_worker_counts_only_useful_successful_sources() -> None:
+              result = {
+                  "Fotocasa": counters(),
+                  "ThinkSpain": counters(discovered=0),
+                  "Idealista": counters(result="blocked"),
+              }
+              assert _successful_source_names(result) == ["Fotocasa"]
+          """
           Path("backend/tests/test_external_import_health.py").write_text(
-              '''from app.services.external_import import SourceRunCounters, completed_source_contract\n'
-              'from app.workers.external_listings import _successful_source_names\n\n\n'
-              'def counters(\n'
-              '    *,\n'
-              '    result: str = "success",\n'
-              '    discovered: int = 1,\n'
-              '    fetched: int = 1,\n'
-              '    accepted: int = 1,\n'
-              ') -> SourceRunCounters:\n'
-              '    value = SourceRunCounters(\n'
-              '        {\n'
-              '            "discovered_urls": discovered,\n'
-              '            "fetched_details": fetched,\n'
-              '            "accepted_rooms": accepted,\n'
-              '        }\n'
-              '    )\n'
-              '    value.result = result\n'
-              '    return value\n\n\n'
-              'def test_completed_source_contract_requires_a_valid_room_detail() -> None:\n'
-              '    assert completed_source_contract(counters())\n'
-              '    assert not completed_source_contract(counters(discovered=0))\n'
-              '    assert not completed_source_contract(counters(fetched=0))\n'
-              '    assert not completed_source_contract(counters(accepted=0))\n\n\n'
-              'def test_worker_counts_only_useful_successful_sources() -> None:\n'
-              '    result = {\n'
-              '        "Fotocasa": counters(),\n'
-              '        "ThinkSpain": counters(discovered=0),\n'
-              '        "Idealista": counters(result="blocked"),\n'
-              '    }\n'
-              '    assert _successful_source_names(result) == ["Fotocasa"]\n'''.replace("'\n              '", ""),
+              test_content,
               encoding="utf-8",
           )
           PY
