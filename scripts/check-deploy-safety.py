@@ -7,6 +7,13 @@ from pathlib import Path
 SCRIPT = Path("deploy/deploy-release.sh")
 text = SCRIPT.read_text(encoding="utf-8")
 
+worktree_requirements = (
+    "verify_release_worktree()",
+    "rev-parse --verify HEAD",
+    "rev-parse --git-common-dir",
+    "status --porcelain --untracked-files=all",
+    "release worktree is not immutable and clean",
+)
 required_fragments = {
     "restrictive process umask": "umask 077",
     "exact main SHA gate": '[[ "$SHA" == "$main_sha" ]]',
@@ -14,6 +21,8 @@ required_fragments = {
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
     "non-blocking release serialization": "flock -n 9",
     "inherited release lock": "export RELEASE_LOCK_HELD=1",
+    "new worktree verification": 'verify_release_worktree "$release" "$SHA"',
+    "current worktree verification": 'verify_release_worktree "$old_release" "$old_sha"',
     "stateful image comparison": 'python3 "$release/deploy/data-service-images.py"',
     "stateful image refusal": "stateful service image changes require a separate controlled data-service migration",
     "writer quiescence": '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker',
@@ -25,14 +34,21 @@ required_fragments = {
     "dependency rollback": '"${previous_compose[@]}" up -d postgres redis minio minio-init',
     "bounded automatic rollback readiness": "automatic rollback failed readiness",
 }
+for fragment in worktree_requirements:
+    if fragment not in text:
+        raise SystemExit(f"deploy worktree verification requirement missing: {fragment}")
 for description, fragment in required_fragments.items():
     if fragment not in text:
         raise SystemExit(f"deploy safety check missing {description}: {fragment}")
 
 lock_position = text.index("flock -n 9")
 fetch_position = text.index('git -C "$REPO" fetch')
+new_verify_position = text.index('verify_release_worktree "$release" "$SHA"')
+new_compose_position = text.index('compose=(docker compose')
 if not lock_position < fetch_position:
     raise SystemExit("release lock must be acquired before repository or runtime mutation")
+if not new_verify_position < new_compose_position:
+    raise SystemExit("new release worktree must be verified before Compose reads it")
 
 orphan_refusal_position = text.index("persistent production volumes exist but there is no current release")
 image_gate_position = text.index("stateful service image changes require a separate controlled data-service migration")
@@ -77,9 +93,11 @@ rollback_required = {
     "deployment metadata lookup": 'metadata="$ROOT/releases/$current_sha.deploy-info"',
     "recorded previous SHA": "s/^old_sha=//p",
     "explicit recovery target": "usage: $0 [target-release-sha]",
-    "exact target directory": 'previous="$ROOT/releases/$target_sha"',
+    "exact target directory": 'previous="$RELEASES/$target_sha"',
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
     "non-blocking release serialization": "flock -n 9",
+    "current worktree verification": 'verify_release_worktree "$current" "$current_sha"',
+    "target worktree verification": 'verify_release_worktree "$previous" "$target_sha"',
     "rollback image comparison": 'python3 "$SCRIPT_DIR/data-service-images.py"',
     "rollback image refusal": "rollback across stateful service image changes requires a separate controlled data-service recovery",
     "target dependency activation": '"${compose[@]}" up -d postgres redis minio minio-init',
@@ -88,6 +106,9 @@ rollback_required = {
     "bounded target readiness": "for _ in $(seq 1 30); do",
     "manual incident escalation": "manual incident response is required",
 }
+for fragment in worktree_requirements:
+    if fragment not in rollback_text:
+        raise SystemExit(f"rollback worktree verification requirement missing: {fragment}")
 for description, fragment in rollback_required.items():
     if fragment not in rollback_text:
         raise SystemExit(f"rollback safety check missing {description}: {fragment}")
@@ -95,6 +116,10 @@ if 'find "$ROOT/releases"' in rollback_text or "sort -nr" in rollback_text:
     raise SystemExit("rollback must not infer the target from directory modification times")
 if rollback_text.index("flock -n 9") > rollback_text.index('current="$(readlink -f "$CURRENT")"'):
     raise SystemExit("rollback lock must be acquired before release state is read")
+if rollback_text.index('verify_release_worktree "$current" "$current_sha"') > rollback_text.index('current_compose=(docker compose'):
+    raise SystemExit("current release worktree must be verified before Compose reads it")
+if rollback_text.index('verify_release_worktree "$previous" "$target_sha"') > rollback_text.index('compose=(docker compose'):
+    raise SystemExit("rollback target worktree must be verified before Compose reads it")
 if rollback_text.index("rollback across stateful service image changes") > rollback_text.index("trap restore_current_after_failure ERR"):
     raise SystemExit("rollback image compatibility must fail before target runtime mutation")
 if rollback_text.index("trap restore_current_after_failure ERR") > rollback_text.index('"${compose[@]}" up -d postgres redis minio minio-init'):
@@ -123,6 +148,10 @@ for backup_path, readiness_fragments in (
     for fragment in required:
         if fragment not in backup_text:
             raise SystemExit(f"{backup_path} safety requirement missing: {fragment}")
+
+backup_crypto_text = Path("deploy/backup-crypto.sh").read_text(encoding="utf-8")
+if 'stat -c %a "$env_file"' not in backup_crypto_text or "must have mode 600" not in backup_crypto_text:
+    raise SystemExit("shared backup key loader must reject non-private production env files")
 
 for restore_path in (Path("deploy/restore-verify.sh"), Path("deploy/restore-minio-verify.sh")):
     restore_text = restore_path.read_text(encoding="utf-8")
