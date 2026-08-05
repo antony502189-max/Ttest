@@ -75,33 +75,35 @@ jobs:
           if count != 1:
               raise SystemExit(f"expected one is_room_offer function, replaced {count}")
 
-          old_gate = '''        if not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
-              return None
-          amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
-          '''
-          new_gate = '''        title = clean(data.get("title"))
-          if not title or not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
-              return None
-          amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
-          '''
+          old_gate = (
+              "        if not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):\n"
+              "            return None\n"
+              "        amount, currency, period, price_is_from = parse_price(str(data.get(\"price_text\", \"\")))\n"
+          )
+          new_gate = (
+              "        title = clean(data.get(\"title\"))\n"
+              "        if not title or not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):\n"
+              "            return None\n"
+              "        amount, currency, period, price_is_from = parse_price(str(data.get(\"price_text\", \"\")))\n"
+          )
           if text.count(old_gate) != 1:
               raise SystemExit("unexpected normalization classification gate")
           text = text.replace(old_gate, new_gate)
 
-          old_price = '''        if amount is None or mode is None or (period is None and amount > 5_000):
-              return None
-          '''
-          new_price = '''        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
-              return None
-          '''
+          old_price = (
+              "        if amount is None or mode is None or (period is None and amount > 5_000):\n"
+              "            return None\n"
+          )
+          new_price = (
+              "        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):\n"
+              "            return None\n"
+          )
           if text.count(old_price) != 1:
               raise SystemExit("unexpected normalization price gate")
           text = text.replace(old_price, new_price)
 
-          old_title = '''            clean(data.get("title"))[:240],
-          '''
-          new_title = '''            title[:240],
-          '''
+          old_title = "            clean(data.get(\"title\"))[:240],\n"
+          new_title = "            title[:240],\n"
           if text.count(old_title) != 1:
               raise SystemExit("unexpected normalized title assignment")
           text = text.replace(old_title, new_title)
