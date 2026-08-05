@@ -1,0 +1,134 @@
+name: Apply external detail rendering fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-external-detail-render.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Apply bounded detail rendering and Fotocasa state extraction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("backend/app/external_sources.py")
+          text = path.read_text(encoding="utf-8")
+
+          marker = "def meta_content(document: str, name: str) -> str:\n"
+          helper = '''def detail_document_has_listing_signals(document: str) -> bool:
+              """Return whether a detail response contains usable public listing data.
+
+              A 200 response can be only an application shell. In that case the caller
+              may use the existing anonymous Chromium fallback, without interacting with
+              challenges or authentication.
+              """
+              title = meta_content(document, "og:title")
+              if not title:
+                  heading = re.search(r"<h1[^>]*>(.*?)</h1>", document, re.IGNORECASE | re.DOTALL)
+                  title = clean(heading.group(1)) if heading else ""
+              if not title:
+                  structured = json_ld(document) + embedded_json(document)
+                  title = next(
+                      (
+                          first_text(item, "name", "title", "headline")
+                          for item in structured
+                          if first_text(item, "name", "title", "headline")
+                      ),
+                      "",
+                  )
+              corpus = clean(document).casefold()
+              has_price = bool(re.search(r"[\d.]+(?:,\d+)?\s*€", corpus))
+              has_room = any(term in corpus for term in POSITIVE)
+              return bool(title and has_price and has_room)
+
+
+          '''
+          if text.count(marker) != 1 or "def detail_document_has_listing_signals" in text:
+              raise SystemExit("unexpected detail signal helper state")
+          text = text.replace(marker, helper + marker)
+
+          old_fetch = '''    async def fetch_listing(self, url: str) -> str | None:
+              return await self.request(url)
+          '''
+          new_fetch = '''    async def fetch_listing(self, url: str) -> str | None:
+              document = await self.request(url)
+              if not document or detail_document_has_listing_signals(document):
+                  return document
+              if get_settings().external_import_playwright_enabled:
+                  rendered = await self.render_public_page(url)
+                  if rendered:
+                      return rendered
+              return document
+          '''
+          if text.count(old_fetch) != 1:
+              raise SystemExit("unexpected fetch_listing implementation")
+          text = text.replace(old_fetch, new_fetch)
+
+          old_candidate = '''        candidate = next(
+              (
+                  value
+                  for item in state
+                  for value in item.values()
+                  if isinstance(value, dict) and first_text(value, "title", "description", "price")
+              ),
+              {},
+          )
+          '''
+          new_candidate = '''        candidates = [
+              item
+              for item in state
+              if first_text(item, "title", "headline", "name")
+              and (
+                  first_text(item, "description", "detail", "body")
+                  or first_text(item, "priceText", "price", "displayPrice")
+              )
+          ]
+          candidate = max(
+              candidates,
+              key=lambda item: sum(
+                  bool(first_text(item, key))
+                  for key in (
+                      "title",
+                      "headline",
+                      "description",
+                      "detail",
+                      "priceText",
+                      "price",
+                      "displayPrice",
+                      "location",
+                      "municipality",
+                      "city",
+                  )
+              ),
+              default={},
+          )
+          '''
+          if text.count(old_candidate) != 1:
+              raise SystemExit("unexpected Fotocasa candidate implementation")
+          text = text.replace(old_candidate, new_candidate)
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m py_compile backend/app/external_sources.py backend/app/commands/audit_external_sources.py
+          rm .github/workflows/apply-external-detail-render.yml
+          git diff --check
+      - name: Commit verified detail fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/external_sources.py .github/workflows/apply-external-detail-render.yml
+          git commit -m "fix: render incomplete external detail pages"
+          git push origin HEAD:${{ github.head_ref }}
