@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Listing, Message, MessageThread, User
 from ..repositories.messages import get_or_create_thread, thread_list_query, thread_messages
 from ..schemas.messages import MessageResponse, ThreadResponse
 from .mail import enqueue_message_notification
+
+MAX_MESSAGES_PER_MINUTE = 30
 
 
 def participant(thread: MessageThread, user: User) -> bool:
@@ -38,6 +41,24 @@ def public_message(message: Message) -> MessageResponse:
         createdAt=message.created_at,
         readAt=message.read_at,
     )
+
+
+async def enforce_message_rate_limit(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize and bound message creation for one authenticated account."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"message-send:{user_id}"},
+    )
+    recent = await session.scalar(
+        select(func.count())
+        .select_from(Message)
+        .where(
+            Message.sender_id == user_id,
+            Message.created_at > datetime.now(UTC) - timedelta(minutes=1),
+        )
+    )
+    if int(recent or 0) >= MAX_MESSAGES_PER_MINUTE:
+        raise HTTPException(429, "Too many messages; try again later")
 
 
 async def list_user_threads(
@@ -107,6 +128,7 @@ async def _append_message(
     value = body.strip()
     if not value:
         raise HTTPException(422, "Message body cannot be empty")
+    await enforce_message_rate_limit(user.id, session)
     message = Message(thread_id=thread.id, sender_id=user.id, body=value)
     thread.last_message_at = datetime.now(UTC)
     session.add(message)
