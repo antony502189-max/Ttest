@@ -10,16 +10,24 @@ text = SCRIPT.read_text(encoding="utf-8")
 required_fragments = {
     "exact main SHA gate": '[[ "$SHA" == "$main_sha" ]]',
     "historical release guidance": "use rollback-release.sh for an older release",
+    "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
+    "non-blocking release serialization": "flock -n 9",
     "writer quiescence": '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker',
     "old PostgreSQL backup runtime": 'COMPOSE_FILE="$old_release/docker-compose.production.yml"',
     "audited PostgreSQL backup script": '"$release/deploy/backup-postgres.sh"',
     "audited MinIO backup script": '"$release/deploy/backup-minio.sh"',
     "orphan-volume refusal": "persistent production volumes exist but there is no current release",
     "backup runtime metadata": "backup_runtime_sha=%s",
+    "bounded automatic rollback readiness": "automatic rollback failed readiness",
 }
 for description, fragment in required_fragments.items():
     if fragment not in text:
         raise SystemExit(f"deploy safety check missing {description}: {fragment}")
+
+lock_position = text.index("flock -n 9")
+fetch_position = text.index('git -C "$REPO" fetch')
+if not lock_position < fetch_position:
+    raise SystemExit("release lock must be acquired before repository or runtime mutation")
 
 orphan_refusal_position = text.index("persistent production volumes exist but there is no current release")
 metadata_position = text.index("status=in_progress")
@@ -54,12 +62,21 @@ rollback_required = {
     "recorded previous SHA": "s/^old_sha=//p",
     "explicit recovery target": "usage: $0 [target-release-sha]",
     "exact target directory": 'previous="$ROOT/releases/$target_sha"',
+    "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
+    "non-blocking release serialization": "flock -n 9",
+    "current release recovery": "restore_current_after_failure",
+    "bounded target readiness": "for _ in $(seq 1 30); do",
+    "manual incident escalation": "manual incident response is required",
 }
 for description, fragment in rollback_required.items():
     if fragment not in rollback_text:
         raise SystemExit(f"rollback safety check missing {description}: {fragment}")
 if 'find "$ROOT/releases"' in rollback_text or "sort -nr" in rollback_text:
     raise SystemExit("rollback must not infer the target from directory modification times")
+if rollback_text.index("flock -n 9") > rollback_text.index('current="$(readlink -f "$CURRENT")"'):
+    raise SystemExit("rollback lock must be acquired before release state is read")
+if rollback_text.index("trap restore_current_after_failure ERR") > rollback_text.index('"${compose[@]}" up -d --build'):
+    raise SystemExit("rollback recovery trap must be armed before target containers are changed")
 
 postgres_backup_text = Path("deploy/backup-postgres.sh").read_text(encoding="utf-8")
 if "pg_isready" not in postgres_backup_text or "seq 1 60" not in postgres_backup_text:
