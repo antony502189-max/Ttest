@@ -8,7 +8,26 @@ LOCK_FILE="${LOCK_FILE:-$ROOT/shared/release.lock}"
 DISK_WARNING_PERCENT="${DISK_WARNING_PERCENT:-70}"
 DISK_CRITICAL_PERCENT="${DISK_CRITICAL_PERCENT:-85}"
 
+maintenance() {
+  echo "MAINTENANCE: release operation lock is held"
+  exit 75
+}
+
+release_in_progress() {
+  local lock_fd
+  [[ -e "$LOCK_FILE" ]] || return 1
+  exec {lock_fd}<"$LOCK_FILE" || return 1
+  if flock -n "$lock_fd"; then
+    flock -u "$lock_fd"
+    exec {lock_fd}<&-
+    return 1
+  fi
+  exec {lock_fd}<&-
+  return 0
+}
+
 critical() {
+  release_in_progress && maintenance
   printf 'CRITICAL: %s\n' "$*" >&2
   exit 1
 }
@@ -45,15 +64,13 @@ require_uint DISK_CRITICAL_PERCENT "$DISK_CRITICAL_PERCENT"
 (( DISK_WARNING_PERCENT < DISK_CRITICAL_PERCENT )) || critical "disk warning threshold must be below critical threshold"
 (( DISK_CRITICAL_PERCENT <= 100 )) || critical "disk critical threshold must be <= 100"
 
-# Avoid false alarms while deploy/rollback/backup/restore owns the shared release lock.
-# Exit 75 is deliberately distinct from warning/critical and can be treated as maintenance.
-if [[ -e "$LOCK_FILE" ]]; then
-  exec 9<"$LOCK_FILE"
-  if ! flock -n 9; then
-    echo "MAINTENANCE: release operation lock is held"
-    exit 75
-  fi
-fi
+command -v flock >/dev/null || critical "flock is required for release-lock inspection"
+
+# Never hold the release lock for the duration of a monitoring run. A monitor
+# must not make a real deploy/rollback/backup/restore fail its non-blocking
+# exclusive lock acquisition. Re-check on critical paths and before verdict to
+# suppress transient failures if a release operation starts concurrently.
+release_in_progress && maintenance
 
 compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 worker_id="$("${compose[@]}" ps -q external-listings-worker)"
@@ -191,9 +208,10 @@ check_disk "$ROOT/backups"
 check_disk /var/lib/docker
 
 if (( ${#criticals[@]} > 0 )); then
-  printf 'CRITICAL: disk usage at or above %s%%: %s\n' "$DISK_CRITICAL_PERCENT" "${criticals[*]}" >&2
-  exit 1
+  critical "disk usage at or above ${DISK_CRITICAL_PERCENT}%: ${criticals[*]}"
 fi
+
+release_in_progress && maintenance
 
 summary="worker=${db_health}, heartbeat_age=${heartbeat_age}s, healthy_sources=${healthy_sources}/${required_sources}, cycle_age=${cycle_age}s, run_id=${last_run_id}"
 if (( ${#warnings[@]} > 0 )); then
