@@ -134,7 +134,8 @@ jobs:
             --build-arg VCS_REF="${GITHUB_SHA}" \
             -t ttest-frontend-static-permissions .
           image_id="$(docker image inspect --format '{{.Id}}' ttest-frontend-static-permissions)"
-          docker run -d --rm --name ttest-frontend-static-permissions \
+          docker run -d --name ttest-frontend-static-permissions \
+            --read-only --tmpfs /tmp --tmpfs /var/cache/nginx --tmpfs /var/run \
             -p 127.0.0.1:18080:8080 "$image_id"
           cleanup() { docker rm -f ttest-frontend-static-permissions >/dev/null 2>&1 || true; }
           trap cleanup EXIT
