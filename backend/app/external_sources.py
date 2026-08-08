@@ -1201,6 +1201,10 @@ class PisoCompartidoSource(ExternalListingSource):
     discovery_urls = ("https://www.pisocompartido.com/habitaciones-santa_cruz_de_tenerife/",)
     removed_markers = ExternalListingSource.removed_markers + ("habitacion no disponible", "anuncio desactivado")
 
+    def is_pagination_url(self, url: str) -> bool:
+        """Do not treat locale-switcher detail links ending in an ID as pages."""
+        return urlparse(url).path.startswith("/habitaciones_") and super().is_pagination_url(url)
+
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         """Extract PisoCompartido's server-rendered detail fields independently."""
         data = super().parse_listing(document, url)
