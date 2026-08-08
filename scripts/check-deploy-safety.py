@@ -24,6 +24,8 @@ required_fragments = {
     "new worktree verification": 'verify_release_worktree "$release" "$SHA"',
     "current worktree verification": 'verify_release_worktree "$old_release" "$old_sha"',
     "stateful image comparison": 'python3 "$release/deploy/data-service-images.py"',
+    "legacy stateful image resolution": 'data-service-images.py" --resolve-local-tags',
+    "legacy runtime image verification": 'current $service container does not match its configured local image',
     "stateful image refusal": "stateful service image changes require a separate controlled data-service migration",
     "writer quiescence": '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker',
     "old PostgreSQL backup runtime": 'COMPOSE_FILE="$old_release/docker-compose.production.yml"',
@@ -80,7 +82,14 @@ if ancestor_gate in text:
     raise SystemExit("historical commits must not pass the normal production deploy path")
 
 image_helper = Path("deploy/data-service-images.py").read_text(encoding="utf-8")
-for fragment in ('("postgres", "redis", "minio")', '"@sha256:"', "Compose config is missing"):
+for fragment in (
+    '("postgres", "redis", "minio")',
+    '"@sha256:"',
+    "Compose config is missing",
+    "--resolve-local-tags",
+    "docker", "image", "inspect",
+    "RepoDigests",
+):
     if fragment not in image_helper:
         raise SystemExit(f"stateful image helper requirement missing: {fragment}")
 

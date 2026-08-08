@@ -96,7 +96,21 @@ fi
 if [[ -n "$old_release" ]]; then
   previous_compose=(docker compose --env-file "$ENV_FILE" -f "$old_release/docker-compose.production.yml")
   "${previous_compose[@]}" config --quiet
-  previous_data_images="$("${previous_compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py")"
+  # Legacy releases may predate digest pinning. Resolve only the exact images
+  # already present on this host, and only after proving those images are the
+  # ones currently running. New releases must remain digest-pinned.
+  for service in postgres redis minio; do
+    running_container="$("${previous_compose[@]}" ps -q "$service")"
+    [[ -n "$running_container" ]] || { echo "current $service container is missing" >&2; exit 65; }
+    configured_image="$("${previous_compose[@]}" config --format json | python3 -c 'import json, sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$service")"
+    running_image_id="$(docker inspect --format '{{.Image}}' "$running_container")"
+    configured_image_id="$(docker image inspect --format '{{.Id}}' "$configured_image")"
+    [[ "$running_image_id" == "$configured_image_id" ]] || {
+      echo "current $service container does not match its configured local image" >&2
+      exit 65
+    }
+  done
+  previous_data_images="$("${previous_compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py" --resolve-local-tags)"
   new_data_images="$("${compose[@]}" config --format json | python3 "$release/deploy/data-service-images.py")"
   [[ "$new_data_images" == "$previous_data_images" ]] || {
     echo "stateful service image changes require a separate controlled data-service migration" >&2
