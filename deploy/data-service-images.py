@@ -75,9 +75,11 @@ def main() -> None:
             image = resolve_local_digest(image)
         else:
             image = canonical_digest_reference(image)
-        normalized_service = dict(service)
-        normalized_service["image"] = image
-        canonical = json.dumps(normalized_service, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        # This guard protects the persistent-data boundary.  Compose service
+        # settings such as networks and health checks may legitimately change
+        # while an application release is deployed; only the stateful image
+        # itself requires a separate controlled data-service migration.
+        canonical = json.dumps({"image": image}, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
         contract_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         print(f"{name} image={image} contract_sha256={contract_hash}")
 

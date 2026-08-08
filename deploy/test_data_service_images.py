@@ -9,7 +9,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-
 MODULE_PATH = Path(__file__).with_name("data-service-images.py")
 SPEC = importlib.util.spec_from_file_location("data_service_images", MODULE_PATH)
 assert SPEC and SPEC.loader
@@ -69,3 +68,31 @@ def test_main_uses_the_same_canonical_reference_for_pinned_target_images(capsys)
     assert "postgres image=postgis/postgis@sha256:abc" in output
     assert "redis image=redis@sha256:def" in output
     assert "minio image=minio/minio@sha256:ghi" in output
+
+
+def test_main_contract_ignores_non_image_compose_settings(capsys) -> None:
+    old_config = {
+        "services": {
+            "postgres": {"image": "postgis/postgis:16-3.4@sha256:abc", "networks": {"application": None}},
+            "redis": {"image": "redis:7.4-alpine@sha256:def", "healthcheck": {"interval": "5s"}},
+            "minio": {"image": "minio/minio:RELEASE@sha256:ghi", "restart": "unless-stopped"},
+        }
+    }
+    new_config = {
+        "services": {
+            "postgres": {"image": "postgis/postgis@sha256:abc", "networks": {"data": None}},
+            "redis": {"image": "redis@sha256:def", "healthcheck": {"interval": "10s"}},
+            "minio": {"image": "minio/minio@sha256:ghi", "restart": "always"},
+        }
+    }
+
+    outputs = []
+    for config in (old_config, new_config):
+        with (
+            patch.object(MODULE.sys, "argv", ["data-service-images.py"]),
+            patch.object(MODULE.sys, "stdin", io.StringIO(json.dumps(config))),
+        ):
+            MODULE.main()
+        outputs.append(capsys.readouterr().out)
+
+    assert outputs[0] == outputs[1]
