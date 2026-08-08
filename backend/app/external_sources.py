@@ -338,6 +338,24 @@ def embedded_json(document: str) -> list[dict[str, Any]]:
     return result
 
 
+def embedded_link_values(document: str) -> list[str]:
+    """Return public application-state string values that may contain URLs.
+
+    Modern result pages can hydrate listing cards from ``__NEXT_DATA__`` while
+    leaving only a small subset of card links in server-rendered markup.
+    ``embedded_json`` already visits every object, so reading direct scalar
+    values covers nested card objects without repeated recursive walks.
+    """
+    values: list[str] = []
+    for item in embedded_json(document):
+        for value in item.values():
+            if isinstance(value, str):
+                values.append(value)
+            elif isinstance(value, list):
+                values.extend(entry for entry in value if isinstance(entry, str))
+    return values
+
+
 def first_text(item: dict[str, Any], *keys: str) -> str:
     return next((clean(item.get(key)) for key in keys if clean(item.get(key))), "")
 
@@ -838,17 +856,23 @@ class ExternalListingSource(ABC):
             if expected_total is None:
                 expected_total = self.visible_result_count(document)
             static_links = LINK.findall(document)
-            has_listing_link = any(self.is_listing_url(urljoin(page, html.unescape(href))) for href in static_links)
+            embedded_links = embedded_link_values(document)
+            has_listing_link = any(
+                self.is_listing_url(urljoin(page, html.unescape(href))) for href in [*static_links, *embedded_links]
+            )
             if not has_listing_link and get_settings().external_import_playwright_enabled:
                 rendered = await self.render_public_page(page)
                 if rendered:
                     static_links = LINK.findall(rendered)
-            for href in static_links:
+                    embedded_links = embedded_link_values(rendered)
+            for href in [*static_links, *embedded_links]:
                 url = urljoin(page, html.unescape(href).split("#", 1)[0])
                 if self.is_listing_url(url):
                     # Gallery/map variants on a card are the same public listing.
                     seen.add(url.split("?", 1)[0])
-                elif self.is_pagination_url(url):
+            for href in static_links:
+                url = urljoin(page, html.unescape(href).split("#", 1)[0])
+                if self.is_pagination_url(url):
                     queue.append(url)
             if not seen and not has_listing_link and re.search(
                 r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE

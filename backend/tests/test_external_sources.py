@@ -321,6 +321,35 @@ def test_discovery_is_partial_when_a_pagination_page_fails():
     asyncio.run(verify())
 
 
+def test_fotocasa_discovery_reads_listing_urls_from_next_data_when_html_has_only_one_card_link():
+    urls = [
+        "https://www.fotocasa.es/es/compartir/vivienda/adeje/amueblado/100001/d",
+        "https://www.fotocasa.es/es/compartir/vivienda/arona/amueblado/100002/d",
+        "https://www.fotocasa.es/es/compartir/vivienda/la-laguna/amueblado/100003/d",
+    ]
+    document = (
+        f'<a href="{urls[0]}">visible card</a>'
+        f'<script id="__NEXT_DATA__" type="application/json">{json.dumps({"props": {"pageProps": {"cards": [{"url": url, "id": str(index)} for index, url in enumerate(urls, 100001)]}}})}</script>'
+        "<p>3 habitaciones</p>"
+    )
+
+    async def verify() -> None:
+        source = FotocasaSource()
+
+        async def request(_: str) -> str:
+            return document
+
+        source.request = request  # type: ignore[method-assign]
+        result = await source.discover_listing_urls()
+        assert result.urls == set(urls)
+        assert result.complete is True
+        assert result.expected_total == 3
+        assert result.reached_last_page is True
+        await source.close()
+
+    asyncio.run(verify())
+
+
 def test_embedded_public_json_fallback_parses_listing_state():
     document = """
     <script id="__NEXT_DATA__" type="application/json">
