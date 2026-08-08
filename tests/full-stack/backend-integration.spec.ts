@@ -2,6 +2,15 @@ import { expect, request as playwrightRequest, test } from '@playwright/test'
 
 const API = 'http://127.0.0.1:8000'
 const API_PREFIX = '/api/v1'
+let nextTestClient = 1
+
+function testClientIp() {
+  // The full-stack backend is shared by the desktop and mobile Playwright
+  // projects.  Use distinct documentation-only client addresses for their
+  // direct API fixtures so the real per-client verification-code limit does
+  // not leak from one independent fixture into another.
+  return `192.0.2.${nextTestClient++}`
+}
 
 const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' = 'any') => ({
   title,
@@ -50,7 +59,10 @@ const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' =
 async function createBackendListing(unique: string, title: string, tenantRequirement: 'any' | 'single-man' = 'any') {
   const api = await playwrightRequest.newContext({
     baseURL: API,
-    extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174' },
+    extraHTTPHeaders: {
+      Origin: 'http://127.0.0.1:4174',
+      'X-Real-IP': testClientIp(),
+    },
   })
   const registration = await api.post(`${API_PREFIX}/auth/register`, {
     data: {
