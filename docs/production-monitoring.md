@@ -7,7 +7,7 @@ This document covers the read-only post-acceptance checks for the VPS deployment
 Run from the active release on the VPS:
 
 ```bash
-/srv/112233.es/current/deploy/production-monitor-check.sh
+bash /srv/112233.es/current/deploy/production-monitor-check.sh
 ```
 
 The script is intentionally read-only. It does not restart containers, modify database rows, delete backups/releases, rotate credentials, or bypass source access controls.
@@ -25,7 +25,7 @@ The default disk thresholds are 70% warning and 85% critical. They can be overri
 
 ```bash
 DISK_WARNING_PERCENT=75 DISK_CRITICAL_PERCENT=90 \
-  /srv/112233.es/current/deploy/production-monitor-check.sh
+  bash /srv/112233.es/current/deploy/production-monitor-check.sh
 ```
 
 ## Exit codes
