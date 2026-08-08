@@ -10,7 +10,7 @@ Run from the active release on the VPS:
 bash /srv/112233.es/current/deploy/production-monitor-check.sh
 ```
 
-The script is intentionally read-only. It does not restart containers, modify database rows, delete backups/releases, rotate credentials, or bypass source access controls.
+The script is intentionally read-only. It does not restart containers, modify database rows, delete backups/releases, rotate credentials, or bypass source access controls. It also does not hold the shared release lock while checking production, so a monitoring probe cannot block a deploy, rollback, backup, or restore drill. The lock is sampled at the beginning, on critical paths, and immediately before the final verdict to suppress maintenance-window false alarms.
 
 It verifies:
 
@@ -19,6 +19,7 @@ It verifies:
 - worker database health is `healthy` or an actively heartbeating `running` cycle;
 - the latest complete import cycle contains the configured distinct source count and at least `EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES` useful `SUCCESS` sources;
 - a useful source has `discovery_complete=true` and positive `discovered_urls`, `fetched_details`, and `accepted_rooms` counters;
+- a warning is emitted when the required healthy-source threshold still passes but one or more configured sources are degraded;
 - when the worker is idle/healthy, the latest complete useful cycle is not older than `EXTERNAL_IMPORT_INTERVAL_SECONDS + EXTERNAL_WORKER_STALE_AFTER_SECONDS`;
 - filesystem usage for `/srv/112233.es/releases`, `/srv/112233.es/backups`, and `/var/lib/docker` remains below configurable warning/critical thresholds.
 
@@ -36,8 +37,8 @@ DISK_WARNING_PERCENT=75 DISK_CRITICAL_PERCENT=90 \
 | Code | Meaning |
 | ---: | --- |
 | `0` | healthy |
-| `1` | critical failure |
-| `2` | warning, currently disk-capacity related |
+| `1` | critical failure, including stale worker/cycle or fewer than the required useful sources |
+| `2` | warning, including degraded configured sources above the minimum threshold or disk warning capacity |
 | `75` | maintenance/release operation in progress; the shared release lock is held |
 
 A monitoring agent should treat `75` as maintenance rather than as a production outage. Deploy, rollback, backup and restore already share the same release lock.
@@ -51,7 +52,7 @@ Recommended alerts:
 - immediate critical alert for exit `1`;
 - warning alert for exit `2`;
 - suppress outage paging for exit `75` while the release operation is bounded and expected;
-- additionally inspect the administrator external-import run history when a source becomes `PARTIAL`, `BLOCKED`, or repeatedly `FAILED` even if the minimum healthy-source threshold remains satisfied.
+- inspect the administrator external-import run history when a warning reports degraded source coverage to identify the exact `PARTIAL`, `BLOCKED`, or `FAILED` source and its counters/diagnostics.
 
 Do not automate CAPTCHA solving, authenticated scraping, robots-policy bypasses, or access-control circumvention to clear a source alert. A blocked source should remain diagnostic evidence while the independent healthy-source threshold protects the catalog.
 
