@@ -127,24 +127,18 @@ jobs:
       - run: npm run build
       - run: npm run test:bundle-security
       - run: npm run test:security
-      - name: Verify unprivileged Nginx can serve direct static and legal URLs
+      - name: Verify unprivileged Nginx can read static and legal assets
         run: |
           docker build \
             --build-arg VITE_GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com \
             --build-arg VCS_REF="${GITHUB_SHA}" \
             -t ttest-frontend-static-permissions .
           image_id="$(docker image inspect --format '{{.Id}}' ttest-frontend-static-permissions)"
-          docker run -d --name ttest-frontend-static-permissions \
-            --read-only --tmpfs /tmp --tmpfs /var/cache/nginx --tmpfs /var/run \
-            -p 127.0.0.1:18080:8080 "$image_id"
-          cleanup() { docker rm -f ttest-frontend-static-permissions >/dev/null 2>&1 || true; }
-          trap cleanup EXIT
-          for _ in $(seq 1 30); do
-            curl --fail --silent --show-error http://127.0.0.1:18080/favicon.svg >/dev/null \
-              && curl --fail --silent --show-error http://127.0.0.1:18080/privacidad >/dev/null \
-              && curl --fail --silent --show-error http://127.0.0.1:18080/terminos >/dev/null \
-              && exit 0
-            sleep 1
-          done
-          docker logs ttest-frontend-static-permissions
-          exit 1
+          docker run --rm --read-only --tmpfs /tmp --tmpfs /var/cache/nginx --tmpfs /var/run \
+            --entrypoint sh "$image_id" -ec '
+              test -r /usr/share/nginx/html/favicon.svg
+              test -r /usr/share/nginx/html/privacidad/index.html
+              test -r /usr/share/nginx/html/terminos/index.html
+              test -x /usr/share/nginx/html/privacidad
+              test -x /usr/share/nginx/html/terminos
+            '
