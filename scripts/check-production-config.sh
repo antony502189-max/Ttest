@@ -28,6 +28,8 @@ docker compose --profile ops -f docker-compose.production.yml config --quiet
 for script in deploy/*.sh; do
   bash -n "$script"
 done
+bash -n scripts/test-production-monitor.sh
+bash scripts/test-production-monitor.sh
 python3 scripts/check-deploy-safety.py
 python3 scripts/check-migration-compatibility.py
 
