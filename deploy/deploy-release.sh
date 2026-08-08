@@ -66,7 +66,7 @@ if [[ ! -e "$release/.git" ]]; then
   git -C "$REPO" worktree add --detach "$release" "$SHA"
 fi
 verify_release_worktree "$release" "$SHA"
-compose=(docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.production.yml")
+compose=(env DEPLOY_SHA="$SHA" docker compose --env-file "$ENV_FILE" -f "$release/docker-compose.production.yml")
 "${compose[@]}" config --quiet
 
 old_sha="none"
@@ -94,7 +94,7 @@ if [[ -z "$old_release" ]] && (( has_existing_postgres || has_existing_minio ));
 fi
 
 if [[ -n "$old_release" ]]; then
-  previous_compose=(docker compose --env-file "$ENV_FILE" -f "$old_release/docker-compose.production.yml")
+  previous_compose=(env DEPLOY_SHA="$old_sha" docker compose --env-file "$ENV_FILE" -f "$old_release/docker-compose.production.yml")
   "${previous_compose[@]}" config --quiet
   # Legacy releases may predate digest pinning. Resolve only the exact images
   # already present on this host, and only after proving those images are the
@@ -128,7 +128,7 @@ rollback_after_failure() {
   set +e
   "${compose[@]}" logs --no-color > "$failure_log" 2>&1
   if [[ "$old_sha" != "none" && -d "$RELEASES/$old_sha" ]]; then
-    previous_compose=(docker compose --env-file "$ENV_FILE" -f "$RELEASES/$old_sha/docker-compose.production.yml")
+    previous_compose=(env DEPLOY_SHA="$old_sha" docker compose --env-file "$ENV_FILE" -f "$RELEASES/$old_sha/docker-compose.production.yml")
     "${previous_compose[@]}" up -d postgres redis minio minio-init
     "${previous_compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
     restored=0
