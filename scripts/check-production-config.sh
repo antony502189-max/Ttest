@@ -18,6 +18,9 @@ export S3_ACCESS_KEY=ci-minio
 export S3_SECRET_KEY=ci-placeholder-password
 export SMTP_HOST=smtp.example.test
 export SMTP_FROM=noreply@example.test
+export SENTRY_DSN=https://ci-public@example.invalid/1
+export SENTRY_TRACES_SAMPLE_RATE=0.05
+export DEPLOY_SHA=0123456789abcdef0123456789abcdef01234567
 export TRAEFIK_NETWORK=traefik-public
 export TRAEFIK_ENTRYPOINT=websecure
 export TRAEFIK_CERT_RESOLVER=letsencrypt
@@ -139,6 +142,12 @@ if backend_env.get("MAX_LISTING_COLLECTION_ITEMS_PER_USER") != "500":
     raise SystemExit("backend must receive the per-user listing collection quota")
 if backend_env.get("EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES") != "3":
     raise SystemExit("external worker must require three healthy production sources")
+if backend_env.get("SENTRY_DSN") != "https://ci-public@example.invalid/1":
+    raise SystemExit("backend must receive the VPS-only Sentry DSN")
+if backend_env.get("SENTRY_TRACES_SAMPLE_RATE") != "0.05":
+    raise SystemExit("backend must receive the Sentry trace sample rate")
+if backend_env.get("SENTRY_RELEASE") != "0123456789abcdef0123456789abcdef01234567":
+    raise SystemExit("backend Sentry release must be derived from the immutable deploy SHA")
 if services["frontend"].get("depends_on", {}).get("backend", {}).get("condition") != "service_healthy":
     raise SystemExit("frontend must wait for a ready backend")
 if config["networks"].get("data", {}).get("internal") is not True:

@@ -21,6 +21,8 @@ required_fragments = {
     "non-blocking release serialization": "flock -n 9",
     "inherited release lock": "export RELEASE_LOCK_HELD=1",
     "new worktree verification": 'verify_release_worktree "$release" "$SHA"',
+    "new release Sentry context": 'compose=(env DEPLOY_SHA="$SHA" docker compose',
+    "previous release Sentry context": 'previous_compose=(env DEPLOY_SHA="$old_sha" docker compose',
     "current worktree verification": 'verify_release_worktree "$old_release" "$old_sha"',
     "stateful image comparison": 'python3 "$release/deploy/data-service-images.py"',
     "legacy stateful image resolution": 'data-service-images.py" --resolve-local-tags',
@@ -45,7 +47,7 @@ for description, fragment in required_fragments.items():
 lock_position = text.index("flock -n 9")
 fetch_position = text.index('git -C "$REPO" fetch')
 new_verify_position = text.index('verify_release_worktree "$release" "$SHA"')
-new_compose_position = text.index('\ncompose=(docker compose')
+new_compose_position = text.index('\ncompose=(env DEPLOY_SHA="$SHA" docker compose')
 if not lock_position < fetch_position:
     raise SystemExit("release lock must be acquired before repository or runtime mutation")
 if not new_verify_position < new_compose_position:
@@ -106,7 +108,9 @@ rollback_required = {
     "shared release lock": 'LOCK_FILE="$ROOT/shared/release.lock"',
     "non-blocking release serialization": "flock -n 9",
     "current worktree verification": 'verify_release_worktree "$current" "$current_sha"',
+    "current release Sentry context": 'current_compose=(env DEPLOY_SHA="$current_sha" docker compose',
     "target worktree verification": 'verify_release_worktree "$previous" "$target_sha"',
+    "target release Sentry context": 'compose=(env DEPLOY_SHA="$target_sha" docker compose',
     "rollback legacy stateful image resolution": 'data-service-images.py" --resolve-local-tags',
     "rollback image refusal": "rollback across stateful service image changes requires a separate controlled data-service recovery",
     "target dependency activation": '"${compose[@]}" up -d postgres redis minio minio-init',
@@ -125,9 +129,9 @@ if 'find "$ROOT/releases"' in rollback_text or "sort -nr" in rollback_text:
     raise SystemExit("rollback must not infer the target from directory modification times")
 if rollback_text.index("flock -n 9") > rollback_text.index('current="$(readlink -f "$CURRENT")"'):
     raise SystemExit("rollback lock must be acquired before release state is read")
-if rollback_text.index('verify_release_worktree "$current" "$current_sha"') > rollback_text.index('current_compose=(docker compose'):
+if rollback_text.index('verify_release_worktree "$current" "$current_sha"') > rollback_text.index('current_compose=(env DEPLOY_SHA="$current_sha" docker compose'):
     raise SystemExit("current release worktree must be verified before Compose reads it")
-if rollback_text.index('verify_release_worktree "$previous" "$target_sha"') > rollback_text.index('\ncompose=(docker compose'):
+if rollback_text.index('verify_release_worktree "$previous" "$target_sha"') > rollback_text.index('\ncompose=(env DEPLOY_SHA="$target_sha" docker compose'):
     raise SystemExit("rollback target worktree must be verified before Compose reads it")
 if rollback_text.index("rollback across stateful service image changes") > rollback_text.index("trap restore_current_after_failure ERR"):
     raise SystemExit("rollback image compatibility must fail before target runtime mutation")

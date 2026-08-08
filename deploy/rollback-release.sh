@@ -56,7 +56,7 @@ current="$(readlink -f "$CURRENT")"
 current_sha="$(basename "$current")"
 [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "current release directory is not a full commit SHA" >&2; exit 65; }
 verify_release_worktree "$current" "$current_sha"
-current_compose=(docker compose --env-file "$ENV_FILE" -f "$current/docker-compose.production.yml")
+current_compose=(env DEPLOY_SHA="$current_sha" docker compose --env-file "$ENV_FILE" -f "$current/docker-compose.production.yml")
 "${current_compose[@]}" config --quiet
 
 if [[ $# -eq 1 ]]; then
@@ -82,7 +82,7 @@ previous="$RELEASES/$target_sha"
 }
 verify_release_worktree "$previous" "$target_sha"
 
-compose=(docker compose --env-file "$ENV_FILE" -f "$previous/docker-compose.production.yml")
+compose=(env DEPLOY_SHA="$target_sha" docker compose --env-file "$ENV_FILE" -f "$previous/docker-compose.production.yml")
 "${compose[@]}" config --quiet
 # A historical target can predate digest pinning.  Resolve any tag-only
 # references from the local image store, just as the forward deploy path does,
