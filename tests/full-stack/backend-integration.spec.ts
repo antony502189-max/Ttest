@@ -3,7 +3,7 @@ import { expect, request as playwrightRequest, test } from '@playwright/test'
 const API = 'http://127.0.0.1:8000'
 const API_PREFIX = '/api/v1'
 
-const listingPayload = (title: string) => ({
+const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' = 'any') => ({
   title,
   city: 'Santa Cruz de Tenerife',
   area: 'Centro',
@@ -29,7 +29,7 @@ const listingPayload = (title: string) => ({
   currentResidents: 2,
   roomCapacity: 1,
   shower: 'Ducha compartida',
-  tenantRequirement: 'any',
+  tenantRequirement,
   smokingAllowed: false,
   petsAllowed: false,
   childrenAllowed: false,
@@ -47,7 +47,7 @@ const listingPayload = (title: string) => ({
   expiresAt: new Date(Date.now() + 60 * 86_400_000).toISOString(),
 })
 
-async function createBackendListing(unique: string, title: string) {
+async function createBackendListing(unique: string, title: string, tenantRequirement: 'any' | 'single-man' = 'any') {
   const api = await playwrightRequest.newContext({
     baseURL: API,
     extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174' },
@@ -75,7 +75,7 @@ async function createBackendListing(unique: string, title: string) {
   expect(confirmed.status()).toBe(204)
   const created = await api.post(`${API_PREFIX}/listings`, {
     headers: { Authorization: `Bearer ${session.accessToken}` },
-    data: listingPayload(title),
+    data: listingPayload(title, tenantRequirement),
   })
   expect(created.status()).toBe(201)
   const listing = await created.json() as { id: string }
@@ -94,6 +94,18 @@ test('frontend renders a listing created through the real FastAPI backend', asyn
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   expect(consoleErrors).toEqual([])
+})
+
+test('unrestricted search does not send a strict tenant requirement to the API', async ({ page }) => {
+  const unique = `${Date.now()}-${test.info().project.name}`
+  const unrestrictedTitle = `HabitaciГіn unrestricted ${unique}`
+  const restrictedTitle = `HabitaciГіn tenant-metadata ${unique}`
+  await createBackendListing(unique, unrestrictedTitle, 'any')
+  await createBackendListing(`${unique}-second`, restrictedTitle, 'single-man')
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&requisito=any')
+  await expect(page.getByText(unrestrictedTitle, { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(restrictedTitle, { exact: true }).first()).toBeVisible()
 })
 
 test('room count filter is executed by the backend and reflected in mobile results', async ({ page }) => {
