@@ -321,6 +321,26 @@ def test_discovery_is_partial_when_a_pagination_page_fails():
     asyncio.run(verify())
 
 
+def test_pisocompartido_discovery_ignores_locale_switcher_detail_links_as_pagination():
+    async def verify() -> None:
+        source = PisoCompartidoSource()
+
+        async def request(_: str) -> str:
+            return (
+                '<a href="/habitacion/1008162/">room</a>'
+                '<a href="/ca/habitacio/1008162/">Catal\u00e0</a>'
+                '<a href="/en/room/1008162/">English</a>'
+            )
+
+        source.request = request  # type: ignore[method-assign]
+        result = await source.discover_listing_urls()
+        assert result.complete is True
+        assert result.visited_pages == 1
+        await source.close()
+
+    asyncio.run(verify())
+
+
 def test_fotocasa_discovery_reads_listing_urls_from_next_data_when_html_has_only_one_card_link():
     urls = [
         "https://www.fotocasa.es/es/compartir/vivienda/adeje/amueblado/100001/d",
