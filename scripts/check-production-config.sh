@@ -32,6 +32,7 @@ python3 scripts/check-deploy-safety.py
 python3 scripts/check-migration-compatibility.py
 
 grep -Fq 'location /api/' deploy/nginx.conf
+grep -Fq 'COPY --chmod=644 deploy/nginx.conf /etc/nginx/conf.d/default.conf' Dockerfile
 grep -Fq 'proxy_pass http://backend:8000;' deploy/nginx.conf
 grep -Fq 'proxy_set_header X-Real-IP $trusted_client_ip;' deploy/nginx.conf
 grep -Fq 'proxy_set_header X-Forwarded-For $trusted_client_ip;' deploy/nginx.conf
