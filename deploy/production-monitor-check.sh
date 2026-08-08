@@ -48,7 +48,7 @@ require_uint DISK_CRITICAL_PERCENT "$DISK_CRITICAL_PERCENT"
 # Avoid false alarms while deploy/rollback/backup/restore owns the shared release lock.
 # Exit 75 is deliberately distinct from warning/critical and can be treated as maintenance.
 if [[ -e "$LOCK_FILE" ]]; then
-  exec 9<>"$LOCK_FILE"
+  exec 9<"$LOCK_FILE"
   if ! flock -n 9; then
     echo "MAINTENANCE: release operation lock is held"
     exit 75
@@ -67,11 +67,14 @@ IFS='|' read -r worker_state worker_health <<<"$worker_runtime"
 postgres_user="$(env_value POSTGRES_USER ttest)"
 postgres_db="$(env_value POSTGRES_DB ttest)"
 stale_after="$(env_value EXTERNAL_WORKER_STALE_AFTER_SECONDS 300)"
+import_interval="$(env_value EXTERNAL_IMPORT_INTERVAL_SECONDS 7200)"
 required_sources="$(env_value EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES 3)"
 configured_sources="$(env_value EXTERNAL_IMPORT_SOURCES 'idealista,fotocasa,milanuncios,pisocompartido,pisos,thinkspain')"
 
 require_uint EXTERNAL_WORKER_STALE_AFTER_SECONDS "$stale_after"
+require_uint EXTERNAL_IMPORT_INTERVAL_SECONDS "$import_interval"
 require_uint EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES "$required_sources"
+(( import_interval > 0 )) || critical "EXTERNAL_IMPORT_INTERVAL_SECONDS must be positive"
 
 configured_count=0
 IFS=',' read -ra source_names <<<"$configured_sources"
@@ -102,6 +105,7 @@ state_row="$(
 
 IFS='|' read -r db_health heartbeat_age last_success_age <<<"$state_row"
 require_uint heartbeat_age "${heartbeat_age#-}"
+require_uint last_success_age "${last_success_age#-}"
 if (( heartbeat_age < 0 )); then
   critical "external worker heartbeat is missing"
 fi
@@ -124,8 +128,8 @@ cycle_row="$(
         SELECT
           run_id,
           MAX(finished_at) AS finished_at,
-          COUNT(*) AS source_runs,
-          COUNT(*) FILTER (
+          COUNT(DISTINCT source_name) AS source_runs,
+          COUNT(DISTINCT source_name) FILTER (
             WHERE result = 'success'
               AND discovery_complete IS TRUE
               AND COALESCE((counters->>'discovered_urls')::int, 0) > 0
@@ -135,7 +139,7 @@ cycle_row="$(
         FROM external_import_runs
         WHERE finished_at IS NOT NULL
         GROUP BY run_id
-        HAVING COUNT(*) >= ${configured_count}
+        HAVING COUNT(DISTINCT source_name) >= ${configured_count}
       )
       SELECT
         run_id,
@@ -155,6 +159,18 @@ if (( healthy_sources < required_sources )); then
   critical "latest complete import cycle has ${healthy_sources} healthy sources; ${required_sources} required"
 fi
 
+# An idle healthy worker must have completed a useful full cycle recently.
+# While a fresh `running` heartbeat exists, do not page merely because the
+# previous cycle crossed the normal schedule interval: the current cycle may
+# legitimately still be processing source details/images.
+max_idle_cycle_age=$((import_interval + stale_after))
+if [[ "$db_health" == "healthy" ]] && (( cycle_age > max_idle_cycle_age )); then
+  critical "latest complete import cycle is stale (${cycle_age}s > ${max_idle_cycle_age}s)"
+fi
+if [[ "$db_health" == "healthy" ]] && (( last_success_age < 0 )); then
+  critical "external worker has no recorded successful cycle"
+fi
+
 warnings=()
 criticals=()
 check_disk() {
@@ -170,7 +186,8 @@ check_disk() {
   fi
 }
 
-check_disk "$ROOT"
+check_disk "$ROOT/releases"
+check_disk "$ROOT/backups"
 check_disk /var/lib/docker
 
 if (( ${#criticals[@]} > 0 )); then
