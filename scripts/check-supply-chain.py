@@ -15,6 +15,10 @@ DOCKER_FROM = re.compile(r"^\s*FROM\s+(?:--platform=\S+\s+)?([^\s]+)", re.IGNORE
 COMPOSE_IMAGE = re.compile(r"^\s*image:\s*([^\s#]+)", re.MULTILINE)
 DOCKER_RUN = re.compile(r"\bdocker\s+run\b")
 PINNED_IMAGE_IN_COMMAND = re.compile(r"[^\s\'\"]+@sha256:[0-9a-f]{64}")
+# CI may launch an image that was built earlier in the same job by its Docker
+# image ID.  That `sha256:` ID is content-addressed, unlike a mutable tag.
+LOCAL_IMAGE_ID_RUN = re.compile(r"\bdocker\s+run\b.*\$image_id")
+LOCAL_IMAGE_ID_ASSIGNMENT = 'image_id="$(docker image inspect --format \'{{.Id}}\''
 
 
 def fail(message: str) -> None:
@@ -89,7 +93,10 @@ def check_docker_run_images() -> None:
     for path in paths:
         content = path.read_text(encoding="utf-8").replace("\\\n", " ")
         for line_number, line in enumerate(content.splitlines(), start=1):
-            if DOCKER_RUN.search(line) and not PINNED_IMAGE_IN_COMMAND.search(line):
+            local_image_id = LOCAL_IMAGE_ID_RUN.search(line)
+            if local_image_id and LOCAL_IMAGE_ID_ASSIGNMENT not in content:
+                fail(f"{path.relative_to(ROOT)} uses an unverified local image ID")
+            if DOCKER_RUN.search(line) and not (PINNED_IMAGE_IN_COMMAND.search(line) or local_image_id):
                 fail(f"{path.relative_to(ROOT)}:{line_number} uses docker run without an immutable image digest")
 
 

@@ -127,3 +127,18 @@ jobs:
       - run: npm run build
       - run: npm run test:bundle-security
       - run: npm run test:security
+      - name: Verify unprivileged Nginx can read static and legal assets
+        run: |
+          docker build \
+            --build-arg VITE_GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            -t ttest-frontend-static-permissions .
+          image_id="$(docker image inspect --format '{{.Id}}' ttest-frontend-static-permissions)"
+          docker run --rm --read-only --tmpfs /tmp --tmpfs /var/cache/nginx --tmpfs /var/run \
+            --entrypoint sh "$image_id" -ec '
+              test -r /usr/share/nginx/html/favicon.svg
+              test -r /usr/share/nginx/html/privacidad/index.html
+              test -r /usr/share/nginx/html/terminos/index.html
+              test -x /usr/share/nginx/html/privacidad
+              test -x /usr/share/nginx/html/terminos
+            '

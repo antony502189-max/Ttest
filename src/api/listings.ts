@@ -268,7 +268,11 @@ export function searchPublicListings(input: ListingSearchInput) {
     ...(filters.available ? { availableFrom: filters.available } : {}),
     ...(filters.minStay !== 'Cualquiera' ? { maxMinimumStayMonths: Number(filters.minStay) } : {}),
     ...(filters.conditions.length ? { restrictions: filters.conditions } : {}),
-    ...(filters.tenantRequirement !== 'Cualquiera' ? { tenantRequirement: filters.tenantRequirement } : {}),
+    // "Sin restricción" is not a strict advertised-requirement filter.  In
+    // particular, external sources legitimately omit this metadata.
+    ...(filters.tenantRequirement !== 'Cualquiera' && filters.tenantRequirement !== 'any'
+      ? { tenantRequirement: filters.tenantRequirement }
+      : {}),
     ...(filters.bathroom !== 'Cualquiera' ? { bathroom: filters.bathroom } : {}),
     ...(filters.kitchen !== 'Cualquiera' ? { kitchen: filters.kitchen } : {}),
     ...(filters.furnished ? { furnished: true } : {}),

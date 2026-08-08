@@ -12,6 +12,11 @@ function normalizeTenantRequirements(value: unknown): TenantRequirement[] {
 }
 
 export function getTenantRequirements(filters: Filters): TenantRequirement[] {
+  // "Sin restricción" expresses the searcher's preference, not a requirement
+  // that the advertiser has explicitly stored the `any` value.  Imported
+  // listings often have no tenant restriction metadata, so treating `any` as
+  // a strict value made the default onboarding search hide those listings.
+  if (filters.tenantRequirement === 'any') return []
   if (filters.tenantRequirement !== 'Cualquiera') return [filters.tenantRequirement]
   return normalizeTenantRequirements(filters.tenantRequirements)
 }
