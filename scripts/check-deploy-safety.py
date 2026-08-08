@@ -3,7 +3,6 @@
 
 from pathlib import Path
 
-
 SCRIPT = Path("deploy/deploy-release.sh")
 text = SCRIPT.read_text(encoding="utf-8")
 
@@ -108,7 +107,7 @@ rollback_required = {
     "non-blocking release serialization": "flock -n 9",
     "current worktree verification": 'verify_release_worktree "$current" "$current_sha"',
     "target worktree verification": 'verify_release_worktree "$previous" "$target_sha"',
-    "rollback image comparison": 'python3 "$SCRIPT_DIR/data-service-images.py"',
+    "rollback legacy stateful image resolution": 'data-service-images.py" --resolve-local-tags',
     "rollback image refusal": "rollback across stateful service image changes requires a separate controlled data-service recovery",
     "target dependency activation": '"${compose[@]}" up -d postgres redis minio minio-init',
     "current dependency recovery": '"${current_compose[@]}" up -d postgres redis minio minio-init',

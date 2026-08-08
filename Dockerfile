@@ -25,7 +25,10 @@ RUN npm run build \
 FROM nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.revision=$VCS_REF
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+# Git worktrees may be checked out under a restrictive umask.  The pinned
+# nginx-unprivileged image reads its configuration as the non-root nginx user,
+# so make this runtime configuration explicitly world-readable.
+COPY --chmod=644 deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1

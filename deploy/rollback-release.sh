@@ -84,8 +84,11 @@ verify_release_worktree "$previous" "$target_sha"
 
 compose=(docker compose --env-file "$ENV_FILE" -f "$previous/docker-compose.production.yml")
 "${compose[@]}" config --quiet
-current_data_images="$("${current_compose[@]}" config --format json | python3 "$SCRIPT_DIR/data-service-images.py")"
-target_data_images="$("${compose[@]}" config --format json | python3 "$SCRIPT_DIR/data-service-images.py")"
+# A historical target can predate digest pinning.  Resolve any tag-only
+# references from the local image store, just as the forward deploy path does,
+# while retaining the immutable digest comparison below.
+current_data_images="$("${current_compose[@]}" config --format json | python3 "$SCRIPT_DIR/data-service-images.py" --resolve-local-tags)"
+target_data_images="$("${compose[@]}" config --format json | python3 "$SCRIPT_DIR/data-service-images.py" --resolve-local-tags)"
 [[ "$target_data_images" == "$current_data_images" ]] || {
   echo "rollback across stateful service image changes requires a separate controlled data-service recovery" >&2
   diff -u <(printf '%s\n' "$current_data_images") <(printf '%s\n' "$target_data_images") >&2 || true
