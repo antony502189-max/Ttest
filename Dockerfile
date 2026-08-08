@@ -18,9 +18,14 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY \
     VITE_GOOGLE_MAPS_MAP_ID=$VITE_GOOGLE_MAPS_MAP_ID \
     VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+# The runtime image runs as the unprivileged nginx user.  A restrictive
+# checkout umask can otherwise preserve 0600 build artifacts and turn direct
+# static/legal URLs into 403 responses.
 RUN npm run build \
     && npm run test:bundle-security \
-    && printf '{"commit":"%s"}\n' "$VCS_REF" > dist/build-info.json
+    && printf '{"commit":"%s"}\n' "$VCS_REF" > dist/build-info.json \
+    && find dist -type d -exec chmod 755 {} + \
+    && find dist -type f -exec chmod 644 {} +
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
 ARG VCS_REF=unknown
