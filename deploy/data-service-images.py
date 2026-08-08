@@ -73,6 +73,8 @@ def main() -> None:
             if not args.resolve_local_tags or not isinstance(image, str):
                 raise SystemExit(f"{name} must use an immutable digest-pinned image")
             image = resolve_local_digest(image)
+        else:
+            image = canonical_digest_reference(image)
         normalized_service = dict(service)
         normalized_service["image"] = image
         canonical = json.dumps(normalized_service, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
