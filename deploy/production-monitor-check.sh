@@ -176,6 +176,11 @@ if (( healthy_sources < required_sources )); then
   critical "latest complete import cycle has ${healthy_sources} healthy sources; ${required_sources} required"
 fi
 
+source_degraded=0
+if (( healthy_sources < configured_count )); then
+  source_degraded=1
+fi
+
 # An idle healthy worker must have completed a useful full cycle recently.
 # While a fresh `running` heartbeat exists, do not page merely because the
 # previous cycle crossed the normal schedule interval: the current cycle may
@@ -190,6 +195,9 @@ fi
 
 warnings=()
 criticals=()
+if (( source_degraded )); then
+  warnings+=("external_sources=${healthy_sources}/${configured_count} useful in latest complete cycle")
+fi
 check_disk() {
   local path="$1"
   local usage
@@ -215,7 +223,7 @@ release_in_progress && maintenance
 
 summary="worker=${db_health}, heartbeat_age=${heartbeat_age}s, healthy_sources=${healthy_sources}/${required_sources}, cycle_age=${cycle_age}s, run_id=${last_run_id}"
 if (( ${#warnings[@]} > 0 )); then
-  printf 'WARNING: %s; disk usage at or above %s%%: %s\n' "$summary" "$DISK_WARNING_PERCENT" "${warnings[*]}" >&2
+  printf 'WARNING: %s; %s\n' "$summary" "${warnings[*]}" >&2
   exit 2
 fi
 
