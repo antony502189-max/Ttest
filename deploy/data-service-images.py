@@ -15,9 +15,16 @@ def repository_name(image: str) -> str:
     return reference[:colon] if colon > slash else reference
 
 
+def canonical_digest_reference(image: str) -> str:
+    repository, separator, digest = image.partition("@")
+    if separator != "@" or not digest.startswith("sha256:"):
+        raise SystemExit(f"image is not an immutable digest reference: {image}")
+    return f"{repository_name(repository)}@{digest}"
+
+
 def resolve_local_digest(image: str) -> str:
     if "@sha256:" in image:
-        return image
+        return canonical_digest_reference(image)
     completed = subprocess.run(
         ["docker", "image", "inspect", "--format", "{{json .RepoDigests}}", image],
         check=False,
@@ -41,7 +48,7 @@ def resolve_local_digest(image: str) -> str:
     }
     if len(candidates) != 1:
         raise SystemExit(f"legacy image must resolve to exactly one immutable digest: {image}")
-    return candidates.pop()
+    return canonical_digest_reference(candidates.pop())
 
 
 def main() -> None:

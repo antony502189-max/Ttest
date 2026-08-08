@@ -20,6 +20,13 @@ def test_repository_name_ignores_tag_but_keeps_registry_port() -> None:
     assert MODULE.repository_name("registry.example:5000/team/image:1") == "registry.example:5000/team/image"
 
 
+def test_canonical_digest_reference_removes_a_tag_before_the_digest() -> None:
+    assert (
+        MODULE.canonical_digest_reference("postgis/postgis:16-3.4@sha256:abc")
+        == "postgis/postgis@sha256:abc"
+    )
+
+
 def test_resolve_local_digest_uses_matching_repository_digest() -> None:
     completed = SimpleNamespace(
         returncode=0,

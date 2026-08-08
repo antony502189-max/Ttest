@@ -89,6 +89,7 @@ for fragment in (
     "--resolve-local-tags",
     "docker", "image", "inspect",
     "RepoDigests",
+    "canonical_digest_reference",
 ):
     if fragment not in image_helper:
         raise SystemExit(f"stateful image helper requirement missing: {fragment}")
