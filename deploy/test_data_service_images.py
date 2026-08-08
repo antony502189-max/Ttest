@@ -9,7 +9,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-
 MODULE_PATH = Path(__file__).with_name("data-service-images.py")
 SPEC = importlib.util.spec_from_file_location("data_service_images", MODULE_PATH)
 assert SPEC and SPEC.loader
