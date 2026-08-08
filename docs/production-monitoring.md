@@ -17,9 +17,12 @@ It verifies:
 - the `external-listings-worker` container is running and Docker reports its healthcheck as healthy;
 - `external_worker_state` exists and its heartbeat is newer than `EXTERNAL_WORKER_STALE_AFTER_SECONDS`;
 - worker database health is `healthy` or an actively heartbeating `running` cycle;
-- the latest complete import cycle contains the configured source-run count and at least `EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES` useful `SUCCESS` sources;
+- the latest complete import cycle contains the configured distinct source count and at least `EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES` useful `SUCCESS` sources;
 - a useful source has `discovery_complete=true` and positive `discovered_urls`, `fetched_details`, and `accepted_rooms` counters;
-- filesystem usage for `/srv/112233.es` and `/var/lib/docker` remains below configurable warning/critical thresholds.
+- when the worker is idle/healthy, the latest complete useful cycle is not older than `EXTERNAL_IMPORT_INTERVAL_SECONDS + EXTERNAL_WORKER_STALE_AFTER_SECONDS`;
+- filesystem usage for `/srv/112233.es/releases`, `/srv/112233.es/backups`, and `/var/lib/docker` remains below configurable warning/critical thresholds.
+
+The freshness rule deliberately does not fail merely because the previous cycle becomes old while the worker is actively `running` with a fresh heartbeat: a legitimate import may still be processing details or images.
 
 The default disk thresholds are 70% warning and 85% critical. They can be overridden for one invocation without editing production configuration:
 
