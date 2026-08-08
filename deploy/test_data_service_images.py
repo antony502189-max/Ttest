@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -48,3 +50,22 @@ def test_resolve_local_digest_rejects_ambiguous_legacy_image() -> None:
             assert "exactly one immutable digest" in str(exc)
         else:
             raise AssertionError("ambiguous digest resolution must fail closed")
+
+
+def test_main_uses_the_same_canonical_reference_for_pinned_target_images(capsys) -> None:
+    config = {
+        "services": {
+            "postgres": {"image": "postgis/postgis:16-3.4@sha256:abc"},
+            "redis": {"image": "redis:7.4-alpine@sha256:def"},
+            "minio": {"image": "minio/minio:RELEASE@sha256:ghi"},
+        }
+    }
+    with (
+        patch.object(MODULE.sys, "argv", ["data-service-images.py"]),
+        patch.object(MODULE.sys, "stdin", io.StringIO(json.dumps(config))),
+    ):
+        MODULE.main()
+    output = capsys.readouterr().out
+    assert "postgres image=postgis/postgis@sha256:abc" in output
+    assert "redis image=redis@sha256:def" in output
+    assert "minio image=minio/minio@sha256:ghi" in output
