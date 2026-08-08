@@ -133,8 +133,9 @@ jobs:
             --build-arg VITE_GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com \
             --build-arg VCS_REF="${GITHUB_SHA}" \
             -t ttest-frontend-static-permissions .
+          image_id="$(docker image inspect --format '{{.Id}}' ttest-frontend-static-permissions)"
           docker run -d --rm --name ttest-frontend-static-permissions \
-            -p 127.0.0.1:18080:8080 ttest-frontend-static-permissions
+            -p 127.0.0.1:18080:8080 "$image_id"
           cleanup() { docker rm -f ttest-frontend-static-permissions >/dev/null 2>&1 || true; }
           trap cleanup EXIT
           for _ in $(seq 1 30); do
