@@ -70,14 +70,21 @@ def public_listing(
 async def _actionable_listing(listing_id: UUID, session: AsyncSession) -> tuple[Listing, User]:
     """Resolve a listing that may still receive active moderation actions.
 
-    Soft deletion of the owner makes its remaining listing rows historical. They
-    stay in the database for reports/audit integrity but must not be mutated or
-    generate new moderation notices/mail for the deleted account.
+    The admin route already serializes on the Listing row. Lock the owner User
+    row here before deciding it is actionable so account soft-deletion and
+    listing moderation cannot both pass their preconditions and commit in the
+    opposite order. The resulting lock order is Listing -> User -> catalog for
+    listing moderation; account deletion locks User -> catalog and never waits
+    on Listing, so there is no reverse User -> Listing cycle.
     """
     listing = await session.get(Listing, listing_id)
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
-    owner = await session.get(User, listing.owner_user_id)
+    owner = await session.scalar(
+        select(User)
+        .where(User.id == listing.owner_user_id)
+        .with_for_update()
+    )
     if not owner or owner.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     return listing, owner
