@@ -67,15 +67,40 @@ def public_listing(
     )
 
 
+async def _actionable_listing(listing_id: UUID, session: AsyncSession) -> tuple[Listing, User]:
+    """Resolve a listing that may still receive active moderation actions.
+
+    Soft deletion of the owner makes its remaining listing rows historical. They
+    stay in the database for reports/audit integrity but must not be mutated or
+    generate new moderation notices/mail for the deleted account.
+    """
+    listing = await session.get(Listing, listing_id)
+    if not listing or listing.deleted_at is not None:
+        raise HTTPException(404, "Listing not found")
+    owner = await session.get(User, listing.owner_user_id)
+    if not owner or owner.deleted_at is not None:
+        raise HTTPException(404, "Listing not found")
+    return listing, owner
+
+
 async def dashboard_stats(session: AsyncSession) -> AdminStatsResponse:
     users, listings, pending, reports = (
         await session.execute(
             select(
                 select(func.count()).select_from(User).where(User.deleted_at.is_(None)).scalar_subquery(),
-                select(func.count()).select_from(Listing).where(Listing.deleted_at.is_(None)).scalar_subquery(),
                 select(func.count())
                 .select_from(Listing)
-                .where(Listing.status == "pending", Listing.deleted_at.is_(None))
+                .join(User, User.id == Listing.owner_user_id)
+                .where(Listing.deleted_at.is_(None), User.deleted_at.is_(None))
+                .scalar_subquery(),
+                select(func.count())
+                .select_from(Listing)
+                .join(User, User.id == Listing.owner_user_id)
+                .where(
+                    Listing.status == "pending",
+                    Listing.deleted_at.is_(None),
+                    User.deleted_at.is_(None),
+                )
                 .scalar_subquery(),
                 select(func.count())
                 .select_from(Report)
@@ -95,20 +120,16 @@ async def change_listing_status(
 ) -> AdminListingResponse:
     if new_status not in {"draft", "pending", "published", "hidden", "closed", "rejected"}:
         raise HTTPException(422, "Invalid listing status")
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
-    if new_status == "published":
-        owner = await session.get(User, listing.owner_user_id)
-        if not owner or not owner.email_verified:
-            raise HTTPException(
-                409,
-                detail={
-                    "code": "EMAIL_VERIFICATION_REQUIRED",
-                    "message": "The listing owner must confirm their email before publication.",
-                    "fieldErrors": {},
-                },
-            )
+    listing, owner = await _actionable_listing(listing_id, session)
+    if new_status == "published" and not owner.email_verified:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "EMAIL_VERIFICATION_REQUIRED",
+                "message": "The listing owner must confirm their email before publication.",
+                "fieldErrors": {},
+            },
+        )
     previous = listing.status
     listing.status = new_status
     if new_status == "published" and listing.published_at is None:
@@ -127,7 +148,6 @@ async def change_listing_status(
     if previous != new_status:
         await touch_catalog(session)
     await session.commit()
-    owner = await session.get(User, listing.owner_user_id)
     return public_listing(listing, owner=owner, restriction=await active_listing_restriction(listing.id, session))
 
 
@@ -139,9 +159,7 @@ async def restrict_listing(
     actor: User,
     session: AsyncSession,
 ) -> AdminListingResponse:
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
+    listing, owner = await _actionable_listing(listing_id, session)
     if until.tzinfo is None:
         until = until.replace(tzinfo=UTC)
     now = datetime.now(UTC)
@@ -162,22 +180,20 @@ async def restrict_listing(
         created_by=actor.id,
     )
     session.add(row)
-    owner = await session.get(User, listing.owner_user_id)
-    if owner:
-        add_notice(
-            session,
-            owner.id,
-            kind="listing_restricted",
-            title="Uno de tus anuncios se ha ocultado",
-            body=f"{listing.title}: {clean_reason} · Hasta {until.astimezone(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
-        )
-        enqueue_listing_restriction_email(
-            session,
-            owner.email,
-            listing_title=listing.title,
-            reason=clean_reason,
-            until=until,
-        )
+    add_notice(
+        session,
+        owner.id,
+        kind="listing_restricted",
+        title="Uno de tus anuncios se ha ocultado",
+        body=f"{listing.title}: {clean_reason} · Hasta {until.astimezone(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
+    )
+    enqueue_listing_restriction_email(
+        session,
+        owner.email,
+        listing_title=listing.title,
+        reason=clean_reason,
+        until=until,
+    )
     session.add(
         audit(
             actor.id,
@@ -193,24 +209,20 @@ async def restrict_listing(
 
 
 async def unrestrict_listing(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
+    listing, owner = await _actionable_listing(listing_id, session)
     current = await active_listing_restriction(listing.id, session)
     if not current:
         raise HTTPException(409, "Listing has no active restriction")
     current.revoked_at = datetime.now(UTC)
     current.revoked_by = actor.id
-    owner = await session.get(User, listing.owner_user_id)
-    if owner:
-        add_notice(
-            session,
-            owner.id,
-            kind="listing_unrestricted",
-            title="La restricción de tu anuncio se ha retirado",
-            body=f"El anuncio «{listing.title}» vuelve a estar disponible.",
-        )
-        enqueue_listing_unrestriction_email(session, owner.email, listing_title=listing.title)
+    add_notice(
+        session,
+        owner.id,
+        kind="listing_unrestricted",
+        title="La restricción de tu anuncio se ha retirado",
+        body=f"El anuncio «{listing.title}» vuelve a estar disponible.",
+    )
+    enqueue_listing_unrestriction_email(session, owner.email, listing_title=listing.title)
     session.add(audit(actor.id, "listing.unrestricted", "listing", listing.id, {"restrictionId": str(current.id)}))
     await touch_catalog(session)
     await session.commit()
@@ -271,9 +283,7 @@ async def list_admins(session: AsyncSession) -> list[AdminAccessResponse]:
 
 async def add_admin(email: str, actor: User, session: AsyncSession) -> AdminAccessResponse:
     normalized = normalize_email(email)
-    target = await session.scalar(
-        select(User).where(func.lower(User.email) == normalized).with_for_update()
-    )
+    target = await session.scalar(select(User).where(func.lower(User.email) == normalized).with_for_update())
     if target:
         if target.deleted_at is not None or target.blocked:
             raise HTTPException(422, "Restore the account before granting administrator access")
