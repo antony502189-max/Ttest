@@ -5,7 +5,7 @@ from secrets import token_hex
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, Listing, Report, User
@@ -61,8 +61,6 @@ async def create_report(payload: CreateReportRequest, user: User | None, session
         )
     ).one_or_none()
     if not row:
-        # Keep moderation-hidden objects indistinguishable from unavailable
-        # public listings so report creation cannot be used as an oracle.
         raise HTTPException(404, "Listing not found")
     listing, owner = row
     if user and owner.id == user.id:
@@ -93,16 +91,23 @@ async def list_reports(
     *,
     limit: int,
     offset: int,
+    after_created_at: datetime | None = None,
+    after_id: UUID | None = None,
 ) -> list[ReportResponse]:
-    rows = (
-        await session.execute(
-            select(Report, UserReportTarget.target_user_id)
-            .outerjoin(UserReportTarget, UserReportTarget.report_id == Report.id)
-            .order_by(Report.created_at.desc(), Report.id.desc())
-            .limit(limit)
-            .offset(offset)
+    query = (
+        select(Report, UserReportTarget.target_user_id)
+        .outerjoin(UserReportTarget, UserReportTarget.report_id == Report.id)
+        .order_by(Report.created_at.desc(), Report.id.desc())
+    )
+    if after_created_at is not None and after_id is not None:
+        query = query.where(
+            or_(
+                Report.created_at < after_created_at,
+                and_(Report.created_at == after_created_at, Report.id < after_id),
+            )
         )
-    ).all()
+        offset = 0
+    rows = (await session.execute(query.limit(limit).offset(offset))).all()
     return [public_report(report, target_user_id) for report, target_user_id in rows]
 
 
