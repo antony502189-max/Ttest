@@ -46,8 +46,8 @@ import {
   type RestrictionType,
 } from '@/api/admin'
 import { getAdminReports, updateAdminReport, type AdminReport } from '@/api/reports'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -69,6 +69,7 @@ const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 
 type Section = 'users' | 'reports' | 'listings' | 'activity' | 'settings'
 type UserFilter = '' | 'active' | 'restricted' | 'full' | 'publish' | 'view_listings' | 'deleted'
+type RestrictionDuration = 'day' | 'week' | 'month' | 'forever' | 'custom'
 
 const navItems: Array<{ id: Section; label: string; icon: typeof Users }> = [
   { id: 'users', label: 'Usuarios', icon: Users },
@@ -82,6 +83,14 @@ const restrictionLabels: Record<RestrictionType, string> = {
   full: 'Bloqueo completo',
   publish: 'No puede publicar',
   view_listings: 'No puede ver anuncios',
+}
+
+const durationLabels: Record<RestrictionDuration, string> = {
+  day: '1 día',
+  week: '1 semana',
+  month: '1 mes',
+  forever: 'Para siempre',
+  custom: 'Fecha personalizada',
 }
 
 const reportLabels: Record<AdminReport['status'], string> = {
@@ -105,11 +114,46 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
+function restrictionEndText(value: string | null | undefined) {
+  return value ? `Hasta ${formatDate(value)}` : 'Sin fecha final'
+}
+
+function localDateTimeInput(value: Date) {
+  const copy = new Date(value)
+  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset())
+  return copy.toISOString().slice(0, 16)
+}
+
 function dateInputDefault(days = 7) {
   const value = new Date()
   value.setDate(value.getDate() + days)
-  value.setMinutes(value.getMinutes() - value.getTimezoneOffset())
-  return value.toISOString().slice(0, 16)
+  return localDateTimeInput(value)
+}
+
+function addCalendarMonth(value: Date) {
+  const result = new Date(value)
+  const targetDay = result.getDate()
+  result.setDate(1)
+  result.setMonth(result.getMonth() + 1)
+  const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()
+  result.setDate(Math.min(targetDay, lastDay))
+  return result
+}
+
+function restrictionUntil(duration: RestrictionDuration, customUntil: string): string | null {
+  if (duration === 'forever') return null
+  if (duration === 'custom') {
+    const parsed = new Date(customUntil)
+    if (!customUntil || Number.isNaN(parsed.getTime()) || parsed <= new Date()) {
+      throw new Error('Selecciona una fecha futura válida.')
+    }
+    return parsed.toISOString()
+  }
+  const value = new Date()
+  if (duration === 'day') value.setDate(value.getDate() + 1)
+  if (duration === 'week') value.setDate(value.getDate() + 7)
+  if (duration === 'month') return addCalendarMonth(value).toISOString()
+  return value.toISOString()
 }
 
 function errorMessage(error: unknown) {
@@ -148,25 +192,33 @@ function UserRestrictionDialog({
   onSaved: (user: AdminUserDetail) => void
 }) {
   const [type, setType] = useState<RestrictionType>('full')
-  const [until, setUntil] = useState(dateInputDefault())
+  const [duration, setDuration] = useState<RestrictionDuration>('week')
+  const [customUntil, setCustomUntil] = useState(dateInputDefault())
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const reset = () => {
+    setType('full')
+    setDuration('week')
+    setCustomUntil(dateInputDefault())
+    setReason('')
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!reason.trim()) return
     setSubmitting(true)
     try {
+      const until = restrictionUntil(duration, customUntil)
       const updated = await restrictAdminUser(user.id, {
         restrictionType: type,
-        until: new Date(until).toISOString(),
+        until,
         reason: reason.trim(),
       })
       toast.success('Restricción aplicada y usuario notificado')
       onSaved(updated)
       onOpenChange(false)
-      setReason('')
-      setUntil(dateInputDefault())
+      reset()
     } catch (error) {
       toast.error(errorMessage(error))
     } finally {
@@ -174,11 +226,11 @@ function UserRestrictionDialog({
     }
   }
 
-  return <Dialog open={open} onOpenChange={onOpenChange}>
+  return <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) reset() }}>
     <DialogContent className="admin-action-dialog">
       <DialogHeader>
         <DialogTitle>Restringir a {user.name}</DialogTitle>
-        <DialogDescription>Elige exactamente qué dejará de poder hacer, la fecha final y un motivo visible para el usuario.</DialogDescription>
+        <DialogDescription>Elige exactamente qué dejará de poder hacer, durante cuánto tiempo y el motivo visible para el usuario.</DialogDescription>
       </DialogHeader>
       <form id="admin-user-restriction-form" className="admin-dialog-form" onSubmit={submit}>
         <label><span>Tipo de restricción</span><select value={type} onChange={(event) => setType(event.target.value as RestrictionType)}>
@@ -186,11 +238,18 @@ function UserRestrictionDialog({
           <option value="publish">No puede publicar anuncios</option>
           <option value="view_listings">No puede acceder a anuncios</option>
         </select></label>
-        <label><span>Hasta</span><Input type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={until} onChange={(event) => setUntil(event.target.value)} required /></label>
+        <label><span>Duración</span><select value={duration} onChange={(event) => setDuration(event.target.value as RestrictionDuration)}>
+          <option value="day">1 día</option>
+          <option value="week">1 semana</option>
+          <option value="month">1 mes</option>
+          <option value="forever">Para siempre</option>
+          <option value="custom">Fecha personalizada</option>
+        </select></label>
+        {duration === 'custom' ? <label><span>Hasta</span><Input type="datetime-local" min={localDateTimeInput(new Date())} value={customUntil} onChange={(event) => setCustomUntil(event.target.value)} required /></label> : null}
         <label><span>Motivo que verá el usuario</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} minLength={2} maxLength={4000} required placeholder="Explica claramente por qué se aplica la restricción…" /></label>
         <div className="admin-dialog-summary">
           <ShieldBan />
-          <p>Se ocultarán temporalmente sus anuncios. La restricción terminará automáticamente en la fecha indicada. Se enviará un email y un aviso dentro de la cuenta.</p>
+          <p>Duración: <strong>{durationLabels[duration]}</strong>. Sus anuncios se ocultarán mientras exista la restricción. Se enviará un email y un aviso dentro de la cuenta.{duration === 'forever' ? ' Solo otro administrador podrá retirarla manualmente.' : ' Al finalizar, se retirará automáticamente.'}</p>
         </div>
       </form>
       <DialogFooter>
@@ -240,7 +299,7 @@ function ListingRestrictionDialog({
     <DialogContent className="admin-action-dialog">
       <DialogHeader><DialogTitle>Bloquear anuncio</DialogTitle><DialogDescription>{listing.title}</DialogDescription></DialogHeader>
       <form id="admin-listing-restriction-form" className="admin-dialog-form" onSubmit={submit}>
-        <label><span>Hasta</span><Input type="datetime-local" value={until} onChange={(event) => setUntil(event.target.value)} required /></label>
+        <label><span>Hasta</span><Input type="datetime-local" min={localDateTimeInput(new Date())} value={until} onChange={(event) => setUntil(event.target.value)} required /></label>
         <label><span>Motivo que verá el propietario</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} minLength={2} maxLength={4000} required placeholder="Motivo de la retirada temporal…" /></label>
       </form>
       <DialogFooter>
@@ -272,12 +331,12 @@ function DeleteUserDialog({ user, open, onOpenChange, onDeleted }: { user: Admin
   }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="admin-action-dialog">
-      <DialogHeader><DialogTitle>Eliminar cuenta de {user.name}</DialogTitle><DialogDescription>La cuenta dejará de ser accesible y sus anuncios desaparecerán de la parte pública. La auditoría y las denuncias se conservarán.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Eliminar cuenta de {user.name}</DialogTitle><DialogDescription>La cuenta se desactivará, dejará de ser accesible y sus anuncios desaparecerán de la parte pública. La auditoría y las denuncias se conservarán.</DialogDescription></DialogHeader>
       <form id="admin-delete-user-form" className="admin-dialog-form" onSubmit={submit}>
         <label><span>Motivo</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} minLength={2} required /></label>
         <label><span>Escribe DELETE para confirmar</span><Input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" /></label>
       </form>
-      <DialogFooter><Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancelar</Button><Button form="admin-delete-user-form" type="submit" variant="destructive" disabled={submitting || confirmation !== 'DELETE' || !reason.trim()}><Trash2 /> Eliminar definitivamente</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancelar</Button><Button form="admin-delete-user-form" type="submit" variant="destructive" disabled={submitting || confirmation !== 'DELETE' || !reason.trim()}><Trash2 /> Eliminar cuenta</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }
@@ -360,7 +419,7 @@ function UserDetailView({
     </section>
 
     {user.isAdmin ? <div className="admin-callout"><Shield /><p>Esta cuenta es administradora. Para restringirla o eliminarla primero hay que revocar sus permisos en Ajustes → Administradores.</p></div> : null}
-    {user.activeRestriction ? <div className="admin-active-restriction"><ShieldBan /><div><strong>{restrictionLabels[user.activeRestriction.restrictionType]}</strong><p>{user.activeRestriction.reason}</p><span>Hasta {formatDate(user.activeRestriction.endsAt)}</span></div></div> : null}
+    {user.activeRestriction ? <div className="admin-active-restriction"><ShieldBan /><div><strong>{restrictionLabels[user.activeRestriction.restrictionType]}</strong><p>{user.activeRestriction.reason}</p><span>{restrictionEndText(user.activeRestriction.endsAt)}</span></div></div> : null}
 
     <div className="admin-detail-grid">
       <section className="admin-detail-card"><h2>Cuenta</h2><dl>
@@ -370,19 +429,19 @@ function UserDetailView({
         <div><dt>Anuncios</dt><dd>{user.listingCount}</dd></div>
         <div><dt>Rol de producto</dt><dd>{user.role}</dd></div>
       </dl></section>
-      <section className="admin-detail-card"><h2>Soporte</h2><p>Los avisos de moderación incluyen el motivo, la fecha final y esta dirección.</p><a className="admin-support-link" href={`mailto:${SUPPORT_EMAIL}`}><Mail /> {SUPPORT_EMAIL}</a></section>
+      <section className="admin-detail-card"><h2>Soporte</h2><p>Los avisos de moderación incluyen el motivo, la fecha final —si existe— y esta dirección.</p><a className="admin-support-link" href={`mailto:${SUPPORT_EMAIL}`}><Mail /> {SUPPORT_EMAIL}</a></section>
     </div>
 
     <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Anuncios</h2><p>{ownedListings.length} asociados a esta cuenta</p></div></div>
       {ownedListings.length ? <div className="admin-compact-list">{ownedListings.map((listing) => <div key={listing.id}><div><strong>{listing.title}</strong><span>{listing.area} · {listingStatusLabels[listing.status] ?? listing.status}</span></div>{listing.activeRestriction ? <Badge variant="destructive">Restringido</Badge> : <Badge variant="outline">Visible según estado</Badge>}</div>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="Esta cuenta todavía no tiene anuncios." />}
     </section>
 
-    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Denuncias relacionadas</h2><p>{relatedReports.length} sobre sus anuncios</p></div></div>
-      {relatedReports.length ? <div className="admin-compact-list">{relatedReports.map((report) => <div key={report.id}><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant="outline">{reportLabels[report.status]}</Badge></div>)}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay denuncias asociadas a sus anuncios." />}
+    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Denuncias relacionadas</h2><p>{relatedReports.length} sobre sus anuncios o su cuenta</p></div></div>
+      {relatedReports.length ? <div className="admin-compact-list">{relatedReports.map((report) => <div key={report.id}><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant="outline">{reportLabels[report.status]}</Badge></div>)}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay denuncias asociadas a esta cuenta." />}
     </section>
 
     <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Historial de restricciones</h2><p>Registro cronológico no editable.</p></div></div>
-      {user.restrictions.length ? <div className="admin-history">{user.restrictions.map((item) => <article key={item.id}><span className={item.active ? 'is-active' : ''} /><div><strong>{restrictionLabels[item.restrictionType]}</strong><p>{item.reason}</p><small>{formatDate(item.startsAt)} → {formatDate(item.endsAt)}{item.revokedAt ? ` · Retirada: ${formatDate(item.revokedAt)}` : ''}</small></div></article>)}</div> : <EmptyState icon={Shield} title="Sin historial" description="Nunca se aplicaron restricciones a esta cuenta." />}
+      {user.restrictions.length ? <div className="admin-history">{user.restrictions.map((item) => <article key={item.id}><span className={item.active ? 'is-active' : ''} /><div><strong>{restrictionLabels[item.restrictionType]}</strong><p>{item.reason}</p><small>{formatDate(item.startsAt)} → {item.endsAt ? formatDate(item.endsAt) : 'Sin fecha final'}{item.revokedAt ? ` · Retirada: ${formatDate(item.revokedAt)}` : ''}</small></div></article>)}</div> : <EmptyState icon={Shield} title="Sin historial" description="Nunca se aplicaron restricciones a esta cuenta." />}
     </section>
 
     <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Notas internas</h2><p>Solo las ven los administradores.</p></div></div>
@@ -512,7 +571,7 @@ export function AdminPage() {
         <SectionHeader title="Denuncias" description="Revisa el contexto y llega al usuario o al anuncio sin tener que buscarlo manualmente." />
         {visibleReports.length ? <div className="admin-report-list">{visibleReports.map((report) => {
           const listing = listings.find((item) => item.id === report.listingId)
-          return <article key={report.id} className="admin-report-card"><header><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant={report.status === 'open' ? 'destructive' : 'outline'}>{reportLabels[report.status]}</Badge></header><p>{report.comment || 'Sin comentario adicional.'}</p><div className="admin-report-context"><span>Anuncio: <b>{listing?.title ?? report.listingId}</b></span><span>Usuario: <b>{listing?.ownerName ?? '—'}</b></span></div><footer>{listing ? <><Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Ver usuario</Button><Button variant="outline" size="sm" onClick={() => { setSection('listings'); setQuery(listing.title) }}><FileSearch /> Ver anuncio</Button></> : null}{report.status === 'open' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'in_review') }}>Tomar revisión</Button> : null}{report.status !== 'resolved' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'resolved') }}><CheckCircle2 /> Resolver</Button> : null}{report.status !== 'rejected' ? <Button variant="outline" size="sm" onClick={() => { void changeReportStatus(report, 'rejected') }}><XCircle /> Descartar</Button> : null}</footer></article>
+          return <article key={report.id} className="admin-report-card"><header><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant={report.status === 'open' ? 'destructive' : 'outline'}>{reportLabels[report.status]}</Badge></header><p>{report.comment || 'Sin comentario adicional.'}</p><div className="admin-report-context"><span>Objetivo: <b>{report.targetType === 'user' ? 'Usuario' : 'Anuncio'}</b></span><span>Anuncio: <b>{listing?.title ?? report.listingId}</b></span><span>Usuario: <b>{listing?.ownerName ?? '—'}</b></span></div><footer>{listing ? <><Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Ver usuario</Button><Button variant="outline" size="sm" onClick={() => { setSection('listings'); setQuery(listing.title) }}><FileSearch /> Ver anuncio</Button></> : null}{report.status === 'open' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'in_review') }}>Tomar revisión</Button> : null}{report.status !== 'resolved' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'resolved') }}><CheckCircle2 /> Resolver</Button> : null}{report.status !== 'rejected' ? <Button variant="outline" size="sm" onClick={() => { void changeReportStatus(report, 'rejected') }}><XCircle /> Descartar</Button> : null}</footer></article>
         })}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay reportes pendientes ni históricos disponibles." />}
       </> : null}
 
@@ -523,12 +582,12 @@ export function AdminPage() {
       </> : null}
 
       {section === 'activity' ? <>
-        <SectionHeader title="Actividad" description="Historial administrativo de solo lectura para saber quién hizo qué y cuándo." />
+        <SectionHeader title="Actividad" description="История административных действий: кто, что и когда сделал." />
         {auditLog.length ? <div className="admin-audit-list">{auditLog.map((item) => <article key={item.id}><span className="admin-audit-icon"><ClipboardList /></span><div><strong>{item.action}</strong><p>{item.actorName ?? 'Sistema'} · {item.targetType}{item.targetId ? ` · ${item.targetId}` : ''}</p><small>{formatDate(item.createdAt)}</small></div><pre>{Object.keys(item.detail).length ? JSON.stringify(item.detail, null, 2) : ''}</pre></article>)}</div> : <EmptyState icon={ClipboardList} title="Sin actividad" description="Las acciones administrativas aparecerán aquí." />}
       </> : null}
 
       {section === 'settings' ? <>
-        <SectionHeader title="Ajustes" description="Gestiona quién puede entrar en esta administración mediante una cuenta Google verificada." />
+        <SectionHeader title="Ajustes" description="Gestiona quién puede entrar en esta administración mediante una cuenta Google vinculada." />
         <section className="admin-detail-card admin-admins-card"><div className="admin-card-head"><div><h2>Administradores</h2><p>Todos tienen los mismos permisos. No se puede eliminar el último administrador ni revocar tus propios permisos desde aquí.</p></div></div><form className="admin-add-admin" onSubmit={addAdmin}><Input type="email" value={newAdminEmail} onChange={(event) => setNewAdminEmail(event.target.value)} placeholder="nuevo-admin@gmail.com" required /><Button type="submit" disabled={addingAdmin || !newAdminEmail.trim()}><Plus /> Añadir administrador</Button></form><div className="admin-admin-list">{admins.map((admin) => <div key={admin.email}><div><Shield /><span><strong>{admin.email}</strong><small>Activo desde {formatDate(admin.createdAt)}</small></span></div><Button variant="outline" size="sm" disabled={admin.email.toLowerCase() === currentUser?.email.toLowerCase()} onClick={() => { void revokeAdmin(admin.email) }}>Revocar acceso</Button></div>)}</div></section>
         <section className="admin-detail-card"><h2>Correo de soporte</h2><p>Se muestra al usuario en bloqueos, avisos y correos de moderación.</p><a className="admin-support-link" href={`mailto:${SUPPORT_EMAIL}`}><Mail /> {SUPPORT_EMAIL}</a></section>
       </> : null}
