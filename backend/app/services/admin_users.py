@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, AuthSession, Listing, User
@@ -87,6 +87,44 @@ def _active_restriction_exists(*, restriction_type: str | None = None):
     return query.correlate(User).exists()
 
 
+async def _active_restrictions_by_user(
+    session: AsyncSession,
+    user_ids: list[UUID],
+) -> dict[UUID, UserRestriction]:
+    """Load active moderation rows for one admin page with one query.
+
+    Normal writes serialize per-user moderation and therefore keep one active
+    row. The ordering mirrors the defensive policy in active_user_restriction()
+    so legacy/manual overlapping rows still resolve identically.
+    """
+    if not user_ids:
+        return {}
+    priority = case(
+        (UserRestriction.restriction_type == "full", 0),
+        (UserRestriction.restriction_type == "publish", 1),
+        else_=2,
+    )
+    rows = (
+        await session.scalars(
+            select(UserRestriction)
+            .where(
+                UserRestriction.user_id.in_(user_ids),
+                *active_window(UserRestriction),
+            )
+            .order_by(
+                UserRestriction.user_id,
+                priority,
+                UserRestriction.ends_at.asc().nullsfirst(),
+                UserRestriction.starts_at.desc(),
+            )
+        )
+    ).all()
+    result: dict[UUID, UserRestriction] = {}
+    for row in rows:
+        result.setdefault(row.user_id, row)
+    return result
+
+
 def _clean_reason(reason: str) -> str:
     value = reason.strip()
     if len(value) < 2:
@@ -132,19 +170,17 @@ async def list_users(
 
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
     admin_emails = await _active_admin_emails(session)
-    result: list[AdminUserResponse] = []
-    for user, count, last_seen in rows:
-        restriction = await active_user_restriction(user.id, session)
-        result.append(
-            public_user(
-                user,
-                listing_count=int(count or 0),
-                last_login=last_seen,
-                restriction=restriction,
-                is_admin=normalize_email(user.email) in admin_emails,
-            )
+    restrictions = await _active_restrictions_by_user(session, [user.id for user, _, _ in rows])
+    return [
+        public_user(
+            user,
+            listing_count=int(count or 0),
+            last_login=last_seen,
+            restriction=restrictions.get(user.id),
+            is_admin=normalize_email(user.email) in admin_emails,
         )
-    return result
+        for user, count, last_seen in rows
+    ]
 
 
 async def get_user_detail(user_id: UUID, session: AsyncSession) -> AdminUserDetailResponse:
@@ -160,7 +196,7 @@ async def get_user_detail(user_id: UUID, session: AsyncSession) -> AdminUserDeta
     last_login = await session.scalar(
         select(func.max(AuthSession.issued_at)).where(AuthSession.user_id == user.id)
     )
-    rows = (
+    history = (
         await session.scalars(
             select(UserRestriction)
             .where(UserRestriction.user_id == user.id)
@@ -168,7 +204,7 @@ async def get_user_detail(user_id: UUID, session: AsyncSession) -> AdminUserDeta
             .limit(100)
         )
     ).all()
-    active = next((row for row in rows if restriction_response(row).active), None)
+    active = await active_user_restriction(user.id, session)
     admin_row = await session.get(AdminAccess, normalize_email(user.email))
     base = public_user(
         user,
@@ -179,7 +215,7 @@ async def get_user_detail(user_id: UUID, session: AsyncSession) -> AdminUserDeta
     )
     return AdminUserDetailResponse(
         **base.model_dump(),
-        restrictions=[restriction_response(row) for row in rows],
+        restrictions=[restriction_response(row) for row in history],
     )
 
 
