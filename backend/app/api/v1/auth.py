@@ -31,7 +31,6 @@ from ...services.auth import (
     revoke_session,
     verify_user_email,
 )
-from ...services.moderation import enforce_full_access
 from ..dependencies import authenticated_user, current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -56,22 +55,11 @@ def set_refresh_cookie(response: Response, result: AuthResult) -> dict:
         result.refresh_token,
         httponly=True,
         secure=settings.is_production,
-        # Frontend and API intentionally share one origin. Lax blocks ambient
-        # cross-site POST cookies while preserving normal navigation and OAuth.
         samesite="lax",
         max_age=max(1, int((result.refresh_expires_at - datetime.now(UTC)).total_seconds())),
         path="/api/v1/auth",
     )
     return {"accessToken": result.access_token, "user": public_user(result.user)}
-
-
-async def enforce_session_moderation(result: AuthResult, session: AsyncSession) -> None:
-    """A full account restriction must not leave a newly issued session usable."""
-    try:
-        await enforce_full_access(result.user, session)
-    except HTTPException:
-        await revoke_session(result.refresh_token, session)
-        raise
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -103,7 +91,10 @@ async def login(
         user_agent=user_agent,
         client_ip=request_ip,
     )
-    await enforce_session_moderation(result, session)
+    # Full moderation restrictions intentionally do not revoke identity sessions.
+    # The session is required for ModerationGate to load the reason, expiry and
+    # support address. Normal application endpoints use `current_user`, which
+    # still enforces full-account access before any protected action.
     return set_refresh_cookie(response, result)
 
 
@@ -117,7 +108,6 @@ async def google_login(
     require_cookie_origin(request)
     user_agent, request_ip = request_metadata(request)
     result = await google_login_user(payload, session, user_agent=user_agent, client_ip=request_ip)
-    await enforce_session_moderation(result, session)
     return set_refresh_cookie(response, result)
 
 
@@ -175,9 +165,6 @@ async def email_verification_status(user: User = Depends(current_user)):
 
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(authenticated_user)):
-    # Existing sessions may need the identity long enough for the frontend to
-    # render a restriction/support screen. New login/refresh issuance is denied
-    # above while a full restriction is active.
     return public_user(user)
 
 
@@ -198,7 +185,8 @@ async def refresh(
         user_agent=user_agent,
         client_ip=request_ip,
     )
-    await enforce_session_moderation(result, session)
+    # Keep the restricted identity session alive across reloads so the frontend
+    # can rehydrate the account and render its moderation/support screen.
     return set_refresh_cookie(response, result)
 
 
