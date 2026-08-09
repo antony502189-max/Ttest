@@ -62,6 +62,16 @@ export function ModerationGate({ children }: { children: ReactNode }) {
     return () => { cancelled = true }
   }, [currentUser?.id])
 
+  useEffect(() => {
+    if (!currentUser || !restriction) return
+    const remaining = new Date(restriction.until).getTime() - Date.now()
+    const delay = Math.min(60 * 60 * 1000, Math.max(1_000, remaining + 1_000))
+    const timer = window.setTimeout(() => {
+      void getMyRestriction().then(setRestriction).catch(() => undefined)
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [currentUser?.id, restriction])
+
   const routeBlocked = useMemo(() => {
     if (!restriction) return false
     if (restriction.restrictionType === 'full') return true
@@ -71,7 +81,9 @@ export function ModerationGate({ children }: { children: ReactNode }) {
     return restriction.restrictionType === 'view_listings' && location.pathname.startsWith('/habitacion/')
   }, [location.pathname, restriction])
 
-  if (currentUser && loadedFor !== currentUser.id) return <>{children}</>
+  if (currentUser && loadedFor !== currentUser.id) {
+    return <div className="route-loading" role="status" aria-live="polite"><span /><strong>Comprobando acceso…</strong></div>
+  }
 
   if (restriction?.restrictionType === 'full') {
     return <main className="restriction-screen restriction-screen--full">
