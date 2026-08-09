@@ -110,11 +110,13 @@ async def reply_to_thread(
     thread = await session.get(MessageThread, thread_id)
     if not thread or not participant(thread, user):
         raise HTTPException(404, "Thread not found")
+    await enforce_listing_view_access(user, session)
     listing = await session.get(Listing, thread.listing_id)
     if not listing:
         raise HTTPException(404, "Thread not found")
     # Existing participants may keep communicating after the listing leaves the
-    # catalog; only creation of a new contact channel requires public visibility.
+    # public catalog, but the requester's own active view restriction still
+    # blocks new replies and their recipient notifications.
     return await _append_message(thread, body, user, session, listing)
 
 
