@@ -19,8 +19,6 @@ async def _expired_user_candidate(
     user_id: UUID,
     now: datetime,
 ) -> tuple[UserRestriction, User] | None:
-    # Admin user mutations lock the parent User first. Match that order here so
-    # an expiry decision cannot race an uncommitted replacement restriction.
     user = await session.scalar(
         select(User)
         .where(User.id == user_id, User.deleted_at.is_(None))
@@ -50,8 +48,6 @@ async def _expired_listing_candidate(
     listing_id: UUID,
     now: datetime,
 ) -> tuple[ListingRestriction, Listing, User] | None:
-    # Listing moderation routes lock the parent Listing first. Preserve the same
-    # lock order before revalidating the expired restriction.
     listing = await session.scalar(
         select(Listing)
         .where(Listing.id == listing_id, Listing.deleted_at.is_(None))
@@ -79,12 +75,14 @@ async def _expired_listing_candidate(
 
 
 async def process_expired_moderation(session: AsyncSession, *, limit: int = 100) -> dict[str, int]:
-    """Queue expiry notifications safely against concurrent moderation writes."""
+    """Queue expiry notifications safely against concurrent moderation writes.
+
+    Parent rows are processed before the shared catalog row is touched. This
+    preserves the parent -> catalog lock order used by admin mutations and avoids
+    a batch acquiring catalog and then attempting to lock another parent.
+    """
     now = datetime.now(UTC)
 
-    # Discovery is intentionally lock-free. Each candidate is then serialized
-    # on its parent row and revalidated under lock before any notification is
-    # decided. Multiple workers converge without duplicate notifications.
     user_candidates = (
         await session.execute(
             select(UserRestriction.id, UserRestriction.user_id)
@@ -109,8 +107,6 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
         user_restriction.expiry_notified_at = now
         active_user = await active_user_restriction(user.id, session)
         if active_user:
-            # A newer restriction won the parent-row lock before us. Mark the old
-            # expiry handled but never claim that access has been restored.
             continue
         add_notice(
             session,
@@ -135,7 +131,6 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 detail={"restrictionId": str(user_restriction.id)},
             )
         )
-        await touch_catalog(session)
         user_notified += 1
 
     listing_candidates = (
@@ -191,8 +186,12 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 detail={"restrictionId": str(listing_restriction.id)},
             )
         )
-        await touch_catalog(session)
         listing_notified += 1
+
+    # One invalidation is sufficient for any number of visibility restorations
+    # in this transaction. Crucially, no parent row is acquired after this point.
+    if user_notified or listing_notified:
+        await touch_catalog(session)
 
     await session.commit()
     return {"users": user_notified, "listings": listing_notified}
