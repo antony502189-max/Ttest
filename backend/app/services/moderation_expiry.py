@@ -1,22 +1,93 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, Listing, User
 from ..models.moderation import ListingRestriction, UserRestriction
+from .catalog import touch_catalog
 from .mail import enqueue_mail
 from .moderation import SUPPORT_EMAIL, active_listing_restriction, active_user_restriction, add_notice
 
 
+async def _expired_user_candidate(
+    session: AsyncSession,
+    restriction_id: UUID,
+    user_id: UUID,
+    now: datetime,
+) -> tuple[UserRestriction, User] | None:
+    # Admin user mutations lock the parent User first. Match that order here so
+    # an expiry decision cannot race an uncommitted replacement restriction.
+    user = await session.scalar(
+        select(User)
+        .where(User.id == user_id, User.deleted_at.is_(None))
+        .with_for_update()
+    )
+    if not user:
+        return None
+    restriction = await session.scalar(
+        select(UserRestriction)
+        .where(
+            UserRestriction.id == restriction_id,
+            UserRestriction.user_id == user.id,
+            UserRestriction.revoked_at.is_(None),
+            UserRestriction.ends_at <= now,
+            UserRestriction.expiry_notified_at.is_(None),
+        )
+        .with_for_update()
+    )
+    if not restriction:
+        return None
+    return restriction, user
+
+
+async def _expired_listing_candidate(
+    session: AsyncSession,
+    restriction_id: UUID,
+    listing_id: UUID,
+    now: datetime,
+) -> tuple[ListingRestriction, Listing, User] | None:
+    # Listing moderation routes lock the parent Listing first. Preserve the same
+    # lock order before revalidating the expired restriction.
+    listing = await session.scalar(
+        select(Listing)
+        .where(Listing.id == listing_id, Listing.deleted_at.is_(None))
+        .with_for_update()
+    )
+    if not listing:
+        return None
+    restriction = await session.scalar(
+        select(ListingRestriction)
+        .where(
+            ListingRestriction.id == restriction_id,
+            ListingRestriction.listing_id == listing.id,
+            ListingRestriction.revoked_at.is_(None),
+            ListingRestriction.ends_at <= now,
+            ListingRestriction.expiry_notified_at.is_(None),
+        )
+        .with_for_update()
+    )
+    if not restriction:
+        return None
+    owner = await session.get(User, listing.owner_user_id)
+    if not owner or owner.deleted_at is not None:
+        return None
+    return restriction, listing, owner
+
+
 async def process_expired_moderation(session: AsyncSession, *, limit: int = 100) -> dict[str, int]:
-    """Queue one expiry notification per restriction without requiring a separate scheduler."""
+    """Queue expiry notifications safely against concurrent moderation writes."""
     now = datetime.now(UTC)
-    user_rows = (
+
+    # Discovery is intentionally lock-free. Each candidate is then serialized
+    # on its parent row and revalidated under lock before any notification is
+    # decided. Multiple workers converge without duplicate notifications.
+    user_candidates = (
         await session.execute(
-            select(UserRestriction, User)
+            select(UserRestriction.id, UserRestriction.user_id)
             .join(User, User.id == UserRestriction.user_id)
             .where(
                 UserRestriction.revoked_at.is_(None),
@@ -24,19 +95,22 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 UserRestriction.expiry_notified_at.is_(None),
                 User.deleted_at.is_(None),
             )
-            .order_by(UserRestriction.ends_at)
+            .order_by(UserRestriction.ends_at, UserRestriction.id)
             .limit(limit)
-            .with_for_update(of=UserRestriction, skip_locked=True)
         )
     ).all()
 
     user_notified = 0
-    for restriction, user in user_rows:
+    for restriction_id, user_id in user_candidates:
+        candidate = await _expired_user_candidate(session, restriction_id, user_id, now)
+        if not candidate:
+            continue
+        restriction, user = candidate
         restriction.expiry_notified_at = now
         active_user = await active_user_restriction(user.id, session)
         if active_user:
-            # A newer restriction supersedes the expired one; do not send a
-            # misleading "access restored" message, but mark this expiry handled.
+            # A newer restriction won the parent-row lock before us. Mark the old
+            # expiry handled but never claim that access has been restored.
             continue
         add_notice(
             session,
@@ -61,11 +135,12 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 detail={"restrictionId": str(restriction.id)},
             )
         )
+        await touch_catalog(session)
         user_notified += 1
 
-    listing_rows = (
+    listing_candidates = (
         await session.execute(
-            select(ListingRestriction, Listing, User)
+            select(ListingRestriction.id, ListingRestriction.listing_id)
             .join(Listing, Listing.id == ListingRestriction.listing_id)
             .join(User, User.id == Listing.owner_user_id)
             .where(
@@ -75,14 +150,17 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 Listing.deleted_at.is_(None),
                 User.deleted_at.is_(None),
             )
-            .order_by(ListingRestriction.ends_at)
+            .order_by(ListingRestriction.ends_at, ListingRestriction.id)
             .limit(limit)
-            .with_for_update(of=ListingRestriction, skip_locked=True)
         )
     ).all()
 
     listing_notified = 0
-    for restriction, listing, owner in listing_rows:
+    for restriction_id, listing_id in listing_candidates:
+        candidate = await _expired_listing_candidate(session, restriction_id, listing_id, now)
+        if not candidate:
+            continue
+        restriction, listing, owner = candidate
         restriction.expiry_notified_at = now
         active_listing = await active_listing_restriction(listing.id, session)
         if active_listing:
@@ -113,6 +191,7 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 detail={"restrictionId": str(restriction.id)},
             )
         )
+        await touch_catalog(session)
         listing_notified += 1
 
     await session.commit()
