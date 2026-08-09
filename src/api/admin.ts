@@ -100,22 +100,19 @@ const statusMap: Record<ListingStatus, string> = {
 }
 
 const ADMIN_PAGE_SIZE = 200
-const ADMIN_MAX_OFFSET = 10_000
 
 type CursorRow = { id: string; createdAt: string }
 
 async function drainAdminPages<T extends CursorRow>(path: string, params: URLSearchParams): Promise<T[]> {
   const result: T[] = []
-  let offset = 0
   let cursor: T | null = null
   while (true) {
     params.set('limit', String(ADMIN_PAGE_SIZE))
+    params.set('offset', '0')
     if (cursor) {
-      params.set('offset', '0')
       params.set('afterCreatedAt', cursor.createdAt)
       params.set('afterId', cursor.id)
     } else {
-      params.set('offset', String(offset))
       params.delete('afterCreatedAt')
       params.delete('afterId')
     }
@@ -125,11 +122,7 @@ async function drainAdminPages<T extends CursorRow>(path: string, params: URLSea
 
     const last = page.at(-1)
     if (!last) return result
-    if (cursor || offset >= ADMIN_MAX_OFFSET) {
-      cursor = last
-    } else {
-      offset += ADMIN_PAGE_SIZE
-    }
+    cursor = last
   }
 }
 
