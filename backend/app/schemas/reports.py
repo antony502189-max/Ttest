@@ -31,3 +31,9 @@ class ReportResponse(BaseModel):
     handledBy: UUID | None
     handledAt: datetime | None
     createdAt: datetime
+    # Historical moderation context. Listing/User rows are soft-deleted, so the
+    # report can retain useful investigation data without making deleted rows
+    # actionable in the normal admin listing queue.
+    listingTitle: str | None = None
+    ownerUserId: UUID | None = None
+    ownerName: str | None = None
