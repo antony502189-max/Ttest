@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...db.session import get_session
 from ...models import User
 from ...schemas.reports import CreateReportRequest, ReportResponse, ReportStatusRequest
-from ...services.moderation import enforce_full_access
+from ...services.moderation import enforce_listing_view_access
 from ...services.reports import create_report, list_reports, update_report
 from ..dependencies import optional_user, require_admin
 
@@ -27,7 +27,7 @@ async def create_report_route(
     session: AsyncSession = Depends(get_session),
 ):
     if user:
-        await enforce_full_access(user, session)
+        await enforce_listing_view_access(user, session)
     return await create_report(payload, user, session)
 
 
