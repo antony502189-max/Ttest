@@ -68,24 +68,34 @@ def public_listing(
 
 
 async def _actionable_listing(listing_id: UUID, session: AsyncSession) -> tuple[Listing, User]:
-    """Resolve a listing that may still receive active moderation actions.
+    """Lock one actionable listing using the account-deletion lock order.
 
-    The admin route already serializes on the Listing row. Lock the owner User
-    row here before deciding it is actionable so account soft-deletion and
-    listing moderation cannot both pass their preconditions and commit in the
-    opposite order. The resulting lock order is Listing -> User -> catalog for
-    listing moderation; account deletion locks User -> catalog and never waits
-    on Listing, so there is no reverse User -> Listing cycle.
+    `delete_account()` serializes User -> owned Listings. Listing moderation must
+    use the same order or concurrent deletion can form a User/Listing deadlock.
+    The initial owner-id lookup is intentionally lock-free; ownership is
+    immutable, and the final locked Listing lookup revalidates id, owner and
+    deletion state before any mutation is accepted.
     """
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
+    owner_id = await session.scalar(
+        select(Listing.owner_user_id).where(Listing.id == listing_id, Listing.deleted_at.is_(None))
+    )
+    if not owner_id:
         raise HTTPException(404, "Listing not found")
-    owner = await session.scalar(
-        select(User)
-        .where(User.id == listing.owner_user_id)
+
+    owner = await session.scalar(select(User).where(User.id == owner_id).with_for_update())
+    if not owner or owner.deleted_at is not None:
+        raise HTTPException(404, "Listing not found")
+
+    listing = await session.scalar(
+        select(Listing)
+        .where(
+            Listing.id == listing_id,
+            Listing.owner_user_id == owner.id,
+            Listing.deleted_at.is_(None),
+        )
         .with_for_update()
     )
-    if not owner or owner.deleted_at is not None:
+    if not listing:
         raise HTTPException(404, "Listing not found")
     return listing, owner
 
