@@ -57,14 +57,6 @@ async def listing_hidden_by_moderation(listing_id: UUID, owner_user_id: UUID, se
     )
 
 
-async def filter_moderated_items(items: list[ListingResponse], session: AsyncSession) -> list[ListingResponse]:
-    visible: list[ListingResponse] = []
-    for item in items:
-        if not await listing_hidden_by_moderation(UUID(item.id), UUID(item.ownerUserId), session):
-            visible.append(item)
-    return visible
-
-
 @router.get("/catalog-version", response_model=CatalogVersionResponse)
 async def catalog_version(session: AsyncSession = Depends(get_session)):
     state = await session.get(CatalogState, 1)
@@ -94,8 +86,7 @@ async def list_listings(
         maxPrice=max_price,
         limit=100,
     )
-    result = await search_public(session, payload)
-    return await filter_moderated_items(result.items, session)
+    return (await search_public(session, payload)).items
 
 
 @router.post("/search", response_model=ListingSearchResponse)
@@ -105,12 +96,7 @@ async def search_listings(
     session: AsyncSession = Depends(get_session),
 ):
     await enforce_listing_view_access(user, session)
-    result = await search_public(session, payload)
-    filtered = await filter_moderated_items(result.items, session)
-    # Moderation is applied after the canonical PostGIS search so the original
-    # search semantics stay unchanged. The page total reflects what the caller
-    # can actually see on this page instead of advertising hidden records.
-    return ListingSearchResponse(items=filtered, total=len(filtered), limit=result.limit, offset=result.offset)
+    return await search_public(session, payload)
 
 
 @router.get("/mine", response_model=list[OwnedListingResponse])
@@ -142,7 +128,7 @@ async def get_listing(
 ):
     await enforce_listing_view_access(user, session)
     row = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
-    if not row or await listing_hidden_by_moderation(row[0].id, row[0].owner_user_id, session):
+    if not row:
         raise HTTPException(404, "Listing not found")
     if user:
         viewer_key = f"user:{user.id}"
