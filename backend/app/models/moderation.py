@@ -31,6 +31,7 @@ class UserRestriction(Base):
     created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     revoked_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class ListingRestriction(Base):
@@ -44,6 +45,7 @@ class ListingRestriction(Base):
     created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     revoked_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class AdminNote(Base):
