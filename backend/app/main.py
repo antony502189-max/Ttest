@@ -33,13 +33,21 @@ from .storage import get_storage
 
 settings = get_settings()
 configure_logging()
-if settings.sentry_dsn:
-    sentry_sdk.init(
-        dsn=settings.sentry_dsn,
-        environment=settings.app_env,
-        traces_sample_rate=settings.sentry_traces_sample_rate,
-        send_default_pii=False,
-    )
+
+
+def configure_sentry() -> None:
+    """Initialize Sentry without widening captured production data."""
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.app_env,
+            release=settings.sentry_release or None,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            send_default_pii=False,
+        )
+
+
+configure_sentry()
 logger = logging.getLogger(__name__)
 rate_limiter = ResilientRateLimiter()
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
