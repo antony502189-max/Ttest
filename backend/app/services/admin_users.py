@@ -160,9 +160,6 @@ async def list_users(
             query = query.where(_active_restriction_exists(restriction_type=status_filter))
         elif status_filter == "active":
             query = query.where(~_active_restriction_exists(), User.blocked.is_(False))
-    # No status filter means the administration collection, including soft-
-    # deleted rows. AdminPage hides deleted rows by default and can therefore
-    # reveal them with its existing "Eliminados" client filter after a reload.
 
     if after_created_at is not None and after_id is not None:
         query = query.where(
@@ -278,17 +275,11 @@ async def restrict_user(
         reason=clean_reason,
         until=until,
     )
-    if restriction_type == "full":
-        sessions = (
-            await session.scalars(
-                select(AuthSession).where(
-                    AuthSession.user_id == target.id,
-                    AuthSession.revoked_at.is_(None),
-                )
-            )
-        ).all()
-        for auth_session in sessions:
-            auth_session.revoked_at = now
+    # Full moderation restrictions keep identity/refresh sessions alive. The
+    # restricted identity is needed to render reason, expiry and support after a
+    # reload; normal application actions remain denied by current_user and the
+    # publish/view policies. Security/account-deletion flows still revoke
+    # AuthSession rows explicitly.
 
     session.add(
         AuditLog(
