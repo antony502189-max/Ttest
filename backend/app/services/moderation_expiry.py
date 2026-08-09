@@ -48,9 +48,28 @@ async def _expired_listing_candidate(
     listing_id: UUID,
     now: datetime,
 ) -> tuple[ListingRestriction, Listing, User] | None:
+    # Match account deletion and active listing moderation: resolve immutable
+    # ownership, then lock User -> Listing -> ListingRestriction. This prevents
+    # a concurrent delete from forming a Listing/User lock cycle.
+    owner_id = await session.scalar(
+        select(Listing.owner_user_id).where(Listing.id == listing_id, Listing.deleted_at.is_(None))
+    )
+    if not owner_id:
+        return None
+    owner = await session.scalar(
+        select(User)
+        .where(User.id == owner_id, User.deleted_at.is_(None))
+        .with_for_update()
+    )
+    if not owner:
+        return None
     listing = await session.scalar(
         select(Listing)
-        .where(Listing.id == listing_id, Listing.deleted_at.is_(None))
+        .where(
+            Listing.id == listing_id,
+            Listing.owner_user_id == owner.id,
+            Listing.deleted_at.is_(None),
+        )
         .with_for_update()
     )
     if not listing:
@@ -67,16 +86,6 @@ async def _expired_listing_candidate(
         .with_for_update()
     )
     if not restriction:
-        return None
-    # Account deletion serializes on the User row. Lock and revalidate the
-    # owner before deciding to emit a listing-restored notice/mail, matching the
-    # Listing -> User ordering used by active listing moderation.
-    owner = await session.scalar(
-        select(User)
-        .where(User.id == listing.owner_user_id)
-        .with_for_update()
-    )
-    if not owner or owner.deleted_at is not None:
         return None
     return restriction, listing, owner
 
