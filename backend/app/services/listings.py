@@ -8,15 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import (
-    CatalogState,
-    DiscardedListing,
-    Favorite,
-    Listing,
-    ListingImage,
-    ListingStatusHistory,
-    User,
-)
+from ..models import DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
     ListingImageResponse,
@@ -25,6 +17,7 @@ from ..schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
+from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
 from .moderation import is_admin
 from .storage_deletions import enqueue_storage_deletions
@@ -41,15 +34,6 @@ async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSess
     if listing.owner_user_id != user.id and not admin:
         raise HTTPException(403, "Forbidden")
     return admin
-
-
-async def touch_catalog(session: AsyncSession) -> None:
-    state = await session.get(CatalogState, 1)
-    if not state:
-        state = CatalogState(id=1, version=1)
-        session.add(state)
-    state.version += 1
-    state.updated_at = datetime.now(UTC)
 
 
 async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> int:
