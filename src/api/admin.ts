@@ -136,7 +136,7 @@ export async function getAdminUserRows(search = '', status = ''): Promise<AdminU
 }
 
 export async function getAdminUsers(): Promise<DemoUser[]> {
-  const users = await getAdminUserRows()
+  const users = (await getAdminUserRows()).filter((user) => !user.deletedAt)
   return users.map((user) => ({
     id: user.id,
     email: user.email,
