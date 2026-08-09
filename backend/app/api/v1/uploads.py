@@ -18,7 +18,7 @@ from ...models import Listing, ListingImage, MediaAsset, User
 from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
-from ...services.moderation import active_window, is_admin
+from ...services.moderation import active_window, enforce_listing_view_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import get_storage
 from ..dependencies import current_user, optional_user
@@ -184,6 +184,11 @@ async def get_media(
             )
         )
     elif asset.kind == "listing_image":
+        # A direct media URL is part of public listing browsing. Enforce the
+        # requester's view restriction here too, but preserve owner/admin access
+        # needed to manage a listing the account is still allowed to publish.
+        if not owner_or_admin:
+            await enforce_listing_view_access(user, session)
         active_owner_restriction = (
             select(UserRestriction.id)
             .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
