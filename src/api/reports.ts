@@ -16,6 +16,9 @@ export type AdminReport = {
   handledBy: string | null
   handledAt: string | null
   createdAt: string
+  listingTitle: string | null
+  ownerUserId: string | null
+  ownerName: string | null
 }
 
 type ReportDto = AdminReport
