@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useApp } from '@/contexts/app-context'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+const MODERATION_REFRESH_MS = 60_000
 
 const labels = {
   full: 'Tu cuenta está restringida',
@@ -65,12 +66,29 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
   }, [currentUser?.id, location.pathname])
 
   useEffect(() => {
+    if (!currentUser) return
+    let cancelled = false
+    const refresh = () => {
+      void getMyRestriction().then((active) => {
+        if (!cancelled) setRestriction(active)
+      }).catch(() => undefined)
+    }
+    const interval = window.setInterval(refresh, MODERATION_REFRESH_MS)
+    window.addEventListener('focus', refresh)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [currentUser?.id])
+
+  useEffect(() => {
     if (!currentUser || !restriction) return
     const remaining = new Date(restriction.until).getTime() - Date.now()
-    const delay = Math.min(60_000, Math.max(1_000, remaining + 1_000))
+    if (remaining > MODERATION_REFRESH_MS) return
     const timer = window.setTimeout(() => {
       void getMyRestriction().then(setRestriction).catch(() => undefined)
-    }, delay)
+    }, Math.max(1_000, remaining + 1_000))
     return () => window.clearTimeout(timer)
   }, [currentUser?.id, restriction])
 
