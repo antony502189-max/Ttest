@@ -252,7 +252,7 @@ async def test_expiry_batch_touches_catalog_once_after_all_parent_candidates(mon
 
 @pytest.mark.asyncio
 async def test_admin_listing_query_excludes_deleted_owners() -> None:
-    session = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
+    session = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=list)))
 
     result = await admin_listings.list_listings(
         session,
