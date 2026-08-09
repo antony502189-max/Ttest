@@ -15,6 +15,7 @@ type AdminUserDto = {
   showWhatsApp: boolean
   allowContactForm: boolean
   avatarUrl: string | null
+  createdAt: string
 }
 
 const userDto = (index: number): AdminUserDto => ({
@@ -32,6 +33,7 @@ const userDto = (index: number): AdminUserDto => ({
   showWhatsApp: false,
   allowContactForm: true,
   avatarUrl: null,
+  createdAt: new Date(Date.UTC(2026, 7, 9, 12, 0, 0) - index * 1000).toISOString(),
 })
 
 const reportDto = (index: number) => ({
@@ -46,7 +48,7 @@ const reportDto = (index: number) => ({
   status: 'open' as const,
   handledBy: null,
   handledAt: null,
-  createdAt: '2026-08-09T12:00:00Z',
+  createdAt: new Date(Date.UTC(2026, 7, 9, 12, 0, 0) - index * 1000).toISOString(),
 })
 
 test('admin user client drains every server page before rendering', async ({ page }) => {
@@ -101,4 +103,88 @@ test('admin report client drains every server page', async ({ page }) => {
   expect(requestedOffsets).toEqual([0, 200])
   expect(reports).toHaveLength(207)
   expect(reports.at(-1)?.publicReference).toBe('R-0000000206')
+})
+
+test('admin user pagination switches to cursor instead of exceeding offset 10000', async ({ page }) => {
+  const requestedOffsets: number[] = []
+  let cursorRequests = 0
+  await page.route('**/api/v1/admin/users?*', async (route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? '0')
+    const afterId = url.searchParams.get('afterId')
+    const afterCreatedAt = url.searchParams.get('afterCreatedAt')
+    requestedOffsets.push(offset)
+
+    if (afterId || afterCreatedAt) {
+      cursorRequests += 1
+      expect(afterId).toBeTruthy()
+      expect(afterCreatedAt).toBeTruthy()
+      expect(offset).toBe(0)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([userDto(10_200), userDto(10_201), userDto(10_202)]),
+      })
+      return
+    }
+
+    expect(offset).toBeLessThanOrEqual(10_000)
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(Array.from({ length: 200 }, (_, index) => userDto(offset + index))),
+    })
+  })
+
+  await page.goto('/')
+  const users = await page.evaluate(async () => {
+    const admin = await import('/src/api/admin.ts')
+    return admin.getAdminUserRows()
+  })
+
+  expect(Math.max(...requestedOffsets)).toBe(10_000)
+  expect(cursorRequests).toBe(1)
+  expect(users).toHaveLength(10_203)
+})
+
+test('admin report pagination switches to cursor instead of exceeding offset 10000', async ({ page }) => {
+  const requestedOffsets: number[] = []
+  let cursorRequests = 0
+  await page.route('**/api/v1/reports?*', async (route) => {
+    const url = new URL(route.request().url())
+    const offset = Number(url.searchParams.get('offset') ?? '0')
+    const afterId = url.searchParams.get('afterId')
+    const afterCreatedAt = url.searchParams.get('afterCreatedAt')
+    requestedOffsets.push(offset)
+
+    if (afterId || afterCreatedAt) {
+      cursorRequests += 1
+      expect(afterId).toBeTruthy()
+      expect(afterCreatedAt).toBeTruthy()
+      expect(offset).toBe(0)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([reportDto(10_200), reportDto(10_201)]),
+      })
+      return
+    }
+
+    expect(offset).toBeLessThanOrEqual(10_000)
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(Array.from({ length: 200 }, (_, index) => reportDto(offset + index))),
+    })
+  })
+
+  await page.goto('/')
+  const reports = await page.evaluate(async () => {
+    const api = await import('/src/api/reports.ts')
+    return api.getAdminReports()
+  })
+
+  expect(Math.max(...requestedOffsets)).toBe(10_000)
+  expect(cursorRequests).toBe(1)
+  expect(reports).toHaveLength(10_202)
 })
