@@ -208,13 +208,17 @@ async def list_listing_images(
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
-    await enforce_listing_view_access(user, session)
     listing = await session.get(Listing, listing_id)
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     owner = await session.get(User, listing.owner_user_id)
     admin = bool(user and await is_admin(user, session))
     owner_or_admin = bool(user and (listing.owner_user_id == user.id or admin))
+    # A view restriction blocks public browsing, but it must not prevent a host
+    # from editing media on their own listing, because that account may still be
+    # explicitly allowed to publish.
+    if not owner_or_admin:
+        await enforce_listing_view_access(user, session)
     moderated = await listing_hidden_by_moderation(listing.id, listing.owner_user_id, session)
     public_visible = bool(
         listing.status == "published"
