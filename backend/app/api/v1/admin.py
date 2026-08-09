@@ -36,7 +36,6 @@ from ...services.admin import (
     list_audit_logs,
     list_listings,
     list_notes,
-    list_users,
     restrict_listing,
     restrict_user,
     revoke_admin,
@@ -44,6 +43,7 @@ from ...services.admin import (
     unrestrict_listing,
     unrestrict_user,
 )
+from ...services.admin_users import list_users
 from ...workers.external_listings import run_once
 from ..dependencies import require_admin
 
@@ -72,6 +72,15 @@ async def _lock_admin_access(session: AsyncSession) -> None:
     ).all()
 
 
+async def _correct_admin_flag(
+    detail: AdminUserDetailResponse,
+    session: AsyncSession,
+) -> AdminUserDetailResponse:
+    admin_row = await session.get(AdminAccess, detail.email.strip().lower())
+    detail.isAdmin = bool(admin_row and admin_row.active)
+    return detail
+
+
 @router.get("/access")
 async def admin_access(user: User = Depends(require_admin)):
     return {"isAdmin": True, "email": user.email}
@@ -90,7 +99,7 @@ async def list_users_route(
     search: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0, le=10_000),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -103,10 +112,7 @@ async def get_user_route(
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    detail = await get_user_detail(user_id, session)
-    admin_row = await session.get(AdminAccess, detail.email.strip().lower())
-    detail.isAdmin = bool(admin_row and admin_row.active)
-    return detail
+    return await _correct_admin_flag(await get_user_detail(user_id, session), session)
 
 
 @router.post("/users/{user_id}/restrictions", response_model=AdminUserDetailResponse)
@@ -117,7 +123,7 @@ async def restrict_user_route(
     session: AsyncSession = Depends(get_session),
 ):
     await _lock_user_mutation(user_id, session)
-    return await restrict_user(
+    detail = await restrict_user(
         user_id,
         restriction_type=payload.restrictionType,
         until=payload.until,
@@ -125,6 +131,7 @@ async def restrict_user_route(
         actor=user,
         session=session,
     )
+    return await _correct_admin_flag(detail, session)
 
 
 @router.delete("/users/{user_id}/restrictions/active", response_model=AdminUserDetailResponse)
@@ -134,7 +141,7 @@ async def unrestrict_user_route(
     session: AsyncSession = Depends(get_session),
 ):
     await _lock_user_mutation(user_id, session)
-    return await unrestrict_user(user_id, user, session)
+    return await _correct_admin_flag(await unrestrict_user(user_id, user, session), session)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -173,7 +180,7 @@ async def list_listings_route(
     search: str | None = None,
     restricted: bool | None = None,
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0, le=10_000),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -256,7 +263,7 @@ async def revoke_admin_route(
 @router.get("/audit-log", response_model=list[AuditLogResponse])
 async def audit_log_route(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0, le=10_000),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -266,7 +273,7 @@ async def audit_log_route(
 @router.get("/external-import/runs", response_model=list[ExternalImportRunResponse])
 async def external_import_runs(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0, le=10_000),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
