@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 
-from app.api.v1 import auth as auth_api
 from app.repositories.listings import visible_query
 from app.services import listings as listings_service
 from app.services import moderation
 from app.services.moderation import (
+    enforce_full_access,
     enforce_listing_view_access,
     enforce_publish_access,
     is_admin,
@@ -147,31 +147,19 @@ async def test_view_restriction_blocks_listing_view_but_not_publication(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_full_restriction_revokes_newly_issued_login_session(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_full_restriction_blocks_normal_application_policies(monkeypatch: pytest.MonkeyPatch) -> None:
+    restriction = SimpleNamespace(
+        restriction_type="full",
+        reason="Account suspended",
+        ends_at=None,
+    )
+    active = AsyncMock(return_value=restriction)
+    monkeypatch.setattr(moderation, "active_user_restriction", active)
+    user = SimpleNamespace(id="user-id")
     session = SimpleNamespace()
-    result = SimpleNamespace(user=SimpleNamespace(id="user-id"), refresh_token="new-refresh-token")
-    blocked = HTTPException(403, detail={"code": "ACCOUNT_RESTRICTED"})
-    enforce = AsyncMock(side_effect=blocked)
-    revoke = AsyncMock()
-    monkeypatch.setattr(auth_api, "enforce_full_access", enforce)
-    monkeypatch.setattr(auth_api, "revoke_session", revoke)
 
-    with pytest.raises(HTTPException) as exc:
-        await auth_api.enforce_session_moderation(result, session)
-
-    assert exc.value is blocked
-    revoke.assert_awaited_once_with("new-refresh-token", session)
-
-
-@pytest.mark.asyncio
-async def test_non_full_login_session_is_not_revoked(monkeypatch: pytest.MonkeyPatch) -> None:
-    session = SimpleNamespace()
-    result = SimpleNamespace(user=SimpleNamespace(id="user-id"), refresh_token="new-refresh-token")
-    enforce = AsyncMock(return_value=None)
-    revoke = AsyncMock()
-    monkeypatch.setattr(auth_api, "enforce_full_access", enforce)
-    monkeypatch.setattr(auth_api, "revoke_session", revoke)
-
-    await auth_api.enforce_session_moderation(result, session)
-
-    revoke.assert_not_awaited()
+    for policy in (enforce_full_access, enforce_publish_access, enforce_listing_view_access):
+        with pytest.raises(HTTPException) as exc:
+            await policy(user, session)
+        assert exc.value.status_code == 403
+        assert exc.value.detail["restriction"]["reason"] == "Account suspended"
