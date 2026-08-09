@@ -102,10 +102,10 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
 
     user_notified = 0
     for restriction_id, user_id in user_candidates:
-        candidate = await _expired_user_candidate(session, restriction_id, user_id, now)
-        if not candidate:
+        user_candidate = await _expired_user_candidate(session, restriction_id, user_id, now)
+        if not user_candidate:
             continue
-        restriction, user = candidate
+        restriction, user = user_candidate
         restriction.expiry_notified_at = now
         active_user = await active_user_restriction(user.id, session)
         if active_user:
@@ -157,10 +157,10 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
 
     listing_notified = 0
     for restriction_id, listing_id in listing_candidates:
-        candidate = await _expired_listing_candidate(session, restriction_id, listing_id, now)
-        if not candidate:
+        listing_candidate = await _expired_listing_candidate(session, restriction_id, listing_id, now)
+        if not listing_candidate:
             continue
-        restriction, listing, owner = candidate
+        restriction, listing, owner = listing_candidate
         restriction.expiry_notified_at = now
         active_listing = await active_listing_restriction(listing.id, session)
         if active_listing:
