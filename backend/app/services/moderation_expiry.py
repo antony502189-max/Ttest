@@ -105,8 +105,8 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
         user_candidate = await _expired_user_candidate(session, restriction_id, user_id, now)
         if not user_candidate:
             continue
-        restriction, user = user_candidate
-        restriction.expiry_notified_at = now
+        user_restriction, user = user_candidate
+        user_restriction.expiry_notified_at = now
         active_user = await active_user_restriction(user.id, session)
         if active_user:
             # A newer restriction won the parent-row lock before us. Mark the old
@@ -132,7 +132,7 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 action="user.restriction_expired",
                 target_type="user",
                 target_id=user.id,
-                detail={"restrictionId": str(restriction.id)},
+                detail={"restrictionId": str(user_restriction.id)},
             )
         )
         await touch_catalog(session)
@@ -160,8 +160,8 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
         listing_candidate = await _expired_listing_candidate(session, restriction_id, listing_id, now)
         if not listing_candidate:
             continue
-        restriction, listing, owner = listing_candidate
-        restriction.expiry_notified_at = now
+        listing_restriction, listing, owner = listing_candidate
+        listing_restriction.expiry_notified_at = now
         active_listing = await active_listing_restriction(listing.id, session)
         if active_listing:
             continue
@@ -188,7 +188,7 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
                 action="listing.restriction_expired",
                 target_type="listing",
                 target_id=listing.id,
-                detail={"restrictionId": str(restriction.id)},
+                detail={"restrictionId": str(listing_restriction.id)},
             )
         )
         await touch_catalog(session)
