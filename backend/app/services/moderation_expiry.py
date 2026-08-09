@@ -33,8 +33,8 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
     user_notified = 0
     for restriction, user in user_rows:
         restriction.expiry_notified_at = now
-        current = await active_user_restriction(user.id, session)
-        if current:
+        active_user = await active_user_restriction(user.id, session)
+        if active_user:
             # A newer restriction supersedes the expired one; do not send a
             # misleading "access restored" message, but mark this expiry handled.
             continue
@@ -84,8 +84,8 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
     listing_notified = 0
     for restriction, listing, owner in listing_rows:
         restriction.expiry_notified_at = now
-        current = await active_listing_restriction(listing.id, session)
-        if current:
+        active_listing = await active_listing_restriction(listing.id, session)
+        if active_listing:
             continue
         add_notice(
             session,
