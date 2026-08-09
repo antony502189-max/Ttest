@@ -17,6 +17,7 @@ from ..schemas.admin import (
     AuditLogResponse,
     ListingRestrictionResponse,
 )
+from .catalog import touch_catalog
 from .moderation import (
     active_listing_restriction,
     active_user_restriction,
@@ -123,6 +124,8 @@ async def change_listing_status(
         )
     )
     session.add(audit(actor.id, "listing.status_changed", "listing", listing.id, {"from": previous, "to": new_status}))
+    if previous != new_status:
+        await touch_catalog(session)
     await session.commit()
     owner = await session.get(User, listing.owner_user_id)
     return public_listing(listing, owner=owner, restriction=await active_listing_restriction(listing.id, session))
@@ -184,6 +187,7 @@ async def restrict_listing(
             {"until": until.isoformat(), "reason": clean_reason},
         )
     )
+    await touch_catalog(session)
     await session.commit()
     return public_listing(listing, owner=owner, restriction=row)
 
@@ -208,6 +212,7 @@ async def unrestrict_listing(listing_id: UUID, actor: User, session: AsyncSessio
         )
         enqueue_listing_unrestriction_email(session, owner.email, listing_title=listing.title)
     session.add(audit(actor.id, "listing.unrestricted", "listing", listing.id, {"restrictionId": str(current.id)}))
+    await touch_catalog(session)
     await session.commit()
     return public_listing(listing, owner=owner)
 
@@ -266,10 +271,6 @@ async def list_admins(session: AsyncSession) -> list[AdminAccessResponse]:
 
 async def add_admin(email: str, actor: User, session: AsyncSession) -> AdminAccessResponse:
     normalized = normalize_email(email)
-    # If the account already exists, lock it in the same order used by user
-    # moderation and refuse contradictory states such as "restricted admin".
-    # A not-yet-registered email is still allowed so future Google sign-in can
-    # activate the pre-authorized administrator identity.
     target = await session.scalar(
         select(User).where(func.lower(User.email) == normalized).with_for_update()
     )
