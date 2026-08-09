@@ -152,7 +152,7 @@ async def list_users(
 
     if status_filter == "deleted":
         query = query.where(User.deleted_at.is_not(None))
-    else:
+    elif status_filter:
         query = query.where(User.deleted_at.is_(None))
         if status_filter == "restricted":
             query = query.where(_active_restriction_exists())
@@ -160,6 +160,9 @@ async def list_users(
             query = query.where(_active_restriction_exists(restriction_type=status_filter))
         elif status_filter == "active":
             query = query.where(~_active_restriction_exists(), User.blocked.is_(False))
+    # No status filter means the administration collection, including soft-
+    # deleted rows. AdminPage hides deleted rows by default and can therefore
+    # reveal them with its existing "Eliminados" client filter after a reload.
 
     if after_created_at is not None and after_id is not None:
         query = query.where(
