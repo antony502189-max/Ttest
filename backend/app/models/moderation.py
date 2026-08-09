@@ -27,7 +27,8 @@ class UserRestriction(Base):
     restriction_type: Mapped[str] = mapped_column(String(32), index=True)
     reason: Mapped[str] = mapped_column(Text)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    # NULL is a deliberate permanent restriction, not an unknown value.
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     revoked_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
