@@ -18,7 +18,7 @@ from ...models import Listing, ListingImage, MediaAsset, User
 from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
-from ...services.moderation import active_window, enforce_publish_access, is_admin
+from ...services.moderation import active_window, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import get_storage
 from ..dependencies import current_user, optional_user
@@ -92,9 +92,10 @@ async def upload_image(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    # Uploads created here are listing media, so a publishing restriction must
-    # stop this path as well as the final listing create/publish call.
-    await enforce_publish_access(user, session)
+    # This generic upload endpoint also feeds the avatar flow: update_avatar can
+    # convert a newly uploaded asset from listing_image to avatar. Therefore a
+    # publishing restriction must be enforced at listing publication/renewal,
+    # not here, otherwise an otherwise-active user could not update their profile.
     settings = get_settings()
     if file.content_type not in SUPPORTED_FORMATS.values():
         raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
