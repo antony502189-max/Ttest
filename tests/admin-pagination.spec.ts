@@ -16,9 +16,14 @@ type AdminUserDto = {
   allowContactForm: boolean
   avatarUrl: string | null
   createdAt: string
+  deletedAt: string | null
+  lastLoginAt: string | null
+  listingCount: number
+  activeRestriction: null
+  isAdmin: boolean
 }
 
-const userDto = (index: number): AdminUserDto => ({
+const userDto = (index: number, deleted = false): AdminUserDto => ({
   id: `user-${index}`,
   email: `user-${index}@example.com`,
   name: `User ${index}`,
@@ -34,6 +39,11 @@ const userDto = (index: number): AdminUserDto => ({
   allowContactForm: true,
   avatarUrl: null,
   createdAt: new Date(Date.UTC(2026, 7, 9, 12, 0, 0) - index * 1000).toISOString(),
+  deletedAt: deleted ? '2026-08-09T13:00:00.000Z' : null,
+  lastLoginAt: null,
+  listingCount: 0,
+  activeRestriction: null,
+  isAdmin: false,
 })
 
 const reportDto = (index: number) => ({
@@ -51,89 +61,20 @@ const reportDto = (index: number) => ({
   createdAt: new Date(Date.UTC(2026, 7, 9, 12, 0, 0) - index * 1000).toISOString(),
 })
 
-test('admin user client drains every server page before rendering', async ({ page }) => {
-  const requestedOffsets: number[] = []
-  await page.route('**/api/v1/admin/users?*', async (route) => {
-    const url = new URL(route.request().url())
-    const offset = Number(url.searchParams.get('offset') ?? '0')
-    const limit = Number(url.searchParams.get('limit') ?? '0')
-    requestedOffsets.push(offset)
-    expect(limit).toBe(200)
-    const count = offset === 0 ? 200 : offset === 200 ? 5 : 0
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(Array.from({ length: count }, (_, index) => userDto(offset + index))),
-    })
-  })
-
-  await page.goto('/')
-  const users = await page.evaluate(async () => {
-    const admin = await import('/src/api/admin.ts')
-    return admin.getAdminUsers()
-  })
-
-  expect(requestedOffsets).toEqual([0, 200])
-  expect(users).toHaveLength(205)
-  expect(users.at(-1)?.email).toBe('user-204@example.com')
-})
-
-test('admin report client drains every server page', async ({ page }) => {
-  const requestedOffsets: number[] = []
-  await page.route('**/api/v1/reports?*', async (route) => {
-    const url = new URL(route.request().url())
-    const offset = Number(url.searchParams.get('offset') ?? '0')
-    const limit = Number(url.searchParams.get('limit') ?? '0')
-    requestedOffsets.push(offset)
-    expect(limit).toBe(200)
-    const count = offset === 0 ? 200 : offset === 200 ? 7 : 0
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(Array.from({ length: count }, (_, index) => reportDto(offset + index))),
-    })
-  })
-
-  await page.goto('/')
-  const reports = await page.evaluate(async () => {
-    const api = await import('/src/api/reports.ts')
-    return api.getAdminReports()
-  })
-
-  expect(requestedOffsets).toEqual([0, 200])
-  expect(reports).toHaveLength(207)
-  expect(reports.at(-1)?.publicReference).toBe('R-0000000206')
-})
-
-test('admin user pagination switches to cursor instead of exceeding offset 10000', async ({ page }) => {
-  const requestedOffsets: number[] = []
-  let cursorRequests = 0
+test('admin user client switches to stable seek pagination after the first full page', async ({ page }) => {
+  const requests: Array<{ offset: number; afterId: string | null; afterCreatedAt: string | null }> = []
   await page.route('**/api/v1/admin/users?*', async (route) => {
     const url = new URL(route.request().url())
     const offset = Number(url.searchParams.get('offset') ?? '0')
     const afterId = url.searchParams.get('afterId')
     const afterCreatedAt = url.searchParams.get('afterCreatedAt')
-    requestedOffsets.push(offset)
+    requests.push({ offset, afterId, afterCreatedAt })
+    expect(url.searchParams.get('limit')).toBe('200')
 
-    if (afterId || afterCreatedAt) {
-      cursorRequests += 1
-      expect(afterId).toBeTruthy()
-      expect(afterCreatedAt).toBeTruthy()
-      expect(offset).toBe(0)
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([userDto(10_200), userDto(10_201), userDto(10_202)]),
-      })
-      return
-    }
-
-    expect(offset).toBeLessThanOrEqual(10_000)
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(Array.from({ length: 200 }, (_, index) => userDto(offset + index))),
-    })
+    const rows = afterId
+      ? Array.from({ length: 5 }, (_, index) => userDto(200 + index))
+      : Array.from({ length: 200 }, (_, index) => userDto(index))
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) })
   })
 
   await page.goto('/')
@@ -142,40 +83,30 @@ test('admin user pagination switches to cursor instead of exceeding offset 10000
     return admin.getAdminUserRows()
   })
 
-  expect(Math.max(...requestedOffsets)).toBe(10_000)
-  expect(cursorRequests).toBe(1)
-  expect(users).toHaveLength(10_203)
+  expect(users).toHaveLength(205)
+  expect(requests).toHaveLength(2)
+  expect(requests[0]).toEqual({ offset: 0, afterId: null, afterCreatedAt: null })
+  expect(requests[1]).toEqual({
+    offset: 0,
+    afterId: 'user-199',
+    afterCreatedAt: userDto(199).createdAt,
+  })
 })
 
-test('admin report pagination switches to cursor instead of exceeding offset 10000', async ({ page }) => {
-  const requestedOffsets: number[] = []
-  let cursorRequests = 0
+test('admin report client switches to stable seek pagination after the first full page', async ({ page }) => {
+  const requests: Array<{ offset: number; afterId: string | null; afterCreatedAt: string | null }> = []
   await page.route('**/api/v1/reports?*', async (route) => {
     const url = new URL(route.request().url())
     const offset = Number(url.searchParams.get('offset') ?? '0')
     const afterId = url.searchParams.get('afterId')
     const afterCreatedAt = url.searchParams.get('afterCreatedAt')
-    requestedOffsets.push(offset)
+    requests.push({ offset, afterId, afterCreatedAt })
+    expect(url.searchParams.get('limit')).toBe('200')
 
-    if (afterId || afterCreatedAt) {
-      cursorRequests += 1
-      expect(afterId).toBeTruthy()
-      expect(afterCreatedAt).toBeTruthy()
-      expect(offset).toBe(0)
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([reportDto(10_200), reportDto(10_201)]),
-      })
-      return
-    }
-
-    expect(offset).toBeLessThanOrEqual(10_000)
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(Array.from({ length: 200 }, (_, index) => reportDto(offset + index))),
-    })
+    const rows = afterId
+      ? Array.from({ length: 7 }, (_, index) => reportDto(200 + index))
+      : Array.from({ length: 200 }, (_, index) => reportDto(index))
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) })
   })
 
   await page.goto('/')
@@ -184,7 +115,36 @@ test('admin report pagination switches to cursor instead of exceeding offset 100
     return api.getAdminReports()
   })
 
-  expect(Math.max(...requestedOffsets)).toBe(10_000)
-  expect(cursorRequests).toBe(1)
-  expect(reports).toHaveLength(10_202)
+  expect(reports).toHaveLength(207)
+  expect(requests).toHaveLength(2)
+  expect(requests[0]).toEqual({ offset: 0, afterId: null, afterCreatedAt: null })
+  expect(requests[1]).toEqual({
+    offset: 0,
+    afterId: reportDto(199).id,
+    afterCreatedAt: reportDto(199).createdAt,
+  })
+})
+
+test('admin row collection retains deleted users while legacy adapter excludes them', async ({ page }) => {
+  await page.route('**/api/v1/admin/users?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([userDto(1), userDto(2, true)]),
+    })
+  })
+
+  await page.goto('/')
+  const result = await page.evaluate(async () => {
+    const admin = await import('/src/api/admin.ts')
+    const rows = await admin.getAdminUserRows()
+    const legacy = await admin.getAdminUsers()
+    return {
+      rowIds: rows.map((row) => row.id),
+      legacyIds: legacy.map((row) => row.id),
+    }
+  })
+
+  expect(result.rowIds).toEqual(['user-1', 'user-2'])
+  expect(result.legacyIds).toEqual(['user-1'])
 })
