@@ -149,10 +149,10 @@ class ExternalImportRunResponse(BaseModel):
     httpStatus: int | None = None
     finalUrl: str | None = None
     nextCheckAt: datetime | None = None
-    diagnosticPaths: list[str] = Field(default_factory=list)
-    discoveryComplete: bool = False
-    discoveryPages: int = 0
-    discoveryFailedPages: list[int] = Field(default_factory=list)
+    diagnosticPaths: dict = Field(default_factory=dict)
+    discoveryComplete: bool | None = None
+    discoveryPages: int | None = None
+    discoveryFailedPages: list[str] = Field(default_factory=list)
 
 
 class ExternalWorkerStateResponse(BaseModel):
