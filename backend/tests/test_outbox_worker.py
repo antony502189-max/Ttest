@@ -39,6 +39,9 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
             states.append(kwargs)
             return SimpleNamespace()
 
+        async def empty_moderation_expiry(session):
+            return {"users": 0, "listings": 0}
+
         async def empty_batch(session) -> int:
             return 0
 
@@ -57,6 +60,7 @@ def test_worker_records_a_healthy_heartbeat_after_an_empty_batch(monkeypatch):
         )
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "worker_state", record_state)
+        monkeypatch.setattr(worker, "process_expired_moderation", empty_moderation_expiry)
         monkeypatch.setattr(worker, "deliver_pending_mail", empty_batch)
         monkeypatch.setattr(worker, "process_storage_deletions", empty_storage_deletions)
         monkeypatch.setattr(worker, "prune_expired_records", empty_retention)
