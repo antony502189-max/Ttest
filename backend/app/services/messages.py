@@ -8,9 +8,11 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Listing, Message, MessageThread, User
+from ..repositories.listings import visible_query
 from ..repositories.messages import get_or_create_thread, thread_list_query, thread_messages
 from ..schemas.messages import MessageResponse, ThreadResponse
 from .mail import enqueue_message_notification
+from .moderation import enforce_listing_view_access
 
 MAX_MESSAGES_PER_MINUTE = 30
 
@@ -78,20 +80,16 @@ async def create_initial_message(
     user: User,
     session: AsyncSession,
 ) -> MessageResponse:
-    listing = await session.get(Listing, listing_id)
-    now = datetime.now(UTC)
-    if (
-        not listing
-        or listing.deleted_at is not None
-        or listing.status != "published"
-        or (listing.expires_at is not None and listing.expires_at <= now)
-    ):
+    # Starting a conversation is part of browsing/contacting a public listing.
+    # Reuse the canonical visibility query so status, expiry, deleted owners and
+    # both user/listing moderation restrictions cannot diverge from search/detail.
+    await enforce_listing_view_access(user, session)
+    row = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
+    if not row:
         raise HTTPException(404, "Listing not found")
+    listing, _, owner, _ = row
     if listing.owner_user_id == user.id:
         raise HTTPException(422, "You cannot message your own listing")
-    owner = await session.get(User, listing.owner_user_id)
-    if not owner or owner.blocked or owner.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
     if not owner.allow_contact_form:
         raise HTTPException(403, "The advertiser does not accept contact-form messages")
     thread = await get_or_create_thread(
@@ -115,6 +113,8 @@ async def reply_to_thread(
     listing = await session.get(Listing, thread.listing_id)
     if not listing:
         raise HTTPException(404, "Thread not found")
+    # Existing participants may keep communicating after the listing leaves the
+    # catalog; only creation of a new contact channel requires public visibility.
     return await _append_message(thread, body, user, session, listing)
 
 
