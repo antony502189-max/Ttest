@@ -12,6 +12,7 @@ from app.services.moderation import (
     is_admin,
     normalize_email,
     restriction_error,
+    restriction_period_text,
 )
 
 
@@ -57,6 +58,19 @@ def test_restriction_error_exposes_reason_expiry_and_support_address() -> None:
         "until": "2026-08-20T12:00:00+00:00",
         "supportEmail": "tf.shuler@gmail.com",
     }
+
+
+def test_permanent_restriction_has_no_fake_expiry() -> None:
+    restriction = SimpleNamespace(
+        restriction_type="full",
+        reason="Permanent moderation decision",
+        ends_at=None,
+    )
+
+    error = restriction_error(restriction, code="ACCOUNT_RESTRICTED")
+
+    assert error.detail["restriction"]["until"] is None
+    assert restriction_period_text(None) == "de forma indefinida"
 
 
 @pytest.mark.asyncio
