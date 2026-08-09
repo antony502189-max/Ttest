@@ -5,6 +5,7 @@ Revises: 0032_media_reference_guard
 """
 
 from collections.abc import Sequence
+from uuid import uuid4
 
 from alembic import op
 import sqlalchemy as sa
@@ -16,6 +17,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 INITIAL_ADMIN_EMAILS = ("tf.shuler@gmail.com", "antony502189@gmail.com")
+LEGACY_BLOCK_MIGRATION_REASON = "Migrated from legacy blocked account"
 
 
 def upgrade() -> None:
@@ -63,6 +65,32 @@ def upgrade() -> None:
     op.create_index("ix_user_restrictions_revoked_at", "user_restrictions", ["revoked_at"])
     op.create_index("ix_user_restrictions_expiry_notified_at", "user_restrictions", ["expiry_notified_at"])
 
+    # Preserve the behavior of accounts blocked by the pre-moderation console,
+    # but move their state into the new model so the new Unrestrict action can
+    # actually restore them. Use generated UUIDs in Python rather than relying
+    # on an optional PostgreSQL UUID extension.
+    connection = op.get_bind()
+    legacy_blocked_ids = list(
+        connection.execute(sa.text("SELECT id FROM users WHERE blocked IS TRUE")).scalars()
+    )
+    for user_id in legacy_blocked_ids:
+        connection.execute(
+            sa.text(
+                """
+                INSERT INTO user_restrictions (
+                    id, user_id, restriction_type, reason, starts_at, ends_at,
+                    created_by, revoked_at, revoked_by, expiry_notified_at
+                ) VALUES (
+                    :id, :user_id, 'full', :reason, now(), NULL,
+                    NULL, NULL, NULL, NULL
+                )
+                """
+            ),
+            {"id": uuid4(), "user_id": user_id, "reason": LEGACY_BLOCK_MIGRATION_REASON},
+        )
+    if legacy_blocked_ids:
+        connection.execute(sa.text("UPDATE users SET blocked = FALSE WHERE blocked IS TRUE"))
+
     op.create_table(
         "listing_restrictions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -88,13 +116,14 @@ def upgrade() -> None:
 
     op.create_table(
         "admin_notes",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_admin_notes_user_id", "admin_notes", ["user_id"])
     op.create_index("ix_admin_notes_created_by", "admin_notes", ["created_by"])
@@ -135,6 +164,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    connection = op.get_bind()
+    connection.execute(
+        sa.text(
+            """
+            UPDATE users
+            SET blocked = TRUE
+            WHERE id IN (
+                SELECT user_id
+                FROM user_restrictions
+                WHERE reason = :reason
+                  AND restriction_type = 'full'
+                  AND revoked_at IS NULL
+            )
+            """
+        ),
+        {"reason": LEGACY_BLOCK_MIGRATION_REASON},
+    )
+
     op.drop_table("user_report_targets")
     op.drop_table("moderation_notices")
     op.drop_table("admin_notes")
