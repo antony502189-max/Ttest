@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.api import dependencies
 from app.api.v1 import reports as reports_api
 from app.services import admin as admin_service
+from app.services import admin_users
 
 
 @pytest.mark.asyncio
@@ -71,6 +72,34 @@ def test_auth_router_preserves_identity_session_for_restriction_ux() -> None:
 
 
 @pytest.mark.asyncio
+async def test_full_restriction_does_not_revoke_existing_identity_sessions(monkeypatch: pytest.MonkeyPatch) -> None:
+    target = SimpleNamespace(id=uuid4(), email="restricted@example.com", deleted_at=None)
+    actor = SimpleNamespace(id=uuid4())
+    session = SimpleNamespace(
+        get=AsyncMock(side_effect=[target, None]),
+        scalars=AsyncMock(),
+        add=MagicMock(),
+        commit=AsyncMock(),
+    )
+    monkeypatch.setattr(admin_users, "active_user_restriction", AsyncMock(return_value=None))
+    monkeypatch.setattr(admin_users, "touch_catalog", AsyncMock())
+    monkeypatch.setattr(admin_users, "get_user_detail", AsyncMock(return_value="detail"))
+
+    result = await admin_users.restrict_user(
+        target.id,
+        restriction_type="full",
+        until=None,
+        reason="Account suspended",
+        actor=actor,
+        session=session,
+    )
+
+    assert result == "detail"
+    session.scalars.assert_not_awaited()
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_admin_note_locks_user_before_deleted_check() -> None:
     user_id = uuid4()
     actor = SimpleNamespace(id=uuid4(), name="Admin")
@@ -118,3 +147,18 @@ def test_deleted_admin_user_detail_is_rendered_read_only() -> None:
     assert '!isDeleted ? <UserRestrictionDialog' in admin_page
     assert '!isDeleted ? <DeleteUserDialog' in admin_page
     assert 'La ficha se conserva únicamente como historial de moderación y es de solo lectura.' in admin_page
+
+
+def test_admin_navigation_uses_server_access_in_production() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    hook = (project_root / "src" / "hooks" / "use-admin-access.ts").read_text(encoding="utf-8")
+    layout = (project_root / "src" / "components" / "layout.tsx").read_text(encoding="utf-8")
+    mobile = (project_root / "src" / "pages" / "MobilePages.tsx").read_text(encoding="utf-8")
+
+    assert "checkAdminAccess()" in hook
+    assert "if (mockMode)" in hook
+    assert "setAllowed(productRole === 'admin')" in hook
+    assert "adminAllowed ?" in layout
+    assert "currentUser?.role === 'admin'" not in layout
+    assert "useAdminAccess()" in mobile
+    assert '<MenuRow to="/admin"' in mobile
