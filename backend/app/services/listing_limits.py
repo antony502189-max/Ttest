@@ -6,13 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import Listing, User
+from .moderation import is_admin
 
 ACTIVE_LISTING_STATUSES = {"draft", "pending", "published", "hidden"}
 
 
 async def enforce_listing_creation_limits(user: User, session: AsyncSession) -> None:
-    """Serialize and bound manual listing creation for one non-admin account."""
-    if user.role == "admin":
+    """Serialize and bound manual listing creation unless active admin access is present.
+
+    The legacy product role is not an authorization boundary. Revoking an
+    account from `admin_access` immediately restores normal abuse-prevention
+    quotas even if an older user row still carries role="admin".
+    """
+    if await is_admin(user, session):
         return
 
     settings = get_settings()
