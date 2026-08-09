@@ -39,7 +39,6 @@ def upgrade() -> None:
         sa.Column("restriction_type", sa.String(length=32), nullable=False),
         sa.Column("reason", sa.Text(), nullable=False),
         sa.Column("starts_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        # NULL means the restriction is permanent until an administrator revokes it.
         sa.Column("ends_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
@@ -65,15 +64,12 @@ def upgrade() -> None:
     op.create_index("ix_user_restrictions_revoked_at", "user_restrictions", ["revoked_at"])
     op.create_index("ix_user_restrictions_expiry_notified_at", "user_restrictions", ["expiry_notified_at"])
 
-    # Preserve accounts blocked by the pre-moderation console, but move their
-    # state into the new model so the normal Unrestrict action can restore them.
-    # Generate UUIDs in Python rather than relying on an optional PostgreSQL UUID
-    # extension that may not exist in every deployment.
     connection = op.get_bind()
-    legacy_blocked_ids = list(
-        connection.execute(sa.text("SELECT id FROM users WHERE blocked IS TRUE")).scalars()
-    )
-    for user_id in legacy_blocked_ids:
+    legacy_blocked_rows = connection.execute(
+        sa.text("SELECT id, lower(email) AS email FROM users WHERE blocked IS TRUE")
+    ).all()
+    legacy_blocked_emails = {str(row.email) for row in legacy_blocked_rows}
+    for row in legacy_blocked_rows:
         connection.execute(
             sa.text(
                 """
@@ -86,9 +82,9 @@ def upgrade() -> None:
                 )
                 """
             ),
-            {"id": uuid4(), "user_id": user_id, "reason": LEGACY_BLOCK_MIGRATION_REASON},
+            {"id": uuid4(), "user_id": row.id, "reason": LEGACY_BLOCK_MIGRATION_REASON},
         )
-    if legacy_blocked_ids:
+    if legacy_blocked_rows:
         connection.execute(sa.text("UPDATE users SET blocked = FALSE WHERE blocked IS TRUE"))
 
     op.create_table(
@@ -159,14 +155,12 @@ def upgrade() -> None:
         sa.column("email", sa.String(length=320)),
         sa.column("active", sa.Boolean()),
     )
-    op.bulk_insert(admin_access, [{"email": email, "active": True} for email in INITIAL_ADMIN_EMAILS])
+    seed_admin_emails = [email for email in INITIAL_ADMIN_EMAILS if email.lower() not in legacy_blocked_emails]
+    if seed_admin_emails:
+        op.bulk_insert(admin_access, [{"email": email, "active": True} for email in seed_admin_emails])
 
 
 def downgrade() -> None:
-    # The legacy schema can represent only a full account block. Preserve every
-    # currently active full restriction when rolling back, not just rows that
-    # originated from the legacy migration; otherwise a production rollback
-    # could silently restore access that an administrator intentionally removed.
     connection = op.get_bind()
     connection.execute(
         sa.text(
