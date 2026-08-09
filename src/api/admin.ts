@@ -99,13 +99,28 @@ const statusMap: Record<ListingStatus, string> = {
   Rechazado: 'rejected',
 }
 
+const ADMIN_PAGE_SIZE = 200
+
+async function drainAdminPages<T>(path: string, params: URLSearchParams): Promise<T[]> {
+  const result: T[] = []
+  let offset = 0
+  while (true) {
+    params.set('limit', String(ADMIN_PAGE_SIZE))
+    params.set('offset', String(offset))
+    const page = await api<T[]>(`${path}?${params}`)
+    result.push(...page)
+    if (page.length < ADMIN_PAGE_SIZE) return result
+    offset += ADMIN_PAGE_SIZE
+  }
+}
+
 export const checkAdminAccess = () => api<{ isAdmin: true; email: string }>('/admin/access')
 
 export async function getAdminUserRows(search = '', status = ''): Promise<AdminUser[]> {
-  const params = new URLSearchParams({ limit: '200', offset: '0' })
+  const params = new URLSearchParams()
   if (search.trim()) params.set('search', search.trim())
   if (status) params.set('status', status)
-  return api<AdminUser[]>(`/admin/users?${params}`)
+  return drainAdminPages<AdminUser>('/admin/users', params)
 }
 
 export async function getAdminUsers(): Promise<DemoUser[]> {
@@ -160,11 +175,11 @@ export const addAdminNote = (id: string, body: string) =>
   api<AdminNote>(`/admin/users/${id}/notes`, { method: 'POST', body: JSON.stringify({ body }) })
 
 export async function getAdminListings(search = '', status = '', restricted?: boolean): Promise<AdminListing[]> {
-  const params = new URLSearchParams({ limit: '200', offset: '0' })
+  const params = new URLSearchParams()
   if (search.trim()) params.set('search', search.trim())
   if (status) params.set('status', status)
   if (restricted !== undefined) params.set('restricted', String(restricted))
-  return api<AdminListing[]>(`/admin/listings?${params}`)
+  return drainAdminPages<AdminListing>('/admin/listings', params)
 }
 
 export const moderateRemoteListing = (id: string, status: ListingStatus) =>
@@ -188,7 +203,7 @@ export const addAdministrator = (email: string) =>
 export const revokeAdministrator = (email: string) =>
   api<void>(`/admin/admins/${encodeURIComponent(email)}`, { method: 'DELETE' })
 
-export const getAdminAuditLog = () => api<AdminAuditLog[]>('/admin/audit-log?limit=200&offset=0')
+export const getAdminAuditLog = () => drainAdminPages<AdminAuditLog>('/admin/audit-log', new URLSearchParams())
 
 // Compatibility for the legacy app-context while the admin page uses dated restrictions directly.
 export async function setRemoteUserBlocked(id: string, blocked: boolean) {
