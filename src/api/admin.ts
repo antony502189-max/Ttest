@@ -1,5 +1,5 @@
-import { api } from '@/api/client'
-import type { ListingStatus } from '@/types'
+import { api, resolveApiUrl } from '@/api/client'
+import type { DemoUser, ListingStatus } from '@/types'
 
 export type RestrictionType = 'full' | 'publish' | 'view_listings'
 
@@ -26,7 +26,7 @@ export type AdminUser = {
   id: string
   email: string
   name: string
-  role: string
+  role: DemoUser['role']
   blocked: boolean
   phone: string
   whatsapp: string
@@ -101,11 +101,33 @@ const statusMap: Record<ListingStatus, string> = {
 
 export const checkAdminAccess = () => api<{ isAdmin: true; email: string }>('/admin/access')
 
-export async function getAdminUsers(search = '', status = ''): Promise<AdminUser[]> {
+export async function getAdminUserRows(search = '', status = ''): Promise<AdminUser[]> {
   const params = new URLSearchParams({ limit: '200', offset: '0' })
   if (search.trim()) params.set('search', search.trim())
   if (status) params.set('status', status)
   return api<AdminUser[]>(`/admin/users?${params}`)
+}
+
+export async function getAdminUsers(): Promise<DemoUser[]> {
+  const users = await getAdminUserRows()
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    blocked: Boolean(user.blocked || user.activeRestriction?.restrictionType === 'full'),
+    password: '',
+    initials: user.initials || user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+    phone: user.phone,
+    whatsapp: user.whatsapp,
+    telegram: user.telegram,
+    about: user.about,
+    showPhone: user.showPhone,
+    showWhatsApp: user.showWhatsApp,
+    allowContactForm: user.allowContactForm,
+    allowMessaging: user.allowContactForm,
+    avatarRef: user.avatarUrl ? resolveApiUrl(user.avatarUrl) : undefined,
+  }))
 }
 
 export const getAdminUser = (id: string) => api<AdminUserDetail>(`/admin/users/${id}`)
@@ -159,8 +181,7 @@ export const revokeAdministrator = (email: string) =>
 
 export const getAdminAuditLog = () => api<AdminAuditLog[]>('/admin/audit-log?limit=200&offset=0')
 
-// Compatibility for the legacy app-context. The redesigned AdminPage no longer
-// uses the boolean hard-block endpoint; dated restrictions are the source of truth.
+// Compatibility for the legacy app-context while the admin page uses dated restrictions directly.
 export async function setRemoteUserBlocked(id: string, blocked: boolean) {
   if (!blocked) return unrestrictAdminUser(id)
   const until = new Date()
@@ -170,8 +191,4 @@ export async function setRemoteUserBlocked(id: string, blocked: boolean) {
     until: until.toISOString(),
     reason: 'Cuenta restringida por administración',
   })
-}
-
-export async function getAdminUsersLegacy() {
-  return getAdminUsers()
 }
