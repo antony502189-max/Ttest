@@ -4,7 +4,7 @@ import type { RestrictionType } from '@/api/admin'
 export type MyRestriction = {
   restrictionType: RestrictionType
   reason: string
-  until: string
+  until: string | null
   supportEmail: string
 }
 
