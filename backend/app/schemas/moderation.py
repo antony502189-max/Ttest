@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class MyRestrictionResponse(BaseModel):
     restrictionType: str
     reason: str
-    until: datetime
+    until: datetime | None
     supportEmail: str
 
 
