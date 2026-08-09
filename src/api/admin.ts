@@ -8,7 +8,7 @@ export type AdminRestriction = {
   restrictionType: RestrictionType
   reason: string
   startsAt: string
-  endsAt: string
+  endsAt: string | null
   revokedAt: string | null
   active: boolean
 }
@@ -146,19 +146,12 @@ export async function getAdminUsers(): Promise<DemoUser[]> {
 }
 
 export async function getAdminUser(id: string): Promise<AdminUserDetail> {
-  const [user, admins] = await Promise.all([
-    api<AdminUserDetail>(`/admin/users/${id}`),
-    api<AdminAccount[]>('/admin/admins'),
-  ])
-  return {
-    ...user,
-    isAdmin: admins.some((admin) => admin.active && admin.email.toLowerCase() === user.email.toLowerCase()),
-  }
+  return api<AdminUserDetail>(`/admin/users/${id}`)
 }
 
 export const restrictAdminUser = (
   id: string,
-  payload: { restrictionType: RestrictionType; until: string; reason: string },
+  payload: { restrictionType: RestrictionType; until: string | null; reason: string },
 ) => api<AdminUserDetail>(`/admin/users/${id}/restrictions`, {
   method: 'POST',
   body: JSON.stringify(payload),
@@ -205,14 +198,13 @@ export const revokeAdministrator = (email: string) =>
 
 export const getAdminAuditLog = () => drainAdminPages<AdminAuditLog>('/admin/audit-log', new URLSearchParams())
 
-// Compatibility for the legacy app-context while the admin page uses dated restrictions directly.
+// Compatibility for the legacy app-context. The old `blocked` flag meant an
+// indefinite full account block, so preserve that meaning without a fake date.
 export async function setRemoteUserBlocked(id: string, blocked: boolean) {
   if (!blocked) return unrestrictAdminUser(id)
-  const until = new Date()
-  until.setFullYear(until.getFullYear() + 10)
   return restrictAdminUser(id, {
     restrictionType: 'full',
-    until: until.toISOString(),
+    until: null,
     reason: 'Cuenta restringida por administración',
   })
 }
