@@ -60,8 +60,7 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     owner = SimpleNamespace(id=owner_id, email="owner@example.com", deleted_at=None)
     actor = SimpleNamespace(id=actor_id)
     session = SimpleNamespace(
-        get=AsyncMock(return_value=listing),
-        scalar=AsyncMock(return_value=owner),
+        scalar=AsyncMock(side_effect=[owner_id, owner, listing]),
         add=MagicMock(),
         commit=AsyncMock(),
     )
@@ -79,9 +78,13 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     )
 
     assert result == "ok"
-    owner_lock = str(session.scalar.await_args.args[0])
-    assert "FROM users" in owner_lock
-    assert "FOR UPDATE" in owner_lock
+    statements = [str(call.args[0]) for call in session.scalar.await_args_list]
+    assert "FROM listings" in statements[0]
+    assert "FOR UPDATE" not in statements[0]
+    assert "FROM users" in statements[1]
+    assert "FOR UPDATE" in statements[1]
+    assert "FROM listings" in statements[2]
+    assert "FOR UPDATE" in statements[2]
     catalog_touch.assert_awaited_once_with(session)
     session.commit.assert_awaited_once()
 
@@ -176,14 +179,14 @@ async def test_user_expiry_locks_parent_before_restriction() -> None:
 
 
 @pytest.mark.asyncio
-async def test_listing_expiry_locks_listing_restriction_and_owner() -> None:
+async def test_listing_expiry_uses_user_listing_restriction_lock_order() -> None:
     listing_id = uuid4()
     restriction_id = uuid4()
     owner_id = uuid4()
     listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id)
     restriction = SimpleNamespace(id=restriction_id)
     owner = SimpleNamespace(id=owner_id, deleted_at=None)
-    session = SimpleNamespace(scalar=AsyncMock(side_effect=[listing, restriction, owner]))
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[owner_id, owner, listing, restriction]))
 
     result = await moderation_expiry._expired_listing_candidate(
         session,
@@ -195,11 +198,13 @@ async def test_listing_expiry_locks_listing_restriction_and_owner() -> None:
     assert result == (restriction, listing, owner)
     statements = [str(call.args[0]) for call in session.scalar.await_args_list]
     assert "FROM listings" in statements[0]
-    assert "FOR UPDATE" in statements[0]
-    assert "FROM listing_restrictions" in statements[1]
+    assert "FOR UPDATE" not in statements[0]
+    assert "FROM users" in statements[1]
     assert "FOR UPDATE" in statements[1]
-    assert "FROM users" in statements[2]
+    assert "FROM listings" in statements[2]
     assert "FOR UPDATE" in statements[2]
+    assert "FROM listing_restrictions" in statements[3]
+    assert "FOR UPDATE" in statements[3]
 
 
 @pytest.mark.asyncio
@@ -268,21 +273,21 @@ async def test_admin_listing_query_excludes_deleted_owners() -> None:
 
 
 @pytest.mark.asyncio
-async def test_listing_admin_mutation_locks_and_rejects_deleted_owner() -> None:
-    listing = SimpleNamespace(id=uuid4(), owner_user_id=uuid4(), deleted_at=None)
-    owner = SimpleNamespace(id=listing.owner_user_id, deleted_at=datetime.now(UTC))
-    session = SimpleNamespace(
-        get=AsyncMock(return_value=listing),
-        scalar=AsyncMock(return_value=owner),
-    )
+async def test_listing_admin_mutation_locks_owner_before_listing_and_rejects_deleted_owner() -> None:
+    listing_id = uuid4()
+    owner_id = uuid4()
+    owner = SimpleNamespace(id=owner_id, deleted_at=datetime.now(UTC))
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[owner_id, owner]))
 
     with pytest.raises(HTTPException) as exc:
-        await admin_service._actionable_listing(listing.id, session)
+        await admin_service._actionable_listing(listing_id, session)
 
     assert exc.value.status_code == 404
-    owner_lock = str(session.scalar.await_args.args[0])
-    assert "FROM users" in owner_lock
-    assert "FOR UPDATE" in owner_lock
+    statements = [str(call.args[0]) for call in session.scalar.await_args_list]
+    assert "FROM listings" in statements[0]
+    assert "FOR UPDATE" not in statements[0]
+    assert "FROM users" in statements[1]
+    assert "FOR UPDATE" in statements[1]
 
 
 def test_saved_listing_visibility_includes_active_moderation_predicates() -> None:
