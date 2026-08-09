@@ -29,6 +29,7 @@ const MessagesPage = lazy(() => import('@/pages/MobilePages').then((module) => (
 
 const infoRoutes = ['/sobre-nosotros', '/como-funciona', '/ayuda', '/terminos', '/privacidad', '/cookies', '/normas-de-publicacion']
 const MOBILE_ONBOARDING_KEY = '112233:mobile-onboarding:v1'
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
 function RouteLoading() {
   return <div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>
@@ -109,6 +110,10 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
       setAdminAllowed(null)
       return
     }
+    if (mockMode) {
+      setAdminAllowed(currentUser.role === 'admin')
+      return
+    }
     let cancelled = false
     setAdminAllowed(null)
     void checkAdminAccess().then(() => {
@@ -117,7 +122,7 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
       if (!cancelled) setAdminAllowed(false)
     })
     return () => { cancelled = true }
-  }, [admin, currentUser?.id])
+  }, [admin, currentUser?.id, currentUser?.role])
 
   if (!authReady) return <RouteLoading />
   if (!currentUser) return <Navigate to="/acceso" state={{ returnTo: `${location.pathname}${location.search}` }} replace />
