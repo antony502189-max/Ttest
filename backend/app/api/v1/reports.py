@@ -7,7 +7,7 @@ from ...db.session import get_session
 from ...models import User
 from ...schemas.reports import CreateReportRequest, ReportResponse, ReportStatusRequest
 from ...services.reports import create_report, list_reports, update_report
-from ..dependencies import optional_user, require_role
+from ..dependencies import optional_user, require_admin
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -25,7 +25,7 @@ async def create_report_route(
 async def list_reports_route(
     limit: int = Query(default=100, ge=1, le=200),
     offset: int = Query(default=0, ge=0, le=10_000),
-    user: User = Depends(require_role("admin")),
+    user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     return await list_reports(session, limit=limit, offset=offset)
@@ -35,7 +35,7 @@ async def list_reports_route(
 async def update_report_route(
     report_id: UUID,
     payload: ReportStatusRequest,
-    user: User = Depends(require_role("admin")),
+    user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     return await update_report(report_id, payload.status, user, session)
