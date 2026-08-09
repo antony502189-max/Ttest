@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import case, func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, AuthSession, Listing, User
@@ -91,12 +91,7 @@ async def _active_restrictions_by_user(
     session: AsyncSession,
     user_ids: list[UUID],
 ) -> dict[UUID, UserRestriction]:
-    """Load active moderation rows for one admin page with one query.
-
-    Normal writes serialize per-user moderation and therefore keep one active
-    row. The ordering mirrors the defensive policy in active_user_restriction()
-    so legacy/manual overlapping rows still resolve identically.
-    """
+    """Load active moderation rows for one admin page with one query."""
     if not user_ids:
         return {}
     priority = case(
@@ -139,8 +134,10 @@ async def list_users(
     status_filter: str | None = None,
     limit: int,
     offset: int,
+    after_created_at: datetime | None = None,
+    after_id: UUID | None = None,
 ) -> list[AdminUserResponse]:
-    """Apply search/status predicates before LIMIT/OFFSET so pagination stays exact."""
+    """Apply filters before pagination and support seek pagination beyond the offset ceiling."""
     listing_count = (
         select(func.count(Listing.id))
         .where(Listing.owner_user_id == User.id, Listing.deleted_at.is_(None))
@@ -167,6 +164,15 @@ async def list_users(
             query = query.where(_active_restriction_exists(restriction_type=status_filter))
         elif status_filter == "active":
             query = query.where(~_active_restriction_exists(), User.blocked.is_(False))
+
+    if after_created_at is not None and after_id is not None:
+        query = query.where(
+            or_(
+                User.created_at < after_created_at,
+                and_(User.created_at == after_created_at, User.id < after_id),
+            )
+        )
+        offset = 0
 
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
     admin_emails = await _active_admin_emails(session)
