@@ -15,11 +15,12 @@ const labels = {
   view_listings: 'El acceso a anuncios está restringido',
 } as const
 
-function formattedUntil(value: string) {
-  return new Intl.DateTimeFormat('es-ES', {
+function formattedUntil(value: string | null) {
+  if (!value) return 'Sin fecha final'
+  return `Hasta ${new Intl.DateTimeFormat('es-ES', {
     dateStyle: 'long',
     timeStyle: 'short',
-  }).format(new Date(value))
+  }).format(new Date(value))}`
 }
 
 function RestrictionCard({ restriction, full = false }: { restriction: MyRestriction; full?: boolean }) {
@@ -30,7 +31,7 @@ function RestrictionCard({ restriction, full = false }: { restriction: MyRestric
       <div>
         <strong>{labels[restriction.restrictionType]}</strong>
         <p>{restriction.reason}</p>
-        <span>Hasta {formattedUntil(restriction.until)}</span>
+        <span>{formattedUntil(restriction.until)}</span>
         <a href={`mailto:${restriction.supportEmail}`}><Mail aria-hidden="true" /> Contactar con soporte: {restriction.supportEmail}</a>
       </div>
     </div>
@@ -83,7 +84,7 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
   }, [currentUser?.id])
 
   useEffect(() => {
-    if (!currentUser || !restriction) return
+    if (!currentUser || !restriction?.until) return
     const remaining = new Date(restriction.until).getTime() - Date.now()
     if (remaining > MODERATION_REFRESH_MS) return
     const timer = window.setTimeout(() => {
