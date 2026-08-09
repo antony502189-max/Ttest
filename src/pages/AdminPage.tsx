@@ -379,7 +379,11 @@ function UserDetailView({
 
   const ownedListings = useMemo(() => listings.filter((listing) => listing.ownerUserId === userId), [listings, userId])
   const listingIds = useMemo(() => new Set(ownedListings.map((listing) => listing.id)), [ownedListings])
-  const relatedReports = useMemo(() => reports.filter((report) => listingIds.has(report.listingId)), [listingIds, reports])
+  const relatedReports = useMemo(() => reports.filter((report) => (
+    listingIds.has(report.listingId)
+    || report.ownerUserId === userId
+    || report.targetUserId === userId
+  )), [listingIds, reports, userId])
 
   if (loading || !user) return <div className="admin-detail-loading"><RefreshCw className="spin" /> Cargando usuario…</div>
 
@@ -571,7 +575,10 @@ export function AdminPage() {
         <SectionHeader title="Denuncias" description="Revisa el contexto y llega al usuario o al anuncio sin tener que buscarlo manualmente." />
         {visibleReports.length ? <div className="admin-report-list">{visibleReports.map((report) => {
           const listing = listings.find((item) => item.id === report.listingId)
-          return <article key={report.id} className="admin-report-card"><header><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant={report.status === 'open' ? 'destructive' : 'outline'}>{reportLabels[report.status]}</Badge></header><p>{report.comment || 'Sin comentario adicional.'}</p><div className="admin-report-context"><span>Objetivo: <b>{report.targetType === 'user' ? 'Usuario' : 'Anuncio'}</b></span><span>Anuncio: <b>{listing?.title ?? report.listingId}</b></span><span>Usuario: <b>{listing?.ownerName ?? '—'}</b></span></div><footer>{listing ? <><Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Ver usuario</Button><Button variant="outline" size="sm" onClick={() => { setSection('listings'); setQuery(listing.title) }}><FileSearch /> Ver anuncio</Button></> : null}{report.status === 'open' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'in_review') }}>Tomar revisión</Button> : null}{report.status !== 'resolved' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'resolved') }}><CheckCircle2 /> Resolver</Button> : null}{report.status !== 'rejected' ? <Button variant="outline" size="sm" onClick={() => { void changeReportStatus(report, 'rejected') }}><XCircle /> Descartar</Button> : null}</footer></article>
+          const relatedUserId = report.targetUserId ?? listing?.ownerUserId ?? report.ownerUserId
+          const listingTitle = listing?.title ?? report.listingTitle ?? report.listingId
+          const ownerName = listing?.ownerName ?? report.ownerName ?? '—'
+          return <article key={report.id} className="admin-report-card"><header><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant={report.status === 'open' ? 'destructive' : 'outline'}>{reportLabels[report.status]}</Badge></header><p>{report.comment || 'Sin comentario adicional.'}</p><div className="admin-report-context"><span>Objetivo: <b>{report.targetType === 'user' ? 'Usuario' : 'Anuncio'}</b></span><span>Anuncio: <b>{listingTitle}</b></span><span>Usuario: <b>{ownerName}</b></span></div><footer>{relatedUserId ? <Button variant="outline" size="sm" onClick={() => setSelectedUserId(relatedUserId)}><UserRound /> Ver usuario</Button> : null}{listing ? <Button variant="outline" size="sm" onClick={() => { setSection('listings'); setQuery(listing.title) }}><FileSearch /> Ver anuncio</Button> : null}{report.status === 'open' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'in_review') }}>Tomar revisión</Button> : null}{report.status !== 'resolved' ? <Button size="sm" onClick={() => { void changeReportStatus(report, 'resolved') }}><CheckCircle2 /> Resolver</Button> : null}{report.status !== 'rejected' ? <Button variant="outline" size="sm" onClick={() => { void changeReportStatus(report, 'rejected') }}><XCircle /> Descartar</Button> : null}</footer></article>
         })}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay reportes pendientes ni históricos disponibles." />}
       </> : null}
 
