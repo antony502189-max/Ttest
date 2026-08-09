@@ -9,18 +9,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHistory, User
+from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
+from .moderation import active_window, enforce_listing_view_access
 
 MAX_HISTORY = 20
 
 
 def visible_listing_conditions():
+    """Canonical public-visibility policy for saved listing collections.
+
+    Favorites/discarded IDs are another public-listing surface: a moderation-
+    hidden listing must not remain discoverable or be accepted by ID through
+    these collections. Reuse the moderation service's active-window semantics so
+    permanent user restrictions and dated listing restrictions match search and
+    detail behavior.
+    """
+    active_owner_restriction = (
+        select(UserRestriction.id)
+        .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
+        .correlate(User)
+        .exists()
+    )
+    active_listing_restriction = (
+        select(ListingRestriction.id)
+        .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
+        .correlate(Listing)
+        .exists()
+    )
     return (
         Listing.status == "published",
         Listing.deleted_at.is_(None),
         (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
         User.deleted_at.is_(None),
         User.blocked.is_(False),
+        ~active_owner_restriction,
+        ~active_listing_restriction,
     )
 
 
@@ -67,11 +91,13 @@ async def collection_count(model, user_id: UUID, session: AsyncSession) -> int:
 
 
 async def list_collection(model, user: User, session: AsyncSession) -> list[UUID]:
+    await enforce_listing_view_access(user, session)
     limit = get_settings().max_listing_collection_items_per_user
     return list((await session.scalars(collection_query(model, user.id).limit(limit))).all())
 
 
 async def add_collection_item(model, constraint: str, listing_id: UUID, user: User, session: AsyncSession) -> None:
+    await enforce_listing_view_access(user, session)
     await require_listing(listing_id, session)
     await lock_collection(model, user.id, session)
     existing = await session.scalar(
@@ -89,11 +115,13 @@ async def add_collection_item(model, constraint: str, listing_id: UUID, user: Us
 
 
 async def remove_collection_item(model, listing_id: UUID, user: User, session: AsyncSession) -> None:
+    await enforce_listing_view_access(user, session)
     await session.execute(delete(model).where(model.user_id == user.id, model.listing_id == listing_id))
     await session.commit()
 
 
 async def clear_collection(model, user: User, session: AsyncSession) -> None:
+    await enforce_listing_view_access(user, session)
     await session.execute(delete(model).where(model.user_id == user.id))
     await session.commit()
 
@@ -124,13 +152,12 @@ async def lock_search_history(user_id: UUID, session: AsyncSession) -> None:
 
 
 async def saved_search_count(user_id: UUID, session: AsyncSession) -> int:
-    value = await session.scalar(
-        select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id)
-    )
+    value = await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id))
     return int(value or 0)
 
 
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:
+    await enforce_listing_view_access(user, session)
     settings = get_settings()
     requested_ids = valid_uuid_values(payload.favoriteIds)
     valid_listing_ids = (
