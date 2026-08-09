@@ -130,7 +130,16 @@ export async function getAdminUsers(): Promise<DemoUser[]> {
   }))
 }
 
-export const getAdminUser = (id: string) => api<AdminUserDetail>(`/admin/users/${id}`)
+export async function getAdminUser(id: string): Promise<AdminUserDetail> {
+  const [user, admins] = await Promise.all([
+    api<AdminUserDetail>(`/admin/users/${id}`),
+    api<AdminAccount[]>('/admin/admins'),
+  ])
+  return {
+    ...user,
+    isAdmin: admins.some((admin) => admin.active && admin.email.toLowerCase() === user.email.toLowerCase()),
+  }
+}
 
 export const restrictAdminUser = (
   id: string,
