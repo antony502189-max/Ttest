@@ -21,6 +21,7 @@ export type AdminReport = {
 type ReportDto = AdminReport
 
 const ADMIN_REPORT_PAGE_SIZE = 200
+const ADMIN_REPORT_MAX_OFFSET = 10_000
 
 function toReport(dto: ReportDto): ReportRecord {
   return {
@@ -48,11 +49,27 @@ export const getRemoteReports = async () => (await api<ReportDto[]>('/reports'))
 export async function getAdminReports(): Promise<AdminReport[]> {
   const result: AdminReport[] = []
   let offset = 0
+  let cursor: AdminReport | null = null
   while (true) {
-    const page = await api<AdminReport[]>(`/reports?limit=${ADMIN_REPORT_PAGE_SIZE}&offset=${offset}`)
+    const params = new URLSearchParams({ limit: String(ADMIN_REPORT_PAGE_SIZE) })
+    if (cursor) {
+      params.set('offset', '0')
+      params.set('afterCreatedAt', cursor.createdAt)
+      params.set('afterId', cursor.id)
+    } else {
+      params.set('offset', String(offset))
+    }
+    const page = await api<AdminReport[]>(`/reports?${params}`)
     result.push(...page)
     if (page.length < ADMIN_REPORT_PAGE_SIZE) return result
-    offset += ADMIN_REPORT_PAGE_SIZE
+
+    const last = page.at(-1)
+    if (!last) return result
+    if (cursor || offset >= ADMIN_REPORT_MAX_OFFSET) {
+      cursor = last
+    } else {
+      offset += ADMIN_REPORT_PAGE_SIZE
+    }
   }
 }
 
