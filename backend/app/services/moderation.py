@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import User
@@ -21,7 +21,11 @@ def normalize_email(email: str) -> str:
 
 def active_window(model):
     now = func.now()
-    return model.revoked_at.is_(None), model.starts_at <= now, model.ends_at > now
+    return (
+        model.revoked_at.is_(None),
+        model.starts_at <= now,
+        or_(model.ends_at.is_(None), model.ends_at > now),
+    )
 
 
 async def is_admin(user: User, session: AsyncSession) -> bool:
@@ -36,7 +40,8 @@ async def active_user_restriction(user_id: UUID, session: AsyncSession) -> UserR
     # Application writes serialize restrictions per user, so normally only one
     # active row exists. Keep deterministic precedence as a defensive fallback
     # for manually repaired/imported data or a historical race: full access
-    # denial must never be shadowed by a narrower restriction with a later end.
+    # denial must never be shadowed by a narrower restriction. Within the same
+    # type, a permanent restriction takes precedence over a dated one.
     priority = case(
         (UserRestriction.restriction_type == "full", 0),
         (UserRestriction.restriction_type == "publish", 1),
@@ -45,7 +50,11 @@ async def active_user_restriction(user_id: UUID, session: AsyncSession) -> UserR
     return await session.scalar(
         select(UserRestriction)
         .where(UserRestriction.user_id == user_id, *active_window(UserRestriction))
-        .order_by(priority, UserRestriction.ends_at.desc(), UserRestriction.starts_at.desc())
+        .order_by(
+            priority,
+            UserRestriction.ends_at.asc().nullsfirst(),
+            UserRestriction.starts_at.desc(),
+        )
         .limit(1)
     )
 
@@ -69,7 +78,7 @@ def restriction_error(restriction: UserRestriction, *, code: str) -> HTTPExcepti
             "restriction": {
                 "type": restriction.restriction_type,
                 "reason": restriction.reason,
-                "until": restriction.ends_at.isoformat(),
+                "until": restriction.ends_at.isoformat() if restriction.ends_at else None,
                 "supportEmail": SUPPORT_EMAIL,
             },
         },
@@ -100,13 +109,19 @@ def add_notice(session: AsyncSession, user_id: UUID, *, kind: str, title: str, b
     session.add(ModerationNotice(user_id=user_id, kind=kind, title=title, body=body))
 
 
+def restriction_period_text(until: datetime | None) -> str:
+    if until is None:
+        return "de forma indefinida"
+    return f"hasta {until.astimezone(UTC).strftime('%Y-%m-%d %H:%M UTC')}"
+
+
 def enqueue_restriction_email(
     session: AsyncSession,
     recipient: str,
     *,
     restriction_type: str,
     reason: str,
-    until: datetime,
+    until: datetime | None,
 ) -> None:
     labels = {
         "full": "restricción completa de la cuenta",
@@ -120,7 +135,7 @@ def enqueue_restriction_email(
         recipient=recipient,
         subject="Se ha aplicado una restricción a tu cuenta",
         body=(
-            f"Se ha aplicado una {label} hasta {until.astimezone(UTC).strftime('%Y-%m-%d %H:%M UTC')}.\n\n"
+            f"Se ha aplicado una {label} {restriction_period_text(until)}.\n\n"
             f"Motivo: {reason}\n\n"
             f"Si crees que se trata de un error, escribe a {SUPPORT_EMAIL}."
         ),
