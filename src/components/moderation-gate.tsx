@@ -6,6 +6,8 @@ import { getModerationNotices, getMyRestriction, markModerationNoticeRead, type 
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/contexts/app-context'
 
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+
 const labels = {
   full: 'Tu cuenta está restringida',
   publish: 'La publicación de anuncios está restringida',
@@ -34,7 +36,7 @@ function RestrictionCard({ restriction, full = false }: { restriction: MyRestric
   </section>
 }
 
-export function ModerationGate({ children }: { children: ReactNode }) {
+function ProductionModerationGate({ children }: { children: ReactNode }) {
   const { currentUser, logout } = useApp()
   const location = useLocation()
   const [restriction, setRestriction] = useState<MyRestriction | null>(null)
@@ -103,6 +105,11 @@ export function ModerationGate({ children }: { children: ReactNode }) {
     {restriction ? <RestrictionCard restriction={restriction} /> : null}
     {children}
   </>
+}
+
+export function ModerationGate({ children }: { children: ReactNode }) {
+  if (mockMode) return <>{children}</>
+  return <ProductionModerationGate>{children}</ProductionModerationGate>
 }
 
 export function RestrictedActionHint() {
