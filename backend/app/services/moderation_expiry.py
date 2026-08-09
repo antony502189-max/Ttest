@@ -68,7 +68,14 @@ async def _expired_listing_candidate(
     )
     if not restriction:
         return None
-    owner = await session.get(User, listing.owner_user_id)
+    # Account deletion serializes on the User row. Lock and revalidate the
+    # owner before deciding to emit a listing-restored notice/mail, matching the
+    # Listing -> User ordering used by active listing moderation.
+    owner = await session.scalar(
+        select(User)
+        .where(User.id == listing.owner_user_id)
+        .with_for_update()
+    )
     if not owner or owner.deleted_at is not None:
         return None
     return restriction, listing, owner
@@ -169,7 +176,7 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
         )
         enqueue_mail(
             session,
-            kind="listing_restriction_expired",
+            kind="moderation_restriction_expired",
             recipient=owner.email,
             subject="La restricción de tu anuncio ha finalizado",
             body=(
