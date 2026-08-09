@@ -98,7 +98,12 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
     if (restriction.restrictionType === 'publish') {
       return location.pathname === '/publicar' || /^\/mis-anuncios\/[^/]+\/editar$/.test(location.pathname)
     }
-    return restriction.restrictionType === 'view_listings' && location.pathname.startsWith('/habitacion/')
+    if (restriction.restrictionType === 'view_listings') {
+      return location.pathname === '/buscar'
+        || location.pathname === '/favoritos'
+        || location.pathname.startsWith('/habitacion/')
+    }
+    return false
   }, [location.pathname, restriction])
 
   if (currentUser && loadedFor !== currentUser.id) {
