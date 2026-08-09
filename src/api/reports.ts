@@ -20,6 +20,8 @@ export type AdminReport = {
 
 type ReportDto = AdminReport
 
+const ADMIN_REPORT_PAGE_SIZE = 200
+
 function toReport(dto: ReportDto): ReportRecord {
   return {
     id: dto.publicReference || dto.id,
@@ -43,7 +45,16 @@ export const createRemoteReport = async (
 
 export const getRemoteReports = async () => (await api<ReportDto[]>('/reports')).map(toReport)
 
-export const getAdminReports = () => api<AdminReport[]>('/reports?limit=200&offset=0')
+export async function getAdminReports(): Promise<AdminReport[]> {
+  const result: AdminReport[] = []
+  let offset = 0
+  while (true) {
+    const page = await api<AdminReport[]>(`/reports?limit=${ADMIN_REPORT_PAGE_SIZE}&offset=${offset}`)
+    result.push(...page)
+    if (page.length < ADMIN_REPORT_PAGE_SIZE) return result
+    offset += ADMIN_REPORT_PAGE_SIZE
+  }
+}
 
 export const updateAdminReport = (id: string, status: AdminReport['status']) =>
   api<AdminReport>(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
