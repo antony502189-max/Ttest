@@ -7,7 +7,7 @@ from starlette.requests import Request
 
 import app.main as main_module
 from app.api.v1.auth import require_cookie_origin
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.main import RATE_LIMITS, api_schema_enabled, app, rate_limit_client
 from app.services.rate_limit import MemoryRateLimiter
 
@@ -33,6 +33,34 @@ def test_production_disables_interactive_api_schema(monkeypatch) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, "app_env", "production")
     assert not api_schema_enabled()
+
+
+def test_sentry_uses_explicit_release_without_pii(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+    release = "0123456789abcdef0123456789abcdef01234567"
+    monkeypatch.setattr(
+        main_module,
+        "settings",
+        Settings(
+            app_env="production",
+            sentry_dsn="https://public@example.invalid/1",
+            sentry_release=release,
+            sentry_traces_sample_rate=0.05,
+        ),
+    )
+    monkeypatch.setattr(main_module.sentry_sdk, "init", lambda **kwargs: calls.append(kwargs))
+
+    main_module.configure_sentry()
+
+    assert calls == [
+        {
+            "dsn": "https://public@example.invalid/1",
+            "environment": "production",
+            "release": release,
+            "traces_sample_rate": 0.05,
+            "send_default_pii": False,
+        }
+    ]
 
 
 def test_sensitive_endpoints_have_rate_limits() -> None:
