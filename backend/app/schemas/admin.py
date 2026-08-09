@@ -19,7 +19,8 @@ class BlockUserRequest(BaseModel):
 
 class UserRestrictionRequest(BaseModel):
     restrictionType: RestrictionType
-    until: datetime
+    # None means permanent until manually revoked by an administrator.
+    until: datetime | None = None
     reason: str = Field(min_length=2, max_length=4_000)
 
 
@@ -52,7 +53,7 @@ class RestrictionResponse(BaseModel):
     restrictionType: str
     reason: str
     startsAt: datetime
-    endsAt: datetime
+    endsAt: datetime | None
     revokedAt: datetime | None
     active: bool
 
@@ -148,10 +149,10 @@ class ExternalImportRunResponse(BaseModel):
     httpStatus: int | None = None
     finalUrl: str | None = None
     nextCheckAt: datetime | None = None
-    diagnosticPaths: dict = Field(default_factory=dict)
-    discoveryComplete: bool | None = None
-    discoveryPages: int | None = None
-    discoveryFailedPages: list[str] = Field(default_factory=list)
+    diagnosticPaths: list[str] = Field(default_factory=list)
+    discoveryComplete: bool = False
+    discoveryPages: int = 0
+    discoveryFailedPages: list[int] = Field(default_factory=list)
 
 
 class ExternalWorkerStateResponse(BaseModel):
