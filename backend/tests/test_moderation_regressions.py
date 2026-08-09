@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 from app.models import Listing, User
 from app.services import admin as admin_service
-from app.services import admin_users, listing_limits, messages, moderation_expiry
+from app.services import admin_listings, admin_users, listing_limits, messages, moderation_expiry, reports
 from app.services.catalog import touch_catalog
 
 
@@ -56,7 +56,7 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     owner_id = uuid4()
     actor_id = uuid4()
     listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id, title="Room", deleted_at=None)
-    owner = SimpleNamespace(id=owner_id, email="owner@example.com")
+    owner = SimpleNamespace(id=owner_id, email="owner@example.com", deleted_at=None)
     actor = SimpleNamespace(id=actor_id)
 
     async def get(model, object_id):
@@ -200,3 +200,110 @@ async def test_listing_expiry_locks_parent_before_restriction() -> None:
     assert "FOR UPDATE" in statements[0]
     assert "FROM listing_restrictions" in statements[1]
     assert "FOR UPDATE" in statements[1]
+
+
+@pytest.mark.asyncio
+async def test_expiry_batch_touches_catalog_once_after_all_parent_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
+    user_ids = [uuid4(), uuid4()]
+    listing_id = uuid4()
+    user_restrictions = [
+        SimpleNamespace(id=uuid4(), expiry_notified_at=None),
+        SimpleNamespace(id=uuid4(), expiry_notified_at=None),
+    ]
+    users = [
+        SimpleNamespace(id=user_ids[0], email="u1@example.com"),
+        SimpleNamespace(id=user_ids[1], email="u2@example.com"),
+    ]
+    listing_restriction = SimpleNamespace(id=uuid4(), expiry_notified_at=None)
+    listing = SimpleNamespace(id=listing_id, title="Historical room")
+    owner = SimpleNamespace(id=uuid4(), email="owner@example.com")
+
+    session = SimpleNamespace(
+        execute=AsyncMock(
+            side_effect=[
+                SimpleNamespace(all=lambda: [(user_restrictions[0].id, user_ids[0]), (user_restrictions[1].id, user_ids[1])]),
+                SimpleNamespace(all=lambda: [(listing_restriction.id, listing_id)]),
+            ]
+        ),
+        add=MagicMock(),
+        commit=AsyncMock(),
+    )
+    monkeypatch.setattr(
+        moderation_expiry,
+        "_expired_user_candidate",
+        AsyncMock(side_effect=[(user_restrictions[0], users[0]), (user_restrictions[1], users[1])]),
+    )
+    monkeypatch.setattr(
+        moderation_expiry,
+        "_expired_listing_candidate",
+        AsyncMock(return_value=(listing_restriction, listing, owner)),
+    )
+    monkeypatch.setattr(moderation_expiry, "active_user_restriction", AsyncMock(return_value=None))
+    monkeypatch.setattr(moderation_expiry, "active_listing_restriction", AsyncMock(return_value=None))
+    catalog_touch = AsyncMock()
+    monkeypatch.setattr(moderation_expiry, "touch_catalog", catalog_touch)
+
+    result = await moderation_expiry.process_expired_moderation(session)
+
+    assert result == {"users": 2, "listings": 1}
+    catalog_touch.assert_awaited_once_with(session)
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_admin_listing_query_excludes_deleted_owners() -> None:
+    session = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(all=lambda: [])))
+
+    result = await admin_listings.list_listings(
+        session,
+        None,
+        None,
+        limit=100,
+        offset=0,
+    )
+
+    assert result == []
+    sql = str(session.execute.await_args.args[0])
+    assert "users.deleted_at IS NULL" in sql
+
+
+@pytest.mark.asyncio
+async def test_listing_admin_mutation_rejects_deleted_owner() -> None:
+    listing = SimpleNamespace(id=uuid4(), owner_user_id=uuid4(), deleted_at=None)
+    owner = SimpleNamespace(id=listing.owner_user_id, deleted_at=datetime.now(UTC))
+    session = SimpleNamespace(get=AsyncMock(side_effect=[listing, owner]))
+
+    with pytest.raises(HTTPException) as exc:
+        await admin_service._actionable_listing(listing.id, session)
+
+    assert exc.value.status_code == 404
+
+
+def test_report_response_preserves_historical_listing_and_owner_context() -> None:
+    listing_id = uuid4()
+    owner_id = uuid4()
+    report = SimpleNamespace(
+        id=uuid4(),
+        public_reference="R-HISTORY",
+        listing_id=listing_id,
+        reporter_id=None,
+        reason="Historical report",
+        comment="",
+        status="open",
+        handled_by=None,
+        handled_at=None,
+        created_at=datetime.now(UTC),
+    )
+
+    response = reports.public_report(
+        report,
+        owner_id,
+        listing_title="Deleted listing title",
+        owner_user_id=owner_id,
+        owner_name="Deleted owner name",
+    )
+
+    assert response.listingTitle == "Deleted listing title"
+    assert response.ownerUserId == owner_id
+    assert response.ownerName == "Deleted owner name"
+    assert response.targetUserId == owner_id
