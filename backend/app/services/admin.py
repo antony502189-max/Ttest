@@ -269,7 +269,9 @@ async def list_notes(user_id: UUID, session: AsyncSession) -> list[AdminNoteResp
 
 
 async def add_note(user_id: UUID, body: str, actor: User, session: AsyncSession) -> AdminNoteResponse:
-    target = await session.get(User, user_id)
+    # Serialize with soft-delete before deciding whether this historical record
+    # is still writable. The deletion path locks the same User row first.
+    target = await session.scalar(select(User).where(User.id == user_id).with_for_update())
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
     clean_body = body.strip()
