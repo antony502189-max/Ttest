@@ -50,6 +50,7 @@ from ...workers.external_listings import run_once
 from ..dependencies import require_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+ADMIN_MAX_OFFSET = 1_000_000
 
 
 async def _lock_user_mutation(user_id: UUID, session: AsyncSession) -> None:
@@ -92,7 +93,7 @@ async def list_users_route(
     search: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=ADMIN_MAX_OFFSET),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -172,7 +173,7 @@ async def list_listings_route(
     search: str | None = None,
     restricted: bool | None = None,
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=ADMIN_MAX_OFFSET),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -255,7 +256,7 @@ async def revoke_admin_route(
 @router.get("/audit-log", response_model=list[AuditLogResponse])
 async def audit_log_route(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=ADMIN_MAX_OFFSET),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
@@ -265,7 +266,7 @@ async def audit_log_route(
 @router.get("/external-import/runs", response_model=list[ExternalImportRunResponse])
 async def external_import_runs(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=ADMIN_MAX_OFFSET),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
