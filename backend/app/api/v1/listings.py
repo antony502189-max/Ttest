@@ -77,7 +77,8 @@ async def list_listings(
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
-    await enforce_listing_view_access(user, session)
+    # Restricted viewers may still see search/list cards, but opening an
+    # individual listing is denied below. This keeps the rest of the site usable.
     payload = ListingSearchRequest(
         city=city,
         area=area,
@@ -95,7 +96,6 @@ async def search_listings(
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
-    await enforce_listing_view_access(user, session)
     return await search_public(session, payload)
 
 
