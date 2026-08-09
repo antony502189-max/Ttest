@@ -112,6 +112,16 @@ def upgrade() -> None:
     op.create_index("ix_moderation_notices_created_at", "moderation_notices", ["created_at"])
     op.create_index("ix_moderation_notices_read_at", "moderation_notices", ["read_at"])
 
+    op.create_table(
+        "user_report_targets",
+        sa.Column("report_id", postgresql.UUID(as_uuid=True), nullable=False, primary_key=True),
+        sa.Column("target_user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.ForeignKeyConstraint(["report_id"], ["reports.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["target_user_id"], ["users.id"], ondelete="CASCADE"),
+    )
+    op.create_index("ix_user_report_targets_target_user_id", "user_report_targets", ["target_user_id"])
+
     admin_access = sa.table(
         "admin_access",
         sa.column("email", sa.String(length=320)),
@@ -121,6 +131,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_table("user_report_targets")
     op.drop_table("moderation_notices")
     op.drop_table("admin_notes")
     op.drop_table("listing_restrictions")
