@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import AuditLog, AuthSession, Listing, User
 from ..models.moderation import AdminAccess, UserRestriction
 from ..schemas.admin import AdminUserDetailResponse, AdminUserResponse, RestrictionResponse
+from .catalog import touch_catalog
 from .mail import enqueue_mail
 from .moderation import (
     RESTRICTION_TYPES,
@@ -91,7 +92,6 @@ async def _active_restrictions_by_user(
     session: AsyncSession,
     user_ids: list[UUID],
 ) -> dict[UUID, UserRestriction]:
-    """Load active moderation rows for one admin page with one query."""
     if not user_ids:
         return {}
     priority = case(
@@ -102,10 +102,7 @@ async def _active_restrictions_by_user(
     rows = (
         await session.scalars(
             select(UserRestriction)
-            .where(
-                UserRestriction.user_id.in_(user_ids),
-                *active_window(UserRestriction),
-            )
+            .where(UserRestriction.user_id.in_(user_ids), *active_window(UserRestriction))
             .order_by(
                 UserRestriction.user_id,
                 priority,
@@ -137,7 +134,6 @@ async def list_users(
     after_created_at: datetime | None = None,
     after_id: UUID | None = None,
 ) -> list[AdminUserResponse]:
-    """Apply filters before pagination and support seek pagination beyond the offset ceiling."""
     listing_count = (
         select(func.count(Listing.id))
         .where(Listing.owner_user_id == User.id, Listing.deleted_at.is_(None))
@@ -199,9 +195,7 @@ async def get_user_detail(user_id: UUID, session: AsyncSession) -> AdminUserDeta
             Listing.deleted_at.is_(None),
         )
     )
-    last_login = await session.scalar(
-        select(func.max(AuthSession.issued_at)).where(AuthSession.user_id == user.id)
-    )
+    last_login = await session.scalar(select(func.max(AuthSession.issued_at)).where(AuthSession.user_id == user.id))
     history = (
         await session.scalars(
             select(UserRestriction)
@@ -272,10 +266,7 @@ async def restrict_user(
         target.id,
         kind="user_restricted",
         title="Tu cuenta tiene una restricción",
-        body=(
-            f"{clean_reason} · {restriction_period_text(until).capitalize()} · "
-            f"Soporte: {SUPPORT_EMAIL}"
-        ),
+        body=f"{clean_reason} · {restriction_period_text(until).capitalize()} · Soporte: {SUPPORT_EMAIL}",
     )
     enqueue_restriction_email(
         session,
@@ -309,15 +300,12 @@ async def restrict_user(
             },
         )
     )
+    await touch_catalog(session)
     await session.commit()
     return await get_user_detail(target.id, session)
 
 
-async def unrestrict_user(
-    user_id: UUID,
-    actor: User,
-    session: AsyncSession,
-) -> AdminUserDetailResponse:
+async def unrestrict_user(user_id: UUID, actor: User, session: AsyncSession) -> AdminUserDetailResponse:
     target = await session.get(User, user_id)
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
@@ -343,6 +331,7 @@ async def unrestrict_user(
             detail={"restrictionId": str(current.id)},
         )
     )
+    await touch_catalog(session)
     await session.commit()
     return await get_user_detail(target.id, session)
 
@@ -393,4 +382,5 @@ async def soft_delete_user(
         subject="Tu cuenta ha sido eliminada",
         body=f"Tu cuenta se ha eliminado. Motivo: {clean_reason}\n\nSoporte: {SUPPORT_EMAIL}",
     )
+    await touch_catalog(session)
     await session.commit()
