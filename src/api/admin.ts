@@ -100,17 +100,36 @@ const statusMap: Record<ListingStatus, string> = {
 }
 
 const ADMIN_PAGE_SIZE = 200
+const ADMIN_MAX_OFFSET = 10_000
 
-async function drainAdminPages<T>(path: string, params: URLSearchParams): Promise<T[]> {
+type CursorRow = { id: string; createdAt: string }
+
+async function drainAdminPages<T extends CursorRow>(path: string, params: URLSearchParams): Promise<T[]> {
   const result: T[] = []
   let offset = 0
+  let cursor: T | null = null
   while (true) {
     params.set('limit', String(ADMIN_PAGE_SIZE))
-    params.set('offset', String(offset))
+    if (cursor) {
+      params.set('offset', '0')
+      params.set('afterCreatedAt', cursor.createdAt)
+      params.set('afterId', cursor.id)
+    } else {
+      params.set('offset', String(offset))
+      params.delete('afterCreatedAt')
+      params.delete('afterId')
+    }
     const page = await api<T[]>(`${path}?${params}`)
     result.push(...page)
     if (page.length < ADMIN_PAGE_SIZE) return result
-    offset += ADMIN_PAGE_SIZE
+
+    const last = page.at(-1)
+    if (!last) return result
+    if (cursor || offset >= ADMIN_MAX_OFFSET) {
+      cursor = last
+    } else {
+      offset += ADMIN_PAGE_SIZE
+    }
   }
 }
 
@@ -198,8 +217,6 @@ export const revokeAdministrator = (email: string) =>
 
 export const getAdminAuditLog = () => drainAdminPages<AdminAuditLog>('/admin/audit-log', new URLSearchParams())
 
-// Compatibility for the legacy app-context. The old `blocked` flag meant an
-// indefinite full account block, so preserve that meaning without a fake date.
 export async function setRemoteUserBlocked(id: string, blocked: boolean) {
   if (!blocked) return unrestrictAdminUser(id)
   return restrictAdminUser(id, {
