@@ -50,7 +50,7 @@ from ...workers.external_listings import run_once
 from ..dependencies import require_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-ADMIN_MAX_OFFSET = 1_000_000
+ADMIN_MAX_OFFSET = 10_000
 
 
 async def _lock_user_mutation(user_id: UUID, session: AsyncSession) -> None:
