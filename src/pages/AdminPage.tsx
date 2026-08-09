@@ -582,7 +582,7 @@ export function AdminPage() {
       </> : null}
 
       {section === 'activity' ? <>
-        <SectionHeader title="Actividad" description="История административных действий: кто, что и когда сделал." />
+        <SectionHeader title="Actividad" description="Historial de acciones administrativas: quién hizo qué y cuándo." />
         {auditLog.length ? <div className="admin-audit-list">{auditLog.map((item) => <article key={item.id}><span className="admin-audit-icon"><ClipboardList /></span><div><strong>{item.action}</strong><p>{item.actorName ?? 'Sistema'} · {item.targetType}{item.targetId ? ` · ${item.targetId}` : ''}</p><small>{formatDate(item.createdAt)}</small></div><pre>{Object.keys(item.detail).length ? JSON.stringify(item.detail, null, 2) : ''}</pre></article>)}</div> : <EmptyState icon={ClipboardList} title="Sin actividad" description="Las acciones administrativas aparecerán aquí." />}
       </> : null}
 
