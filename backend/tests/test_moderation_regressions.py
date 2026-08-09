@@ -7,11 +7,12 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.dialects import postgresql
 
-from app.models import Listing, User
+from app.models import Favorite, Listing, User
 from app.services import admin as admin_service
-from app.services import admin_listings, admin_users, listing_limits, messages, moderation_expiry, reports
+from app.services import admin_listings, admin_users, listing_limits, messages, moderation_expiry, reports, search_state
 from app.services.catalog import touch_catalog
 
 
@@ -58,15 +59,12 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id, title="Room", deleted_at=None)
     owner = SimpleNamespace(id=owner_id, email="owner@example.com", deleted_at=None)
     actor = SimpleNamespace(id=actor_id)
-
-    async def get(model, object_id):
-        if model is Listing:
-            return listing
-        if model is User:
-            return owner
-        return None
-
-    session = SimpleNamespace(get=AsyncMock(side_effect=get), add=MagicMock(), commit=AsyncMock())
+    session = SimpleNamespace(
+        get=AsyncMock(return_value=listing),
+        scalar=AsyncMock(return_value=owner),
+        add=MagicMock(),
+        commit=AsyncMock(),
+    )
     monkeypatch.setattr(admin_service, "active_listing_restriction", AsyncMock(return_value=None))
     catalog_touch = AsyncMock()
     monkeypatch.setattr(admin_service, "touch_catalog", catalog_touch)
@@ -81,6 +79,9 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     )
 
     assert result == "ok"
+    owner_lock = str(session.scalar.await_args.args[0])
+    assert "FROM users" in owner_lock
+    assert "FOR UPDATE" in owner_lock
     catalog_touch.assert_awaited_once_with(session)
     session.commit.assert_awaited_once()
 
@@ -175,17 +176,14 @@ async def test_user_expiry_locks_parent_before_restriction() -> None:
 
 
 @pytest.mark.asyncio
-async def test_listing_expiry_locks_parent_before_restriction() -> None:
+async def test_listing_expiry_locks_listing_restriction_and_owner() -> None:
     listing_id = uuid4()
     restriction_id = uuid4()
     owner_id = uuid4()
     listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id)
     restriction = SimpleNamespace(id=restriction_id)
     owner = SimpleNamespace(id=owner_id, deleted_at=None)
-    session = SimpleNamespace(
-        scalar=AsyncMock(side_effect=[listing, restriction]),
-        get=AsyncMock(return_value=owner),
-    )
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[listing, restriction, owner]))
 
     result = await moderation_expiry._expired_listing_candidate(
         session,
@@ -200,6 +198,8 @@ async def test_listing_expiry_locks_parent_before_restriction() -> None:
     assert "FOR UPDATE" in statements[0]
     assert "FROM listing_restrictions" in statements[1]
     assert "FOR UPDATE" in statements[1]
+    assert "FROM users" in statements[2]
+    assert "FOR UPDATE" in statements[2]
 
 
 @pytest.mark.asyncio
@@ -268,15 +268,73 @@ async def test_admin_listing_query_excludes_deleted_owners() -> None:
 
 
 @pytest.mark.asyncio
-async def test_listing_admin_mutation_rejects_deleted_owner() -> None:
+async def test_listing_admin_mutation_locks_and_rejects_deleted_owner() -> None:
     listing = SimpleNamespace(id=uuid4(), owner_user_id=uuid4(), deleted_at=None)
     owner = SimpleNamespace(id=listing.owner_user_id, deleted_at=datetime.now(UTC))
-    session = SimpleNamespace(get=AsyncMock(side_effect=[listing, owner]))
+    session = SimpleNamespace(
+        get=AsyncMock(return_value=listing),
+        scalar=AsyncMock(return_value=owner),
+    )
 
     with pytest.raises(HTTPException) as exc:
         await admin_service._actionable_listing(listing.id, session)
 
     assert exc.value.status_code == 404
+    owner_lock = str(session.scalar.await_args.args[0])
+    assert "FROM users" in owner_lock
+    assert "FOR UPDATE" in owner_lock
+
+
+def test_saved_listing_visibility_includes_active_moderation_predicates() -> None:
+    query = select(Listing.id).join(User, User.id == Listing.owner_user_id).where(
+        *search_state.visible_listing_conditions()
+    )
+    sql = str(query.compile(dialect=postgresql.dialect()))
+
+    assert "user_restrictions" in sql
+    assert "listing_restrictions" in sql
+    assert "NOT (EXISTS" in sql
+    assert "user_restrictions.ends_at IS NULL" in sql
+
+
+@pytest.mark.asyncio
+async def test_saved_listing_collections_enforce_requester_view_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    user = SimpleNamespace(id=uuid4())
+    session = SimpleNamespace(scalars=AsyncMock())
+    denied = HTTPException(403, "view restricted")
+    policy = AsyncMock(side_effect=denied)
+    monkeypatch.setattr(search_state, "enforce_listing_view_access", policy)
+
+    with pytest.raises(HTTPException) as exc:
+        await search_state.list_collection(Favorite, user, session)
+
+    assert exc.value.status_code == 403
+    policy.assert_awaited_once_with(user, session)
+    session.scalars.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_saved_listing_add_and_import_check_view_policy_before_visibility_queries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = SimpleNamespace(id=uuid4())
+    session = SimpleNamespace()
+    listing_id = uuid4()
+    denied = HTTPException(403, "view restricted")
+    policy = AsyncMock(side_effect=denied)
+    require_listing = AsyncMock()
+    monkeypatch.setattr(search_state, "enforce_listing_view_access", policy)
+    monkeypatch.setattr(search_state, "require_listing", require_listing)
+
+    with pytest.raises(HTTPException):
+        await search_state.add_collection_item(Favorite, "uq_favorites_user_listing", listing_id, user, session)
+    require_listing.assert_not_awaited()
+
+    payload = SimpleNamespace(favoriteIds=[str(listing_id)], savedSearches=[])
+    with pytest.raises(HTTPException):
+        await search_state.import_guest_state(payload, user, session)
+
+    assert policy.await_count == 2
 
 
 def test_report_response_preserves_historical_listing_and_owner_context() -> None:
