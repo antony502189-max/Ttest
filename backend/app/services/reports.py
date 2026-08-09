@@ -14,7 +14,14 @@ from ..schemas.reports import CreateReportRequest, ReportResponse
 from .moderation import active_window
 
 
-def public_report(report: Report, target_user_id: UUID | None = None) -> ReportResponse:
+def public_report(
+    report: Report,
+    target_user_id: UUID | None = None,
+    *,
+    listing_title: str | None = None,
+    owner_user_id: UUID | None = None,
+    owner_name: str | None = None,
+) -> ReportResponse:
     return ReportResponse(
         id=report.id,
         publicReference=report.public_reference,
@@ -28,6 +35,36 @@ def public_report(report: Report, target_user_id: UUID | None = None) -> ReportR
         handledBy=report.handled_by,
         handledAt=report.handled_at,
         createdAt=report.created_at,
+        listingTitle=listing_title,
+        ownerUserId=owner_user_id,
+        ownerName=owner_name,
+    )
+
+
+def report_context_query():
+    """Return moderation history with soft-deleted listing/owner context intact."""
+    return (
+        select(
+            Report,
+            UserReportTarget.target_user_id,
+            Listing.title,
+            User.id,
+            User.name,
+        )
+        .outerjoin(UserReportTarget, UserReportTarget.report_id == Report.id)
+        .outerjoin(Listing, Listing.id == Report.listing_id)
+        .outerjoin(User, User.id == Listing.owner_user_id)
+    )
+
+
+def response_from_context(row) -> ReportResponse:
+    report, target_user_id, listing_title, owner_user_id, owner_name = row
+    return public_report(
+        report,
+        target_user_id,
+        listing_title=listing_title,
+        owner_user_id=owner_user_id,
+        owner_name=owner_name,
     )
 
 
@@ -83,7 +120,13 @@ async def create_report(payload: CreateReportRequest, user: User | None, session
 
     await session.commit()
     await session.refresh(report)
-    return public_report(report, target_user_id)
+    return public_report(
+        report,
+        target_user_id,
+        listing_title=listing.title,
+        owner_user_id=owner.id,
+        owner_name=owner.name,
+    )
 
 
 async def list_reports(
@@ -94,11 +137,7 @@ async def list_reports(
     after_created_at: datetime | None = None,
     after_id: UUID | None = None,
 ) -> list[ReportResponse]:
-    query = (
-        select(Report, UserReportTarget.target_user_id)
-        .outerjoin(UserReportTarget, UserReportTarget.report_id == Report.id)
-        .order_by(Report.created_at.desc(), Report.id.desc())
-    )
+    query = report_context_query().order_by(Report.created_at.desc(), Report.id.desc())
     if after_created_at is not None and after_id is not None:
         query = query.where(
             or_(
@@ -108,7 +147,7 @@ async def list_reports(
         )
         offset = 0
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
-    return [public_report(report, target_user_id) for report, target_user_id in rows]
+    return [response_from_context(row) for row in rows]
 
 
 async def update_report(report_id: UUID, new_status: str, user: User, session: AsyncSession) -> ReportResponse:
@@ -130,8 +169,5 @@ async def update_report(report_id: UUID, new_status: str, user: User, session: A
         )
     )
     await session.commit()
-    await session.refresh(report)
-    target_user_id = await session.scalar(
-        select(UserReportTarget.target_user_id).where(UserReportTarget.report_id == report.id)
-    )
-    return public_report(report, target_user_id)
+    row = (await session.execute(report_context_query().where(Report.id == report.id))).one()
+    return response_from_context(row)
