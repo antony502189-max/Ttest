@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import ExternalImportRun, ExternalWorkerState, Listing, User
+from ...models import ExternalImportRun, ExternalWorkerState, User
 from ...models.moderation import AdminAccess
 from ...schemas.admin import (
     AddAdminRequest,
@@ -60,10 +60,6 @@ def validate_cursor(after_created_at: datetime | None, after_id: UUID | None) ->
 
 async def _lock_user_mutation(user_id: UUID, session: AsyncSession) -> None:
     await session.scalar(select(User.id).where(User.id == user_id).with_for_update())
-
-
-async def _lock_listing_mutation(listing_id: UUID, session: AsyncSession) -> None:
-    await session.scalar(select(Listing.id).where(Listing.id == listing_id).with_for_update())
 
 
 async def _lock_admin_access(session: AsyncSession) -> None:
@@ -197,7 +193,6 @@ async def change_listing_status_route(
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    await _lock_listing_mutation(listing_id, session)
     return await change_listing_status(listing_id, payload.status, user, session)
 
 
@@ -208,13 +203,11 @@ async def restrict_listing_route(
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    await _lock_listing_mutation(listing_id, session)
     return await restrict_listing(listing_id, until=payload.until, reason=payload.reason, actor=user, session=session)
 
 
 @router.delete("/listings/{listing_id}/restrictions/active", response_model=AdminListingResponse)
 async def unrestrict_listing_route(listing_id: UUID, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session)):
-    await _lock_listing_mutation(listing_id, session)
     return await unrestrict_listing(listing_id, user, session)
 
 
