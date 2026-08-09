@@ -68,3 +68,15 @@ class ModerationNotice(Base):
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class UserReportTarget(Base):
+    """Marks an existing report as targeting the advertiser, with its listing kept as context."""
+
+    __tablename__ = "user_report_targets"
+
+    report_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("reports.id", ondelete="CASCADE"), primary_key=True
+    )
+    target_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
