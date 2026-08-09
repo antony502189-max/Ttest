@@ -36,10 +36,11 @@ from ..external_sources import (
     parse_optional_date,
     parse_optional_datetime,
 )
-from ..models import CatalogState, ExternalImportRun, Listing, ListingImage, MediaAsset, User
+from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
 from ..repositories.listings import point
 from ..storage import get_storage
+from .catalog import touch_catalog
 
 logger = logging.getLogger(__name__)
 SYSTEM_EMAIL = "external-import@112233.es"
@@ -423,15 +424,6 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
     value["available_from"] = parse_optional_date(value.get("available_from"))
     value["published_at"] = parse_optional_datetime(value.get("published_at"))
     return NormalizedListing(**value)
-
-
-async def touch_catalog(session: AsyncSession) -> None:
-    state = await session.get(CatalogState, 1)
-    if not state:
-        state = CatalogState(id=1, version=1)
-        session.add(state)
-    state.version += 1
-    state.updated_at = datetime.now(UTC)
 
 
 async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False) -> str:
