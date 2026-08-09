@@ -41,6 +41,7 @@ def upgrade() -> None:
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("revoked_by", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("expiry_notified_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
             "restriction_type IN ('full', 'publish', 'view_listings')",
             name="ck_user_restrictions_type",
@@ -56,6 +57,7 @@ def upgrade() -> None:
     op.create_index("ix_user_restrictions_ends_at", "user_restrictions", ["ends_at"])
     op.create_index("ix_user_restrictions_created_by", "user_restrictions", ["created_by"])
     op.create_index("ix_user_restrictions_revoked_at", "user_restrictions", ["revoked_at"])
+    op.create_index("ix_user_restrictions_expiry_notified_at", "user_restrictions", ["expiry_notified_at"])
 
     op.create_table(
         "listing_restrictions",
@@ -67,6 +69,7 @@ def upgrade() -> None:
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("revoked_by", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("expiry_notified_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint("ends_at > starts_at", name="ck_listing_restrictions_dates"),
         sa.ForeignKeyConstraint(["listing_id"], ["listings.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
@@ -77,6 +80,7 @@ def upgrade() -> None:
     op.create_index("ix_listing_restrictions_ends_at", "listing_restrictions", ["ends_at"])
     op.create_index("ix_listing_restrictions_created_by", "listing_restrictions", ["created_by"])
     op.create_index("ix_listing_restrictions_revoked_at", "listing_restrictions", ["revoked_at"])
+    op.create_index("ix_listing_restrictions_expiry_notified_at", "listing_restrictions", ["expiry_notified_at"])
 
     op.create_table(
         "admin_notes",
