@@ -31,19 +31,21 @@ from ...services.admin import (
     add_note,
     change_listing_status,
     dashboard_stats,
-    get_user_detail,
     list_admins,
     list_audit_logs,
-    list_listings,
     list_notes,
     restrict_listing,
-    restrict_user,
     revoke_admin,
-    soft_delete_user,
     unrestrict_listing,
+)
+from ...services.admin_listings import list_listings
+from ...services.admin_users import (
+    get_user_detail,
+    list_users,
+    restrict_user,
+    soft_delete_user,
     unrestrict_user,
 )
-from ...services.admin_users import list_users
 from ...workers.external_listings import run_once
 from ..dependencies import require_admin
 
@@ -70,15 +72,6 @@ async def _lock_admin_access(session: AsyncSession) -> None:
             .with_for_update()
         )
     ).all()
-
-
-async def _correct_admin_flag(
-    detail: AdminUserDetailResponse,
-    session: AsyncSession,
-) -> AdminUserDetailResponse:
-    admin_row = await session.get(AdminAccess, detail.email.strip().lower())
-    detail.isAdmin = bool(admin_row and admin_row.active)
-    return detail
 
 
 @router.get("/access")
@@ -112,7 +105,7 @@ async def get_user_route(
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    return await _correct_admin_flag(await get_user_detail(user_id, session), session)
+    return await get_user_detail(user_id, session)
 
 
 @router.post("/users/{user_id}/restrictions", response_model=AdminUserDetailResponse)
@@ -123,7 +116,7 @@ async def restrict_user_route(
     session: AsyncSession = Depends(get_session),
 ):
     await _lock_user_mutation(user_id, session)
-    detail = await restrict_user(
+    return await restrict_user(
         user_id,
         restriction_type=payload.restrictionType,
         until=payload.until,
@@ -131,7 +124,6 @@ async def restrict_user_route(
         actor=user,
         session=session,
     )
-    return await _correct_admin_flag(detail, session)
 
 
 @router.delete("/users/{user_id}/restrictions/active", response_model=AdminUserDetailResponse)
@@ -141,7 +133,7 @@ async def unrestrict_user_route(
     session: AsyncSession = Depends(get_session),
 ):
     await _lock_user_mutation(user_id, session)
-    return await _correct_admin_flag(await unrestrict_user(user_id, user, session), session)
+    return await unrestrict_user(user_id, user, session)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
