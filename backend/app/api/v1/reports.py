@@ -11,6 +11,7 @@ from ...services.reports import create_report, list_reports, update_report
 from ..dependencies import optional_user, require_admin
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+REPORT_MAX_OFFSET = 1_000_000
 
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
@@ -27,7 +28,7 @@ async def create_report_route(
 @router.get("", response_model=list[ReportResponse])
 async def list_reports_route(
     limit: int = Query(default=100, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=REPORT_MAX_OFFSET),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
