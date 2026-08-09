@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 from app.models import Listing, User
 from app.services import admin as admin_service
-from app.services import admin_users, messages, moderation_expiry
+from app.services import admin_users, listing_limits, messages, moderation_expiry
 from app.services.catalog import touch_catalog
 
 
@@ -114,6 +114,41 @@ async def test_user_restriction_invalidates_catalog(monkeypatch: pytest.MonkeyPa
     assert result == "detail"
     catalog_touch.assert_awaited_once_with(session)
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_revoked_legacy_admin_role_no_longer_bypasses_listing_quotas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = SimpleNamespace(id=uuid4(), role="admin")
+    admin_check = AsyncMock(return_value=False)
+    monkeypatch.setattr(listing_limits, "is_admin", admin_check)
+    session = SimpleNamespace(
+        execute=AsyncMock(
+            side_effect=[
+                None,
+                SimpleNamespace(one=lambda: (0, 0)),
+            ]
+        )
+    )
+
+    await listing_limits.enforce_listing_creation_limits(user, session)
+
+    admin_check.assert_awaited_once_with(user, session)
+    assert session.execute.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_active_allowlisted_admin_bypasses_listing_quotas(monkeypatch: pytest.MonkeyPatch) -> None:
+    user = SimpleNamespace(id=uuid4(), role="tenant")
+    admin_check = AsyncMock(return_value=True)
+    monkeypatch.setattr(listing_limits, "is_admin", admin_check)
+    session = SimpleNamespace(execute=AsyncMock())
+
+    await listing_limits.enforce_listing_creation_limits(user, session)
+
+    admin_check.assert_awaited_once_with(user, session)
+    session.execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio
