@@ -5,6 +5,8 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.v1 import auth as auth_api
+from app.repositories.listings import visible_query
+from app.services import listings as listings_service
 from app.services import moderation
 from app.services.moderation import (
     enforce_listing_view_access,
@@ -71,6 +73,39 @@ def test_permanent_restriction_has_no_fake_expiry() -> None:
 
     assert error.detail["restriction"]["until"] is None
     assert restriction_period_text(None) == "de forma indefinida"
+
+
+def test_public_listing_visibility_includes_permanent_user_restrictions() -> None:
+    sql = str(visible_query())
+    assert "user_restrictions.ends_at IS NULL" in sql
+    assert "user_restrictions.ends_at > now()" in sql
+
+
+@pytest.mark.asyncio
+async def test_revoked_legacy_admin_role_cannot_mutate_other_users_listings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = SimpleNamespace(id="legacy-admin", role="admin")
+    listing = SimpleNamespace(owner_user_id="owner")
+    session = SimpleNamespace()
+    allowlist_check = AsyncMock(return_value=False)
+    monkeypatch.setattr(listings_service, "is_admin", allowlist_check)
+
+    with pytest.raises(HTTPException) as exc:
+        await listings_service.ensure_owner_or_admin(listing, user, session)
+
+    assert exc.value.status_code == 403
+    allowlist_check.assert_awaited_once_with(user, session)
+
+
+@pytest.mark.asyncio
+async def test_allowlisted_admin_can_mutate_other_users_listings(monkeypatch: pytest.MonkeyPatch) -> None:
+    user = SimpleNamespace(id="admin", role="tenant")
+    listing = SimpleNamespace(owner_user_id="owner")
+    session = SimpleNamespace()
+    monkeypatch.setattr(listings_service, "is_admin", AsyncMock(return_value=True))
+
+    assert await listings_service.ensure_owner_or_admin(listing, user, session) is True
 
 
 @pytest.mark.asyncio
