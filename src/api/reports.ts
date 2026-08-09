@@ -1,10 +1,14 @@
 import { api } from '@/api/client'
 import type { ReportRecord } from '@/types'
 
+export type ReportTargetType = 'listing' | 'user'
+
 export type AdminReport = {
   id: string
   publicReference: string
   listingId: string
+  targetType: ReportTargetType
+  targetUserId: string | null
   reporterId: string | null
   reason: string
   comment: string
@@ -27,8 +31,15 @@ function toReport(dto: ReportDto): ReportRecord {
   }
 }
 
-export const createRemoteReport = async (listingId: string, reason: string, comment: string) =>
-  toReport(await api<ReportDto>('/reports', { method: 'POST', body: JSON.stringify({ listingId, reason, comment }) }))
+export const createRemoteReport = async (
+  listingId: string,
+  reason: string,
+  comment: string,
+  targetType: ReportTargetType = 'listing',
+) => toReport(await api<ReportDto>('/reports', {
+  method: 'POST',
+  body: JSON.stringify({ listingId, targetType, reason, comment }),
+}))
 
 export const getRemoteReports = async () => (await api<ReportDto[]>('/reports')).map(toReport)
 
