@@ -65,10 +65,10 @@ def upgrade() -> None:
     op.create_index("ix_user_restrictions_revoked_at", "user_restrictions", ["revoked_at"])
     op.create_index("ix_user_restrictions_expiry_notified_at", "user_restrictions", ["expiry_notified_at"])
 
-    # Preserve the behavior of accounts blocked by the pre-moderation console,
-    # but move their state into the new model so the new Unrestrict action can
-    # actually restore them. Use generated UUIDs in Python rather than relying
-    # on an optional PostgreSQL UUID extension.
+    # Preserve accounts blocked by the pre-moderation console, but move their
+    # state into the new model so the normal Unrestrict action can restore them.
+    # Generate UUIDs in Python rather than relying on an optional PostgreSQL UUID
+    # extension that may not exist in every deployment.
     connection = op.get_bind()
     legacy_blocked_ids = list(
         connection.execute(sa.text("SELECT id FROM users WHERE blocked IS TRUE")).scalars()
@@ -116,14 +116,13 @@ def upgrade() -> None:
 
     op.create_table(
         "admin_notes",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_admin_notes_user_id", "admin_notes", ["user_id"])
     op.create_index("ix_admin_notes_created_by", "admin_notes", ["created_by"])
@@ -164,6 +163,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The legacy schema can represent only a full account block. Preserve every
+    # currently active full restriction when rolling back, not just rows that
+    # originated from the legacy migration; otherwise a production rollback
+    # could silently restore access that an administrator intentionally removed.
     connection = op.get_bind()
     connection.execute(
         sa.text(
@@ -173,13 +176,13 @@ def downgrade() -> None:
             WHERE id IN (
                 SELECT user_id
                 FROM user_restrictions
-                WHERE reason = :reason
-                  AND restriction_type = 'full'
+                WHERE restriction_type = 'full'
                   AND revoked_at IS NULL
+                  AND starts_at <= now()
+                  AND (ends_at IS NULL OR ends_at > now())
             )
             """
-        ),
-        {"reason": LEGACY_BLOCK_MIGRATION_REASON},
+        )
     )
 
     op.drop_table("user_report_targets")
