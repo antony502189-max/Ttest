@@ -19,6 +19,7 @@ from ..schemas.admin import (
 )
 from .moderation import (
     active_listing_restriction,
+    active_user_restriction,
     add_notice,
     enqueue_listing_restriction_email,
     enqueue_listing_unrestriction_email,
@@ -265,6 +266,19 @@ async def list_admins(session: AsyncSession) -> list[AdminAccessResponse]:
 
 async def add_admin(email: str, actor: User, session: AsyncSession) -> AdminAccessResponse:
     normalized = normalize_email(email)
+    # If the account already exists, lock it in the same order used by user
+    # moderation and refuse contradictory states such as "restricted admin".
+    # A not-yet-registered email is still allowed so future Google sign-in can
+    # activate the pre-authorized administrator identity.
+    target = await session.scalar(
+        select(User).where(func.lower(User.email) == normalized).with_for_update()
+    )
+    if target:
+        if target.deleted_at is not None or target.blocked:
+            raise HTTPException(422, "Restore the account before granting administrator access")
+        if await active_user_restriction(target.id, session):
+            raise HTTPException(422, "Remove the account restriction before granting administrator access")
+
     row = await session.get(AdminAccess, normalized)
     if row:
         row.active = True
