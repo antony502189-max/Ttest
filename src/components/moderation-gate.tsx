@@ -62,12 +62,12 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
       if (!cancelled) setLoadedFor(currentUser.id)
     })
     return () => { cancelled = true }
-  }, [currentUser?.id])
+  }, [currentUser?.id, location.pathname])
 
   useEffect(() => {
     if (!currentUser || !restriction) return
     const remaining = new Date(restriction.until).getTime() - Date.now()
-    const delay = Math.min(60 * 60 * 1000, Math.max(1_000, remaining + 1_000))
+    const delay = Math.min(60_000, Math.max(1_000, remaining + 1_000))
     const timer = window.setTimeout(() => {
       void getMyRestriction().then(setRestriction).catch(() => undefined)
     }, delay)
