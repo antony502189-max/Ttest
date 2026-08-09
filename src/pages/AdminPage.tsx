@@ -386,6 +386,7 @@ function UserDetailView({
   )), [listingIds, reports, userId])
 
   if (loading || !user) return <div className="admin-detail-loading"><RefreshCw className="spin" /> Cargando usuario…</div>
+  const isDeleted = Boolean(user.deletedAt)
 
   const saveRestriction = (updated: AdminUserDetail) => {
     setUser(updated)
@@ -393,6 +394,7 @@ function UserDetailView({
   }
 
   const unrestrict = async () => {
+    if (isDeleted) return
     try {
       const updated = await unrestrictAdminUser(user.id)
       saveRestriction(updated)
@@ -402,7 +404,7 @@ function UserDetailView({
 
   const saveNote = async (event: FormEvent) => {
     event.preventDefault()
-    if (!note.trim()) return
+    if (isDeleted || !note.trim()) return
     try {
       const saved = await addAdminNote(user.id, note.trim())
       setNotes((current) => [saved, ...current])
@@ -416,13 +418,14 @@ function UserDetailView({
     <section className="admin-user-hero">
       <div className="admin-avatar">{user.initials || user.name.slice(0, 2).toUpperCase()}</div>
       <div><div className="admin-title-line"><h1>{user.name}</h1><UserStatus user={user} />{user.isAdmin ? <Badge><Shield /> Admin</Badge> : null}</div><p>{user.email}</p><small>ID {user.id}</small></div>
-      <div className="admin-user-actions">
+      {!isDeleted ? <div className="admin-user-actions">
         {user.activeRestriction ? <Button variant="outline" onClick={() => { void unrestrict() }}><CheckCircle2 /> Desbloquear ahora</Button> : <Button variant="destructive" disabled={user.isAdmin} onClick={() => setRestrictOpen(true)}><Ban /> Restringir</Button>}
         <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="Más acciones"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={user.isAdmin} onSelect={() => setDeleteOpen(true)}><Trash2 /> Eliminar cuenta</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
-      </div>
+      </div> : null}
     </section>
 
-    {user.isAdmin ? <div className="admin-callout"><Shield /><p>Esta cuenta es administradora. Para restringirla o eliminarla primero hay que revocar sus permisos en Ajustes → Administradores.</p></div> : null}
+    {isDeleted ? <div className="admin-callout"><Trash2 /><p>Esta cuenta está eliminada. La ficha se conserva únicamente como historial de moderación y es de solo lectura.</p></div> : null}
+    {!isDeleted && user.isAdmin ? <div className="admin-callout"><Shield /><p>Esta cuenta es administradora. Para restringirla o eliminarla primero hay que revocar sus permisos en Ajustes → Administradores.</p></div> : null}
     {user.activeRestriction ? <div className="admin-active-restriction"><ShieldBan /><div><strong>{restrictionLabels[user.activeRestriction.restrictionType]}</strong><p>{user.activeRestriction.reason}</p><span>{restrictionEndText(user.activeRestriction.endsAt)}</span></div></div> : null}
 
     <div className="admin-detail-grid">
@@ -448,13 +451,13 @@ function UserDetailView({
       {user.restrictions.length ? <div className="admin-history">{user.restrictions.map((item) => <article key={item.id}><span className={item.active ? 'is-active' : ''} /><div><strong>{restrictionLabels[item.restrictionType]}</strong><p>{item.reason}</p><small>{formatDate(item.startsAt)} → {item.endsAt ? formatDate(item.endsAt) : 'Sin fecha final'}{item.revokedAt ? ` · Retirada: ${formatDate(item.revokedAt)}` : ''}</small></div></article>)}</div> : <EmptyState icon={Shield} title="Sin historial" description="Nunca se aplicaron restricciones a esta cuenta." />}
     </section>
 
-    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Notas internas</h2><p>Solo las ven los administradores.</p></div></div>
-      <form className="admin-note-form" onSubmit={saveNote}><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={4000} placeholder="Añadir contexto para futuras revisiones…" /><Button type="submit" disabled={!note.trim()}><NotebookPen /> Guardar nota</Button></form>
+    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Notas internas</h2><p>{isDeleted ? 'Historial de solo lectura.' : 'Solo las ven los administradores.'}</p></div></div>
+      {!isDeleted ? <form className="admin-note-form" onSubmit={saveNote}><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={4000} placeholder="Añadir contexto para futuras revisiones…" /><Button type="submit" disabled={!note.trim()}><NotebookPen /> Guardar nota</Button></form> : null}
       {notes.length ? <div className="admin-note-list">{notes.map((item) => <article key={item.id}><p>{item.body}</p><small>{item.createdByName ?? 'Admin'} · {formatDate(item.createdAt)}</small></article>)}</div> : null}
     </section>
 
-    <UserRestrictionDialog user={user} open={restrictOpen} onOpenChange={setRestrictOpen} onSaved={saveRestriction} />
-    <DeleteUserDialog user={user} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={() => { onUserChanged({ ...user, deletedAt: new Date().toISOString() }); onBack() }} />
+    {!isDeleted ? <UserRestrictionDialog user={user} open={restrictOpen} onOpenChange={setRestrictOpen} onSaved={saveRestriction} /> : null}
+    {!isDeleted ? <DeleteUserDialog user={user} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={() => { onUserChanged({ ...user, deletedAt: new Date().toISOString() }); onBack() }} /> : null}
   </div>
 }
 
