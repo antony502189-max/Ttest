@@ -37,7 +37,8 @@ def upgrade() -> None:
         sa.Column("restriction_type", sa.String(length=32), nullable=False),
         sa.Column("reason", sa.Text(), nullable=False),
         sa.Column("starts_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("ends_at", sa.DateTime(timezone=True), nullable=False),
+        # NULL means the restriction is permanent until an administrator revokes it.
+        sa.Column("ends_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("revoked_by", postgresql.UUID(as_uuid=True), nullable=True),
@@ -46,7 +47,10 @@ def upgrade() -> None:
             "restriction_type IN ('full', 'publish', 'view_listings')",
             name="ck_user_restrictions_type",
         ),
-        sa.CheckConstraint("ends_at > starts_at", name="ck_user_restrictions_dates"),
+        sa.CheckConstraint(
+            "ends_at IS NULL OR ends_at > starts_at",
+            name="ck_user_restrictions_dates",
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["revoked_by"], ["users.id"], ondelete="SET NULL"),
