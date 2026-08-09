@@ -26,12 +26,21 @@ from ..schemas.listings import (
     OwnedListingResponse,
 )
 from .media_lifecycle import lock_media_assets
+from .moderation import is_admin
 from .storage_deletions import enqueue_storage_deletions
 
 
-def ensure_owner_or_admin(listing: Listing, user: User) -> None:
-    if listing.owner_user_id != user.id and user.role != "admin":
+async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSession) -> bool:
+    """Authorize a listing mutation using the server-side admin allowlist.
+
+    The legacy product role is not an authorization boundary: once admin access
+    is revoked in `admin_access`, cross-owner listing capabilities disappear
+    immediately even if an older account still carries role="admin".
+    """
+    admin = await is_admin(user, session)
+    if listing.owner_user_id != user.id and not admin:
         raise HTTPException(403, "Forbidden")
+    return admin
 
 
 async def touch_catalog(session: AsyncSession) -> None:
@@ -160,13 +169,9 @@ async def update_listing(
     listing = await session.get(Listing, listing_id)
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
-    ensure_owner_or_admin(listing, user)
+    admin = await ensure_owner_or_admin(listing, user, session)
     changes = payload.model_dump(exclude_unset=True)
-    if (
-        "status" in changes
-        and user.role != "admin"
-        and changes["status"] not in {"draft", "pending", "hidden", "closed"}
-    ):
+    if "status" in changes and not admin and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
         raise HTTPException(403, "Only an administrator can publish or reject listings")
 
     mapping = {
@@ -231,7 +236,7 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
     listing = await session.get(Listing, listing_id)
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
-    ensure_owner_or_admin(listing, user)
+    await ensure_owner_or_admin(listing, user, session)
     now = datetime.now(UTC)
     expiry_base = listing.expires_at if listing.expires_at and listing.expires_at > now else now
     listing.expires_at = expiry_base + timedelta(days=30)
@@ -259,7 +264,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
-    ensure_owner_or_admin(listing, user)
+    await ensure_owner_or_admin(listing, user, session)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
@@ -295,7 +300,7 @@ async def replace_listing_images(
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
-    ensure_owner_or_admin(listing, user)
+    admin = await ensure_owner_or_admin(listing, user, session)
     previous_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
@@ -307,7 +312,7 @@ async def replace_listing_images(
         asset is None
         or asset.deleted_at is not None
         or asset.kind != "listing_image"
-        or (user.role != "admin" and asset.owner_id != user.id)
+        or (not admin and asset.owner_id != user.id)
         for asset in requested_assets
     ):
         raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
