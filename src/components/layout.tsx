@@ -10,6 +10,7 @@ import { MobileSearchResults } from '@/components/mobile-search-results'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
+import { useAdminAccess } from '@/hooks/use-admin-access'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu']
@@ -32,7 +33,8 @@ export function LanguageSwitcher() {
 
 export function Header() {
   const { currentUser } = useApp()
-  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser?.role === 'admin' ? <Button asChild variant="ghost" className="desktop-only"><Link to="/admin"><LayoutDashboard data-icon="inline-start" />Administración</Link></Button> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
+  const adminAllowed = useAdminAccess()
+  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{adminAllowed ? <Button asChild variant="ghost" className="desktop-only"><Link to="/admin"><LayoutDashboard data-icon="inline-start" />Administración</Link></Button> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
 }
 
 export function MobileHeader() {
