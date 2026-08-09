@@ -85,7 +85,13 @@ async def require_admin(
     user: User = Depends(authenticated_user),
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    """Admin authorization is a server-side Google-email allowlist, not a frontend role check."""
+    """Require both normal full-account access and the server-side admin allowlist.
+
+    AdminAccess is an authorization grant, not an override for moderation. A
+    permanently/full-restricted account therefore cannot regain privileged API
+    access merely because an allowlist row still exists.
+    """
+    await enforce_full_access(user, session)
     if not await is_admin(user, session):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
     return user
