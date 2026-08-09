@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
@@ -12,6 +13,11 @@ from ..dependencies import optional_user, require_admin
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 REPORT_MAX_OFFSET = 10_000
+
+
+def validate_cursor(after_created_at: datetime | None, after_id: UUID | None) -> None:
+    if (after_created_at is None) != (after_id is None):
+        raise HTTPException(422, "Both afterCreatedAt and afterId are required for cursor pagination")
 
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
@@ -29,10 +35,19 @@ async def create_report_route(
 async def list_reports_route(
     limit: int = Query(default=100, ge=1, le=200),
     offset: int = Query(default=0, ge=0, le=REPORT_MAX_OFFSET),
+    after_created_at: datetime | None = Query(default=None, alias="afterCreatedAt"),
+    after_id: UUID | None = Query(default=None, alias="afterId"),
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    return await list_reports(session, limit=limit, offset=offset)
+    validate_cursor(after_created_at, after_id)
+    return await list_reports(
+        session,
+        limit=limit,
+        offset=offset,
+        after_created_at=after_created_at,
+        after_id=after_id,
+    )
 
 
 @router.patch("/{report_id}", response_model=ReportResponse)
