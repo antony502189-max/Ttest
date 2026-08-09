@@ -162,7 +162,7 @@ def visible_query() -> Select:
             UserRestriction.user_id == User.id,
             UserRestriction.revoked_at.is_(None),
             UserRestriction.starts_at <= func.now(),
-            UserRestriction.ends_at > func.now(),
+            or_(UserRestriction.ends_at.is_(None), UserRestriction.ends_at > func.now()),
         )
         .correlate(User)
         .exists()
