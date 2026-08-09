@@ -9,14 +9,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, Listing, Report, User
+from ..models.moderation import UserReportTarget
 from ..schemas.reports import CreateReportRequest, ReportResponse
 
 
-def public_report(report: Report) -> ReportResponse:
+def public_report(report: Report, target_user_id: UUID | None = None) -> ReportResponse:
     return ReportResponse(
         id=report.id,
         publicReference=report.public_reference,
         listingId=report.listing_id,
+        targetType="user" if target_user_id else "listing",
+        targetUserId=target_user_id,
         reporterId=report.reporter_id,
         reason=report.reason,
         comment=report.comment,
@@ -28,20 +31,26 @@ def public_report(report: Report) -> ReportResponse:
 
 
 async def create_report(payload: CreateReportRequest, user: User | None, session: AsyncSession) -> ReportResponse:
-    listing = await session.scalar(
-        select(Listing)
-        .join(User, User.id == Listing.owner_user_id)
-        .where(
-            Listing.id == payload.listingId,
-            Listing.status == "published",
-            Listing.deleted_at.is_(None),
-            (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
-            User.deleted_at.is_(None),
-            User.blocked.is_(False),
+    row = (
+        await session.execute(
+            select(Listing, User)
+            .join(User, User.id == Listing.owner_user_id)
+            .where(
+                Listing.id == payload.listingId,
+                Listing.status == "published",
+                Listing.deleted_at.is_(None),
+                (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                User.deleted_at.is_(None),
+                User.blocked.is_(False),
+            )
         )
-    )
-    if not listing:
+    ).one_or_none()
+    if not row:
         raise HTTPException(404, "Listing not found")
+    listing, owner = row
+    if payload.targetType == "user" and user and owner.id == user.id:
+        raise HTTPException(422, "You cannot report your own account")
+
     report = Report(
         public_reference=f"R-{token_hex(5).upper()}",
         listing_id=listing.id,
@@ -50,9 +59,16 @@ async def create_report(payload: CreateReportRequest, user: User | None, session
         comment=payload.comment,
     )
     session.add(report)
+    await session.flush()
+
+    target_user_id: UUID | None = None
+    if payload.targetType == "user":
+        target_user_id = owner.id
+        session.add(UserReportTarget(report_id=report.id, target_user_id=owner.id))
+
     await session.commit()
     await session.refresh(report)
-    return public_report(report)
+    return public_report(report, target_user_id)
 
 
 async def list_reports(
@@ -61,15 +77,16 @@ async def list_reports(
     limit: int,
     offset: int,
 ) -> list[ReportResponse]:
-    reports = (
-        await session.scalars(
-            select(Report)
+    rows = (
+        await session.execute(
+            select(Report, UserReportTarget.target_user_id)
+            .outerjoin(UserReportTarget, UserReportTarget.report_id == Report.id)
             .order_by(Report.created_at.desc(), Report.id.desc())
             .limit(limit)
             .offset(offset)
         )
     ).all()
-    return [public_report(report) for report in reports]
+    return [public_report(report, target_user_id) for report, target_user_id in rows]
 
 
 async def update_report(report_id: UUID, new_status: str, user: User, session: AsyncSession) -> ReportResponse:
@@ -92,4 +109,7 @@ async def update_report(report_id: UUID, new_status: str, user: User, session: A
     )
     await session.commit()
     await session.refresh(report)
-    return public_report(report)
+    target_user_id = await session.scalar(
+        select(UserReportTarget.target_user_id).where(UserReportTarget.report_id == report.id)
+    )
+    return public_report(report, target_user_id)
