@@ -15,8 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.config import Settings, get_settings
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
+from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
+from ...services.moderation import active_window, enforce_publish_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import get_storage
 from ..dependencies import current_user, optional_user
@@ -90,6 +92,9 @@ async def upload_image(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    # Uploads created here are listing media, so a publishing restriction must
+    # stop this path as well as the final listing create/publish call.
+    await enforce_publish_access(user, session)
     settings = get_settings()
     if file.content_type not in SUPPORTED_FORMATS.values():
         raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
@@ -164,7 +169,8 @@ async def get_media(
     asset = await session.get(MediaAsset, asset_id)
     if not asset or asset.deleted_at:
         raise HTTPException(404, "Media not found")
-    owner_or_admin = bool(user and (user.id == asset.owner_id or user.role == "admin"))
+    admin = bool(user and await is_admin(user, session))
+    owner_or_admin = bool(user and (user.id == asset.owner_id or admin))
     publicly_visible = False
     if asset.kind == "avatar":
         publicly_visible = bool(
@@ -177,6 +183,18 @@ async def get_media(
             )
         )
     elif asset.kind == "listing_image":
+        active_owner_restriction = (
+            select(UserRestriction.id)
+            .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
+            .correlate(User)
+            .exists()
+        )
+        active_listing_restriction = (
+            select(ListingRestriction.id)
+            .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
+            .correlate(Listing)
+            .exists()
+        )
         publicly_visible = bool(
             await session.scalar(
                 select(ListingImage.listing_id)
@@ -189,6 +207,8 @@ async def get_media(
                     (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
                     User.deleted_at.is_(None),
                     User.blocked.is_(False),
+                    ~active_owner_restriction,
+                    ~active_listing_restriction,
                 )
                 .limit(1)
             )
@@ -218,7 +238,8 @@ async def delete_upload(
 ):
     locked_assets = await lock_media_assets(session, {asset_id})
     asset = locked_assets[0] if locked_assets else None
-    if not asset or asset.deleted_at or (asset.owner_id != user.id and user.role != "admin"):
+    admin = await is_admin(user, session)
+    if not asset or asset.deleted_at or (asset.owner_id != user.id and not admin):
         raise HTTPException(404, "Media not found")
     active_avatar = await session.scalar(select(User.id).where(User.avatar_asset_id == asset.id).limit(1))
     listing_attachment = await session.scalar(
