@@ -51,11 +51,19 @@ async def list_listings(
     after_created_at: datetime | None = None,
     after_id: UUID | None = None,
 ) -> list[AdminListingResponse]:
-    """Return actionable listings with offset or seek pagination."""
+    """Return actionable listings with offset or seek pagination.
+
+    A soft-deleted owner makes every remaining listing historical rather than an
+    actionable moderation target. Keep those rows out of the active moderation
+    queue; report history resolves its own owner/listing context separately.
+    """
     query = (
         select(Listing, User)
         .join(User, User.id == Listing.owner_user_id)
-        .where(Listing.deleted_at.is_(None))
+        .where(
+            Listing.deleted_at.is_(None),
+            User.deleted_at.is_(None),
+        )
         .order_by(Listing.created_at.desc(), Listing.id.desc())
     )
     if status:
