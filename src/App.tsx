@@ -23,7 +23,9 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({
 const MyListingsPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.MyListingsPage })))
 const PublishPage = lazy(() => import('@/pages/PublishPage').then((module) => ({ default: module.PublishPage })))
 const InfoPage = lazy(() => import('@/pages/InfoPages').then((module) => ({ default: module.InfoPage })))
-const AdminPage = lazy(() => import('@/pages/AdminPage').then((module) => ({ default: module.AdminPage })))
+const AdminPage = lazy(() => import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+  ? import('@/pages/LegacyMockAdminPage').then((module) => ({ default: module.LegacyMockAdminPage }))
+  : import('@/pages/AdminPage').then((module) => ({ default: module.AdminPage })))
 const MenuPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MenuPage })))
 const MessagesPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MessagesPage })))
 
