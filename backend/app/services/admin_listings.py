@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Listing, User
@@ -47,8 +48,10 @@ async def list_listings(
     restricted: bool | None = None,
     limit: int,
     offset: int,
+    after_created_at: datetime | None = None,
+    after_id: UUID | None = None,
 ) -> list[AdminListingResponse]:
-    """Return actionable listings with filters applied before pagination."""
+    """Return actionable listings with offset or seek pagination."""
     query = (
         select(Listing, User)
         .join(User, User.id == Listing.owner_user_id)
@@ -70,6 +73,15 @@ async def list_listings(
         query = query.where(active_restriction)
     elif restricted is False:
         query = query.where(~active_restriction)
+
+    if after_created_at is not None and after_id is not None:
+        query = query.where(
+            or_(
+                Listing.created_at < after_created_at,
+                and_(Listing.created_at == after_created_at, Listing.id < after_id),
+            )
+        )
+        offset = 0
 
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
     restrictions = await _active_restrictions_by_listing(
