@@ -9,8 +9,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, Listing, Report, User
-from ..models.moderation import UserReportTarget
+from ..models.moderation import ListingRestriction, UserReportTarget, UserRestriction
 from ..schemas.reports import CreateReportRequest, ReportResponse
+from .moderation import active_window
 
 
 def public_report(report: Report, target_user_id: UUID | None = None) -> ReportResponse:
@@ -31,6 +32,18 @@ def public_report(report: Report, target_user_id: UUID | None = None) -> ReportR
 
 
 async def create_report(payload: CreateReportRequest, user: User | None, session: AsyncSession) -> ReportResponse:
+    active_owner_restriction = (
+        select(UserRestriction.id)
+        .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
+        .correlate(User)
+        .exists()
+    )
+    active_listing_restriction = (
+        select(ListingRestriction.id)
+        .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
+        .correlate(Listing)
+        .exists()
+    )
     row = (
         await session.execute(
             select(Listing, User)
@@ -42,14 +55,18 @@ async def create_report(payload: CreateReportRequest, user: User | None, session
                 (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
                 User.deleted_at.is_(None),
                 User.blocked.is_(False),
+                ~active_owner_restriction,
+                ~active_listing_restriction,
             )
         )
     ).one_or_none()
     if not row:
+        # Keep moderation-hidden objects indistinguishable from unavailable
+        # public listings so report creation cannot be used as an oracle.
         raise HTTPException(404, "Listing not found")
     listing, owner = row
-    if payload.targetType == "user" and user and owner.id == user.id:
-        raise HTTPException(422, "You cannot report your own account")
+    if user and owner.id == user.id:
+        raise HTTPException(422, "You cannot report your own listing or account")
 
     report = Report(
         public_reference=f"R-{token_hex(5).upper()}",
