@@ -16,14 +16,16 @@ export function useAdminAccess() {
   const { currentUser } = useApp()
   const { pathname } = useLocation()
   const [allowed, setAllowed] = useState(false)
+  const userId = currentUser?.id
+  const productRole = currentUser?.role
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!userId) {
       setAllowed(false)
       return
     }
     if (mockMode) {
-      setAllowed(currentUser.role === 'admin')
+      setAllowed(productRole === 'admin')
       return
     }
 
@@ -40,7 +42,7 @@ export function useAdminAccess() {
       cancelled = true
       window.removeEventListener('focus', refresh)
     }
-  }, [currentUser?.id, currentUser?.role, pathname])
+  }, [pathname, productRole, userId])
 
   return allowed
 }
