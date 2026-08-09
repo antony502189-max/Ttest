@@ -11,7 +11,7 @@ from ...services.reports import create_report, list_reports, update_report
 from ..dependencies import optional_user, require_admin
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-REPORT_MAX_OFFSET = 1_000_000
+REPORT_MAX_OFFSET = 10_000
 
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
