@@ -1,19 +1,83 @@
-from fastapi import APIRouter, Depends, Response, status
+from datetime import UTC, datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
 from ...models import User
+from ...models.moderation import ModerationNotice
 from ...schemas.auth import AvatarUpdateRequest, UserResponse, UserUpdateRequest
+from ...schemas.moderation import ModerationNoticeResponse, MyRestrictionResponse
+from ...services.moderation import SUPPORT_EMAIL, active_user_restriction
 from ...services.users import delete_account, update_avatar, update_profile
-from ..dependencies import current_user
+from ..dependencies import authenticated_user, current_user
 from .auth import public_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(user: User = Depends(current_user)):
+async def get_me(user: User = Depends(authenticated_user)):
     return public_user(user)
+
+
+@router.get("/me/restriction", response_model=MyRestrictionResponse | None)
+async def get_my_restriction(
+    user: User = Depends(authenticated_user),
+    session: AsyncSession = Depends(get_session),
+):
+    restriction = await active_user_restriction(user.id, session)
+    if not restriction:
+        return None
+    return MyRestrictionResponse(
+        restrictionType=restriction.restriction_type,
+        reason=restriction.reason,
+        until=restriction.ends_at,
+        supportEmail=SUPPORT_EMAIL,
+    )
+
+
+@router.get("/me/moderation-notices", response_model=list[ModerationNoticeResponse])
+async def get_my_moderation_notices(
+    limit: int = Query(default=20, ge=1, le=50),
+    user: User = Depends(authenticated_user),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = (
+        await session.scalars(
+            select(ModerationNotice)
+            .where(ModerationNotice.user_id == user.id)
+            .order_by(ModerationNotice.created_at.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        ModerationNoticeResponse(
+            id=row.id,
+            kind=row.kind,
+            title=row.title,
+            body=row.body,
+            createdAt=row.created_at,
+            readAt=row.read_at,
+        )
+        for row in rows
+    ]
+
+
+@router.patch("/me/moderation-notices/{notice_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_moderation_notice_read(
+    notice_id: UUID,
+    user: User = Depends(authenticated_user),
+    session: AsyncSession = Depends(get_session),
+):
+    notice = await session.get(ModerationNotice, notice_id)
+    if not notice or notice.user_id != user.id:
+        raise HTTPException(404, "Notice not found")
+    if notice.read_at is None:
+        notice.read_at = datetime.now(UTC)
+        await session.commit()
 
 
 @router.patch("/me", response_model=UserResponse)
