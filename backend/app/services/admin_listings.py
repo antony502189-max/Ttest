@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,7 +9,34 @@ from ..models import Listing, User
 from ..models.moderation import ListingRestriction
 from ..schemas.admin import AdminListingResponse
 from .admin import public_listing
-from .moderation import active_listing_restriction, active_window
+from .moderation import active_window
+
+
+async def _active_restrictions_by_listing(
+    session: AsyncSession,
+    listing_ids: list[UUID],
+) -> dict[UUID, ListingRestriction]:
+    """Load active restrictions for an admin page with one query."""
+    if not listing_ids:
+        return {}
+    rows = (
+        await session.scalars(
+            select(ListingRestriction)
+            .where(
+                ListingRestriction.listing_id.in_(listing_ids),
+                *active_window(ListingRestriction),
+            )
+            .order_by(
+                ListingRestriction.listing_id,
+                ListingRestriction.ends_at.desc(),
+                ListingRestriction.starts_at.desc(),
+            )
+        )
+    ).all()
+    result: dict[UUID, ListingRestriction] = {}
+    for row in rows:
+        result.setdefault(row.listing_id, row)
+    return result
 
 
 async def list_listings(
@@ -19,7 +48,7 @@ async def list_listings(
     limit: int,
     offset: int,
 ) -> list[AdminListingResponse]:
-    """Return only actionable listings in the moderation console."""
+    """Return actionable listings with filters applied before pagination."""
     query = (
         select(Listing, User)
         .join(User, User.id == Listing.owner_user_id)
@@ -43,8 +72,15 @@ async def list_listings(
         query = query.where(~active_restriction)
 
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
-    result: list[AdminListingResponse] = []
-    for listing, owner in rows:
-        restriction = await active_listing_restriction(listing.id, session)
-        result.append(public_listing(listing, owner=owner, restriction=restriction))
-    return result
+    restrictions = await _active_restrictions_by_listing(
+        session,
+        [listing.id for listing, _ in rows],
+    )
+    return [
+        public_listing(
+            listing,
+            owner=owner,
+            restriction=restrictions.get(listing.id),
+        )
+        for listing, owner in rows
+    ]
