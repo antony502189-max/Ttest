@@ -31,7 +31,7 @@ from ...services.auth import (
     revoke_session,
     verify_user_email,
 )
-from ..dependencies import current_user
+from ..dependencies import authenticated_user, current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -162,7 +162,9 @@ async def email_verification_status(user: User = Depends(current_user)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(current_user)):
+async def me(user: User = Depends(authenticated_user)):
+    # Temporary moderation must not make the frontend lose the authenticated
+    # identity; the UI needs it to present the restriction and support path.
     return public_user(user)
 
 
