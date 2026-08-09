@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import User
@@ -33,10 +33,19 @@ async def is_admin(user: User, session: AsyncSession) -> bool:
 
 
 async def active_user_restriction(user_id: UUID, session: AsyncSession) -> UserRestriction | None:
+    # Application writes serialize restrictions per user, so normally only one
+    # active row exists. Keep deterministic precedence as a defensive fallback
+    # for manually repaired/imported data or a historical race: full access
+    # denial must never be shadowed by a narrower restriction with a later end.
+    priority = case(
+        (UserRestriction.restriction_type == "full", 0),
+        (UserRestriction.restriction_type == "publish", 1),
+        else_=2,
+    )
     return await session.scalar(
         select(UserRestriction)
         .where(UserRestriction.user_id == user_id, *active_window(UserRestriction))
-        .order_by(UserRestriction.ends_at.desc(), UserRestriction.starts_at.desc())
+        .order_by(priority, UserRestriction.ends_at.desc(), UserRestriction.starts_at.desc())
         .limit(1)
     )
 
