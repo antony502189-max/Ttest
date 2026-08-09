@@ -31,6 +31,7 @@ from ...services.auth import (
     revoke_session,
     verify_user_email,
 )
+from ...services.moderation import enforce_full_access
 from ..dependencies import authenticated_user, current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -64,6 +65,15 @@ def set_refresh_cookie(response: Response, result: AuthResult) -> dict:
     return {"accessToken": result.access_token, "user": public_user(result.user)}
 
 
+async def enforce_session_moderation(result: AuthResult, session: AsyncSession) -> None:
+    """A full account restriction must not leave a newly issued session usable."""
+    try:
+        await enforce_full_access(result.user, session)
+    except HTTPException:
+        await revoke_session(result.refresh_token, session)
+        raise
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     payload: RegisterRequest,
@@ -93,6 +103,7 @@ async def login(
         user_agent=user_agent,
         client_ip=request_ip,
     )
+    await enforce_session_moderation(result, session)
     return set_refresh_cookie(response, result)
 
 
@@ -106,6 +117,7 @@ async def google_login(
     require_cookie_origin(request)
     user_agent, request_ip = request_metadata(request)
     result = await google_login_user(payload, session, user_agent=user_agent, client_ip=request_ip)
+    await enforce_session_moderation(result, session)
     return set_refresh_cookie(response, result)
 
 
@@ -163,8 +175,9 @@ async def email_verification_status(user: User = Depends(current_user)):
 
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(authenticated_user)):
-    # Temporary moderation must not make the frontend lose the authenticated
-    # identity; the UI needs it to present the restriction and support path.
+    # Existing sessions may need the identity long enough for the frontend to
+    # render a restriction/support screen. New login/refresh issuance is denied
+    # above while a full restriction is active.
     return public_user(user)
 
 
@@ -185,6 +198,7 @@ async def refresh(
         user_agent=user_agent,
         client_ip=request_ip,
     )
+    await enforce_session_moderation(result, session)
     return set_refresh_cookie(response, result)
 
 
