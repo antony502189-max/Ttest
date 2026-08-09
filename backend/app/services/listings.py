@@ -19,7 +19,7 @@ from ..schemas.listings import (
 )
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
-from .moderation import is_admin
+from .moderation import enforce_publish_access, is_admin
 from .storage_deletions import enqueue_storage_deletions
 
 
@@ -154,6 +154,8 @@ async def update_listing(
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     admin = await ensure_owner_or_admin(listing, user, session)
+    if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
+        await enforce_publish_access(user, session)
     changes = payload.model_dump(exclude_unset=True)
     if "status" in changes and not admin and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
         raise HTTPException(403, "Only an administrator can publish or reject listings")
@@ -285,6 +287,8 @@ async def replace_listing_images(
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     admin = await ensure_owner_or_admin(listing, user, session)
+    if not admin and listing.status == "published":
+        await enforce_publish_access(user, session)
     previous_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
