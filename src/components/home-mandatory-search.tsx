@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Baby, Cigarette, CigaretteOff, Dog, PawPrint, Search, UserRound, UsersRound } from 'lucide-react'
+import { Cigarette, CigaretteOff, PawPrint, Search } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { RentalTypeSwitch, SearchLocationInput } from '@/components/marketplace'
@@ -15,15 +15,24 @@ import {
   type ListingAccessProfile,
 } from '@/lib/listing-access'
 import { cn } from '@/lib/utils'
+import {
+  occupantAnyIcon,
+  occupantCoupleIcon,
+  occupantFamilyIcon,
+  occupantManIcon,
+  occupantPersonIcon,
+  occupantPetsIcon,
+  occupantWomanIcon,
+} from '@/assets/occupants'
 import '@/home-mandatory-search.css'
 
-const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; icon: typeof UserRound }> = [
-  { value: 'single-man', label: 'Hombre', icon: UserRound },
-  { value: 'single-woman', label: 'Mujer', icon: UserRound },
-  { value: 'single-person', label: 'Una persona', icon: UserRound },
-  { value: 'couple', label: 'Pareja', icon: UsersRound },
-  { value: 'family', label: 'Familia', icon: Baby },
-  { value: 'any', label: 'Sin restricción', icon: UsersRound },
+const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; iconSrc: string }> = [
+  { value: 'single-person', label: '1 persona', iconSrc: occupantPersonIcon },
+  { value: 'couple', label: '2 personas (pareja/amigos)', iconSrc: occupantCoupleIcon },
+  { value: 'single-man', label: 'Solo hombre', iconSrc: occupantManIcon },
+  { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantWomanIcon },
+  { value: 'family', label: 'Con niños', iconSrc: occupantFamilyIcon },
+  { value: 'any', label: 'Sin restricciones', iconSrc: occupantAnyIcon },
 ]
 
 export function HomeMandatorySearch() {
@@ -85,14 +94,14 @@ export function HomeMandatorySearch() {
       <legend>¿Para quién buscas?</legend>
       <p>Selecciona una opción de ocupación.</p>
       <div className="mandatory-choice-grid mandatory-choice-grid--occupants">
-        {occupantOptions.map(({ value, label, icon: Icon }) => <button
+        {occupantOptions.map(({ value, label, iconSrc }) => <button
           key={value}
           type="button"
           className={cn('mandatory-choice', profile.occupant === value && 'is-selected')}
           aria-pressed={profile.occupant === value}
           onClick={() => selectOccupant(value)}
         >
-          <Icon aria-hidden="true" />
+          <img className="mandatory-choice__reference-icon" src={iconSrc} alt="" aria-hidden="true" />
           <span>{label}</span>
         </button>)}
       </div>
@@ -102,7 +111,7 @@ export function HomeMandatorySearch() {
       <legend>Mascotas</legend>
       <p>Indica si necesitas una habitación que las admita.</p>
       <div className="mandatory-choice-grid">
-        <button type="button" className={cn('mandatory-choice', profile.pets === 'Sí' && 'is-selected')} aria-pressed={profile.pets === 'Sí'} onClick={() => selectBoolean('pets', 'Sí')}><Dog aria-hidden="true" /><span>Con mascotas</span></button>
+        <button type="button" className={cn('mandatory-choice', profile.pets === 'Sí' && 'is-selected')} aria-pressed={profile.pets === 'Sí'} onClick={() => selectBoolean('pets', 'Sí')}><img className="mandatory-choice__reference-icon" src={occupantPetsIcon} alt="" aria-hidden="true" /><span>Con mascotas</span></button>
         <button type="button" className={cn('mandatory-choice', profile.pets === 'No' && 'is-selected')} aria-pressed={profile.pets === 'No'} onClick={() => selectBoolean('pets', 'No')}><PawPrint aria-hidden="true" /><span>Sin mascotas</span></button>
       </div>
     </fieldset>
