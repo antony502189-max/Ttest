@@ -19,7 +19,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "#70b700" in mobile_cards
     assert "#c60083" in mobile_cards
 
-    for asset in (
+    asset_names = (
         "occupantPersonIcon",
         "occupantCoupleIcon",
         "occupantManIcon",
@@ -27,8 +27,15 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
         "occupantFamilyIcon",
         "occupantPetsIcon",
         "occupantAnyIcon",
-    ):
+    )
+    for asset in asset_names:
         assert asset in home_search
+
+    asset_dir = root / "src" / "assets" / "occupants"
+    asset_files = ("person.ts", "couple.ts", "man.ts", "woman.ts", "family.ts", "pets.ts", "any.ts")
+    for filename in asset_files:
+        source = (asset_dir / filename).read_text(encoding="utf-8")
+        assert "data:image/webp;base64," in source
 
     assert "Sin restricción" in home_search
     assert "Sin restricciones" not in home_search
