@@ -1,4 +1,4 @@
-# One-shot trigger after the workflow is registered on the default branch.
+# One-shot baseline approval. Delete after the approved snapshots are installed.
 name: Approve reviewed PR97 home baselines
 
 on:
@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   approve:
-    if: github.event.head_commit.message == 'ci: approve reviewed PR97 home baselines'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
