@@ -5,6 +5,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     root = Path(__file__).resolve().parents[2]
     main = (root / "src" / "main.tsx").read_text(encoding="utf-8")
     mobile_cards = (root / "src" / "mobile-home-mode-cards.css").read_text(encoding="utf-8")
+    reference_icons = (root / "src" / "reference-occupant-icons.css").read_text(encoding="utf-8")
     home_search = (root / "src" / "components" / "home-mandatory-search.tsx").read_text(encoding="utf-8")
     reference_ui = (root / "src" / "reference-occupant-icons.ts").read_text(encoding="utf-8")
     object_urls = (root / "src" / "assets" / "occupants" / "object-url.ts").read_text(encoding="utf-8")
@@ -19,6 +20,16 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "content: attr(data-reference-subtitle)" in mobile_cards
     assert "#70b700" in mobile_cards
     assert "#c60083" in mobile_cards
+    assert ".m2-mode-switch > button.is-active::after" in mobile_cards
+    assert "translateY(2px) scale(.95)" in mobile_cards
+    assert "inset 0 0 0 4px #74b900" in mobile_cards
+    assert "inset 0 0 0 4px #c60083" in mobile_cards
+
+    assert ".m2-custom-occupant-list > button.is-selected .m2-reference-occupant-icon" in reference_icons
+    assert "border-color: #d2ff3f" in reference_icons
+    assert "transform: scale(1.07)" in reference_icons
+    assert "width: 3.35rem" in reference_icons
+    assert "height: 3.35rem" in reference_icons
 
     assert "HABITACIONES" in reference_ui
     assert "LARGA ESTANCIA" in reference_ui
