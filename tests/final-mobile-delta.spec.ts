@@ -127,7 +127,7 @@ test('DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or 
   page.on('console', (message) => {
     if (message.type() === 'error' && !isExpectedHeadlessVectorFallback(message.text())) consoleErrors.push(message.text())
   })
-  page.on('pageerror', (error) => pageErrors.push(error.message)
+  page.on('pageerror', (error) => pageErrors.push(error.message))
   page.on('requestfailed', (request) => {
     if (request.url().startsWith('http://127.0.0.1:4173')) failedFirstParty.push(`${request.method()} ${request.url()}`)
   })
