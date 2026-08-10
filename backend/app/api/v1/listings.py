@@ -33,24 +33,28 @@ from ...schemas.listings import (
 )
 from ...services.listing_limits import enforce_listing_creation_limits
 from ...services.listing_views import anonymous_viewer_key, register_view
-from ...services.listings import (
-    create_listing as create_listing_service,
-)
-from ...services.listings import (
-    delete_listing as delete_listing_service,
-)
-from ...services.listings import (
-    renew_listing as renew_listing_service,
-)
-from ...services.listings import (
-    replace_listing_images as replace_listing_images_service,
-)
-from ...services.listings import (
-    update_listing as update_listing_service,
+from ...services.listings import create_listing as create_listing_service
+from ...services.listings import delete_listing as delete_listing_service
+from ...services.listings import renew_listing as renew_listing_service
+from ...services.listings import replace_listing_images as replace_listing_images_service
+from ...services.listings import update_listing as update_listing_service
+from ...services.moderation import (
+    active_listing_restriction,
+    active_user_restriction,
+    enforce_listing_view_access,
+    enforce_publish_access,
+    is_admin,
 )
 from ..dependencies import current_user, optional_user, require_role
 
 router = APIRouter(prefix="/listings", tags=["listings"])
+
+
+async def listing_hidden_by_moderation(listing_id: UUID, owner_user_id: UUID, session: AsyncSession) -> bool:
+    return bool(
+        await active_listing_restriction(listing_id, session)
+        or await active_user_restriction(owner_user_id, session)
+    )
 
 
 @router.get("/catalog-version", response_model=CatalogVersionResponse)
@@ -70,8 +74,10 @@ async def list_listings(
     rental_mode: str | None = Query(default=None, alias="rentalMode"),
     min_price: int | None = Query(default=None, ge=0, alias="minPrice"),
     max_price: int | None = Query(default=None, ge=0, alias="maxPrice"),
+    user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await enforce_listing_view_access(user, session)
     payload = ListingSearchRequest(
         city=city,
         area=area,
@@ -84,7 +90,12 @@ async def list_listings(
 
 
 @router.post("/search", response_model=ListingSearchResponse)
-async def search_listings(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session)):
+async def search_listings(
+    payload: ListingSearchRequest,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await enforce_listing_view_access(user, session)
     return await search_public(session, payload)
 
 
@@ -96,7 +107,7 @@ async def list_my_listings(
     session: AsyncSession = Depends(get_session),
 ):
     query = owned_query().where(Listing.deleted_at.is_(None))
-    if user.role != "admin":
+    if not await is_admin(user, session):
         query = query.where(Listing.owner_user_id == user.id)
     rows = (
         await session.execute(
@@ -115,6 +126,7 @@ async def get_listing(
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await enforce_listing_view_access(user, session)
     row = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
     if not row:
         raise HTTPException(404, "Listing not found")
@@ -133,10 +145,6 @@ async def get_listing(
                 max_age=90 * 24 * 60 * 60,
                 path="/api/v1/listings",
             )
-        # The cookie remains for compatibility, but it is not a trustworthy
-        # anti-abuse identity: a client can discard or vary it per request.
-        # The trusted proxy-sanitized address produces at most one anonymous
-        # view row per listing/day for each source address.
         viewer_key = anonymous_viewer_key(client_ip(request))
     if await register_view(row[0], viewer_key, session):
         row = (await session.execute(visible_query().where(Listing.id == listing_id))).one()
@@ -149,6 +157,7 @@ async def create_listing(
     user: User = Depends(require_role("host", "admin")),
     session: AsyncSession = Depends(get_session),
 ):
+    await enforce_publish_access(user, session)
     if not user.email_verified:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -169,6 +178,8 @@ async def update_listing(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    if payload.status in {"pending", "published"}:
+        await enforce_publish_access(user, session)
     return await update_listing_service(listing_id, payload, user, session)
 
 
@@ -178,6 +189,7 @@ async def renew_listing(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await enforce_publish_access(user, session)
     return await renew_listing_service(listing_id, user, session)
 
 
@@ -200,13 +212,21 @@ async def list_listing_images(
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     owner = await session.get(User, listing.owner_user_id)
-    owner_or_admin = bool(user and (listing.owner_user_id == user.id or user.role == "admin"))
+    admin = bool(user and await is_admin(user, session))
+    owner_or_admin = bool(user and (listing.owner_user_id == user.id or admin))
+    # A view restriction blocks public browsing, but it must not prevent a host
+    # from editing media on their own listing, because that account may still be
+    # explicitly allowed to publish.
+    if not owner_or_admin:
+        await enforce_listing_view_access(user, session)
+    moderated = await listing_hidden_by_moderation(listing.id, listing.owner_user_id, session)
     public_visible = bool(
         listing.status == "published"
         and (listing.expires_at is None or listing.expires_at > datetime.now(UTC))
         and owner
         and owner.deleted_at is None
         and not owner.blocked
+        and not moderated
     )
     if not owner_or_admin and not public_visible:
         raise HTTPException(404, "Listing not found")

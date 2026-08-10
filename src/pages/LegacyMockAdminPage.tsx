@@ -1,0 +1,150 @@
+import { useState } from "react";
+import {
+  AlertTriangle,
+  BarChart3,
+  Check,
+  Download,
+  EyeOff,
+  FileSearch,
+  Gauge,
+  MoreHorizontal,
+  Search,
+  ShieldBan,
+  Trash2,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
+import { Link } from "react-router";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { AdminTable, ConfirmDialog, StatusBadge } from "@/components/forms";
+import { useApp } from "@/contexts/app-context";
+import { formatPublishedAt } from "@/lib/search";
+import type { Listing, ListingStatus } from "@/types";
+
+const navItems = [
+  { id: "dashboard", label: "Dashboard", icon: Gauge },
+  { id: "listings", label: "Anuncios", icon: FileSearch },
+  { id: "users", label: "Usuarios", icon: Users },
+  { id: "reports", label: "Denuncias", icon: AlertTriangle },
+  { id: "moderation", label: "Moderación", icon: BarChart3 },
+];
+
+export function LegacyMockAdminPage() {
+  const {
+    allListings,
+    users,
+    reports,
+    setListingStatus,
+    deleteListing,
+    toggleUserBlocked,
+    currentUser,
+  } = useApp();
+  const [section, setSection] = useState("dashboard");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Todos");
+  const matches = (value: string) =>
+    value.toLocaleLowerCase().includes(query.toLocaleLowerCase());
+  const filteredListings = allListings.filter(
+    (item) =>
+      matches(`${item.title} ${item.id} ${item.owner.name} ${item.area}`) &&
+      (statusFilter === "Todos" || item.status === statusFilter),
+  );
+  const filteredUsers = users.filter((item) =>
+    matches(`${item.name} ${item.email} ${item.role}`),
+  );
+  const moderate = (listing: Listing, status: ListingStatus) => {
+    setListingStatus(listing.id, status);
+    toast.success(`Estado cambiado a ${status}`);
+  };
+  const actions = (listing: Listing) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={`Acciones para ${listing.title}`}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => moderate(listing, "Publicado")}><Check />Aprobar</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => moderate(listing, "Oculto")}><EyeOff />Ocultar</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => moderate(listing, "Rechazado")}><X />Rechazar</DropdownMenuItem>
+          <ConfirmDialog
+            trigger={<DropdownMenuItem variant="destructive" onSelect={(event) => event.preventDefault()}><Trash2 />Eliminar</DropdownMenuItem>}
+            title="¿Eliminar el anuncio?"
+            description="Se borrará del repositorio local."
+            confirmLabel="Eliminar"
+            destructive
+            onConfirm={() => deleteListing(listing.id)}
+          />
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+  const listingRows = filteredListings.map((listing) => [
+    <div key="listing" className="admin-listing-cell"><img src={listing.images[0]} alt="" /><div><strong>{listing.title}</strong><span>{listing.area} · REF {listing.id.slice(-5).toUpperCase()}</span></div></div>,
+    <StatusBadge key="status" status={listing.status} />,
+    listing.owner.name,
+    `${listing.price} €`,
+    formatPublishedAt(listing.publishedAt),
+    actions(listing),
+  ]);
+  const userRows = filteredUsers.map((user) => [
+    user.name,
+    user.email,
+    user.role,
+    user.blocked ? <Badge key="blocked" variant="destructive">Bloqueada</Badge> : <Badge key="active" variant="outline">Activa</Badge>,
+    <ConfirmDialog
+      key="actions"
+      trigger={<Button variant="ghost" size="icon" aria-label={`${user.blocked ? "Desbloquear" : "Bloquear"} ${user.name}`}><ShieldBan /></Button>}
+      title={`¿${user.blocked ? "Desbloquear" : "Bloquear"} esta cuenta?`}
+      description="El cambio se guardará en el estado local de la demo."
+      confirmLabel={user.blocked ? "Desbloquear" : "Bloquear"}
+      destructive={!user.blocked}
+      onConfirm={() => toggleUserBlocked(user.id)}
+    />,
+  ]);
+  const reportRows = reports.map((report) => [
+    report.id,
+    report.reason,
+    allListings.find((item) => item.id === report.listingId)?.title ?? report.listingId,
+    report.status,
+    formatPublishedAt(report.createdAt),
+    <Badge key="status" variant="outline">Registrada</Badge>,
+  ]);
+  const exportCsv = () => {
+    const rows = [["id", "title", "area", "price", "status", "owner"], ...filteredListings.map((item) => [item.id, item.title, item.area, item.price, item.status, item.owner.name])];
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "112233-anuncios.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado");
+  };
+  const panel = (title: string, description: string, headers: string[], rows: React.ReactNode[][]) => (
+    <section className="admin-panel"><div className="admin-panel__head"><div><h2>{title}</h2><p>{description}</p></div>{section === "listings" ? <Button variant="outline" onClick={exportCsv}><Download data-icon="inline-start" />Exportar CSV</Button> : null}</div><AdminTable headers={headers} rows={rows} /></section>
+  );
+  return <div className="admin-page">
+    <aside className="admin-sidebar"><Link to="/" className="admin-brand">11·22·33 <span>admin</span></Link><nav aria-label="Administración">{navItems.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined}><Icon />{label}{id === "reports" && reports.length ? <span>{reports.length}</span> : null}</button>)}</nav><div className="admin-user"><div>{currentUser?.initials ?? "AM"}</div><span><strong>{currentUser?.name ?? "Admin"}</strong><small>Administración</small></span></div></aside>
+    <div className="admin-main">
+      <header className="admin-header"><div><span className="eyebrow">Panel interno</span><h1>{navItems.find((item) => item.id === section)?.label}</h1></div><div className="admin-filter-bar"><div className="admin-search"><Search /><Input aria-label="Buscar en administración" placeholder="Buscar usuarios o referencias" value={query} onChange={(event) => setQuery(event.target.value)} /></div><label className="admin-status-filter"><span>Estado</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Borrador</option><option>Pendiente</option><option>Publicado</option><option>Oculto</option><option>Finalizado</option><option>Rechazado</option></select></label></div><Button asChild variant="outline"><Link to="/perfil"><UserRound data-icon="inline-start" />Perfil</Link></Button></header>
+      {section === "dashboard" ? <><section className="stats-grid"><div><span>Anuncios activos</span><strong>{allListings.filter((item) => item.status === "Publicado").length}</strong><small>Datos en tiempo real</small><BarChart3 /></div><div><span>Pendientes</span><strong>{allListings.filter((item) => item.status === "Pendiente").length}</strong><small>Cola de moderación</small><FileSearch /></div><div><span>Usuarios</span><strong>{users.length}</strong><small>{users.filter((item) => !item.blocked).length} activas</small><Users /></div><div><span>Denuncias abiertas</span><strong>{reports.filter((item) => item.status === "Abierta").length}</strong><small>En esta demo</small><AlertTriangle /></div></section>{panel("Actividad reciente", "Anuncios ordenados por fecha.", ["Anuncio", "Estado", "Anunciante", "Precio", "Publicado", ""], listingRows.slice(0, 6))}</> : null}
+      {section === "listings" ? panel("Todos los anuncios", `${filteredListings.length} resultados`, ["Anuncio", "Estado", "Anunciante", "Precio", "Publicado", ""], listingRows) : null}
+      {section === "moderation" ? panel("Cola de moderación", "Aprueba, oculta o rechaza anuncios.", ["Anuncio", "Estado", "Anunciante", "Precio", "Publicado", ""], listingRows.filter((_, index) => filteredListings[index]?.status !== "Publicado")) : null}
+      {section === "users" ? panel("Usuarios", `${filteredUsers.length} cuentas`, ["Nombre", "Email", "Rol", "Estado", ""], userRows) : null}
+      {section === "reports" ? reportRows.length ? panel("Denuncias", "Reportes enviados desde anuncios.", ["Ref.", "Motivo", "Anuncio", "Estado", "Fecha", ""], reportRows) : <section className="admin-panel account-empty"><AlertTriangle /><h2>Sin denuncias</h2><p>Los reportes enviados aparecerán aquí.</p></section> : null}
+    </div>
+  </div>;
+}

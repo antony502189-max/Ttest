@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
+from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.listings import (
     ListingOwnerResponse,
     ListingResponse,
@@ -155,6 +156,28 @@ def owned_response_from(row: Any) -> OwnedListingResponse:
 
 
 def visible_query() -> Select:
+    active_user_restriction = (
+        select(UserRestriction.id)
+        .where(
+            UserRestriction.user_id == User.id,
+            UserRestriction.revoked_at.is_(None),
+            UserRestriction.starts_at <= func.now(),
+            or_(UserRestriction.ends_at.is_(None), UserRestriction.ends_at > func.now()),
+        )
+        .correlate(User)
+        .exists()
+    )
+    active_listing_restriction = (
+        select(ListingRestriction.id)
+        .where(
+            ListingRestriction.listing_id == Listing.id,
+            ListingRestriction.revoked_at.is_(None),
+            ListingRestriction.starts_at <= func.now(),
+            ListingRestriction.ends_at > func.now(),
+        )
+        .correlate(Listing)
+        .exists()
+    )
     return (
         select(Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery())
         .join(User, User.id == Listing.owner_user_id)
@@ -163,6 +186,8 @@ def visible_query() -> Select:
             Listing.deleted_at.is_(None),
             User.deleted_at.is_(None),
             User.blocked.is_(False),
+            ~active_user_restriction,
+            ~active_listing_restriction,
             (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
         )
     )

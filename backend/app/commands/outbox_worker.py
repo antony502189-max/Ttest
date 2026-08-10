@@ -12,6 +12,7 @@ from ..db.session import SessionLocal, engine
 from ..models import MailWorkerState
 from ..services.data_retention import RETENTION_RUN_INTERVAL, prune_expired_records
 from ..services.mail import deliver_pending_mail
+from ..services.moderation_expiry import process_expired_moderation
 from ..services.storage_deletions import process_storage_deletions
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ async def run() -> None:
                 try:
                     now = datetime.now(UTC)
                     async with SessionLocal() as session:
+                        moderation_expired = await process_expired_moderation(session)
                         delivered = await deliver_pending_mail(session)
                         storage_deletions = await process_storage_deletions(session)
                         pruned: dict[str, int] = {}
@@ -90,6 +92,8 @@ async def run() -> None:
                 await worker_state(health="healthy")
                 if delivered:
                     logger.info("mail_batch_delivered", extra={"delivered": delivered})
+                if moderation_expired["users"] or moderation_expired["listings"]:
+                    logger.info("moderation_expiry_notifications", extra=moderation_expired)
                 if storage_deletions["deleted"] or storage_deletions["failed"]:
                     logger.info("storage_deletion_batch", extra=storage_deletions)
                 total_pruned = sum(pruned.values())

@@ -1,11 +1,13 @@
 import { Component, lazy, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
-import { AppProvider, useApp } from '@/contexts/app-context'
-import { I18nProvider } from '@/contexts/i18n-context'
+import { checkAdminAccess } from '@/api/admin'
+import { AUTH_READY_EVENT, hasSessionHint } from '@/api/auth'
 import { AppLayout } from '@/components/layout'
 import { CustomerFeedbackFixes } from '@/components/customer-feedback-fixes'
+import { ModerationGate } from '@/components/moderation-gate'
 import { PublishOccupancySync } from '@/components/publish-occupancy-sync'
-import { AUTH_READY_EVENT, hasSessionHint } from '@/api/auth'
+import { AppProvider, useApp } from '@/contexts/app-context'
+import { I18nProvider } from '@/contexts/i18n-context'
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
@@ -21,12 +23,15 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({
 const MyListingsPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.MyListingsPage })))
 const PublishPage = lazy(() => import('@/pages/PublishPage').then((module) => ({ default: module.PublishPage })))
 const InfoPage = lazy(() => import('@/pages/InfoPages').then((module) => ({ default: module.InfoPage })))
-const AdminPage = lazy(() => import('@/pages/AdminPage').then((module) => ({ default: module.AdminPage })))
+const AdminPage = lazy(() => import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+  ? import('@/pages/LegacyMockAdminPage').then((module) => ({ default: module.LegacyMockAdminPage }))
+  : import('@/pages/AdminPage').then((module) => ({ default: module.AdminPage })))
 const MenuPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MenuPage })))
 const MessagesPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ default: module.MessagesPage })))
 
 const infoRoutes = ['/sobre-nosotros', '/como-funciona', '/ayuda', '/terminos', '/privacidad', '/cookies', '/normas-de-publicacion']
 const MOBILE_ONBOARDING_KEY = '112233:mobile-onboarding:v1'
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
 function RouteLoading() {
   return <div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>
@@ -80,6 +85,7 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
   const { currentUser } = useApp()
   const location = useLocation()
   const [authReady, setAuthReady] = useState(() => Boolean(currentUser) || !hasSessionHint())
+  const [adminAllowed, setAdminAllowed] = useState<boolean | null>(() => admin ? null : true)
 
   useEffect(() => {
     if (currentUser || !hasSessionHint()) {
@@ -97,9 +103,33 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
     }
   }, [currentUser])
 
+  useEffect(() => {
+    if (!admin) {
+      setAdminAllowed(true)
+      return
+    }
+    if (!currentUser) {
+      setAdminAllowed(null)
+      return
+    }
+    if (mockMode) {
+      setAdminAllowed(currentUser.role === 'admin')
+      return
+    }
+    let cancelled = false
+    setAdminAllowed(null)
+    void checkAdminAccess().then(() => {
+      if (!cancelled) setAdminAllowed(true)
+    }).catch(() => {
+      if (!cancelled) setAdminAllowed(false)
+    })
+    return () => { cancelled = true }
+  }, [admin, currentUser?.id, currentUser?.role])
+
   if (!authReady) return <RouteLoading />
   if (!currentUser) return <Navigate to="/acceso" state={{ returnTo: `${location.pathname}${location.search}` }} replace />
-  if (admin && currentUser.role !== 'admin') return <Navigate to="/" replace />
+  if (admin && adminAllowed === null) return <RouteLoading />
+  if (admin && !adminAllowed) return <Navigate to="/" replace />
   return children
 }
 
@@ -111,5 +141,5 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 export default function App() {
-  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><MobileOnboardingAuthBridge /><CustomerFeedbackFixes /><PublishOccupancySync /><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="verificar-email" element={<VerifyEmailPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="mensajes" element={<MessagesPage />} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></AppProvider></I18nProvider></HashRouter>
+  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><MobileOnboardingAuthBridge /><CustomerFeedbackFixes /><PublishOccupancySync /><ModerationGate><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="verificar-email" element={<VerifyEmailPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="mensajes" element={<MessagesPage />} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></ModerationGate></AppProvider></I18nProvider></HashRouter>
 }

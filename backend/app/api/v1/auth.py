@@ -31,7 +31,7 @@ from ...services.auth import (
     revoke_session,
     verify_user_email,
 )
-from ..dependencies import current_user
+from ..dependencies import authenticated_user, current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -55,8 +55,6 @@ def set_refresh_cookie(response: Response, result: AuthResult) -> dict:
         result.refresh_token,
         httponly=True,
         secure=settings.is_production,
-        # Frontend and API intentionally share one origin. Lax blocks ambient
-        # cross-site POST cookies while preserving normal navigation and OAuth.
         samesite="lax",
         max_age=max(1, int((result.refresh_expires_at - datetime.now(UTC)).total_seconds())),
         path="/api/v1/auth",
@@ -93,6 +91,10 @@ async def login(
         user_agent=user_agent,
         client_ip=request_ip,
     )
+    # Full moderation restrictions intentionally do not revoke identity sessions.
+    # The session is required for ModerationGate to load the reason, expiry and
+    # support address. Normal application endpoints use `current_user`, which
+    # still enforces full-account access before any protected action.
     return set_refresh_cookie(response, result)
 
 
@@ -162,7 +164,7 @@ async def email_verification_status(user: User = Depends(current_user)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(current_user)):
+async def me(user: User = Depends(authenticated_user)):
     return public_user(user)
 
 
@@ -183,6 +185,8 @@ async def refresh(
         user_agent=user_agent,
         client_ip=request_ip,
     )
+    # Keep the restricted identity session alive across reloads so the frontend
+    # can rehydrate the account and render its moderation/support screen.
     return set_refresh_cookie(response, result)
 
 

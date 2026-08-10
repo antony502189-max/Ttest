@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from app.core.config import Settings
 from app.db.session import SessionLocal
 from app.models import Listing, User
+from app.models.moderation import AdminAccess
 from app.repositories.listings import point
 from app.services import listing_limits
 
@@ -21,7 +22,7 @@ def limit_settings(**overrides) -> Settings:
     return Settings(**values)
 
 
-async def create_user(email: str, *, role: str = "host") -> User:
+async def create_user(email: str, *, role: str = "host", google_subject: str | None = None) -> User:
     async with SessionLocal() as session:
         user = User(
             email=email,
@@ -30,6 +31,7 @@ async def create_user(email: str, *, role: str = "host") -> User:
             role=role,
             initials="LL",
             email_verified=True,
+            google_subject=google_subject,
         )
         session.add(user)
         await session.commit()
@@ -100,14 +102,37 @@ async def test_daily_quota_counts_soft_deleted_rows(monkeypatch):
         await session.rollback()
 
 
-async def test_admin_listing_creation_is_not_subject_to_host_quota(monkeypatch):
+async def test_allowlisted_google_admin_is_not_subject_to_host_quota(monkeypatch):
     settings = limit_settings(max_active_listings_per_user=1, max_listing_creations_per_day=1)
     monkeypatch.setattr(listing_limits, "get_settings", lambda: settings)
-    admin = await create_user("listing-admin@example.test", role="admin")
+    admin = await create_user(
+        "listing-admin@example.test",
+        role="tenant",
+        google_subject="listing-admin-google-subject",
+    )
 
     async with SessionLocal() as session:
         stored_admin = await session.get(User, admin.id)
         assert stored_admin is not None
+        session.add(AdminAccess(email=stored_admin.email.lower(), active=True, created_by=None))
         session.add(listing_for(stored_admin, status="pending"))
         await session.commit()
+
         await listing_limits.enforce_listing_creation_limits(stored_admin, session)
+
+
+async def test_legacy_admin_role_without_allowlist_is_subject_to_host_quota(monkeypatch):
+    settings = limit_settings(max_active_listings_per_user=1, max_listing_creations_per_day=1)
+    monkeypatch.setattr(listing_limits, "get_settings", lambda: settings)
+    legacy_admin = await create_user("listing-legacy-admin@example.test", role="admin")
+
+    async with SessionLocal() as session:
+        stored_admin = await session.get(User, legacy_admin.id)
+        assert stored_admin is not None
+        session.add(listing_for(stored_admin, status="pending"))
+        await session.commit()
+
+        with pytest.raises(HTTPException, match="Active listing limit reached") as error:
+            await listing_limits.enforce_listing_creation_limits(stored_admin, session)
+        assert error.value.status_code == 409
+        await session.rollback()

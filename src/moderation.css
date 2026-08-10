@@ -1,0 +1,58 @@
+.restriction-banner {
+  position: sticky;
+  z-index: 45;
+  top: 0;
+  padding: .55rem 1rem;
+  border-bottom: 1px solid #e4b5ab;
+  background: var(--restriction-soft);
+}
+
+.restriction-card {
+  width: min(100%, 74rem);
+  margin-inline: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+}
+.restriction-card > svg { width: 1.2rem; flex: none; margin-top: .15rem; color: var(--restriction); }
+.restriction-card > div { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .8rem; }
+.restriction-card strong { color: #6f2d22; }
+.restriction-card p { flex-basis: 100%; color: var(--ink-soft); }
+.restriction-card span { color: var(--ink-muted); font-size: .78rem; }
+.restriction-card a { display: inline-flex; align-items: center; gap: .3rem; color: var(--market-link); font-size: .78rem; font-weight: 700; }
+.restriction-card a svg { width: .85rem; }
+
+.restriction-screen {
+  min-height: calc(100dvh - 4.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  background: var(--surface-muted);
+}
+.restriction-screen > .restriction-card,
+.restriction-screen .restriction-card {
+  max-width: 36rem;
+  padding: 1.4rem;
+  border: 1px solid #dfada3;
+  border-radius: var(--radius-lg);
+  background: white;
+  box-shadow: var(--shadow-2);
+}
+.restriction-screen .restriction-card > svg { width: 2rem; }
+.restriction-screen .restriction-card > div { display: flex; flex-direction: column; align-items: flex-start; gap: .55rem; }
+.restriction-screen .restriction-card p { font-size: 1rem; }
+.restriction-screen--full { min-height: 100dvh; }
+.restriction-screen--full > .restriction-screen { min-height: auto; padding: 0; background: transparent; }
+.restriction-back { color: var(--market-link); font-weight: 700; }
+.restriction-action-hint { display: inline-flex; align-items: center; gap: .35rem; color: var(--restriction); font-size: .75rem; font-weight: 700; }
+.restriction-action-hint svg { width: .9rem; }
+
+@media (max-width: 767px) {
+  .restriction-banner { top: 0; padding: .5rem .7rem; }
+  .restriction-card > div { display: flex; flex-direction: column; align-items: flex-start; }
+  .restriction-screen { min-height: calc(100dvh - 3.75rem); padding: 1rem .75rem calc(5rem + env(safe-area-inset-bottom)); }
+  .restriction-screen .restriction-card { padding: 1.1rem; }
+}

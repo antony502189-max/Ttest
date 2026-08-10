@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+
+RestrictionType = Literal["full", "publish", "view_listings"]
 
 
 class ListingStatusRequest(BaseModel):
@@ -10,7 +12,33 @@ class ListingStatusRequest(BaseModel):
 
 
 class BlockUserRequest(BaseModel):
+    """Legacy compatibility payload. New UI uses dated restrictions."""
+
     blocked: bool
+
+
+class UserRestrictionRequest(BaseModel):
+    restrictionType: RestrictionType
+    # None means permanent until manually revoked by an administrator.
+    until: datetime | None = None
+    reason: str = Field(min_length=2, max_length=4_000)
+
+
+class ListingRestrictionRequest(BaseModel):
+    until: datetime
+    reason: str = Field(min_length=2, max_length=4_000)
+
+
+class DeleteUserRequest(BaseModel):
+    reason: str = Field(min_length=2, max_length=4_000)
+
+
+class AdminNoteRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=4_000)
+
+
+class AddAdminRequest(BaseModel):
+    email: EmailStr
 
 
 class AdminStatsResponse(BaseModel):
@@ -18,6 +46,25 @@ class AdminStatsResponse(BaseModel):
     listings: int
     pendingListings: int
     openReports: int
+
+
+class RestrictionResponse(BaseModel):
+    id: UUID
+    restrictionType: str
+    reason: str
+    startsAt: datetime
+    endsAt: datetime | None
+    revokedAt: datetime | None
+    active: bool
+
+
+class ListingRestrictionResponse(BaseModel):
+    id: UUID
+    reason: str
+    startsAt: datetime
+    endsAt: datetime
+    revokedAt: datetime | None
+    active: bool
 
 
 class AdminUserResponse(BaseModel):
@@ -35,16 +82,59 @@ class AdminUserResponse(BaseModel):
     showWhatsApp: bool
     allowContactForm: bool
     avatarUrl: str | None = None
+    createdAt: datetime
+    deletedAt: datetime | None = None
+    lastLoginAt: datetime | None = None
+    listingCount: int = 0
+    activeRestriction: RestrictionResponse | None = None
+    isAdmin: bool = False
+
+
+class AdminUserDetailResponse(AdminUserResponse):
+    restrictions: list[RestrictionResponse] = Field(default_factory=list)
 
 
 class AdminListingResponse(BaseModel):
     id: UUID
     ownerUserId: UUID
+    ownerName: str | None = None
+    ownerEmail: str | None = None
     title: str
     city: str
     area: str
     status: str
     rentalMode: str
+    views: int = 0
+    createdAt: datetime
+    deletedAt: datetime | None = None
+    activeRestriction: ListingRestrictionResponse | None = None
+
+
+class AdminNoteResponse(BaseModel):
+    id: UUID
+    userId: UUID
+    body: str
+    createdBy: UUID | None
+    createdByName: str | None = None
+    createdAt: datetime
+
+
+class AdminAccessResponse(BaseModel):
+    email: str
+    active: bool
+    createdBy: UUID | None
+    createdAt: datetime
+
+
+class AuditLogResponse(BaseModel):
+    id: UUID
+    actorId: UUID | None
+    actorName: str | None = None
+    action: str
+    targetType: str
+    targetId: UUID | None
+    detail: dict
+    createdAt: datetime
 
 
 class ExternalImportRunResponse(BaseModel):
