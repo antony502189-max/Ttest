@@ -13,6 +13,8 @@ test.describe('restored home reference controls', () => {
     await expect(modeButtons).toHaveCount(2)
     await expect(modeButtons.first()).toBeVisible()
     await expect(modeButtons.last()).toBeVisible()
+    await expect(modeButtons.first()).toHaveAccessibleName('Vivienda')
+    await expect(modeButtons.last()).toHaveAccessibleName('Turismo')
 
     const longStayLabel = modeButtons.first().locator('span').last()
     const tourismLabel = modeButtons.last().locator('span').last()
@@ -20,8 +22,6 @@ test.describe('restored home reference controls', () => {
     await expect(longStayLabel).toHaveAttribute('data-reference-subtitle', 'LARGA ESTANCIA')
     await expect(tourismLabel).toHaveAttribute('data-reference-title', 'HABITACIONES')
     await expect(tourismLabel).toHaveAttribute('data-reference-subtitle', 'TURÍSTICAS')
-    await expect(modeButtons.first()).toHaveAccessibleName('Habitaciones, larga estancia')
-    await expect(modeButtons.last()).toHaveAccessibleName('Habitaciones turísticas')
 
     const cardHeight = await modeButtons.first().evaluate((element) => element.getBoundingClientRect().height)
     expect(cardHeight).toBeGreaterThanOrEqual(180)
@@ -49,8 +49,9 @@ test.describe('restored home reference controls', () => {
     await expect(referenceIcons).toHaveCount(7)
 
     for (let index = 0; index < 7; index += 1) {
-      await expect(referenceIcons.nth(index)).toHaveAttribute('src', /^data:image\/webp;base64,/)
+      await expect(referenceIcons.nth(index)).toHaveAttribute('src', /^blob:/)
       await expect(referenceIcons.nth(index)).toBeVisible()
+      await expect.poll(() => referenceIcons.nth(index).evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
     }
   })
 })
