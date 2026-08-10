@@ -3,7 +3,6 @@ import { applyListingAccessProfile, readListingAccessProfile } from '@/lib/listi
 import { filtersToParams } from '@/lib/search'
 
 const PENDING_KEY = '112233:mobile-home-search-pending:v1'
-const MODE_KEY = '112233:mobile-home-mode:v1'
 
 type HomeMode = 'long' | 'holiday'
 
@@ -23,8 +22,7 @@ function selectedHomeMode(): HomeMode {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-home .m2-mode-switch > button'))
   const selectedIndex = buttons.findIndex((button) => button.getAttribute('aria-pressed') === 'true' || button.classList.contains('is-active'))
   if (selectedIndex === 1) return 'holiday'
-  if (selectedIndex === 0) return 'long'
-  return safeGet(MODE_KEY) === 'holiday' ? 'holiday' : 'long'
+  return 'long'
 }
 
 function cleanHomeSearchParams(existing = new URLSearchParams(), mode = selectedHomeMode()) {
@@ -75,13 +73,6 @@ function handleHomeInteraction(event: MouseEvent) {
   const target = event.target
   if (!(target instanceof Element)) return
 
-  const modeButton = target.closest<HTMLButtonElement>('.m2-home .m2-mode-switch > button')
-  if (modeButton) {
-    const buttons = Array.from(modeButton.parentElement?.querySelectorAll<HTMLButtonElement>(':scope > button') ?? [])
-    safeSet(MODE_KEY, buttons.indexOf(modeButton) === 1 ? 'holiday' : 'long')
-    return
-  }
-
   const locationButton = target.closest('.m2-home .m2-select-row')
   if (locationButton) {
     safeSet(PENDING_KEY, selectedHomeMode())
@@ -96,10 +87,8 @@ function handleHomeInteraction(event: MouseEvent) {
   event.preventDefault()
   event.stopPropagation()
   event.stopImmediatePropagation()
-  const mode = selectedHomeMode()
-  safeSet(MODE_KEY, mode)
   safeRemove(PENDING_KEY)
-  replaceHash('/buscar', cleanHomeSearchParams(new URLSearchParams(), mode))
+  replaceHash('/buscar', cleanHomeSearchParams())
 }
 
 document.addEventListener('click', handleHomeInteraction, true)
