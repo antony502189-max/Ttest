@@ -11,6 +11,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     reference_ui = (root / "src" / "reference-occupant-icons.ts").read_text(encoding="utf-8")
     object_urls = (root / "src" / "assets" / "occupants" / "object-url.ts").read_text(encoding="utf-8")
     asset_index = (root / "src" / "assets" / "occupants" / "index.ts").read_text(encoding="utf-8")
+    pages_workflow = (root / ".github" / "workflows" / "pages-preview.yml").read_text(encoding="utf-8")
 
     assert "./mobile-home-mode-cards.css" in main
     assert "./reference-occupant-icons.css" in main
@@ -74,7 +75,6 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "from './pets-ref'" in asset_index
     assert "from './any-ref'" in asset_index
 
-    # Desktop copy mirrors the supplied reference and is explicitly localized.
     for label in (
         "1 persona",
         "2 personas (pareja/amigos)",
@@ -90,8 +90,6 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "value: 'two-people'" in home_search
     assert "value: 'with-children'" in home_search
 
-    # Expanded reference wording must not silently keep the old narrower
-    # couple/family search semantics.
     assert "'two-people'" in listing_access
     assert "'with-children'" in listing_access
     assert "case 'two-people':" in listing_access
@@ -99,6 +97,8 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "roomCapacity = '2'" in listing_access
     assert "children = 'Sí'" in listing_access
     assert "tenantRequirements: []" in listing_access
+    assert "if (value === 'couple') return 'two-people'" in listing_access
+    assert "if (value === 'family') return 'with-children'" in listing_access
 
     assert "URL.createObjectURL" in object_urls
     assert "new Blob" in object_urls
@@ -115,3 +115,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "m2-occupant-trigger" in reference_ui
     assert "m2-reference-occupant-icon" in reference_ui
     assert "row.querySelector('b')?.remove()" in reference_ui
+
+    assert "VITE_ENABLE_MOCK_MODE: '1'" in pages_workflow
+    assert "VITE_GOOGLE_MAPS_TEST_SDK: '1'" in pages_workflow
+    assert "VITE_BASE_PATH: /Ttest/" in pages_workflow
