@@ -65,7 +65,7 @@ test('published listings are visible on the map and open the matching result', a
 
 test('listing requirements are visually prominent in results', async ({ page }) => {
   await finishOnboarding(page)
-  await page.getByRole('button', { name: 'Vivienda', exact: true }).click()
+  await page.locator('.m2-mode-switch > button').first().click()
   await page.getByTestId('open-location').click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
