@@ -22,7 +22,7 @@ async function openHomeResults(page: Page, mode: 0 | 1) {
   return results
 }
 
-test('a new unrestricted home search clears stale advanced filters and preserves rental mode', async ({ page }) => {
+test('unrestricted home search restores the full mode catalog after stale advanced filters', async ({ page }) => {
   await finishOnboarding(page)
 
   const narrowed = await openHomeResults(page, 0)
