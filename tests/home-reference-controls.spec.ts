@@ -110,6 +110,24 @@ test.describe('restored home reference controls', () => {
     expect(navigationBox).not.toBeNull()
     expect((cardsBox?.y ?? 0) + (cardsBox?.height ?? 0)).toBeLessThanOrEqual(navigationBox?.y ?? 0)
   })
+
+  test('mobile occupant sheet follows the active application language', async ({ page }) => {
+    for (const { language, title, option } of [
+      { language: 'es', title: '¿Quién vivirá?', option: '2 personas (pareja/amigos)' },
+      { language: 'en', title: 'Who will live there?', option: '2 people (couple/friends)' },
+      { language: 'ru', title: 'Кто будет жить?', option: '2 человека (пара/друзья)' },
+    ] as const) {
+      await page.addInitScript((nextLanguage) => {
+        localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+        localStorage.setItem('112233:language:v1', nextLanguage)
+      }, language)
+      await page.goto('/')
+      await page.locator('.m2-occupant-trigger').click()
+      const sheet = page.locator('.m2-custom-occupant-sheet')
+      await expect(sheet).toHaveAttribute('aria-label', title)
+      await expect(sheet).toContainText(option)
+    }
+  })
 })
 
 test.describe('desktop reference occupant semantics', () => {

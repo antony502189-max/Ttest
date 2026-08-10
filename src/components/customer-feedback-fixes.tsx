@@ -110,11 +110,9 @@ function normalizedPriceFilters(filters: Filters, previousMode: RentalMode, next
   return { ...filters, minPrice, maxPrice }
 }
 
-function detectOccupantLocale(source?: Element | null): OccupantLocale {
-  const text = `${source?.textContent ?? ''} ${document.querySelector('.m2-occupant-trigger')?.textContent ?? ''}`
-  if (/кто|человек|мужчин|женщин|ребён|животн|огранич/i.test(text)) return 'ru'
-  if (/who|person|people|man|woman|children|pets|restrictions/i.test(text)) return 'en'
-  return 'es'
+function detectOccupantLocale(): OccupantLocale {
+  const language = document.documentElement.lang
+  return language === 'ru' || language === 'en' ? language : 'es'
 }
 
 function primaryKey(filters: Filters): Exclude<OccupantKey, 'children' | 'pets' | 'unrestricted'> | null {
@@ -247,7 +245,7 @@ function renderOccupantPanel(filters: Filters) {
   }
 
   source.classList.add('m2-sheet--occupant-source')
-  const locale = detectOccupantLocale(source)
+  const locale = detectOccupantLocale()
   const copy = OCCUPANT_COPY[locale]
   const selected = new Set(selectedOccupantKeys(filters))
   const signature = `${locale}:${copy.options.filter((option) => selected.has(option.key)).map((option) => option.key).join('|')}`
