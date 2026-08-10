@@ -12,6 +12,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     reference_ui = (root / "src" / "reference-occupant-icons.ts").read_text(encoding="utf-8")
     object_urls = (root / "src" / "assets" / "occupants" / "object-url.ts").read_text(encoding="utf-8")
     asset_index = (root / "src" / "assets" / "occupants" / "index.ts").read_text(encoding="utf-8")
+    pets_ref = (root / "src" / "assets" / "occupants" / "pets-ref.ts").read_text(encoding="utf-8")
     pages_workflow = (root / ".github" / "workflows" / "pages-preview.yml").read_text(encoding="utf-8")
 
     assert "./mobile-home-mode-cards.css" in main
@@ -59,19 +60,20 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
         assert asset in home_search
 
     asset_dir = root / "src" / "assets" / "occupants"
-    asset_files = (
+    direct_asset_files = (
         "person.ts",
         "couple.ts",
         "man.ts",
         "woman.ts",
         "family-ref.ts",
-        "pets-ref.ts",
+        "pets.ts",
         "any-ref.ts",
     )
-    for filename in asset_files:
+    for filename in direct_asset_files:
         source = (asset_dir / filename).read_text(encoding="utf-8")
         assert "data:image/webp;base64," in source
 
+    assert "export { occupantPetsIcon } from './pets'" in pets_ref
     assert "from './family-ref'" in asset_index
     assert "from './pets-ref'" in asset_index
     assert "from './any-ref'" in asset_index
@@ -101,6 +103,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "if (value === 'couple') return 'two-people'" in listing_access
     assert "if (value === 'family') return 'with-children'" in listing_access
     assert "profile.occupant === 'couple' || profile.occupant === 'family'" in publish_sync
+    assert "occupant: visibleHomeProfile.occupant" in publish_sync
 
     assert "URL.createObjectURL" in object_urls
     assert "new Blob" in object_urls
