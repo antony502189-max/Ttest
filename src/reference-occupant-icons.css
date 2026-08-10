@@ -1,11 +1,18 @@
 .m2-reference-occupant-icon {
-  flex: 0 0 3.15rem;
-  width: 3.15rem;
-  height: 3.15rem;
+  flex: 0 0 3.35rem;
+  width: 3.35rem;
+  height: 3.35rem;
+  box-sizing: border-box;
   object-fit: contain;
-  padding: .12rem;
-  border-radius: .65rem;
+  object-position: center;
+  padding: .2rem;
+  border: 2px solid transparent;
+  border-radius: .72rem;
   background: #fff;
+  box-shadow: 0 .08rem .25rem rgb(0 0 0 / .16);
+  opacity: .88;
+  transform: scale(1);
+  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease, opacity .14s ease, background-color .14s ease;
 }
 
 .mandatory-choice__reference-icon {
@@ -39,13 +46,30 @@
   .m2-custom-occupant-list > button b {
     display: none;
   }
+
+  .m2-custom-occupant-list > button.is-selected .m2-reference-occupant-icon {
+    border-color: #d2ff3f;
+    background: #fbffe9;
+    box-shadow: 0 0 0 2px #2c211f, 0 0 0 4px #d2ff3f, 0 .2rem .55rem rgb(0 0 0 / .3);
+    opacity: 1;
+    transform: scale(1.07);
+  }
+
+  .m2-custom-occupant-list > button:active .m2-reference-occupant-icon {
+    transform: scale(.93);
+  }
+
+  .m2-custom-occupant-list > button.is-selected:active .m2-reference-occupant-icon {
+    transform: scale(.98);
+  }
 }
 
 @media (max-width: 360px) {
   .m2-reference-occupant-icon {
-    width: 2.8rem;
-    height: 2.8rem;
-    flex-basis: 2.8rem;
+    width: 3rem;
+    height: 3rem;
+    flex-basis: 3rem;
+    padding: .18rem;
   }
 
   .mandatory-choice__reference-icon {
