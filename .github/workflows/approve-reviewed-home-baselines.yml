@@ -24,7 +24,7 @@ jobs:
           ref: visual-baselines
           persist-credentials: true
           fetch-depth: 1
-      - name: Approve reviewed snapshots
+      - name: Stage reviewed snapshots on approval branch
         id: approve
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,9 +62,9 @@ jobs:
             echo 'baseline_state=already-approved' >> "$result"
           else
             git commit -m 'test: approve restored home reference design'
-            git push origin HEAD:visual-baselines
-            echo "baseline_after=$(git rev-parse HEAD)" >> "$result"
-            echo 'baseline_state=updated' >> "$result"
+            git push --force-with-lease origin HEAD:refs/heads/approve/pr97-home-baselines
+            echo "approval_branch_commit=$(git rev-parse HEAD)" >> "$result"
+            echo 'baseline_state=staged-for-pr' >> "$result"
           fi
       - name: Report baseline updater result
         if: always()
