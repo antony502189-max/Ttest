@@ -86,7 +86,7 @@
   }
 
   .m2-mode-switch > button > span:last-child::before {
-    content: 'HABITACIONES';
+    content: attr(data-reference-title);
     color: #111;
     font-size: clamp(1.05rem, 5vw, 1.38rem);
     font-weight: 900;
@@ -96,20 +96,13 @@
   }
 
   .m2-mode-switch > button > span:last-child::after {
+    content: attr(data-reference-subtitle);
     color: #555;
     font-size: clamp(.72rem, 3.5vw, .98rem);
     font-weight: 400;
     letter-spacing: .09em;
     line-height: 1.2;
     white-space: nowrap;
-  }
-
-  .m2-mode-switch > button:first-child > span:last-child::after {
-    content: 'LARGA ESTANCIA';
-  }
-
-  .m2-mode-switch > button:last-child > span:last-child::after {
-    content: 'TURÍSTICAS';
   }
 }
 
