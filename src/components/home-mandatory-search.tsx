@@ -74,7 +74,7 @@ const petsReferenceIcon = occupantObjectUrl(occupantPetsIcon)
 
 export function HomeMandatorySearch() {
   const { filters, setFilters, query, setQuery, rentalMode, addSearchHistory } = useApp()
-  const { language } = useI18n()
+  const { language, t } = useI18n()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<ListingAccessProfile>(readListingAccessProfile)
   const [error, setError] = useState('')
@@ -97,13 +97,13 @@ export function HomeMandatorySearch() {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!canSearch) {
-      setError('Selecciona al menos una condición para ver los anuncios.')
+      setError(t('Selecciona al menos una condición para ver los anuncios.'))
       return
     }
 
     const location = resolveTenerifeLocation(query.trim() || 'Tenerife')
     if (!location) {
-      setError('En esta versión solo puedes buscar habitaciones en Tenerife.')
+      setError(t('En esta versión solo puedes buscar habitaciones en Tenerife.'))
       return
     }
 
@@ -128,13 +128,13 @@ export function HomeMandatorySearch() {
 
   return <form className="mandatory-home-search" onSubmit={submit}>
     <div className="mandatory-home-search__rental">
-      <span>Tipo de alquiler <small>opcional</small></span>
+      <span>{t('Tipo de alquiler')} <small>{t('opcional')}</small></span>
       <RentalTypeSwitch home />
     </div>
 
     <fieldset className="mandatory-choice-group">
-      <legend>¿Para quién buscas?</legend>
-      <p>Selecciona una opción de ocupación.</p>
+      <legend>{t('¿Para quién buscas?')}</legend>
+      <p>{t('Selecciona una opción de ocupación.')}</p>
       <div className="mandatory-choice-grid mandatory-choice-grid--occupants">
         {occupantOptions.map(({ value, label, iconSrc }) => <button
           key={value}
@@ -150,20 +150,20 @@ export function HomeMandatorySearch() {
     </fieldset>
 
     <fieldset className="mandatory-choice-group">
-      <legend>Mascotas</legend>
-      <p>Indica si necesitas una habitación que las admita.</p>
+      <legend>{t('Mascotas')}</legend>
+      <p>{t('Indica si necesitas una habitación que las admita.')}</p>
       <div className="mandatory-choice-grid">
-        <button type="button" className={cn('mandatory-choice', profile.pets === 'Sí' && 'is-selected')} aria-pressed={profile.pets === 'Sí'} onClick={() => selectBoolean('pets', 'Sí')}><img className="mandatory-choice__reference-icon" src={petsReferenceIcon} alt="" aria-hidden="true" /><span>Con mascotas</span></button>
-        <button type="button" className={cn('mandatory-choice', profile.pets === 'No' && 'is-selected')} aria-pressed={profile.pets === 'No'} onClick={() => selectBoolean('pets', 'No')}><PawPrint aria-hidden="true" /><span>Sin mascotas</span></button>
+        <button type="button" className={cn('mandatory-choice', profile.pets === 'Sí' && 'is-selected')} aria-pressed={profile.pets === 'Sí'} onClick={() => selectBoolean('pets', 'Sí')}><img className="mandatory-choice__reference-icon" src={petsReferenceIcon} alt="" aria-hidden="true" /><span>{t('Con mascotas')}</span></button>
+        <button type="button" className={cn('mandatory-choice', profile.pets === 'No' && 'is-selected')} aria-pressed={profile.pets === 'No'} onClick={() => selectBoolean('pets', 'No')}><PawPrint aria-hidden="true" /><span>{t('Sin mascotas')}</span></button>
       </div>
     </fieldset>
 
     <fieldset className="mandatory-choice-group">
-      <legend>Tabaco</legend>
-      <p>Selecciona la condición que necesitas.</p>
+      <legend>{t('Tabaco')}</legend>
+      <p>{t('Selecciona la condición que necesitas.')}</p>
       <div className="mandatory-choice-grid">
-        <button type="button" className={cn('mandatory-choice', profile.smoking === 'Sí' && 'is-selected')} aria-pressed={profile.smoking === 'Sí'} onClick={() => selectBoolean('smoking', 'Sí')}><Cigarette aria-hidden="true" /><span>Para fumadores</span></button>
-        <button type="button" className={cn('mandatory-choice', profile.smoking === 'No' && 'is-selected')} aria-pressed={profile.smoking === 'No'} onClick={() => selectBoolean('smoking', 'No')}><CigaretteOff aria-hidden="true" /><span>No fumadores</span></button>
+        <button type="button" className={cn('mandatory-choice', profile.smoking === 'Sí' && 'is-selected')} aria-pressed={profile.smoking === 'Sí'} onClick={() => selectBoolean('smoking', 'Sí')}><Cigarette aria-hidden="true" /><span>{t('Para fumadores')}</span></button>
+        <button type="button" className={cn('mandatory-choice', profile.smoking === 'No' && 'is-selected')} aria-pressed={profile.smoking === 'No'} onClick={() => selectBoolean('smoking', 'No')}><CigaretteOff aria-hidden="true" /><span>{t('No fumadores')}</span></button>
       </div>
     </fieldset>
 
@@ -175,8 +175,8 @@ export function HomeMandatorySearch() {
 
     <Button type="submit" size="lg" disabled={!canSearch} aria-disabled={!canSearch}>
       <Search data-icon="inline-start" />
-      Ver habitaciones
+      {t('Ver habitaciones')}
     </Button>
-    {!canSearch ? <small className="mandatory-home-search__locked">Elige al menos una condición para desbloquear los anuncios.</small> : null}
+    {!canSearch ? <small className="mandatory-home-search__locked">{t('Elige al menos una condición para desbloquear los anuncios.')}</small> : null}
   </form>
 }

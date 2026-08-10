@@ -75,6 +75,41 @@ test.describe('restored home reference controls', () => {
     await expect(options.first()).toHaveClass(/is-selected/)
     await expect.poll(() => referenceIcons.first().evaluate((image) => getComputedStyle(image).borderColor)).toBe('rgb(210, 255, 63)')
   })
+
+  test('mobile two people keeps the friends-compatible capacity-only filter', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    })
+    await page.goto('/')
+
+    await page.locator('.m2-occupant-trigger').click()
+    const twoPeople = page.locator('[data-m2-occupant-key="two"]')
+    await expect(twoPeople).toHaveAttribute('aria-checked', 'false')
+    await twoPeople.click()
+    await expect(twoPeople).toHaveAttribute('aria-checked', 'true')
+    await page.locator('.m2-custom-occupant-done').click()
+
+    await page.getByTestId('open-location').click()
+    await expect(page).toHaveURL(/\/buscar\?/)
+    const params = hashSearchParams(page.url())
+    expect(params.get('capacidad')).toBe('2')
+    expect(params.get('requisito')).toBeNull()
+  })
+
+  test('landscape keeps both reference cards above the fixed navigation', async ({ page }) => {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    })
+    await page.goto('/')
+
+    const modeCards = page.locator('.m2-mode-switch')
+    const navigation = page.locator('.m2-bottom-nav')
+    const [cardsBox, navigationBox] = await Promise.all([modeCards.boundingBox(), navigation.boundingBox()])
+    expect(cardsBox).not.toBeNull()
+    expect(navigationBox).not.toBeNull()
+    expect((cardsBox?.y ?? 0) + (cardsBox?.height ?? 0)).toBeLessThanOrEqual(navigationBox?.y ?? 0)
+  })
 })
 
 test.describe('desktop reference occupant semantics', () => {
@@ -119,6 +154,23 @@ test.describe('desktop reference occupant semantics', () => {
     await expect(form.getByRole('button', { name: 'Можно с ребёнком' })).toBeVisible()
   })
 
+  for (const { language, labels } of [
+    { language: 'en', labels: ['2 people (couple/friends)', 'With children', 'With pets', 'Smoking allowed', 'View rooms'] },
+    { language: 'ru', labels: ['2 человека (пара/друзья)', 'Можно с ребёнком', 'Можно с животными', 'Для курящих', 'Посмотреть комнаты'] },
+  ]) {
+    test(`home occupancy controls are fully localized in ${language}`, async ({ page }) => {
+      await page.addInitScript((nextLanguage) => {
+        localStorage.setItem('112233:language:v1', nextLanguage)
+      }, language)
+      await page.goto('/')
+
+      const form = page.locator('.mandatory-home-search')
+      for (const label of labels) await expect(form.getByRole('button', { name: label })).toBeVisible()
+      await expect(form).not.toContainText('Con mascotas')
+      await expect(form).not.toContainText('Para fumadores')
+    })
+  }
+
   test('legacy v1 couple and family selections migrate to visible reference choices', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('112233:listing-access-profile:v1', JSON.stringify({
@@ -138,7 +190,7 @@ test.describe('desktop reference occupant semantics', () => {
     expect(params.get('capacidad')).toBe('2')
     expect(params.get('requisito')).toBeNull()
 
-    await page.evaluate(() => {
+    await page.addInitScript(() => {
       localStorage.setItem('112233:listing-access-profile:v1', JSON.stringify({
         occupant: 'family',
         pets: 'Cualquiera',

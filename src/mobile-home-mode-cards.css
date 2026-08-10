@@ -191,6 +191,23 @@
 }
 
 @media (max-height: 480px) and (max-width: 900px) and (orientation: landscape) {
+  .m2-app.m2-app {
+    --m2-nav-height: 3.45rem;
+  }
+
+  .m2-app .m2-topbar {
+    height: 2.7rem;
+  }
+
+  .m2-app .m2-hero {
+    height: 4.25rem;
+  }
+
+  .m2-app .m2-search-card {
+    gap: .45rem;
+    padding-top: .45rem;
+  }
+
   .m2-mode-switch > button {
     min-height: 7rem;
     gap: .35rem;
