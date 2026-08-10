@@ -29,10 +29,10 @@ import '@/home-mandatory-search.css'
 
 const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; iconSrc: string }> = [
   { value: 'single-person', label: 'Una persona', iconSrc: occupantObjectUrl(occupantPersonIcon) },
-  { value: 'couple', label: '2 personas (pareja/amigos)', iconSrc: occupantObjectUrl(occupantCoupleIcon) },
+  { value: 'couple', label: 'Pareja', iconSrc: occupantObjectUrl(occupantCoupleIcon) },
   { value: 'single-man', label: 'Solo hombre', iconSrc: occupantObjectUrl(occupantManIcon) },
   { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantObjectUrl(occupantWomanIcon) },
-  { value: 'family', label: 'Con niños', iconSrc: occupantObjectUrl(occupantFamilyIcon) },
+  { value: 'family', label: 'Familia', iconSrc: occupantObjectUrl(occupantFamilyIcon) },
   { value: 'any', label: 'Sin restricción', iconSrc: occupantObjectUrl(occupantAnyIcon) },
 ]
 
