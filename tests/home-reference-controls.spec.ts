@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test'
 
+function hashSearchParams(url: string) {
+  const hash = new URL(url).hash
+  const queryIndex = hash.indexOf('?')
+  return new URLSearchParams(queryIndex >= 0 ? hash.slice(queryIndex + 1) : '')
+}
+
 test.describe('restored home reference controls', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
@@ -82,7 +88,7 @@ test.describe('desktop reference occupant semantics', () => {
     await form.getByRole('button', { name: 'Ver habitaciones' }).click()
 
     await expect(page).toHaveURL(/\/buscar\?/)
-    const params = new URL(page.url()).searchParams
+    const params = hashSearchParams(page.url())
     expect(params.get('capacidad')).toBe('2')
     expect(params.get('requisito')).toBeNull()
     expect(params.get('ninos')).toBeNull()
@@ -96,7 +102,7 @@ test.describe('desktop reference occupant semantics', () => {
     await form.getByRole('button', { name: 'Ver habitaciones' }).click()
 
     await expect(page).toHaveURL(/\/buscar\?/)
-    const params = new URL(page.url()).searchParams
+    const params = hashSearchParams(page.url())
     expect(params.get('ninos')).toBe('Sí')
     expect(params.get('requisito')).toBeNull()
     expect(params.get('capacidad')).toBeNull()
