@@ -1,0 +1,172 @@
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  .m2-mode-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .72rem;
+    border: 0;
+    background: transparent;
+  }
+
+  .m2-mode-switch > button {
+    min-width: 0;
+    min-height: 13.8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1.3rem;
+    padding: 2rem .45rem 1.35rem;
+    border: 1.5px solid rgb(116 185 0 / .34);
+    border-radius: 1.05rem;
+    background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
+    color: #111;
+    box-shadow: 0 .2rem .65rem rgb(0 0 0 / .16);
+    text-align: center;
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  }
+
+  .m2-mode-switch > button:last-child {
+    border-color: rgb(198 0 131 / .34);
+    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
+  }
+
+  .m2-mode-switch > button:active {
+    transform: scale(.985);
+  }
+
+  .m2-mode-switch > button.is-active {
+    background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
+    color: #111;
+    box-shadow: 0 .22rem .7rem rgb(0 0 0 / .18), inset 0 0 0 3px #74b900;
+  }
+
+  .m2-mode-switch > button:last-child.is-active {
+    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
+    box-shadow: 0 .22rem .7rem rgb(0 0 0 / .18), inset 0 0 0 3px #c60083;
+  }
+
+  .m2-mode-icon {
+    flex: 0 0 4.35rem;
+    width: 4.35rem;
+    height: 4.35rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .m2-mode-icon svg {
+    width: 4.1rem;
+    height: 4.1rem;
+    stroke-width: 1.65;
+  }
+
+  .m2-mode-icon--home {
+    background: transparent;
+    color: #70b700;
+  }
+
+  .m2-mode-icon--tourism {
+    background: transparent center / contain no-repeat url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzYwMDgzIiBzdHJva2Utd2lkdGg9IjIuMTUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTYgMjBoMTJhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJINmEyIDIgMCAwIDAtMiAydjExYTIgMiAwIDAgMCAyIDJaIi8+PHBhdGggZD0iTTggNVYzYTEgMSAwIDAgMSAxLTFoNmExIDEgMCAwIDEgMSAxdjIiLz48cGF0aCBkPSJNOSAyMHYxTTE1IDIwdjFNOCAxMHY0TTE2IDEwdjQiLz48L3N2Zz4=");
+    color: #c60083;
+  }
+
+  .m2-mode-icon--tourism svg {
+    visibility: hidden;
+  }
+
+  .m2-mode-switch > button > span:last-child {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .55rem;
+    font-size: 0;
+    line-height: 1;
+  }
+
+  .m2-mode-switch > button > span:last-child::before {
+    content: 'HABITACIONES';
+    color: #111;
+    font-size: clamp(1.05rem, 5vw, 1.38rem);
+    font-weight: 900;
+    letter-spacing: .015em;
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+
+  .m2-mode-switch > button > span:last-child::after {
+    color: #555;
+    font-size: clamp(.72rem, 3.5vw, .98rem);
+    font-weight: 400;
+    letter-spacing: .09em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .m2-mode-switch > button:first-child > span:last-child::after {
+    content: 'LARGA ESTANCIA';
+  }
+
+  .m2-mode-switch > button:last-child > span:last-child::after {
+    content: 'TURÍSTICAS';
+  }
+}
+
+@media (max-width: 360px) {
+  .m2-mode-switch {
+    gap: .5rem;
+  }
+
+  .m2-mode-switch > button {
+    min-height: 11.8rem;
+    gap: .85rem;
+    padding: 1.35rem .3rem 1rem;
+    border-radius: .85rem;
+  }
+
+  .m2-mode-icon,
+  .m2-mode-icon svg {
+    width: 3.55rem;
+    height: 3.55rem;
+  }
+
+  .m2-mode-icon {
+    flex-basis: 3.55rem;
+  }
+
+  .m2-mode-switch > button > span:last-child::before {
+    font-size: .92rem;
+  }
+
+  .m2-mode-switch > button > span:last-child::after {
+    font-size: .62rem;
+    letter-spacing: .06em;
+  }
+}
+
+@media (max-height: 480px) and (max-width: 900px) and (orientation: landscape) {
+  .m2-mode-switch > button {
+    min-height: 7rem;
+    gap: .35rem;
+    padding: .65rem .3rem .55rem;
+  }
+
+  .m2-mode-icon,
+  .m2-mode-icon svg {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .m2-mode-icon {
+    flex-basis: 2.65rem;
+  }
+
+  .m2-mode-switch > button > span:last-child::before {
+    font-size: .8rem;
+  }
+
+  .m2-mode-switch > button > span:last-child::after {
+    font-size: .56rem;
+  }
+}
