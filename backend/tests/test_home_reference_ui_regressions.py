@@ -26,6 +26,9 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "LONG STAY" in reference_ui
     assert "КОМНАТЫ" in reference_ui
     assert "ДОЛГОСРОЧНО" in reference_ui
+    assert "button.querySelector<HTMLElement>('span:last-child')" in reference_ui
+    assert "labelTarget.dataset.referenceTitle = labels.title" in reference_ui
+    assert "labelTarget.dataset.referenceSubtitle = labels.subtitle" in reference_ui
     assert "button.setAttribute('aria-label', labels.aria)" in reference_ui
 
     asset_names = (
