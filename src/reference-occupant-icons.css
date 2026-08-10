@@ -1,0 +1,56 @@
+.m2-reference-occupant-icon {
+  flex: 0 0 3.15rem;
+  width: 3.15rem;
+  height: 3.15rem;
+  object-fit: contain;
+  padding: .12rem;
+  border-radius: .65rem;
+  background: #fff;
+}
+
+.mandatory-choice__reference-icon {
+  flex: 0 0 2.65rem;
+  width: 2.65rem;
+  height: 2.65rem;
+  object-fit: contain;
+}
+
+.mandatory-choice-grid--occupants .mandatory-choice {
+  min-height: 5.2rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: .35rem;
+  text-align: center;
+}
+
+.mandatory-choice-grid--occupants .mandatory-choice span {
+  line-height: 1.15;
+}
+
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  .m2-custom-occupant-list > button {
+    min-height: 4.8rem;
+  }
+
+  .m2-custom-occupant-list > button > span {
+    gap: .85rem;
+  }
+
+  .m2-custom-occupant-list > button b {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .m2-reference-occupant-icon {
+    width: 2.8rem;
+    height: 2.8rem;
+    flex-basis: 2.8rem;
+  }
+
+  .mandatory-choice__reference-icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    flex-basis: 2.35rem;
+  }
+}
