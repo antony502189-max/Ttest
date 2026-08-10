@@ -1,3 +1,4 @@
+# One-shot trigger after the workflow is registered on the default branch.
 name: Approve reviewed PR97 home baselines
 
 on:
