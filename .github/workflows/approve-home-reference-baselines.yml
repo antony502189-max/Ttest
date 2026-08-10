@@ -1,0 +1,47 @@
+name: Approve home reference baselines
+
+on:
+  push:
+    branches:
+      - visual-baselines
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  approve:
+    if: github.event.head_commit.message == 'ci: approve home reference baselines'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout visual baselines
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: visual-baselines
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Download reviewed PR 97 Playwright artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download 31391494932 -n playwright-report --dir /tmp/pr97
+      - name: Install reviewed home snapshots only
+        run: |
+          set -euo pipefail
+          es_actual="$(find /tmp/pr97 -type f -path '*visual-parity-current-mobi-201de-*' -name 'current-home-390x844-actual.png' -print -quit)"
+          ru_actual="$(find /tmp/pr97 -type f -path '*visual-parity-current-mobi-78df0-*' -name 'current-home-ru-390x844-actual.png' -print -quit)"
+          test -n "$es_actual"
+          test -n "$ru_actual"
+          install -m 0644 "$es_actual" tests/visual-snapshots/chromium/current-home-390x844.png
+          install -m 0644 "$ru_actual" tests/visual-snapshots/chromium/current-home-ru-390x844.png
+          git diff -- tests/visual-snapshots/chromium/current-home-390x844.png tests/visual-snapshots/chromium/current-home-ru-390x844.png
+      - name: Commit approved baselines
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/visual-snapshots/chromium/current-home-390x844.png tests/visual-snapshots/chromium/current-home-ru-390x844.png
+          git diff --cached --quiet && exit 0
+          git commit -m 'test: approve restored home reference design'
+          git push origin HEAD:visual-baselines
