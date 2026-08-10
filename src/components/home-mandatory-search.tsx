@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { RentalTypeSwitch, SearchLocationInput } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
+import { useI18n, type Language } from '@/contexts/i18n-context'
 import { filtersToParams } from '@/lib/search'
 import { resolveTenerifeLocation } from '@/lib/tenerife'
 import {
@@ -27,23 +28,61 @@ import {
 import { occupantObjectUrl } from '@/assets/occupants/object-url'
 import '@/home-mandatory-search.css'
 
-const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; iconSrc: string }> = [
-  { value: 'single-person', label: 'Una persona', iconSrc: occupantObjectUrl(occupantPersonIcon) },
-  { value: 'couple', label: 'Pareja', iconSrc: occupantObjectUrl(occupantCoupleIcon) },
-  { value: 'single-man', label: 'Solo hombre', iconSrc: occupantObjectUrl(occupantManIcon) },
-  { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantObjectUrl(occupantWomanIcon) },
-  { value: 'family', label: 'Familia', iconSrc: occupantObjectUrl(occupantFamilyIcon) },
-  { value: 'any', label: 'Sin restricción', iconSrc: occupantObjectUrl(occupantAnyIcon) },
-]
+type OccupantOption = {
+  value: Exclude<HomeOccupantChoice, null>
+  label: string
+  iconSrc: string
+}
+
+const occupantCopy: Record<Language, Array<{ value: Exclude<HomeOccupantChoice, null>; label: string }>> = {
+  es: [
+    { value: 'single-person', label: '1 persona' },
+    { value: 'two-people', label: '2 personas (pareja/amigos)' },
+    { value: 'single-man', label: 'Solo hombre' },
+    { value: 'single-woman', label: 'Solo mujer' },
+    { value: 'with-children', label: 'Con niños' },
+    { value: 'any', label: 'Sin restricción' },
+  ],
+  en: [
+    { value: 'single-person', label: '1 person' },
+    { value: 'two-people', label: '2 people (couple/friends)' },
+    { value: 'single-man', label: 'Man only' },
+    { value: 'single-woman', label: 'Woman only' },
+    { value: 'with-children', label: 'With children' },
+    { value: 'any', label: 'No restrictions' },
+  ],
+  ru: [
+    { value: 'single-person', label: '1 человек' },
+    { value: 'two-people', label: '2 человека (пара/друзья)' },
+    { value: 'single-man', label: 'Только мужчина' },
+    { value: 'single-woman', label: 'Только женщина' },
+    { value: 'with-children', label: 'Можно с ребёнком' },
+    { value: 'any', label: 'Без ограничений' },
+  ],
+}
+
+const occupantIcons: Record<string, string> = {
+  'single-person': occupantObjectUrl(occupantPersonIcon),
+  'two-people': occupantObjectUrl(occupantCoupleIcon),
+  'single-man': occupantObjectUrl(occupantManIcon),
+  'single-woman': occupantObjectUrl(occupantWomanIcon),
+  'with-children': occupantObjectUrl(occupantFamilyIcon),
+  any: occupantObjectUrl(occupantAnyIcon),
+}
 
 const petsReferenceIcon = occupantObjectUrl(occupantPetsIcon)
 
 export function HomeMandatorySearch() {
   const { filters, setFilters, query, setQuery, rentalMode, addSearchHistory } = useApp()
+  const { language } = useI18n()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<ListingAccessProfile>(readListingAccessProfile)
   const [error, setError] = useState('')
   const canSearch = useMemo(() => hasListingAccessSelection(profile), [profile])
+  const occupantOptions = useMemo<OccupantOption[]>(
+    () => occupantCopy[language].map((option) => ({ ...option, iconSrc: occupantIcons[option.value] })),
+    [language],
+  )
 
   const selectOccupant = (value: Exclude<HomeOccupantChoice, null>) => {
     setProfile((current) => ({ ...current, occupant: current.occupant === value ? null : value }))
