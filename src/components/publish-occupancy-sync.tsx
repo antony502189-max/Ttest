@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useApp } from '@/contexts/app-context'
-import { listingAccessProfileFromFilters, persistListingAccessProfile } from '@/lib/listing-access'
+import {
+  listingAccessProfileFromFilters,
+  persistListingAccessProfile,
+  readListingAccessProfile,
+} from '@/lib/listing-access'
 import { getCriticalRestrictions } from '@/lib/listings'
 import type { Listing, TenantRequirement } from '@/types'
 
@@ -16,11 +20,18 @@ export function PublishOccupancySync() {
 
   useEffect(() => {
     const profile = listingAccessProfileFromFilters(filters)
-    // The reference home chooser intentionally exposes broader "2 people" and
-    // "with children" choices, not the advanced couple-only or
-    // couple-plus-children combinations. Do not overwrite a visible home
-    // selection with a profile that the home UI cannot faithfully represent.
-    if (profile.occupant === 'couple' || profile.occupant === 'family') return
+    if (profile.occupant === 'couple' || profile.occupant === 'family') {
+      // Advanced couple-only combinations do not have an exact option in the
+      // simplified reference home chooser. Keep the currently visible home
+      // occupant choice while still synchronizing independent pet/smoking
+      // preferences so returning home never shows stale toggles.
+      const visibleHomeProfile = readListingAccessProfile()
+      persistListingAccessProfile({
+        ...profile,
+        occupant: visibleHomeProfile.occupant,
+      })
+      return
+    }
     persistListingAccessProfile(profile)
   }, [filters])
 
