@@ -42,6 +42,8 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
 
     for mobile_key in ("one", "two", "man", "woman", "children", "pets", "unrestricted"):
         assert f"{mobile_key}:" in mobile_icons
-    assert "MutationObserver" in mobile_icons
+    assert "MutationObserver" not in mobile_icons
+    assert "document.addEventListener('click'" in mobile_icons
+    assert "m2-occupant-trigger" in mobile_icons
     assert "m2-reference-occupant-icon" in mobile_icons
     assert "row.querySelector('b')?.remove()" in mobile_icons
