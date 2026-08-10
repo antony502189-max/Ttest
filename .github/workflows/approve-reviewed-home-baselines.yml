@@ -52,18 +52,32 @@ jobs:
 
           install -m 0644 "$es_actual" tests/visual-snapshots/chromium/current-home-390x844.png
           install -m 0644 "$ru_actual" tests/visual-snapshots/chromium/current-home-ru-390x844.png
-          test "$(git hash-object tests/visual-snapshots/chromium/current-home-390x844.png)" = "$es_sha"
-          test "$(git hash-object tests/visual-snapshots/chromium/current-home-ru-390x844.png)" = "$ru_sha"
+          es_target_sha="$(git hash-object tests/visual-snapshots/chromium/current-home-390x844.png)"
+          ru_target_sha="$(git hash-object tests/visual-snapshots/chromium/current-home-ru-390x844.png)"
+          echo "es_target_blob=$es_target_sha" >> "$result"
+          echo "ru_target_blob=$ru_target_sha" >> "$result"
+          test "$es_target_sha" = "$es_sha"
+          test "$ru_target_sha" = "$ru_sha"
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tests/visual-snapshots/chromium/current-home-390x844.png tests/visual-snapshots/chromium/current-home-ru-390x844.png
+          echo 'staged_status_begin' >> "$result"
+          git status --short >> "$result"
+          echo 'staged_status_end' >> "$result"
+
           if git diff --cached --quiet; then
             echo 'baseline_state=already-approved' >> "$result"
           else
-            git commit -m 'test: approve restored home reference design'
-            git push --force-with-lease origin HEAD:refs/heads/approve/pr97-home-baselines
+            if ! git commit -m 'test: approve restored home reference design' >> "$result" 2>&1; then
+              echo 'failure_stage=commit' >> "$result"
+              exit 1
+            fi
             echo "approval_branch_commit=$(git rev-parse HEAD)" >> "$result"
+            if ! git push --force-with-lease origin HEAD:refs/heads/approve/pr97-home-baselines >> "$result" 2>&1; then
+              echo 'failure_stage=push-approval-branch' >> "$result"
+              exit 1
+            fi
             echo 'baseline_state=staged-for-pr' >> "$result"
           fi
       - name: Report baseline updater result
