@@ -41,8 +41,7 @@ test('a new unrestricted home search clears stale advanced filters and preserves
 
   const unrestrictedLong = await openHomeResults(page, 0)
   await expect(unrestrictedLong.locator('.m2-result-card')).toHaveCount(23)
-  const longUrl = new URL(page.url())
-  const longParams = new URLSearchParams(longUrl.hash.split('?', 2)[1] ?? '')
+  const longParams = new URLSearchParams(new URL(page.url()).hash.split('?', 2)[1] ?? '')
   expect(longParams.get('precioMax')).toBeNull()
   expect(longParams.get('tamanoMax')).toBeNull()
   expect(longParams.get('tiposHabitacion')).toBeNull()
@@ -52,7 +51,6 @@ test('a new unrestricted home search clears stale advanced filters and preserves
   await unrestrictedLong.getByRole('button', { name: 'Volver' }).click()
   const unrestrictedHoliday = await openHomeResults(page, 1)
   await expect(unrestrictedHoliday.locator('.m2-result-card')).toHaveCount(9)
-  const holidayUrl = new URL(page.url())
-  const holidayParams = new URLSearchParams(holidayUrl.hash.split('?', 2)[1] ?? '')
+  const holidayParams = new URLSearchParams(new URL(page.url()).hash.split('?', 2)[1] ?? '')
   expect(holidayParams.get('alquiler')).toBe('holiday')
 })
