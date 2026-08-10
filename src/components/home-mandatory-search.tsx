@@ -27,7 +27,7 @@ import {
 import '@/home-mandatory-search.css'
 
 const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; iconSrc: string }> = [
-  { value: 'single-person', label: '1 persona', iconSrc: occupantPersonIcon },
+  { value: 'single-person', label: 'Una persona', iconSrc: occupantPersonIcon },
   { value: 'couple', label: '2 personas (pareja/amigos)', iconSrc: occupantCoupleIcon },
   { value: 'single-man', label: 'Solo hombre', iconSrc: occupantManIcon },
   { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantWomanIcon },
