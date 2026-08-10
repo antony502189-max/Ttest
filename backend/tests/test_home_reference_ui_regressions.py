@@ -56,6 +56,8 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
         assert f"{mobile_key}:" in reference_ui
     assert "MutationObserver" in reference_ui
     assert "mutation.addedNodes" in reference_ui
+    assert "characterData: true" in reference_ui
+    assert "closest('.m2-mode-switch')" in reference_ui
     assert "document.addEventListener('click'" in reference_ui
     assert "m2-occupant-trigger" in reference_ui
     assert "m2-reference-occupant-icon" in reference_ui
