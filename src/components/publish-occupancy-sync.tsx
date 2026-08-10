@@ -15,7 +15,13 @@ export function PublishOccupancySync() {
   const pending = useRef(new Set<string>())
 
   useEffect(() => {
-    persistListingAccessProfile(listingAccessProfileFromFilters(filters))
+    const profile = listingAccessProfileFromFilters(filters)
+    // The reference home chooser intentionally exposes broader "2 people" and
+    // "with children" choices, not the advanced couple-only or
+    // couple-plus-children combinations. Do not overwrite a visible home
+    // selection with a profile that the home UI cannot faithfully represent.
+    if (profile.occupant === 'couple' || profile.occupant === 'family') return
+    persistListingAccessProfile(profile)
   }, [filters])
 
   useEffect(() => {
