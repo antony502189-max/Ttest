@@ -53,6 +53,7 @@ function applyReferenceModeLabels() {
     if (!labels || !labelTarget) return
     labelTarget.dataset.referenceTitle = labels.title
     labelTarget.dataset.referenceSubtitle = labels.subtitle
+    button.setAttribute('aria-label', `${labels.title} ${labels.subtitle}`)
   })
 }
 
