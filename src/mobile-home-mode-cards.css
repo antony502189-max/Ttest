@@ -8,6 +8,7 @@
   }
 
   .m2-mode-switch > button {
+    position: relative;
     min-width: 0;
     min-height: 13.8rem;
     display: flex;
@@ -21,8 +22,11 @@
     background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
     color: #111;
     box-shadow: 0 .2rem .65rem rgb(0 0 0 / .16);
+    opacity: .82;
     text-align: center;
-    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    transform: scale(.985);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, opacity .16s ease, filter .16s ease;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .m2-mode-switch > button:last-child {
@@ -31,18 +35,57 @@
   }
 
   .m2-mode-switch > button:active {
-    transform: scale(.985);
+    transform: translateY(2px) scale(.95);
+    filter: brightness(.9) saturate(1.12);
+    box-shadow: 0 .08rem .2rem rgb(0 0 0 / .24);
   }
 
   .m2-mode-switch > button.is-active {
-    background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
+    z-index: 1;
+    border-color: #74b900;
+    background: linear-gradient(145deg, #fffffb 0%, #eef8dd 100%);
     color: #111;
-    box-shadow: 0 .22rem .7rem rgb(0 0 0 / .18), inset 0 0 0 3px #74b900;
+    opacity: 1;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 .55rem 1.2rem rgb(38 73 0 / .24), inset 0 0 0 4px #74b900;
   }
 
   .m2-mode-switch > button:last-child.is-active {
-    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
-    box-shadow: 0 .22rem .7rem rgb(0 0 0 / .18), inset 0 0 0 3px #c60083;
+    border-color: #c60083;
+    background: linear-gradient(145deg, #fff5fb 0%, #f9dceb 100%);
+    box-shadow: 0 .55rem 1.2rem rgb(98 0 65 / .25), inset 0 0 0 4px #c60083;
+  }
+
+  .m2-mode-switch > button.is-active:active {
+    transform: translateY(2px) scale(.95);
+    filter: brightness(.9) saturate(1.15);
+  }
+
+  .m2-mode-switch > button.is-active::after {
+    content: '✓';
+    position: absolute;
+    top: .7rem;
+    right: .7rem;
+    width: 1.7rem;
+    height: 1.7rem;
+    display: grid;
+    place-items: center;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    background: #74b900;
+    color: #fff;
+    box-shadow: 0 .15rem .4rem rgb(0 0 0 / .28);
+    font-size: .95rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .m2-mode-switch > button:last-child.is-active::after {
+    background: #c60083;
+  }
+
+  .m2-mode-switch > button.is-active .m2-mode-icon {
+    transform: scale(1.08);
   }
 
   .m2-mode-icon {
@@ -53,6 +96,7 @@
     place-items: center;
     border-radius: 0;
     background: transparent;
+    transition: transform .16s ease;
   }
 
   .m2-mode-icon svg {
@@ -118,6 +162,14 @@
     border-radius: .85rem;
   }
 
+  .m2-mode-switch > button.is-active::after {
+    top: .48rem;
+    right: .48rem;
+    width: 1.45rem;
+    height: 1.45rem;
+    font-size: .78rem;
+  }
+
   .m2-mode-icon,
   .m2-mode-icon svg {
     width: 3.55rem;
@@ -143,6 +195,15 @@
     min-height: 7rem;
     gap: .35rem;
     padding: .65rem .3rem .55rem;
+  }
+
+  .m2-mode-switch > button.is-active::after {
+    top: .35rem;
+    right: .35rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-width: 1px;
+    font-size: .68rem;
   }
 
   .m2-mode-icon,
