@@ -14,9 +14,10 @@ test.beforeEach(async ({ page }) => {
 test('DELTA-MOBILE-01 home, occupant selector and location actions stay connected without changing the locked design', async ({ page }) => {
   await readyMobile(page)
   await expect(page.locator('.m2-home')).toBeVisible()
-  await expect(page.locator('.m2-mode-switch button')).toHaveCount(2)
+  const modeButtons = page.locator('.m2-mode-switch > button')
+  await expect(modeButtons).toHaveCount(2)
   const cardHeight = (await page.locator('.m2-search-card').boundingBox())?.height
-  await page.getByRole('button', { name: 'Turismo', exact: true }).click()
+  await modeButtons.last().click()
   expect(Math.abs(((await page.locator('.m2-search-card').boundingBox())?.height ?? 0) - (cardHeight ?? 0))).toBeLessThanOrEqual(2)
 
   await page.locator('.m2-occupant-trigger').click()
@@ -126,7 +127,7 @@ test('DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or 
   page.on('console', (message) => {
     if (message.type() === 'error' && !isExpectedHeadlessVectorFallback(message.text())) consoleErrors.push(message.text())
   })
-  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('pageerror', (error) => pageErrors.push(error.message)
   page.on('requestfailed', (request) => {
     if (request.url().startsWith('http://127.0.0.1:4173')) failedFirstParty.push(`${request.method()} ${request.url()}`)
   })
