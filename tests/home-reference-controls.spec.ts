@@ -38,6 +38,8 @@ test.describe('restored home reference controls', () => {
 
     await modeButtons.last().click()
     await expect(modeButtons.last()).toHaveClass(/is-active/)
+    await expect.poll(() => modeButtons.last().evaluate((element) => getComputedStyle(element, '::after').content)).toContain('✓')
+    await expect.poll(() => modeButtons.last().evaluate((element) => getComputedStyle(element).opacity)).toBe('1')
 
     const occupantTrigger = page.locator('.m2-occupant-trigger')
     await expect(occupantTrigger).toBeVisible()
@@ -52,6 +54,12 @@ test.describe('restored home reference controls', () => {
       await expect(referenceIcons.nth(index)).toHaveAttribute('src', /^blob:/)
       await expect(referenceIcons.nth(index)).toBeVisible()
       await expect.poll(() => referenceIcons.nth(index).evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+      await expect.poll(() => referenceIcons.nth(index).evaluate((image) => getComputedStyle(image).width)).toBe('53.5938px')
+      await expect.poll(() => referenceIcons.nth(index).evaluate((image) => getComputedStyle(image).height)).toBe('53.5938px')
     }
+
+    await options.first().click()
+    await expect(options.first()).toHaveClass(/is-selected/)
+    await expect.poll(() => referenceIcons.first().evaluate((image) => getComputedStyle(image).borderColor)).toBe('rgb(210, 255, 63)')
   })
 })
