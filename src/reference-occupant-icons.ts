@@ -20,19 +20,20 @@ const mobileIcons: Record<string, string> = {
 }
 
 type ModeLocale = 'es' | 'en' | 'ru'
+type ModeCopy = { modeName: string; title: string; subtitle: string }
 
-const modeCopy: Record<ModeLocale, Array<{ title: string; subtitle: string }>> = {
+const modeCopy: Record<ModeLocale, ModeCopy[]> = {
   es: [
-    { title: 'HABITACIONES', subtitle: 'LARGA ESTANCIA' },
-    { title: 'HABITACIONES', subtitle: 'TURÍSTICAS' },
+    { modeName: 'Vivienda', title: 'HABITACIONES', subtitle: 'LARGA ESTANCIA' },
+    { modeName: 'Turismo', title: 'HABITACIONES', subtitle: 'TURÍSTICAS' },
   ],
   en: [
-    { title: 'ROOMS', subtitle: 'LONG STAY' },
-    { title: 'ROOMS', subtitle: 'TOURIST' },
+    { modeName: 'Housing', title: 'ROOMS', subtitle: 'LONG STAY' },
+    { modeName: 'Tourism', title: 'ROOMS', subtitle: 'TOURIST' },
   ],
   ru: [
-    { title: 'КОМНАТЫ', subtitle: 'ДОЛГОСРОЧНО' },
-    { title: 'КОМНАТЫ', subtitle: 'ТУРИЗМ' },
+    { modeName: 'Жильё', title: 'КОМНАТЫ', subtitle: 'ДОЛГОСРОЧНО' },
+    { modeName: 'Туризм', title: 'КОМНАТЫ', subtitle: 'ТУРИЗМ' },
   ],
 }
 
@@ -53,7 +54,7 @@ function applyReferenceModeLabels() {
     if (!labels || !labelTarget) return
     labelTarget.dataset.referenceTitle = labels.title
     labelTarget.dataset.referenceSubtitle = labels.subtitle
-    button.setAttribute('aria-label', `${labels.title} ${labels.subtitle}`)
+    button.setAttribute('aria-label', `${labels.modeName} — ${labels.title} ${labels.subtitle}`)
   })
 }
 
