@@ -7,6 +7,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     mobile_cards = (root / "src" / "mobile-home-mode-cards.css").read_text(encoding="utf-8")
     reference_icons = (root / "src" / "reference-occupant-icons.css").read_text(encoding="utf-8")
     home_search = (root / "src" / "components" / "home-mandatory-search.tsx").read_text(encoding="utf-8")
+    listing_access = (root / "src" / "lib" / "listing-access.ts").read_text(encoding="utf-8")
     reference_ui = (root / "src" / "reference-occupant-icons.ts").read_text(encoding="utf-8")
     object_urls = (root / "src" / "assets" / "occupants" / "object-url.ts").read_text(encoding="utf-8")
     asset_index = (root / "src" / "assets" / "occupants" / "index.ts").read_text(encoding="utf-8")
@@ -72,12 +73,32 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "from './family-ref'" in asset_index
     assert "from './pets-ref'" in asset_index
     assert "from './any-ref'" in asset_index
-    assert "Una persona" in home_search
-    assert "Pareja" in home_search
-    assert "Familia" in home_search
-    assert "Sin restricción" in home_search
-    assert "2 personas (pareja/amigos)" not in home_search
-    assert "Con niños" not in home_search
+
+    # Desktop copy mirrors the supplied reference and is explicitly localized.
+    for label in (
+        "1 persona",
+        "2 personas (pareja/amigos)",
+        "Con niños",
+        "2 people (couple/friends)",
+        "With children",
+        "2 человека (пара/друзья)",
+        "Можно с ребёнком",
+        "Sin restricción",
+    ):
+        assert label in home_search
+    assert "useI18n" in home_search
+    assert "value: 'two-people'" in home_search
+    assert "value: 'with-children'" in home_search
+
+    # Expanded reference wording must not silently keep the old narrower
+    # couple/family search semantics.
+    assert "'two-people'" in listing_access
+    assert "'with-children'" in listing_access
+    assert "case 'two-people':" in listing_access
+    assert "case 'with-children':" in listing_access
+    assert "roomCapacity = '2'" in listing_access
+    assert "children = 'Sí'" in listing_access
+    assert "tenantRequirements: []" in listing_access
 
     assert "URL.createObjectURL" in object_urls
     assert "new Blob" in object_urls
