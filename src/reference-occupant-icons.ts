@@ -51,7 +51,11 @@ const schedule = () => {
   })
 }
 
-schedule()
+const occupantInteractionSelector = '.m2-occupant-trigger, [data-m2-occupant-key], [data-m2-occupant-close]'
+document.addEventListener('click', (event) => {
+  const target = event.target
+  if (!(target instanceof Element) || !target.closest(occupantInteractionSelector)) return
+  schedule()
+}, true)
 
-const observer = new MutationObserver(schedule)
-observer.observe(document.documentElement, { childList: true, subtree: true })
+schedule()
