@@ -26,6 +26,8 @@ function selectedHomeMode(): HomeMode {
 }
 
 function cleanHomeSearchParams(existing = new URLSearchParams(), mode = selectedHomeMode()) {
+  // Home is a new search boundary. Only controls that exist on Home are
+  // allowed to survive here; advanced result-panel filters must not leak in.
   const cleanFilters = applyListingAccessProfile({
     ...defaultFilters,
     areas: [],
@@ -82,8 +84,6 @@ function handleHomeInteraction(event: MouseEvent) {
   const searchButton = target.closest('.m2-home [data-testid="open-location"]')
   if (!searchButton) return
 
-  // A new home search must start from the home choices, not from stale
-  // advanced filters left behind by a previous results session.
   event.preventDefault()
   event.stopPropagation()
   event.stopImmediatePropagation()
