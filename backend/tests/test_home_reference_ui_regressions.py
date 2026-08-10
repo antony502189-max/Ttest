@@ -7,6 +7,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     mobile_cards = (root / "src" / "mobile-home-mode-cards.css").read_text(encoding="utf-8")
     reference_icons = (root / "src" / "reference-occupant-icons.css").read_text(encoding="utf-8")
     home_search = (root / "src" / "components" / "home-mandatory-search.tsx").read_text(encoding="utf-8")
+    publish_sync = (root / "src" / "components" / "publish-occupancy-sync.tsx").read_text(encoding="utf-8")
     listing_access = (root / "src" / "lib" / "listing-access.ts").read_text(encoding="utf-8")
     reference_ui = (root / "src" / "reference-occupant-icons.ts").read_text(encoding="utf-8")
     object_urls = (root / "src" / "assets" / "occupants" / "object-url.ts").read_text(encoding="utf-8")
@@ -99,6 +100,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "tenantRequirements: []" in listing_access
     assert "if (value === 'couple') return 'two-people'" in listing_access
     assert "if (value === 'family') return 'with-children'" in listing_access
+    assert "profile.occupant === 'couple' || profile.occupant === 'family'" in publish_sync
 
     assert "URL.createObjectURL" in object_urls
     assert "new Blob" in object_urls
@@ -118,4 +120,5 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
 
     assert "VITE_ENABLE_MOCK_MODE: '1'" in pages_workflow
     assert "VITE_GOOGLE_MAPS_TEST_SDK: '1'" in pages_workflow
+    assert "VITE_GOOGLE_MAPS_MAP_ID: 'DEMO_MAP_ID'" in pages_workflow
     assert "VITE_BASE_PATH: /Ttest/" in pages_workflow
