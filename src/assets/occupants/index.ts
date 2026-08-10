@@ -1,0 +1,7 @@
+export { occupantPersonIcon } from './person'
+export { occupantCoupleIcon } from './couple'
+export { occupantManIcon } from './man'
+export { occupantWomanIcon } from './woman'
+export { occupantFamilyIcon } from './family'
+export { occupantPetsIcon } from './pets'
+export { occupantAnyIcon } from './any'
