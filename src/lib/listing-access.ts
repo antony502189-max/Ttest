@@ -1,6 +1,6 @@
 import type { Filters, TenantRequirement, YesNoAny } from '@/types'
 
-export type HomeOccupantChoice = TenantRequirement | 'family' | null
+export type HomeOccupantChoice = TenantRequirement | 'two-people' | 'with-children' | 'family' | null
 
 export interface ListingAccessProfile {
   occupant: HomeOccupantChoice
@@ -15,6 +15,8 @@ const occupantValues = new Set<HomeOccupantChoice>([
   'single-woman',
   'single-person',
   'couple',
+  'two-people',
+  'with-children',
   'family',
   'any',
 ])
@@ -75,12 +77,19 @@ export function hasListingAccess() {
 }
 
 export function listingAccessProfileFromFilters(filters: Filters): ListingAccessProfile {
-  const occupant: HomeOccupantChoice =
-    filters.tenantRequirement === 'couple' && filters.children === 'Sí'
-      ? 'family'
-      : filters.tenantRequirement === 'Cualquiera'
-        ? null
-        : filters.tenantRequirement
+  let occupant: HomeOccupantChoice = null
+
+  if (filters.children === 'Sí' && filters.tenantRequirement === 'Cualquiera') {
+    occupant = 'with-children'
+  } else if (filters.tenantRequirement === 'couple' && filters.children === 'Sí') {
+    // Backward compatibility for profiles saved before the reference UI split
+    // the generic children filter from the couple requirement.
+    occupant = 'family'
+  } else if (filters.roomCapacity === '2' && filters.tenantRequirement === 'Cualquiera') {
+    occupant = 'two-people'
+  } else if (filters.tenantRequirement !== 'Cualquiera') {
+    occupant = filters.tenantRequirement
+  }
 
   return {
     occupant,
@@ -90,15 +99,50 @@ export function listingAccessProfileFromFilters(filters: Filters): ListingAccess
 }
 
 export function applyListingAccessProfile(filters: Filters, profile: ListingAccessProfile): Filters {
-  const family = profile.occupant === 'family'
-  const tenantRequirement: Filters['tenantRequirement'] = profile.occupant === 'family'
-    ? 'couple'
-    : profile.occupant ?? 'Cualquiera'
+  let tenantRequirement: Filters['tenantRequirement'] = 'Cualquiera'
+  let roomCapacity = 'Cualquiera'
+  let children: YesNoAny = 'Cualquiera'
+
+  switch (profile.occupant) {
+    case 'single-man':
+      tenantRequirement = 'single-man'
+      roomCapacity = '1'
+      break
+    case 'single-woman':
+      tenantRequirement = 'single-woman'
+      roomCapacity = '1'
+      break
+    case 'single-person':
+      tenantRequirement = 'single-person'
+      roomCapacity = '1'
+      break
+    case 'couple':
+      tenantRequirement = 'couple'
+      roomCapacity = '2'
+      break
+    case 'two-people':
+      roomCapacity = '2'
+      break
+    case 'with-children':
+      children = 'Sí'
+      break
+    case 'family':
+      // Legacy persisted value: retain its historical couple + children meaning.
+      tenantRequirement = 'couple'
+      roomCapacity = '2'
+      children = 'Sí'
+      break
+    case 'any':
+    case null:
+      break
+  }
 
   return {
     ...filters,
     tenantRequirement,
-    children: family ? 'Sí' : 'Cualquiera',
+    tenantRequirements: [],
+    roomCapacity,
+    children,
     pets: profile.pets,
     smoking: profile.smoking,
   }
