@@ -41,6 +41,7 @@ jobs:
         env:
           VITE_ENABLE_MOCK_MODE: '1'
           VITE_GOOGLE_MAPS_TEST_SDK: '1'
+          VITE_GOOGLE_MAPS_MAP_ID: 'DEMO_MAP_ID'
           VITE_BASE_PATH: /Ttest/
         run: |
           npm run build
