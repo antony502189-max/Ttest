@@ -7,6 +7,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     mobile_cards = (root / "src" / "mobile-home-mode-cards.css").read_text(encoding="utf-8")
     home_search = (root / "src" / "components" / "home-mandatory-search.tsx").read_text(encoding="utf-8")
     reference_ui = (root / "src" / "reference-occupant-icons.ts").read_text(encoding="utf-8")
+    object_urls = (root / "src" / "assets" / "occupants" / "object-url.ts").read_text(encoding="utf-8")
     asset_index = (root / "src" / "assets" / "occupants" / "index.ts").read_text(encoding="utf-8")
 
     assert "./mobile-home-mode-cards.css" in main
@@ -29,7 +30,7 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "button.querySelector<HTMLElement>('span:last-child')" in reference_ui
     assert "labelTarget.dataset.referenceTitle = labels.title" in reference_ui
     assert "labelTarget.dataset.referenceSubtitle = labels.subtitle" in reference_ui
-    assert "button.setAttribute('aria-label', labels.aria)" in reference_ui
+    assert "button.setAttribute('aria-label'" not in reference_ui
 
     asset_names = (
         "occupantPersonIcon",
@@ -44,16 +45,21 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
         assert asset in home_search
 
     asset_dir = root / "src" / "assets" / "occupants"
-    asset_files = ("person.ts", "couple.ts", "man.ts", "woman.ts", "family-ref.ts", "pets-ref.ts", "any-ref.ts")
+    asset_files = ("person.ts", "couple.ts", "man.ts", "woman.ts", "family.ts", "pets.ts", "any.ts")
     for filename in asset_files:
         source = (asset_dir / filename).read_text(encoding="utf-8")
         assert "data:image/webp;base64," in source
 
-    assert "from './family-ref'" in asset_index
-    assert "from './pets-ref'" in asset_index
-    assert "from './any-ref'" in asset_index
+    assert "from './family'" in asset_index
+    assert "from './pets'" in asset_index
+    assert "from './any'" in asset_index
     assert "Una persona" in home_search
     assert "Sin restricción" in home_search
+
+    assert "URL.createObjectURL" in object_urls
+    assert "new Blob" in object_urls
+    assert "occupantObjectUrl" in home_search
+    assert "occupantObjectUrl" in reference_ui
 
     for mobile_key in ("one", "two", "man", "woman", "children", "pets", "unrestricted"):
         assert f"{mobile_key}:" in reference_ui
