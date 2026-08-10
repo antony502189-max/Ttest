@@ -7,6 +7,7 @@ import {
   occupantPetsIcon,
   occupantWomanIcon,
 } from '@/assets/occupants'
+import { occupantObjectUrl } from '@/assets/occupants/object-url'
 
 const mobileIcons: Record<string, string> = {
   one: occupantPersonIcon,
@@ -20,18 +21,18 @@ const mobileIcons: Record<string, string> = {
 
 type ModeLocale = 'es' | 'en' | 'ru'
 
-const modeCopy: Record<ModeLocale, Array<{ title: string; subtitle: string; aria: string }>> = {
+const modeCopy: Record<ModeLocale, Array<{ title: string; subtitle: string }>> = {
   es: [
-    { title: 'HABITACIONES', subtitle: 'LARGA ESTANCIA', aria: 'Habitaciones, larga estancia' },
-    { title: 'HABITACIONES', subtitle: 'TURÍSTICAS', aria: 'Habitaciones turísticas' },
+    { title: 'HABITACIONES', subtitle: 'LARGA ESTANCIA' },
+    { title: 'HABITACIONES', subtitle: 'TURÍSTICAS' },
   ],
   en: [
-    { title: 'ROOMS', subtitle: 'LONG STAY', aria: 'Rooms, long stay' },
-    { title: 'ROOMS', subtitle: 'TOURIST', aria: 'Tourist rooms' },
+    { title: 'ROOMS', subtitle: 'LONG STAY' },
+    { title: 'ROOMS', subtitle: 'TOURIST' },
   ],
   ru: [
-    { title: 'КОМНАТЫ', subtitle: 'ДОЛГОСРОЧНО', aria: 'Комнаты, долгосрочная аренда' },
-    { title: 'КОМНАТЫ', subtitle: 'ТУРИЗМ', aria: 'Туристические комнаты' },
+    { title: 'КОМНАТЫ', subtitle: 'ДОЛГОСРОЧНО' },
+    { title: 'КОМНАТЫ', subtitle: 'ТУРИЗМ' },
   ],
 }
 
@@ -52,15 +53,15 @@ function applyReferenceModeLabels() {
     if (!labels || !labelTarget) return
     labelTarget.dataset.referenceTitle = labels.title
     labelTarget.dataset.referenceSubtitle = labels.subtitle
-    button.setAttribute('aria-label', labels.aria)
   })
 }
 
 function applyReferenceIcons() {
   document.querySelectorAll<HTMLElement>('.m2-custom-occupant-list > button[data-m2-occupant-key]').forEach((button) => {
     const key = button.dataset.m2OccupantKey
-    const src = key ? mobileIcons[key] : undefined
-    if (!src) return
+    const dataUri = key ? mobileIcons[key] : undefined
+    if (!dataUri) return
+    const src = occupantObjectUrl(dataUri)
     const row = button.querySelector('span')
     if (!row) return
     const current = row.querySelector<HTMLImageElement>('.m2-reference-occupant-icon')
