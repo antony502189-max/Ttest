@@ -18,6 +18,43 @@ const mobileIcons: Record<string, string> = {
   unrestricted: occupantAnyIcon,
 }
 
+type ModeLocale = 'es' | 'en' | 'ru'
+
+const modeCopy: Record<ModeLocale, Array<{ title: string; subtitle: string; aria: string }>> = {
+  es: [
+    { title: 'HABITACIONES', subtitle: 'LARGA ESTANCIA', aria: 'Habitaciones, larga estancia' },
+    { title: 'HABITACIONES', subtitle: 'TURÍSTICAS', aria: 'Habitaciones turísticas' },
+  ],
+  en: [
+    { title: 'ROOMS', subtitle: 'LONG STAY', aria: 'Rooms, long stay' },
+    { title: 'ROOMS', subtitle: 'TOURIST', aria: 'Tourist rooms' },
+  ],
+  ru: [
+    { title: 'КОМНАТЫ', subtitle: 'ДОЛГОСРОЧНО', aria: 'Комнаты, долгосрочная аренда' },
+    { title: 'КОМНАТЫ', subtitle: 'ТУРИЗМ', aria: 'Туристические комнаты' },
+  ],
+}
+
+function detectModeLocale(buttons: HTMLElement[]): ModeLocale {
+  const text = buttons.map((button) => button.textContent ?? '').join(' ').toLocaleLowerCase()
+  if (/жиль|туризм/.test(text)) return 'ru'
+  if (/housing|tourism/.test(text)) return 'en'
+  return 'es'
+}
+
+function applyReferenceModeLabels() {
+  const buttons = Array.from(document.querySelectorAll<HTMLElement>('.m2-mode-switch > button'))
+  if (buttons.length !== 2) return
+  const copy = modeCopy[detectModeLocale(buttons)]
+  buttons.forEach((button, index) => {
+    const labels = copy[index]
+    if (!labels) return
+    button.dataset.referenceTitle = labels.title
+    button.dataset.referenceSubtitle = labels.subtitle
+    button.setAttribute('aria-label', labels.aria)
+  })
+}
+
 function applyReferenceIcons() {
   document.querySelectorAll<HTMLElement>('.m2-custom-occupant-list > button[data-m2-occupant-key]').forEach((button) => {
     const key = button.dataset.m2OccupantKey
@@ -41,24 +78,29 @@ function applyReferenceIcons() {
   })
 }
 
+function applyReferenceUi() {
+  applyReferenceModeLabels()
+  applyReferenceIcons()
+}
+
 let scheduled = false
 const schedule = () => {
   if (scheduled) return
   scheduled = true
   window.requestAnimationFrame(() => {
     scheduled = false
-    applyReferenceIcons()
+    applyReferenceUi()
   })
 }
 
-const mayContainOccupantUi = (node: Node) => {
+const mayContainReferenceUi = (node: Node) => {
   if (!(node instanceof Element)) return false
-  return node.matches('.m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]')
-    || Boolean(node.querySelector('.m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]'))
+  const selector = '.m2-mode-switch, .m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]'
+  return node.matches(selector) || Boolean(node.querySelector(selector))
 }
 
 const observer = new MutationObserver((mutations) => {
-  if (mutations.some((mutation) => Array.from(mutation.addedNodes).some(mayContainOccupantUi))) schedule()
+  if (mutations.some((mutation) => Array.from(mutation.addedNodes).some(mayContainReferenceUi))) schedule()
 })
 observer.observe(document.body, { childList: true, subtree: true })
 
