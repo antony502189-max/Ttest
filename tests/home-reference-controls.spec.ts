@@ -118,4 +118,40 @@ test.describe('desktop reference occupant semantics', () => {
     await expect(form.getByRole('button', { name: '2 человека (пара/друзья)' })).toBeVisible()
     await expect(form.getByRole('button', { name: 'Можно с ребёнком' })).toBeVisible()
   })
+
+  test('legacy v1 couple and family selections migrate to visible reference choices', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:listing-access-profile:v1', JSON.stringify({
+        occupant: 'couple',
+        pets: 'Cualquiera',
+        smoking: 'Cualquiera',
+      }))
+    })
+    await page.goto('/')
+
+    const form = page.locator('.mandatory-home-search')
+    const twoPeople = form.getByRole('button', { name: '2 personas (pareja/amigos)' })
+    await expect(twoPeople).toHaveAttribute('aria-pressed', 'true')
+    await form.getByRole('button', { name: 'Ver habitaciones' }).click()
+
+    let params = hashSearchParams(page.url())
+    expect(params.get('capacidad')).toBe('2')
+    expect(params.get('requisito')).toBeNull()
+
+    await page.evaluate(() => {
+      localStorage.setItem('112233:listing-access-profile:v1', JSON.stringify({
+        occupant: 'family',
+        pets: 'Cualquiera',
+        smoking: 'Cualquiera',
+      }))
+    })
+    await page.goto('/')
+
+    const withChildren = page.locator('.mandatory-home-search').getByRole('button', { name: 'Con niños' })
+    await expect(withChildren).toHaveAttribute('aria-pressed', 'true')
+    await page.locator('.mandatory-home-search').getByRole('button', { name: 'Ver habitaciones' }).click()
+    params = hashSearchParams(page.url())
+    expect(params.get('ninos')).toBe('Sí')
+    expect(params.get('requisito')).toBeNull()
+  })
 })
