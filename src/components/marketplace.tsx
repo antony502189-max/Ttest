@@ -152,6 +152,7 @@ export function RentalTypeSwitch({
   onChange?: (mode: RentalMode) => void;
 }) {
   const { rentalMode, setRentalMode } = useApp();
+  const { t } = useI18n();
   const [awaitingChoice, setAwaitingChoice] = useState(home);
   return (
     <ToggleGroup
@@ -166,13 +167,13 @@ export function RentalTypeSwitch({
       }}
       className={cn("rental-switch", compact && "rental-switch--compact", home && "rental-switch--home")}
       data-awaiting-choice={home && awaitingChoice ? "true" : undefined}
-      aria-label="Tipo de alquiler"
+      aria-label={t("Tipo de alquiler")}
     >
-      <ToggleGroupItem value="long" aria-label="Vivienda, larga estancia">
-        {home ? <><span className="rental-switch__icon rental-switch__icon--home"><Home aria-hidden="true" /></span><span><strong>Vivienda</strong><small>Larga estancia</small></span></> : "Habitaciones Vivienda"}
+      <ToggleGroupItem value="long" aria-label={`${t("Vivienda")}, ${t("Larga estancia")}`}>
+        {home ? <><span className="rental-switch__icon rental-switch__icon--home"><Home aria-hidden="true" /></span><span><strong>{t("Vivienda")}</strong><small>{t("Larga estancia")}</small></span></> : t("Habitaciones Vivienda")}
       </ToggleGroupItem>
-      <ToggleGroupItem value="holiday" aria-label="Turismo, corta estancia">
-        {home ? <><span className="rental-switch__icon rental-switch__icon--tourism"><Briefcase aria-hidden="true" /></span><span><strong>Turismo</strong><small>Corta estancia</small></span></> : "Habitaciones Turísticas"}
+      <ToggleGroupItem value="holiday" aria-label={`${t("Turismo")}, ${t("Corta estancia")}`}>
+        {home ? <><span className="rental-switch__icon rental-switch__icon--tourism"><Briefcase aria-hidden="true" /></span><span><strong>{t("Turismo")}</strong><small>{t("Corta estancia")}</small></span></> : t("Habitaciones Turísticas")}
       </ToggleGroupItem>
     </ToggleGroup>
   );
@@ -192,12 +193,13 @@ export function SearchLocationInput({
   const id = useId();
   const listId = useId();
   const { searchHistory, filters, setFilters } = useApp();
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const suggestions = [...new Set([...searchHistory, ...TENERIFE_LOCATIONS.map((location) => location.normalizedValue)])];
   return (
     <div className="search-location">
-      <label htmlFor={id}>{home ? "¿Dónde buscas habitación?" : "Ciudad, barrio o zona"}</label>
+      <label htmlFor={id}>{t(home ? "¿Dónde buscas habitación?" : "Ciudad, barrio o zona")}</label>
       <div className="search-location-row">
         <MapPin className="search-location-row__icon" aria-hidden="true" />
         <Input
@@ -205,7 +207,7 @@ export function SearchLocationInput({
           list={listId}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Municipio, barrio o zona de Tenerife"
+          placeholder={t("Municipio, barrio o zona de Tenerife")}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
         />

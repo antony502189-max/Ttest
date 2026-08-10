@@ -1,0 +1,1 @@
+export { occupantPetsIcon } from './pets'

@@ -1,0 +1,90 @@
+.m2-reference-occupant-icon {
+  flex: 0 0 3.35rem;
+  width: 3.35rem;
+  min-width: 3.35rem;
+  max-width: 3.35rem;
+  height: 3.35rem;
+  min-height: 3.35rem;
+  max-height: 3.35rem;
+  aspect-ratio: 1;
+  display: block;
+  box-sizing: border-box;
+  object-fit: contain;
+  object-position: center;
+  padding: .2rem;
+  border: 2px solid transparent;
+  border-radius: .72rem;
+  background: #fff;
+  box-shadow: 0 .08rem .25rem rgb(0 0 0 / .16);
+  opacity: .88;
+  transform: scale(1);
+  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease, opacity .14s ease, background-color .14s ease;
+}
+
+.mandatory-choice__reference-icon {
+  flex: 0 0 2.65rem;
+  width: 2.65rem;
+  height: 2.65rem;
+  object-fit: contain;
+}
+
+.mandatory-choice-grid--occupants .mandatory-choice {
+  min-height: 5.2rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: .35rem;
+  text-align: center;
+}
+
+.mandatory-choice-grid--occupants .mandatory-choice span {
+  line-height: 1.15;
+}
+
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  .m2-custom-occupant-list > button {
+    min-height: 4.8rem;
+  }
+
+  .m2-custom-occupant-list > button > span {
+    gap: .85rem;
+  }
+
+  .m2-custom-occupant-list > button b {
+    display: none;
+  }
+
+  .m2-custom-occupant-list > button.is-selected .m2-reference-occupant-icon {
+    border-color: #d2ff3f;
+    background: #fbffe9;
+    box-shadow: 0 0 0 2px #2c211f, 0 0 0 4px #d2ff3f, 0 .2rem .55rem rgb(0 0 0 / .3);
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .m2-custom-occupant-list > button:active .m2-reference-occupant-icon {
+    transform: scale(.93);
+  }
+
+  .m2-custom-occupant-list > button.is-selected:active .m2-reference-occupant-icon {
+    transform: scale(.93);
+  }
+}
+
+@media (max-width: 360px) {
+  .m2-reference-occupant-icon {
+    flex-basis: 3rem;
+    width: 3rem;
+    min-width: 3rem;
+    max-width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
+    max-height: 3rem;
+    padding: .18rem;
+  }
+
+  .mandatory-choice__reference-icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    flex-basis: 2.35rem;
+  }
+}

@@ -9,6 +9,9 @@ async function finishOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
+const homeModeButton = (page: Page, mode: 'housing' | 'tourism') =>
+  page.locator('.m2-mode-switch > button').nth(mode === 'housing' ? 0 : 1)
+
 test.describe('APK shell connected to the canonical web app', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
@@ -27,7 +30,7 @@ test.describe('APK shell connected to the canonical web app', () => {
     await page.getByRole('button', { name: 'Volver' }).click()
     await expect(page).toHaveURL(/#\/$/)
 
-    await page.getByRole('button', { name: 'Vivienda', exact: true }).click()
+    await homeModeButton(page, 'housing').click()
     await page.getByTestId('open-location').click()
     await expect(page).toHaveURL(/#\/buscar\?q=Tenerife&alquiler=long/)
     await expect(page.getByTestId('mobile-results')).toBeVisible()

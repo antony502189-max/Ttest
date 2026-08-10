@@ -31,7 +31,7 @@ test('external mobile result and map preview open the original source', async ({
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
   await finishOnboarding(page)
-  await page.getByRole('button', { name: 'Vivienda', exact: true }).click()
+  await page.locator('.m2-mode-switch > button').first().click()
   await page.getByRole('button', { name: 'Buscar', exact: true }).click()
 
   const card = page.locator('.m2-result-card').first()

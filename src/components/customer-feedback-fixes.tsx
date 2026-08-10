@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useApp } from '@/contexts/app-context'
 import { filtersToParams } from '@/lib/search'
-import type { Filters, RentalMode, TenantRequirement } from '@/types'
+import type { Filters, RentalMode } from '@/types'
 
 const priceLimit = (mode: RentalMode) => mode === 'holiday' ? 350 : 1200
 const RENTAL_MODE_KEY = '112233:rental-mode:v1'
@@ -71,11 +71,13 @@ const OCCUPANT_COPY: Record<OccupantLocale, OccupantCopy> = {
 }
 
 const PRIMARY_REQUIREMENTS: Record<Exclude<OccupantKey, 'children' | 'pets' | 'unrestricted'>, {
-  tenantRequirement: TenantRequirement
+  tenantRequirement: Filters['tenantRequirement']
   roomCapacity: '1' | '2'
 }> = {
   one: { tenantRequirement: 'single-person', roomCapacity: '1' },
-  two: { tenantRequirement: 'couple', roomCapacity: '2' },
+  // This card explicitly includes friends, so it must constrain capacity
+  // without imposing the advanced, couple-only tenant requirement.
+  two: { tenantRequirement: 'Cualquiera', roomCapacity: '2' },
   man: { tenantRequirement: 'single-man', roomCapacity: '1' },
   woman: { tenantRequirement: 'single-woman', roomCapacity: '1' },
 }
@@ -108,11 +110,9 @@ function normalizedPriceFilters(filters: Filters, previousMode: RentalMode, next
   return { ...filters, minPrice, maxPrice }
 }
 
-function detectOccupantLocale(source?: Element | null): OccupantLocale {
-  const text = `${source?.textContent ?? ''} ${document.querySelector('.m2-occupant-trigger')?.textContent ?? ''}`
-  if (/кто|человек|мужчин|женщин|ребён|животн|огранич/i.test(text)) return 'ru'
-  if (/who|person|people|man|woman|children|pets|restrictions/i.test(text)) return 'en'
-  return 'es'
+function detectOccupantLocale(): OccupantLocale {
+  const language = document.documentElement.lang
+  return language === 'ru' || language === 'en' ? language : 'es'
 }
 
 function primaryKey(filters: Filters): Exclude<OccupantKey, 'children' | 'pets' | 'unrestricted'> | null {
@@ -245,7 +245,7 @@ function renderOccupantPanel(filters: Filters) {
   }
 
   source.classList.add('m2-sheet--occupant-source')
-  const locale = detectOccupantLocale(source)
+  const locale = detectOccupantLocale()
   const copy = OCCUPANT_COPY[locale]
   const selected = new Set(selectedOccupantKeys(filters))
   const signature = `${locale}:${copy.options.filter((option) => selected.has(option.key)).map((option) => option.key).join('|')}`

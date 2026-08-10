@@ -1,6 +1,6 @@
 import type { Filters, TenantRequirement, YesNoAny } from '@/types'
 
-export type HomeOccupantChoice = TenantRequirement | 'family' | null
+export type HomeOccupantChoice = TenantRequirement | 'two-people' | 'with-children' | 'family' | null
 
 export interface ListingAccessProfile {
   occupant: HomeOccupantChoice
@@ -15,6 +15,8 @@ const occupantValues = new Set<HomeOccupantChoice>([
   'single-woman',
   'single-person',
   'couple',
+  'two-people',
+  'with-children',
   'family',
   'any',
 ])
@@ -27,6 +29,12 @@ export const emptyListingAccessProfile: ListingAccessProfile = {
 }
 
 let inMemoryProfile: ListingAccessProfile = { ...emptyListingAccessProfile }
+
+function normalizeHomeOccupantChoice(value: HomeOccupantChoice): HomeOccupantChoice {
+  if (value === 'couple') return 'two-people'
+  if (value === 'family') return 'with-children'
+  return value
+}
 
 export function hasListingAccessSelection(profile: ListingAccessProfile) {
   return Boolean(
@@ -41,9 +49,10 @@ export function readListingAccessProfile(): ListingAccessProfile {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...inMemoryProfile }
     const parsed = JSON.parse(raw) as Partial<ListingAccessProfile>
-    const occupant = occupantValues.has(parsed.occupant as HomeOccupantChoice)
+    const parsedOccupant = occupantValues.has(parsed.occupant as HomeOccupantChoice)
       ? parsed.occupant as HomeOccupantChoice
       : null
+    const occupant = normalizeHomeOccupantChoice(parsedOccupant)
     const pets = yesNoAnyValues.has(parsed.pets as YesNoAny)
       ? parsed.pets as YesNoAny
       : 'Cualquiera'
@@ -75,12 +84,19 @@ export function hasListingAccess() {
 }
 
 export function listingAccessProfileFromFilters(filters: Filters): ListingAccessProfile {
-  const occupant: HomeOccupantChoice =
-    filters.tenantRequirement === 'couple' && filters.children === 'Sí'
-      ? 'family'
-      : filters.tenantRequirement === 'Cualquiera'
-        ? null
-        : filters.tenantRequirement
+  let occupant: HomeOccupantChoice = null
+
+  if (filters.children === 'Sí' && filters.tenantRequirement === 'Cualquiera') {
+    occupant = 'with-children'
+  } else if (filters.tenantRequirement === 'couple' && filters.children === 'Sí') {
+    // Preserve explicit couple + children semantics when reconstructed from
+    // a filter set created outside the simplified home chooser.
+    occupant = 'family'
+  } else if (filters.roomCapacity === '2' && filters.tenantRequirement === 'Cualquiera') {
+    occupant = 'two-people'
+  } else if (filters.tenantRequirement !== 'Cualquiera') {
+    occupant = filters.tenantRequirement
+  }
 
   return {
     occupant,
@@ -90,15 +106,50 @@ export function listingAccessProfileFromFilters(filters: Filters): ListingAccess
 }
 
 export function applyListingAccessProfile(filters: Filters, profile: ListingAccessProfile): Filters {
-  const family = profile.occupant === 'family'
-  const tenantRequirement: Filters['tenantRequirement'] = profile.occupant === 'family'
-    ? 'couple'
-    : profile.occupant ?? 'Cualquiera'
+  let tenantRequirement: Filters['tenantRequirement'] = 'Cualquiera'
+  let roomCapacity = 'Cualquiera'
+  let children: YesNoAny = 'Cualquiera'
+
+  switch (profile.occupant) {
+    case 'single-man':
+      tenantRequirement = 'single-man'
+      roomCapacity = '1'
+      break
+    case 'single-woman':
+      tenantRequirement = 'single-woman'
+      roomCapacity = '1'
+      break
+    case 'single-person':
+      tenantRequirement = 'single-person'
+      roomCapacity = '1'
+      break
+    case 'couple':
+      tenantRequirement = 'couple'
+      roomCapacity = '2'
+      break
+    case 'two-people':
+      roomCapacity = '2'
+      break
+    case 'with-children':
+      children = 'Sí'
+      break
+    case 'family':
+      // `family` is retained only for filter reconstruction compatibility.
+      tenantRequirement = 'couple'
+      roomCapacity = '2'
+      children = 'Sí'
+      break
+    case 'any':
+    case null:
+      break
+  }
 
   return {
     ...filters,
     tenantRequirement,
-    children: family ? 'Sí' : 'Cualquiera',
+    tenantRequirements: [],
+    roomCapacity,
+    children,
     pets: profile.pets,
     smoking: profile.smoking,
   }
