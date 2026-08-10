@@ -18,7 +18,12 @@ function handleDrawnZoneSearch(event: MouseEvent) {
   event.preventDefault()
   event.stopPropagation()
   event.stopImmediatePropagation()
+  // A completed draw session remains on the map so the user can inspect the
+  // resulting polygon.  An already-existing polygon's search action instead
+  // opens its listing results, which is the normal search-area affordance.
+  const keepMap = params.get('dibujar') === '1'
   params.delete('dibujar')
+  if (!keepMap) params.delete('vista')
   params.delete('pagina')
   params.delete('panel')
   window.location.hash = `/buscar?${params.toString()}`
