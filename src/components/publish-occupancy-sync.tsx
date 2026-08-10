@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useLocation } from 'react-router'
 import { useApp } from '@/contexts/app-context'
 import {
   listingAccessProfileFromFilters,
@@ -16,9 +17,17 @@ function expectedCapacity(requirement: TenantRequirement): Listing['roomCapacity
 
 export function PublishOccupancySync() {
   const { allListings, canManageListing, filters, updateListing } = useApp()
+  const { pathname } = useLocation()
   const pending = useRef(new Set<string>())
 
   useEffect(() => {
+    // The persisted home chooser is the source of truth while the user is on
+    // the home page. Only the advanced search route may project its filter
+    // state back into that profile; otherwise an empty default filter set on
+    // application mount would erase a valid (including migrated legacy)
+    // occupant selection before HomeMandatorySearch can render it.
+    if (pathname !== '/buscar') return
+
     const profile = listingAccessProfileFromFilters(filters)
     if (profile.occupant === 'couple' || profile.occupant === 'family') {
       // Advanced couple-only combinations do not have an exact option in the
@@ -33,7 +42,7 @@ export function PublishOccupancySync() {
       return
     }
     persistListingAccessProfile(profile)
-  }, [filters])
+  }, [filters, pathname])
 
   useEffect(() => {
     allListings.forEach((listing) => {
