@@ -13,8 +13,8 @@ test.describe('restored home reference controls', () => {
     await expect(modeButtons).toHaveCount(2)
     await expect(modeButtons.first()).toBeVisible()
     await expect(modeButtons.last()).toBeVisible()
-    await expect(modeButtons.first()).toHaveAccessibleName('Vivienda')
-    await expect(modeButtons.last()).toHaveAccessibleName('Turismo')
+    await expect(modeButtons.first()).toHaveAccessibleName('HABITACIONES LARGA ESTANCIA')
+    await expect(modeButtons.last()).toHaveAccessibleName('HABITACIONES TURÍSTICAS')
 
     const longStayLabel = modeButtons.first().locator('span').last()
     const tourismLabel = modeButtons.last().locator('span').last()
