@@ -73,7 +73,11 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "from './pets-ref'" in asset_index
     assert "from './any-ref'" in asset_index
     assert "Una persona" in home_search
+    assert "Pareja" in home_search
+    assert "Familia" in home_search
     assert "Sin restricción" in home_search
+    assert "2 personas (pareja/amigos)" not in home_search
+    assert "Con niños" not in home_search
 
     assert "URL.createObjectURL" in object_urls
     assert "new Blob" in object_urls
