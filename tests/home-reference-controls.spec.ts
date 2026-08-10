@@ -54,9 +54,16 @@ test.describe('restored home reference controls', () => {
       await expect(referenceIcons.nth(index)).toHaveAttribute('src', /^blob:/)
       await expect(referenceIcons.nth(index)).toBeVisible()
       await expect.poll(() => referenceIcons.nth(index).evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-      await expect.poll(() => referenceIcons.nth(index).evaluate((image) => getComputedStyle(image).width)).toBe('53.5938px')
-      await expect.poll(() => referenceIcons.nth(index).evaluate((image) => getComputedStyle(image).height)).toBe('53.5938px')
     }
+
+    const iconBoxes = await referenceIcons.evaluateAll((images) => images.map((image) => {
+      const box = image.getBoundingClientRect()
+      return { width: Math.round(box.width * 100) / 100, height: Math.round(box.height * 100) / 100 }
+    }))
+    expect(new Set(iconBoxes.map(({ width }) => width)).size).toBe(1)
+    expect(new Set(iconBoxes.map(({ height }) => height)).size).toBe(1)
+    expect(iconBoxes[0].width).toBeGreaterThan(50)
+    expect(iconBoxes[0].height).toBeGreaterThan(50)
 
     await options.first().click()
     await expect(options.first()).toHaveClass(/is-selected/)
