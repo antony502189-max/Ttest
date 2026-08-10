@@ -45,14 +45,22 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
         assert asset in home_search
 
     asset_dir = root / "src" / "assets" / "occupants"
-    asset_files = ("person.ts", "couple.ts", "man.ts", "woman.ts", "family.ts", "pets.ts", "any.ts")
+    asset_files = (
+        "person.ts",
+        "couple.ts",
+        "man.ts",
+        "woman.ts",
+        "family-ref.ts",
+        "pets-ref.ts",
+        "any-ref.ts",
+    )
     for filename in asset_files:
         source = (asset_dir / filename).read_text(encoding="utf-8")
         assert "data:image/webp;base64," in source
 
-    assert "from './family'" in asset_index
-    assert "from './pets'" in asset_index
-    assert "from './any'" in asset_index
+    assert "from './family-ref'" in asset_index
+    assert "from './pets-ref'" in asset_index
+    assert "from './any-ref'" in asset_index
     assert "Una persona" in home_search
     assert "Sin restricción" in home_search
 
