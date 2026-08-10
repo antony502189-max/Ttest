@@ -4,12 +4,21 @@ test.describe('restored home reference controls', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   test('renders the large rental cards and reference occupant artwork', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    })
     await page.goto('/')
 
     const modeButtons = page.locator('.m2-mode-switch > button')
     await expect(modeButtons).toHaveCount(2)
     await expect(modeButtons.first()).toBeVisible()
     await expect(modeButtons.last()).toBeVisible()
+    await expect(modeButtons.first()).toHaveAttribute('data-reference-title', 'HABITACIONES')
+    await expect(modeButtons.first()).toHaveAttribute('data-reference-subtitle', 'LARGA ESTANCIA')
+    await expect(modeButtons.last()).toHaveAttribute('data-reference-title', 'HABITACIONES')
+    await expect(modeButtons.last()).toHaveAttribute('data-reference-subtitle', 'TURÍSTICAS')
+    await expect(modeButtons.first()).toHaveAccessibleName('Habitaciones, larga estancia')
+    await expect(modeButtons.last()).toHaveAccessibleName('Habitaciones turísticas')
 
     const cardHeight = await modeButtons.first().evaluate((element) => element.getBoundingClientRect().height)
     expect(cardHeight).toBeGreaterThanOrEqual(180)
