@@ -93,16 +93,23 @@ const schedule = () => {
   })
 }
 
+const referenceSelector = '.m2-mode-switch, .m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]'
 const mayContainReferenceUi = (node: Node) => {
   if (!(node instanceof Element)) return false
-  const selector = '.m2-mode-switch, .m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]'
-  return node.matches(selector) || Boolean(node.querySelector(selector))
+  return node.matches(referenceSelector) || Boolean(node.querySelector(referenceSelector))
+}
+
+const mutationTouchesReferenceUi = (mutation: MutationRecord) => {
+  if (mutation.type === 'characterData') {
+    return mutation.target.parentElement?.closest('.m2-mode-switch') !== null
+  }
+  return Array.from(mutation.addedNodes).some(mayContainReferenceUi)
 }
 
 const observer = new MutationObserver((mutations) => {
-  if (mutations.some((mutation) => Array.from(mutation.addedNodes).some(mayContainReferenceUi))) schedule()
+  if (mutations.some(mutationTouchesReferenceUi)) schedule()
 })
-observer.observe(document.body, { childList: true, subtree: true })
+observer.observe(document.body, { childList: true, subtree: true, characterData: true })
 
 const occupantInteractionSelector = '.m2-occupant-trigger, [data-m2-occupant-key], [data-m2-occupant-close]'
 document.addEventListener('click', (event) => {
