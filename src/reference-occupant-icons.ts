@@ -51,6 +51,17 @@ const schedule = () => {
   })
 }
 
+const mayContainOccupantUi = (node: Node) => {
+  if (!(node instanceof Element)) return false
+  return node.matches('.m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]')
+    || Boolean(node.querySelector('.m2-custom-occupant-sheet, .m2-custom-occupant-list, [data-m2-occupant-key]'))
+}
+
+const observer = new MutationObserver((mutations) => {
+  if (mutations.some((mutation) => Array.from(mutation.addedNodes).some(mayContainOccupantUi))) schedule()
+})
+observer.observe(document.body, { childList: true, subtree: true })
+
 const occupantInteractionSelector = '.m2-occupant-trigger, [data-m2-occupant-key], [data-m2-occupant-close]'
 document.addEventListener('click', (event) => {
   const target = event.target
