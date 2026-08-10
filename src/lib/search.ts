@@ -47,10 +47,12 @@ export function normalizeFilters(value: unknown): Filters {
 export function filterListings(items: Listing[], mode: RentalMode, filters: Filters, zoneCollection?: TenerifeZoneCollection | null) {
   const today = Date.now()
   const tenantRequirements = getTenantRequirements(filters)
+  const priceFilterActive = filters.minPrice !== defaultFilters.minPrice || filters.maxPrice !== defaultFilters.maxPrice
+  const roomSizeFilterActive = filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax
   return items.filter((listing) => {
     if (!isPublicListing(listing) || listing.rentalMode !== mode) return false
     const primaryPrice = getPrimaryPrice(listing)
-    if (primaryPrice < filters.minPrice || primaryPrice > filters.maxPrice) return false
+    if (priceFilterActive && (primaryPrice < filters.minPrice || primaryPrice > filters.maxPrice)) return false
     if (!listingMatchesSelectedAreas(listing, filters.areas, zoneCollection)) return false
     if (filters.roomType !== 'Cualquiera' && listing.roomType !== filters.roomType) return false
     if (filters.available && listing.availableFrom > filters.available) return false
@@ -68,7 +70,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     if (filters.deposit === 'Sin fianza' && listing.depositAmount !== 0) return false
     if (filters.deposit === 'Hasta 1 mes' && listing.depositAmount != null && listing.depositAmount > primaryPrice) return false
     if (filters.deposit === 'Más de 1 mes' && listing.depositAmount != null && listing.depositAmount <= primaryPrice) return false
-    if (listing.roomSizeM2 == null || listing.roomSizeM2 < filters.roomSizeMin || listing.roomSizeM2 > filters.roomSizeMax) return false
+    if (roomSizeFilterActive && (listing.roomSizeM2 == null || listing.roomSizeM2 < filters.roomSizeMin || listing.roomSizeM2 > filters.roomSizeMax)) return false
     if (filters.shower !== 'Cualquiera' && listing.shower !== filters.shower) return false
     if (filters.currentResidents === '5+' && listing.currentResidents < 5) return false
     if (filters.currentResidents !== 'Cualquiera' && filters.currentResidents !== '5+' && listing.currentResidents !== Number(filters.currentResidents)) return false

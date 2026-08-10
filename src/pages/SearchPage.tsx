@@ -97,12 +97,7 @@ export function SearchPage() {
   const rentalMode: RentalMode =
     params.get("alquiler") === "holiday" ? "holiday" : "long";
   const filters = useMemo(() => {
-    const parsed = filtersFromParams(params);
-    if (rentalMode === "holiday") {
-      parsed.minPrice = Math.min(parsed.minPrice, 350);
-      parsed.maxPrice = Math.min(parsed.maxPrice, 350);
-    }
-    return parsed;
+    return filtersFromParams(params);
     // paramString captures the complete serialized filter state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramString]);

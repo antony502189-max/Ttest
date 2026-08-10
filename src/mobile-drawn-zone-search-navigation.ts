@@ -19,7 +19,6 @@ function handleDrawnZoneSearch(event: MouseEvent) {
   event.stopPropagation()
   event.stopImmediatePropagation()
   params.delete('dibujar')
-  params.delete('vista')
   params.delete('pagina')
   params.delete('panel')
   window.location.hash = `/buscar?${params.toString()}`

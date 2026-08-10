@@ -21,10 +21,34 @@ docker compose up -d postgres redis minio minio-init mailpit
 postgres_id="$(docker compose ps -q postgres)"
 until [[ "$(docker inspect --format '{{.State.Health.Status}}' "$postgres_id")" == "healthy" ]]; do sleep 2; done
 
+# Docker can expose a healthy Postgres container just before the server has
+# finished accepting database-management connections.  Wait for an actual SQL
+# round trip so a transient startup/recovery cycle cannot abort the audit.
+for attempt in {1..30}; do
+  if docker compose exec -T postgres psql -U ttest -d postgres -c 'SELECT 1' >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "$attempt" == 30 ]]; then
+    echo 'PostgreSQL did not accept SQL connections after becoming healthy' >&2
+    exit 1
+  fi
+  sleep 1
+done
+
 echo '[2/9] Creating isolated PostgreSQL/PostGIS test database'
-if ! docker compose exec -T postgres psql -U ttest -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='ttest_test'" | grep -q 1; then
-  docker compose exec -T postgres createdb -U ttest ttest_test
-fi
+for attempt in {1..30}; do
+  if docker compose exec -T postgres psql -U ttest -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='ttest_test'" | grep -q 1; then
+    break
+  fi
+  if docker compose exec -T postgres createdb -U ttest ttest_test >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "$attempt" == 30 ]]; then
+    echo 'Unable to create the isolated PostgreSQL test database' >&2
+    exit 1
+  fi
+  sleep 1
+done
 
 echo '[3/9] Installing local backend audit environment'
 case "$AUDIT_VENV" in

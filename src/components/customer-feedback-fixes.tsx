@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useApp } from '@/contexts/app-context'
+import { listingAccessProfileFromFilters, persistListingAccessProfile } from '@/lib/listing-access'
 import { filtersToParams } from '@/lib/search'
-import type { Filters, RentalMode } from '@/types'
+import type { Filters } from '@/types'
 
-const priceLimit = (mode: RentalMode) => mode === 'holiday' ? 350 : 1200
 const RENTAL_MODE_KEY = '112233:rental-mode:v1'
 const REMOVED_MENU_LABELS = [
   'Buscar agencias para vender',
@@ -99,15 +99,6 @@ function isNumericInput(target: EventTarget | null): target is HTMLInputElement 
 
 function stripLeadingZeroes(value: string) {
   return value.replace(/^(-?)0+(?=\d)/, '$1')
-}
-
-function normalizedPriceFilters(filters: Filters, previousMode: RentalMode, nextMode: RentalMode) {
-  const previousLimit = priceLimit(previousMode)
-  const nextLimit = priceLimit(nextMode)
-  const wasFullRange = filters.minPrice === 0 && filters.maxPrice === previousLimit
-  const maxPrice = wasFullRange ? nextLimit : Math.min(filters.maxPrice, nextLimit)
-  const minPrice = Math.min(filters.minPrice, maxPrice)
-  return { ...filters, minPrice, maxPrice }
 }
 
 function detectOccupantLocale(): OccupantLocale {
@@ -289,7 +280,6 @@ export function CustomerFeedbackFixes() {
   const { rentalMode, setRentalMode, filters, setFilters } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
-  const previousMode = useRef(rentalMode)
   const rentalModeRestored = useRef(false)
 
   useLayoutEffect(() => {
@@ -384,6 +374,10 @@ export function CustomerFeedbackFixes() {
       event.preventDefault()
       event.stopPropagation()
       const nextFilters = occupantFilters(filters, key)
+      // The mobile home starts a fresh search from the selected occupant
+      // controls.  Keep that lightweight access profile in sync with the
+      // filter state so the home-search boundary never drops the selection.
+      persistListingAccessProfile(listingAccessProfileFromFilters(nextFilters))
       setFilters(nextFilters)
       if (location.pathname === '/buscar') {
         const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
@@ -424,20 +418,6 @@ export function CustomerFeedbackFixes() {
       // Selection still remains in React state when storage is unavailable.
     }
   }, [location.pathname, rentalMode, setRentalMode])
-
-  useLayoutEffect(() => {
-    const previous = previousMode.current
-    if (previous === rentalMode) return
-    previousMode.current = rentalMode
-    const nextFilters = normalizedPriceFilters(filters, previous, rentalMode)
-    if (nextFilters.minPrice === filters.minPrice && nextFilters.maxPrice === filters.maxPrice) return
-    setFilters(nextFilters)
-    if (location.pathname !== '/buscar') return
-    const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
-    params.set('alquiler', rentalMode)
-    const search = params.toString()
-    navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true })
-  }, [filters, location.pathname, location.search, navigate, rentalMode, setFilters])
 
   return null
 }

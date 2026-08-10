@@ -120,6 +120,43 @@ test('unrestricted search does not send a strict tenant requirement to the API',
   await expect(page.getByText(restrictedTitle, { exact: true }).first()).toBeVisible()
 })
 
+test('unrestricted tourism search omits default price and room-size bounds from the real API request', async ({ page }) => {
+  const searches: Record<string, unknown>[] = []
+  page.on('request', (request) => {
+    if (request.method() !== 'POST' || !request.url().includes('/api/v1/listings/search')) return
+    const body = request.postData()
+    if (!body) return
+    const parsed = JSON.parse(body) as Record<string, unknown>
+    if (parsed.rentalMode === 'holiday') searches.push(parsed)
+  })
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await expect.poll(() => searches.length).toBeGreaterThan(0)
+
+  const body = searches[0]
+  expect(body).toMatchObject({ rentalMode: 'holiday', query: 'Tenerife' })
+  expect(body).not.toHaveProperty('minPrice')
+  expect(body).not.toHaveProperty('maxPrice')
+  expect(body).not.toHaveProperty('minRoomSizeM2')
+  expect(body).not.toHaveProperty('maxRoomSizeM2')
+})
+
+test('anonymous auth and publication routes render without a route error', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+  page.on('pageerror', (error) => consoleErrors.push(error.message))
+
+  await page.goto('/#/acceso')
+  await expect(page.locator('.m2-auth-screen')).toBeVisible()
+  await expect(page.locator('.route-error')).toHaveCount(0)
+
+  await page.goto('/#/publicar')
+  await expect(page).toHaveURL(/#\/acceso$/)
+  await expect(page.locator('.m2-auth-screen')).toBeVisible()
+  await expect(page.locator('.route-error')).toHaveCount(0)
+  expect(consoleErrors).toEqual([])
+})
+
 test('room count filter is executed by the backend and reflected in mobile results', async ({ page }) => {
   test.skip(test.info().project.name !== 'mobile-chromium', 'Mobile overlay is not rendered in the desktop project')
   const unique = `${Date.now()}-room-filter`
