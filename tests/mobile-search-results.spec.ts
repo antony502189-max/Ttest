@@ -12,8 +12,11 @@ async function finishOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
+const homeModeButton = (page: Page, mode: 'Vivienda' | 'Turismo') =>
+  page.locator('.m2-mode-switch > button').nth(mode === 'Vivienda' ? 0 : 1)
+
 async function openResults(page: Page, mode?: 'Vivienda' | 'Turismo') {
-  if (mode) await page.getByRole('button', { name: mode, exact: true }).click()
+  if (mode) await homeModeButton(page, mode).click()
   await page.getByTestId('open-location').click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
@@ -58,7 +61,7 @@ test('Vivienda and Turismo are the only rental-mode controls and filter real lis
 
   await results.getByRole('button', { name: 'Volver' }).click()
   await expect(page.getByTestId('mobile-results')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Turismo', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(homeModeButton(page, 'Turismo')).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('price, area, room count and housing type filters change the listing set', async ({ page }) => {
