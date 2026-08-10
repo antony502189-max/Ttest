@@ -40,6 +40,7 @@ jobs:
       - name: Build Pages preview
         env:
           VITE_ENABLE_MOCK_MODE: '1'
+          VITE_GOOGLE_MAPS_TEST_SDK: '1'
           VITE_BASE_PATH: /Ttest/
         run: |
           npm run build
