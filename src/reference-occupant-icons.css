@@ -1,7 +1,13 @@
 .m2-reference-occupant-icon {
   flex: 0 0 3.35rem;
   width: 3.35rem;
+  min-width: 3.35rem;
+  max-width: 3.35rem;
   height: 3.35rem;
+  min-height: 3.35rem;
+  max-height: 3.35rem;
+  aspect-ratio: 1;
+  display: block;
   box-sizing: border-box;
   object-fit: contain;
   object-position: center;
@@ -52,7 +58,7 @@
     background: #fbffe9;
     box-shadow: 0 0 0 2px #2c211f, 0 0 0 4px #d2ff3f, 0 .2rem .55rem rgb(0 0 0 / .3);
     opacity: 1;
-    transform: scale(1.07);
+    transform: scale(1);
   }
 
   .m2-custom-occupant-list > button:active .m2-reference-occupant-icon {
@@ -60,15 +66,19 @@
   }
 
   .m2-custom-occupant-list > button.is-selected:active .m2-reference-occupant-icon {
-    transform: scale(.98);
+    transform: scale(.93);
   }
 }
 
 @media (max-width: 360px) {
   .m2-reference-occupant-icon {
-    width: 3rem;
-    height: 3rem;
     flex-basis: 3rem;
+    width: 3rem;
+    min-width: 3rem;
+    max-width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
+    max-height: 3rem;
     padding: .18rem;
   }
 
