@@ -48,9 +48,10 @@ function applyReferenceModeLabels() {
   const copy = modeCopy[detectModeLocale(buttons)]
   buttons.forEach((button, index) => {
     const labels = copy[index]
-    if (!labels) return
-    button.dataset.referenceTitle = labels.title
-    button.dataset.referenceSubtitle = labels.subtitle
+    const labelTarget = button.querySelector<HTMLElement>('span:last-child')
+    if (!labels || !labelTarget) return
+    labelTarget.dataset.referenceTitle = labels.title
+    labelTarget.dataset.referenceSubtitle = labels.subtitle
     button.setAttribute('aria-label', labels.aria)
   })
 }
