@@ -149,16 +149,41 @@ def test_deleted_admin_user_detail_is_rendered_read_only() -> None:
     assert 'La ficha se conserva únicamente como historial de moderación y es de solo lectura.' in admin_page
 
 
-def test_admin_navigation_uses_server_access_in_production() -> None:
+def test_admin_navigation_is_profile_only_and_server_authorized() -> None:
     project_root = Path(__file__).resolve().parents[2]
     hook = (project_root / "src" / "hooks" / "use-admin-access.ts").read_text(encoding="utf-8")
     layout = (project_root / "src" / "components" / "layout.tsx").read_text(encoding="utf-8")
-    mobile = (project_root / "src" / "pages" / "MobilePages.tsx").read_text(encoding="utf-8")
+    mobile_menu = (project_root / "src" / "pages" / "MobilePages.tsx").read_text(encoding="utf-8")
+    profile = (project_root / "src" / "pages" / "ProfilePage.tsx").read_text(encoding="utf-8")
+    app = (project_root / "src" / "App.tsx").read_text(encoding="utf-8")
 
     assert "checkAdminAccess()" in hook
     assert "if (mockMode)" in hook
     assert "setAllowed(productRole === 'admin')" in hook
-    assert "adminAllowed ?" in layout
-    assert "currentUser?.role === 'admin'" not in layout
-    assert "useAdminAccess()" in mobile
-    assert '<MenuRow to="/admin"' in mobile
+
+    assert 'to="/admin"' not in layout
+    assert "useAdminAccess" not in layout
+    assert 'to="/admin"' not in mobile_menu
+    assert "useAdminAccess" not in mobile_menu
+
+    assert "const adminAllowed = useAdminAccess()" in profile
+    assert "adminAllowed ?" in profile
+    assert "navigate('/admin')" in profile
+    assert "Abrir panel de administración" in profile
+    assert 'className="m2-account-admin"' in profile
+    assert 'className="container profile-admin-entry"' in profile
+
+    assert "<ProtectedRoute admin>" in app
+    assert "checkAdminAccess()" in app
+
+
+def test_admin_allowlist_grant_does_not_change_product_role() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    admin_service_source = (
+        project_root / "backend" / "app" / "services" / "admin.py"
+    ).read_text(encoding="utf-8")
+    add_admin_body = admin_service_source.split("async def add_admin(", 1)[1].split("async def revoke_admin(", 1)[0]
+
+    assert "AdminAccess(" in add_admin_body
+    assert "target.role" not in add_admin_body
+    assert ".role =" not in add_admin_body
