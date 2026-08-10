@@ -9,6 +9,8 @@ on:
 permissions:
   contents: write
   actions: read
+  issues: write
+  pull-requests: write
 
 jobs:
   approve:
@@ -22,26 +24,59 @@ jobs:
           ref: visual-baselines
           persist-credentials: true
           fetch-depth: 1
-      - name: Download reviewed PR 97 Playwright artifact
+      - name: Approve reviewed snapshots
+        id: approve
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh run download 31392714793 -n playwright-report --dir /tmp/pr97
-      - name: Install reviewed home snapshots only
         run: |
           set -euo pipefail
-          es_actual="$(find /tmp/pr97 -type f -path '*visual-parity-current-mobi-201de-*' -name 'current-home-390x844-actual.png' -print -quit)"
-          ru_actual="$(find /tmp/pr97 -type f -path '*visual-parity-current-mobi-78df0-*' -name 'current-home-ru-390x844-actual.png' -print -quit)"
+          result=/tmp/baseline-result.txt
+          : > "$result"
+          trap 'code=$?; echo "exit_code=$code" >> "$result"' EXIT
+
+          echo "baseline_before=$(git rev-parse HEAD)" >> "$result"
+          gh run download 31392714793 -n playwright-report --dir /tmp/pr97
+
+          es_actual="$(find /tmp/pr97 -type f -name 'current-home-390x844-actual.png' -print -quit)"
+          ru_actual="$(find /tmp/pr97 -type f -name 'current-home-ru-390x844-actual.png' -print -quit)"
           test -n "$es_actual"
           test -n "$ru_actual"
+
+          es_sha="$(git hash-object "$es_actual")"
+          ru_sha="$(git hash-object "$ru_actual")"
+          echo "es_actual_blob=$es_sha" >> "$result"
+          echo "ru_actual_blob=$ru_sha" >> "$result"
+          test "$es_sha" = '1c331eb3ef7187b8826a3d08a0335bf730bd15a0'
+          test "$ru_sha" = '8b427c43bf445aeeee7cbf5fb5dc6d6c712cb8c5'
+
           install -m 0644 "$es_actual" tests/visual-snapshots/chromium/current-home-390x844.png
           install -m 0644 "$ru_actual" tests/visual-snapshots/chromium/current-home-ru-390x844.png
-      - name: Commit approved baselines
-        run: |
-          set -euo pipefail
+          test "$(git hash-object tests/visual-snapshots/chromium/current-home-390x844.png)" = "$es_sha"
+          test "$(git hash-object tests/visual-snapshots/chromium/current-home-ru-390x844.png)" = "$ru_sha"
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tests/visual-snapshots/chromium/current-home-390x844.png tests/visual-snapshots/chromium/current-home-ru-390x844.png
-          git diff --cached --quiet && exit 0
-          git commit -m 'test: approve restored home reference design'
-          git push origin HEAD:visual-baselines
+          if git diff --cached --quiet; then
+            echo 'baseline_state=already-approved' >> "$result"
+          else
+            git commit -m 'test: approve restored home reference design'
+            git push origin HEAD:visual-baselines
+            echo "baseline_after=$(git rev-parse HEAD)" >> "$result"
+            echo 'baseline_state=updated' >> "$result"
+          fi
+      - name: Report baseline updater result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          {
+            echo '### PR97 reviewed-baseline updater'
+            echo '```text'
+            if [ -f /tmp/baseline-result.txt ]; then cat /tmp/baseline-result.txt; else echo 'updater did not reach diagnostic script'; fi
+            echo '```'
+            echo "job_conclusion=${{ steps.approve.outcome }}"
+          } > /tmp/comment.md
+          gh pr comment 97 --body-file /tmp/comment.md
