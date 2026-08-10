@@ -70,3 +70,46 @@ test.describe('restored home reference controls', () => {
     await expect.poll(() => referenceIcons.first().evaluate((image) => getComputedStyle(image).borderColor)).toBe('rgb(210, 255, 63)')
   })
 })
+
+test.describe('desktop reference occupant semantics', () => {
+  test.use({ viewport: { width: 1280, height: 900 } })
+
+  test('two people means room capacity two without a couple-only requirement', async ({ page }) => {
+    await page.goto('/')
+    const form = page.locator('.mandatory-home-search')
+    await expect(form).toBeVisible()
+    await form.getByRole('button', { name: '2 personas (pareja/amigos)' }).click()
+    await form.getByRole('button', { name: 'Ver habitaciones' }).click()
+
+    await expect(page).toHaveURL(/\/buscar\?/)
+    const params = new URL(page.url()).searchParams
+    expect(params.get('capacidad')).toBe('2')
+    expect(params.get('requisito')).toBeNull()
+    expect(params.get('ninos')).toBeNull()
+  })
+
+  test('with children filters child-friendly listings without forcing a couple', async ({ page }) => {
+    await page.goto('/')
+    const form = page.locator('.mandatory-home-search')
+    await expect(form).toBeVisible()
+    await form.getByRole('button', { name: 'Con niños' }).click()
+    await form.getByRole('button', { name: 'Ver habitaciones' }).click()
+
+    await expect(page).toHaveURL(/\/buscar\?/)
+    const params = new URL(page.url()).searchParams
+    expect(params.get('ninos')).toBe('Sí')
+    expect(params.get('requisito')).toBeNull()
+    expect(params.get('capacidad')).toBeNull()
+  })
+
+  test('expanded occupant copy is localized in Russian', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:language:v1', 'ru')
+    })
+    await page.goto('/')
+
+    const form = page.locator('.mandatory-home-search')
+    await expect(form.getByRole('button', { name: '2 человека (пара/друзья)' })).toBeVisible()
+    await expect(form.getByRole('button', { name: 'Можно с ребёнком' })).toBeVisible()
+  })
+})
