@@ -37,11 +37,9 @@ export function selectMobileSearchListings({
   const moreThanTenBedrooms = bedroomFilters.includes('10+')
   const roomSizeFilterActive = filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax
 
-  // `filterListings` intentionally rejects unknown room sizes when a size
-  // constraint is active. Imported listings are allowed to omit roomSizeM2,
-  // so the default 0..50 UI range must not silently become a constraint.
-  // Use a temporary comparable value only for filtering and restore the
-  // original listing objects before returning results.
+  // Imported listings may legitimately omit roomSizeM2. The default size
+  // controls represent an inactive filter, so unknown metadata must survive
+  // until the user explicitly narrows the size range.
   const originalById = new Map(listings.map((listing) => [listing.id, listing]))
   const comparableListings = roomSizeFilterActive
     ? listings
