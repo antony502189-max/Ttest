@@ -24,16 +24,19 @@ import {
   occupantPetsIcon,
   occupantWomanIcon,
 } from '@/assets/occupants'
+import { occupantObjectUrl } from '@/assets/occupants/object-url'
 import '@/home-mandatory-search.css'
 
 const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: string; iconSrc: string }> = [
-  { value: 'single-person', label: 'Una persona', iconSrc: occupantPersonIcon },
-  { value: 'couple', label: '2 personas (pareja/amigos)', iconSrc: occupantCoupleIcon },
-  { value: 'single-man', label: 'Solo hombre', iconSrc: occupantManIcon },
-  { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantWomanIcon },
-  { value: 'family', label: 'Con niños', iconSrc: occupantFamilyIcon },
-  { value: 'any', label: 'Sin restricción', iconSrc: occupantAnyIcon },
+  { value: 'single-person', label: 'Una persona', iconSrc: occupantObjectUrl(occupantPersonIcon) },
+  { value: 'couple', label: '2 personas (pareja/amigos)', iconSrc: occupantObjectUrl(occupantCoupleIcon) },
+  { value: 'single-man', label: 'Solo hombre', iconSrc: occupantObjectUrl(occupantManIcon) },
+  { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantObjectUrl(occupantWomanIcon) },
+  { value: 'family', label: 'Con niños', iconSrc: occupantObjectUrl(occupantFamilyIcon) },
+  { value: 'any', label: 'Sin restricción', iconSrc: occupantObjectUrl(occupantAnyIcon) },
 ]
+
+const petsReferenceIcon = occupantObjectUrl(occupantPetsIcon)
 
 export function HomeMandatorySearch() {
   const { filters, setFilters, query, setQuery, rentalMode, addSearchHistory } = useApp()
@@ -111,7 +114,7 @@ export function HomeMandatorySearch() {
       <legend>Mascotas</legend>
       <p>Indica si necesitas una habitación que las admita.</p>
       <div className="mandatory-choice-grid">
-        <button type="button" className={cn('mandatory-choice', profile.pets === 'Sí' && 'is-selected')} aria-pressed={profile.pets === 'Sí'} onClick={() => selectBoolean('pets', 'Sí')}><img className="mandatory-choice__reference-icon" src={occupantPetsIcon} alt="" aria-hidden="true" /><span>Con mascotas</span></button>
+        <button type="button" className={cn('mandatory-choice', profile.pets === 'Sí' && 'is-selected')} aria-pressed={profile.pets === 'Sí'} onClick={() => selectBoolean('pets', 'Sí')}><img className="mandatory-choice__reference-icon" src={petsReferenceIcon} alt="" aria-hidden="true" /><span>Con mascotas</span></button>
         <button type="button" className={cn('mandatory-choice', profile.pets === 'No' && 'is-selected')} aria-pressed={profile.pets === 'No'} onClick={() => selectBoolean('pets', 'No')}><PawPrint aria-hidden="true" /><span>Sin mascotas</span></button>
       </div>
     </fieldset>
