@@ -32,7 +32,7 @@ const occupantOptions: Array<{ value: Exclude<HomeOccupantChoice, null>; label: 
   { value: 'single-man', label: 'Solo hombre', iconSrc: occupantManIcon },
   { value: 'single-woman', label: 'Solo mujer', iconSrc: occupantWomanIcon },
   { value: 'family', label: 'Con niños', iconSrc: occupantFamilyIcon },
-  { value: 'any', label: 'Sin restricciones', iconSrc: occupantAnyIcon },
+  { value: 'any', label: 'Sin restricción', iconSrc: occupantAnyIcon },
 ]
 
 export function HomeMandatorySearch() {
