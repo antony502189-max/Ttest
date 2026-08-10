@@ -30,6 +30,12 @@ export const emptyListingAccessProfile: ListingAccessProfile = {
 
 let inMemoryProfile: ListingAccessProfile = { ...emptyListingAccessProfile }
 
+function normalizeHomeOccupantChoice(value: HomeOccupantChoice): HomeOccupantChoice {
+  if (value === 'couple') return 'two-people'
+  if (value === 'family') return 'with-children'
+  return value
+}
+
 export function hasListingAccessSelection(profile: ListingAccessProfile) {
   return Boolean(
     profile.occupant ||
@@ -43,9 +49,10 @@ export function readListingAccessProfile(): ListingAccessProfile {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...inMemoryProfile }
     const parsed = JSON.parse(raw) as Partial<ListingAccessProfile>
-    const occupant = occupantValues.has(parsed.occupant as HomeOccupantChoice)
+    const parsedOccupant = occupantValues.has(parsed.occupant as HomeOccupantChoice)
       ? parsed.occupant as HomeOccupantChoice
       : null
+    const occupant = normalizeHomeOccupantChoice(parsedOccupant)
     const pets = yesNoAnyValues.has(parsed.pets as YesNoAny)
       ? parsed.pets as YesNoAny
       : 'Cualquiera'
@@ -82,8 +89,8 @@ export function listingAccessProfileFromFilters(filters: Filters): ListingAccess
   if (filters.children === 'Sí' && filters.tenantRequirement === 'Cualquiera') {
     occupant = 'with-children'
   } else if (filters.tenantRequirement === 'couple' && filters.children === 'Sí') {
-    // Backward compatibility for profiles saved before the reference UI split
-    // the generic children filter from the couple requirement.
+    // Preserve explicit couple + children semantics when reconstructed from
+    // a filter set created outside the simplified home chooser.
     occupant = 'family'
   } else if (filters.roomCapacity === '2' && filters.tenantRequirement === 'Cualquiera') {
     occupant = 'two-people'
@@ -127,7 +134,7 @@ export function applyListingAccessProfile(filters: Filters, profile: ListingAcce
       children = 'Sí'
       break
     case 'family':
-      // Legacy persisted value: retain its historical couple + children meaning.
+      // `family` is retained only for filter reconstruction compatibility.
       tenantRequirement = 'couple'
       roomCapacity = '2'
       children = 'Sí'
