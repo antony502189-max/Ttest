@@ -31,9 +31,13 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
 
     assert ".m2-custom-occupant-list > button.is-selected .m2-reference-occupant-icon" in reference_icons
     assert "border-color: #d2ff3f" in reference_icons
-    assert "transform: scale(1.07)" in reference_icons
+    assert "transform: scale(1)" in reference_icons
     assert "width: 3.35rem" in reference_icons
+    assert "min-width: 3.35rem" in reference_icons
+    assert "max-width: 3.35rem" in reference_icons
     assert "height: 3.35rem" in reference_icons
+    assert "min-height: 3.35rem" in reference_icons
+    assert "max-height: 3.35rem" in reference_icons
 
     assert "HABITACIONES" in reference_ui
     assert "LARGA ESTANCIA" in reference_ui
@@ -45,7 +49,9 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "button.querySelector<HTMLElement>('span:last-child')" in reference_ui
     assert "labelTarget.dataset.referenceTitle = labels.title" in reference_ui
     assert "labelTarget.dataset.referenceSubtitle = labels.subtitle" in reference_ui
-    assert "button.setAttribute('aria-label', `${labels.title} ${labels.subtitle}`)" in reference_ui
+    assert "`${labels.modeName} — ${labels.title} ${labels.subtitle}`" in reference_ui
+    assert "modeName: 'Vivienda'" in reference_ui
+    assert "modeName: 'Turismo'" in reference_ui
 
     asset_names = (
         "occupantPersonIcon",
@@ -104,6 +110,8 @@ def test_restored_home_reference_controls_are_loaded_and_stable() -> None:
     assert "if (value === 'family') return 'with-children'" in listing_access
     assert "profile.occupant === 'couple' || profile.occupant === 'family'" in publish_sync
     assert "occupant: visibleHomeProfile.occupant" in publish_sync
+    assert "useLocation" in publish_sync
+    assert "if (pathname !== '/buscar') return" in publish_sync
 
     assert "URL.createObjectURL" in object_urls
     assert "new Blob" in object_urls
