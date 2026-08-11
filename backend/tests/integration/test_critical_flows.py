@@ -233,7 +233,9 @@ async def test_public_catalog_refreshes_after_create_update_hide_and_republish(c
 
 async def test_admin_moderation_restrictions_invalidate_the_public_catalog(client: AsyncClient, register_user):
     """Exercise authorization, moderation, expiry and public visibility in one isolated database."""
-    admin_token, admin = await register_user(client, email="moderator@example.com", role="admin")
+    # Registration intentionally permits only product roles. Server-side
+    # AdminAccess, not the product role, grants administration capabilities.
+    admin_token, admin = await register_user(client, email="moderator@example.com", role="host")
     host_token, host = await register_user(client, email="moderated-host@example.com", role="host")
     admin_headers = auth(admin_token)
     host_headers = auth(host_token)
