@@ -1,6 +1,7 @@
 /* Keep navigation geometry unchanged while making every route/step back arrow visibly stronger. */
 .m2-back-header .lucide-chevron-left,
 .m2-results__header > button .lucide-chevron-left,
+.m2-map-results-header .lucide-chevron-left,
 .m2-auth-appbar > button .lucide-arrow-left,
 .m2-account-appbar > button .lucide-arrow-left,
 .mobile-map-screen__header .lucide-arrow-left,
