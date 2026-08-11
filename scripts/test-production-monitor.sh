@@ -23,7 +23,7 @@ POSTGRES_DB=ttest
 EXTERNAL_WORKER_STALE_AFTER_SECONDS=300
 EXTERNAL_IMPORT_INTERVAL_SECONDS=7200
 EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES=3
-EXTERNAL_IMPORT_SOURCES=fotocasa,pisos,pisocompartido
+EXTERNAL_IMPORT_SOURCES=fotocasa,pisos,pisocompartido,alquilerdocentecanarias
 ENV
 
 cat > "$TEST_DIR/bin/df" <<'EOF_DF'
@@ -99,15 +99,15 @@ run_case() {
 
 run_case healthy 0 \
   FAKE_STATE_ROW='healthy|10|100' \
-  FAKE_CYCLE_ROW='run-healthy|3|100'
+  FAKE_CYCLE_ROW='run-healthy|4|100'
 
 cp "$TEST_DIR/root/shared/production.env" "$TEST_DIR/root/shared/production.env.original"
 sed -i \
-  's/^EXTERNAL_IMPORT_SOURCES=.*/EXTERNAL_IMPORT_SOURCES=fotocasa,pisos,pisocompartido,thinkspain/' \
+  's/^EXTERNAL_IMPORT_SOURCES=.*/EXTERNAL_IMPORT_SOURCES=fotocasa,pisos,pisocompartido,alquilerdocentecanarias,thinkspain/' \
   "$TEST_DIR/root/shared/production.env"
 run_case degraded-source 2 \
   FAKE_STATE_ROW='healthy|10|100' \
-  FAKE_CYCLE_ROW='run-degraded|3|100'
+  FAKE_CYCLE_ROW='run-degraded|4|100'
 mv "$TEST_DIR/root/shared/production.env.original" "$TEST_DIR/root/shared/production.env"
 
 run_case below-required-threshold 1 \
@@ -116,11 +116,11 @@ run_case below-required-threshold 1 \
 
 run_case stale-idle-cycle 1 \
   FAKE_STATE_ROW='healthy|10|8000' \
-  FAKE_CYCLE_ROW='run-stale|3|8000'
+  FAKE_CYCLE_ROW='run-stale|4|8000'
 
 run_case active-long-cycle 0 \
   FAKE_STATE_ROW='running|10|8000' \
-  FAKE_CYCLE_ROW='run-active|3|8000'
+  FAKE_CYCLE_ROW='run-active|4|8000'
 
 : > "$TEST_DIR/root/shared/release.lock"
 flock "$TEST_DIR/root/shared/release.lock" -c 'sleep 1' &
@@ -128,7 +128,7 @@ lock_holder=$!
 sleep 0.1
 run_case maintenance-lock 75 \
   FAKE_STATE_ROW='healthy|10|100' \
-  FAKE_CYCLE_ROW='run-maintenance|3|100'
+  FAKE_CYCLE_ROW='run-maintenance|4|100'
 wait "$lock_holder"
 
 # Prove that a slow monitor probe does not itself hold the shared release lock.
@@ -139,7 +139,7 @@ env \
   FAKE_INSPECT_MARKER="$marker" \
   FAKE_INSPECT_DELAY=1 \
   FAKE_STATE_ROW='healthy|10|100' \
-  FAKE_CYCLE_ROW='run-lock-race|3|100' \
+  FAKE_CYCLE_ROW='run-lock-race|4|100' \
   bash "$MONITOR" > "$TEST_DIR/monitor.out" 2>&1 &
 monitor_pid=$!
 for _ in $(seq 1 100); do

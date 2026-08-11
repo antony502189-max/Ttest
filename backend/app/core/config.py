@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SUPPORTED_EXTERNAL_IMPORT_SOURCES = {
+    "alquilerdocentecanarias",
     "idealista",
     "fotocasa",
     "milanuncios",
@@ -105,7 +106,10 @@ class Settings(BaseSettings):
     external_import_enabled: bool = True
     external_import_interval_seconds: int = 7200
     external_import_run_on_start: bool = True
-    external_import_sources: str = "idealista,fotocasa,milanuncios,pisocompartido,pisos,thinkspain"
+    # Keep only public room routes that pass the production access and useful
+    # import contracts.  Legacy source records remain attributable in the DB;
+    # this controls future crawling, not historical data.
+    external_import_sources: str = "fotocasa,pisocompartido,pisos,alquilerdocentecanarias"
     external_import_min_healthy_sources: int = 1
     external_import_request_timeout_seconds: int = 25
     external_import_max_concurrency_per_source: int = 3
