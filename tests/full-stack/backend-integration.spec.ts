@@ -146,6 +146,7 @@ test('unrestricted search does not send a strict tenant requirement to the API',
 })
 
 test('unrestricted tourism search omits default price and room-size bounds from the real API request', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop-chromium', 'The responsive mobile control is covered by the mobile suite; this request-payload regression exercises the visible desktop mode control.')
   const searches: Record<string, unknown>[] = []
   page.on('request', (request) => {
     if (request.method() !== 'POST' || !request.url().includes('/api/v1/listings/search')) return
