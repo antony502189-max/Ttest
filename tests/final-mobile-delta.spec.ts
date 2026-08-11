@@ -77,6 +77,7 @@ test('DELTA-MOBILE-04 location never exposes the removed phone lookup', async ({
 test('DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are real routes', async ({ page }) => {
   await readyMobile(page, '/#/buscar?q=Tenerife')
   await page.locator('.m2-result-card__favorite').first().click()
+  await expect(page.locator('[data-sonner-toast]').first()).toBeVisible()
   await page.getByRole('button', { name: 'Volver' }).click()
   await page.getByRole('button', { name: 'Favoritos', exact: true }).click()
   await expect(page).toHaveURL(/#\/favoritos/)
