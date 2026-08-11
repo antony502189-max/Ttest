@@ -155,12 +155,10 @@ test('unrestricted tourism search omits default price and room-size bounds from 
     if (parsed.rentalMode === 'holiday') searches.push(parsed)
   })
 
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
-  // Mobile-sized navigation can mount the route before its first
-  // search effect is scheduled.  A reload exercises the same public URL and
-  // makes the assertion about the request payload, rather than that timing
-  // detail, deterministic across the desktop and mobile projects.
-  if (searches.length === 0) await page.reload()
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  // Exercise the real mode control instead of depending on the direct
+  // holiday-route mount timing in the mobile project.
+  await page.getByRole('radio', { name: /Turismo/ }).click()
   await expect.poll(() => searches.length).toBeGreaterThan(0)
 
   const body = searches[0]
