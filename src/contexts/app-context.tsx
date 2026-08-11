@@ -237,15 +237,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const localThreads = useMemo(() => threadScopes[scopeKey] ?? [], [scopeKey, threadScopes])
   const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
 
-  useEffect(() => {
-    if (rentalMode !== 'holiday') return
-    setFilters((current) => ({
-      ...current,
-      minPrice: Math.min(current.minPrice, 350),
-      maxPrice: Math.min(current.maxPrice, 350),
-    }))
-  }, [rentalMode])
-
   const reportStorageFailure = useCallback((failure: StorageFailure | null) => {
     if (!failure) return
     const message = storageMessage(failure)

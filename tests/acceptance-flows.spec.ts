@@ -83,6 +83,7 @@ test("01–03 rental mode, búsqueda por fecha y selección de varias zonas", as
   await page.getByRole("button", { name: /^ver habitaciones$/i }).click();
   await page.getByLabel("Disponible para esta fecha").fill("2026-08-10");
   await expect(page).toHaveURL(/alquiler=holiday/);
+  await expect(page).not.toHaveURL(/precioMax=350/);
   await expect(page).toHaveURL(/zonas=/);
   await expect(page).toHaveURL(/fecha=2026-08-10/);
   await expect(

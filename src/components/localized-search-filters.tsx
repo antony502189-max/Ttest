@@ -19,6 +19,7 @@ import { amenityOptions, areas, defaultFilters } from "@/data/listings";
 import { useApp } from "@/contexts/app-context";
 import { useI18n, type Language } from "@/contexts/i18n-context";
 import { filterListings } from "@/lib/search";
+import { priceControlValues } from "@/lib/price-filter-controls";
 import type { Filters, RentalMode, YesNoAny } from "@/types";
 import { RentalTypeSwitch } from "./marketplace";
 
@@ -172,6 +173,7 @@ function FilterPanel({
   const update = <K extends keyof Filters>(key: K, next: Filters[K]) =>
     onChange({ ...value, [key]: next });
   const maxPrice = rentalMode === "holiday" ? 350 : 1200;
+  const priceControls = priceControlValues(value, rentalMode);
   const anyLabel = text("Cualquiera", "Любой", "Any");
 
   const roomTypes: SelectOption[] = [
@@ -222,9 +224,9 @@ function FilterPanel({
               min={0}
               max={maxPrice}
               step={rentalMode === "holiday" ? 5 : 25}
-              value={value.minPrice}
+              value={priceControls.minimum}
               onValueChange={(next) =>
-                onChange({ ...value, minPrice: Math.min(next, value.maxPrice) })
+                onChange({ ...value, minPrice: Math.min(next, priceControls.maximum) })
               }
             />
           </label>
@@ -235,22 +237,22 @@ function FilterPanel({
               min={0}
               max={maxPrice}
               step={rentalMode === "holiday" ? 5 : 25}
-              value={value.maxPrice}
+              value={priceControls.maximum}
               onValueChange={(next) =>
-                onChange({ ...value, maxPrice: Math.max(next, value.minPrice) })
+                onChange({ ...value, minPrice: Math.min(priceControls.minimum, next), maxPrice: Math.max(next, priceControls.minimum) })
               }
             />
           </label>
         </div>
         <div className="range-values">
-          <span>{value.minPrice} €</span>
-          <span>{value.maxPrice >= maxPrice ? `${maxPrice} €+` : `${value.maxPrice} €`}</span>
+          <span>{priceControls.minimum} €</span>
+          <span>{priceControls.maximum >= maxPrice ? `${maxPrice} €+` : `${priceControls.maximum} €`}</span>
         </div>
         <Slider
           min={0}
           max={maxPrice}
           step={rentalMode === "holiday" ? 5 : 25}
-          value={[Math.min(value.minPrice, maxPrice), Math.min(value.maxPrice, maxPrice)]}
+          value={[priceControls.minimum, priceControls.maximum]}
           onValueChange={([minimum, maximum]) =>
             onChange({ ...value, minPrice: minimum, maxPrice: maximum })
           }

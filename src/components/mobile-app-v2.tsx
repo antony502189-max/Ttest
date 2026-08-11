@@ -34,6 +34,7 @@ import { googleMapsConfig, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { persistListingAccessProfile, readListingAccessProfile, type HomeOccupantChoice } from '@/lib/listing-access'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
+import { filtersForRentalMode } from '@/lib/price-filter-controls'
 import type { Listing } from '@/types'
 import '@/mobile-app-v2.css'
 
@@ -546,7 +547,7 @@ export function MobileAppV2() {
   const location = useLocation()
   const navigate = useNavigate()
   const { language, setLanguage } = useI18n()
-  const { allListings, discarded, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, currentUser } = useApp()
+  const { allListings, discarded, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
   const [step, setStep] = useState<OnboardingStep>(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }
   })
@@ -678,7 +679,9 @@ export function MobileAppV2() {
   }
   const runHomeSearch = () => {
     const mode = homeMode === 'turismo' ? 'holiday' : 'long'
-    const params = filtersToParams(filters)
+    const nextFilters = filtersForRentalMode(filters, mode)
+    if (nextFilters !== filters) setFilters(nextFilters)
+    const params = filtersToParams(nextFilters)
     params.set('q', 'Tenerife')
     params.set('alquiler', mode)
     navigate(`/buscar?${params.toString()}`)
