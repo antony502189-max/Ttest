@@ -467,3 +467,40 @@ async def test_catalog_version_changes_for_create_close_and_restore(client: Asyn
         await session.commit()
         restored_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
         assert restored_version > closed_version
+
+
+async def test_public_search_returns_all_records_across_multiple_api_pages(client: AsyncClient):
+    """Guard the 100-record API boundary used by the browser catalog client."""
+    expected_ids: set[str] = set()
+    async with SessionLocal() as session:
+        for index in range(150):
+            item = external_item(
+                source="PaginationSource",
+                external_id=f"page-{index}",
+                url=f"https://example.test/pagination/{index}",
+                price=500 + index,
+            )
+            item.title = f"Pagination listing {index}"
+            item.phone = f"+34 600 {index:03d} {index:03d}"
+            item.whatsapp = item.phone
+            item.email = f"pagination-{index}@example.test"
+            assert await upsert(session, item) == "imported"
+
+        rows = await session.scalars(
+            select(Listing.id).where(Listing.is_external.is_(True), Listing.primary_source == "PaginationSource")
+        )
+        expected_ids = {str(listing_id) for listing_id in rows}
+
+    assert len(expected_ids) == 150
+    first = await client.post("/api/v1/listings/search", json={"rentalMode": "long", "limit": 100, "offset": 0})
+    second = await client.post("/api/v1/listings/search", json={"rentalMode": "long", "limit": 100, "offset": 100})
+    assert first.status_code == second.status_code == 200
+    assert first.json()["total"] == second.json()["total"] == 150
+    assert first.json()["limit"] == second.json()["limit"] == 100
+    assert first.json()["offset"] == 0
+    assert second.json()["offset"] == 100
+
+    returned_ids = [item["id"] for item in first.json()["items"] + second.json()["items"]]
+    assert len(returned_ids) == 150
+    assert len(set(returned_ids)) == 150
+    assert set(returned_ids) == expected_ids

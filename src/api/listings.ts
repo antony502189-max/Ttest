@@ -1,4 +1,5 @@
 import { api, resolveApiUrl } from '@/api/client'
+import { defaultFilters } from '@/data/listings'
 import type { Filters, Listing, ListingStatus, TenantRequirement } from '@/types'
 
 type ListingDto = {
@@ -254,11 +255,13 @@ function routeSearchState() {
 
 export function searchPublicListings(input: ListingSearchInput) {
   const route = routeSearchState()
-  const { bounds, polygon, filters, ...payload } = input
+  const { bounds, polygon, filters, minPrice, maxPrice, ...payload } = input
   const yesNo = (value: string) => value === 'Cualquiera' ? undefined : value === 'Sí'
   const publicationDays = filters.publicationDate === '24h' ? 1 : filters.publicationDate === '7d' ? 7 : filters.publicationDate === '30d' ? 30 : undefined
   const body = {
     ...payload,
+    ...(minPrice !== defaultFilters.minPrice ? { minPrice } : {}),
+    ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice } : {}),
     query: input.query ?? route.query,
     roomTypes: input.roomTypes ?? route.roomTypes,
     bedroomCounts: input.bedroomCounts ?? route.bedroomCounts,
@@ -278,8 +281,8 @@ export function searchPublicListings(input: ListingSearchInput) {
     ...(filters.furnished ? { furnished: true } : {}),
     ...(filters.billsIncluded ? { billsIncluded: true } : {}),
     ...(filters.deposit !== 'Cualquiera' ? { deposit: filters.deposit } : {}),
-    minRoomSizeM2: filters.roomSizeMin,
-    maxRoomSizeM2: filters.roomSizeMax,
+    ...(filters.roomSizeMin !== defaultFilters.roomSizeMin ? { minRoomSizeM2: filters.roomSizeMin } : {}),
+    ...(filters.roomSizeMax !== defaultFilters.roomSizeMax ? { maxRoomSizeM2: filters.roomSizeMax } : {}),
     ...(filters.shower !== 'Cualquiera' ? { shower: filters.shower } : {}),
     ...(filters.currentResidents === '5+' ? { minCurrentResidents: 5 } : filters.currentResidents !== 'Cualquiera' ? { currentResidents: Number(filters.currentResidents) } : {}),
     ...(filters.roomCapacity !== 'Cualquiera' ? { roomCapacity: Number(filters.roomCapacity) } : {}),

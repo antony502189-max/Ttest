@@ -1,35 +1,118 @@
-/* Customer-approved information hierarchy for full listing cards.
-   Keep compact map cards unchanged because they have less vertical space. */
-.property-card:not(.property-card--compact) .property-card__body-link > .badge-row {
+/* Customer-approved information hierarchy for every listing card.
+   The visual priority is always: restrictions -> price -> description/details. */
+
+/* Desktop/full and compact PropertyCard variants. */
+.property-card .property-card__body-link > .badge-row {
   order: 0;
   margin-top: 0;
   margin-bottom: .5rem;
 }
 
-.property-card:not(.property-card--compact) .property-card__body-link > .card-topline {
+.property-card .property-card__body-link > .card-topline {
   order: 1;
   margin-top: 0;
   margin-bottom: .35rem;
 }
 
-.property-card:not(.property-card--compact) .property-card__body-link > h3 {
+.property-card .property-card__body-link > h3 {
   order: 2;
   margin-top: 0;
   margin-bottom: .35rem;
 }
 
-.property-card:not(.property-card--compact) .property-card__body-link > .property-location {
+.property-card .property-card__body-link > .property-location {
   order: 3;
 }
 
-.property-card:not(.property-card--compact) .property-card__body-link > .property-facts {
+.property-card .property-card__body-link > .property-facts {
   order: 4;
 }
 
-.property-card:not(.property-card--compact) .property-card__body-link > .property-description {
+.property-card .property-card__body-link > .property-description {
   order: 5;
 }
 
-.property-card:not(.property-card--compact) .property-card__body-link > .property-card__meta {
+.property-card .property-card__body-link > .property-card__meta {
   order: 6;
+}
+
+/* Dedicated mobile search-result cards. */
+.m2-result-card__content {
+  display: flex;
+  flex-direction: column;
+}
+
+.m2-result-card__content > .m2-result-card__badges {
+  order: 0;
+  margin-top: 0;
+  margin-bottom: .65rem;
+}
+
+.m2-result-card__content > .m2-result-card__price {
+  order: 1;
+}
+
+.m2-result-card__content > .m2-result-card__location {
+  order: 2;
+}
+
+.m2-result-card__content > h2 {
+  order: 3;
+}
+
+.m2-result-card__content > .m2-result-card__facts {
+  order: 4;
+}
+
+.m2-result-card__content > .m2-result-card__availability {
+  order: 5;
+}
+
+.m2-result-card__content > .m2-result-card__actions {
+  order: 6;
+}
+
+/* Mobile map listing preview. */
+.m2-map-listing-preview__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.m2-map-listing-preview__body > .m2-map-listing-preview__requirements {
+  order: 0;
+}
+
+.m2-map-listing-preview__body > strong {
+  order: 1;
+}
+
+.m2-map-listing-preview__body > p {
+  order: 2;
+}
+
+.m2-map-listing-preview__body > h2 {
+  order: 3;
+}
+
+.m2-map-listing-preview__body > .m2-map-listing-preview__actions {
+  order: 4;
+}
+
+/* Desktop map selected-listing preview. */
+.selected-listing-sheet__content > ul {
+  order: 0;
+  margin-top: 0;
+  margin-bottom: .35rem;
+}
+
+.selected-listing-sheet__content > strong {
+  order: 1;
+}
+
+.selected-listing-sheet__content > a {
+  order: 2;
+}
+
+.selected-listing-sheet__content > p {
+  order: 3;
 }

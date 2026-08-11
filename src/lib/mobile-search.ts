@@ -1,3 +1,4 @@
+import { defaultFilters } from '@/data/listings'
 import { distanceKm } from '@/lib/geolocation'
 import { getBedroomCount } from '@/lib/listings'
 import { filterListings, pointInPolygon, sortListings } from '@/lib/search'
@@ -34,9 +35,18 @@ export function selectMobileSearchListings({
   const bedroomFilters = (params.get('habitaciones') ?? '').split('|').filter(Boolean)
   const exactBedroomCounts = bedroomFilters.map(Number).filter((value) => Number.isInteger(value) && value >= 1 && value <= 10)
   const moreThanTenBedrooms = bedroomFilters.includes('10+')
+  const roomSizeFilterActive = filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax
+
+  // Imported listings may legitimately omit roomSizeM2. The default size
+  // controls represent an inactive filter, so unknown metadata must survive
+  // until the user explicitly narrows the size range.
+  const originalById = new Map(listings.map((listing) => [listing.id, listing]))
+  const comparableListings = roomSizeFilterActive
+    ? listings
+    : listings.map((listing) => listing.roomSizeM2 == null ? { ...listing, roomSizeM2: defaultFilters.roomSizeMin } : listing)
 
   const filtered = filterListings(
-    listings.filter((listing) => !discarded.has(listing.id)),
+    comparableListings.filter((listing) => !discarded.has(listing.id)),
     rentalMode,
     filters,
   ).filter((listing) => {
@@ -47,7 +57,7 @@ export function selectMobileSearchListings({
     if (polygonApplied && polygon.length >= 3 && !pointInPolygon(listing.coordinates, polygon)) return false
     if (nearbyCenter && distanceKm(listing.coordinates, nearbyCenter) > radiusKm) return false
     return true
-  })
+  }).map((listing) => originalById.get(listing.id) ?? listing)
 
   return sortListings(filtered, filters.sort)
 }
