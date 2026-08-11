@@ -110,8 +110,22 @@ async def _wait_with_idle_heartbeat(
     deadline = monotonic() + timeout
     redis = from_url(settings.redis_url) if settings.redis_url else None
     lock_key = "ttest:external-listings-import"
+
+    async def publish_idle_heartbeat() -> None:
+        try:
+            if redis is not None and await redis.get(lock_key):
+                return
+            await worker_state()
+        except RedisError:
+            logger.exception("external_import_idle_lock_check_failed")
+        except Exception:
+            logger.exception("external_import_idle_heartbeat_failed")
+
     try:
         while not stopping.is_set():
+            # Publish before sleeping so a coarse event loop cannot consume the
+            # whole idle window before its first scheduled timer callback.
+            await publish_idle_heartbeat()
             remaining = deadline - monotonic()
             if remaining <= 0:
                 return
@@ -119,16 +133,7 @@ async def _wait_with_idle_heartbeat(
                 await asyncio.wait_for(stopping.wait(), timeout=min(interval, remaining))
                 return
             except TimeoutError:
-                if deadline - monotonic() <= 0:
-                    return
-                try:
-                    if redis is not None and await redis.get(lock_key):
-                        continue
-                    await worker_state()
-                except RedisError:
-                    logger.exception("external_import_idle_lock_check_failed")
-                except Exception:
-                    logger.exception("external_import_idle_heartbeat_failed")
+                continue
     finally:
         if redis is not None:
             await redis.aclose()
