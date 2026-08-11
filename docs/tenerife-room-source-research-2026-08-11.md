@@ -101,6 +101,26 @@ This is the same upstream listing identity observed in Spotahome's conflicting
 catalogue.  **FAIL / REJECT**: syndicated, cross-island location errors make
 the apparent inventory unsafe for this target province.
 
+## Erasmus Play and Piso Compartido Las Islas evidence
+
+Erasmus Play's public robots file allows the Santa Cruz room catalogue and its
+public sitemap.  From the production VPS, the declared application user agent
+received `200` for the sitemap, the Santa Cruz private-room catalogue and two
+low-rate EUR room details.  The catalogue exposed eleven current `InStock`
+offers, each with a stable offer ID; ten prices were EUR and one was USD.  The
+two detail documents supplied a room object plus price and availability, but
+their offer objects did not expose locality, postcode or coordinates.  More
+importantly, each public English and Spanish terms/conditions route tested
+returned `500`; the only legal link in the catalogue led to privacy policy.
+**DEFER / REJECT**: public access alone is not a substitute for a retrievable
+terms policy, and location cannot be independently verified from the offer.
+
+Piso Compartido Las Islas has an allow-all robots file and normal VPS access,
+but its public sitemap contains only its homepage.  That page is a static
+marketing presentation with no catalogue, per-room stable identifier, current
+availability or listing pagination.  **DEFER / REJECT**: do not turn static
+advertising copy into current rental inventory.
+
 ## Future-crawl transition and historical preservation
 
 `Fotocasa`, `PisoCompartido` and `Pisos` remain enabled because their latest
