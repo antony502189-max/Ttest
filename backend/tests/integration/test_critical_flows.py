@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
 from PIL import Image
+from sqlalchemy import select
+
+from app.db.session import SessionLocal
+from app.models import User
+from app.models.moderation import AdminAccess, ListingRestriction
+from app.services.moderation_expiry import process_expired_moderation
 
 pytestmark = pytest.mark.integration
 
@@ -222,3 +229,93 @@ async def test_public_catalog_refreshes_after_create_update_hide_and_republish(c
     assert republished_version > hidden_version
     republished_search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
     assert listing_id in {item["id"] for item in republished_search.json()["items"]}
+
+
+async def test_admin_moderation_restrictions_invalidate_the_public_catalog(client: AsyncClient, register_user):
+    """Exercise authorization, moderation, expiry and public visibility in one isolated database."""
+    admin_token, admin = await register_user(client, email="moderator@example.com", role="admin")
+    host_token, host = await register_user(client, email="moderated-host@example.com", role="host")
+    admin_headers = auth(admin_token)
+    host_headers = auth(host_token)
+
+    non_admin = await client.get("/api/v1/admin/access", headers=host_headers)
+    assert non_admin.status_code == 403
+    async with SessionLocal() as session:
+        stored_admin = await session.get(User, UUID(admin["id"]))
+        assert stored_admin is not None
+        stored_admin.google_subject = "moderator-google-subject"
+        session.add(AdminAccess(email=admin["email"].lower()))
+        await session.commit()
+    assert (await client.get("/api/v1/admin/access", headers=admin_headers)).status_code == 200
+
+    created = await client.post(
+        "/api/v1/listings",
+        headers=host_headers,
+        json=listing_payload(title="Moderated catalog listing", latitude=28.4801, longitude=-16.2701, bedrooms=2),
+    )
+    assert created.status_code == 201, created.text
+    listing_id = created.json()["id"]
+    listing_uuid = UUID(listing_id)
+
+    created_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    user_restriction = await client.post(
+        f"/api/v1/admin/users/{host['id']}/restrictions",
+        headers=admin_headers,
+        json={"restrictionType": "view_listings", "until": None, "reason": "Repeated public listing policy breach"},
+    )
+    assert user_restriction.status_code == 200, user_restriction.text
+    assert user_restriction.json()["activeRestriction"]["reason"] == "Repeated public listing policy breach"
+    user_restriction_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert user_restriction_version > created_version
+    hidden_by_user = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id not in {item["id"] for item in hidden_by_user.json()["items"]}
+
+    unrestrict_user = await client.delete(f"/api/v1/admin/users/{host['id']}/restrictions/active", headers=admin_headers)
+    assert unrestrict_user.status_code == 200, unrestrict_user.text
+    user_restore_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert user_restore_version > user_restriction_version
+    visible_after_user_restore = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id in {item["id"] for item in visible_after_user_restore.json()["items"]}
+
+    until = datetime.now(UTC) + timedelta(days=1)
+    listing_restriction = await client.post(
+        f"/api/v1/admin/listings/{listing_id}/restrictions",
+        headers=admin_headers,
+        json={"until": until.isoformat(), "reason": "Listing evidence requires review"},
+    )
+    assert listing_restriction.status_code == 200, listing_restriction.text
+    assert listing_restriction.json()["activeRestriction"]["reason"] == "Listing evidence requires review"
+    listing_restriction_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert listing_restriction_version > user_restore_version
+    hidden_by_listing = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id not in {item["id"] for item in hidden_by_listing.json()["items"]}
+
+    unrestrict_listing = await client.delete(f"/api/v1/admin/listings/{listing_id}/restrictions/active", headers=admin_headers)
+    assert unrestrict_listing.status_code == 200, unrestrict_listing.text
+    listing_restore_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert listing_restore_version > listing_restriction_version
+    visible_after_listing_restore = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id in {item["id"] for item in visible_after_listing_restore.json()["items"]}
+
+    expires = await client.post(
+        f"/api/v1/admin/listings/{listing_id}/restrictions",
+        headers=admin_headers,
+        json={"until": until.isoformat(), "reason": "Temporary expiry regression"},
+    )
+    assert expires.status_code == 200, expires.text
+    async with SessionLocal() as session:
+        active = await session.scalar(
+            select(ListingRestriction).where(
+                ListingRestriction.listing_id == listing_uuid,
+                ListingRestriction.revoked_at.is_(None),
+            )
+        )
+        assert active is not None
+        active.ends_at = datetime.now(UTC) - timedelta(seconds=1)
+        await session.commit()
+        assert (await process_expired_moderation(session))["listings"] == 1
+
+    expiry_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert expiry_version > listing_restore_version
+    visible_after_expiry = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id in {item["id"] for item in visible_after_expiry.json()["items"]}
