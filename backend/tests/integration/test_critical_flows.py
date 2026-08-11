@@ -176,3 +176,49 @@ async def test_complete_auth_geo_media_message_and_delete_flow(client: AsyncClie
     assert clear_avatar.status_code == 200
     assert clear_avatar.json()["avatarUrl"] is None
     assert (await client.get(f"/api/v1/media/{asset_id}")).status_code == 404
+
+
+async def test_public_catalog_refreshes_after_create_update_hide_and_republish(client: AsyncClient, register_user):
+    """The version token must invalidate every user-visible catalog mutation."""
+    host_token, _ = await register_user(client, email="catalog-lifecycle@example.com", role="host")
+    headers = auth(host_token)
+
+    initial = await client.get("/api/v1/listings/catalog-version")
+    assert initial.status_code == 200, initial.text
+    initial_version = int(initial.json()["version"])
+
+    created = await client.post(
+        "/api/v1/listings",
+        headers=headers,
+        json=listing_payload(
+            title="Catalog lifecycle original title", latitude=28.4701, longitude=-16.2601, bedrooms=3, price=700
+        ),
+    )
+    assert created.status_code == 201, created.text
+    listing_id = created.json()["id"]
+    created_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert created_version > initial_version
+    created_search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id in {item["id"] for item in created_search.json()["items"]}
+
+    updated_title = "Catalog lifecycle updated title"
+    updated = await client.patch(f"/api/v1/listings/{listing_id}", headers=headers, json={"title": updated_title})
+    assert updated.status_code == 200, updated.text
+    updated_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert updated_version > created_version
+    updated_search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert {item["id"]: item["title"] for item in updated_search.json()["items"]}[listing_id] == updated_title
+
+    hidden = await client.patch(f"/api/v1/listings/{listing_id}", headers=headers, json={"status": "hidden"})
+    assert hidden.status_code == 200, hidden.text
+    hidden_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert hidden_version > updated_version
+    hidden_search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id not in {item["id"] for item in hidden_search.json()["items"]}
+
+    republished = await client.post(f"/api/v1/listings/{listing_id}/renew", headers=headers)
+    assert republished.status_code == 200, republished.text
+    republished_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
+    assert republished_version > hidden_version
+    republished_search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id in {item["id"] for item in republished_search.json()["items"]}

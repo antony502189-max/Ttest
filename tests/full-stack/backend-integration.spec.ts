@@ -56,6 +56,31 @@ const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' =
   expiresAt: new Date(Date.now() + 60 * 86_400_000).toISOString(),
 })
 
+const paginationListing = (index: number) => ({
+  id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+  ownerUserId: '00000000-0000-4000-8000-000000000001',
+  owner: { name: 'Pagination Host', initials: 'PH', since: '2026-01-01T00:00:00Z', response: 'Consulta disponibilidad', verified: true },
+  contactPhone: null, contactWhatsapp: null, contactEmail: null,
+  showPhone: false, showWhatsApp: false, allowContactForm: true,
+  coverImageUrl: null, imageUrls: [],
+  title: `Pagination listing ${index}`,
+  city: 'Santa Cruz de Tenerife', area: 'Centro', approximateAddress: 'Centro',
+  price: 600 + index, cadence: 'mes', monthlyPrice: 600 + index, nightlyPrice: null, weeklyPrice: null,
+  rentalMode: 'long', roomType: 'Habitación individual',
+  availableFrom: '2026-01-01', availableUntil: null, minimumStayMonths: 1, minimumNights: null,
+  depositAmount: 0, depositText: null, billsIncluded: true, billsText: null,
+  bathroom: 'Baño compartido', kitchen: 'Cocina compartida', furnished: true, roomSizeM2: 12,
+  bedroomCount: 3, currentResidents: 2, roomCapacity: 1, shower: 'Ducha compartida',
+  tenantRequirement: 'any', smokingAllowed: false, petsAllowed: false, childrenAllowed: false,
+  empadronamientoAllowed: false, restrictions: [], amenities: [], status: 'published',
+  latitude: 28.4636, longitude: -16.2518,
+  description: 'Controlled multi-page API client regression fixture.', homeDescription: 'Shared home.',
+  advertiserName: null, advertiserType: 'Particular', source: null,
+  isExternal: false, primarySource: null, sourceUrl: null, sourcePriceText: null,
+  priceCurrency: null, pricePeriod: null, priceIsFrom: null,
+  publishedAt: '2026-01-01T00:00:00Z', expiresAt: '2099-01-01T00:00:00Z', views: 0, closedReason: null,
+})
+
 async function createBackendListing(unique: string, title: string, tenantRequirement: 'any' | 'single-man' = 'any') {
   const api = await playwrightRequest.newContext({
     baseURL: API,
@@ -139,6 +164,28 @@ test('unrestricted tourism search omits default price and room-size bounds from 
   expect(body).not.toHaveProperty('maxPrice')
   expect(body).not.toHaveProperty('minRoomSizeM2')
   expect(body).not.toHaveProperty('maxRoomSizeM2')
+})
+
+test('browser catalog client requests every API page after the 100-record boundary', async ({ page }) => {
+  const catalog = Array.from({ length: 150 }, (_, index) => paginationListing(index))
+  const offsets: number[] = []
+  await page.route('**/api/v1/listings/search', async (route) => {
+    const request = route.request().postDataJSON() as { limit?: number; offset?: number }
+    const offset = request.offset ?? 0
+    offsets.push(offset)
+    await route.fulfill({
+      json: {
+        items: catalog.slice(offset, offset + (request.limit ?? 100)),
+        total: catalog.length,
+        limit: request.limit ?? 100,
+        offset,
+      },
+    })
+  })
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await expect(page.getByText('Pagination listing 0', { exact: true }).first()).toBeVisible()
+  await expect.poll(() => offsets).toEqual([0, 100])
 })
 
 test('anonymous auth and publication routes render without a route error', async ({ page }) => {
