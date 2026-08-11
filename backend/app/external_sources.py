@@ -11,7 +11,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, cast
 from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
@@ -166,6 +166,11 @@ TARGET_COORDINATE_BOUNDS = (
 
 def clean(value: Any) -> str:
     return SPACE.sub(" ", html.unescape(TAG.sub(" ", str(value or "")))).strip()
+
+
+def public_mapping(value: Any) -> dict[str, Any]:
+    """Return structured public data only when the source actually supplies a mapping."""
+    return cast(dict[str, Any], value) if isinstance(value, dict) else {}
 
 
 def strict_check(data: dict[str, Any]) -> bool:
@@ -1398,6 +1403,123 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
         return item
 
 
+class FlatioSource(ExternalListingSource):
+    """Public sitemap-backed monthly room offers from Flatio.
+
+    The global offer sitemaps also contain apartments outside the target
+    province.  Discovery therefore keeps only room routes whose public
+    location slug identifies a Santa Cruz de Tenerife municipality.  Detail
+    parsing additionally requires the provider's structured ``InStock``
+    availability flag, rather than inferring availability from a booking UI.
+    """
+
+    name = "Flatio"
+    domain = "flatio.com"
+    url_tokens = ("/rent/room/",)
+    listing_url_pattern = re.compile(r"^/rent/room/\d+(?:-[^/?#]+)?/?$", re.IGNORECASE)
+    discovery_urls = (
+        "https://www.flatio.com/cdn/export/sitemap/en/offer-listings-sitemap-1.xml",
+        "https://www.flatio.com/cdn/export/sitemap/en/offer-listings-sitemap-2.xml",
+    )
+    max_discovery_pages = 2
+    removed_markers = ExternalListingSource.removed_markers + ("offer is no longer available",)
+
+    @staticmethod
+    def _target_room_sitemap_url(url: str) -> bool:
+        path = unquote(urlparse(url).path).replace("_", " ").replace("-", " ").casefold()
+        return (
+            "/rent/room/" in urlparse(url).path.casefold()
+            and not any(place in path for place in LAS_PALMAS)
+            and any(place in path for place in SANTA_CRUZ)
+        )
+
+    async def discover_listing_urls(self) -> DiscoveryResult:
+        urls: set[str] = set()
+        failed_pages: list[str] = []
+        for sitemap_url in self.discovery_urls:
+            document = await self.request(sitemap_url)
+            if not document or "<urlset" not in document.casefold():
+                failed_pages.append(sitemap_url)
+                continue
+            entries = re.findall(r"<loc>\s*(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?\s*</loc>", document, re.IGNORECASE | re.DOTALL)
+            urls.update(
+                candidate
+                for value in entries
+                if self.is_listing_url(candidate := html.unescape(value).strip())
+                and self._target_room_sitemap_url(candidate)
+            )
+        return DiscoveryResult(
+            urls=urls,
+            complete=not failed_pages,
+            visited_pages=len(self.discovery_urls),
+            expected_total=len(urls) if not failed_pages else None,
+            failed_pages=failed_pages,
+            reached_last_page=not failed_pages,
+        )
+
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        room: dict[str, Any] = next(
+            (item for item in json_ld(document) if "room" in str(item.get("@type", "")).casefold()),
+            {},
+        )
+        offer = public_mapping(room.get("offers"))
+        price_specification = public_mapping(offer.get("priceSpecification"))
+        reference_quantity = public_mapping(price_specification.get("referenceQuantity"))
+        address = public_mapping(room.get("address"))
+        geo = public_mapping(room.get("geo"))
+        image_values: list[Any] = room.get("image") or []
+        if not isinstance(image_values, list):
+            image_values = [image_values]
+        external_id_match = re.search(r"/rent/room/(\d+)(?:-|/|$)", url, re.IGNORECASE)
+        price = offer.get("price") or price_specification.get("price")
+        currency = clean(offer.get("priceCurrency") or price_specification.get("priceCurrency")).upper()
+        monthly_price = price is not None and currency == "EUR" and reference_quantity.get("unitCode") == "MON"
+        title = clean(room.get("name"))
+        data = super().parse_listing(document, url)
+        data.update(
+            {
+                "title": title or data["title"],
+                "description": clean(room.get("description")) or data["description"],
+                # Flatio exposes a monthly reference quantity in its public
+                # structured offer.  Keep a canonical text form for the
+                # shared price parser instead of guessing from page chrome.
+                "price_text": f"{price} €/mes" if monthly_price else "",
+                "category": "flatio alquiler habitacion monthly room rental",
+                "city": clean(address.get("addressLocality")) or data["city"],
+                "municipality": clean(address.get("addressLocality")) or data.get("municipality"),
+                "province": clean(address.get("addressRegion")) or data.get("province"),
+                "address": clean(address.get("streetAddress")) or data.get("address"),
+                "latitude": geo.get("latitude") or data.get("latitude"),
+                "longitude": geo.get("longitude") or data.get("longitude"),
+                "images": [value for value in image_values if isinstance(value, str) and value.startswith("http")],
+                "availability": clean(offer.get("availability")).casefold(),
+                "monthly_price_confirmed": monthly_price,
+                "external_id": external_id_match.group(1) if external_id_match else None,
+                # Do not persist public contact data that may appear in the
+                # seller object or in the document chrome.
+                "phone": None,
+                "whatsapp": None,
+                "email": None,
+                "raw": {
+                    "source": self.name,
+                    "external_id": external_id_match.group(1) if external_id_match else None,
+                    "availability": clean(offer.get("availability")) or None,
+                },
+            }
+        )
+        return data
+
+    def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
+        # The sitemap is an index, not an availability guarantee.  Import
+        # only the provider's explicit structured in-stock state.
+        if not data.get("monthly_price_confirmed") or not str(data.get("availability", "")).endswith("instock"):
+            return None
+        item = super().normalize_listing(data, url)
+        if item and data.get("external_id"):
+            item.external_id = str(data["external_id"])
+        return item
+
+
 def configured_sources() -> list[ExternalListingSource]:
     enabled = {x.strip().casefold() for x in get_settings().external_import_sources.split(",")}
     source_types = (
@@ -1408,6 +1530,7 @@ def configured_sources() -> list[ExternalListingSource]:
         PisosSource,
         ThinkSpainSource,
         AlquilerDocenteCanariasSource,
+        FlatioSource,
     )
     return [source_type() for source_type in source_types if source_type.name.casefold() in enabled]
 

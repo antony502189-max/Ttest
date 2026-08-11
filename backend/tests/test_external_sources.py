@@ -14,6 +14,7 @@ from app.external_sources import (
     AlquilerDocenteCanariasSource,
     DiscoveryResult,
     ExternalListingSource,
+    FlatioSource,
     FotocasaSource,
     IdealistaSource,
     MilanunciosSource,
@@ -144,6 +145,36 @@ def test_each_source_has_its_own_public_discovery_adapter():
     assert PisosSource().name == "Pisos"
     assert ThinkSpainSource().name == "ThinkSpain"
     assert AlquilerDocenteCanariasSource().name == "AlquilerDocenteCanarias"
+    assert FlatioSource().name == "Flatio"
+
+
+def test_flatio_accepts_only_in_stock_target_room_from_public_structured_data():
+    source = FlatioSource()
+    url = "https://www.flatio.com/rent/room/119561-santa_cruz_de_tenerife"
+    document = '''
+    <script type="application/ld+json">
+    {"@type":["Room", "Product"],"name":"Tenerife room","description":"Furnished private room",
+     "image":"https://images.example.test/room.jpg","address":{"addressLocality":"Santa Cruz de Tenerife"},
+     "geo":{"latitude":28.46,"longitude":-16.25},
+     "offers":{"price":788,"priceCurrency":"EUR","availability":"https://schema.org/InStock",
+     "priceSpecification":{"referenceQuantity":{"unitCode":"MON"}}}}
+    </script>
+    '''
+    parsed = source.parse_listing(document, url)
+    normalized = source.normalize_listing(parsed, url)
+    assert normalized is not None
+    assert (normalized.external_id, normalized.price_amount, normalized.price_period) == ("119561", 788, "month")
+    assert normalized.phone is None and normalized.email is None
+
+    parsed["availability"] = "https://schema.org/OutOfStock"
+    assert source.normalize_listing(parsed, url) is None
+
+
+def test_flatio_sitemap_filter_rejects_whole_homes_and_outside_province_urls():
+    source = FlatioSource()
+    assert source._target_room_sitemap_url("https://www.flatio.com/rent/room/119561-santa_cruz_de_tenerife")
+    assert not source._target_room_sitemap_url("https://www.flatio.com/rent/apartment/119561-santa_cruz_de_tenerife")
+    assert not source._target_room_sitemap_url("https://www.flatio.com/rent/room/119561-las_palmas_de_gran_canaria")
 
 
 def test_pisos_detail_url_and_public_municipality_slug_are_normalized():
