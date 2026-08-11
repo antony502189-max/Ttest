@@ -121,6 +121,28 @@ marketing presentation with no catalogue, per-room stable identifier, current
 availability or listing pagination.  **DEFER / REJECT**: do not turn static
 advertising copy into current rental inventory.
 
+## Roomgo rejection evidence
+
+Roomgo exposes public robots, sitemap and terms routes from the production VPS,
+but its sitemap is not a listing feed.  Two independently indexed Tenerife
+room/profile URLs each returned `200` only after redirecting to the generic
+homepage; neither supplied its advertised detail document.  The application
+therefore cannot obtain a stable external ID, truthful availability or detail
+data through a normal anonymous request.  **FAIL / REJECT**: search indexing
+does not make the redirected route a compliant automated-ingestion contract.
+
+## Roomlala defer evidence
+
+Roomlala's public robots policy permits the ordinary listing routes (while
+disallowing its search and API paths), and low-rate Santa Cruz catalogue and
+La Laguna detail requests returned `200` from the production VPS.  However,
+the public pages link only to privacy policy rather than retrievable terms,
+mix short-stay and long-stay accommodation, and include host/contact identity
+markers in the document.  Those materials could not be safely retained in the
+existing source payload without additional provider permission and a dedicated
+availability contract.  **DEFER / REJECT**: public visibility is insufficient
+for an automated listing source with these privacy and policy uncertainties.
+
 ## Future-crawl transition and historical preservation
 
 `Fotocasa`, `PisoCompartido` and `Pisos` remain enabled because their latest
