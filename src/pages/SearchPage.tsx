@@ -30,6 +30,7 @@ import {
   pointInPolygon,
   sortListings,
 } from "@/lib/search";
+import { filtersForRentalMode } from "@/lib/price-filter-controls";
 import {
   EmptyState,
   ErrorState,
@@ -314,6 +315,16 @@ export function SearchPage() {
     updateParams((next) =>
       nextView === "map" ? next.set("vista", "mapa") : next.delete("vista"),
     );
+  const changeRentalMode = (mode: RentalMode) => {
+    const nextFilters = filtersForRentalMode(filters, mode);
+    if (nextFilters !== filters) setFilters(nextFilters);
+    setParams((current) => {
+      const next = filtersToParams(nextFilters, new URLSearchParams(current));
+      next.set("alquiler", mode);
+      next.delete("pagina");
+      return next;
+    });
+  };
   const highlightListing = (id: string) => {
     setHighlighted(id);
     if (id) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-listing-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' }));
@@ -464,7 +475,7 @@ export function SearchPage() {
         <Button type="button" className="mobile-save-search" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /><span>Guardar</span></Button>
       </header>
       <div className="mobile-map-screen__contextbar" aria-label="Acciones de resultados">
-        <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={(mode) => updateParams((next) => next.set("alquiler", mode))} />
+        <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={changeRentalMode} />
         <Button type="button" variant="ghost" onClick={() => changeView('list')}><List data-icon="inline-start" />Lista</Button>
       </div>
       <div className="mobile-map-screen__canvas">
@@ -508,9 +519,7 @@ export function SearchPage() {
         <div className="container">
           <RentalTypeSwitch
             compact
-            onChange={(mode) =>
-              updateParams((next) => next.set("alquiler", mode))
-            }
+            onChange={changeRentalMode}
           />
           <SearchBar compact />
         </div>
@@ -607,7 +616,7 @@ export function SearchPage() {
           ) : null}
           <div className="idealista-results-toolbar">
             <div className="mobile-filter-control">
-              <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={(mode) => updateParams((next) => next.set("alquiler", mode))} />
+              <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={changeRentalMode} />
             </div>
             <SortControl value={filters.sort} onChange={changeSort} />
             <label className="desktop-sort-control">

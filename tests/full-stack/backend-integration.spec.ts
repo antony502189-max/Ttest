@@ -168,6 +168,12 @@ test('unrestricted tourism search omits default price and room-size bounds from 
   expect(body).not.toHaveProperty('maxPrice')
   expect(body).not.toHaveProperty('minRoomSizeM2')
   expect(body).not.toHaveProperty('maxRoomSizeM2')
+
+  await page.getByRole('button', { name: /Todos los filtros/ }).click()
+  const drawer = page.locator('.filter-drawer')
+  await expect(drawer.getByLabel('Precio mínimo')).toHaveValue('0')
+  await expect(drawer.getByLabel('Precio máximo')).toHaveValue('350')
+  await expect(drawer.getByLabel('Precio máximo')).toHaveAttribute('max', '350')
 })
 
 test('browser catalog client requests every API page after the 100-record boundary', async ({ page }) => {
