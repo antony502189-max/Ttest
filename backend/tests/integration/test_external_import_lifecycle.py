@@ -13,6 +13,7 @@ from app.models import ExternalImportRun, ExternalListingSource, Listing
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
+    retire_source_records,
     run_removal_check,
     run_source,
     upsert,
@@ -243,6 +244,48 @@ async def test_complete_source_failure_does_not_mark_existing_external_listing_m
         assert source is not None
         assert source.current_status == "active"
         assert source.consecutive_missing_runs == 0
+
+
+async def test_retiring_a_disabled_source_preserves_attribution_and_closes_unchecked_listing():
+    async with SessionLocal() as session:
+        item = external_item(
+            source="Idealista",
+            external_id="idealista-retired",
+            url="https://www.idealista.com/inmueble/100099/",
+        )
+        assert await upsert(session, item) == "imported"
+        assert await retire_source_records(session, {"Idealista"}) == 1
+        source = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "idealista-retired")
+        )
+        listing = await session.get(Listing, source.canonical_listing_id if source else None)
+        assert source is not None and source.current_status == "source_retired"
+        assert source.removed_reason == "source_retired"
+        assert listing is not None and listing.status == "closed"
+
+
+async def test_retiring_a_disabled_source_promotes_an_active_duplicate():
+    async with SessionLocal() as session:
+        old = external_item(
+            source="Idealista",
+            external_id="idealista-retired-duplicate",
+            url="https://www.idealista.com/inmueble/100100/",
+        )
+        replacement = external_item(
+            source="Fotocasa",
+            external_id="fotocasa-retired-duplicate",
+            url="https://www.fotocasa.es/es/alquiler/inmueble/100100",
+            price=735,
+        )
+        assert await upsert(session, old) == "imported"
+        assert await upsert(session, replacement) == "updated"
+        assert await retire_source_records(session, {"Idealista"}) == 0
+        listing = await session.scalar(select(Listing).where(Listing.primary_source == "Fotocasa"))
+        old_record = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "idealista-retired-duplicate")
+        )
+        assert old_record is not None and old_record.current_status == "source_retired"
+        assert listing is not None and listing.status == "published"
 
 
 async def test_alquiler_docente_lifecycle_is_idempotent_and_updates_its_stable_public_id():

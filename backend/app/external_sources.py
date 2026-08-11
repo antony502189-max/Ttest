@@ -1410,3 +1410,9 @@ def configured_sources() -> list[ExternalListingSource]:
         AlquilerDocenteCanariasSource,
     )
     return [source_type() for source_type in source_types if source_type.name.casefold() in enabled]
+
+
+def retired_source_names(enabled_names: set[str]) -> set[str]:
+    """Return deliberately retired provider identities absent from this crawl."""
+    retired = {"Idealista", "Milanuncios", "ThinkSpain"}
+    return {name for name in retired if name.casefold() not in enabled_names}

@@ -94,6 +94,7 @@ def test_all_failed_sources_mark_the_worker_unhealthy(monkeypatch):
         monkeypatch.setattr(worker, "configured_sources", lambda: [FailedSource()])
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "run_source", failed_run)
+        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
         monkeypatch.setattr(worker, "worker_state", record_state)
 
         await worker.run_once()
@@ -147,6 +148,7 @@ def test_worker_fails_when_only_two_of_three_required_sources_are_useful(monkeyp
         )
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "run_source", source_run)
+        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
         monkeypatch.setattr(worker, "worker_state", record_state)
 
         await worker.run_once()

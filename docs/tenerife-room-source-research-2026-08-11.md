@@ -73,7 +73,10 @@ production runs satisfy the useful-source contract.  `Idealista` and
 they deny compliant anonymous access; `ThinkSpain` is removed because its
 room-strict importer remains partial with no accepted room.  Their adapter
 classes and all existing `ExternalListingSource`/listing rows are retained.
-No source identifier is reused and no historical data is deleted.
+The first subsequent full cycle retires their active source records: it
+promotes an active duplicate when one exists, otherwise closes the canonical
+listing with `source_retired`. No source identifier is reused and no historical
+data is deleted.
 
 The approved default is therefore
 `fotocasa,pisocompartido,pisos,alquilerdocentecanarias`.  It is a
