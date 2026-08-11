@@ -6,6 +6,7 @@ import { RentalTypeSwitch, SearchLocationInput } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { filtersToParams } from '@/lib/search'
+import { filtersForRentalMode } from '@/lib/price-filter-controls'
 import { resolveTenerifeLocation } from '@/lib/tenerife'
 import {
   applyListingAccessProfile,
@@ -110,7 +111,7 @@ export function HomeMandatorySearch() {
     const normalized = location.normalizedValue
     const exactArea = location.type === 'area' || location.type === 'district' ? normalized : undefined
     const nextFilters = applyListingAccessProfile({
-      ...filters,
+      ...filtersForRentalMode(filters, rentalMode),
       areas: exactArea ? [exactArea] : location.type === 'island' ? filters.areas : [],
     }, profile)
 
