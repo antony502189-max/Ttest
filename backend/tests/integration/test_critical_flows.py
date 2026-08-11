@@ -313,7 +313,8 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
             )
         )
         assert active is not None
-        active.ends_at = datetime.now(UTC) - timedelta(seconds=1)
+        active.starts_at = datetime.now(UTC) - timedelta(days=2)
+        active.ends_at = datetime.now(UTC) - timedelta(days=1)
         await session.commit()
         assert (await process_expired_moderation(session))["listings"] == 1
 
