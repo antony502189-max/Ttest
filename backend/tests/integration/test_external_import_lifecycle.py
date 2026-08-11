@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
-from app.external_sources import DiscoveryResult, NormalizedListing, SourceBlocked
+from app.external_sources import AlquilerDocenteCanariasSource, DiscoveryResult, NormalizedListing, SourceBlocked
 from app.models import ExternalImportRun, ExternalListingSource, Listing
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
+    retire_source_records,
     run_removal_check,
     run_source,
     upsert,
@@ -242,6 +244,92 @@ async def test_complete_source_failure_does_not_mark_existing_external_listing_m
         assert source is not None
         assert source.current_status == "active"
         assert source.consecutive_missing_runs == 0
+
+
+async def test_retiring_a_disabled_source_preserves_attribution_and_closes_unchecked_listing():
+    async with SessionLocal() as session:
+        item = external_item(
+            source="Idealista",
+            external_id="idealista-retired",
+            url="https://www.idealista.com/inmueble/100099/",
+        )
+        assert await upsert(session, item) == "imported"
+        assert await retire_source_records(session, {"Idealista"}) == 1
+        source = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "idealista-retired")
+        )
+        listing = await session.get(Listing, source.canonical_listing_id if source else None)
+        assert source is not None and source.current_status == "source_retired"
+        assert source.removed_reason == "source_retired"
+        assert listing is not None and listing.status == "closed"
+
+
+async def test_retiring_a_disabled_source_promotes_an_active_duplicate():
+    async with SessionLocal() as session:
+        old = external_item(
+            source="Idealista",
+            external_id="idealista-retired-duplicate",
+            url="https://www.idealista.com/inmueble/100100/",
+        )
+        replacement = external_item(
+            source="Fotocasa",
+            external_id="fotocasa-retired-duplicate",
+            url="https://www.fotocasa.es/es/alquiler/inmueble/100100",
+            price=735,
+        )
+        assert await upsert(session, old) == "imported"
+        assert await upsert(session, replacement) == "updated"
+        assert await retire_source_records(session, {"Idealista"}) == 0
+        listing = await session.scalar(select(Listing).where(Listing.primary_source == "Fotocasa"))
+        old_record = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == "idealista-retired-duplicate")
+        )
+        assert old_record is not None and old_record.current_status == "source_retired"
+        assert listing is not None and listing.status == "published"
+
+
+async def test_alquiler_docente_lifecycle_is_idempotent_and_updates_its_stable_public_id():
+    fixture = (
+        Path(__file__).parents[1] / "fixtures" / "external_sources" / "alquiler_docente_canarias" / "room.html"
+    ).read_text(encoding="utf-8")
+    fixture = fixture.replace(
+        '    <meta property="og:image" content="https://images.example.test/alquiler-docente-room.jpg">\n', ""
+    )
+    url = "https://alquilerdocentecanarias.com/estate_property/habitacion-en-san-cristobal-de-la-laguna-tenerife/"
+    sitemap = f"<urlset><url><loc><![CDATA[{url}]]></loc></url></urlset>"
+
+    async def run(document: str, run_id: str):
+        source = AlquilerDocenteCanariasSource()
+
+        async def request(request_url: str) -> str:
+            return sitemap if request_url.endswith("estate_property-sitemap.xml") else document
+
+        source.request = request  # type: ignore[method-assign]
+        async with SessionLocal() as session:
+            return await run_source(session, source, run_id)
+
+    first = await run(fixture, "alquiler-docente-create")
+    assert first.result == "success"
+    assert first["imported"] == 1 and first["accepted_rooms"] == 1
+
+    unchanged = await run(fixture, "alquiler-docente-unchanged")
+    assert unchanged.result == "success"
+    assert unchanged["unchanged"] == 1
+
+    updated = await run(fixture.replace("450 € /mes + gastos", "475 € /mes + gastos"), "alquiler-docente-update")
+    assert updated.result == "success"
+    assert updated["updated"] == 1
+
+    async with SessionLocal() as session:
+        record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == "AlquilerDocenteCanarias",
+                ExternalListingSource.external_id == "74795",
+            )
+        )
+        assert record is not None
+        assert record.source_url == url
+        assert record.normalized_payload["price_amount"] == 475
 
 
 async def test_detail_error_is_partial_and_blocked_source_records_diagnostics():

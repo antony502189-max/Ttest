@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 
 from ..external_sources import (
+    AlquilerDocenteCanariasSource,
     DiscoveryResult,
     ExternalListingSource,
     FotocasaSource,
@@ -41,6 +42,7 @@ SOURCE_TYPES = (
     PisoCompartidoSource,
     PisosSource,
     ThinkSpainSource,
+    AlquilerDocenteCanariasSource,
 )
 
 

@@ -1297,7 +1297,122 @@ class ThinkSpainSource(ExternalListingSource):
         return super().normalize_listing(data, url) if explicit_room else None
 
 
+class AlquilerDocenteCanariasSource(ExternalListingSource):
+    """Public, sitemap-backed room adverts published by Alquiler Docente Canarias.
+
+    The provider's general catalogue includes whole homes for every Canary
+    island.  Discovery intentionally consumes only public sitemap entries
+    whose URL itself identifies a Tenerife room advert, so a change to a
+    general-property route cannot turn sales or whole-home rentals into room
+    imports.
+    """
+
+    name = "AlquilerDocenteCanarias"
+    domain = "alquilerdocentecanarias.com"
+    url_tokens = ("/estate_property/habitacion",)
+    listing_url_pattern = re.compile(r"^/estate_property/habitacion[^/]+/?$", re.IGNORECASE)
+    discovery_urls = ("https://alquilerdocentecanarias.com/estate_property-sitemap.xml",)
+    max_discovery_pages = 1
+    removed_markers = ExternalListingSource.removed_markers + ("propiedad eliminada", "inmueble eliminado")
+
+    @staticmethod
+    def _target_room_sitemap_url(url: str) -> bool:
+        path = unquote(urlparse(url).path).replace("-", " ").casefold()
+        return (
+            "habitacion" in path or "habitación" in path
+        ) and any(place in path for place in SANTA_CRUZ) and not any(place in path for place in LAS_PALMAS)
+
+    async def discover_listing_urls(self) -> DiscoveryResult:
+        sitemap_url = self.discovery_urls[0]
+        document = await self.request(sitemap_url)
+        if not document or "<urlset" not in document.casefold():
+            return DiscoveryResult(
+                complete=False,
+                visited_pages=1,
+                failed_pages=[sitemap_url],
+                reached_last_page=True,
+            )
+        entries = re.findall(r"<loc>\s*(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?\s*</loc>", document, re.IGNORECASE | re.DOTALL)
+        urls = {
+            html.unescape(value).strip()
+            for value in entries
+            if self.is_listing_url(html.unescape(value).strip())
+            and self._target_room_sitemap_url(html.unescape(value).strip())
+        }
+        return DiscoveryResult(
+            urls=urls,
+            complete=True,
+            visited_pages=1,
+            expected_total=len(urls),
+            reached_last_page=True,
+        )
+
+    def parse_listing(self, document: str, url: str) -> dict[str, Any]:
+        data = super().parse_listing(document, url)
+        body = clean(document)
+        heading = re.search(r"<h1[^>]*>(.*?)</h1>", document, re.IGNORECASE | re.DOTALL)
+        description = re.search(
+            r'<(?:div|section)[^>]*(?:description|descripcion)[^>]*>(.*?)</(?:div|section)>',
+            document,
+            re.IGNORECASE | re.DOTALL,
+        )
+        price = re.search(
+            r"(?<!\d)(\d{2,4}(?:[.,]\d{3})?\s*€(?:\s*/\s*mes(?:\s*\+\s*gastos)?|\s*/\s*todo incluido|\s+al\s+mes)?)",
+            body,
+            re.IGNORECASE,
+        )
+        city = re.search(r"Ciudad:\s*(.+?)(?:C[oó]digo postal:|Pa[ií]s:|Abrir en Google Maps|ID de Inmueble:)", body, re.IGNORECASE)
+        address = re.search(r"Direcci[oó]n:\s*(.+?)(?:Ciudad:|C[oó]digo postal:|Pa[ií]s:)", body, re.IGNORECASE)
+        external_id = re.search(r"ID de Inmueble:\s*(\d+)", body, re.IGNORECASE)
+        updated = re.search(r"Actualizado en:\s*([^\n]{3,80}?)(?:\s+\d+\s+Dormitorios|\s+Descripci[oó]n)", body, re.IGNORECASE)
+        image = meta_content(document, "og:image")
+        data.update(
+            {
+                "title": clean(heading.group(1)) if heading else data["title"],
+                "description": clean(description.group(1)) if description else data["description"],
+                "price_text": clean(price.group(1)) if price else data["price_text"],
+                "city": clean(city.group(1)) if city else data["city"],
+                "municipality": clean(city.group(1)) if city else data.get("municipality"),
+                "address": clean(address.group(1)) if address else data.get("address"),
+                "category": "alquiler habitación compartido alquiler docente canarias",
+                "images": [image] if image else [],
+                # Keep stable source identity but do not persist contact data
+                # found in public page chrome or adverts.
+                "external_id": external_id.group(1) if external_id else None,
+                "phone": None,
+                "whatsapp": None,
+                "email": None,
+                "raw": {
+                    "source": self.name,
+                    "external_id": external_id.group(1) if external_id else None,
+                    "updated_text": clean(updated.group(1)) if updated else None,
+                },
+            }
+        )
+        return data
+
+    def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
+        item = super().normalize_listing(data, url)
+        if item and data.get("external_id"):
+            item.external_id = str(data["external_id"])
+        return item
+
+
 def configured_sources() -> list[ExternalListingSource]:
     enabled = {x.strip().casefold() for x in get_settings().external_import_sources.split(",")}
-    source_types = (IdealistaSource, FotocasaSource, MilanunciosSource, PisoCompartidoSource, PisosSource, ThinkSpainSource)
+    source_types = (
+        IdealistaSource,
+        FotocasaSource,
+        MilanunciosSource,
+        PisoCompartidoSource,
+        PisosSource,
+        ThinkSpainSource,
+        AlquilerDocenteCanariasSource,
+    )
     return [source_type() for source_type in source_types if source_type.name.casefold() in enabled]
+
+
+def retired_source_names(enabled_names: set[str]) -> set[str]:
+    """Return deliberately retired provider identities absent from this crawl."""
+    retired = {"Idealista", "Milanuncios", "ThinkSpain"}
+    return {name for name in retired if name.casefold() not in enabled_names}

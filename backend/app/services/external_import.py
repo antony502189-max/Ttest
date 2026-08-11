@@ -18,7 +18,7 @@ import httpx
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import HTTPException
 from PIL import Image
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -644,6 +644,32 @@ async def deactivate_source_record(session: AsyncSession, row: SourceRecord, rea
     listing.last_synced_at = datetime.now(UTC)
     await touch_catalog(session)
     return 1
+
+
+async def retire_source_records(session: AsyncSession, source_names: set[str]) -> int:
+    """Retire active records from providers deliberately removed from crawling.
+
+    Retiring a provider is different from a temporary source failure: its
+    stored records remain for attribution, while an active duplicate is
+    promoted when present and otherwise the public canonical listing closes.
+    This avoids indefinitely advertising a record that can no longer be
+    reconciled through a compliant route.
+    """
+    if not source_names:
+        return 0
+    rows = (
+        await session.scalars(
+            select(SourceRecord).where(
+                func.lower(SourceRecord.source_name).in_({name.casefold() for name in source_names}),
+                SourceRecord.current_status == "active",
+            )
+        )
+    ).all()
+    retired = 0
+    for row in rows:
+        retired += await deactivate_source_record(session, row, "source_retired")
+    await session.commit()
+    return retired
 
 
 async def archive_missing(session: AsyncSession, source: ExternalListingSource | str, started_at: datetime) -> int:

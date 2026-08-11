@@ -11,6 +11,8 @@ import pytest
 from PIL import Image
 
 from app.external_sources import (
+    AlquilerDocenteCanariasSource,
+    DiscoveryResult,
     ExternalListingSource,
     FotocasaSource,
     IdealistaSource,
@@ -141,6 +143,7 @@ def test_each_source_has_its_own_public_discovery_adapter():
     assert PisoCompartidoSource().name == "PisoCompartido"
     assert PisosSource().name == "Pisos"
     assert ThinkSpainSource().name == "ThinkSpain"
+    assert AlquilerDocenteCanariasSource().name == "AlquilerDocenteCanarias"
 
 
 def test_pisos_detail_url_and_public_municipality_slug_are_normalized():
@@ -401,6 +404,52 @@ def test_fotocasa_and_pisocompartido_use_their_own_detail_field_fallbacks():
     assert fotocasa["advertiser_name"] == "Agencia pública"
     assert piso["title"] == "Habitación PisoCompartido"
     assert piso["images"] == ["https://images.example.test/piso.jpg"]
+
+
+def test_alquiler_docente_sitemap_discovery_stays_with_target_room_adverts():
+    sitemap = """
+    <urlset>
+      <url><loc><![CDATA[https://alquilerdocentecanarias.com/estate_property/habitacion-en-san-cristobal-de-la-laguna-tenerife/]]></loc></url>
+      <url><loc>https://alquilerdocentecanarias.com/estate_property/habitacion-en-ingenio-gran-canaria/</loc></url>
+      <url><loc>https://alquilerdocentecanarias.com/estate_property/piso-en-la-laguna-tenerife/</loc></url>
+    </urlset>
+    """
+
+    async def verify() -> None:
+        source = AlquilerDocenteCanariasSource()
+
+        async def request(_: str) -> str:
+            return sitemap
+
+        source.request = request  # type: ignore[method-assign]
+        result = await source.discover_listing_urls()
+        assert result == DiscoveryResult(
+            urls={"https://alquilerdocentecanarias.com/estate_property/habitacion-en-san-cristobal-de-la-laguna-tenerife/"},
+            complete=True,
+            visited_pages=1,
+            expected_total=1,
+            reached_last_page=True,
+        )
+        await source.close()
+
+    asyncio.run(verify())
+
+
+def test_alquiler_docente_fixture_uses_public_source_id_and_omits_contact_data():
+    document = (Path(__file__).parent / "fixtures" / "external_sources" / "alquiler_docente_canarias" / "room.html").read_text(
+        encoding="utf-8"
+    )
+    source = AlquilerDocenteCanariasSource()
+    url = "https://alquilerdocentecanarias.com/estate_property/habitacion-en-san-cristobal-de-la-laguna-tenerife/"
+    parsed = source.parse_listing(document, url)
+    normalized = source.normalize_listing(parsed, url)
+    assert normalized is not None
+    assert normalized.external_id == "74795"
+    assert normalized.city == "La Laguna"
+    assert normalized.price_amount == 450
+    assert normalized.price_period == "month"
+    assert normalized.phone is None and normalized.whatsapp is None and normalized.email is None
+    assert normalized.photos == ["https://images.example.test/alquiler-docente-room.jpg"]
 
 
 def test_structured_items_are_merged_for_public_address_coordinates_and_all_photos():

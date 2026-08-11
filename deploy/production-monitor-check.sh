@@ -86,7 +86,7 @@ postgres_db="$(env_value POSTGRES_DB ttest)"
 stale_after="$(env_value EXTERNAL_WORKER_STALE_AFTER_SECONDS 300)"
 import_interval="$(env_value EXTERNAL_IMPORT_INTERVAL_SECONDS 7200)"
 required_sources="$(env_value EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES 3)"
-configured_sources="$(env_value EXTERNAL_IMPORT_SOURCES 'idealista,fotocasa,milanuncios,pisocompartido,pisos,thinkspain')"
+configured_sources="$(env_value EXTERNAL_IMPORT_SOURCES 'fotocasa,pisocompartido,pisos,alquilerdocentecanarias')"
 
 require_uint EXTERNAL_WORKER_STALE_AFTER_SECONDS "$stale_after"
 require_uint EXTERNAL_IMPORT_INTERVAL_SECONDS "$import_interval"

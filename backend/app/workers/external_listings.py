@@ -14,9 +14,9 @@ from redis.exceptions import RedisError
 from ..core.config import get_settings
 from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
-from ..external_sources import configured_sources
+from ..external_sources import configured_sources, retired_source_names
 from ..models import ExternalWorkerState
-from ..services.external_import import completed_source_contract, run_removal_check, run_source
+from ..services.external_import import completed_source_contract, retire_source_records, run_removal_check, run_source
 
 logger = logging.getLogger(__name__)
 local_import_lock = asyncio.Lock()
@@ -209,7 +209,14 @@ async def run_once() -> dict[str, dict[str, int]]:
         await worker_state(health="running", run_id=run_id)
         heartbeat_stop = asyncio.Event()
         heartbeat_task = asyncio.create_task(_heartbeat_while_running(heartbeat_stop, run_id))
-        for source in configured_sources():
+        sources = configured_sources()
+        retired_names = retired_source_names({source.name.casefold() for source in sources})
+        if retired_names:
+            async with SessionLocal() as session:
+                retired = await retire_source_records(session, retired_names)
+            if retired:
+                logger.info("external_import_retired_sources", extra={"run_id": run_id, "closed": retired})
+        for source in sources:
             async with SessionLocal() as session:
                 result[source.name] = await run_source(session, source, run_id)
             await worker_state(health="running", run_id=run_id)
