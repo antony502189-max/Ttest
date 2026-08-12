@@ -1,11 +1,6 @@
 name: Update Approved Visual Baselines
 
 on:
-  push:
-    branches:
-      - ui/white-theme
-    paths:
-      - .github/workflows/update-visual-baselines.yml
   workflow_dispatch:
     inputs:
       visual_review_confirmed:
@@ -23,9 +18,9 @@ concurrency:
 
 jobs:
   update:
-    # One-time push trigger is limited to the repository owner and this approved
-    # white-theme branch; workflow_dispatch keeps the normal explicit approval gate.
-    if: github.actor == github.repository_owner && ((github.event_name == 'push' && github.ref == 'refs/heads/ui/white-theme') || (github.event_name == 'workflow_dispatch' && inputs.visual_review_confirmed == true))
+    # Baseline replacement is an exceptional owner-only write operation. The
+    # boolean acknowledgement alone must never be sufficient for collaborators.
+    if: github.actor == github.repository_owner && inputs.visual_review_confirmed == true
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
