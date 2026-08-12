@@ -1,9 +1,10 @@
 /*
  * Customer-requested light presentation layer.
  *
- * Keep this file isolated and imported last so the preserved dark-theme branch
- * stays untouched and the light treatment can be reverted without rewriting
- * the underlying layout, interactions, or component styles.
+ * This file is intentionally isolated and imported last. The preserved dark
+ * design remains available on backup/black-theme-2026-08-12, while this layer
+ * can be removed or revised without rewriting layout, interactions, or data
+ * behavior.
  */
 
 :root {
@@ -20,8 +21,7 @@ body,
   background: #fff;
 }
 
-/* Home hero: retain the room photography as a quiet decorative layer while
-   removing the dark/black treatment and restoring dark text contrast. */
+/* Desktop/public home ----------------------------------------------------- */
 .market-home .home-hero {
   background: #fff;
   border-bottom: 1px solid var(--line);
@@ -57,8 +57,6 @@ body,
   backdrop-filter: none;
 }
 
-/* The search area is now a white canvas. Brand lime and magenta remain as
-   accents and selected-state cues rather than large background fills. */
 .market-home .home-search-stage {
   background: #fff;
   border-bottom: 1px solid var(--line);
@@ -73,7 +71,7 @@ body,
   background: #fff;
 }
 
-/* Keep the public footer light as part of the white presentation. */
+/* Public footer ----------------------------------------------------------- */
 .site-footer {
   background: #fff;
   color: var(--ink);
@@ -99,6 +97,463 @@ body,
   color: var(--ink-muted);
 }
 
+/* Mobile V2 shell -------------------------------------------------------- */
+.m2-app {
+  --m2-bg: #fff;
+  --m2-panel: #fff;
+  --m2-panel-soft: #f6f7f4;
+  --m2-line: #d7d9d5;
+  --m2-text: #252a2b;
+  --m2-muted: #687071;
+  --m2-lime: #d2ff3f;
+  --m2-lime-dark: #f2f8d4;
+  color-scheme: light;
+  background: #fff;
+  color: var(--m2-text);
+}
+
+html.mobile-v2-active,
+html.mobile-v2-active body,
+html.mobile-v2-active #root {
+  background: #fff;
+  color-scheme: light;
+}
+
+.m2-brand {
+  color: #252a2b;
+  text-shadow: none;
+}
+
+.m2-brand--compact {
+  color: #557000;
+}
+
+.m2-onboarding,
+.m2-screen {
+  background: #fff;
+  color: #252a2b;
+}
+
+.m2-onboarding__content h1,
+.m2-auth-panel h1,
+.m2-empty h1,
+.m2-menu h2,
+.m2-menu h3,
+.m2-back-header > strong {
+  color: #252a2b;
+}
+
+.m2-language-list button,
+.m2-country,
+.m2-auth-panel > button,
+.m2-auth-form input,
+.m2-auth-form button,
+.m2-select-row,
+.m2-occupant-trigger,
+.m2-location-search,
+.m2-location-action {
+  border-color: #cfd2cd;
+  background: #fff;
+  color: #252a2b;
+}
+
+.m2-language-list button.is-selected,
+.m2-country.is-selected {
+  border-color: #74a000;
+  background: #f8fbe8;
+  box-shadow: inset 0 0 0 1px #74a000;
+}
+
+.m2-language-list button svg,
+.m2-country > svg,
+.m2-select-row svg,
+.m2-occupant-trigger > svg:first-child,
+.m2-location-region button,
+.m2-icon-button,
+.m2-collection__list svg,
+.m2-menu-row b {
+  color: #557000;
+}
+
+.m2-country > span {
+  background: #f1f3ed;
+  color: #557000;
+}
+
+.m2-privacy p,
+.m2-auth-panel > span,
+.m2-auth-panel p,
+.m2-auth-panel a,
+.m2-menu-login p,
+.m2-empty p,
+.m2-collection__list small {
+  color: #687071;
+}
+
+.m2-auth-back,
+.m2-auth-skip {
+  color: #4e5556;
+}
+
+.m2-auth-form p,
+.m2-location-feedback.is-error {
+  color: #a3175e;
+}
+
+.m2-topbar,
+.m2-back-header,
+.m2-map-results-header,
+.m2-map-toolbar {
+  border-color: #d7d9d5;
+  background: rgb(255 255 255 / .98);
+  color: #252a2b;
+}
+
+/* Keep the photography, but make the mobile home itself read as a white UI. */
+.m2-hero {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .18) 0%, rgb(255 255 255 / .42) 58%, #fff 100%),
+    url('./assets/mobile-hero.jpg') center 52% / cover;
+  background-color: #fff;
+}
+
+.m2-mode-switch {
+  border-color: #d7d9d5;
+}
+
+.m2-mode-switch > button {
+  border-color: #d7d9d5;
+  color: #252a2b;
+}
+
+.m2-mode-switch > button.is-active {
+  background: #f2f8d4;
+  color: #252a2b;
+}
+
+/* The dedicated illustrated mode cards already use light artwork. Preserve
+   their approved elevation, press feedback and selected-state geometry. */
+.m2-mode-switch > button > span:last-child::before {
+  color: #111;
+}
+
+.m2-mode-switch > button > span:last-child::after {
+  color: #555;
+}
+
+.m2-outline {
+  border-color: #708900;
+  background: #fff;
+  color: #557000;
+}
+
+.m2-occupant-trigger small,
+.m2-location-feedback {
+  color: #557000;
+}
+
+.m2-occupant-trigger strong {
+  color: #252a2b;
+}
+
+/* Sheets remain modal, but the sheet itself is now white. */
+.m2-sheet-backdrop {
+  background: rgb(25 30 28 / .34);
+}
+
+.m2-sheet,
+.m2-sheet > header {
+  border-color: #d7d9d5;
+  background: #fff;
+  color: #252a2b;
+}
+
+.m2-sheet {
+  box-shadow: 0 -18px 50px rgb(37 42 43 / .2);
+}
+
+.m2-sheet > header button,
+.m2-check-list button {
+  color: #252a2b;
+}
+
+.m2-check-list button {
+  border-bottom-color: #e1e3df;
+}
+
+.m2-check-list button.is-selected {
+  background: #fff4f9;
+}
+
+.m2-check-list i {
+  border-color: #9ba09d;
+  color: #fff;
+}
+
+.m2-check-list button.is-selected i {
+  border-color: #c60083;
+  background: #c60083;
+}
+
+.m2-location-clear,
+.m2-location-search svg,
+.m2-location-action > svg {
+  color: #687071;
+}
+
+.m2-location-search input {
+  color: #252a2b;
+}
+
+.m2-location-search input::placeholder {
+  color: #89908f;
+}
+
+.m2-location__body h2,
+.m2-location-action strong {
+  color: #252a2b;
+}
+
+.m2-location-action > span {
+  background:
+    radial-gradient(circle at 65% 30%, #d2ff3f 0 12%, transparent 13%),
+    repeating-linear-gradient(35deg, #dfe4dc 0 2px, #cfd5cb 2px 7px);
+  color: #557000;
+  box-shadow: inset 0 0 0 1px rgb(37 42 43 / .12);
+}
+
+.m2-location-action > span svg {
+  filter: none;
+}
+
+/* Map imagery remains untouched; surrounding controls use the light shell. */
+.m2-map-screen {
+  background: #eef2f3;
+}
+
+.m2-map-toolbar button {
+  border-color: #d7d9d5;
+  color: #252a2b;
+}
+
+.m2-map-status {
+  border: 1px solid #d7d9d5;
+  background: rgb(255 255 255 / .94);
+  color: #252a2b;
+  box-shadow: 0 .35rem 1rem rgb(37 42 43 / .12);
+}
+
+.m2-map-status--error {
+  color: #a3175e;
+}
+
+.m2-map-controls button,
+.m2-clear-zone,
+.m2-draw-cta,
+.m2-map-screen.has-drawn-zone .m2-draw-cta:not([aria-pressed="true"]) {
+  border-color: #aeb3af;
+  background: rgb(255 255 255 / .96);
+  color: #252a2b;
+  box-shadow: 0 3px 12px rgb(37 42 43 / .18);
+}
+
+.m2-map-controls button[aria-pressed="true"],
+.m2-draw-cta {
+  border-color: #708900;
+  color: #557000;
+}
+
+.m2-save.is-saved {
+  background: #fff;
+  color: #557000;
+  box-shadow: inset 0 0 0 1px #708900;
+}
+
+.m2-location-toast {
+  border-color: rgb(112 137 0 / .4);
+  background: rgb(255 255 255 / .96);
+  color: #557000;
+  box-shadow: 0 .3rem .9rem rgb(37 42 43 / .14);
+}
+
+.m2-location-toast.is-error {
+  border-color: rgb(163 23 94 / .35);
+  color: #a3175e;
+}
+
+.m2-empty > header,
+.m2-menu > header,
+.m2-menu-row,
+.m2-collection__list > button {
+  border-color: #e1e3df;
+}
+
+.m2-empty__icon {
+  background: #f5f6f2;
+  color: #c60083;
+}
+
+.m2-collection__list > button,
+.m2-menu-row {
+  color: #252a2b;
+}
+
+.m2-bottom-nav {
+  border-top-color: #d7d9d5;
+  background: rgb(255 255 255 / .98);
+  box-shadow: 0 -.2rem .8rem rgb(37 42 43 / .08);
+}
+
+.m2-bottom-nav button {
+  color: #737a7b;
+}
+
+.m2-bottom-nav button.is-active {
+  color: #557000;
+}
+
+/* Mobile search results -------------------------------------------------- */
+.m2-results {
+  --results-lime: #557000;
+  background: #fff;
+  color: #252a2b;
+  color-scheme: light;
+}
+
+.m2-results__header,
+.m2-results__toolbar,
+.m2-results__filters,
+.m2-results-panel,
+.m2-results-panel > header,
+.m2-results-filter > footer {
+  border-color: #d7d9d5;
+  background: rgb(255 255 255 / .98);
+  color: #252a2b;
+}
+
+.m2-results__header > button,
+.m2-results-panel > header > button:first-child,
+.m2-results-filter__clear {
+  color: #557000;
+}
+
+.m2-results__header small,
+.m2-results__toolbar button.is-active {
+  color: #557000;
+}
+
+.m2-results__toolbar button {
+  border-color: #e1e3df;
+  color: #3f4647;
+}
+
+.m2-results__filters button {
+  border-color: #d7d9d5;
+  background: #f8f9f6;
+  color: #4e5556;
+}
+
+.m2-results__filters button.is-active {
+  border-color: #708900;
+  background: #f2f8d4;
+  color: #557000;
+}
+
+.m2-results__summary,
+.m2-results__summary b,
+.m2-results__empty {
+  color: #687071;
+}
+
+.m2-result-card {
+  border-color: #d7d9d5;
+  background: #fff;
+  box-shadow: 0 .25rem .85rem rgb(37 42 43 / .08);
+}
+
+.m2-result-card__media {
+  background: #eef0ec;
+}
+
+/* Dark translucent controls over photos are intentional for readability. */
+.m2-result-card__location,
+.m2-result-card__facts,
+.m2-result-card__availability {
+  color: #687071;
+}
+
+.m2-result-card h2,
+.m2-result-card__price {
+  color: #252a2b;
+}
+
+.m2-result-card__location svg,
+.m2-result-card__actions button,
+.m2-result-card__actions a {
+  color: #557000;
+}
+
+.m2-result-card__badges span {
+  background: #f2f4ed;
+  color: #4e5556;
+}
+
+.m2-result-card__actions {
+  border-top-color: #e1e3df;
+}
+
+.m2-results-filter__transaction button,
+.m2-results-filter__select select,
+.m2-results-filter__pair label {
+  border-color: #cfd2cd;
+  background: #fff;
+  color: #252a2b;
+}
+
+.m2-results-filter__transaction button.is-active {
+  border-color: #708900;
+  background: #f2f8d4;
+  color: #252a2b;
+  box-shadow: inset 0 -2px 0 #708900;
+}
+
+.m2-results-filter__select > span,
+.m2-results-filter__pair span {
+  color: #737a7b;
+}
+
+.m2-results-filter legend,
+.m2-results-filter__checks label {
+  color: #252a2b;
+}
+
+.m2-results-filter__pair input {
+  color: #252a2b;
+}
+
+.m2-results-filter__checks input {
+  accent-color: #708900;
+}
+
+.m2-results-filter > footer button {
+  background: #d2ff3f;
+  color: #171717;
+}
+
+.m2-results-sort button {
+  border-bottom-color: #e1e3df;
+  color: #252a2b;
+}
+
+.m2-results-sort i {
+  border-color: #9ba09d;
+  color: #557000;
+}
+
+.m2-results-sort button[aria-checked="true"] i {
+  border-color: #708900;
+}
+
 @media (max-width: 767px) {
   .market-home .home-hero > img {
     opacity: .18;
@@ -113,5 +568,12 @@ body,
 
   .market-home .home-search-stage .market-search-panel {
     border-color: rgb(215 217 213 / .96);
+  }
+}
+
+@media (min-width: 431px) {
+  .m2-app,
+  .m2-results {
+    box-shadow: 0 0 0 1px #d7d9d5, 0 24px 80px rgb(37 42 43 / .18);
   }
 }
