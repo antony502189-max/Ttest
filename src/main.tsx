@@ -17,6 +17,7 @@ import './reference-occupant-icons'
 import './mobile-drawn-zone-search-navigation'
 import './mobile-home-search-state'
 import './white-theme.css'
+import './white-theme-audit-fixes.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
