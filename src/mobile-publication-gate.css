@@ -9,9 +9,10 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow-x: hidden;
-  background: linear-gradient(#191919, #151515);
-  color: #f4f4f4;
+  background: #fff;
+  color: #252a2b;
   font-family: Arial, Helvetica, sans-serif;
+  color-scheme: light;
 }
 
 .m2-publication-gate,
@@ -25,8 +26,8 @@
   grid-template-columns: 2.7rem minmax(0, 1fr);
   align-items: center;
   padding: env(safe-area-inset-top) .75rem 0;
-  border-bottom: 1px solid #292929;
-  background: #202020;
+  border-bottom: 1px solid #d7d9d5;
+  background: #fff;
 }
 
 .m2-publication-gate__header button {
@@ -37,7 +38,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--gate-lime);
+  color: #557000;
 }
 
 .m2-publication-gate__header button svg {
@@ -48,6 +49,7 @@
 .m2-publication-gate__header strong {
   min-width: 0;
   overflow: hidden;
+  color: #252a2b;
   font-size: 1rem;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -69,7 +71,7 @@
 .m2-publication-gate__content h1 {
   max-width: 24rem;
   margin: 0 0 1.15rem;
-  color: #f5f5f5;
+  color: #252a2b;
   font-size: clamp(1.7rem, 7vw, 2.15rem);
   font-weight: 800;
   line-height: 1.2;
@@ -79,14 +81,15 @@
 .m2-publication-gate__content p {
   max-width: 24rem;
   margin: 0;
-  color: #d2d2d2;
+  color: #687071;
   font-size: clamp(1rem, 4.3vw, 1.2rem);
   line-height: 1.55;
 }
 
 .m2-publication-gate__footer {
   padding: 1rem 1.25rem max(1rem, env(safe-area-inset-bottom));
-  background: linear-gradient(transparent, rgb(21 21 21 / .96) 30%);
+  border-top: 1px solid #eef0ec;
+  background: rgb(255 255 255 / .98);
 }
 
 .m2-publication-gate__footer button {
@@ -109,7 +112,7 @@
 }
 
 .m2-publication-gate button:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid #708900;
   outline-offset: 2px;
 }
 
@@ -122,7 +125,7 @@
     left: 50%;
     right: auto;
     transform: translateX(-50%);
-    box-shadow: 0 0 0 1px #2b2b2b, 0 24px 80px rgb(0 0 0 / .55);
+    box-shadow: 0 0 0 1px #d7d9d5, 0 24px 80px rgb(37 42 43 / .18);
   }
 }
 
