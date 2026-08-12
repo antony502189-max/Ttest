@@ -10,16 +10,16 @@
   align-items: center;
   min-height: 2rem;
   padding: .42rem .65rem;
-  border: 1px solid rgb(210 255 63 / .7);
+  border: 1px solid rgb(112 137 0 / .34);
   border-radius: .3rem;
-  background: #303b0b;
-  color: #efffb7;
+  background: #f2f8d4;
+  color: #4d6500;
   font-size: .76rem;
   font-weight: 800;
   line-height: 1.2;
   white-space: normal;
   overflow-wrap: anywhere;
-  box-shadow: inset 0 0 0 1px rgb(210 255 63 / .08);
+  box-shadow: inset 0 0 0 1px rgb(112 137 0 / .06);
 }
 
 .m2-listing-marker {
@@ -27,11 +27,11 @@
 }
 
 .m2-listing-marker .map-price-marker {
-  border: 2px solid #101010;
+  border: 2px solid #252a2b;
   background: #d2ff3f;
   color: #111;
   font-weight: 900;
-  box-shadow: 0 3px 10px rgb(0 0 0 / .48);
+  box-shadow: 0 3px 10px rgb(37 42 43 / .28);
 }
 
 .m2-map-listing-preview {
@@ -44,17 +44,17 @@
   grid-template-columns: 7rem minmax(0, 1fr);
   min-height: 9.5rem;
   overflow: hidden;
-  border: 1px solid #555;
+  border: 1px solid #d7d9d5;
   border-radius: .45rem;
-  background: rgb(22 22 22 / .98);
-  color: #f5f5f5;
-  box-shadow: 0 12px 36px rgb(0 0 0 / .62);
+  background: rgb(255 255 255 / .98);
+  color: #252a2b;
+  box-shadow: 0 12px 36px rgb(37 42 43 / .22);
   backdrop-filter: blur(12px);
 }
 
 .m2-map-listing-preview__media {
   min-height: 100%;
-  background: #282828;
+  background: #eef0ec;
 }
 
 .m2-map-listing-preview__media img {
@@ -81,7 +81,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #ddd;
+  color: #4e5556;
 }
 
 .m2-map-listing-preview__close svg {
@@ -94,21 +94,21 @@
   align-items: center;
   gap: .25rem;
   margin: 0 1.75rem .28rem 0;
-  color: #c9c9c9;
+  color: #687071;
   font-size: .66rem;
 }
 
 .m2-map-listing-preview p svg {
   width: .78rem;
   height: .78rem;
-  color: #d2ff3f;
+  color: #557000;
 }
 
 .m2-map-listing-preview h2 {
   display: -webkit-box;
   margin: 0 1.5rem .35rem 0;
   overflow: hidden;
-  color: #fff;
+  color: #252a2b;
   font-size: .82rem;
   line-height: 1.25;
   -webkit-box-orient: vertical;
@@ -118,12 +118,12 @@
 .m2-map-listing-preview strong {
   display: block;
   margin-bottom: .45rem;
-  color: #d2ff3f;
+  color: #4d6500;
   font-size: 1rem;
 }
 
 .m2-map-listing-preview strong small {
-  color: #d0d0d0;
+  color: #687071;
   font-size: .62rem;
   font-weight: 600;
 }
@@ -157,9 +157,9 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid #777;
-  background: #1b1b1b;
-  color: #d2ff3f;
+  border: 1px solid #aeb3af;
+  background: #fff;
+  color: #557000;
 }
 
 .m2-map-listing-preview__favorite svg {
@@ -168,8 +168,8 @@
 }
 
 .m2-map-listing-preview__favorite.is-saved {
-  border-color: #d2ff3f;
-  background: #303b0b;
+  border-color: #708900;
+  background: #f2f8d4;
 }
 
 .m2-map-listing-preview__open {

@@ -15,10 +15,10 @@
     flex-direction: column;
     overflow: hidden;
     transform: translateX(-50%);
-    border-top: 1px solid #5a4540;
-    background: #2c211f;
-    color: #f0dfdb;
-    box-shadow: 0 -18px 50px rgb(0 0 0 / .5);
+    border-top: 1px solid #d7d9d5;
+    background: #fff;
+    color: #252a2b;
+    box-shadow: 0 -18px 50px rgb(37 42 43 / .2);
     font-family: Arial, Helvetica, sans-serif;
   }
 
@@ -30,8 +30,8 @@
     justify-content: space-between;
     gap: 1rem;
     padding: .7rem .9rem;
-    border-bottom: 1px solid #5a4540;
-    background: #2c211f;
+    border-bottom: 1px solid #d7d9d5;
+    background: #fff;
   }
 
   .m2-custom-occupant-sheet > header strong {
@@ -47,7 +47,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    color: #f0dfdb;
+    color: #252a2b;
     font-size: 2rem;
     font-weight: 300;
     line-height: 1;
@@ -68,14 +68,14 @@
     gap: 1rem;
     padding: .72rem .9rem;
     border: 0;
-    border-bottom: 1px solid #5a4540;
+    border-bottom: 1px solid #e1e3df;
     background: transparent;
-    color: #f0dfdb;
+    color: #252a2b;
     text-align: left;
   }
 
   .m2-custom-occupant-list > button.is-selected {
-    background: rgb(255 255 255 / .045);
+    background: #fff4f9;
   }
 
   .m2-custom-occupant-list > button > span {
@@ -103,9 +103,9 @@
     height: 1.35rem;
     display: grid;
     place-items: center;
-    border: 2px solid #e5cbc5;
+    border: 2px solid #9ba09d;
     border-radius: .28rem;
-    color: #2c211f;
+    color: #fff;
     font-size: .95rem;
     font-style: normal;
     font-weight: 900;
@@ -113,8 +113,8 @@
   }
 
   .m2-custom-occupant-list > button.is-selected i {
-    border-color: #f0a99d;
-    background: #f0a99d;
+    border-color: #c60083;
+    background: #c60083;
   }
 
   .m2-custom-occupant-done {
@@ -135,7 +135,7 @@
 
   .m2-occupant-trigger[data-occupant-summary] strong::after {
     content: attr(data-occupant-summary);
-    color: #f3f3f3;
+    color: #252a2b;
     font-size: .82rem;
     font-weight: 500;
     line-height: 1.25;

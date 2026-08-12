@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - ui/restore-home-reference-controls
+      - ui/white-theme
   workflow_dispatch:
 
 permissions:
