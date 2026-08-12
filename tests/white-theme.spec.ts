@@ -40,6 +40,7 @@ test('mobile home shell uses white surfaces without changing its structure', asy
   expect(await background(page, '.m2-app')).toBe('rgb(255, 255, 255)')
   expect(await background(page, '.m2-screen')).toBe('rgb(255, 255, 255)')
   expect(await background(page, '.m2-bottom-nav')).toBe('rgba(255, 255, 255, 0.98)')
+  expect(await color(page, '.m2-bottom-nav button:not(.is-active)')).toBe('rgb(98, 106, 107)')
 })
 
 test('mobile search results and filter panels stay light', async ({ page }) => {
@@ -52,4 +53,42 @@ test('mobile search results and filter panels stay light', async ({ page }) => {
   await page.getByRole('button', { name: /Filtros|Filters|Фильтры/i }).click()
   await expect(page.locator('.m2-results-panel')).toBeVisible()
   expect(await background(page, '.m2-results-panel')).toBe('rgba(255, 255, 255, 0.98)')
+})
+
+test('current authentication route stays structured, centered and overflow-free in the light theme', async ({ page }) => {
+  for (const [width, height] of [[320, 700], [390, 844], [430, 844], [1024, 900]] as const) {
+    await open(page, '/#/acceso', width, height)
+
+    const app = page.locator('.m2-auth-screen')
+    const content = page.locator('.m2-auth-content')
+    const choice = page.locator('.m2-auth-choice').first()
+    await expect(app).toBeVisible()
+    await expect(choice).toBeVisible()
+
+    expect(await background(page, '.m2-auth-screen')).toBe('rgb(255, 255, 255)')
+    expect(await content.evaluate((element) => getComputedStyle(element).display)).toBe('flex')
+
+    const geometry = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>('.m2-auth-screen')!
+      const button = document.querySelector<HTMLElement>('.m2-auth-choice')!
+      const heading = document.querySelector<HTMLElement>('.m2-auth-content > h1')!
+      const shellBox = shell.getBoundingClientRect()
+      const buttonBox = button.getBoundingClientRect()
+      return {
+        viewportWidth: window.innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        shellLeft: shellBox.left,
+        shellRight: shellBox.right,
+        shellWidth: shellBox.width,
+        buttonWidth: buttonBox.width,
+        headingSize: Number.parseFloat(getComputedStyle(heading).fontSize),
+      }
+    })
+
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.viewportWidth)
+    expect(geometry.shellWidth).toBeLessThanOrEqual(430.5)
+    expect(Math.abs((geometry.shellLeft + geometry.shellRight) / 2 - geometry.viewportWidth / 2)).toBeLessThan(1.5)
+    expect(geometry.buttonWidth).toBeGreaterThan(Math.min(geometry.shellWidth - 40, 275))
+    expect(geometry.headingSize).toBeLessThanOrEqual(20)
+  }
 })
