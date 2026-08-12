@@ -8,6 +8,7 @@ const cases = [
 
 for (const { language, label } of cases) {
   test(`white appearance menu copy is correct in ${language}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
     await page.addInitScript((lang) => {
       localStorage.setItem('112233:mobile-onboarding:v1', 'done')
       localStorage.setItem('112233:language:v1', lang)
