@@ -40,7 +40,7 @@ test('mobile home shell uses white surfaces without changing its structure', asy
   expect(await background(page, '.m2-app')).toBe('rgb(255, 255, 255)')
   expect(await background(page, '.m2-screen')).toBe('rgb(255, 255, 255)')
   expect(await background(page, '.m2-bottom-nav')).toBe('rgba(255, 255, 255, 0.98)')
-  expect(await color(page, '.m2-bottom-nav button:not(.is-active)')).toBe('rgb(98, 106, 107)')
+  expect(await page.locator('.m2-bottom-nav button:not(.is-active)').first().evaluate((element) => getComputedStyle(element).color)).toBe('rgb(98, 106, 107)')
 })
 
 test('mobile search results and filter panels stay light', async ({ page }) => {
