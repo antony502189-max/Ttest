@@ -65,6 +65,84 @@ Thus the observed `3/6` is a degraded warning (`rc=2`), not a critical
 three-source failure.  This branch does not change that logic or its
 thresholds.
 
+## Second production-readiness sweep
+
+| Source | Robots / terms | VPS evidence | Catalogue and data | Verdict |
+| --- | --- | --- | --- | --- |
+| Flexirent (`flexirenthabitaciones.com`) | Public robots policy allows the sitemap and room routes. The published legal pages did not expose an automated-extraction prohibition. | Robots, sitemap and sampled Tenerife details returned `200` without a challenge. | Its current public sitemap has stable room IDs and explicit availability text, but every audited Tenerife detail was marked unavailable. | **DEFER** — adapter feasibility is established, but a zero-live-inventory source must not degrade the all-sources healthy contract. |
+| Coliving Tenerife (`colivingtenerife.net`) | Public robots permits public pages, but published terms prohibit reproducing, duplicating, copying or redistributing site material. | Robots and sitemap returned `200`; the previously indexed booking route now returns `404`. | No current per-room public availability catalogue; it is a booking/marketing flow. | **FAIL** — incompatible content-use terms and no reliable listing discovery contract. |
+| Tucasa (`tucasa.com`) | Its access policy cannot be evaluated under normal anonymous access. | VPS robots, sitemap and Tenerife room route each returned `403`. | Search-index results cannot substitute for a compliant source route. | **FAIL** — access controlled; no bypass attempted. |
+| Flatio (`flatio.com`) | Public `robots.txt` permits room detail and sitemap paths while disallowing only API/transactional internals. Published terms contain no scraping, automated collection, reproduction, redistribution or data-mining prohibition. | VPS robots, sitemap, terms and room detail routes all reached `200` after normal redirects; no challenge, `403` or `429`. | The two public offer sitemaps contain 12,040 entries. The adapter narrows them to nine Santa Cruz target-province room URLs, rejects whole homes, and independently fetched all nine. Each exposes a JSON-LD `Room`/`Product`, stable numeric ID, monthly `EUR` price reference, locality, coordinates, images and explicit structured availability; eight were `InStock`. | **PASS / INTEGRATE** — sitemap-scoped, room-only, explicit-availability adapter. Seller/contact data is never persisted. |
+
+## Spotahome rejection evidence
+
+Spotahome's public robots policy permits the sitemap and public listing paths
+used, and the Spanish terms page did not expose an automated-extraction
+prohibition.  From the production VPS, the declared application user agent
+received `200` for robots, the index and all three public listing sitemaps;
+generic Python requests received `403`, so no generic-client strategy was
+considered.  The three listing sitemaps contain 296 URL paths labelled Santa
+Cruz de Tenerife.  Two distinct low-rate room-detail checks returned `200`,
+with stable numeric IDs, structured `InStock` availability and room prices.
+However, both exposed the same Gran Canaria postcode (`35016`) and coordinates
+in their public JSON-LD while claiming Santa Cruz locality.  This contradiction
+makes a conservative Tenerife import unsafe.  **FAIL / REJECT**: it is not
+integrated despite substantial apparent catalogue volume.
+
+## Erasmusu rejection evidence
+
+Erasmusu serves its public robots file, Santa Cruz room catalogue and sampled
+room detail to the declared application user agent from the production VPS
+with `200` responses; its root sitemap and guessed English terms routes return
+`404`, so no undisclosed route was used.  The public catalogue claims 51
+Santa Cruz rooms, but its sample listing `1612305` is explicitly titled as Las
+Palmas de Gran Canaria while being served from the Santa Cruz catalogue path.
+This is the same upstream listing identity observed in Spotahome's conflicting
+catalogue.  **FAIL / REJECT**: syndicated, cross-island location errors make
+the apparent inventory unsafe for this target province.
+
+## Erasmus Play and Piso Compartido Las Islas evidence
+
+Erasmus Play's public robots file allows the Santa Cruz room catalogue and its
+public sitemap.  From the production VPS, the declared application user agent
+received `200` for the sitemap, the Santa Cruz private-room catalogue and two
+low-rate EUR room details.  The catalogue exposed eleven current `InStock`
+offers, each with a stable offer ID; ten prices were EUR and one was USD.  The
+two detail documents supplied a room object plus price and availability, but
+their offer objects did not expose locality, postcode or coordinates.  More
+importantly, each public English and Spanish terms/conditions route tested
+returned `500`; the only legal link in the catalogue led to privacy policy.
+**DEFER / REJECT**: public access alone is not a substitute for a retrievable
+terms policy, and location cannot be independently verified from the offer.
+
+Piso Compartido Las Islas has an allow-all robots file and normal VPS access,
+but its public sitemap contains only its homepage.  That page is a static
+marketing presentation with no catalogue, per-room stable identifier, current
+availability or listing pagination.  **DEFER / REJECT**: do not turn static
+advertising copy into current rental inventory.
+
+## Roomgo rejection evidence
+
+Roomgo exposes public robots, sitemap and terms routes from the production VPS,
+but its sitemap is not a listing feed.  Two independently indexed Tenerife
+room/profile URLs each returned `200` only after redirecting to the generic
+homepage; neither supplied its advertised detail document.  The application
+therefore cannot obtain a stable external ID, truthful availability or detail
+data through a normal anonymous request.  **FAIL / REJECT**: search indexing
+does not make the redirected route a compliant automated-ingestion contract.
+
+## Roomlala defer evidence
+
+Roomlala's public robots policy permits the ordinary listing routes (while
+disallowing its search and API paths), and low-rate Santa Cruz catalogue and
+La Laguna detail requests returned `200` from the production VPS.  However,
+the public pages link only to privacy policy rather than retrievable terms,
+mix short-stay and long-stay accommodation, and include host/contact identity
+markers in the document.  Those materials could not be safely retained in the
+existing source payload without additional provider permission and a dedicated
+availability contract.  **DEFER / REJECT**: public visibility is insufficient
+for an automated listing source with these privacy and policy uncertainties.
+
 ## Future-crawl transition and historical preservation
 
 `Fotocasa`, `PisoCompartido` and `Pisos` remain enabled because their latest
@@ -79,8 +157,8 @@ listing with `source_retired`. No source identifier is reused and no historical
 data is deleted.
 
 The approved default is therefore
-`fotocasa,pisocompartido,pisos,alquilerdocentecanarias`.  It is a
-source-quality decision, not a monitor workaround: all four must still produce
+`fotocasa,pisocompartido,pisos,alquilerdocentecanarias,flatio`.  It is a
+source-quality decision, not a monitor workaround: all five must still produce
 a complete successful import with positive discovery, detail and room counters
 for the monitor to return `rc=0`.
 
@@ -88,6 +166,7 @@ for the monitor to return `rc=0`.
 
 | Candidate | Compliance | VPS availability | Data quality | Maintenance risk | Incremental value | Score / decision |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Flatio | 9 | 9 | 9 | 5 | 7 | **39/50 — integrate** |
 | Alquiler Docente Canarias | 8 | 9 | 8 | 5 | 5 | **35/50 — integrate** |
 | Taoro Coliving | 6 | 9 | 4 | 7 | 2 | **28/50 — defer** |
 | Habitaclia | 5 | 3 | 0 | 7 | 8 | **23/50 — reject** |

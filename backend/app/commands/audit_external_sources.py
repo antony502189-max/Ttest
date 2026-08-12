@@ -21,6 +21,7 @@ from ..external_sources import (
     AlquilerDocenteCanariasSource,
     DiscoveryResult,
     ExternalListingSource,
+    FlatioSource,
     FotocasaSource,
     IdealistaSource,
     MilanunciosSource,
@@ -43,6 +44,7 @@ SOURCE_TYPES = (
     PisosSource,
     ThinkSpainSource,
     AlquilerDocenteCanariasSource,
+    FlatioSource,
 )
 
 
