@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - fix/white-theme-copy-audit
+    paths:
+      - .github/workflows/one-off-white-copy-fix.yml
 
 permissions:
   contents: write
 
 jobs:
   fix:
-    if: github.event.head_commit.message == 'ci: apply white copy fix'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -26,9 +27,9 @@ jobs:
               Path('src/components/idealista-mobile-app.tsx'),
           ]
           replacements = {
-              "Predeterminada (oscura)": "Predeterminada (clara)",
-              "Default (dark)": "Default (light)",
-              "По умолчанию (тёмный)": "По умолчанию (светлый)",
+              'Predeterminada (oscura)': 'Predeterminada (clara)',
+              'Default (dark)': 'Default (light)',
+              'По умолчанию (тёмный)': 'По умолчанию (светлый)',
           }
           total = 0
           for path in paths:
@@ -43,13 +44,13 @@ jobs:
           if total != 6:
               raise SystemExit(f'expected 6 replacements, got {total}')
           PY
-      - name: Commit exact copy-only change
+      - name: Commit copy-only change
         run: |
           set -euo pipefail
           git diff --check
-          changed="$(git diff --name-only)"
-          expected=$'src/components/idealista-mobile-app.tsx\nsrc/components/mobile-app-v2.tsx'
-          [ "$changed" = "$expected" ] || { printf 'unexpected files:\n%s\n' "$changed"; exit 1; }
+          test "$(git diff --name-only | wc -l)" -eq 2
+          git diff --name-only | grep -Fx 'src/components/mobile-app-v2.tsx'
+          git diff --name-only | grep -Fx 'src/components/idealista-mobile-app.tsx'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/components/mobile-app-v2.tsx src/components/idealista-mobile-app.tsx
