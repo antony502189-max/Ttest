@@ -7,14 +7,14 @@ from typing import Any
 
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import (
+    ST_X,
+    ST_Y,
     ST_Covers,
     ST_DWithin,
     ST_GeomFromText,
     ST_MakeEnvelope,
     ST_MakePoint,
     ST_SetSRID,
-    ST_X,
-    ST_Y,
 )
 from sqlalchemy import Select, case, cast, func, or_, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
