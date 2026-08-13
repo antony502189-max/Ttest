@@ -1,18 +1,18 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { ChevronDown, Globe2, Heart, Home, Menu, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
-import { MobileAppV2 } from '@/components/mobile-app-v2'
-import { MobilePublicationGate } from '@/components/mobile-publication-gate'
-import { MobileSearchResults } from '@/components/mobile-search-results-v2'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu']
+const MobileAppV2 = lazy(() => import('@/components/mobile-app-v2').then((module) => ({ default: module.MobileAppV2 })))
+const MobilePublicationGate = lazy(() => import('@/components/mobile-publication-gate').then((module) => ({ default: module.MobilePublicationGate })))
+const MobileSearchResults = lazy(() => import('@/components/mobile-search-results-v2').then((module) => ({ default: module.MobileSearchResults })))
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return <Link to="/" className="brand-logo" aria-label="112233.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small>.es</small>}</Link>
@@ -49,10 +49,13 @@ export function Footer() {
 }
 
 export function AppLayout() {
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const { pathname } = location
   const { storageError, clearStorageError } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
+  const mobilePublicationGateActive = mobileViewport && new URLSearchParams(location.search).get('gate') === 'publicar'
+  const mobileSearchResultsActive = mobileViewport && pathname === '/buscar' && new URLSearchParams(location.search).get('vista') !== 'mapa'
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname === '/mensajes' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
@@ -60,5 +63,5 @@ export function AppLayout() {
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Outlet />}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{mobileShellActive ? <Suspense fallback={null}><MobileAppV2 /></Suspense> : <Outlet />}{mobilePublicationGateActive ? <Suspense fallback={null}><MobilePublicationGate /></Suspense> : null}{mobileSearchResultsActive ? <Suspense fallback={null}><MobileSearchResults /></Suspense> : null}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
 }
