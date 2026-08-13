@@ -20,27 +20,56 @@
     translate: .16rem 0;
   }
 
-  /* Filters reuse the same housing/tourism palette and selected-state language
-     as the home mode cards, at a deliberately smaller scale. */
+  /* Filters reuse the same housing/tourism palette, copy hierarchy and selected
+     state as the home mode cards, at a deliberately smaller scale. */
   .m2-results-filter__transaction {
     gap: .55rem;
   }
 
   .m2-results-filter__transaction button {
-    min-height: 3.35rem;
+    min-height: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .16rem;
     border: 1.5px solid rgb(116 185 0 / .34);
     border-radius: .55rem !important;
     background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
     color: #111;
     box-shadow: 0 .12rem .4rem rgb(0 0 0 / .10);
+    font-size: 0;
+    line-height: 1;
     opacity: .9;
     transform: scale(.99);
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, opacity .16s ease, filter .16s ease;
     -webkit-tap-highlight-color: transparent;
   }
 
+  .m2-results-filter__transaction button::before {
+    content: 'HABITACIONES';
+    display: block;
+    color: #111;
+    font-size: .86rem;
+    font-weight: 800;
+    line-height: 1.05;
+  }
+
+  .m2-results-filter__transaction button::after {
+    display: block;
+    color: #686b66;
+    font-size: .64rem;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: .09em;
+  }
+
   .m2-results-filter__transaction button:first-child {
     border-radius: .55rem !important;
+  }
+
+  .m2-results-filter__transaction button:first-child::after {
+    content: 'LARGA ESTANCIA';
   }
 
   .m2-results-filter__transaction button:last-child {
@@ -48,6 +77,34 @@
     border-color: rgb(198 0 131 / .34);
     border-radius: .55rem !important;
     background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
+  }
+
+  .m2-results-filter__transaction button:last-child::after {
+    content: 'TURÍSTICAS';
+  }
+
+  html[lang='en'] .m2-results-filter__transaction button::before {
+    content: 'ROOMS';
+  }
+
+  html[lang='en'] .m2-results-filter__transaction button:first-child::after {
+    content: 'LONG STAY';
+  }
+
+  html[lang='en'] .m2-results-filter__transaction button:last-child::after {
+    content: 'TOURIST';
+  }
+
+  html[lang='ru'] .m2-results-filter__transaction button::before {
+    content: 'КОМНАТЫ';
+  }
+
+  html[lang='ru'] .m2-results-filter__transaction button:first-child::after {
+    content: 'ДОЛГОСРОЧНО';
+  }
+
+  html[lang='ru'] .m2-results-filter__transaction button:last-child::after {
+    content: 'ТУРИЗМ';
   }
 
   .m2-results-filter__transaction button.is-active {
