@@ -44,7 +44,9 @@ async def clean_database() -> AsyncIterator[None]:
             (
                 await connection.execute(
                     text(
-                        "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+                        "SELECT tablename FROM pg_tables "
+                        "WHERE schemaname = 'public' "
+                        "AND tablename NOT IN ('alembic_version', 'spatial_ref_sys')"
                     )
                 )
             )

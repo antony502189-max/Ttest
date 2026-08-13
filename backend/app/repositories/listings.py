@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from hmac import new as hmac_new
@@ -8,7 +7,8 @@ from typing import Any
 
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import (
-    ST_AsGeoJSON,
+    ST_X,
+    ST_Y,
     ST_Covers,
     ST_DWithin,
     ST_GeomFromText,
@@ -56,8 +56,7 @@ def image_asset_ids_subquery():
 
 
 def response_from(row: Any) -> ListingResponse:
-    listing, geojson, owner, asset_ids = row
-    coordinates = json.loads(geojson)["coordinates"]
+    listing, longitude, latitude, owner, asset_ids = row
     price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
     image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
     if not image_urls:
@@ -119,8 +118,8 @@ def response_from(row: Any) -> ListingResponse:
         restrictions=listing.restrictions,
         amenities=listing.amenities,
         status=listing.status,
-        longitude=coordinates[0],
-        latitude=coordinates[1],
+        longitude=longitude,
+        latitude=latitude,
         description=listing.description,
         homeDescription=listing.home_description,
         advertiserType=listing.advertiser_type,
@@ -143,15 +142,14 @@ def response_from(row: Any) -> ListingResponse:
 
 
 def owned_response_from(row: Any) -> OwnedListingResponse:
-    listing, public_geojson, owner, asset_ids, exact_geojson = row
-    public = response_from((listing, public_geojson, owner, asset_ids)).model_dump()
-    exact_coordinates = json.loads(exact_geojson)["coordinates"] if exact_geojson else None
+    listing, longitude, latitude, owner, asset_ids, exact_longitude, exact_latitude = row
+    public = response_from((listing, longitude, latitude, owner, asset_ids)).model_dump()
     return OwnedListingResponse(
         **public,
         street=listing.street,
         postcode=listing.postcode,
-        exactLatitude=exact_coordinates[1] if exact_coordinates else None,
-        exactLongitude=exact_coordinates[0] if exact_coordinates else None,
+        exactLatitude=exact_latitude,
+        exactLongitude=exact_longitude,
     )
 
 
@@ -179,7 +177,13 @@ def visible_query() -> Select:
         .exists()
     )
     return (
-        select(Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery())
+        select(
+            Listing,
+            ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
+            ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
+            User,
+            image_asset_ids_subquery(),
+        )
         .join(User, User.id == Listing.owner_user_id)
         .where(
             Listing.status == "published",
@@ -196,10 +200,12 @@ def visible_query() -> Select:
 def owned_query() -> Select:
     return select(
         Listing,
-        ST_AsGeoJSON(Listing.location),
+        ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
+        ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
         User,
         image_asset_ids_subquery(),
-        ST_AsGeoJSON(Listing.exact_location),
+        ST_X(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
+        ST_Y(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
     ).join(User, User.id == Listing.owner_user_id)
 
 
