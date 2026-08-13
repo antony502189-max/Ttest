@@ -1,0 +1,238 @@
+name: Temporary mobile filter state fix
+
+on:
+  push:
+    branches:
+      - fix/mobile-filter-draft-state
+    paths:
+      - .github/workflows/_tmp-mobile-filter-state-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/mobile-filter-draft-state
+      - name: Apply deterministic filter state patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/mobile-search-results.tsx')
+          text = path.read_text()
+
+          def replace_once(old: str, new: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one match, got {count}: {old[:120]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "  const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))\n  const [focusListingId, setFocusListingId] = useState('')",
+              "  const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))\n  const [draftFilters, setDraftFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))\n  const [focusListingId, setFocusListingId] = useState('')",
+          )
+
+          replace_once(
+              "    setFilters({ rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts })\n    setRentalMode(routeMode)",
+              "    const routeFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts }\n    setFilters(routeFilters)\n    setDraftFilters(routeFilters)\n    setRentalMode(routeMode)",
+          )
+
+          replace_once(
+              "      setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))",
+              "      setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))\n      setDraftFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))",
+          )
+
+          replace_once(
+              "      if (panel !== 'results') setPanel('results')\n      else navigate('/')",
+              "      if (panel === 'filters') {\n        setDraftFilters(filters)\n        setPanel('results')\n      } else if (panel !== 'results') setPanel('results')\n      else navigate('/')",
+          )
+          replace_once(
+              "  }, [navigate, open, panel])",
+              "  }, [filters, navigate, open, panel])",
+          )
+
+          marker = "  const listings = useMemo(() => [...filteredListings].sort((a, b) => {"
+          if text.count(marker) != 1:
+              raise SystemExit('listings marker missing or duplicated')
+          preview = """  const previewFilteredListings = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
+    else params.delete('tiposHabitacion')
+    params.delete('capacidades')
+    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))
+    else params.delete('habitaciones')
+    const canonicalFilters = {
+      ...appFilters,
+      minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),
+      maxPrice: Math.max(draftFilters.minPrice, draftFilters.maxPrice),
+      roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
+      roomSizeMax: Math.max(draftFilters.minArea, draftFilters.maxArea),
+      roomType: 'Cualquiera',
+      roomCapacity: 'Cualquiera',
+    }
+    return selectMobileSearchListings({
+      listings: allListings,
+      discarded,
+      rentalMode: draftFilters.rentalMode ?? rentalMode,
+      filters: canonicalFilters,
+      polygon: mapPolygon,
+      query: params.get('q') ?? appQuery,
+      params,
+    })
+  }, [allListings, appFilters, appQuery, discarded, draftFilters, location.search, mapPolygon, rentalMode])
+
+"""
+          text = text.replace(marker, preview + marker, 1)
+
+          replace_once(
+              "  const chooseRentalMode = (mode: RentalMode) => {\n    setFilters((current) => ({ ...current, rentalMode: mode }))\n  }",
+              "  const chooseRentalMode = (mode: RentalMode) => {\n    setDraftFilters((current) => ({ ...current, rentalMode: mode }))\n  }",
+          )
+
+          replace_once("    const nextMode = filters.rentalMode ?? rentalMode", "    const nextMode = draftFilters.rentalMode ?? rentalMode")
+          replace_once("      minPrice: Math.min(filters.minPrice, filters.maxPrice),", "      minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),")
+          replace_once("      maxPrice: Math.max(filters.minPrice, filters.maxPrice),", "      maxPrice: Math.max(draftFilters.minPrice, draftFilters.maxPrice),")
+          replace_once("      roomSizeMin: Math.min(filters.minArea, filters.maxArea),", "      roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),")
+          replace_once("      roomSizeMax: Math.max(filters.minArea, filters.maxArea),", "      roomSizeMax: Math.max(draftFilters.minArea, draftFilters.maxArea),")
+          replace_once("    setRentalMode(nextMode)\n    setAppFilters(nextFilters)", "    setFilters(draftFilters)\n    setRentalMode(nextMode)\n    setAppFilters(nextFilters)")
+          replace_once("    if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))", "    if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))")
+          replace_once("    if (filters.roomCounts.length) params.set('habitaciones', filters.roomCounts.join('|'))", "    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))")
+          replace_once(
+              "  const clearFilters = () => setFilters((current) => ({",
+              "  const clearFilters = () => setDraftFilters((current) => ({",
+          )
+
+          replace_once(
+              "<button type=\"button\" onClick={() => setPanel('filters')}><SlidersHorizontal />{t.filters}</button>",
+              "<button type=\"button\" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button>",
+          )
+          replace_once(
+              "{panel === 'filters' ? <section className=\"m2-results-panel m2-results-filter\"><header><button type=\"button\" onClick={() => setPanel('results')} aria-label={t.close}><X /></button>",
+              "{panel === 'filters' ? <section className=\"m2-results-panel m2-results-filter\"><header><button type=\"button\" onClick={() => { setDraftFilters(filters); setPanel('results') }} aria-label={t.close}><X /></button>",
+          )
+
+          # Filter controls must bind to the draft, not the already-applied state.
+          replacements = {
+              "filters.rentalMode === 'long'": "draftFilters.rentalMode === 'long'",
+              "filters.rentalMode === 'holiday'": "draftFilters.rentalMode === 'holiday'",
+              "value={filters.minPrice}": "value={draftFilters.minPrice}",
+              "value={filters.maxPrice}": "value={draftFilters.maxPrice}",
+              "value={filters.minArea}": "value={draftFilters.minArea}",
+              "value={filters.maxArea}": "value={draftFilters.maxArea}",
+              "setFilters((current) => ({ ...current, minPrice:": "setDraftFilters((current) => ({ ...current, minPrice:",
+              "setFilters((current) => ({ ...current, maxPrice:": "setDraftFilters((current) => ({ ...current, maxPrice:",
+              "setFilters((current) => ({ ...current, minArea:": "setDraftFilters((current) => ({ ...current, minArea:",
+              "setFilters((current) => ({ ...current, maxArea:": "setDraftFilters((current) => ({ ...current, maxArea:",
+              "checked={filters.roomCounts.includes(value)}": "checked={draftFilters.roomCounts.includes(value)}",
+              "setFilters((current) => ({ ...current, roomCounts:": "setDraftFilters((current) => ({ ...current, roomCounts:",
+              "checked={filters.roomTypes.includes(value)}": "checked={draftFilters.roomTypes.includes(value)}",
+              "setFilters((current) => ({ ...current, roomTypes:": "setDraftFilters((current) => ({ ...current, roomTypes:",
+              "{t.showListings} · {listings.length}": "{t.showListings} · {previewFilteredListings.length}",
+          }
+          for old, new in replacements.items():
+              replace_once(old, new)
+
+          path.write_text(text)
+
+          test_path = Path('tests/mobile-filter-draft-state.spec.ts')
+          test_path.write_text(r'''import { expect, test, type Page } from '@playwright/test'
+
+test.use({ viewport: { width: 390, height: 844 } })
+
+async function finishOnboarding(page: Page) {
+  await page.goto('/')
+  if (await page.getByTestId('open-location').isVisible().catch(() => false)) return
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Ahora no' }).click()
+  await expect(page.getByTestId('open-location')).toBeVisible()
+}
+
+async function openLongStayResults(page: Page) {
+  await finishOnboarding(page)
+  await page.locator('.m2-mode-switch > button').first().click()
+  await page.getByTestId('open-location').click()
+  const results = page.getByTestId('mobile-results')
+  await expect(results.locator('.m2-result-card')).toHaveCount(23)
+  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ mes')
+  return results
+}
+
+test('closing filters discards draft changes instead of silently changing results', async ({ page }) => {
+  const results = await openLongStayResults(page)
+  const before = page.url()
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await results.getByRole('button', { name: 'Turismo', exact: true }).click()
+  await expect(results.getByRole('button', { name: /Ver anuncios · 9/ })).toBeVisible()
+  await results.getByRole('button', { name: 'Cerrar' }).click()
+
+  await expect(page).toHaveURL(before)
+  await expect(results.locator('.m2-result-card')).toHaveCount(23)
+  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ mes')
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await expect(results.getByRole('button', { name: 'Vivienda', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(results.getByRole('button', { name: 'Turismo', exact: true })).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('apply commits the draft to URL, results and reload', async ({ page }) => {
+  const results = await openLongStayResults(page)
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await results.getByRole('button', { name: 'Turismo', exact: true }).click()
+  await expect(results.getByRole('button', { name: /Ver anuncios · 9/ })).toBeVisible()
+  await results.getByRole('button', { name: /Ver anuncios/ }).click()
+
+  await expect(page).toHaveURL(/alquiler=holiday/)
+  await expect(results.locator('.m2-result-card')).toHaveCount(9)
+  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ noche')
+
+  await page.reload()
+  const restored = page.getByTestId('mobile-results')
+  await expect(restored).toBeVisible()
+  await expect(restored.locator('.m2-result-card')).toHaveCount(9)
+  await expect(restored.locator('.m2-result-card__price').first()).toContainText('/ noche')
+})
+
+test('clear is a draft action until View listings is pressed', async ({ page }) => {
+  const results = await openLongStayResults(page)
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await results.getByLabel('Precio Máx').fill('500')
+  await results.getByLabel('Superficie Máx').fill('12')
+  await results.getByLabel('1 habitación').check()
+  await results.getByLabel('Habitaciones individuales').check()
+  await expect(results.getByRole('button', { name: /Ver anuncios · 6/ })).toBeVisible()
+  await results.getByRole('button', { name: /Ver anuncios/ }).click()
+  await expect(results.locator('.m2-result-card')).toHaveCount(6)
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await results.getByRole('button', { name: 'Limpiar' }).click()
+  await expect(results.getByRole('button', { name: /Ver anuncios · 23/ })).toBeVisible()
+  await results.getByRole('button', { name: 'Cerrar' }).click()
+  await expect(results.locator('.m2-result-card')).toHaveCount(6)
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await expect(results.getByRole('button', { name: /Ver anuncios · 6/ })).toBeVisible()
+  await results.getByRole('button', { name: 'Limpiar' }).click()
+  await results.getByRole('button', { name: /Ver anuncios/ }).click()
+  await expect(results.locator('.m2-result-card')).toHaveCount(23)
+})
+''')
+          PY
+
+          git diff --check
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/mobile-search-results.tsx tests/mobile-filter-draft-state.spec.ts
+          git commit -m "fix: separate mobile filter draft state"
+          git push origin HEAD:fix/mobile-filter-draft-state
