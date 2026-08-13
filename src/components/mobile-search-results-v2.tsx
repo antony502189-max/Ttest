@@ -166,7 +166,8 @@ export function MobileSearchResults() {
     if (!shouldOpen) return
     const routeMode: RentalMode = params.get('alquiler') === 'holiday' ? 'holiday' : 'long'
     const parsed = filtersFromParams(params)
-    const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
+    const explicitRoomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
+    const roomTypes: Listing['roomType'][] = explicitRoomTypes.length ? explicitRoomTypes : parsed.roomType !== 'Cualquiera' ? [parsed.roomType] : []
     const roomCounts = (params.get('habitaciones') ?? '').split('|').map((value): RoomCountFilter | null => {
       if (value === '10+') return value
       const count = Number(value)
@@ -241,7 +242,6 @@ export function MobileSearchResults() {
       roomSizeMin: Math.min(filters.minArea, filters.maxArea),
       roomSizeMax: Math.max(filters.minArea, filters.maxArea),
       roomType: 'Cualquiera',
-      roomCapacity: 'Cualquiera',
     }
     return selectMobileSearchListings({ listings: allListings, discarded, rentalMode: filters.rentalMode ?? rentalMode, filters: canonicalFilters, polygon: mapPolygon, query: params.get('q') ?? appQuery, params })
   }, [allListings, appFilters, appQuery, discarded, filters, location.search, mapPolygon, rentalMode])
@@ -260,7 +260,6 @@ export function MobileSearchResults() {
       roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
       roomSizeMax: Math.max(draftFilters.minArea, draftFilters.maxArea),
       roomType: 'Cualquiera',
-      roomCapacity: 'Cualquiera',
     }
     return selectMobileSearchListings({ listings: allListings, discarded, rentalMode: draftFilters.rentalMode ?? rentalMode, filters: canonicalFilters, polygon: mapPolygon, query: params.get('q') ?? appQuery, params })
   }, [allListings, appFilters, appQuery, discarded, draftFilters, location.search, mapPolygon, rentalMode])
@@ -301,7 +300,6 @@ export function MobileSearchResults() {
       roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
       roomSizeMax: Math.max(draftFilters.minArea, draftFilters.maxArea),
       roomType: 'Cualquiera',
-      roomCapacity: 'Cualquiera',
     }
     const appliedFilters: ResultsFilters = { ...draftFilters, rentalMode: nextMode, minPrice: nextFilters.minPrice, maxPrice: nextFilters.maxPrice, minArea: nextFilters.roomSizeMin, maxArea: nextFilters.roomSizeMax }
     setFilters(appliedFilters)
