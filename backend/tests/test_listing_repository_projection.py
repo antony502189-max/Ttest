@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from app.repositories.listings import owned_response_from, response_from, visible_count_query, visible_query
+from app.repositories.listings import owned_response_from, response_from, visible_query
 
 
 def listing(**overrides):
@@ -101,11 +101,10 @@ def test_owned_coordinate_projection_preserves_exact_location_values():
     assert response.exactLatitude == 28.088
 
 
-def test_public_count_projection_excludes_response_only_work():
+def test_public_projection_uses_scalar_coordinates_without_geojson():
     projected_sql = str(visible_query())
-    count_sql = str(visible_count_query())
 
     assert "ST_X" in projected_sql
+    assert "ST_Y" in projected_sql
     assert "array_agg" in projected_sql
-    assert "ST_X" not in count_sql
-    assert "array_agg" not in count_sql
+    assert "ST_AsGeoJSON" not in projected_sql

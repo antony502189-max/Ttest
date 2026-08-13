@@ -154,7 +154,7 @@ def owned_response_from(row: Any) -> OwnedListingResponse:
     )
 
 
-def visible_listing_query() -> Select:
+def visible_query() -> Select:
     active_user_restriction = (
         select(UserRestriction.id)
         .where(
@@ -178,7 +178,13 @@ def visible_listing_query() -> Select:
         .exists()
     )
     return (
-        select(Listing)
+        select(
+            Listing,
+            ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
+            ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
+            User,
+            image_asset_ids_subquery(),
+        )
         .join(User, User.id == Listing.owner_user_id)
         .where(
             Listing.status == "published",
@@ -190,21 +196,6 @@ def visible_listing_query() -> Select:
             (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
         )
     )
-
-
-def visible_query() -> Select:
-    return visible_listing_query().with_only_columns(
-        Listing,
-        ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
-        ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
-        User,
-        image_asset_ids_subquery(),
-    )
-
-
-def visible_count_query() -> Select:
-    """Return the public visibility relation without response-only projections."""
-    return visible_listing_query().with_only_columns(Listing.id)
 
 
 def owned_query() -> Select:
@@ -335,8 +326,7 @@ def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
 
 async def search_public(session: AsyncSession, payload: ListingSearchRequest) -> ListingSearchResponse:
     filtered = apply_search_filters(visible_query(), payload)
-    filtered_count = apply_search_filters(visible_count_query(), payload)
-    total = await session.scalar(select(func.count()).select_from(filtered_count.order_by(None).subquery()))
+    total = await session.scalar(select(func.count()).select_from(filtered.order_by(None).subquery()))
     rows = (
         await session.execute(apply_search_order(filtered, payload).limit(payload.limit).offset(payload.offset))
     ).all()
