@@ -26,23 +26,28 @@ The desktop entry no longer imports mobile shell code. Vite emits the code only 
 
 ## Backend query changes
 
-`search_public()` still executes exactly two statements (COUNT plus page results). The COUNT statement now uses the same visibility/filter relation but projects only `listings.id`; it no longer includes `ST_AsGeoJSON`, the correlated media `array_agg`, user response columns, or the full listing projection. Result projection now uses PostGIS `ST_X`/`ST_Y`, removing `ST_AsGeoJSON` serialization and Python `json.loads` while preserving numeric coordinates.
+Result projection now uses PostGIS `ST_X`/`ST_Y`, removing `ST_AsGeoJSON` serialization and Python `json.loads` while preserving numeric public and exact coordinates. On a disposable PostGIS 3.4 database with 30,000 published listings, returning coordinates alone took 48.21 ms with `ST_AsGeoJSON` and 28.05 ms with `ST_X`/`ST_Y` (41.8% lower); average coordinate payload text fell from 58.8 B to 37.2 B (36.7% lower). Both plans read the same 1,287 shared buffers.
 
-PostgreSQL/PostGIS plan timing is unavailable in this workspace because Docker Desktop is not running, so no latency or plan-cost claim is made. SQL compilation and focused response/count regression tests prove the projection exclusions and public/exact coordinate values.
+The proposed lightweight COUNT relation was measured and rejected. PostgreSQL pruned the unused old response projection below `COUNT(*)`; equivalent 30,000-row plans used the same 1,288 shared buffers and took 21.75 ms (old) versus 22.84 ms (new). The code therefore retains the original COUNT shape rather than claiming a non-existent win.
+
+Integration cleanup now excludes PostGIS's `spatial_ref_sys` metadata table. The old cleanup truncated it, causing all later radius searches to fail with `Cannot find SRID (4326) in spatial_ref_sys`.
 
 ## Validation
 
-- `npm run lint` — passed (four pre-existing exhaustive-deps warnings in `App.tsx` and `moderation-gate.tsx`)
-- `npm run typecheck` — passed
-- `npm run build` — passed
-- `npm run test:bundle-security` — passed
-- focused backend regression tests — 25 passed
-- focused mobile Playwright checks — 12 canonical flows passed before map initialization test runs stalled without a test failure; the desktop responsive route check passed.
+- `npm run lint` - passed (four pre-existing exhaustive-deps warnings in `App.tsx` and `moderation-gate.tsx`)
+- `npm run typecheck` - passed
+- `npm run build` - passed
+- `npm run test:bundle-security` - passed
+- `npm run test:security` - passed
+- backend projection tests - 3 passed
+- backend critical-flow and moderation tests - 32 passed
+- backend count/filter equivalence test before reverting the no-op COUNT change - 4 passed, including bbox, radius, and polygon filters
+- targeted Playwright `apk-parity` desktop route check - passed; direct browser exercise of the contact-to-auth-to-map flow passed with `map-search` and the test map canvas present
 
-The full frontend suite and PostGIS query-plan/migration validation remain required in CI or a Docker-enabled environment.
+The PostGIS migration chain was run successfully through `0033_admin_moderation` against the disposable database. The full frontend and backend collections were attempted, but their runner connection exited without a final result after starting; they remain CI-required rather than marked passed.
 
 ## Considered and rejected
 
 - No `CustomerFeedbackFixes`, `ModerationGate`, or `PublishOccupancySync` changes: their behavior is security- and interaction-sensitive, and there was no isolated measured benefit sufficient to justify risk.
-- No media aggregation rewrite or database indexes: no representative PostGIS database was available for `EXPLAIN (ANALYZE, BUFFERS)` evidence.
-- No production mock-isolation plugin change: build time was not profiled sufficiently to preserve its security invariant with confidence.
+- No media aggregation rewrite or database indexes: the representative PostGIS plans did not show an evidence-backed index need for the exercised query.
+- No production mock-isolation plugin change: the two-entry source-ID check is security-critical and profiling did not demonstrate a measurable build gain.
