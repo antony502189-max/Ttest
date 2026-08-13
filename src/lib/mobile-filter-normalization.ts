@@ -9,10 +9,8 @@ export type MobilePriceFilterState = {
 
 export function mobileFiltersForRentalMode<T extends MobilePriceFilterState>(filters: T, mode: RentalMode): T {
   if (filters.rentalMode === mode) return filters
-  if (mode !== 'holiday') return { ...filters, rentalMode: mode }
-  if (filters.minPrice === defaultFilters.minPrice && filters.maxPrice === defaultFilters.maxPrice) {
-    return { ...filters, rentalMode: mode }
-  }
+  const priceIsUnrestricted = filters.minPrice === defaultFilters.minPrice && filters.maxPrice === defaultFilters.maxPrice
+  if (priceIsUnrestricted) return { ...filters, rentalMode: mode }
   return {
     ...filters,
     rentalMode: mode,
