@@ -1,0 +1,107 @@
+name: Temporary cross-flow filter preservation fix
+
+on:
+  push:
+    branches:
+      - fix/mobile-filter-draft-state
+    paths:
+      - .github/workflows/_tmp-filter-cross-flow.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/mobile-filter-draft-state
+      - name: Preserve home access filters through mobile panel
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/mobile-search-results-v2.tsx')
+          text = path.read_text()
+
+          old = """    const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))"""
+          new = """    const explicitRoomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
+    const roomTypes: Listing['roomType'][] = explicitRoomTypes.length
+      ? explicitRoomTypes
+      : parsed.roomType !== 'Cualquiera'
+        ? [parsed.roomType]
+        : []"""
+          if text.count(old) != 1:
+              raise SystemExit(f'room type migration match count={text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          needle = "      roomType: 'Cualquiera',\n      roomCapacity: 'Cualquiera',\n"
+          count = text.count(needle)
+          if count != 3:
+              raise SystemExit(f'expected 3 roomCapacity reset sites, got {count}')
+          text = text.replace(needle, "      roomType: 'Cualquiera',\n")
+          path.write_text(text)
+
+          test_path = Path('tests/mobile-filter-home-profile-audit.spec.ts')
+          test_path.write_text(r'''import { expect, test } from '@playwright/test'
+
+test.use({ viewport: { width: 390, height: 844 } })
+
+test('two-person home capacity survives mobile filters, apply and reload', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.goto('/')
+  await page.locator('.m2-occupant-trigger').click()
+  await page.locator('[data-m2-occupant-key="two"]').click()
+  await page.locator('.m2-custom-occupant-done').click()
+  await page.getByTestId('open-location').click()
+
+  const results = page.getByTestId('mobile-results')
+  await expect(results).toBeVisible()
+  await expect(results.locator('.m2-result-card')).toHaveCount(8)
+  for (const card of await results.locator('.m2-result-card').all()) {
+    await expect(card).toContainText('Habitación para 2 personas')
+  }
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await results.getByLabel('Precio Máx').fill('500')
+  await expect(results.getByRole('button', { name: /Ver anuncios · 3$/ })).toBeVisible()
+  await results.getByRole('button', { name: /Ver anuncios/ }).click()
+  await expect(results.locator('.m2-result-card')).toHaveCount(3)
+  for (const card of await results.locator('.m2-result-card').all()) {
+    await expect(card).toContainText('Habitación para 2 personas')
+  }
+  expect(new URL(page.url()).hash).toContain('capacidad=2')
+  expect(new URL(page.url()).hash).toContain('precioMax=500')
+
+  await page.reload()
+  const restored = page.getByTestId('mobile-results')
+  await expect(restored.locator('.m2-result-card')).toHaveCount(3)
+  for (const card of await restored.locator('.m2-result-card').all()) {
+    await expect(card).toContainText('Habitación para 2 personas')
+  }
+})
+
+test('canonical desktop room type migrates into the mobile filter model instead of disappearing', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&habitacion=Estudio')
+  const results = page.getByTestId('mobile-results')
+  await expect(results.locator('.m2-result-card')).toHaveCount(2)
+  for (const text of await results.locator('.m2-result-card__facts').allTextContents()) expect(text).toContain('Estudio')
+
+  await results.getByRole('button', { name: 'Filtros' }).click()
+  await expect(results.getByLabel('Estudios', { exact: true })).toBeChecked()
+  await results.getByLabel('Precio Máx').fill('1000')
+  await results.getByRole('button', { name: /Ver anuncios/ }).click()
+  await expect(results.locator('.m2-result-card')).toHaveCount(2)
+  expect(new URL(page.url()).hash).toContain('tiposHabitacion=Estudio')
+  expect(new URL(page.url()).hash).not.toContain('habitacion=Estudio')
+})
+''')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/mobile-search-results-v2.tsx tests/mobile-filter-home-profile-audit.spec.ts
+          git commit -m 'fix: preserve base search constraints in mobile filters'
+          git push origin HEAD:fix/mobile-filter-draft-state
