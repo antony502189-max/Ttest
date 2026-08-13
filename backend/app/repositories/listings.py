@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from hmac import new as hmac_new
@@ -15,6 +14,8 @@ from geoalchemy2.functions import (
     ST_MakeEnvelope,
     ST_MakePoint,
     ST_SetSRID,
+    ST_X,
+    ST_Y,
 )
 from sqlalchemy import Select, case, cast, func, or_, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
@@ -56,8 +57,7 @@ def image_asset_ids_subquery():
 
 
 def response_from(row: Any) -> ListingResponse:
-    listing, geojson, owner, asset_ids = row
-    coordinates = json.loads(geojson)["coordinates"]
+    listing, longitude, latitude, owner, asset_ids = row
     price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
     image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
     if not image_urls:
@@ -119,8 +119,8 @@ def response_from(row: Any) -> ListingResponse:
         restrictions=listing.restrictions,
         amenities=listing.amenities,
         status=listing.status,
-        longitude=coordinates[0],
-        latitude=coordinates[1],
+        longitude=longitude,
+        latitude=latitude,
         description=listing.description,
         homeDescription=listing.home_description,
         advertiserType=listing.advertiser_type,
@@ -143,19 +143,18 @@ def response_from(row: Any) -> ListingResponse:
 
 
 def owned_response_from(row: Any) -> OwnedListingResponse:
-    listing, public_geojson, owner, asset_ids, exact_geojson = row
-    public = response_from((listing, public_geojson, owner, asset_ids)).model_dump()
-    exact_coordinates = json.loads(exact_geojson)["coordinates"] if exact_geojson else None
+    listing, longitude, latitude, owner, asset_ids, exact_longitude, exact_latitude = row
+    public = response_from((listing, longitude, latitude, owner, asset_ids)).model_dump()
     return OwnedListingResponse(
         **public,
         street=listing.street,
         postcode=listing.postcode,
-        exactLatitude=exact_coordinates[1] if exact_coordinates else None,
-        exactLongitude=exact_coordinates[0] if exact_coordinates else None,
+        exactLatitude=exact_latitude,
+        exactLongitude=exact_longitude,
     )
 
 
-def visible_query() -> Select:
+def visible_listing_query() -> Select:
     active_user_restriction = (
         select(UserRestriction.id)
         .where(
@@ -179,7 +178,7 @@ def visible_query() -> Select:
         .exists()
     )
     return (
-        select(Listing, ST_AsGeoJSON(Listing.location), User, image_asset_ids_subquery())
+        select(Listing)
         .join(User, User.id == Listing.owner_user_id)
         .where(
             Listing.status == "published",
@@ -193,13 +192,30 @@ def visible_query() -> Select:
     )
 
 
+def visible_query() -> Select:
+    return visible_listing_query().with_only_columns(
+        Listing,
+        ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
+        ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
+        User,
+        image_asset_ids_subquery(),
+    )
+
+
+def visible_count_query() -> Select:
+    """Return the public visibility relation without response-only projections."""
+    return visible_listing_query().with_only_columns(Listing.id)
+
+
 def owned_query() -> Select:
     return select(
         Listing,
-        ST_AsGeoJSON(Listing.location),
+        ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
+        ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
         User,
         image_asset_ids_subquery(),
-        ST_AsGeoJSON(Listing.exact_location),
+        ST_X(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
+        ST_Y(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
     ).join(User, User.id == Listing.owner_user_id)
 
 
@@ -319,7 +335,8 @@ def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
 
 async def search_public(session: AsyncSession, payload: ListingSearchRequest) -> ListingSearchResponse:
     filtered = apply_search_filters(visible_query(), payload)
-    total = await session.scalar(select(func.count()).select_from(filtered.order_by(None).subquery()))
+    filtered_count = apply_search_filters(visible_count_query(), payload)
+    total = await session.scalar(select(func.count()).select_from(filtered_count.order_by(None).subquery()))
     rows = (
         await session.execute(apply_search_order(filtered, payload).limit(payload.limit).offset(payload.offset))
     ).all()
