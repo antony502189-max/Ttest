@@ -1,0 +1,30 @@
+name: Temporary room type narrowing fix
+
+on:
+  push:
+    branches:
+      - fix/mobile-filter-draft-state
+    paths:
+      - .github/workflows/_tmp-room-type-narrow.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/mobile-filter-draft-state
+      - name: Narrow validated room type locally
+        run: |
+          sed -i "s/\[parsed.roomType\]/[parsed.roomType as Listing['roomType']]/" src/components/mobile-search-results-v2.tsx
+          git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/mobile-search-results-v2.tsx
+          git commit -m 'fix: narrow migrated mobile room type'
+          git push origin HEAD:fix/mobile-filter-draft-state
