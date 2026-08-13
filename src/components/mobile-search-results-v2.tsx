@@ -167,7 +167,7 @@ export function MobileSearchResults() {
     const routeMode: RentalMode = params.get('alquiler') === 'holiday' ? 'holiday' : 'long'
     const parsed = filtersFromParams(params)
     const explicitRoomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
-    const roomTypes: Listing['roomType'][] = explicitRoomTypes.length ? explicitRoomTypes : parsed.roomType !== 'Cualquiera' ? [parsed.roomType] : []
+    const roomTypes: Listing['roomType'][] = explicitRoomTypes.length ? explicitRoomTypes : parsed.roomType !== 'Cualquiera' ? [parsed.roomType as Listing['roomType']] : []
     const roomCounts = (params.get('habitaciones') ?? '').split('|').map((value): RoomCountFilter | null => {
       if (value === '10+') return value
       const count = Number(value)
