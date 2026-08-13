@@ -40,8 +40,12 @@ test('filter rental-mode cards reuse the complete home copy and selection langua
   await expect(results).toBeVisible()
   await results.getByRole('button', { name: 'Filtros' }).click()
 
-  const vivienda = results.getByRole('button', { name: 'Vivienda', exact: true })
-  const turismo = results.getByRole('button', { name: 'Turismo', exact: true })
+  const modeButtons = results.locator('.m2-results-filter__transaction > button')
+  const vivienda = modeButtons.nth(0)
+  const turismo = modeButtons.nth(1)
+  await expect(modeButtons).toHaveCount(2)
+  await expect(vivienda).toHaveText('Vivienda')
+  await expect(turismo).toHaveText('Turismo')
 
   await expect(vivienda).toHaveCSS('border-top-color', 'rgb(116, 185, 0)')
   expect(await vivienda.evaluate((node) => getComputedStyle(node).boxShadow)).toContain('rgb(116, 185, 0)')
