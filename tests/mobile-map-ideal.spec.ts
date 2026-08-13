@@ -74,9 +74,21 @@ test('listing requirements are visually prominent in results', async ({ page }) 
   await expect(badges.filter({ hasText: /Habitación para/ })).toHaveCount(1)
   const style = await badges.first().evaluate((element) => {
     const computed = getComputedStyle(element)
-    return { fontWeight: Number(computed.fontWeight), height: element.getBoundingClientRect().height, border: computed.borderTopWidth }
+    return {
+      fontWeight: Number(computed.fontWeight),
+      fontSize: Number.parseFloat(computed.fontSize),
+      height: element.getBoundingClientRect().height,
+      border: computed.borderTopWidth,
+      borderColor: computed.borderTopColor,
+      backgroundColor: computed.backgroundColor,
+      color: computed.color,
+    }
   })
-  expect(style.fontWeight).toBeGreaterThanOrEqual(700)
-  expect(style.height).toBeGreaterThanOrEqual(28)
-  expect(style.border).not.toBe('0px')
+  expect(style.fontWeight).toBeGreaterThanOrEqual(800)
+  expect(style.fontSize).toBeGreaterThanOrEqual(14)
+  expect(style.height).toBeGreaterThanOrEqual(43)
+  expect(style.border).toBe('2px')
+  expect(style.borderColor).toBe('rgb(132, 169, 0)')
+  expect(style.backgroundColor).toBe('rgb(228, 242, 163)')
+  expect(style.color).toBe('rgb(48, 70, 0)')
 })

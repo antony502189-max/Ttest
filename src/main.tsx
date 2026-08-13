@@ -19,6 +19,7 @@ import './mobile-home-search-state'
 import './white-theme.css'
 import './white-theme-audit-fixes.css'
 import './client-mobile-alignment-fixes.css'
+import './client-listing-requirement-emphasis.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
