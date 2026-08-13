@@ -7,7 +7,6 @@ from typing import Any
 
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import (
-    ST_AsGeoJSON,
     ST_Covers,
     ST_DWithin,
     ST_GeomFromText,
