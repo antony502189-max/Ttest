@@ -2,27 +2,29 @@
 
 Baseline: `1a9c76bad9c8094a59ce912a1b8582e3493b8d77` plus the existing PR #111 commit `f8ffc4878e12b0a0aa7343c8286af6bb582aa581`.
 
-Measurements use the production Vite build in this workspace. Asset sizes are exact emitted-file sizes; build timing is one warm local run, so it is reported as indicative rather than a median.
+Measurements use production Vite builds. The original local measurement recorded exact emitted-file sizes. After CI exposed a CSS-order regression caused by async component CSS, the three base mobile stylesheets were restored to the synchronous entry in their original cascade position while the mobile JavaScript remained lazy. The final CSS figures below use the CI Vite report and are therefore rounded to the precision Vite prints.
 
-| Metric | Before | After | Delta |
+| Metric | Before | Final | Delta |
 | --- | ---: | ---: | ---: |
-| Initial entry JS, raw | 625,868 B | 548,927 B | -76,941 B (-12.3%) |
-| Initial entry JS, gzip | 211,258 B | 187,324 B | -23,934 B (-11.3%) |
-| Global CSS, raw | 324,326 B | 294,953 B | -29,373 B (-9.1%) |
-| Global CSS, gzip | 55,990 B | 50,902 B | -5,088 B (-9.1%) |
-| Emitted JS/CSS chunks | 42 | 64 | +22 async chunks |
-| Indicative production build | 14.7 s | 13.3 s | -1.4 s (not medianed) |
+| Initial entry JS, raw | 625,868 B | ~548.8 kB | ~-12.3% |
+| Initial entry JS, gzip | 211,258 B | ~188.4 kB | ~-10.8% |
+| Global CSS, raw | 324,326 B | ~321.3 kB | ~-0.9% |
+| Global CSS, gzip | 55,990 B | ~55.5 kB | ~-0.8% |
+| Indicative production build | 14.7 s | ~13 s class locally; ~1 s Vite transform/render in CI after typecheck | indicative only |
 
-## Async mobile output
+The principal frontend gain is therefore JavaScript, not CSS. The initial desktop entry keeps the mobile shell implementation out of the synchronous JS graph, while the base mobile CSS remains synchronous so the established hardening and white-theme overrides keep their original cascade semantics.
 
-The desktop entry no longer imports mobile shell code. Vite emits the code only behind route-and-mobile-viewport gates:
+## Async mobile JavaScript
+
+The desktop entry no longer synchronously imports the mobile shell components. Vite emits the following JavaScript behind route-and-mobile-viewport gates (representative final CI build):
 
 | Asset | Raw | Gzip |
 | --- | ---: | ---: |
-| `mobile-app-v2` JS | 48,560 B | 15,973 B |
-| `mobile-search-results-v2` JS | 20,190 B | 6,731 B |
-| `mobile-publication-gate` JS | 4,040 B | 1,710 B |
-| Mobile-only CSS (three entry CSS files) | 29,647 B | 8,048 B |
+| `mobile-app-v2` JS | ~48.5 kB | ~16.0 kB |
+| `mobile-search-results-v2` JS | ~20.2 kB | ~6.8 kB |
+| `mobile-publication-gate` JS | ~4.0 kB | ~1.7 kB |
+
+The base `mobile-app-v2.css`, `mobile-search-results.css`, and `mobile-publication-gate.css` are intentionally part of the synchronous stylesheet graph. An earlier attempt to make them async changed stylesheet insertion order: late base mobile rules overrode `white-theme.css`, hardening rules, approved card geometry, and accessibility colors. CI correctly caught that regression through visual, white-theme, and Axe tests. The final implementation keeps JS lazy while restoring the original CSS cascade instead of accepting changed screenshots.
 
 ## Backend query changes
 
@@ -34,20 +36,25 @@ Integration cleanup now excludes PostGIS's `spatial_ref_sys` metadata table. The
 
 ## Validation
 
-- `npm run lint` - passed (four pre-existing exhaustive-deps warnings in `App.tsx` and `moderation-gate.tsx`)
-- `npm run typecheck` - passed
-- `npm run build` - passed
-- `npm run test:bundle-security` - passed
-- `npm run test:security` - passed
-- backend projection tests - 3 passed
-- backend critical-flow and moderation tests - 32 passed
-- backend count/filter equivalence test before reverting the no-op COUNT change - 4 passed, including bbox, radius, and polygon filters
-- targeted Playwright `apk-parity` desktop route check - passed; direct browser exercise of the contact-to-auth-to-map flow passed with `map-search` and the test map canvas present
+Local targeted validation covered:
 
-The PostGIS migration chain was run successfully through `0033_admin_moderation` against the disposable database. The full frontend and backend collections were attempted, but their runner connection exited without a final result after starting; they remain CI-required rather than marked passed.
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+- `npm run test:bundle-security`
+- `npm run test:security`
+- backend projection tests: 3 passed
+- backend critical-flow and moderation tests: 32 passed
+- backend count/filter equivalence before reverting the no-op COUNT rewrite: 4 passed, including bbox, radius, and polygon filters
+- PostGIS migration chain through `0033_admin_moderation`
+- direct browser contact -> auth -> map flow
+
+CI additionally exposed and drove fixes for backend Ruff import hygiene and the lazy-CSS cascade regression described above. Final acceptance is determined only by all required GitHub workflows passing on the exact final PR head.
 
 ## Considered and rejected
 
 - No `CustomerFeedbackFixes`, `ModerationGate`, or `PublishOccupancySync` changes: their behavior is security- and interaction-sensitive, and there was no isolated measured benefit sufficient to justify risk.
-- No media aggregation rewrite or database indexes: the representative PostGIS plans did not show an evidence-backed index need for the exercised query.
-- No production mock-isolation plugin change: the two-entry source-ID check is security-critical and profiling did not demonstrate a measurable build gain.
+- No COUNT rewrite: measured query plans showed no benefit.
+- No media aggregation rewrite or database indexes: representative PostGIS plans did not show an evidence-backed need.
+- No production mock-isolation plugin change: the source-ID check is security-critical and profiling did not demonstrate a measurable build gain.
+- The now-unused aggregate `radix-ui` package is not removed in this performance PR: runtime imports were eliminated, and lockfile-only dependency housekeeping would add unrelated churn without changing the shipped bundle.
