@@ -4,13 +4,13 @@ import { ChevronDown, Globe2, Heart, Home, Menu, MessageCircle, Plus, Search, Us
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
+import { MobileAppV2 } from '@/components/mobile-app-v2'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu']
-const MobileAppV2 = lazy(() => import('@/components/mobile-app-v2').then((module) => ({ default: module.MobileAppV2 })))
 const MobilePublicationGate = lazy(() => import('@/components/mobile-publication-gate').then((module) => ({ default: module.MobilePublicationGate })))
 const MobileSearchResults = lazy(() => import('@/components/mobile-search-results-v2').then((module) => ({ default: module.MobileSearchResults })))
 
@@ -37,7 +37,7 @@ export function Header() {
 
 export function MobileHeader() {
   const { currentUser } = useApp()
-  return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher /><Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir menú"><Menu /></Link></div></header>
+  return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher /><Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir меню"><Menu /></Link></div></header>
 }
 
 const bottomItems = [{ to: '/', label: 'Inicio', icon: Home }, { to: '/favoritos', label: 'Favoritos', icon: Heart }, { to: '/buscar', label: 'Buscar', icon: Search }, { to: '/mensajes', label: 'Mensajes', icon: MessageCircle }, { to: '/perfil', label: 'Perfil', icon: UserRound }]
@@ -55,7 +55,7 @@ export function AppLayout() {
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
   const mobilePublicationGateActive = mobileViewport && new URLSearchParams(location.search).get('gate') === 'publicar'
-  const mobileSearchResultsActive = mobileViewport && pathname === '/buscar' && new URLSearchParams(location.search).get('vista') !== 'mapa'
+  const mobileSearchResultsActive = mobileViewport && pathname === '/buscar'
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname === '/mensajes' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
@@ -63,5 +63,5 @@ export function AppLayout() {
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{mobileShellActive ? <Suspense fallback={null}><MobileAppV2 /></Suspense> : <Outlet />}{mobilePublicationGateActive ? <Suspense fallback={null}><MobilePublicationGate /></Suspense> : null}{mobileSearchResultsActive ? <Suspense fallback={null}><MobileSearchResults /></Suspense> : null}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{mobileShellActive ? <MobileAppV2 /> : <Outlet />}{mobilePublicationGateActive ? <Suspense fallback={null}><MobilePublicationGate /></Suspense> : null}{mobileSearchResultsActive ? <Suspense fallback={null}><MobileSearchResults /></Suspense> : null}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
 }
