@@ -147,6 +147,7 @@ export function MobileSearchResults() {
   const [panel, setPanel] = useState<ResultsPanel>('results')
   const [order, setOrder] = useState<ResultsOrder>('relevance')
   const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
+  const [draftFilters, setDraftFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
   const [focusListingId, setFocusListingId] = useState('')
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
 
@@ -170,7 +171,9 @@ export function MobileSearchResults() {
       const count = Number(value)
       return Number.isInteger(count) && count >= 1 && count <= 10 ? count as ExactRoomCount : null
     }).filter((value): value is RoomCountFilter => value !== null)
-    setFilters({ rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts })
+    const routeFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts }
+    setFilters(routeFilters)
+    setDraftFilters(routeFilters)
     setRentalMode(routeMode)
     setAppFilters(parsed)
     const routeOrder = params.get('mobileOrden') as ResultsOrder | null
@@ -188,6 +191,7 @@ export function MobileSearchResults() {
       if (!listing) return
       setRentalMode(listing.rentalMode)
       setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
+      setDraftFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
       const params = new URLSearchParams(location.search)
       params.delete('vista')
       params.delete('dibujar')
@@ -211,12 +215,15 @@ export function MobileSearchResults() {
     document.body.style.overflow = 'hidden'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (panel !== 'results') setPanel('results')
+      if (panel === 'filters') {
+        setDraftFilters(filters)
+        setPanel('results')
+      } else if (panel !== 'results') setPanel('results')
       else navigate('/')
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
-  }, [navigate, open, panel])
+  }, [filters, navigate, open, panel])
 
   const availableListings = useMemo(() => allListings.filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded])
   const filteredListings = useMemo(() => {
@@ -245,6 +252,33 @@ export function MobileSearchResults() {
       params,
     })
   }, [allListings, appFilters, appQuery, discarded, filters, location.search, mapPolygon, rentalMode])
+
+  const previewFilteredListings = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
+    else params.delete('tiposHabitacion')
+    params.delete('capacidades')
+    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))
+    else params.delete('habitaciones')
+    const canonicalFilters = {
+      ...appFilters,
+      minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),
+      maxPrice: Math.max(draftFilters.minPrice, draftFilters.maxPrice),
+      roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
+      roomSizeMax: Math.max(draftFilters.minArea, draftFilters.maxArea),
+      roomType: 'Cualquiera',
+      roomCapacity: 'Cualquiera',
+    }
+    return selectMobileSearchListings({
+      listings: allListings,
+      discarded,
+      rentalMode: draftFilters.rentalMode ?? rentalMode,
+      filters: canonicalFilters,
+      polygon: mapPolygon,
+      query: params.get('q') ?? appQuery,
+      params,
+    })
+  }, [allListings, appFilters, appQuery, discarded, draftFilters, location.search, mapPolygon, rentalMode])
 
   const listings = useMemo(() => [...filteredListings].sort((a, b) => {
     if (order === 'cheap') return a.price - b.price
@@ -276,33 +310,34 @@ export function MobileSearchResults() {
     navigate(`/buscar?${params.toString()}`)
   }
   const chooseRentalMode = (mode: RentalMode) => {
-    setFilters((current) => ({ ...current, rentalMode: mode }))
+    setDraftFilters((current) => ({ ...current, rentalMode: mode }))
   }
   const applyFilters = () => {
-    const nextMode = filters.rentalMode ?? rentalMode
+    const nextMode = draftFilters.rentalMode ?? rentalMode
     const nextFilters = {
       ...appFilters,
-      minPrice: Math.min(filters.minPrice, filters.maxPrice),
-      maxPrice: Math.max(filters.minPrice, filters.maxPrice),
-      roomSizeMin: Math.min(filters.minArea, filters.maxArea),
-      roomSizeMax: Math.max(filters.minArea, filters.maxArea),
+      minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),
+      maxPrice: Math.max(draftFilters.minPrice, draftFilters.maxPrice),
+      roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
+      roomSizeMax: Math.max(draftFilters.minArea, draftFilters.maxArea),
       roomType: 'Cualquiera',
       roomCapacity: 'Cualquiera',
     }
+    setFilters(draftFilters)
     setRentalMode(nextMode)
     setAppFilters(nextFilters)
     const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
     params.set('alquiler', nextMode)
     params.delete('panel')
-    if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
+    if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
     params.delete('capacidades')
-    if (filters.roomCounts.length) params.set('habitaciones', filters.roomCounts.join('|'))
+    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))
     else params.delete('habitaciones')
     navigate(`/buscar?${params.toString()}`, { replace: true })
     setPanel('results')
   }
-  const clearFilters = () => setFilters((current) => ({
+  const clearFilters = () => setDraftFilters((current) => ({
     ...createDefaultFilters(current.rentalMode),
     minPrice: defaultFilters.minPrice,
     maxPrice: defaultFilters.maxPrice,
@@ -323,7 +358,7 @@ export function MobileSearchResults() {
 
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
     {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => navigate('/')} aria-label={t.back}><ChevronLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
-      <div className="m2-results__toolbar"><button type="button" onClick={() => setPanel('filters')}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
+      <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} onOpen={() => {
         if (listing.isExternal && listing.sourceUrl) {
           window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer')
@@ -334,12 +369,12 @@ export function MobileSearchResults() {
 
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{orderKeys.map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
-    {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
-      <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(filters.rentalMode === 'long' && 'is-active')} aria-pressed={filters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(filters.rentalMode === 'holiday' && 'is-active')} aria-pressed={filters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>
-      <fieldset><legend>{t.price}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.price} ${t.min}`} type="number" min="0" step="25" value={filters.minPrice} onChange={(event) => setFilters((current) => ({ ...current, minPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.price} ${t.max}`} type="number" min="0" step="25" value={filters.maxPrice} onChange={(event) => setFilters((current) => ({ ...current, maxPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
-      <fieldset><legend>{t.area}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.area} ${t.min}`} type="number" min="0" value={filters.minArea} onChange={(event) => setFilters((current) => ({ ...current, minArea: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.area} ${t.max}`} type="number" min="0" value={filters.maxArea} onChange={(event) => setFilters((current) => ({ ...current, maxArea: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
-      <fieldset><legend>{t.rooms}</legend><div className="m2-results-filter__checks m2-results-filter__checks--rooms">{roomCountOptions.map((value) => { const label = value === '10+' ? t.moreThanTenRooms : t.roomCount(value); return <label key={String(value)}><input type="checkbox" checked={filters.roomCounts.includes(value)} onChange={() => setFilters((current) => ({ ...current, roomCounts: toggleValue(current.roomCounts, value) }))} /><span>{label}</span></label> })}</div></fieldset>
-      <fieldset><legend>{t.housingType}</legend><div className="m2-results-filter__checks">{([['Habitación individual', t.individual], ['Habitación compartida', t.shared], ['Estudio', t.studio]] as const).map(([value, label]) => <label key={value}><input type="checkbox" checked={filters.roomTypes.includes(value)} onChange={() => setFilters((current) => ({ ...current, roomTypes: toggleValue(current.roomTypes, value) }))} /><span>{label}</span></label>)}</div></fieldset>
-    </div><footer><button type="button" onClick={applyFilters}>{t.showListings} · {listings.length}</button></footer></section> : null}
+    {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => { setDraftFilters(filters); setPanel('results') }} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
+      <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(draftFilters.rentalMode === 'long' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(draftFilters.rentalMode === 'holiday' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>
+      <fieldset><legend>{t.price}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.price} ${t.min}`} type="number" min="0" step="25" value={draftFilters.minPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, minPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.price} ${t.max}`} type="number" min="0" step="25" value={draftFilters.maxPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, maxPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
+      <fieldset><legend>{t.area}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.area} ${t.min}`} type="number" min="0" value={draftFilters.minArea} onChange={(event) => setDraftFilters((current) => ({ ...current, minArea: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.area} ${t.max}`} type="number" min="0" value={draftFilters.maxArea} onChange={(event) => setDraftFilters((current) => ({ ...current, maxArea: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
+      <fieldset><legend>{t.rooms}</legend><div className="m2-results-filter__checks m2-results-filter__checks--rooms">{roomCountOptions.map((value) => { const label = value === '10+' ? t.moreThanTenRooms : t.roomCount(value); return <label key={String(value)}><input type="checkbox" checked={draftFilters.roomCounts.includes(value)} onChange={() => setDraftFilters((current) => ({ ...current, roomCounts: toggleValue(current.roomCounts, value) }))} /><span>{label}</span></label> })}</div></fieldset>
+      <fieldset><legend>{t.housingType}</legend><div className="m2-results-filter__checks">{([['Habitación individual', t.individual], ['Habitación compartida', t.shared], ['Estudio', t.studio]] as const).map(([value, label]) => <label key={value}><input type="checkbox" checked={draftFilters.roomTypes.includes(value)} onChange={() => setDraftFilters((current) => ({ ...current, roomTypes: toggleValue(current.roomTypes, value) }))} /><span>{label}</span></label>)}</div></fieldset>
+    </div><footer><button type="button" onClick={applyFilters}>{t.showListings} · {previewFilteredListings.length}</button></footer></section> : null}
   </section>, document.body)
 }
