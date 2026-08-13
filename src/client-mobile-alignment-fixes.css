@@ -1,0 +1,72 @@
+/*
+ * Client-requested mobile polish after the accepted white-theme release.
+ *
+ * Keep these adjustments isolated and loaded last so they do not disturb
+ * desktop layout, application behavior, or the preserved black-theme branch.
+ */
+
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  /* The tourism card was visually too close to the right edge. Move the whole
+     card left by exactly 4px without changing grid sizing or active/press transforms. */
+  .m2-mode-switch > button:last-child {
+    translate: -4px 0;
+  }
+
+  /* Make the publish back affordance easier to read and restore its intended
+     optical position inside the 44px touch target. */
+  .publish-page .publish-header > [data-slot="button"]:first-child svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    translate: .16rem 0;
+  }
+
+  /* Filters reuse the same housing/tourism palette and selected-state language
+     as the home mode cards, at a deliberately smaller scale. */
+  .m2-results-filter__transaction {
+    gap: .55rem;
+  }
+
+  .m2-results-filter__transaction button {
+    min-height: 3.35rem;
+    border: 1.5px solid rgb(116 185 0 / .34);
+    border-radius: .55rem !important;
+    background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
+    color: #111;
+    box-shadow: 0 .12rem .4rem rgb(0 0 0 / .10);
+    opacity: .9;
+    transform: scale(.99);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, opacity .16s ease, filter .16s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .m2-results-filter__transaction button:first-child {
+    border-radius: .55rem !important;
+  }
+
+  .m2-results-filter__transaction button:last-child {
+    border-left: 1.5px solid rgb(198 0 131 / .34);
+    border-color: rgb(198 0 131 / .34);
+    border-radius: .55rem !important;
+    background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
+  }
+
+  .m2-results-filter__transaction button.is-active {
+    border-color: #74b900;
+    background: linear-gradient(145deg, #fffffb 0%, #eef8dd 100%);
+    color: #111;
+    box-shadow: 0 .28rem .65rem rgb(38 73 0 / .18), inset 0 0 0 2px #74b900;
+    opacity: 1;
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  .m2-results-filter__transaction button:last-child.is-active {
+    border-color: #c60083;
+    background: linear-gradient(145deg, #fff5fb 0%, #f9dceb 100%);
+    box-shadow: 0 .28rem .65rem rgb(98 0 65 / .18), inset 0 0 0 2px #c60083;
+  }
+
+  .m2-results-filter__transaction button:active {
+    transform: translateY(1px) scale(.97);
+    filter: brightness(.95) saturate(1.08);
+  }
+}
