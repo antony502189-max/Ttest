@@ -31,7 +31,7 @@ test('tourism home card is nudged left without mobile overflow', async ({ page }
   await assertNoHorizontalOverflow(page)
 })
 
-test('filter rental-mode cards reuse the home green and magenta selection language', async ({ page }) => {
+test('filter rental-mode cards reuse the complete home copy and selection language', async ({ page }) => {
   await finishOnboarding(page)
   await page.locator('.m2-mode-switch > button').first().click()
   await page.getByTestId('open-location').click()
@@ -40,20 +40,38 @@ test('filter rental-mode cards reuse the home green and magenta selection langua
   await expect(results).toBeVisible()
   await results.getByRole('button', { name: 'Filtros' }).click()
 
-  const vivienda = results.getByRole('button', { name: 'Vivienda', exact: true })
-  const turismo = results.getByRole('button', { name: 'Turismo', exact: true })
+  const modeButtons = results.locator('.m2-results-filter__transaction > button')
+  const vivienda = modeButtons.nth(0)
+  const turismo = modeButtons.nth(1)
+  await expect(modeButtons).toHaveCount(2)
+  await expect(vivienda).toHaveText('Vivienda')
+  await expect(turismo).toHaveText('Turismo')
 
   await expect(vivienda).toHaveCSS('border-top-color', 'rgb(116, 185, 0)')
   expect(await vivienda.evaluate((node) => getComputedStyle(node).boxShadow)).toContain('rgb(116, 185, 0)')
   expect(await vivienda.evaluate((node) => getComputedStyle(node).backgroundImage)).toContain('rgb(255, 255, 251)')
+  expect(await vivienda.evaluate((node) => getComputedStyle(node, '::before').content)).toContain('HABITACIONES')
+  expect(await vivienda.evaluate((node) => getComputedStyle(node, '::after').content)).toContain('LARGA ESTANCIA')
 
   await expect(turismo).toHaveCSS('border-top-color', 'rgba(198, 0, 131, 0.34)')
   expect(await turismo.evaluate((node) => getComputedStyle(node).backgroundImage)).toContain('rgb(255, 245, 251)')
+  expect(await turismo.evaluate((node) => getComputedStyle(node, '::before').content)).toContain('HABITACIONES')
+  expect(await turismo.evaluate((node) => getComputedStyle(node, '::after').content)).toContain('TURÍSTICAS')
 
   await turismo.click()
   await expect(turismo).toHaveCSS('border-top-color', 'rgb(198, 0, 131)')
   expect(await turismo.evaluate((node) => getComputedStyle(node).boxShadow)).toContain('rgb(198, 0, 131)')
   await assertNoHorizontalOverflow(page)
+})
+
+test('filter copy remains synchronized with the home labels for every language', () => {
+  const homeCopy = readFileSync('src/reference-occupant-icons.ts', 'utf8')
+  const css = readFileSync('src/client-mobile-alignment-fixes.css', 'utf8')
+
+  for (const value of ['HABITACIONES', 'LARGA ESTANCIA', 'TURÍSTICAS', 'ROOMS', 'LONG STAY', 'TOURIST', 'КОМНАТЫ', 'ДОЛГОСРОЧНО', 'ТУРИЗМ']) {
+    expect(homeCopy).toContain(value)
+    expect(css).toContain(value)
+  }
 })
 
 test('publish arrow polish and cascade order stay locked', () => {
