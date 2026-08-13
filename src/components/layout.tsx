@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Toaster } from '@/components/ui/sonner'
 import { MobileAppV2 } from '@/components/mobile-app-v2'
 import { MobilePublicationGate } from '@/components/mobile-publication-gate'
-import { MobileSearchResults } from '@/components/mobile-search-results'
+import { MobileSearchResults } from '@/components/mobile-search-results-v2'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
