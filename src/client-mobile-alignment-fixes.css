@@ -6,22 +6,16 @@
  */
 
 @media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
-  /* The tourism card was visually too close to the right edge. Move the whole
-     card left by exactly 4px without changing grid sizing or active/press transforms. */
   .m2-mode-switch > button:last-child {
     translate: -4px 0;
   }
 
-  /* Make the publish back affordance easier to read and restore its intended
-     optical position inside the 44px touch target. */
   .publish-page .publish-header > [data-slot="button"]:first-child svg {
     width: 1.5rem;
     height: 1.5rem;
     translate: .16rem 0;
   }
 
-  /* Filters reuse the same housing/tourism palette, copy hierarchy and selected
-     state as the home mode cards, at a deliberately smaller scale. */
   .m2-results-filter__transaction {
     gap: .55rem;
   }
@@ -47,7 +41,7 @@
   }
 
   .m2-results-filter__transaction button::before {
-    content: 'HABITACIONES';
+    content: 'HABITACIONES' / '';
     display: block;
     color: #111;
     font-size: .86rem;
@@ -69,7 +63,7 @@
   }
 
   .m2-results-filter__transaction button:first-child::after {
-    content: 'LARGA ESTANCIA';
+    content: 'LARGA ESTANCIA' / '';
   }
 
   .m2-results-filter__transaction button:last-child {
@@ -80,32 +74,15 @@
   }
 
   .m2-results-filter__transaction button:last-child::after {
-    content: 'TURÍSTICAS';
+    content: 'TURÍSTICAS' / '';
   }
 
-  html[lang='en'] .m2-results-filter__transaction button::before {
-    content: 'ROOMS';
-  }
-
-  html[lang='en'] .m2-results-filter__transaction button:first-child::after {
-    content: 'LONG STAY';
-  }
-
-  html[lang='en'] .m2-results-filter__transaction button:last-child::after {
-    content: 'TOURIST';
-  }
-
-  html[lang='ru'] .m2-results-filter__transaction button::before {
-    content: 'КОМНАТЫ';
-  }
-
-  html[lang='ru'] .m2-results-filter__transaction button:first-child::after {
-    content: 'ДОЛГОСРОЧНО';
-  }
-
-  html[lang='ru'] .m2-results-filter__transaction button:last-child::after {
-    content: 'ТУРИЗМ';
-  }
+  html[lang='en'] .m2-results-filter__transaction button::before { content: 'ROOMS' / ''; }
+  html[lang='en'] .m2-results-filter__transaction button:first-child::after { content: 'LONG STAY' / ''; }
+  html[lang='en'] .m2-results-filter__transaction button:last-child::after { content: 'TOURIST' / ''; }
+  html[lang='ru'] .m2-results-filter__transaction button::before { content: 'КОМНАТЫ' / ''; }
+  html[lang='ru'] .m2-results-filter__transaction button:first-child::after { content: 'ДОЛГОСРОЧНО' / ''; }
+  html[lang='ru'] .m2-results-filter__transaction button:last-child::after { content: 'ТУРИЗМ' / ''; }
 
   .m2-results-filter__transaction button.is-active {
     border-color: #74b900;
