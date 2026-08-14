@@ -65,6 +65,10 @@ jobs:
                   "await page.getByText('Lavadora', { exact: true }).click()",
                   "const washer = page.getByRole('checkbox', { name: 'Lavadora' })\n  if (!(await washer.isChecked())) await washer.click()\n  await expect(washer).toBeChecked()",
               ),
+              (
+                  "await expect(page.locator('.detail-list')).toContainText('Semana')\n  await expect(page.locator('.detail-list')).toContainText('360 €')\n  await expect(page.locator('.detail-list')).toContainText('1200 €')",
+                  "const priceDetails = page.getByRole('heading', { name: 'Precio y disponibilidad' }).locator('..').locator('.detail-list')\n  await expect(priceDetails).toContainText('Semana')\n  await expect(priceDetails).toContainText('360 €')\n  await expect(priceDetails).toContainText('1200 €')",
+              ),
           ]
           for old, new in test_replacements:
               if test_source.count(old) != 1:
