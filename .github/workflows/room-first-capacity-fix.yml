@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Apply coherent room-capacity transitions
+      - name: Apply coherent room-capacity transitions and canonical test contract
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -53,6 +53,14 @@ jobs:
               source = source.replace(old, new, 1)
 
           path.write_text(source, encoding='utf-8')
+
+          test_path = Path('tests/delta-matrix.spec.ts')
+          test_source = test_path.read_text(encoding='utf-8')
+          old_assertion = "expect(listing).not.toHaveProperty('couplesAllowed')"
+          new_assertion = "expect(listing.couplesAllowed).toBe(true)"
+          if test_source.count(old_assertion) != 1:
+              raise SystemExit('expected exactly one legacy couplesAllowed assertion')
+          test_path.write_text(test_source.replace(old_assertion, new_assertion, 1), encoding='utf-8')
           PY
       - name: Install and verify frontend
         run: |
@@ -67,6 +75,6 @@ jobs:
           rm .github/workflows/room-first-capacity-fix.yml
           git config user.name 'Anton Gameza'
           git config user.email 'antony502189@gmail.com'
-          git add src/pages/PublishPage.tsx .github/workflows/room-first-capacity-fix.yml
+          git add src/pages/PublishPage.tsx tests/delta-matrix.spec.ts .github/workflows/room-first-capacity-fix.yml
           git commit -m 'fix: keep room capacity and beds coherent'
           git push origin HEAD:feat/room-first-listing-filters
