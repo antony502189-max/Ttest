@@ -1,4 +1,4 @@
-"""Regression contracts for the room-first publication UI."""
+"""Regression contracts for room-first fields and their legacy-accessibility compatibility."""
 
 from pathlib import Path
 
