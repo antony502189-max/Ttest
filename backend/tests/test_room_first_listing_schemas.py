@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
+from app.repositories.listings import apply_search_filters, visible_query
 from app.schemas.listings import ListingSearchRequest, ListingWrite
 
 
@@ -161,3 +162,14 @@ def test_search_accepts_exact_interval_and_room_first_filters():
     assert search.availableUntil == date(2026, 9, 17)
     assert search.rentalUnit == "bed"
     assert search.acceptedTenantTypes == ["man", "woman"]
+
+
+def test_multiple_accepted_tenant_types_compile_as_alternatives():
+    query = apply_search_filters(
+        visible_query(),
+        ListingSearchRequest(acceptedTenantTypes=["man", "woman"]),
+    )
+    compiled = str(query)
+
+    assert " OR " in compiled
+    assert compiled.count("listing_room_details.accepted_tenant_types") >= 2
