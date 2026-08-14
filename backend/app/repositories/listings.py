@@ -351,7 +351,11 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.couplesAllowed is not None:
         query = query.where(ListingRoomDetails.couples_allowed == payload.couplesAllowed)
     if payload.acceptedTenantTypes:
-        query = query.where(ListingRoomDetails.accepted_tenant_types.contains(payload.acceptedTenantTypes))
+        query = query.where(
+            or_(
+                *(ListingRoomDetails.accepted_tenant_types.contains([tenant_type]) for tenant_type in payload.acceptedTenantTypes)
+            )
+        )
     if payload.publishedWithinDays is not None:
         query = query.where(Listing.published_at >= datetime.now(UTC) - timedelta(days=payload.publishedWithinDays))
     if payload.advertiserType:
