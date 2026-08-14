@@ -1,4 +1,4 @@
-import type { Listing, TenantRequirement } from '@/types'
+import type { AcceptedTenantType, BedType, HeatingType, HouseholdGender, Listing, RentalUnit, TenantRequirement, ToiletType } from '@/types'
 import { TENERIFE_CENTER } from '@/lib/tenerife'
 
 export const tenantRequirementLabels: Record<TenantRequirement, string> = {
@@ -77,6 +77,16 @@ function inferTenantRequirement(listing: LegacyListing): TenantRequirement | nul
   return listing.isExternal ? null : 'any'
 }
 
+function enumValue<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  return typeof value === 'string' && allowed.includes(value as T) ? value as T : null
+}
+
+function acceptedTenantTypes(value: unknown): AcceptedTenantType[] {
+  const allowed: AcceptedTenantType[] = ['man', 'woman', 'couple', 'family']
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((item): item is AcceptedTenantType => enumValue(item, allowed) !== null))]
+}
+
 export function isListingLike(value: unknown): value is Partial<Listing> & Pick<Listing, 'id' | 'title' | 'rentalMode' | 'images' | 'publishedAt'> {
   if (!value || typeof value !== 'object') return false
   const listing = value as Record<string, unknown>
@@ -105,7 +115,7 @@ export function normalizeListing(value: unknown): Listing | null {
   const rentalMode = value.rentalMode
   const tenantRequirement = inferTenantRequirement(legacy)
   const roomCapacity = typeof legacy.roomCapacity === 'number' && legacy.roomCapacity >= 1
-    ? Math.round(legacy.roomCapacity)
+    ? Math.min(10, Math.round(legacy.roomCapacity))
     : tenantRequirement === 'couple' ? 2 : legacy.isExternal ? null : 1
   const price = typeof legacy.price === 'number' ? legacy.price : 0
   const monthlyPrice = typeof legacy.monthlyPrice === 'number'
@@ -114,6 +124,17 @@ export function normalizeListing(value: unknown): Listing | null {
   const nightlyPrice = typeof legacy.nightlyPrice === 'number'
     ? legacy.nightlyPrice
     : rentalMode === 'holiday' ? price : undefined
+  const rentalUnit = enumValue<RentalUnit>(legacy.rentalUnit, ['room', 'bed'])
+  const bedType = enumValue<BedType>(legacy.bedType, ['single', 'double'])
+  const toilet = enumValue<ToiletType>(legacy.toilet, ['Aseo privado', 'Aseo compartido'])
+  const householdGender = enumValue<HouseholdGender>(legacy.householdGender, ['men', 'women', 'mixed', 'unknown'])
+  const heatingType = enumValue<HeatingType>(legacy.heatingType, ['individual', 'central', 'none', 'unknown'])
+  const currentRoomResidents = typeof legacy.currentRoomResidents === 'number' && Number.isFinite(legacy.currentRoomResidents)
+    ? Math.max(0, Math.min(9, Math.round(legacy.currentRoomResidents)))
+    : null
+  const availableSpots = roomCapacity != null && currentRoomResidents != null
+    ? Math.max(0, roomCapacity - currentRoomResidents)
+    : null
   const listing: Listing = {
     id: value.id,
     title: value.title,
@@ -141,12 +162,26 @@ export function normalizeListing(value: unknown): Listing | null {
     kitchen: legacy.kitchen ?? (legacy.isExternal ? null : 'Cocina compartida'),
     furnished: typeof legacy.furnished === 'boolean' ? legacy.furnished : legacy.isExternal ? null : true,
     roomSizeM2: typeof legacy.roomSizeM2 === 'number' ? legacy.roomSizeM2 : typeof legacy.size === 'number' ? legacy.size : legacy.isExternal ? null : 12,
+    homeSizeM2: typeof legacy.homeSizeM2 === 'number' && Number.isFinite(legacy.homeSizeM2) ? Math.max(1, Math.round(legacy.homeSizeM2)) : null,
     bedroomCount: typeof legacy.bedroomCount === 'number' && Number.isFinite(legacy.bedroomCount)
       ? Math.min(99, Math.max(1, Math.round(legacy.bedroomCount)))
       : legacy.roomType === 'Estudio' ? 1 : Math.min(99, Math.max(1, Math.round((legacy.currentResidents ?? legacy.occupants ?? 1) + 1))),
+    bathroomCount: typeof legacy.bathroomCount === 'number' && Number.isFinite(legacy.bathroomCount) ? Math.max(0, Math.min(20, Math.round(legacy.bathroomCount))) : null,
     currentResidents: typeof legacy.currentResidents === 'number' ? legacy.currentResidents : typeof legacy.occupants === 'number' ? legacy.occupants : 1,
     roomCapacity,
+    rentalUnit,
+    bedType,
+    bedCount: typeof legacy.bedCount === 'number' && Number.isFinite(legacy.bedCount) ? Math.max(1, Math.min(10, Math.round(legacy.bedCount))) : null,
+    currentRoomResidents,
+    availableSpots: typeof legacy.availableSpots === 'number' && Number.isFinite(legacy.availableSpots) ? Math.max(0, Math.round(legacy.availableSpots)) : availableSpots,
+    toilet,
     shower: legacy.shower === 'Ducha privada' ? 'Ducha privada' : 'Ducha compartida',
+    householdGender,
+    householdHasChildren: typeof legacy.householdHasChildren === 'boolean' ? legacy.householdHasChildren : null,
+    heatingType,
+    accessible: typeof legacy.accessible === 'boolean' ? legacy.accessible : null,
+    couplesAllowed: typeof legacy.couplesAllowed === 'boolean' ? legacy.couplesAllowed : null,
+    acceptedTenantTypes: acceptedTenantTypes(legacy.acceptedTenantTypes),
     coordinates: legacy.coordinates && typeof legacy.coordinates.lat === 'number' && typeof legacy.coordinates.lng === 'number'
       ? legacy.coordinates
       : { ...TENERIFE_CENTER },
