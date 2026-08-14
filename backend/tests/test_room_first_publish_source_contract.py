@@ -27,3 +27,13 @@ def test_publish_room_first_fields_keep_stable_accessible_contracts():
         'label="Aseo / WC"',
     ):
         assert contract in PUBLISH_SOURCE
+
+
+def test_publish_capacity_changes_keep_beds_and_occupancy_coherent():
+    for contract in (
+        'Math.ceil(roomCapacity / placesPerBed)',
+        'Math.min(current.currentRoomResidents, roomCapacity - 1)',
+        'value === "bed" ? Math.max(current.bedCount, current.roomCapacity)',
+        'Math.ceil(current.roomCapacity / placesPerBed)',
+    ):
+        assert contract in PUBLISH_SOURCE
