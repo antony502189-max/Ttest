@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
+from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
     ListingImageResponse,
@@ -21,6 +23,22 @@ from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .storage_deletions import enqueue_storage_deletions
+
+ROOM_DETAIL_MAPPING = {
+    "homeSizeM2": "home_size_m2",
+    "bathroomCount": "bathroom_count",
+    "rentalUnit": "rental_unit",
+    "bedType": "bed_type",
+    "bedCount": "bed_count",
+    "currentRoomResidents": "current_room_residents",
+    "toilet": "toilet",
+    "householdGender": "household_gender",
+    "householdHasChildren": "household_has_children",
+    "heatingType": "heating_type",
+    "accessible": "accessible",
+    "couplesAllowed": "couples_allowed",
+    "acceptedTenantTypes": "accepted_tenant_types",
+}
 
 
 async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSession) -> bool:
@@ -113,6 +131,54 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.expires_at = payload.expiresAt
 
 
+def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) -> None:
+    for api_name, model_name in ROOM_DETAIL_MAPPING.items():
+        setattr(details, model_name, getattr(payload, api_name))
+
+
+def _validate_effective_patch_state(
+    listing: Listing, details: ListingRoomDetails | None, changes: dict[str, object]
+) -> None:
+    def effective[T](api_name: str, current: T) -> T:
+        return cast(T, changes.get(api_name, current))
+
+    room_type = effective("roomType", listing.room_type)
+    room_capacity = effective("roomCapacity", listing.room_capacity)
+    room_size = effective("roomSizeM2", listing.room_size_m2)
+    rental_mode = effective("rentalMode", listing.rental_mode)
+    monthly_price = effective("monthlyPrice", listing.monthly_price)
+    nightly_price = effective("nightlyPrice", listing.nightly_price)
+    available_from = effective("availableFrom", listing.available_from)
+    available_until = effective("availableUntil", listing.available_until)
+
+    rental_unit = effective("rentalUnit", details.rental_unit if details else None)
+    bed_type = effective("bedType", details.bed_type if details else None)
+    bed_count = effective("bedCount", details.bed_count if details else None)
+    room_residents = effective(
+        "currentRoomResidents", details.current_room_residents if details else None
+    )
+    home_size = effective("homeSizeM2", details.home_size_m2 if details else None)
+
+    if rental_mode == "long" and monthly_price is None:
+        raise HTTPException(422, "monthlyPrice is required for long rentals")
+    if rental_mode == "holiday" and nightly_price is None:
+        raise HTTPException(422, "nightlyPrice is required for holiday rentals")
+    if rental_unit == "bed" and room_type != "Habitación compartida":
+        raise HTTPException(422, "rentalUnit=bed is only valid for shared rooms")
+    if rental_unit == "bed" and bed_type not in {None, "single"}:
+        raise HTTPException(422, "bed-space listings must use single beds")
+    if room_residents is not None and room_capacity is not None and room_residents >= room_capacity:
+        raise HTTPException(422, "currentRoomResidents must leave at least one available place")
+    if bed_count is not None and bed_type is not None and room_capacity is not None:
+        sleeping_places = bed_count * (2 if bed_type == "double" else 1)
+        if sleeping_places < room_capacity:
+            raise HTTPException(422, "bedCount and bedType do not provide enough sleeping places")
+    if home_size is not None and room_size is not None and home_size < room_size:
+        raise HTTPException(422, "homeSizeM2 cannot be smaller than roomSizeM2")
+    if available_from is not None and available_until is not None and available_until < available_from:
+        raise HTTPException(422, "availableUntil cannot be before availableFrom")
+
+
 async def create_listing(payload: ListingWrite, user: User, session: AsyncSession) -> OwnedListingResponse:
     now = datetime.now(UTC)
     initial_status = "published" if get_settings().auto_publish_listings else "pending"
@@ -130,6 +196,9 @@ async def create_listing(payload: ListingWrite, user: User, session: AsyncSessio
     listing.published_at = now if initial_status == "published" else None
     session.add(listing)
     await session.flush()
+    details = ListingRoomDetails(listing_id=listing.id)
+    apply_room_detail_write(details, payload)
+    session.add(details)
     session.add(
         ListingStatusHistory(
             listing_id=listing.id,
@@ -160,6 +229,9 @@ async def update_listing(
     if "status" in changes and not admin and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
         raise HTTPException(403, "Only an administrator can publish or reject listings")
 
+    current_details = await session.get(ListingRoomDetails, listing.id)
+    _validate_effective_patch_state(listing, current_details, changes)
+
     mapping = {
         "approximateAddress": "approximate_address",
         "monthlyPrice": "monthly_price",
@@ -186,6 +258,15 @@ async def update_listing(
         "advertiserType": "advertiser_type",
         "expiresAt": "expires_at",
     }
+    detail_changes = {key: changes.pop(key) for key in list(changes) if key in ROOM_DETAIL_MAPPING}
+    if detail_changes:
+        details = current_details
+        if details is None:
+            details = ListingRoomDetails(listing_id=listing.id)
+            session.add(details)
+        for api_name, value in detail_changes.items():
+            setattr(details, ROOM_DETAIL_MAPPING[api_name], value)
+
     previous_status = listing.status
     latitude = changes.pop("latitude", None)
     longitude = changes.pop("longitude", None)

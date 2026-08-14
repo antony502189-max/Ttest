@@ -3,7 +3,7 @@ import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
 import { canonicalizeZoneId, listingMatchesSelectedAreas, type TenerifeZoneCollection } from '@/lib/map/zones'
 import type { Filters, Listing, MapPolygonPoint, RentalMode, TenantRequirement, YesNoAny } from '@/types'
 
-const boolMatches = (value: boolean | null, filter: YesNoAny) => filter === 'Cualquiera' || (value !== null && value === (filter === 'Sí'))
+const boolMatches = (value: boolean | null | undefined, filter: YesNoAny) => filter === 'Cualquiera' || (value != null && value === (filter === 'Sí'))
 const tenantRequirementValues = new Set<TenantRequirement>(['single-man', 'single-woman', 'single-person', 'couple', 'any'])
 
 function normalizeTenantRequirements(value: unknown): TenantRequirement[] {
@@ -12,10 +12,6 @@ function normalizeTenantRequirements(value: unknown): TenantRequirement[] {
 }
 
 export function getTenantRequirements(filters: Filters): TenantRequirement[] {
-  // "Sin restricción" expresses the searcher's preference, not a requirement
-  // that the advertiser has explicitly stored the `any` value.  Imported
-  // listings often have no tenant restriction metadata, so treating `any` as
-  // a strict value made the default onboarding search hide those listings.
   if (filters.tenantRequirement === 'any') return []
   if (filters.tenantRequirement !== 'Cualquiera') return [filters.tenantRequirement]
   return normalizeTenantRequirements(filters.tenantRequirements)
@@ -23,7 +19,7 @@ export function getTenantRequirements(filters: Filters): TenantRequirement[] {
 
 export function normalizeFilters(value: unknown): Filters {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-  const next: Filters = { ...defaultFilters, areas: [], conditions: [], tenantRequirements: [], amenities: [] }
+  const next: Filters = { ...defaultFilters, areas: [], conditions: [], tenantRequirements: [], acceptedTenantTypes: [], amenities: [] }
   for (const key of Object.keys(defaultFilters) as (keyof Filters)[]) {
     const candidate = source[key]
     const fallback = defaultFilters[key]
@@ -49,13 +45,18 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
   const tenantRequirements = getTenantRequirements(filters)
   const priceFilterActive = filters.minPrice !== defaultFilters.minPrice || filters.maxPrice !== defaultFilters.maxPrice
   const roomSizeFilterActive = filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax
+  const homeSizeFilterActive = filters.homeSizeMin !== defaultFilters.homeSizeMin || filters.homeSizeMax !== defaultFilters.homeSizeMax
   return items.filter((listing) => {
     if (!isPublicListing(listing) || listing.rentalMode !== mode) return false
     const primaryPrice = getPrimaryPrice(listing)
     if (priceFilterActive && (primaryPrice < filters.minPrice || primaryPrice > filters.maxPrice)) return false
     if (!listingMatchesSelectedAreas(listing, filters.areas, zoneCollection)) return false
     if (filters.roomType !== 'Cualquiera' && listing.roomType !== filters.roomType) return false
-    if (filters.available && listing.availableFrom > filters.available) return false
+    if (filters.available) {
+      if (listing.availableFrom > filters.available) return false
+      if (listing.availableUntil && listing.availableUntil < filters.available) return false
+    }
+    if (filters.availableUntil && (!listing.availableUntil || listing.availableUntil < filters.availableUntil)) return false
     if (filters.minStay !== 'Cualquiera') {
       const requested = Number(filters.minStay)
       if (listing.minimumStayMonths == null || listing.minimumStayMonths > requested) return false
@@ -71,15 +72,34 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     if (filters.deposit === 'Hasta 1 mes' && listing.depositAmount != null && listing.depositAmount > primaryPrice) return false
     if (filters.deposit === 'Más de 1 mes' && listing.depositAmount != null && listing.depositAmount <= primaryPrice) return false
     if (roomSizeFilterActive && (listing.roomSizeM2 == null || listing.roomSizeM2 < filters.roomSizeMin || listing.roomSizeM2 > filters.roomSizeMax)) return false
+    if (homeSizeFilterActive && (listing.homeSizeM2 == null || listing.homeSizeM2 < filters.homeSizeMin || listing.homeSizeM2 > filters.homeSizeMax)) return false
+    if (filters.bathroomCountMin > 0 && (listing.bathroomCount == null || listing.bathroomCount < filters.bathroomCountMin)) return false
+    if (filters.rentalUnit !== 'Cualquiera' && listing.rentalUnit !== filters.rentalUnit) return false
+    if (filters.bedType !== 'Cualquiera' && listing.bedType !== filters.bedType) return false
+    if (filters.bedCountMin > 0 && (listing.bedCount == null || listing.bedCount < filters.bedCountMin)) return false
     if (filters.shower !== 'Cualquiera' && listing.shower !== filters.shower) return false
+    if (filters.toilet !== 'Cualquiera' && listing.toilet !== filters.toilet) return false
     if (filters.currentResidents === '5+' && listing.currentResidents < 5) return false
     if (filters.currentResidents !== 'Cualquiera' && filters.currentResidents !== '5+' && listing.currentResidents !== Number(filters.currentResidents)) return false
+    if (filters.roomResidents !== 'Cualquiera' && listing.currentRoomResidents !== Number(filters.roomResidents)) return false
     if (filters.roomCapacity !== 'Cualquiera' && listing.roomCapacity !== Number(filters.roomCapacity)) return false
+    if (filters.availableSpotsMin > 0) {
+      const availableSpots = listing.availableSpots ?? (listing.roomCapacity != null && listing.currentRoomResidents != null ? listing.roomCapacity - listing.currentRoomResidents : null)
+      if (availableSpots == null || availableSpots < filters.availableSpotsMin) return false
+    }
     if (mode === 'holiday' && filters.minimumNights > 0 && (listing.minimumNights ?? 1) > filters.minimumNights) return false
-    if (mode === 'holiday' && filters.availableUntil && (!listing.availableUntil || listing.availableUntil < filters.availableUntil)) return false
     if (!boolMatches(listing.smokingAllowed, filters.smoking)) return false
     if (!boolMatches(listing.petsAllowed, filters.pets)) return false
     if (!boolMatches(listing.childrenAllowed, filters.children)) return false
+    if (!boolMatches(listing.couplesAllowed, filters.couplesAllowed)) return false
+    if (filters.householdGender !== 'Cualquiera' && listing.householdGender !== filters.householdGender) return false
+    if (!boolMatches(listing.householdHasChildren, filters.householdHasChildren)) return false
+    if (filters.heatingType !== 'Cualquiera' && listing.heatingType !== filters.heatingType) return false
+    if (!boolMatches(listing.accessible, filters.accessible)) return false
+    if (filters.acceptedTenantTypes.length) {
+      const accepted = listing.acceptedTenantTypes ?? []
+      if (!filters.acceptedTenantTypes.some((type) => accepted.includes(type))) return false
+    }
     if (!boolMatches(listing.empadronamientoAllowed, filters.empadronamiento)) return false
     if (filters.advertiserType !== 'Cualquiera' && listing.advertiserType !== filters.advertiserType) return false
     if (filters.amenities.length && !filters.amenities.every((amenity) => listing.amenities.includes(amenity))) return false
@@ -108,6 +128,7 @@ export function getActiveFilterKeys(filters: Filters) {
   if (filters.areas.length) keys.push('areas')
   if (filters.roomType !== defaultFilters.roomType) keys.push('roomType')
   if (filters.available) keys.push('available')
+  if (filters.availableUntil) keys.push('availableUntil')
   if (filters.minStay !== defaultFilters.minStay) keys.push('minStay')
   if (filters.conditions.length) keys.push('conditions')
   if (getTenantRequirements(filters).length) keys.push('tenantRequirement')
@@ -117,14 +138,27 @@ export function getActiveFilterKeys(filters: Filters) {
   if (filters.billsIncluded) keys.push('billsIncluded')
   if (filters.deposit !== defaultFilters.deposit) keys.push('deposit')
   if (filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax) keys.push('roomSize')
+  if (filters.homeSizeMin !== defaultFilters.homeSizeMin || filters.homeSizeMax !== defaultFilters.homeSizeMax) keys.push('homeSize')
+  if (filters.bathroomCountMin !== defaultFilters.bathroomCountMin) keys.push('bathroomCount')
+  if (filters.rentalUnit !== defaultFilters.rentalUnit) keys.push('rentalUnit')
+  if (filters.bedType !== defaultFilters.bedType) keys.push('bedType')
+  if (filters.bedCountMin !== defaultFilters.bedCountMin) keys.push('bedCount')
   if (filters.shower !== defaultFilters.shower) keys.push('shower')
+  if (filters.toilet !== defaultFilters.toilet) keys.push('toilet')
   if (filters.currentResidents !== defaultFilters.currentResidents) keys.push('currentResidents')
+  if (filters.roomResidents !== defaultFilters.roomResidents) keys.push('roomResidents')
   if (filters.roomCapacity !== defaultFilters.roomCapacity) keys.push('roomCapacity')
+  if (filters.availableSpotsMin !== defaultFilters.availableSpotsMin) keys.push('availableSpots')
   if (filters.minimumNights !== defaultFilters.minimumNights) keys.push('minimumNights')
-  if (filters.availableUntil !== defaultFilters.availableUntil) keys.push('availableUntil')
   if (filters.smoking !== defaultFilters.smoking) keys.push('smoking')
   if (filters.pets !== defaultFilters.pets) keys.push('pets')
   if (filters.children !== defaultFilters.children) keys.push('children')
+  if (filters.couplesAllowed !== defaultFilters.couplesAllowed) keys.push('couplesAllowed')
+  if (filters.householdGender !== defaultFilters.householdGender) keys.push('householdGender')
+  if (filters.householdHasChildren !== defaultFilters.householdHasChildren) keys.push('householdHasChildren')
+  if (filters.heatingType !== defaultFilters.heatingType) keys.push('heatingType')
+  if (filters.accessible !== defaultFilters.accessible) keys.push('accessible')
+  if (filters.acceptedTenantTypes.length) keys.push('acceptedTenantTypes')
   if (filters.empadronamiento !== defaultFilters.empadronamiento) keys.push('empadronamiento')
   if (filters.publicationDate !== defaultFilters.publicationDate) keys.push('publicationDate')
   if (filters.advertiserType !== defaultFilters.advertiserType) keys.push('advertiserType')
@@ -132,18 +166,23 @@ export function getActiveFilterKeys(filters: Filters) {
   return keys
 }
 
-const listFields: (keyof Filters)[] = ['areas', 'conditions', 'tenantRequirements', 'amenities']
+const listFields: (keyof Filters)[] = ['areas', 'conditions', 'tenantRequirements', 'acceptedTenantTypes', 'amenities']
 const booleanFields: (keyof Filters)[] = ['furnished', 'billsIncluded']
-const numericFields: (keyof Filters)[] = ['minPrice', 'maxPrice', 'roomSizeMin', 'roomSizeMax', 'minimumNights']
+const numericFields: (keyof Filters)[] = [
+  'minPrice', 'maxPrice', 'roomSizeMin', 'roomSizeMax', 'homeSizeMin', 'homeSizeMax',
+  'bathroomCountMin', 'bedCountMin', 'availableSpotsMin', 'minimumNights',
+]
 const paramNames: Partial<Record<keyof Filters, string>> = {
-  minPrice: 'precioMin', maxPrice: 'precioMax', areas: 'zonas', roomType: 'habitacion', available: 'fecha', minStay: 'estancia', conditions: 'condiciones', tenantRequirement: 'requisito', tenantRequirements: 'requisitos',
+  minPrice: 'precioMin', maxPrice: 'precioMax', areas: 'zonas', roomType: 'habitacion', available: 'fecha', availableUntil: 'hasta', minStay: 'estancia', conditions: 'condiciones', tenantRequirement: 'requisito', tenantRequirements: 'requisitos',
   bathroom: 'bano', kitchen: 'cocina', furnished: 'amueblada', billsIncluded: 'gastos', deposit: 'fianza', smoking: 'fumar', pets: 'mascotas',
-  children: 'ninos', empadronamiento: 'padron', publicationDate: 'publicado', advertiserType: 'anunciante', amenities: 'servicios', sort: 'orden',
-  roomSizeMin: 'tamanoMin', roomSizeMax: 'tamanoMax', shower: 'ducha', currentResidents: 'residentes', roomCapacity: 'capacidad', minimumNights: 'nochesMin', availableUntil: 'hasta',
+  children: 'ninos', couplesAllowed: 'parejasOk', householdGender: 'convivenciaGenero', householdHasChildren: 'convivenciaNinos', heatingType: 'calefaccion', accessible: 'adaptada', acceptedTenantTypes: 'acepta',
+  empadronamiento: 'padron', publicationDate: 'publicado', advertiserType: 'anunciante', amenities: 'servicios', sort: 'orden',
+  roomSizeMin: 'tamanoMin', roomSizeMax: 'tamanoMax', homeSizeMin: 'viviendaMin', homeSizeMax: 'viviendaMax', bathroomCountMin: 'banosMin', rentalUnit: 'unidad', bedType: 'cama', bedCountMin: 'camasMin',
+  shower: 'ducha', toilet: 'aseo', currentResidents: 'residentes', roomResidents: 'residentesHabitacion', roomCapacity: 'capacidad', availableSpotsMin: 'plazasMin', minimumNights: 'nochesMin',
 }
 
 export function filtersFromParams(params: URLSearchParams): Filters {
-  const next: Filters = { ...defaultFilters, areas: [], conditions: [], tenantRequirements: [], amenities: [] }
+  const next: Filters = { ...defaultFilters, areas: [], conditions: [], tenantRequirements: [], acceptedTenantTypes: [], amenities: [] }
   ;(Object.keys(paramNames) as (keyof Filters)[]).forEach((key) => {
     const raw = params.get(paramNames[key] ?? key)
     if (raw === null) return

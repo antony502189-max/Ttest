@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.config import get_settings
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
 from ..models.moderation import ListingRestriction, UserRestriction
+from ..models.room_details import ListingRoomDetails
 from ..schemas.listings import (
     ListingOwnerResponse,
     ListingResponse,
@@ -56,11 +57,17 @@ def image_asset_ids_subquery():
 
 
 def response_from(row: Any) -> ListingResponse:
-    listing, longitude, latitude, owner, asset_ids = row
+    listing, longitude, latitude, owner, asset_ids, room_details = row
     price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
     image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
     if not image_urls:
         image_urls = listing.external_image_urls
+    current_room_residents = room_details.current_room_residents if room_details else None
+    available_spots = (
+        max(0, listing.room_capacity - current_room_residents)
+        if listing.room_capacity is not None and current_room_residents is not None
+        else None
+    )
     return ListingResponse(
         id=str(listing.id),
         ownerUserId=str(listing.owner_user_id),
@@ -115,6 +122,20 @@ def response_from(row: Any) -> ListingResponse:
         petsAllowed=listing.pets_allowed,
         childrenAllowed=listing.children_allowed,
         empadronamientoAllowed=listing.empadronamiento_allowed,
+        homeSizeM2=room_details.home_size_m2 if room_details else None,
+        bathroomCount=room_details.bathroom_count if room_details else None,
+        rentalUnit=room_details.rental_unit if room_details else None,
+        bedType=room_details.bed_type if room_details else None,
+        bedCount=room_details.bed_count if room_details else None,
+        currentRoomResidents=current_room_residents,
+        availableSpots=available_spots,
+        toilet=room_details.toilet if room_details else None,
+        householdGender=room_details.household_gender if room_details else None,
+        householdHasChildren=room_details.household_has_children if room_details else None,
+        heatingType=room_details.heating_type if room_details else None,
+        accessible=room_details.accessible if room_details else None,
+        couplesAllowed=room_details.couples_allowed if room_details else None,
+        acceptedTenantTypes=room_details.accepted_tenant_types if room_details else [],
         restrictions=listing.restrictions,
         amenities=listing.amenities,
         status=listing.status,
@@ -142,8 +163,8 @@ def response_from(row: Any) -> ListingResponse:
 
 
 def owned_response_from(row: Any) -> OwnedListingResponse:
-    listing, longitude, latitude, owner, asset_ids, exact_longitude, exact_latitude = row
-    public = response_from((listing, longitude, latitude, owner, asset_ids)).model_dump()
+    listing, longitude, latitude, owner, asset_ids, room_details, exact_longitude, exact_latitude = row
+    public = response_from((listing, longitude, latitude, owner, asset_ids, room_details)).model_dump()
     return OwnedListingResponse(
         **public,
         street=listing.street,
@@ -183,8 +204,10 @@ def visible_query() -> Select:
             ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
             User,
             image_asset_ids_subquery(),
+            ListingRoomDetails,
         )
         .join(User, User.id == Listing.owner_user_id)
+        .outerjoin(ListingRoomDetails, ListingRoomDetails.listing_id == Listing.id)
         .where(
             Listing.status == "published",
             Listing.deleted_at.is_(None),
@@ -198,15 +221,20 @@ def visible_query() -> Select:
 
 
 def owned_query() -> Select:
-    return select(
-        Listing,
-        ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
-        ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
-        User,
-        image_asset_ids_subquery(),
-        ST_X(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
-        ST_Y(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
-    ).join(User, User.id == Listing.owner_user_id)
+    return (
+        select(
+            Listing,
+            ST_X(cast(Listing.location, Geometry("POINT", srid=4326))),
+            ST_Y(cast(Listing.location, Geometry("POINT", srid=4326))),
+            User,
+            image_asset_ids_subquery(),
+            ListingRoomDetails,
+            ST_X(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
+            ST_Y(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
+        )
+        .join(User, User.id == Listing.owner_user_id)
+        .outerjoin(ListingRoomDetails, ListingRoomDetails.listing_id == Listing.id)
+    )
 
 
 def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select:
@@ -288,6 +316,46 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     ):
         if value is not None:
             query = query.where(column == value)
+    if payload.minHomeSizeM2 is not None:
+        query = query.where(ListingRoomDetails.home_size_m2 >= payload.minHomeSizeM2)
+    if payload.maxHomeSizeM2 is not None:
+        query = query.where(ListingRoomDetails.home_size_m2 <= payload.maxHomeSizeM2)
+    if payload.minBathroomCount is not None:
+        query = query.where(ListingRoomDetails.bathroom_count >= payload.minBathroomCount)
+    if payload.rentalUnit:
+        query = query.where(ListingRoomDetails.rental_unit == payload.rentalUnit)
+    if payload.bedType:
+        query = query.where(ListingRoomDetails.bed_type == payload.bedType)
+    if payload.minBedCount is not None:
+        query = query.where(ListingRoomDetails.bed_count >= payload.minBedCount)
+    if payload.currentRoomResidents is not None:
+        query = query.where(ListingRoomDetails.current_room_residents == payload.currentRoomResidents)
+    if payload.maxCurrentRoomResidents is not None:
+        query = query.where(ListingRoomDetails.current_room_residents <= payload.maxCurrentRoomResidents)
+    if payload.minAvailableSpots is not None:
+        query = query.where(
+            ListingRoomDetails.current_room_residents.is_not(None),
+            Listing.room_capacity.is_not(None),
+            Listing.room_capacity - ListingRoomDetails.current_room_residents >= payload.minAvailableSpots,
+        )
+    if payload.toilet:
+        query = query.where(ListingRoomDetails.toilet == payload.toilet)
+    if payload.householdGender:
+        query = query.where(ListingRoomDetails.household_gender == payload.householdGender)
+    if payload.householdHasChildren is not None:
+        query = query.where(ListingRoomDetails.household_has_children == payload.householdHasChildren)
+    if payload.heatingType:
+        query = query.where(ListingRoomDetails.heating_type == payload.heatingType)
+    if payload.accessible is not None:
+        query = query.where(ListingRoomDetails.accessible == payload.accessible)
+    if payload.couplesAllowed is not None:
+        query = query.where(ListingRoomDetails.couples_allowed == payload.couplesAllowed)
+    if payload.acceptedTenantTypes:
+        query = query.where(
+            or_(
+                *(ListingRoomDetails.accepted_tenant_types.contains([tenant_type]) for tenant_type in payload.acceptedTenantTypes)
+            )
+        )
     if payload.publishedWithinDays is not None:
         query = query.where(Listing.published_at >= datetime.now(UTC) - timedelta(days=payload.publishedWithinDays))
     if payload.advertiserType:
