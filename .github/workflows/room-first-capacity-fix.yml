@@ -1,0 +1,66 @@
+name: Room-first capacity fix
+
+on:
+  push:
+    branches:
+      - feat/room-first-listing-filters
+    paths:
+      - .github/workflows/room-first-capacity-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/room-first-listing-filters
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply coherent room-capacity transitions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/PublishPage.tsx')
+          source = path.read_text(encoding='utf-8')
+
+          replacements = {
+              '], (value) => setDraft((current) => ({ ...current, rentalUnit: value, bedType: value === "bed" ? "single" : current.bedType })) ) : null}':
+              '], (value) => setDraft((current) => ({ ...current, rentalUnit: value, bedType: value === "bed" ? "single" : current.bedType, bedCount: value === "bed" ? Math.max(current.bedCount, current.roomCapacity) : current.bedCount })) ) : null}',
+              '<FormField label="Capacidad total de esta habitación" htmlFor="publish-capacity" error={errors.roomCapacity}><select id="publish-capacity" aria-label="Capacidad de la habitación" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => set("roomCapacity", Number(e.target.value))}>':
+              '<FormField label="Capacidad total de esta habitación" htmlFor="publish-capacity" error={errors.roomCapacity}><select id="publish-capacity" aria-label="Capacidad de la habitación" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => { const roomCapacity = Number(e.target.value); setDraft((current) => { const placesPerBed = current.bedType === "double" ? 2 : 1; return { ...current, roomCapacity, bedCount: Math.max(current.bedCount, Math.ceil(roomCapacity / placesPerBed)), currentRoomResidents: Math.min(current.currentRoomResidents, roomCapacity - 1) }; }); }}>':
+              '<FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} disabled={draft.rentalUnit === "bed"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => set("bedType", e.target.value as ListingDraft["bedType"])}>':
+              '<FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} disabled={draft.rentalUnit === "bed"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft["bedType"]; setDraft((current) => { const placesPerBed = bedType === "double" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}>':
+          }
+
+          for old, new in replacements.items():
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one replacement target, found {count}: {old[:80]}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+      - name: Install and verify frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run lint
+          npm run typecheck
+          npm run build
+          npx playwright test tests/delta-matrix.spec.ts --grep 'ROOM-01..04 MODE-01..03'
+      - name: Remove temporary workflow and commit verified fix
+        run: |
+          rm .github/workflows/room-first-capacity-fix.yml
+          git config user.name 'Anton Gameza'
+          git config user.email 'antony502189@gmail.com'
+          git add src/pages/PublishPage.tsx .github/workflows/room-first-capacity-fix.yml
+          git commit -m 'fix: keep room capacity and beds coherent'
+          git push origin HEAD:feat/room-first-listing-filters
