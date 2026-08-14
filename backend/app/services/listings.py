@@ -139,7 +139,7 @@ def _validate_effective_patch_state(
     listing: Listing, details: ListingRoomDetails | None, changes: dict[str, object]
 ) -> None:
     def effective(api_name: str, current: object) -> object:
-        return changes[api_name] if api_name in changes else current
+        return changes.get(api_name, current)
 
     room_type = effective("roomType", listing.room_type)
     room_capacity = effective("roomCapacity", listing.room_capacity)

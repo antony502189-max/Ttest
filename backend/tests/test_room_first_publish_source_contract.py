@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 PUBLISH_SOURCE = (Path(__file__).resolve().parents[2] / "src" / "pages" / "PublishPage.tsx").read_text(encoding="utf-8")
 
 
