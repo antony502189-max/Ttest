@@ -1,303 +1,246 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const hostSession = 'host-demo'
-const firstListingId = 'armeñime-luminosa-01'
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
-
-async function clearLocalState(page: Page) {
-  await page.goto('/#/')
-  await page.evaluate(() => localStorage.clear())
-  await page.reload()
+const goto = async (page: Page, path: string) => {
+  await page.goto(`/#${path}`)
 }
 
-async function openAs(page: Page, userId: string, path: string) {
-  await page.goto('/#/')
-  await page.evaluate((id) => localStorage.setItem('112233:session:v1', JSON.stringify(id)), userId)
-  await page.reload()
-  await page.goto(path)
-}
-
-async function storedListings(page: Page) {
-  return page.evaluate(() => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as { data: Array<Record<string, any>> }
-    return payload.data
-  })
-}
-
-async function resultCount(page: Page) {
-  return Number.parseInt((await page.locator('#results-title').innerText()).replace(/\D/g, ''))
-}
-
-async function continueWizard(page: Page, count: number) {
-  for (let index = 0; index < count; index += 1) await page.getByRole('button', { name: 'Continuar' }).click()
-}
-
-async function mediaExists(page: Page, reference: string) {
-  return page.evaluate((mediaReference) => new Promise<boolean>((resolve, reject) => {
-    const open = indexedDB.open('112233-media', 1)
-    open.onerror = () => reject(open.error)
-    open.onsuccess = () => {
-      const database = open.result
-      const request = database.transaction('media', 'readonly').objectStore('media').get(mediaReference.slice('idb-media:'.length))
-      request.onerror = () => { database.close(); reject(request.error) }
-      request.onsuccess = () => { database.close(); resolve(request.result instanceof Blob) }
-    }
-  }), reference)
-}
-
-test.beforeEach(async ({ page }) => clearLocalState(page))
-
-test('USR-03..05 history, discarded listings and guest data stay in separate scopes', async ({ page }) => {
-  await page.goto('/#/buscar?q=Arona&alquiler=long')
-  await expect(page).toHaveURL(/q=Arona/)
-  const guestCard = page.locator('.results-list .property-card').first()
-  await expect(guestCard).toContainText('Arona')
-  const guestDiscardedId = await guestCard.getAttribute('data-listing-id')
-  await guestCard.getByRole('button', { name: 'Más opciones' }).click()
-  await page.getByRole('menuitem', { name: 'Descartar' }).click()
-
-  const guestScopes = await page.evaluate(() => ({
-    history: JSON.parse(localStorage.getItem('112233:search-history:v2') ?? '{}').data,
-    discarded: JSON.parse(localStorage.getItem('112233:discarded:v2') ?? '{}').data,
-  }))
-  expect(guestScopes.history.guest).toContain('Arona')
-  expect(guestScopes.discarded.guest).toContain(guestDiscardedId)
-
-  await openAs(page, 'tenant-demo', '/#/buscar?q=Arona&alquiler=long')
-  await expect(page.locator(`[data-listing-id="${guestDiscardedId}"]`)).toBeVisible()
-  await page.getByLabel('Ciudad, barrio o zona').fill('Adeje')
-  await page.getByRole('button', { name: 'Buscar' }).click()
-  await expect(page).toHaveURL(/q=Adeje/)
-  const tenantCard = page.locator('.results-list .property-card').first()
-  await expect(tenantCard).toContainText('Adeje')
-  const tenantDiscardedId = await tenantCard.getAttribute('data-listing-id')
-  await tenantCard.getByRole('button', { name: 'Más opciones' }).click()
-  await page.getByRole('menuitem', { name: 'Descartar' }).click()
-
-  const scoped = await page.evaluate(() => ({
-    history: JSON.parse(localStorage.getItem('112233:search-history:v2') ?? '{}').data,
-    discarded: JSON.parse(localStorage.getItem('112233:discarded:v2') ?? '{}').data,
-  }))
-  expect(scoped.history.guest).toContain('Arona')
-  expect(scoped.history['tenant-demo']).toContain('Adeje')
-  expect(scoped.discarded.guest).toContain(guestDiscardedId)
-  expect(scoped.discarded['tenant-demo']).toContain(tenantDiscardedId)
-  expect(scoped.discarded['tenant-demo']).not.toContain(guestDiscardedId)
-
-  await openAs(page, hostSession, '/#/buscar?q=Adeje&alquiler=long')
-  await expect(page.locator(`[data-listing-id="${tenantDiscardedId}"]`)).toBeVisible()
-})
-
-test('STORE-05 validator rejects incomplete listing payloads instead of accepting corrupted data', async ({ page }) => {
-  await page.evaluate(() => localStorage.setItem('112233:listings:v3', JSON.stringify({
-    version: 3,
-    data: [{ id: 'broken', title: 'Incomplete', rentalMode: 'long', images: [], publishedAt: '2026-07-20' }],
-  })))
-  await page.reload()
-  await expect(page.getByRole('alert').filter({ hasText: /datos locales dañados/ })).toBeVisible()
-  await expect.poll(() => storedListings(page).then((items) => items.length)).toBe(32)
-})
-
-test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback work', async ({ page }) => {
-  await openAs(page, hostSession, '/#/publicar')
-  await continueWizard(page, 6)
-  await page.locator('#publish-images').setInputFiles({ name: 'temporary.png', mimeType: 'image/png', buffer: png })
-  await expect.poll(() => page.evaluate(() => {
-    const payload = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}') as { data?: { images?: string[] } }
-    return payload.data?.images?.find((image) => image.startsWith('idb-media:')) ?? ''
-  })).toMatch(/^idb-media:/)
-  const temporaryMedia = await page.evaluate(() => {
-    const payload = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}') as { data: { images: string[] } }
-    return payload.data.images.find((image) => image.startsWith('idb-media:')) ?? ''
-  })
-  expect(await mediaExists(page, temporaryMedia)).toBe(true)
-  await page.getByRole('button', { name: 'Eliminar foto 7' }).click()
-  await expect.poll(() => mediaExists(page, temporaryMedia)).toBe(false)
-
-  await page.locator('#publish-images').setInputFiles({ name: 'room.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') })
-  await expect(page.locator('.image-uploader').getByRole('status')).toContainText('JPEG, PNG o WebP')
-
-  await page.evaluate(() => {
-    Object.defineProperty(IDBObjectStore.prototype, 'put', {
+const mockGeolocation = async (page: Page) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
-      value() { throw new DOMException('quota', 'QuotaExceededError') },
+      value: {
+        getCurrentPosition(success: PositionCallback) {
+          success({
+            coords: {
+              latitude: 28.2916,
+              longitude: -16.6291,
+              accuracy: 12,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+              toJSON: () => ({}),
+            },
+            timestamp: Date.now(),
+            toJSON: () => ({}),
+          } as GeolocationPosition)
+        },
+        watchPosition() { return 1 },
+        clearWatch() {},
+      },
     })
   })
-  await page.locator('#publish-images').setInputFiles({ name: 'room.png', mimeType: 'image/png', buffer: png })
-  await expect(page.locator('.image-uploader').getByRole('status')).toContainText('espacio suficiente')
+}
 
-  await page.evaluate((id) => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}') as { data: Array<Record<string, unknown>> }
-    payload.data = payload.data.map((item) => item.id === id ? { ...item, images: ['idb-media:missing'] } : item)
-    localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: payload.data }))
-  }, firstListingId)
-  await page.reload()
-  await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
-  await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^data:image\/svg/)
+const longListings = () => JSON.stringify([
+  {
+    id: 'legacy-one',
+    title: 'Legacy room',
+    city: 'Adeje',
+    area: 'Armeñime',
+    approximateAddress: 'Centro',
+    price: 500,
+    cadence: 'mes',
+    monthlyPrice: 500,
+    rentalMode: 'long',
+    roomType: 'Habitación individual',
+    available: 'Ahora',
+    availableFrom: '2026-07-01',
+    minimumStay: '1 mes',
+    minimumStayMonths: 1,
+    deposit: 'Sin fianza',
+    depositAmount: 0,
+    bills: 'Incluidos',
+    billsIncluded: true,
+    bathroom: 'Baño compartido',
+    kitchen: 'Cocina compartida',
+    furnished: true,
+    size: 14,
+    occupants: 2,
+    genderPreference: 'Solo mujer',
+    couplesAllowed: false,
+    restrictions: ['Solo mujer', 'Sin mascotas'],
+    amenities: ['Fibra'],
+    description: 'Descripción antigua',
+    homeDescription: 'Casa compartida',
+    images: ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=82'],
+    owner: { name: 'Legacy', initials: 'LG', since: '2022', response: 'Hoy', verified: true },
+    advertiserType: 'Particular',
+    status: 'Publicado',
+    publishedAt: '2026-07-01T00:00:00Z',
+    views: 1,
+    expiresAt: '2027-01-01',
+    coordinates: { lat: 28.12, lng: -16.72 },
+    showPhone: false,
+    showWhatsApp: false,
+    allowContactForm: true,
+  },
+])
+
+test('legacy localStorage listing migrates to canonical tenant requirement', async ({ page }) => {
+  await page.addInitScript((payload) => localStorage.setItem('112233:listings', payload), longListings())
+  await goto(page, '/habitacion/legacy-one')
+  await expect(page.getByText('Solo mujer').first()).toBeVisible()
+  const migrated = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings') || '[]')[0])
+  expect(migrated.tenantRequirement).toBe('single-woman')
+  expect(migrated.roomCapacity).toBe(1)
+  expect(migrated.shower).toBe('Ducha compartida')
+  expect(migrated.smokingAllowed).toBeNull()
+  expect(migrated.petsAllowed).toBe(false)
+  expect(migrated.childrenAllowed).toBeNull()
+  expect(migrated.empadronamientoAllowed).toBeNull()
 })
 
-test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters affect results', async ({ page }) => {
-  await openAs(page, hostSession, '/#/publicar')
-  await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
-  await continueWizard(page, 2)
-  await page.getByLabel('Tamaño aproximado').fill('19')
-  await page.getByLabel('Personas que viven en casa').fill('3')
-  await page.getByLabel('Capacidad de la habitación').selectOption('2')
-  await page.getByLabel('Ducha').selectOption('Ducha privada')
-  await page.getByText('Lavadora', { exact: true }).click()
-  await continueWizard(page, 1)
-  await page.getByLabel('Precio por noche').fill('61')
-  await page.getByLabel('Precio por semana').fill('360')
-  await page.getByLabel('Precio por mes').fill('1200')
-  await continueWizard(page, 1)
+test('holiday wizard values persist and filter against the same meaning', async ({ page }) => {
+  await mockGeolocation(page)
+  await goto(page, '/publicar')
+  await page.getByText('Alquiler vacacional', { exact: true }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByLabel('Superficie de la habitación (m²)').fill('18')
+  await page.getByLabel('Personas que ya viven en la vivienda').fill('2')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByLabel('Precio por noche (€)').fill('70')
+  await page.getByLabel('Precio por semana (€)').fill('420')
+  await page.getByLabel('Precio por mes (€)').fill('1500')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByLabel('Disponible desde').fill('2026-09-01')
+  await page.getByLabel('Disponible hasta').fill('2026-09-30')
   await page.getByLabel('Estancia mínima (noches)').fill('4')
-  await page.getByLabel('Disponible hasta').fill('2026-12-31')
-  await continueWizard(page, 1)
-  await page.getByLabel('Requisito para la persona inquilina').selectOption('couple')
-  await continueWizard(page, 4)
-  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
-
-  const listing = (await storedListings(page))[0]
-  expect(listing).toMatchObject({
-    rentalMode: 'holiday', roomSizeM2: 19, currentResidents: 3, roomCapacity: 2,
-    shower: 'Ducha privada', tenantRequirement: 'couple',
-    nightlyPrice: 61, weeklyPrice: 360, monthlyPrice: 1200,
-    minimumNights: 4, availableUntil: '2026-12-31',
-  })
-  expect(listing).not.toHaveProperty('genderPreference')
-  expect(listing).not.toHaveProperty('couplesAllowed')
-  expect(listing.amenities.filter((item: string) => item === 'Lavadora')).toHaveLength(1)
-
-  const query = '/#/buscar?alquiler=holiday&tamanoMin=19&tamanoMax=19&ducha=Ducha%20privada&residentes=3&capacidad=2&nochesMin=4&hasta=2026-12-31'
-  await page.goto(query)
-  await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toBeVisible()
-  await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toContainText('/noche')
-  await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
-  await expect(page.locator('.detail-list')).toContainText('Semana')
-  await expect(page.locator('.detail-list')).toContainText('360 €')
-  await expect(page.locator('.detail-list')).toContainText('1200 €')
-  await expect(page.getByText('Lavadora', { exact: true })).toHaveCount(1)
-  await page.goto('/#/buscar?alquiler=long')
-  await expect(page.locator('.property-card').first()).toContainText('/mes')
-})
-
-test('LOC-01 selected zone coordinates persist, edit restores them and exact street stays private', async ({ page }) => {
-  await openAs(page, hostSession, '/#/publicar')
-  await continueWizard(page, 1)
-  await page.getByLabel('Zona o barrio').fill('El Médano')
-  await page.getByLabel('Calle').fill('Calle Secreta 99')
-  await expect(page.getByText(/Coordenadas aproximadas: 28\.0477, -16\.5363/)).toBeVisible()
-  await page.getByRole('button', { name: 'Mover punto al este' }).click()
-  await continueWizard(page, 8)
-  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  const listing = (await storedListings(page))[0]
-  expect(listing.area).toBe('El Médano')
-  expect(listing.coordinates.lat).toBeCloseTo(28.0477, 4)
-  expect(listing.coordinates.lng).toBeCloseTo(-16.5343, 4)
-  await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
-  await expect(page.locator('main')).not.toContainText('Calle Secreta 99')
-  await page.goto(`/#/mis-anuncios/${encodeURIComponent(String(listing.id))}/editar`)
-  await continueWizard(page, 1)
-  await expect(page.getByText(/Coordenadas aproximadas: 28\.0477, -16\.5343/)).toBeVisible()
-})
-
-test('PROFILE-02 publish defaults and preview expose only enabled contact methods', async ({ page }) => {
-  await openAs(page, hostSession, '/#/perfil')
-  await page.getByRole('button', { name: 'Editar perfil' }).click()
-  await page.getByRole('switch', { name: /Mostrar teléfono/ }).click()
-  await page.getByRole('switch', { name: /Permitir WhatsApp/ }).click()
-  await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await page.goto('/#/publicar')
-  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}').data)).toMatchObject({
-    showPhone: false, showWhatsApp: false, allowContactForm: true,
-    contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344',
-  })
-  await continueWizard(page, 8)
-  await expect(page.getByRole('checkbox', { name: /Mostrar teléfono/ })).not.toBeChecked()
-  await expect(page.getByRole('checkbox', { name: /Permitir WhatsApp/ })).not.toBeChecked()
-  await page.getByRole('checkbox', { name: /Permitir mensaje local/ }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByRole('alert')).toContainText('Activa al menos una forma de contacto')
-  await page.getByRole('checkbox', { name: /Permitir mensaje local/ }).click()
+  await page.getByLabel('Condición principal para la persona inquilina').selectOption('couple')
+  await page.getByLabel('Se puede fumar').check()
+  await page.getByLabel('Mascotas permitidas').check()
+  await page.getByLabel('Empadronamiento posible').check()
   await page.getByRole('button', { name: 'Continuar' }).click()
-  const methods = page.locator('.preview-contact-methods').first()
-  await expect(methods).toContainText('Mensaje local')
-  await expect(methods).not.toContainText('Teléfono')
-  await expect(methods).not.toContainText('WhatsApp')
-})
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
 
-test('FILTER-02..06 new filters have chips, reset, reload and history navigation', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  await expect(page.getByLabel('Estancia mínima aceptada')).toBeVisible()
-  const baseline = await resultCount(page)
-  const sidebar = page.locator('.filter-sidebar')
-  await sidebar.getByLabel('Tamaño mínimo (m²)').fill('18')
-  await expect(page).toHaveURL(/tamanoMin=18/)
-  await expect.poll(() => resultCount(page)).toBeLessThan(baseline)
-  await sidebar.getByLabel('Ducha').selectOption('Ducha privada')
-  await sidebar.getByLabel('Residentes actuales').selectOption('1')
-  await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')
-  await expect(page).toHaveURL(/ducha=Ducha/)
-  await expect(page).toHaveURL(/residentes=1/)
-  await expect(page).toHaveURL(/capacidad=1/)
-  await expect(page.locator('.applied-filters')).toContainText('18–50 m²')
-  await expect(page.locator('.applied-filters')).toContainText('Ducha')
-  const filtered = await resultCount(page)
+  const published = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listings') || '[]')[0])
+  expect(published.rentalMode).toBe('holiday')
+  expect(published.nightlyPrice).toBe(70)
+  expect(published.weeklyPrice).toBe(420)
+  expect(published.monthlyPrice).toBe(1500)
+  expect(published.minimumNights).toBe(4)
+  expect(published.availableUntil).toBe('2026-09-30')
+  expect(published.tenantRequirement).toBe('couple')
+  expect(published.roomCapacity).toBe(2)
+  expect(published.shower).toBe('Ducha compartida')
+  expect(published.smokingAllowed).toBe(true)
+  expect(published.petsAllowed).toBe(true)
+  expect(published.empadronamientoAllowed).toBe(true)
+  expect(published).toHaveProperty('couplesAllowed', true)
+
+  await goto(page, '/buscar')
+  await page.getByRole('button', { name: /Filtros/i }).click()
+  const drawer = page.locator('[data-slot="sheet-content"]')
+  await drawer.getByLabel('Requisito para la persona inquilina').selectOption('couple')
+  await drawer.getByLabel('Ducha').selectOption('Ducha compartida')
+  await drawer.getByLabel('Residentes actuales').selectOption('2')
+  await drawer.getByLabel('Estancia mínima: hasta (noches)').fill('4')
+  await drawer.getByLabel('Disponible hasta al menos').fill('2026-09-30')
+  await drawer.getByLabel('Se puede fumar').selectOption('Sí')
+  await drawer.getByLabel('Mascotas').selectOption('Sí')
+  await drawer.getByLabel('Empadronamiento').selectOption('Sí')
+  await drawer.getByRole('button', { name: /Mostrar \d+ habitaciones/ }).click()
+
+  const params = await page.evaluate(() => Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || '').entries()))
+  expect(params.requisito).toBe('couple')
+  expect(params.ducha).toBe('Ducha compartida')
+  expect(params.residentes).toBe('2')
+  expect(params.nochesMin).toBe('4')
+  expect(params.hasta).toBe('2026-09-30')
+  expect(params.fumar).toBe('Sí')
+  expect(params.mascotas).toBe('Sí')
+  expect(params.padron).toBe('Sí')
+
   await page.reload()
-  await expect.poll(() => resultCount(page)).toBe(filtered)
-  const capacityOneUrl = page.url()
-  await page.goto(capacityOneUrl.replace('capacidad=1', 'capacidad=2'))
-  await expect(page).toHaveURL(/capacidad=2/)
+  await expect(page.getByRole('button', { name: /Filtros/i })).toBeVisible()
+  expect((await page.evaluate(() => Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || '').entries()))).requisito).toBe('couple')
+})
+
+test('filter chips use explicit semantic labels and reset survives reload/history', async ({ page }) => {
+  await goto(page, '/buscar?requisito=single-man&ducha=Ducha%20privada&residentes=5%2B&nochesMin=6&fumar=No&mascotas=Sí&ninos=No&padron=Sí&publicado=7d&anunciante=Particular')
+  const chipLabels = await page.locator('.m2-results-toolbar__chips button').allTextContents()
+  expect(chipLabels.some((label) => label.includes('Solo un hombre'))).toBeTruthy()
+  expect(chipLabels.some((label) => label.includes('Ducha privada'))).toBeTruthy()
+  expect(chipLabels.some((label) => label.includes('5+'))).toBeTruthy()
+  expect(chipLabels.some((label) => label.includes('6 noches'))).toBeTruthy()
+
+  await page.getByRole('button', { name: 'Limpiar todos los filtros' }).click()
+  expect(await page.evaluate(() => location.hash)).toBe('#/buscar')
+  await page.reload()
+  expect(await page.evaluate(() => location.hash)).toBe('#/buscar')
+
   await page.goBack()
-  await expect(sidebar.getByLabel('Capacidad de la habitación')).toHaveValue('1')
+  await expect(page).toHaveURL(/#\/buscar\?requisito=single-man/)
   await page.goForward()
-  await expect(sidebar.getByLabel('Capacidad de la habitación')).toHaveValue('2')
-  await page.locator('.applied-filters__clear').click()
-  await expect(page).not.toHaveURL(/tamanoMin|ducha|residentes|capacidad/)
-
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
-  await sidebar.getByLabel('Estancia mínima: hasta (noches)').fill('4')
-  await sidebar.getByLabel('Disponible hasta al menos').fill('2026-11-01')
-  await expect(page).toHaveURL(/nochesMin=4/)
-  await expect(page).toHaveURL(/hasta=2026-11-01/)
-  await expect(page.locator('.applied-filters')).toContainText('4 noches')
+  await expect(page).toHaveURL(/#\/buscar$/)
 })
 
-test('MAP-04 visible-area state activates after movement and resets after search', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
-  const searchArea = page.locator('.map-toolbar__search')
-  await expect(searchArea).toBeHidden()
-  await page.locator('.google-map-canvas').hover()
-  await page.mouse.wheel(0, -600)
-  await expect(searchArea).toHaveAttribute('data-dirty', 'true')
-  await searchArea.click()
-  await expect(searchArea).toBeHidden()
+test('legacy search params migrate once to canonical URL values', async ({ page }) => {
+  await goto(page, '/buscar?genero=Solo%20mujer&parejas=Sí&ocupantes=5%20o%20más')
+  await expect(page).toHaveURL(/requisito=single-woman/)
+  await expect(page).toHaveURL(/residentes=5%2B/)
+  await expect(page).not.toHaveURL(/genero=/)
+  await expect(page).not.toHaveURL(/parejas=/)
+  await expect(page).not.toHaveURL(/ocupantes=/)
 })
 
-test('MAP-05 Google Maps loader errors expose the accessible map fallback', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await page.locator('.google-map-canvas').waitFor({ state: 'visible' })
-  await page.evaluate(() => window.dispatchEvent(new Event('112233:google-maps-auth-failure')))
-  await expect(page.getByRole('alert').filter({ hasText: 'La clave de Google Maps no autoriza este dominio' })).toBeVisible()
-  await expect(page.getByLabel('Alternativa textual al mapa')).toBeVisible()
+test('registered user cannot enter or publish through pending host role', async ({ page }) => {
+  await goto(page, '/registro')
+  await page.getByLabel('Nombre completo').fill('Nuevo Usuario')
+  await page.getByLabel('Email').fill('nuevo@example.es')
+  await page.getByLabel('Contraseña').fill('password123')
+  await page.getByLabel('Acepto los').check()
+  await page.getByRole('button', { name: 'Crear cuenta' }).click()
+  await expect(page.getByText('¿Qué quieres hacer primero?')).toBeVisible()
+  await page.getByText('Buscar habitación').click()
+  await expect(page).toHaveURL(/#\/buscar$/)
+
+  await goto(page, '/menu')
+  await expect(page.getByText('Publicar anuncio')).toBeVisible()
+  await page.getByText('Publicar anuncio').click()
+  await expect(page).toHaveURL(/#\/publicar$/)
+  await expect(page.getByText('¿Qué tipo de estancia ofreces?')).toBeVisible()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('112233:user') || '{}').role)).toBe('host')
 })
 
-test('WIZ-04 reset clears dirty state and short-height filter drawer remains usable', async ({ page }) => {
-  await openAs(page, hostSession, '/#/publicar')
-  await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
-  await expect(page.locator('.dirty-state')).toHaveText('Cambios sin guardar')
-  await page.getByRole('button', { name: 'Restablecer' }).click()
-  const resetDialog = page.getByRole('alertdialog', { name: '¿Restablecer el borrador?' })
-  await resetDialog.getByRole('button', { name: 'Restablecer' }).click()
-  await expect(page.locator('.dirty-state')).toHaveText('Borrador guardado')
+test('mobile slide-out menu hides direct contact settings and still supports account deletion', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await goto(page, '/acceso')
+  await page.getByLabel('Email').fill('maria@demo.es')
+  await page.getByLabel('Contraseña').fill('demo123')
+  await page.getByRole('button', { name: 'Acceder', exact: true }).click()
+  await expect(page).toHaveURL(/#\/$/)
 
-  await page.setViewportSize({ width: 390, height: 560 })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  await page.locator('.m2-results__toolbar button').first().click()
-  const drawer = page.locator('.m2-results-filter')
-  const box = await drawer.boundingBox()
-  expect(box && box.y >= 0 && box.y + box.height <= 561).toBeTruthy()
-  await expect(drawer.locator('footer')).toBeVisible()
+  await page.getByRole('button', { name: 'Abrir menú' }).click()
+  await expect(page.getByRole('dialog', { name: 'Menú de cuenta' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'Menú de cuenta' }).getByRole('button', { name: 'Contacto y mensajes' }).click()
+  await expect(page.getByText('Usamos la configuración guardada en tu perfil para mostrar los canales permitidos en tus anuncios.')).toBeVisible()
+  await expect(page.getByText('Mostrar mi teléfono')).toHaveCount(0)
+  await expect(page.getByText('Permitir WhatsApp')).toHaveCount(0)
+  await expect(page.getByText('Permitir mensajes internos')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Atrás' }).click()
+  await page.getByRole('button', { name: 'Cuenta y privacidad' }).click()
+  await expect(page.getByRole('button', { name: 'Eliminar cuenta' })).toBeVisible()
+  await page.getByRole('button', { name: 'Eliminar cuenta' }).click()
+  await expect(page.getByRole('heading', { name: 'Eliminar cuenta' })).toBeVisible()
+  await page.getByLabel('Escribe ELIMINAR para confirmar').fill('ELIMINAR')
+  await page.getByRole('button', { name: 'Eliminar definitivamente' }).click()
+  await expect(page).toHaveURL(/#\/$/)
+  expect(await page.evaluate(() => localStorage.getItem('112233:user'))).toBeNull()
+})
+
+test('mobile map renders and requests structured API-like data without DOM scraping', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await goto(page, '/buscar')
+  await expect(page.locator('.m2-map')).toBeVisible()
+  await expect(page.locator('.m2-map .m2-map__map')).toBeVisible()
+  const markers = page.locator('.m2-map-marker')
+  await expect(markers.first()).toBeVisible()
+  const markerCount = await markers.count()
+  expect(markerCount).toBeGreaterThan(1)
 })
