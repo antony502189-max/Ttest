@@ -1,4 +1,4 @@
-import type { Filters, Listing, ListingDraft } from '@/types'
+import type { AcceptedTenantType, Filters, Listing, ListingDraft } from '@/types'
 
 const photos = [
   'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=82',
@@ -69,8 +69,6 @@ const tenantRequirementCycle: NonNullable<Listing['tenantRequirement']>[] = [
   'couple',
   'any',
 ]
-// Keep a deterministic representative set for the narrow mobile filter path:
-// six published long-stay individual rooms under €500 and 12 m².
 const compactSingleRoomSeedIndexes = new Set([0, 1, 10, 20, 21, 30])
 
 const buildRestrictions = (index: number, mode: Listing['rentalMode'], tenantRequirement: NonNullable<Listing['tenantRequirement']>) => {
@@ -83,8 +81,15 @@ const buildRestrictions = (index: number, mode: Listing['rentalMode'], tenantReq
   return restrictions
 }
 
+function acceptedTenants(requirement: NonNullable<Listing['tenantRequirement']>): AcceptedTenantType[] {
+  if (requirement === 'single-man') return ['man']
+  if (requirement === 'single-woman') return ['woman']
+  if (requirement === 'couple') return ['couple']
+  return requirement === 'single-person' ? ['man', 'woman'] : ['man', 'woman', 'couple', 'family']
+}
+
 export const areas = places.map((place) => place[1])
-export const amenityOptions = ['Fibra', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento']
+export const amenityOptions = ['Fibra', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']
 
 export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) => {
   const place = places[index < legacyPlaceIndices.length ? legacyPlaceIndices[index] : index % places.length]
@@ -97,6 +102,10 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
   const publishedDate = new Date(Date.UTC(2026, 6, 20 - (index % 31), 12 - (index % 8)))
   const restrictions = buildRestrictions(index, rentalMode, tenantRequirement)
   const [ownerName, initials] = owners[index % owners.length]
+  const roomType: Listing['roomType'] = index % 9 === 5 ? 'Estudio' : index % 8 === 3 ? 'Habitación compartida' : 'Habitación individual'
+  const shared = roomType === 'Habitación compartida'
+  const bedType: Listing['bedType'] = shared ? 'single' : index % 3 === 0 ? 'double' : 'single'
+  const currentRoomResidents = shared ? Math.min(Math.max(0, (roomCapacity ?? 1) - 1), 1) : 0
   return {
     id: legacyIds[index] ?? `${place[1].toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-')}-${String(index + 1).padStart(2, '0')}`,
     title: titles[index % titles.length],
@@ -109,10 +118,10 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     nightlyPrice: rentalMode === 'holiday' ? price : undefined,
     weeklyPrice: rentalMode === 'holiday' ? price * 6 : undefined,
     rentalMode,
-    roomType: index % 9 === 5 ? 'Estudio' : index % 8 === 3 ? 'Habitación compartida' : 'Habitación individual',
+    roomType,
     available: index % 4 === 0 ? 'Disponible ahora' : `Disponible desde ${1 + (index % 27)} agosto`,
     availableFrom: `2026-${index % 4 === 0 ? '07' : '08'}-${String(1 + (index % 27)).padStart(2, '0')}`,
-    availableUntil: rentalMode === 'holiday' ? '2026-12-20' : undefined,
+    availableUntil: '2026-12-20',
     minimumStay: rentalMode === 'holiday' ? `Mínimo ${3 + (index % 5)} noches` : `Mínimo ${minimumStayMonths} ${minimumStayMonths === 1 ? 'mes' : 'meses'}`,
     minimumStayMonths,
     minimumNights: rentalMode === 'holiday' ? 3 + (index % 5) : undefined,
@@ -124,10 +133,24 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     kitchen: index % 9 === 5 ? 'Cocina privada' : 'Cocina compartida',
     furnished: index % 11 !== 0,
     roomSizeM2: 9 + (index % 10),
+    homeSizeM2: 60 + (index % 8) * 8,
     bedroomCount,
+    bathroomCount: 1 + (index % 2),
     currentResidents: 1 + (index % 6),
     roomCapacity,
+    rentalUnit: shared ? 'bed' : 'room',
+    bedType,
+    bedCount: shared ? Math.max(2, roomCapacity ?? 2) : 1,
+    currentRoomResidents,
+    availableSpots: roomCapacity == null ? null : Math.max(0, roomCapacity - currentRoomResidents),
+    toilet: index % 5 === 0 ? 'Aseo privado' : 'Aseo compartido',
     shower: index % 4 === 2 ? 'Ducha privada' : 'Ducha compartida',
+    householdGender: index % 3 === 0 ? 'men' : index % 3 === 1 ? 'women' : 'mixed',
+    householdHasChildren: index % 6 === 1,
+    heatingType: index % 4 === 0 ? 'individual' : index % 7 === 0 ? 'central' : 'none',
+    accessible: index % 8 === 0,
+    couplesAllowed: tenantRequirement === 'couple' || tenantRequirement === 'any',
+    acceptedTenantTypes: acceptedTenants(tenantRequirement),
     coordinates: { lat: place[2] + ((index % 3) - 1) * 0.0045, lng: place[3] + ((index % 4) - 1.5) * 0.004 },
     tenantRequirement,
     smokingAllowed: restrictions.includes('Se puede fumar'),
@@ -176,14 +199,29 @@ export const defaultFilters: Filters = {
   deposit: 'Cualquiera',
   roomSizeMin: 0,
   roomSizeMax: 50,
+  homeSizeMin: 0,
+  homeSizeMax: 250,
+  bathroomCountMin: 0,
+  rentalUnit: 'Cualquiera',
+  bedType: 'Cualquiera',
+  bedCountMin: 0,
   shower: 'Cualquiera',
+  toilet: 'Cualquiera',
   currentResidents: 'Cualquiera',
+  roomResidents: 'Cualquiera',
   roomCapacity: 'Cualquiera',
+  availableSpotsMin: 0,
   minimumNights: 0,
   availableUntil: '',
   smoking: 'Cualquiera',
   pets: 'Cualquiera',
   children: 'Cualquiera',
+  couplesAllowed: 'Cualquiera',
+  householdGender: 'Cualquiera',
+  householdHasChildren: 'Cualquiera',
+  heatingType: 'Cualquiera',
+  accessible: 'Cualquiera',
+  acceptedTenantTypes: [],
   empadronamiento: 'Cualquiera',
   publicationDate: 'Cualquiera',
   advertiserType: 'Cualquiera',
@@ -192,11 +230,15 @@ export const defaultFilters: Filters = {
 }
 
 export const createDefaultDraft = (): ListingDraft => ({
-  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], locationManuallyMoved: false, roomType: 'Habitación individual', roomSizeM2: 12, bedroomCount: 4, currentResidents: 4, roomCapacity: 1,
-  bathroom: 'Baño compartido', shower: 'Ducha compartida', kitchen: 'Cocina compartida', furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 450,
-  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-01', availableUntil: '2026-12-20', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
-  tenantRequirement: 'single-person', smokingAllowed: false, petsAllowed: false, childrenAllowed: false, empadronamientoAllowed: true,
+  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], locationManuallyMoved: false,
+  roomType: 'Habitación individual', roomSizeM2: 14, homeSizeM2: 85, bedroomCount: 5, bathroomCount: 2, currentResidents: 4, roomCapacity: 1,
+  rentalUnit: 'room', bedType: 'single', bedCount: 1, currentRoomResidents: 0,
+  bathroom: 'Baño compartido', toilet: 'Aseo privado', shower: 'Ducha compartida', kitchen: 'Cocina privada', heatingType: 'none', accessible: false,
+  furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,
+  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-15', availableUntil: '2027-08-14', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
+  tenantRequirement: 'single-man', acceptedTenantTypes: ['man'], householdGender: 'men', householdHasChildren: false, couplesAllowed: false,
+  smokingAllowed: false, petsAllowed: false, childrenAllowed: false, empadronamientoAllowed: true,
   rules: 'Buscamos una convivencia tranquila. Se respetan los horarios de descanso y se organizan turnos de limpieza.', images: rotatePhotos(0),
-  title: 'Habitación luminosa con escritorio y gastos incluidos', description: 'Habitación exterior y tranquila en una casa compartida bien cuidada. Dispone de cama, armario y zona de trabajo.',
+  title: 'Habitación privada con cocina y aseo propios', description: 'Habitación exterior y tranquila en una casa compartida bien cuidada. Dispone de cama, armario, cocina privada y aseo privado; la ducha es compartida.',
   contactName: 'Equipo Casa Norte', contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344', contactEmail: 'anuncios@example.es', showPhone: true, showWhatsApp: true, allowContactForm: true, status: 'Publicado',
 })
