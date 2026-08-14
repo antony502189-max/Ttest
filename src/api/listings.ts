@@ -45,6 +45,20 @@ type ListingDto = {
   currentResidents: number
   roomCapacity: number | null
   shower: Listing['shower']
+  homeSizeM2: number | null
+  bathroomCount: number | null
+  rentalUnit: Listing['rentalUnit'] | null
+  bedType: Listing['bedType'] | null
+  bedCount: number | null
+  currentRoomResidents: number | null
+  availableSpots: number | null
+  toilet: Listing['toilet'] | null
+  householdGender: Listing['householdGender'] | null
+  householdHasChildren: boolean | null
+  heatingType: Listing['heatingType'] | null
+  accessible: boolean | null
+  couplesAllowed: boolean | null
+  acceptedTenantTypes: NonNullable<Listing['acceptedTenantTypes']>
   tenantRequirement: TenantRequirement | null
   smokingAllowed: boolean | null
   petsAllowed: boolean | null
@@ -135,6 +149,20 @@ export function toListing(dto: ListingDto): Listing {
     currentResidents: dto.currentResidents,
     roomCapacity: dto.roomCapacity,
     shower: dto.shower,
+    homeSizeM2: dto.homeSizeM2,
+    bathroomCount: dto.bathroomCount,
+    rentalUnit: dto.rentalUnit,
+    bedType: dto.bedType,
+    bedCount: dto.bedCount,
+    currentRoomResidents: dto.currentRoomResidents,
+    availableSpots: dto.availableSpots,
+    toilet: dto.toilet,
+    householdGender: dto.householdGender,
+    householdHasChildren: dto.householdHasChildren,
+    heatingType: dto.heatingType,
+    accessible: dto.accessible,
+    couplesAllowed: dto.couplesAllowed,
+    acceptedTenantTypes: dto.acceptedTenantTypes,
     coordinates: { lat: dto.latitude, lng: dto.longitude },
     tenantRequirement: dto.tenantRequirement,
     smokingAllowed: dto.smokingAllowed,
@@ -269,10 +297,9 @@ export function searchPublicListings(input: ListingSearchInput) {
     radiusKm: input.radiusKm ?? route.radiusKm,
     ...(filters.roomType !== 'Cualquiera' ? { roomType: filters.roomType } : {}),
     ...(filters.available ? { availableFrom: filters.available } : {}),
+    ...(filters.availableUntil ? { availableUntil: filters.availableUntil } : {}),
     ...(filters.minStay !== 'Cualquiera' ? { maxMinimumStayMonths: Number(filters.minStay) } : {}),
     ...(filters.conditions.length ? { restrictions: filters.conditions } : {}),
-    // "Sin restricción" is not a strict advertised-requirement filter.  In
-    // particular, external sources legitimately omit this metadata.
     ...(filters.tenantRequirement !== 'Cualquiera' && filters.tenantRequirement !== 'any'
       ? { tenantRequirement: filters.tenantRequirement }
       : {}),
@@ -283,14 +310,28 @@ export function searchPublicListings(input: ListingSearchInput) {
     ...(filters.deposit !== 'Cualquiera' ? { deposit: filters.deposit } : {}),
     ...(filters.roomSizeMin !== defaultFilters.roomSizeMin ? { minRoomSizeM2: filters.roomSizeMin } : {}),
     ...(filters.roomSizeMax !== defaultFilters.roomSizeMax ? { maxRoomSizeM2: filters.roomSizeMax } : {}),
+    ...(filters.homeSizeMin !== defaultFilters.homeSizeMin ? { minHomeSizeM2: filters.homeSizeMin } : {}),
+    ...(filters.homeSizeMax !== defaultFilters.homeSizeMax ? { maxHomeSizeM2: filters.homeSizeMax } : {}),
+    ...(filters.bathroomCountMin > 0 ? { minBathroomCount: filters.bathroomCountMin } : {}),
+    ...(filters.rentalUnit !== 'Cualquiera' ? { rentalUnit: filters.rentalUnit } : {}),
+    ...(filters.bedType !== 'Cualquiera' ? { bedType: filters.bedType } : {}),
+    ...(filters.bedCountMin > 0 ? { minBedCount: filters.bedCountMin } : {}),
     ...(filters.shower !== 'Cualquiera' ? { shower: filters.shower } : {}),
+    ...(filters.toilet !== 'Cualquiera' ? { toilet: filters.toilet } : {}),
     ...(filters.currentResidents === '5+' ? { minCurrentResidents: 5 } : filters.currentResidents !== 'Cualquiera' ? { currentResidents: Number(filters.currentResidents) } : {}),
+    ...(filters.roomResidents !== 'Cualquiera' ? { currentRoomResidents: Number(filters.roomResidents) } : {}),
     ...(filters.roomCapacity !== 'Cualquiera' ? { roomCapacity: Number(filters.roomCapacity) } : {}),
+    ...(filters.availableSpotsMin > 0 ? { minAvailableSpots: filters.availableSpotsMin } : {}),
     ...(input.rentalMode === 'holiday' && filters.minimumNights > 0 ? { maxMinimumNights: filters.minimumNights } : {}),
-    ...(input.rentalMode === 'holiday' && filters.availableUntil ? { availableUntil: filters.availableUntil } : {}),
     ...(yesNo(filters.smoking) !== undefined ? { smokingAllowed: yesNo(filters.smoking) } : {}),
     ...(yesNo(filters.pets) !== undefined ? { petsAllowed: yesNo(filters.pets) } : {}),
     ...(yesNo(filters.children) !== undefined ? { childrenAllowed: yesNo(filters.children) } : {}),
+    ...(yesNo(filters.couplesAllowed) !== undefined ? { couplesAllowed: yesNo(filters.couplesAllowed) } : {}),
+    ...(filters.householdGender !== 'Cualquiera' ? { householdGender: filters.householdGender } : {}),
+    ...(yesNo(filters.householdHasChildren) !== undefined ? { householdHasChildren: yesNo(filters.householdHasChildren) } : {}),
+    ...(filters.heatingType !== 'Cualquiera' ? { heatingType: filters.heatingType } : {}),
+    ...(yesNo(filters.accessible) !== undefined ? { accessible: yesNo(filters.accessible) } : {}),
+    ...(filters.acceptedTenantTypes.length ? { acceptedTenantTypes: filters.acceptedTenantTypes } : {}),
     ...(yesNo(filters.empadronamiento) !== undefined ? { empadronamientoAllowed: yesNo(filters.empadronamiento) } : {}),
     ...(publicationDays ? { publishedWithinDays: publicationDays } : {}),
     ...(filters.advertiserType !== 'Cualquiera' ? { advertiserType: filters.advertiserType } : {}),
@@ -349,7 +390,13 @@ function listingPayload(listing: Listing, existing?: Listing) {
     minimumNights: listing.minimumNights ?? null, depositAmount: listing.depositAmount, billsIncluded: listing.billsIncluded,
     bathroom: listing.bathroom, kitchen: listing.kitchen, furnished: listing.furnished, roomSizeM2: listing.roomSizeM2,
     bedroomCount: listing.bedroomCount ?? null, currentResidents: listing.currentResidents, roomCapacity: listing.roomCapacity,
-    shower: listing.shower, tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
+    shower: listing.shower, homeSizeM2: listing.homeSizeM2 ?? null, bathroomCount: listing.bathroomCount ?? null,
+    rentalUnit: listing.rentalUnit ?? null, bedType: listing.bedType ?? null, bedCount: listing.bedCount ?? null,
+    currentRoomResidents: listing.currentRoomResidents ?? null, toilet: listing.toilet ?? null,
+    householdGender: listing.householdGender ?? null, householdHasChildren: listing.householdHasChildren ?? null,
+    heatingType: listing.heatingType ?? null, accessible: listing.accessible ?? null, couplesAllowed: listing.couplesAllowed ?? null,
+    acceptedTenantTypes: listing.acceptedTenantTypes ?? [],
+    tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
     petsAllowed: listing.petsAllowed, childrenAllowed: listing.childrenAllowed, empadronamientoAllowed: listing.empadronamientoAllowed,
     restrictions: listing.restrictions, amenities: listing.amenities, latitude: listing.coordinates.lat,
     longitude: listing.coordinates.lng, exactLatitude: exact?.lat ?? null, exactLongitude: exact?.lng ?? null,
