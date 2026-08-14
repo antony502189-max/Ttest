@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
+from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
     ListingImageResponse,
@@ -21,6 +22,22 @@ from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .storage_deletions import enqueue_storage_deletions
+
+ROOM_DETAIL_MAPPING = {
+    "homeSizeM2": "home_size_m2",
+    "bathroomCount": "bathroom_count",
+    "rentalUnit": "rental_unit",
+    "bedType": "bed_type",
+    "bedCount": "bed_count",
+    "currentRoomResidents": "current_room_residents",
+    "toilet": "toilet",
+    "householdGender": "household_gender",
+    "householdHasChildren": "household_has_children",
+    "heatingType": "heating_type",
+    "accessible": "accessible",
+    "couplesAllowed": "couples_allowed",
+    "acceptedTenantTypes": "accepted_tenant_types",
+}
 
 
 async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSession) -> bool:
@@ -113,6 +130,11 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.expires_at = payload.expiresAt
 
 
+def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) -> None:
+    for api_name, model_name in ROOM_DETAIL_MAPPING.items():
+        setattr(details, model_name, getattr(payload, api_name))
+
+
 async def create_listing(payload: ListingWrite, user: User, session: AsyncSession) -> OwnedListingResponse:
     now = datetime.now(UTC)
     initial_status = "published" if get_settings().auto_publish_listings else "pending"
@@ -130,6 +152,9 @@ async def create_listing(payload: ListingWrite, user: User, session: AsyncSessio
     listing.published_at = now if initial_status == "published" else None
     session.add(listing)
     await session.flush()
+    details = ListingRoomDetails(listing_id=listing.id)
+    apply_room_detail_write(details, payload)
+    session.add(details)
     session.add(
         ListingStatusHistory(
             listing_id=listing.id,
@@ -186,6 +211,15 @@ async def update_listing(
         "advertiserType": "advertiser_type",
         "expiresAt": "expires_at",
     }
+    detail_changes = {key: changes.pop(key) for key in list(changes) if key in ROOM_DETAIL_MAPPING}
+    if detail_changes:
+        details = await session.get(ListingRoomDetails, listing.id)
+        if details is None:
+            details = ListingRoomDetails(listing_id=listing.id)
+            session.add(details)
+        for api_name, value in detail_changes.items():
+            setattr(details, ROOM_DETAIL_MAPPING[api_name], value)
+
     previous_status = listing.status
     latitude = changes.pop("latitude", None)
     longitude = changes.pop("longitude", None)
