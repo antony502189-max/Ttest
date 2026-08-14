@@ -56,11 +56,21 @@ jobs:
 
           test_path = Path('tests/delta-matrix.spec.ts')
           test_source = test_path.read_text(encoding='utf-8')
-          old_assertion = "expect(listing).not.toHaveProperty('couplesAllowed')"
-          new_assertion = "expect(listing.couplesAllowed).toBe(true)"
-          if test_source.count(old_assertion) != 1:
-              raise SystemExit('expected exactly one legacy couplesAllowed assertion')
-          test_path.write_text(test_source.replace(old_assertion, new_assertion, 1), encoding='utf-8')
+          test_replacements = [
+              (
+                  "expect(listing).not.toHaveProperty('couplesAllowed')",
+                  "expect(listing.couplesAllowed).toBe(true)",
+              ),
+              (
+                  "await page.getByText('Lavadora', { exact: true }).click()",
+                  "const washer = page.getByRole('checkbox', { name: 'Lavadora' })\n  if (!(await washer.isChecked())) await washer.click()\n  await expect(washer).toBeChecked()",
+              ),
+          ]
+          for old, new in test_replacements:
+              if test_source.count(old) != 1:
+                  raise SystemExit(f'expected exactly one test contract target: {old}')
+              test_source = test_source.replace(old, new, 1)
+          test_path.write_text(test_source, encoding='utf-8')
           PY
       - name: Install and verify frontend
         run: |
