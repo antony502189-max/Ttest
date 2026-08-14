@@ -21,7 +21,7 @@ def listing(**overrides):
         "area": "Costa Adeje",
         "approximate_address": "Costa Adeje",
         "weekly_price": None,
-        "room_type": "HabitaciГіn individual",
+        "room_type": "Habitación individual",
         "available_from": None,
         "available_until": None,
         "minimum_stay_months": 0,
@@ -30,7 +30,7 @@ def listing(**overrides):
         "deposit_text": None,
         "bills_included": False,
         "bills_text": None,
-        "bathroom": "BaГ±o compartido",
+        "bathroom": "Baño compartido",
         "kitchen": "Cocina compartida",
         "furnished": True,
         "room_size_m2": 12,
@@ -84,16 +84,67 @@ def owner():
     )
 
 
+def details(**overrides):
+    values = {
+        "home_size_m2": 85,
+        "bathroom_count": 2,
+        "rental_unit": "room",
+        "bed_type": "single",
+        "bed_count": 1,
+        "current_room_residents": 0,
+        "toilet": "Aseo privado",
+        "household_gender": "men",
+        "household_has_children": False,
+        "heating_type": "none",
+        "accessible": False,
+        "couples_allowed": False,
+        "accepted_tenant_types": ["man"],
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def test_coordinate_projection_preserves_public_response_values():
-    response = response_from((listing(), -16.732123456789, 28.087987654321, owner(), ["asset-id"]))
+    response = response_from((listing(), -16.732123456789, 28.087987654321, owner(), ["asset-id"], details()))
 
     assert response.longitude == -16.732123456789
     assert response.latitude == 28.087987654321
     assert response.imageUrls == ["/api/v1/media/asset-id"]
 
 
+def test_room_first_projection_exposes_structured_details_and_available_spots():
+    response = response_from(
+        (
+            listing(room_capacity=3, room_type="Habitación compartida"),
+            -16.732,
+            28.087,
+            owner(),
+            [],
+            details(rental_unit="bed", bed_count=3, current_room_residents=2),
+        )
+    )
+
+    assert response.homeSizeM2 == 85
+    assert response.bathroomCount == 2
+    assert response.rentalUnit == "bed"
+    assert response.bedCount == 3
+    assert response.currentRoomResidents == 2
+    assert response.availableSpots == 1
+    assert response.toilet == "Aseo privado"
+    assert response.acceptedTenantTypes == ["man"]
+
+
+def test_legacy_projection_keeps_room_details_optional():
+    response = response_from((listing(), -16.732, 28.087, owner(), [], None))
+
+    assert response.homeSizeM2 is None
+    assert response.rentalUnit is None
+    assert response.availableSpots is None
+    assert response.acceptedTenantTypes == []
+
+
 def test_owned_coordinate_projection_preserves_exact_location_values():
-    response = owned_response_from((listing(), -16.732, 28.087, owner(), [], -16.733, 28.088))
+    response = owned_response_from((listing(), -16.732, 28.087, owner(), [], details(), -16.733, 28.088))
 
     assert response.longitude == -16.732
     assert response.latitude == 28.087
@@ -107,4 +158,5 @@ def test_public_projection_uses_scalar_coordinates_without_geojson():
     assert "ST_X" in projected_sql
     assert "ST_Y" in projected_sql
     assert "array_agg" in projected_sql
+    assert "listing_room_details" in projected_sql
     assert "ST_AsGeoJSON" not in projected_sql
