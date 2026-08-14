@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Bath, BedDouble, CalendarDays, Check, CircleAlert, CookingPot, Heart, Home, MapPin, MessageSquareText, MoreHorizontal, Pencil, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
+import { ArrowLeft, Bath, BedDouble, Check, CircleAlert, CookingPot, Heart, Home, MapPin, MessageSquareText, MoreHorizontal, Pencil, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
