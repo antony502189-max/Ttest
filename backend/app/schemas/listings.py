@@ -6,6 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
+ALLOWED_RENTAL_UNITS = {"room", "bed"}
+ALLOWED_BED_TYPES = {"single", "double"}
+ALLOWED_TOILETS = {"Aseo privado", "Aseo compartido"}
+ALLOWED_HOUSEHOLD_GENDERS = {"men", "women", "mixed", "unknown"}
+ALLOWED_HEATING_TYPES = {"individual", "central", "none", "unknown"}
+ALLOWED_TENANT_TYPES = {"man", "woman", "couple", "family"}
 
 
 class CatalogVersionResponse(BaseModel):
@@ -39,13 +45,26 @@ class ListingWrite(BaseModel):
     roomSizeM2: int = Field(default=1, ge=1, le=10_000)
     bedroomCount: int | None = Field(default=None, ge=1, le=99)
     currentResidents: int = Field(default=0, ge=0)
-    roomCapacity: int = Field(default=1, ge=1, le=2)
+    roomCapacity: int = Field(default=1, ge=1, le=10)
     shower: str = Field(default="Ducha compartida", max_length=64)
     tenantRequirement: str = Field(default="any", max_length=32)
     smokingAllowed: bool = False
     petsAllowed: bool = False
     childrenAllowed: bool = False
     empadronamientoAllowed: bool = False
+    homeSizeM2: int | None = Field(default=None, ge=1, le=10_000)
+    bathroomCount: int | None = Field(default=None, ge=0, le=20)
+    rentalUnit: str | None = Field(default=None, max_length=16)
+    bedType: str | None = Field(default=None, max_length=16)
+    bedCount: int | None = Field(default=None, ge=1, le=10)
+    currentRoomResidents: int | None = Field(default=None, ge=0, le=10)
+    toilet: str | None = Field(default=None, max_length=64)
+    householdGender: str | None = Field(default=None, max_length=16)
+    householdHasChildren: bool | None = None
+    heatingType: str | None = Field(default=None, max_length=16)
+    accessible: bool | None = None
+    couplesAllowed: bool | None = None
+    acceptedTenantTypes: list[str] = Field(default_factory=list, max_length=4)
     restrictions: list[str] = Field(default_factory=list, max_length=100)
     amenities: list[str] = Field(default_factory=list, max_length=100)
     latitude: float = Field(ge=-90, le=90)
@@ -68,6 +87,32 @@ class ListingWrite(BaseModel):
             raise ValueError("nightlyPrice is required for holiday rentals")
         if self.roomType not in ALLOWED_ROOM_TYPES:
             raise ValueError("roomType contains an unsupported value")
+        if self.rentalUnit is not None and self.rentalUnit not in ALLOWED_RENTAL_UNITS:
+            raise ValueError("rentalUnit contains an unsupported value")
+        if self.bedType is not None and self.bedType not in ALLOWED_BED_TYPES:
+            raise ValueError("bedType contains an unsupported value")
+        if self.toilet is not None and self.toilet not in ALLOWED_TOILETS:
+            raise ValueError("toilet contains an unsupported value")
+        if self.householdGender is not None and self.householdGender not in ALLOWED_HOUSEHOLD_GENDERS:
+            raise ValueError("householdGender contains an unsupported value")
+        if self.heatingType is not None and self.heatingType not in ALLOWED_HEATING_TYPES:
+            raise ValueError("heatingType contains an unsupported value")
+        if len(set(self.acceptedTenantTypes)) != len(self.acceptedTenantTypes) or any(
+            value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
+        ):
+            raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if self.rentalUnit == "bed" and self.roomType != "Habitación compartida":
+            raise ValueError("rentalUnit=bed is only valid for shared rooms")
+        if self.rentalUnit == "bed" and self.bedType not in {None, "single"}:
+            raise ValueError("bed-space listings must use single beds")
+        if self.currentRoomResidents is not None and self.currentRoomResidents >= self.roomCapacity:
+            raise ValueError("currentRoomResidents must leave at least one available place")
+        if self.bedCount is not None and self.bedType is not None:
+            sleeping_places = self.bedCount * (2 if self.bedType == "double" else 1)
+            if sleeping_places < self.roomCapacity:
+                raise ValueError("bedCount and bedType do not provide enough sleeping places")
+        if self.homeSizeM2 is not None and self.homeSizeM2 < self.roomSizeM2:
+            raise ValueError("homeSizeM2 cannot be smaller than roomSizeM2")
         if (self.exactLatitude is None) != (self.exactLongitude is None):
             raise ValueError("exactLatitude and exactLongitude must be provided together")
         if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
@@ -101,13 +146,26 @@ class ListingPatch(BaseModel):
     roomSizeM2: int | None = Field(default=None, ge=1, le=10_000)
     bedroomCount: int | None = Field(default=None, ge=1, le=99)
     currentResidents: int | None = Field(default=None, ge=0)
-    roomCapacity: int | None = Field(default=None, ge=1, le=2)
+    roomCapacity: int | None = Field(default=None, ge=1, le=10)
     shower: str | None = Field(default=None, max_length=64)
     tenantRequirement: str | None = Field(default=None, max_length=32)
     smokingAllowed: bool | None = None
     petsAllowed: bool | None = None
     childrenAllowed: bool | None = None
     empadronamientoAllowed: bool | None = None
+    homeSizeM2: int | None = Field(default=None, ge=1, le=10_000)
+    bathroomCount: int | None = Field(default=None, ge=0, le=20)
+    rentalUnit: str | None = Field(default=None, max_length=16)
+    bedType: str | None = Field(default=None, max_length=16)
+    bedCount: int | None = Field(default=None, ge=1, le=10)
+    currentRoomResidents: int | None = Field(default=None, ge=0, le=10)
+    toilet: str | None = Field(default=None, max_length=64)
+    householdGender: str | None = Field(default=None, max_length=16)
+    householdHasChildren: bool | None = None
+    heatingType: str | None = Field(default=None, max_length=16)
+    accessible: bool | None = None
+    couplesAllowed: bool | None = None
+    acceptedTenantTypes: list[str] | None = Field(default=None, max_length=4)
     restrictions: list[str] | None = Field(default=None, max_length=100)
     amenities: list[str] | None = Field(default=None, max_length=100)
     latitude: float | None = Field(default=None, ge=-90, le=90)
@@ -131,6 +189,19 @@ class ListingPatch(BaseModel):
             "availableUntil",
             "minimumNights",
             "bedroomCount",
+            "homeSizeM2",
+            "bathroomCount",
+            "rentalUnit",
+            "bedType",
+            "bedCount",
+            "currentRoomResidents",
+            "toilet",
+            "householdGender",
+            "householdHasChildren",
+            "heatingType",
+            "accessible",
+            "couplesAllowed",
+            "acceptedTenantTypes",
             "exactLatitude",
             "exactLongitude",
             "source",
@@ -145,6 +216,21 @@ class ListingPatch(BaseModel):
             raise ValueError("roomType contains an unsupported value")
         if "status" in self.model_fields_set and self.status not in ALLOWED_LISTING_STATUSES:
             raise ValueError("status contains an unsupported value")
+        if self.rentalUnit is not None and self.rentalUnit not in ALLOWED_RENTAL_UNITS:
+            raise ValueError("rentalUnit contains an unsupported value")
+        if self.bedType is not None and self.bedType not in ALLOWED_BED_TYPES:
+            raise ValueError("bedType contains an unsupported value")
+        if self.toilet is not None and self.toilet not in ALLOWED_TOILETS:
+            raise ValueError("toilet contains an unsupported value")
+        if self.householdGender is not None and self.householdGender not in ALLOWED_HOUSEHOLD_GENDERS:
+            raise ValueError("householdGender contains an unsupported value")
+        if self.heatingType is not None and self.heatingType not in ALLOWED_HEATING_TYPES:
+            raise ValueError("heatingType contains an unsupported value")
+        if self.acceptedTenantTypes is not None and (
+            len(set(self.acceptedTenantTypes)) != len(self.acceptedTenantTypes)
+            or any(value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes)
+        ):
+            raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
         coordinate_fields = {"latitude", "longitude"}
         if self.model_fields_set & coordinate_fields and (
             not coordinate_fields.issubset(self.model_fields_set) or self.latitude is None or self.longitude is None
@@ -203,6 +289,20 @@ class ListingResponse(BaseModel):
     petsAllowed: bool | None
     childrenAllowed: bool | None
     empadronamientoAllowed: bool | None
+    homeSizeM2: int | None = None
+    bathroomCount: int | None = None
+    rentalUnit: str | None = None
+    bedType: str | None = None
+    bedCount: int | None = None
+    currentRoomResidents: int | None = None
+    availableSpots: int | None = None
+    toilet: str | None = None
+    householdGender: str | None = None
+    householdHasChildren: bool | None = None
+    heatingType: str | None = None
+    accessible: bool | None = None
+    couplesAllowed: bool | None = None
+    acceptedTenantTypes: list[str] = Field(default_factory=list)
     restrictions: list[str]
     amenities: list[str]
     status: str
@@ -279,13 +379,29 @@ class ListingSearchRequest(BaseModel):
     shower: str | None = Field(default=None, max_length=64)
     currentResidents: int | None = Field(default=None, ge=0)
     minCurrentResidents: int | None = Field(default=None, ge=0)
-    roomCapacity: int | None = Field(default=None, ge=1, le=2)
+    roomCapacity: int | None = Field(default=None, ge=1, le=10)
     maxMinimumNights: int | None = Field(default=None, ge=0)
     availableUntil: date | None = None
     smokingAllowed: bool | None = None
     petsAllowed: bool | None = None
     childrenAllowed: bool | None = None
     empadronamientoAllowed: bool | None = None
+    minHomeSizeM2: int | None = Field(default=None, ge=0)
+    maxHomeSizeM2: int | None = Field(default=None, ge=0)
+    minBathroomCount: int | None = Field(default=None, ge=0, le=20)
+    rentalUnit: str | None = Field(default=None, max_length=16)
+    bedType: str | None = Field(default=None, max_length=16)
+    minBedCount: int | None = Field(default=None, ge=1, le=10)
+    currentRoomResidents: int | None = Field(default=None, ge=0, le=10)
+    maxCurrentRoomResidents: int | None = Field(default=None, ge=0, le=10)
+    minAvailableSpots: int | None = Field(default=None, ge=1, le=10)
+    toilet: str | None = Field(default=None, max_length=64)
+    householdGender: str | None = Field(default=None, max_length=16)
+    householdHasChildren: bool | None = None
+    heatingType: str | None = Field(default=None, max_length=16)
+    accessible: bool | None = None
+    couplesAllowed: bool | None = None
+    acceptedTenantTypes: list[str] = Field(default_factory=list, max_length=4)
     publishedWithinDays: int | None = Field(default=None, ge=1, le=365)
     advertiserType: str | None = Field(default=None, max_length=32)
     amenities: list[str] = Field(default_factory=list, max_length=100)
@@ -323,10 +439,32 @@ class ListingSearchRequest(BaseModel):
             and self.minRoomSizeM2 > self.maxRoomSizeM2
         ):
             raise ValueError("minRoomSizeM2 cannot exceed maxRoomSizeM2")
+        if (
+            self.minHomeSizeM2 is not None
+            and self.maxHomeSizeM2 is not None
+            and self.minHomeSizeM2 > self.maxHomeSizeM2
+        ):
+            raise ValueError("minHomeSizeM2 cannot exceed maxHomeSizeM2")
         if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
             raise ValueError("availableUntil cannot be before availableFrom")
         if self.deposit not in {None, "Sin fianza", "Hasta 1 mes", "Más de 1 mes"}:
             raise ValueError("deposit contains an unsupported value")
+        if self.rentalUnit not in {None, *ALLOWED_RENTAL_UNITS}:
+            raise ValueError("rentalUnit contains an unsupported value")
+        if self.bedType not in {None, *ALLOWED_BED_TYPES}:
+            raise ValueError("bedType contains an unsupported value")
+        if self.toilet not in {None, *ALLOWED_TOILETS}:
+            raise ValueError("toilet contains an unsupported value")
+        if self.householdGender not in {None, *ALLOWED_HOUSEHOLD_GENDERS}:
+            raise ValueError("householdGender contains an unsupported value")
+        if self.heatingType not in {None, *ALLOWED_HEATING_TYPES}:
+            raise ValueError("heatingType contains an unsupported value")
+        if len(set(self.acceptedTenantTypes)) != len(self.acceptedTenantTypes) or any(
+            value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
+        ):
+            raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if self.currentRoomResidents is not None and self.maxCurrentRoomResidents is not None:
+            raise ValueError("use currentRoomResidents or maxCurrentRoomResidents, not both")
         if self.roomType and self.roomTypes:
             raise ValueError("use roomType or roomTypes, not both")
         if self.roomType and self.roomType not in ALLOWED_ROOM_TYPES:
