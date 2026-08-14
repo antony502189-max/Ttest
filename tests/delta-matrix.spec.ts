@@ -144,7 +144,9 @@ test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters 
   await page.getByLabel('Personas que viven en casa').fill('3')
   await page.getByLabel('Capacidad de la habitación').selectOption('2')
   await page.getByLabel('Ducha').selectOption('Ducha privada')
-  await page.getByText('Lavadora', { exact: true }).click()
+  const washer = page.getByRole('checkbox', { name: 'Lavadora' })
+  if (!(await washer.isChecked())) await washer.click()
+  await expect(washer).toBeChecked()
   await continueWizard(page, 1)
   await page.getByLabel('Precio por noche').fill('61')
   await page.getByLabel('Precio por semana').fill('360')
@@ -166,7 +168,7 @@ test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters 
     minimumNights: 4, availableUntil: '2026-12-31',
   })
   expect(listing).not.toHaveProperty('genderPreference')
-  expect(listing).not.toHaveProperty('couplesAllowed')
+  expect(listing.couplesAllowed).toBe(true)
   expect(listing.amenities.filter((item: string) => item === 'Lavadora')).toHaveLength(1)
 
   const query = '/#/buscar?alquiler=holiday&tamanoMin=19&tamanoMax=19&ducha=Ducha%20privada&residentes=3&capacidad=2&nochesMin=4&hasta=2026-12-31'
@@ -174,9 +176,10 @@ test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters 
   await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toBeVisible()
   await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toContainText('/noche')
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
-  await expect(page.locator('.detail-list')).toContainText('Semana')
-  await expect(page.locator('.detail-list')).toContainText('360 €')
-  await expect(page.locator('.detail-list')).toContainText('1200 €')
+  const priceDetails = page.getByRole('heading', { name: 'Precio y disponibilidad' }).locator('..').locator('.detail-list')
+  await expect(priceDetails).toContainText('Semana')
+  await expect(priceDetails).toContainText('360 €')
+  await expect(priceDetails).toContainText('1200 €')
   await expect(page.getByText('Lavadora', { exact: true })).toHaveCount(1)
   await page.goto('/#/buscar?alquiler=long')
   await expect(page.locator('.property-card').first()).toContainText('/mes')
