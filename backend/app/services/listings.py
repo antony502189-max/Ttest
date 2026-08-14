@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -138,8 +139,8 @@ def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) 
 def _validate_effective_patch_state(
     listing: Listing, details: ListingRoomDetails | None, changes: dict[str, object]
 ) -> None:
-    def effective(api_name: str, current: object) -> object:
-        return changes.get(api_name, current)
+    def effective[T](api_name: str, current: T) -> T:
+        return cast(T, changes.get(api_name, current))
 
     room_type = effective("roomType", listing.room_type)
     room_capacity = effective("roomCapacity", listing.room_capacity)
