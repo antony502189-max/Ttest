@@ -47,7 +47,7 @@ jobs:
           cd backend
           ruff check app tests
           mypy app
-          pytest -q tests/test_listing_patch_effective_state.py tests/test_room_first_publish_source_contract.py
+          pytest -q tests/test_room_first_patch_integrity.py tests/test_room_first_publish_source_contract.py
       - name: Remove temporary workflow and commit
         run: |
           rm .github/workflows/room-first-mypy-fix.yml
