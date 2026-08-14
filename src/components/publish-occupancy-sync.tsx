@@ -21,19 +21,10 @@ export function PublishOccupancySync() {
   const pending = useRef(new Set<string>())
 
   useEffect(() => {
-    // The persisted home chooser is the source of truth while the user is on
-    // the home page. Only the advanced search route may project its filter
-    // state back into that profile; otherwise an empty default filter set on
-    // application mount would erase a valid (including migrated legacy)
-    // occupant selection before HomeMandatorySearch can render it.
     if (pathname !== '/buscar') return
 
     const profile = listingAccessProfileFromFilters(filters)
     if (profile.occupant === 'couple' || profile.occupant === 'family') {
-      // Advanced couple-only combinations do not have an exact option in the
-      // simplified reference home chooser. Keep the currently visible home
-      // occupant choice while still synchronizing independent pet/smoking
-      // preferences so returning home never shows stale toggles.
       const visibleHomeProfile = readListingAccessProfile()
       persistListingAccessProfile({
         ...profile,
@@ -46,6 +37,10 @@ export function PublishOccupancySync() {
 
   useEffect(() => {
     allListings.forEach((listing) => {
+      // Shared rooms and bed-space listings have an explicit multi-person
+      // capacity. Never collapse that capacity to 1/2 from the legacy primary
+      // tenant requirement; doing so would destroy room-first occupancy data.
+      if (listing.roomType === 'Habitación compartida' || listing.rentalUnit === 'bed') return
       const capacity = listing.tenantRequirement == null ? null : expectedCapacity(listing.tenantRequirement)
       if (!capacity || capacity === listing.roomCapacity || !canManageListing(listing) || pending.current.has(listing.id)) return
 
