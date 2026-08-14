@@ -135,6 +135,49 @@ def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) 
         setattr(details, model_name, getattr(payload, api_name))
 
 
+def _validate_effective_patch_state(
+    listing: Listing, details: ListingRoomDetails | None, changes: dict[str, object]
+) -> None:
+    def effective(api_name: str, current: object) -> object:
+        return changes[api_name] if api_name in changes else current
+
+    room_type = effective("roomType", listing.room_type)
+    room_capacity = effective("roomCapacity", listing.room_capacity)
+    room_size = effective("roomSizeM2", listing.room_size_m2)
+    rental_mode = effective("rentalMode", listing.rental_mode)
+    monthly_price = effective("monthlyPrice", listing.monthly_price)
+    nightly_price = effective("nightlyPrice", listing.nightly_price)
+    available_from = effective("availableFrom", listing.available_from)
+    available_until = effective("availableUntil", listing.available_until)
+
+    rental_unit = effective("rentalUnit", details.rental_unit if details else None)
+    bed_type = effective("bedType", details.bed_type if details else None)
+    bed_count = effective("bedCount", details.bed_count if details else None)
+    room_residents = effective(
+        "currentRoomResidents", details.current_room_residents if details else None
+    )
+    home_size = effective("homeSizeM2", details.home_size_m2 if details else None)
+
+    if rental_mode == "long" and monthly_price is None:
+        raise HTTPException(422, "monthlyPrice is required for long rentals")
+    if rental_mode == "holiday" and nightly_price is None:
+        raise HTTPException(422, "nightlyPrice is required for holiday rentals")
+    if rental_unit == "bed" and room_type != "Habitación compartida":
+        raise HTTPException(422, "rentalUnit=bed is only valid for shared rooms")
+    if rental_unit == "bed" and bed_type not in {None, "single"}:
+        raise HTTPException(422, "bed-space listings must use single beds")
+    if room_residents is not None and room_capacity is not None and room_residents >= room_capacity:
+        raise HTTPException(422, "currentRoomResidents must leave at least one available place")
+    if bed_count is not None and bed_type is not None and room_capacity is not None:
+        sleeping_places = bed_count * (2 if bed_type == "double" else 1)
+        if sleeping_places < room_capacity:
+            raise HTTPException(422, "bedCount and bedType do not provide enough sleeping places")
+    if home_size is not None and room_size is not None and home_size < room_size:
+        raise HTTPException(422, "homeSizeM2 cannot be smaller than roomSizeM2")
+    if available_from is not None and available_until is not None and available_until < available_from:
+        raise HTTPException(422, "availableUntil cannot be before availableFrom")
+
+
 async def create_listing(payload: ListingWrite, user: User, session: AsyncSession) -> OwnedListingResponse:
     now = datetime.now(UTC)
     initial_status = "published" if get_settings().auto_publish_listings else "pending"
@@ -185,6 +228,9 @@ async def update_listing(
     if "status" in changes and not admin and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
         raise HTTPException(403, "Only an administrator can publish or reject listings")
 
+    current_details = await session.get(ListingRoomDetails, listing.id)
+    _validate_effective_patch_state(listing, current_details, changes)
+
     mapping = {
         "approximateAddress": "approximate_address",
         "monthlyPrice": "monthly_price",
@@ -213,7 +259,7 @@ async def update_listing(
     }
     detail_changes = {key: changes.pop(key) for key in list(changes) if key in ROOM_DETAIL_MAPPING}
     if detail_changes:
-        details = await session.get(ListingRoomDetails, listing.id)
+        details = current_details
         if details is None:
             details = ListingRoomDetails(listing_id=listing.id)
             session.add(details)
