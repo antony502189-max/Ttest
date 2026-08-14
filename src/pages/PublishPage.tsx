@@ -115,7 +115,7 @@ const toDraft = (listing: Listing): ListingDraft => {
     acceptedTenantTypes: listing.acceptedTenantTypes?.length ? listing.acceptedTenantTypes : acceptedForRequirement(listing.tenantRequirement ?? "any"),
     householdGender: listing.householdGender ?? "unknown",
     householdHasChildren: listing.householdHasChildren ?? false,
-    couplesAllowed: listing.couplesAllowed ?? listing.tenantRequirement === "couple" || listing.tenantRequirement === "any",
+    couplesAllowed: listing.couplesAllowed ?? (listing.tenantRequirement === "couple" || listing.tenantRequirement === "any"),
     smokingAllowed: listing.smokingAllowed ?? false,
     petsAllowed: listing.petsAllowed ?? false,
     childrenAllowed: listing.childrenAllowed ?? false,
