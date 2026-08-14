@@ -31,16 +31,22 @@ jobs:
           path = Path('src/pages/PublishPage.tsx')
           source = path.read_text(encoding='utf-8')
 
-          replacements = {
-              '], (value) => setDraft((current) => ({ ...current, rentalUnit: value, bedType: value === "bed" ? "single" : current.bedType })) ) : null}':
-              '], (value) => setDraft((current) => ({ ...current, rentalUnit: value, bedType: value === "bed" ? "single" : current.bedType, bedCount: value === "bed" ? Math.max(current.bedCount, current.roomCapacity) : current.bedCount })) ) : null}',
-              '<FormField label="Capacidad total de esta habitación" htmlFor="publish-capacity" error={errors.roomCapacity}><select id="publish-capacity" aria-label="Capacidad de la habitación" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => set("roomCapacity", Number(e.target.value))}>':
-              '<FormField label="Capacidad total de esta habitación" htmlFor="publish-capacity" error={errors.roomCapacity}><select id="publish-capacity" aria-label="Capacidad de la habitación" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => { const roomCapacity = Number(e.target.value); setDraft((current) => { const placesPerBed = current.bedType === "double" ? 2 : 1; return { ...current, roomCapacity, bedCount: Math.max(current.bedCount, Math.ceil(roomCapacity / placesPerBed)), currentRoomResidents: Math.min(current.currentRoomResidents, roomCapacity - 1) }; }); }}>':
-              '<FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} disabled={draft.rentalUnit === "bed"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => set("bedType", e.target.value as ListingDraft["bedType"])}>':
-              '<FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} disabled={draft.rentalUnit === "bed"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft["bedType"]; setDraft((current) => { const placesPerBed = bedType === "double" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}>':
-          }
+          replacements = [
+              (
+                  """], (value) => setDraft((current) => ({ ...current, rentalUnit: value, bedType: value === \"bed\" ? \"single\" : current.bedType })) ) : null}""",
+                  """], (value) => setDraft((current) => ({ ...current, rentalUnit: value, bedType: value === \"bed\" ? \"single\" : current.bedType, bedCount: value === \"bed\" ? Math.max(current.bedCount, current.roomCapacity) : current.bedCount })) ) : null}""",
+              ),
+              (
+                  """<FormField label=\"Capacidad total de esta habitación\" htmlFor=\"publish-capacity\" error={errors.roomCapacity}><select id=\"publish-capacity\" aria-label=\"Capacidad de la habitación\" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => set(\"roomCapacity\", Number(e.target.value))}>""",
+                  """<FormField label=\"Capacidad total de esta habitación\" htmlFor=\"publish-capacity\" error={errors.roomCapacity}><select id=\"publish-capacity\" aria-label=\"Capacidad de la habitación\" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => { const roomCapacity = Number(e.target.value); setDraft((current) => { const placesPerBed = current.bedType === \"double\" ? 2 : 1; return { ...current, roomCapacity, bedCount: Math.max(current.bedCount, Math.ceil(roomCapacity / placesPerBed)), currentRoomResidents: Math.min(current.currentRoomResidents, roomCapacity - 1) }; }); }}>""",
+              ),
+              (
+                  """<FormField label=\"Tipo de cama\" htmlFor=\"publish-bed-type\" error={errors.bedType}><select id=\"publish-bed-type\" value={draft.bedType} disabled={draft.rentalUnit === \"bed\"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => set(\"bedType\", e.target.value as ListingDraft[\"bedType\"])}>""",
+                  """<FormField label=\"Tipo de cama\" htmlFor=\"publish-bed-type\" error={errors.bedType}><select id=\"publish-bed-type\" value={draft.bedType} disabled={draft.rentalUnit === \"bed\"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft[\"bedType\"]; setDraft((current) => { const placesPerBed = bedType === \"double\" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}>""",
+              ),
+          ]
 
-          for old, new in replacements.items():
+          for old, new in replacements:
               count = source.count(old)
               if count != 1:
                   raise SystemExit(f'expected exactly one replacement target, found {count}: {old[:80]}')
