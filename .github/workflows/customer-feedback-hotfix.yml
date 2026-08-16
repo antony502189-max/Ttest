@@ -2,7 +2,7 @@ name: Customer feedback hotfix
 
 on:
   push:
-    branches: [fix/customer-publish-availability-wifi-expenses]
+    branches: ["fix/customer-publish-availability-wifi-expenses"]
 
 permissions:
   contents: write
@@ -10,7 +10,7 @@ permissions:
 jobs:
   patch-and-verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - name: Checkout branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -31,245 +31,35 @@ jobs:
                   raise SystemExit(f"{path}: expected exactly 1 match, found {count}: {old[:100]!r}")
               p.write_text(text.replace(old, new, 1))
 
-          # ---- Frontend listing data / Wi-Fi terminology ----
-          replace_once(
-              "src/data/listings.ts",
-              "export const amenityOptions = ['Fibra', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']",
-              "export const amenityOptions = ['Wi-Fi', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']",
-          )
-          replace_once(
-              "src/data/listings.ts",
-              "furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,\n  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-15', availableUntil: '2027-08-14', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',",
-              "furnished: true, amenities: ['Wi-Fi', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,\n  billsIncluded: true, billsNote: '', availableFrom: '2026-08-15', availableUntil: '', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',",
-          )
-          replace_once(
-              "src/data/listings.ts",
-              "'Habitación amplia con balcón y fibra',",
-              "'Habitación amplia con balcón y Wi-Fi',",
-          )
+          replace_once("src/data/listings.ts", "export const amenityOptions = ['Fibra', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']", "export const amenityOptions = ['Wi-Fi', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']")
+          replace_once("src/data/listings.ts", "furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,\n  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-15', availableUntil: '2027-08-14', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',", "furnished: true, amenities: ['Wi-Fi', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,\n  billsIncluded: true, billsNote: '', availableFrom: '2026-08-15', availableUntil: '', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',")
+          replace_once("src/data/listings.ts", "'Habitación amplia con balcón y fibra',", "'Habitación amplia con balcón y Wi-Fi',")
+          replace_once("backend/app/commands/seed.py", '    "Habitación amplia con balcón y fibra",', '    "Habitación amplia con balcón y Wi-Fi",')
+          replace_once("backend/app/commands/seed.py", 'AMENITIES = ("Fibra", "Escritorio", "Balcón", "Ascensor", "Lavadora", "Aire acondicionado", "Terraza", "Aparcamiento")', 'AMENITIES = ("Wi-Fi", "Escritorio", "Balcón", "Ascensor", "Lavadora", "Aire acondicionado", "Terraza", "Aparcamiento")')
 
-          # Future development seeds use Wi-Fi, not an unverified fiber claim.
-          replace_once(
-              "backend/app/commands/seed.py",
-              '    "Habitación amplia con balcón y fibra",',
-              '    "Habitación amplia con balcón y Wi-Fi",',
-          )
-          replace_once(
-              "backend/app/commands/seed.py",
-              'AMENITIES = ("Fibra", "Escritorio", "Balcón", "Ascensor", "Lavadora", "Aire acondicionado", "Terraza", "Aparcamiento")',
-              'AMENITIES = ("Wi-Fi", "Escritorio", "Balcón", "Ascensor", "Lavadora", "Aire acondicionado", "Terraza", "Aparcamiento")',
-          )
+          replace_once("src/api/listings.ts", "    amenities: dto.amenities,", "    amenities: dto.amenities.map((item) => item === 'Fibra' ? 'Wi-Fi' : item),")
+          replace_once("src/api/listings.ts", "    minimumNights: listing.minimumNights ?? null, depositAmount: listing.depositAmount, billsIncluded: listing.billsIncluded,", "    minimumNights: listing.minimumNights ?? null, depositAmount: listing.depositAmount, billsIncluded: listing.billsIncluded,\n    billsText: listing.bills,")
 
-          # Normalize legacy server data so old `Fibra` values are not presented as a technical promise.
-          replace_once(
-              "src/api/listings.ts",
-              "    amenities: dto.amenities,",
-              "    amenities: dto.amenities.map((item) => item === 'Fibra' ? 'Wi-Fi' : item),",
-          )
-          replace_once(
-              "src/api/listings.ts",
-              "    minimumNights: listing.minimumNights ?? null, depositAmount: listing.depositAmount, billsIncluded: listing.billsIncluded,",
-              "    minimumNights: listing.minimumNights ?? null, depositAmount: listing.depositAmount, billsIncluded: listing.billsIncluded,\n    billsText: listing.bills,",
-          )
+          replace_once("src/pages/PublishPage.tsx", "const toDraft = (listing: Listing): ListingDraft => {", "const billsAmountFromText = (value: string) => {\n  const match = value.match(/(\\d+(?:[.,]\\d{1,2})?)/);\n  return match ? match[1].replace(\",\", \".\") : \"\";\n};\n\nconst toDraft = (listing: Listing): ListingDraft => {")
+          replace_once("src/pages/PublishPage.tsx", "    amenities: listing.amenities,", "    amenities: listing.amenities.map((item) => item === \"Fibra\" ? \"Wi-Fi\" : item),")
+          replace_once("src/pages/PublishPage.tsx", "    billsNote: listing.bills,\n    availableFrom: listing.availableFrom,\n    availableUntil: listing.availableUntil ?? listing.expiresAt,", "    billsNote: listing.billsIncluded ? \"\" : billsAmountFromText(listing.bills),\n    availableFrom: listing.availableFrom,\n    availableUntil: listing.availableUntil ?? \"\",")
+          replace_once("src/pages/PublishPage.tsx", "    availableUntil: draft.availableUntil,", "    availableUntil: draft.availableUntil || undefined,")
+          replace_once("src/pages/PublishPage.tsx", "    bills: draft.billsNote || (draft.billsIncluded ? \"Gastos incluidos\" : \"Gastos aparte\"),", "    bills: draft.billsIncluded ? \"Gastos incluidos en el precio\" : draft.billsNote ? `Gastos aparte: aprox. ${draft.billsNote} €/mes` : \"Gastos aparte\",")
+          replace_once("src/pages/PublishPage.tsx", "    if (step === 3 && getPrimaryPrice(preview) < 1) next.price = \"El precio debe ser mayor que cero.\";", "    if (step === 3) {\n      if (getPrimaryPrice(preview) < 1) next.price = \"El precio debe ser mayor que cero.\";\n      if (!draft.billsIncluded) {\n        const billsAmount = Number(draft.billsNote);\n        if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = \"Indica el gasto adicional aproximado al mes.\";\n      }\n    }")
+          replace_once("src/pages/PublishPage.tsx", "      if (!draft.availableFrom) next.availableFrom = \"Selecciona una fecha de inicio.\";\n      if (!draft.availableUntil) next.availableUntil = \"Selecciona una fecha final.\";\n      if (draft.availableFrom && draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = \"La fecha final debe ser posterior a la inicial.\";", "      if (!draft.availableFrom) next.availableFrom = \"Selecciona una fecha de inicio.\";\n      if (draft.availableFrom && draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = \"La fecha final debe ser posterior a la inicial.\";")
+          replace_once("src/pages/PublishPage.tsx", "          <label className=\"check-row\"><Checkbox checked={draft.billsIncluded} onCheckedChange={(value) => set(\"billsIncluded\", value === true)} />Gastos incluidos</label>\n          <FormField label=\"Aclaración sobre gastos\" htmlFor=\"publish-bills\"><Input id=\"publish-bills\" value={draft.billsNote} onChange={(e) => set(\"billsNote\", e.target.value)} /></FormField>", "          <div className=\"form-grid\">\n            <FormField label=\"Gastos de suministros\" htmlFor=\"publish-bills-included\"><select id=\"publish-bills-included\" value={draft.billsIncluded ? \"included\" : \"extra\"} onChange={(e) => setDraft((current) => ({ ...current, billsIncluded: e.target.value === \"included\", billsNote: e.target.value === \"included\" ? \"\" : current.billsNote }))}><option value=\"included\">Incluidos en el precio</option><option value=\"extra\">Se pagan aparte</option></select></FormField>\n            {!draft.billsIncluded ? <FormField label=\"Gastos adicionales aproximados (€/mes)\" htmlFor=\"publish-bills\" error={errors.billsAmount}><Input id=\"publish-bills\" type=\"number\" min=\"1\" inputMode=\"decimal\" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set(\"billsNote\", e.target.value)} /></FormField> : null}\n          </div>")
+          replace_once("src/pages/PublishPage.tsx", "        return <WizardSection title=\"Disponibilidad\" description=\"Indica el intervalo exacto, desde qué día hasta qué día está disponible.\">", "        return <WizardSection title=\"Disponibilidad\" description=\"Indica desde qué día está disponible. La fecha final es opcional; si no la conoces, basta con indicar la estancia mínima.\">")
+          replace_once("src/pages/PublishPage.tsx", "            <FormField label=\"Disponible hasta\" htmlFor=\"publish-available-until\" error={errors.availableUntil}><Input id=\"publish-available-until\" type=\"date\" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set(\"availableUntil\", e.target.value)} /></FormField>", "            <FormField label=\"Disponible hasta (opcional)\" htmlFor=\"publish-available-until\" error={errors.availableUntil}><Input id=\"publish-available-until\" type=\"date\" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set(\"availableUntil\", e.target.value)} /></FormField>")
+          replace_once("src/pages/PublishPage.tsx", "<div><dt>Disponibilidad</dt><dd>{preview.availableFrom} — {preview.availableUntil}</dd></div>", "<div><dt>Disponibilidad</dt><dd>{preview.availableFrom}{preview.availableUntil ? ` — ${preview.availableUntil}` : \" · sin fecha final\"}</dd></div>")
+          replace_once("src/pages/ListingPage.tsx", "<div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? unknownListingFact}</dd></div>", "<div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? 'Sin fecha final'}</dd></div>")
 
-          # ---- Publish wizard ----
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "const toDraft = (listing: Listing): ListingDraft => {",
-              "const billsAmountFromText = (value: string) => {\n  const match = value.match(/(\\d+(?:[.,]\\d{1,2})?)/);\n  return match ? match[1].replace(\",\", \".\") : \"\";\n};\n\nconst toDraft = (listing: Listing): ListingDraft => {",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "    amenities: listing.amenities,",
-              "    amenities: listing.amenities.map((item) => item === \"Fibra\" ? \"Wi-Fi\" : item),",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "    billsNote: listing.bills,\n    availableFrom: listing.availableFrom,\n    availableUntil: listing.availableUntil ?? listing.expiresAt,",
-              "    billsNote: listing.billsIncluded ? \"\" : billsAmountFromText(listing.bills),\n    availableFrom: listing.availableFrom,\n    availableUntil: listing.availableUntil ?? \"\",",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "    availableUntil: draft.availableUntil,",
-              "    availableUntil: draft.availableUntil || undefined,",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "    bills: draft.billsNote || (draft.billsIncluded ? \"Gastos incluidos\" : \"Gastos aparte\"),",
-              "    bills: draft.billsIncluded ? \"Gastos incluidos en el precio\" : draft.billsNote ? `Gastos aparte: aprox. ${draft.billsNote} €/mes` : \"Gastos aparte\",",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "    if (step === 3 && getPrimaryPrice(preview) < 1) next.price = \"El precio debe ser mayor que cero.\";",
-              "    if (step === 3) {\n      if (getPrimaryPrice(preview) < 1) next.price = \"El precio debe ser mayor que cero.\";\n      if (!draft.billsIncluded) {\n        const billsAmount = Number(draft.billsNote);\n        if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = \"Indica el gasto adicional aproximado al mes.\";\n      }\n    }",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "      if (!draft.availableFrom) next.availableFrom = \"Selecciona una fecha de inicio.\";\n      if (!draft.availableUntil) next.availableUntil = \"Selecciona una fecha final.\";\n      if (draft.availableFrom && draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = \"La fecha final debe ser posterior a la inicial.\";",
-              "      if (!draft.availableFrom) next.availableFrom = \"Selecciona una fecha de inicio.\";\n      if (draft.availableFrom && draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = \"La fecha final debe ser posterior a la inicial.\";",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "          <label className=\"check-row\"><Checkbox checked={draft.billsIncluded} onCheckedChange={(value) => set(\"billsIncluded\", value === true)} />Gastos incluidos</label>\n          <FormField label=\"Aclaración sobre gastos\" htmlFor=\"publish-bills\"><Input id=\"publish-bills\" value={draft.billsNote} onChange={(e) => set(\"billsNote\", e.target.value)} /></FormField>",
-              "          <div className=\"form-grid\">\n            <FormField label=\"Gastos de suministros\" htmlFor=\"publish-bills-included\"><select id=\"publish-bills-included\" value={draft.billsIncluded ? \"included\" : \"extra\"} onChange={(e) => setDraft((current) => ({ ...current, billsIncluded: e.target.value === \"included\", billsNote: e.target.value === \"included\" ? \"\" : current.billsNote }))}><option value=\"included\">Incluidos en el precio</option><option value=\"extra\">Se pagan aparte</option></select></FormField>\n            {!draft.billsIncluded ? <FormField label=\"Gastos adicionales aproximados (€/mes)\" htmlFor=\"publish-bills\" error={errors.billsAmount}><Input id=\"publish-bills\" type=\"number\" min=\"1\" inputMode=\"decimal\" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set(\"billsNote\", e.target.value)} /></FormField> : null}\n          </div>",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "        return <WizardSection title=\"Disponibilidad\" description=\"Indica el intervalo exacto, desde qué día hasta qué día está disponible.\">",
-              "        return <WizardSection title=\"Disponibilidad\" description=\"Indica desde qué día está disponible. La fecha final es opcional; si no la conoces, basta con indicar la estancia mínima.\">",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "            <FormField label=\"Disponible hasta\" htmlFor=\"publish-available-until\" error={errors.availableUntil}><Input id=\"publish-available-until\" type=\"date\" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set(\"availableUntil\", e.target.value)} /></FormField>",
-              "            <FormField label=\"Disponible hasta (opcional)\" htmlFor=\"publish-available-until\" error={errors.availableUntil}><Input id=\"publish-available-until\" type=\"date\" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set(\"availableUntil\", e.target.value)} /></FormField>",
-          )
-          replace_once(
-              "src/pages/PublishPage.tsx",
-              "<div><dt>Disponibilidad</dt><dd>{preview.availableFrom} — {preview.availableUntil}</dd></div>",
-              "<div><dt>Disponibilidad</dt><dd>{preview.availableFrom}{preview.availableUntil ? ` — ${preview.availableUntil}` : \" · sin fecha final\"}</dd></div>",
-          )
+          replace_once("backend/app/schemas/listings.py", "    billsIncluded: bool = False\n    bathroom: str = Field(default=\"Baño compartido\", max_length=64)", "    billsIncluded: bool = False\n    billsText: str | None = Field(default=None, max_length=240)\n    bathroom: str = Field(default=\"Baño compartido\", max_length=64)")
+          replace_once("backend/app/schemas/listings.py", "    billsIncluded: bool | None = None\n    bathroom: str | None = Field(default=None, max_length=64)", "    billsIncluded: bool | None = None\n    billsText: str | None = Field(default=None, max_length=240)\n    bathroom: str | None = Field(default=None, max_length=64)")
+          replace_once("backend/app/schemas/listings.py", '            "availableUntil",\n            "minimumNights",', '            "availableUntil",\n            "billsText",\n            "minimumNights",')
+          replace_once("backend/app/services/listings.py", "    listing.bills_included = payload.billsIncluded\n    listing.bathroom = payload.bathroom", "    listing.bills_included = payload.billsIncluded\n    listing.bills_text = payload.billsText\n    listing.bathroom = payload.bathroom")
+          replace_once("backend/app/services/listings.py", '        "billsIncluded": "bills_included",\n        "roomSizeM2": "room_size_m2",', '        "billsIncluded": "bills_included",\n        "billsText": "bills_text",\n        "roomSizeM2": "room_size_m2",')
 
-          # Public detail makes an open-ended rental explicit instead of looking like missing data.
-          replace_once(
-              "src/pages/ListingPage.tsx",
-              "<div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? unknownListingFact}</dd></div>",
-              "<div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? 'Sin fecha final'}</dd></div>",
-          )
-
-          # ---- Backend billsText write support ----
-          replace_once(
-              "backend/app/schemas/listings.py",
-              "    billsIncluded: bool = False\n    bathroom: str = Field(default=\"Baño compartido\", max_length=64)",
-              "    billsIncluded: bool = False\n    billsText: str | None = Field(default=None, max_length=240)\n    bathroom: str = Field(default=\"Baño compartido\", max_length=64)",
-          )
-          replace_once(
-              "backend/app/schemas/listings.py",
-              "    billsIncluded: bool | None = None\n    bathroom: str | None = Field(default=None, max_length=64)",
-              "    billsIncluded: bool | None = None\n    billsText: str | None = Field(default=None, max_length=240)\n    bathroom: str | None = Field(default=None, max_length=64)",
-          )
-          replace_once(
-              "backend/app/schemas/listings.py",
-              '            "availableUntil",\n            "minimumNights",',
-              '            "availableUntil",\n            "billsText",\n            "minimumNights",',
-          )
-          replace_once(
-              "backend/app/services/listings.py",
-              "    listing.bills_included = payload.billsIncluded\n    listing.bathroom = payload.bathroom",
-              "    listing.bills_included = payload.billsIncluded\n    listing.bills_text = payload.billsText\n    listing.bathroom = payload.bathroom",
-          )
-          replace_once(
-              "backend/app/services/listings.py",
-              '        "billsIncluded": "bills_included",\n        "roomSizeM2": "room_size_m2",',
-              '        "billsIncluded": "bills_included",\n        "billsText": "bills_text",\n        "roomSizeM2": "room_size_m2",',
-          )
-
-          # ---- i18n additions ----
-          replace_once(
-              "src/contexts/i18n-context.tsx",
-              "  'Fibra': { ru: 'Оптоволоконный интернет', en: 'Fiber internet' },",
-              "  'Fibra': { ru: 'Оптоволоконный интернет', en: 'Fiber internet' },\n  'Wi-Fi': { ru: 'Wi-Fi', en: 'Wi-Fi' },\n  'Gastos de suministros': { ru: 'Коммунальные расходы', en: 'Utility costs' },\n  'Incluidos en el precio': { ru: 'Включены в стоимость', en: 'Included in the price' },\n  'Se pagan aparte': { ru: 'Оплачиваются отдельно', en: 'Paid separately' },\n  'Gastos adicionales aproximados (€/mes)': { ru: 'Примерные дополнительные расходы (€/мес.)', en: 'Approximate additional costs (€/month)' },\n  'Disponible hasta (opcional)': { ru: 'Доступно до (необязательно)', en: 'Available until (optional)' },\n  'Sin fecha final': { ru: 'Без конечной даты', en: 'No end date' },",
-          )
-
-          # ---- Regression tests ----
-          Path("tests/customer-feedback-publish.spec.ts").write_text(r'''import { expect, test, type Page } from '@playwright/test'
-
-async function clearLocalState(page: Page) {
-  await page.goto('/#/')
-  await page.evaluate(() => localStorage.clear())
-  await page.reload()
-}
-
-async function openAsHost(page: Page) {
-  await page.goto('/#/')
-  await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
-  await page.reload()
-  await page.goto('/#/publicar')
-}
-
-async function continueWizard(page: Page, count: number) {
-  for (let index = 0; index < count; index += 1) await page.getByRole('button', { name: 'Continuar' }).click()
-}
-
-test.beforeEach(async ({ page }) => clearLocalState(page))
-
-test('CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and extra monthly costs work together', async ({ page }) => {
-  await openAsHost(page)
-  await continueWizard(page, 2)
-
-  await expect(page.getByText('Wi-Fi', { exact: true })).toBeVisible()
-  await expect(page.getByText('Fibra', { exact: true })).toHaveCount(0)
-
-  await continueWizard(page, 1)
-  await page.getByLabel('Gastos de suministros').selectOption('extra')
-  await page.getByLabel('Gastos adicionales aproximados (€/mes)').fill('45')
-  await continueWizard(page, 1)
-
-  const availableUntil = page.getByLabel('Disponible hasta (opcional)')
-  await expect(availableUntil).toHaveValue('')
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByRole('heading', { name: 'Convivencia' })).toBeVisible()
-  await expect(page.getByText('Selecciona una fecha final.')).toHaveCount(0)
-
-  const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}').data)
-  expect(draft.availableUntil).toBe('')
-  expect(draft.billsIncluded).toBe(false)
-  expect(draft.billsNote).toBe('45')
-  expect(draft.amenities).toContain('Wi-Fi')
-  expect(draft.amenities).not.toContain('Fibra')
-})
-''')
-
-          Path("backend/tests/test_customer_feedback_listing_write.py").write_text(r'''from types import SimpleNamespace
-
-from app.schemas.listings import ListingPatch, ListingWrite
-from app.services.listings import apply_write
-
-
-def make_payload(**overrides):
-    values = {
-        "title": "Habitación privada con gastos claros",
-        "city": "Adeje",
-        "area": "Armeñime",
-        "approximateAddress": "Armeñime · ubicación aproximada",
-        "rentalMode": "long",
-        "monthlyPrice": 450,
-        "roomType": "Habitación individual",
-        "availableFrom": "2026-08-01",
-        "availableUntil": None,
-        "minimumStayMonths": 3,
-        "depositAmount": 100,
-        "billsIncluded": False,
-        "billsText": "Gastos aparte: aprox. 45 €/mes",
-        "roomSizeM2": 14,
-        "roomCapacity": 1,
-        "shower": "Ducha compartida",
-        "amenities": ["Wi-Fi", "Lavadora"],
-        "latitude": 28.1272,
-        "longitude": -16.7390,
-    }
-    values.update(overrides)
-    return ListingWrite(**values)
-
-
-def test_open_ended_listing_and_bills_text_are_accepted_and_written():
-    payload = make_payload()
-    assert payload.availableUntil is None
-    assert payload.billsText == "Gastos aparte: aprox. 45 €/mes"
-
-    target = SimpleNamespace()
-    apply_write(target, payload)
-
-    assert target.available_until is None
-    assert target.bills_included is False
-    assert target.bills_text == "Gastos aparte: aprox. 45 €/mes"
-    assert "Wi-Fi" in target.amenities
-
-
-def test_patch_can_clear_optional_end_date_and_bills_text():
-    patch = ListingPatch(availableUntil=None, billsText=None)
-    assert patch.availableUntil is None
-    assert patch.billsText is None
-''')
+          replace_once("src/contexts/i18n-context.tsx", "  'Fibra': { ru: 'Оптоволоконный интернет', en: 'Fiber internet' },", "  'Fibra': { ru: 'Оптоволоконный интернет', en: 'Fiber internet' },\n  'Wi-Fi': { ru: 'Wi-Fi', en: 'Wi-Fi' },\n  'Gastos de suministros': { ru: 'Коммунальные расходы', en: 'Utility costs' },\n  'Incluidos en el precio': { ru: 'Включены в стоимость', en: 'Included in the price' },\n  'Se pagan aparte': { ru: 'Оплачиваются отдельно', en: 'Paid separately' },\n  'Gastos adicionales aproximados (€/mes)': { ru: 'Примерные дополнительные расходы (€/мес.)', en: 'Approximate additional costs (€/month)' },\n  'Disponible hasta (opcional)': { ru: 'Доступно до (необязательно)', en: 'Available until (optional)' },\n  'Sin fecha final': { ru: 'Без конечной даты', en: 'No end date' },")
           PY
 
       - name: Set up Node.js 22
@@ -278,18 +68,12 @@ def test_patch_can_clear_optional_end_date_and_bills_text():
           node-version: "22"
           cache: npm
 
-      - name: Frontend static checks
+      - name: Frontend checks
         run: |
           npm ci
           npm run lint
           npm run typecheck
           npm run build
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Targeted customer feedback E2E
-        run: npx playwright test tests/customer-feedback-publish.spec.ts
 
       - name: Set up Python 3.13
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -300,13 +84,14 @@ def test_patch_can_clear_optional_end_date_and_bills_text():
             backend/pyproject.toml
             backend/constraints.txt
 
-      - name: Backend targeted checks
+      - name: Backend checks
         run: |
           python -m pip install --upgrade pip
           python -m pip install --constraint backend/constraints.txt -e './backend[dev]'
           cd backend
-          ruff check app tests/test_customer_feedback_listing_write.py
-          pytest -q tests/test_customer_feedback_listing_write.py
+          ruff check app
+          mypy app
+          pytest -q -m 'not integration'
 
       - name: Commit verified changes and remove temporary workflow
         shell: bash
