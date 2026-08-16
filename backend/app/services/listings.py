@@ -103,6 +103,7 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.minimum_nights = payload.minimumNights
     listing.deposit_amount = payload.depositAmount
     listing.bills_included = payload.billsIncluded
+    listing.bills_text = payload.billsText
     listing.bathroom = payload.bathroom
     listing.kitchen = payload.kitchen
     listing.furnished = payload.furnished
@@ -245,6 +246,7 @@ async def update_listing(
         "minimumNights": "minimum_nights",
         "depositAmount": "deposit_amount",
         "billsIncluded": "bills_included",
+        "billsText": "bills_text",
         "roomSizeM2": "room_size_m2",
         "bedroomCount": "bedroom_count",
         "currentResidents": "current_residents",

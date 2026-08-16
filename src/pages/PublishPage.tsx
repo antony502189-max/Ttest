@@ -70,6 +70,11 @@ function acceptedForRequirement(requirement: TenantRequirement): AcceptedTenantT
   return ["man", "woman", "couple", "family"];
 }
 
+const billsAmountFromText = (value: string) => {
+  const match = value.match(/(\d+(?:[.,]\d{1,2})?)/);
+  return match ? match[1].replace(",", ".") : "";
+};
+
 const toDraft = (listing: Listing): ListingDraft => {
   const roomCapacity = Math.min(10, Math.max(1, Math.round(listing.roomCapacity ?? 1)));
   const roomSize = Math.max(1, listing.roomSizeM2 ?? 12);
@@ -99,15 +104,15 @@ const toDraft = (listing: Listing): ListingDraft => {
     heatingType: listing.heatingType ?? "none",
     accessible: listing.accessible ?? false,
     furnished: listing.furnished ?? true,
-    amenities: listing.amenities,
+    amenities: listing.amenities.map((item) => item === "Fibra" ? "Wi-Fi" : item),
     monthlyPrice: listing.monthlyPrice ?? (listing.rentalMode === "long" ? listing.price : 0),
     nightlyPrice: listing.nightlyPrice ?? (listing.rentalMode === "holiday" ? listing.price : 0),
     weeklyPrice: listing.weeklyPrice,
     depositAmount: listing.depositAmount ?? 0,
     billsIncluded: listing.billsIncluded ?? false,
-    billsNote: listing.bills,
+    billsNote: listing.billsIncluded ? "" : billsAmountFromText(listing.bills),
     availableFrom: listing.availableFrom,
-    availableUntil: listing.availableUntil ?? listing.expiresAt,
+    availableUntil: listing.availableUntil ?? "",
     minimumStayMonths: listing.minimumStayMonths ?? 0,
     minimumNights: listing.minimumNights ?? 1,
     expiresAt: listing.expiresAt,
@@ -160,13 +165,13 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     roomType: draft.roomType,
     available: `Disponible desde ${new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(new Date(`${draft.availableFrom}T12:00:00`))}`,
     availableFrom: draft.availableFrom,
-    availableUntil: draft.availableUntil,
+    availableUntil: draft.availableUntil || undefined,
     minimumStay: draft.rentalMode === "holiday" ? `Mínimo ${draft.minimumNights} ${draft.minimumNights === 1 ? "noche" : "noches"}` : `Mínimo ${draft.minimumStayMonths} ${draft.minimumStayMonths === 1 ? "mes" : "meses"}`,
     minimumStayMonths: draft.minimumStayMonths,
     minimumNights: draft.rentalMode === "holiday" ? draft.minimumNights : undefined,
     deposit: draft.depositAmount ? `${draft.depositAmount} €` : "Sin fianza",
     depositAmount: draft.depositAmount,
-    bills: draft.billsNote || (draft.billsIncluded ? "Gastos incluidos" : "Gastos aparte"),
+    bills: draft.billsIncluded ? "Gastos incluidos en el precio" : draft.billsNote ? `Gastos aparte: aprox. ${draft.billsNote} €/mes` : "Gastos aparte",
     billsIncluded: draft.billsIncluded,
     bathroom: draft.bathroom,
     kitchen: draft.kitchen,
@@ -316,10 +321,15 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       const sleepingPlaces = draft.bedCount * (draft.bedType === "double" ? 2 : 1);
       if (sleepingPlaces < draft.roomCapacity) next.bedCount = "Las camas indicadas no cubren la capacidad de la habitación.";
     }
-    if (step === 3 && getPrimaryPrice(preview) < 1) next.price = "El precio debe ser mayor que cero.";
+    if (step === 3) {
+      if (getPrimaryPrice(preview) < 1) next.price = "El precio debe ser mayor que cero.";
+      if (!draft.billsIncluded) {
+        const billsAmount = Number(draft.billsNote);
+        if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = "Indica el gasto adicional aproximado al mes.";
+      }
+    }
     if (step === 4) {
       if (!draft.availableFrom) next.availableFrom = "Selecciona una fecha de inicio.";
-      if (!draft.availableUntil) next.availableUntil = "Selecciona una fecha final.";
       if (draft.availableFrom && draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = "La fecha final debe ser posterior a la inicial.";
       if (draft.rentalMode === "long" && draft.minimumStayMonths < 1) next.minimumStay = "Indica al menos 1 mes.";
       if (draft.rentalMode === "holiday" && draft.minimumNights < 1) next.minimumStay = "Indica al menos 1 noche.";
@@ -455,14 +465,16 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             </>}
             <FormField label="Fianza / depósito (€)" htmlFor="publish-deposit"><Input id="publish-deposit" type="number" min="0" value={draft.depositAmount} onChange={(e) => set("depositAmount", Number(e.target.value))} /></FormField>
           </div>
-          <label className="check-row"><Checkbox checked={draft.billsIncluded} onCheckedChange={(value) => set("billsIncluded", value === true)} />Gastos incluidos</label>
-          <FormField label="Aclaración sobre gastos" htmlFor="publish-bills"><Input id="publish-bills" value={draft.billsNote} onChange={(e) => set("billsNote", e.target.value)} /></FormField>
+          <div className="form-grid">
+            <FormField label="Gastos de suministros" htmlFor="publish-bills-included"><select id="publish-bills-included" value={draft.billsIncluded ? "included" : "extra"} onChange={(e) => setDraft((current) => ({ ...current, billsIncluded: e.target.value === "included", billsNote: e.target.value === "included" ? "" : current.billsNote }))}><option value="included">Incluidos en el precio</option><option value="extra">Se pagan aparte</option></select></FormField>
+            {!draft.billsIncluded ? <FormField label="Gastos adicionales aproximados (€/mes)" htmlFor="publish-bills" error={errors.billsAmount}><Input id="publish-bills" type="number" min="1" inputMode="decimal" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set("billsNote", e.target.value)} /></FormField> : null}
+          </div>
         </WizardSection>;
       case 4:
-        return <WizardSection title="Disponibilidad" description="Indica el intervalo exacto, desde qué día hasta qué día está disponible.">
+        return <WizardSection title="Disponibilidad" description="Indica desde qué día está disponible. La fecha final es opcional; si no la conoces, basta con indicar la estancia mínima.">
           <div className="form-grid">
             <FormField label="Disponible desde" htmlFor="publish-available" error={errors.availableFrom}><Input id="publish-available" type="date" value={draft.availableFrom} aria-invalid={Boolean(errors.availableFrom)} onChange={(e) => set("availableFrom", e.target.value)} /></FormField>
-            <FormField label="Disponible hasta" htmlFor="publish-available-until" error={errors.availableUntil}><Input id="publish-available-until" type="date" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set("availableUntil", e.target.value)} /></FormField>
+            <FormField label="Disponible hasta (opcional)" htmlFor="publish-available-until" error={errors.availableUntil}><Input id="publish-available-until" type="date" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set("availableUntil", e.target.value)} /></FormField>
             {draft.rentalMode === "long" ? <FormField label="Estancia mínima (meses)" htmlFor="publish-min-stay" error={errors.minimumStay}><Input id="publish-min-stay" type="number" min="1" value={draft.minimumStayMonths} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set("minimumStayMonths", Number(e.target.value))} /></FormField> : <FormField label="Estancia mínima (noches)" htmlFor="publish-min-nights" error={errors.minimumStay}><Input id="publish-min-nights" type="number" min="1" value={draft.minimumNights} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set("minimumNights", Number(e.target.value))} /></FormField>}
             <FormField label="Fecha límite del anuncio" htmlFor="publish-expiry"><Input id="publish-expiry" type="date" value={draft.expiresAt} onChange={(e) => set("expiresAt", e.target.value)} /></FormField>
           </div>
@@ -510,7 +522,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <div className="preview-card-wrap"><PropertyCard listing={preview} /></div>
           <div className="preview-contact-methods" aria-label="Canales de contacto visibles"><h3>Canales tras confirmar condiciones</h3><div className="badge-row">{preview.showPhone ? <PropertyBadge>Teléfono</PropertyBadge> : null}{preview.showWhatsApp ? <PropertyBadge>WhatsApp</PropertyBadge> : null}{preview.allowContactForm ? <PropertyBadge>Mensaje local</PropertyBadge> : null}</div></div>
           <div className="preview-conditions"><h3>Condiciones visibles</h3><div className="badge-row">{preview.restrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></div>
-          <Dialog><DialogTrigger asChild><Button variant="outline"><Eye data-icon="inline-start" />Vista previa completa</Button></DialogTrigger><DialogContent className="full-preview-dialog"><DialogHeader><DialogTitle>Vista previa del anuncio</DialogTitle><DialogDescription>Versión pública antes de publicar.</DialogDescription></DialogHeader><PropertyGallery listing={preview} /><div className="full-preview-summary"><div><span className="eyebrow">{preview.area}, {preview.city}</span><h2>{preview.title}</h2><p>{preview.description}</p></div><PriceBlock listing={preview} large /></div><dl className="detail-list"><div><dt>Disponibilidad</dt><dd>{preview.availableFrom} — {preview.availableUntil}</dd></div><div><dt>Estancia mínima</dt><dd>{preview.minimumStay}</dd></div><div><dt>Plazas libres</dt><dd>{preview.availableSpots ?? "Consultar"}</dd></div><div><dt>Gastos</dt><dd>{preview.bills}</dd></div><div><dt>Fianza</dt><dd>{preview.deposit}</dd></div></dl><div className="badge-row">{preview.restrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></DialogContent></Dialog>
+          <Dialog><DialogTrigger asChild><Button variant="outline"><Eye data-icon="inline-start" />Vista previa completa</Button></DialogTrigger><DialogContent className="full-preview-dialog"><DialogHeader><DialogTitle>Vista previa del anuncio</DialogTitle><DialogDescription>Versión pública antes de publicar.</DialogDescription></DialogHeader><PropertyGallery listing={preview} /><div className="full-preview-summary"><div><span className="eyebrow">{preview.area}, {preview.city}</span><h2>{preview.title}</h2><p>{preview.description}</p></div><PriceBlock listing={preview} large /></div><dl className="detail-list"><div><dt>Disponibilidad</dt><dd>{preview.availableFrom}{preview.availableUntil ? ` — ${preview.availableUntil}` : " · sin fecha final"}</dd></div><div><dt>Estancia mínima</dt><dd>{preview.minimumStay}</dd></div><div><dt>Plazas libres</dt><dd>{preview.availableSpots ?? "Consultar"}</dd></div><div><dt>Gastos</dt><dd>{preview.bills}</dd></div><div><dt>Fianza</dt><dd>{preview.deposit}</dd></div></dl><div className="badge-row">{preview.restrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></DialogContent></Dialog>
         </WizardSection>;
     }
   })();
