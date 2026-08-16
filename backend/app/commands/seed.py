@@ -38,7 +38,7 @@ TITLES = (
     "Estudio privado con cocina y terraza",
     "Habitación exterior con armario empotrado",
     "Habitación para curso universitario junto al tranvía",
-    "Habitación amplia con balcón y fibra",
+    "Habitación amplia con balcón y Wi-Fi",
     "Habitación económica en vivienda organizada",
 )
 OWNERS = (
@@ -53,7 +53,7 @@ OWNERS = (
     ("Tenerife Hogar", "TH"),
     ("Raúl G.", "RG"),
 )
-AMENITIES = ("Fibra", "Escritorio", "Balcón", "Ascensor", "Lavadora", "Aire acondicionado", "Terraza", "Aparcamiento")
+AMENITIES = ("Wi-Fi", "Escritorio", "Balcón", "Ascensor", "Lavadora", "Aire acondicionado", "Terraza", "Aparcamiento")
 PHOTOS = (
     "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=82",
     "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=1200&q=82",

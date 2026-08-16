@@ -39,6 +39,7 @@ class ListingWrite(BaseModel):
     minimumNights: int | None = Field(default=None, ge=0)
     depositAmount: int = Field(default=0, ge=0)
     billsIncluded: bool = False
+    billsText: str | None = Field(default=None, max_length=240)
     bathroom: str = Field(default="Baño compartido", max_length=64)
     kitchen: str = Field(default="Cocina compartida", max_length=64)
     furnished: bool = True
@@ -140,6 +141,7 @@ class ListingPatch(BaseModel):
     minimumNights: int | None = Field(default=None, ge=0)
     depositAmount: int | None = Field(default=None, ge=0)
     billsIncluded: bool | None = None
+    billsText: str | None = Field(default=None, max_length=240)
     bathroom: str | None = Field(default=None, max_length=64)
     kitchen: str | None = Field(default=None, max_length=64)
     furnished: bool | None = None
@@ -187,6 +189,7 @@ class ListingPatch(BaseModel):
             "weeklyPrice",
             "availableFrom",
             "availableUntil",
+            "billsText",
             "minimumNights",
             "bedroomCount",
             "homeSizeM2",

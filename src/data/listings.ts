@@ -41,7 +41,7 @@ const titles = [
   'Estudio privado con cocina y terraza',
   'Habitación exterior con armario empotrado',
   'Habitación para curso universitario junto al tranvía',
-  'Habitación amplia con balcón y fibra',
+  'Habitación amplia con balcón y Wi-Fi',
   'Habitación económica en vivienda organizada',
 ]
 
@@ -89,7 +89,7 @@ function acceptedTenants(requirement: NonNullable<Listing['tenantRequirement']>)
 }
 
 export const areas = places.map((place) => place[1])
-export const amenityOptions = ['Fibra', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']
+export const amenityOptions = ['Wi-Fi', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']
 
 export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) => {
   const place = places[index < legacyPlaceIndices.length ? legacyPlaceIndices[index] : index % places.length]
@@ -234,8 +234,8 @@ export const createDefaultDraft = (): ListingDraft => ({
   roomType: 'Habitación individual', roomSizeM2: 14, homeSizeM2: 85, bedroomCount: 5, bathroomCount: 2, currentResidents: 4, roomCapacity: 1,
   rentalUnit: 'room', bedType: 'single', bedCount: 1, currentRoomResidents: 0,
   bathroom: 'Baño compartido', toilet: 'Aseo privado', shower: 'Ducha compartida', kitchen: 'Cocina privada', heatingType: 'none', accessible: false,
-  furnished: true, amenities: ['Fibra', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,
-  billsIncluded: true, billsNote: 'Todo incluido con uso responsable', availableFrom: '2026-08-15', availableUntil: '2027-08-14', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
+  furnished: true, amenities: ['Wi-Fi', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,
+  billsIncluded: true, billsNote: '', availableFrom: '2026-08-15', availableUntil: '', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
   tenantRequirement: 'single-man', acceptedTenantTypes: ['man'], householdGender: 'men', householdHasChildren: false, couplesAllowed: false,
   smokingAllowed: false, petsAllowed: false, childrenAllowed: false, empadronamientoAllowed: true,
   rules: 'Buscamos una convivencia tranquila. Se respetan los horarios de descanso y se organizan turnos de limpieza.', images: rotatePhotos(0),

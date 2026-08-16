@@ -179,7 +179,7 @@ test("04 every visible filter is wired to data and URL", async ({ page }) => {
     () => select(/Tipo de anunciante/i, "Profesional"),
     /anunciante=/,
   );
-  await changed(() => check("Espacios y equipamiento", "Fibra"), /servicios=/);
+  await changed(() => check("Espacios y equipamiento", "Wi-Fi"), /servicios=/);
 });
 
 test("05–08 filter count, individual chips, clear, URL reload and history navigation", async ({
