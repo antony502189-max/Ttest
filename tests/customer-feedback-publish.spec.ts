@@ -57,3 +57,10 @@ test('CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and monthly extra costs w
   expect(draft?.amenities).toContain('Wi-Fi')
   expect(draft?.amenities).not.toContain('Fibra')
 })
+
+test('CUSTOMER-FEEDBACK search uses Wi-Fi terminology instead of fiber', async ({ page }) => {
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  const equipment = page.locator('.filter-section').filter({ hasText: 'Espacios y equipamiento' })
+  await expect(equipment.getByText('Wi-Fi', { exact: true })).toBeVisible()
+  await expect(equipment.getByText('Fibra', { exact: true })).toHaveCount(0)
+})
