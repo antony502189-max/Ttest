@@ -44,6 +44,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { currentLocale } from "@/lib/i18n-locale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -499,7 +500,7 @@ export function PriceBlock({
   return (
     <div className={cn("price-block", large && "price-block--large")}>
       <strong>
-        {listing.sourcePriceText ?? new Intl.NumberFormat("es-ES", {
+        {listing.sourcePriceText ?? new Intl.NumberFormat(currentLocale(), {
           style: "currency",
           currency: "EUR",
           maximumFractionDigits: 0,
@@ -527,6 +528,7 @@ export function PropertyCard({
   onFocus?: () => void;
 }) {
   const { discardListing } = useApp();
+  const { t } = useI18n();
   const [imageIndex, setImageIndex] = useState(0);
   const share = async () => {
     const url = `${location.origin}${location.pathname}#/habitacion/${listing.id}`;
@@ -607,13 +609,13 @@ export function PropertyCard({
           <p className="property-location"><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
           <div className="property-facts">
             <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
-            <span>{listing.currentResidents} residentes · {listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}</span>
+            <span>{t(`${listing.currentResidents} residentes · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>
             <span><CalendarDays aria-hidden="true" />{listing.available}</span>
           </div>
           {compact ? null : <p className="property-description">{listing.description}</p>}
           <div className="badge-row">
             {visibleRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}
-            {criticalRestrictions.length > visibleRestrictions.length ? <Badge variant="secondary">+{criticalRestrictions.length - visibleRestrictions.length} condiciones</Badge> : null}
+            {criticalRestrictions.length > visibleRestrictions.length ? <Badge variant="secondary">{t(`+${criticalRestrictions.length - visibleRestrictions.length} condiciones`)}</Badge> : null}
           </div>
           <div className="property-card__meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>{listing.primarySource ? `Fuente: ${listing.primarySource}` : listing.advertiserType}</span></div>
         </ListingDestination>

@@ -64,6 +64,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useApp } from '@/contexts/app-context'
+import { currentLocale } from '@/lib/i18n-locale'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 
@@ -111,7 +112,7 @@ const listingStatusLabels: Record<string, string> = {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 function restrictionEndText(value: string | null | undefined) {
