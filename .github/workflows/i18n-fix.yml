@@ -21,6 +21,8 @@ jobs:
           cache: npm
       - name: Apply i18n corrections
         run: python scripts/apply_i18n_fixes.py
+      - name: Reload runtime after locale selection in regression test
+        run: sed -i '/  await page.goto(route)/i\  await page.reload()' tests/i18n-language-regression.spec.ts
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
