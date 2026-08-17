@@ -35,6 +35,8 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('1 residente · 9 m²', 'en')).toBe('1 resident · 9 m²')
   expect(translateText('3 residentes · 18 m²', 'ru')).toBe('Жильцов: 3 · 18 m²')
   expect(translateText('3 residentes · 18 m²', 'en')).toBe('3 residents · 18 m²')
+  expect(translateText('Hasta 18 August 2026, 12:00', 'ru')).toBe('До 18 August 2026, 12:00')
+  expect(translateText('Hasta 18 August 2026, 12:00', 'en')).toBe('Until 18 August 2026, 12:00')
 })
 
 for (const language of ['ru', 'en'] as const) {

@@ -1079,6 +1079,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Más acciones para (.+)$/))) return target(`Дополнительные действия: ${translateCore(match[1], language)}`, `More actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Acciones para (.+)$/))) return target(`Действия: ${translateCore(match[1], language)}`, `Actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
+  if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)
   if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
   if ((match = source.match(/^(\d+) euros, (.+), ubicación aproximada$/))) return target(`${match[1]} евро, ${match[2]}, примерное местоположение`, `${match[1]} euros, ${match[2]}, approximate location`)
   if ((match = source.match(/^Centrar mapa en (.+), (\d+) euros$/))) return target(`Показать на карте: ${match[1]}, ${match[2]} евро`, `Center map on ${match[1]}, ${match[2]} euros`)
