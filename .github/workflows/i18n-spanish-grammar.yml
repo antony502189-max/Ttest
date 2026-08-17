@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Fix singular resident grammar and translation
+      - name: Fix resident grammar in ES/RU/EN
         shell: bash
         run: |
           python - <<'PY'
@@ -34,15 +34,20 @@ jobs:
 
           p = Path('src/contexts/i18n-context.tsx')
           text = p.read_text()
-          old = r"/^(\d+) residentes · (.+)$/"
-          new = r"/^(\d+) (?:residente|residentes) · (.+)$/"
-          if old not in text: raise SystemExit('resident translation pattern not found')
+          old = "  if ((match = source.match(/^(\\d+) residentes · (.+)$/))) return target(`${match[1]} жильцов · ${match[2]}`, `${match[1]} ${match[1] === '1' ? 'resident' : 'residents'} · ${match[2]}`)"
+          new = "  if ((match = source.match(/^(\\d+) (?:residente|residentes) · (.+)$/))) return target(`Жильцов: ${match[1]} · ${match[2]}`, `${match[1]} ${match[1] === '1' ? 'resident' : 'residents'} · ${match[2]}`)"
+          if old not in text: raise SystemExit('resident translation line not found')
           p.write_text(text.replace(old, new, 1))
 
           p = Path('tests/i18n-language-regression.spec.ts')
           text = p.read_text()
+          dictionary_anchor = "  expect(translateText('Fibra', 'en')).toBe('Wi-Fi')\n"
+          dictionary_addition = "  expect(translateText('1 residente · 9 m²', 'ru')).toBe('Жильцов: 1 · 9 m²')\n  expect(translateText('1 residente · 9 m²', 'en')).toBe('1 resident · 9 m²')\n"
+          if dictionary_anchor not in text: raise SystemExit('dictionary assertion anchor not found')
+          text = text.replace(dictionary_anchor, dictionary_anchor + dictionary_addition, 1)
+
           anchor = "test('English search does not leak known Spanish room-first labels', async ({ page }) => {"
-          addition = '''test('Spanish cards use correct singular residente grammar', async ({ page }) => {\n  await page.goto('/#/')\n  await page.evaluate(() => {\n    localStorage.clear()\n    localStorage.setItem('112233:language:v1', 'es')\n    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))\n    localStorage.setItem('112233:mobile-onboarding:v1', 'done')\n  })\n  await page.reload()\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long')\n  const body = await page.locator('body').innerText()\n  expect(body).toContain('1 residente ·')\n  expect(body).not.toContain('1 residentes ·')\n})\n\n'''
+          addition = '''test('Spanish cards use correct singular residente grammar', async ({ page }) => {\n  await page.goto('/#/')\n  await page.evaluate(() => {\n    localStorage.clear()\n    localStorage.setItem('112233:language:v1', 'es')\n    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))\n    localStorage.setItem('112233:mobile-onboarding:v1', 'done')\n  })\n  await page.reload()\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long')\n  await expect(page.locator('.property-card').first()).toBeVisible()\n  const body = await page.locator('body').innerText()\n  expect(body).toContain('1 residente ·')\n  expect(body).not.toContain('1 residentes ·')\n})\n\n'''
           if anchor not in text: raise SystemExit('i18n regression anchor not found')
           p.write_text(text.replace(anchor, addition + anchor, 1))
           PY
@@ -59,5 +64,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
-          git commit -m "fix: correct Spanish singular resident grammar"
+          git commit -m "fix: correct resident grammar across locales"
           git push origin HEAD:fix/i18n-language-audit
