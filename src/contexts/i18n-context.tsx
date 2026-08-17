@@ -992,7 +992,111 @@ const roomFirstTranslations: Record<string, Translation> = {
   'Habitación exterior y cuidada en una vivienda compartida con buena conexión. El anuncio detalla gastos, disponibilidad y normas para que puedas comparar antes de contactar.': { ru: 'Светлая ухоженная комната в общем жилье с хорошей транспортной доступностью. В объявлении указаны расходы, доступность и правила, чтобы можно было сравнить варианты до связи.', en: 'Bright, well-kept room in a shared home with good transport links. The listing details costs, availability and rules so you can compare before contacting.' },
 }
 
-Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations)
+const finalAuditTranslations: Record<string, Translation> = {
+  'No pudimos abrir esta página': { ru: 'Не удалось открыть эту страницу', en: "We couldn't open this page" },
+  'Recarga la aplicación. Tus datos locales permanecen guardados.': { ru: 'Перезагрузите приложение. Локальные данные останутся сохранены.', en: 'Reload the app. Your local data remains saved.' },
+  'Recargar': { ru: 'Перезагрузить', en: 'Reload' },
+  'Fuente:': { ru: 'Источник:', en: 'Source:' },
+  'Zona dibujada': { ru: 'Нарисованная область', en: 'Drawn area' },
+  'Área visible del mapa': { ru: 'Видимая область карты', en: 'Visible map area' },
+  'Condiciones importantes': { ru: 'Важные условия', en: 'Important conditions' },
+  'Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?': { ru: 'Нарисованная область заменит выбранные муниципалитеты. Продолжить?', en: 'Drawing an area will replace the selected municipalities. Continue?' },
+  'Tu cuenta está restringida': { ru: 'Ваша учётная запись ограничена', en: 'Your account is restricted' },
+  'La publicación de anuncios está restringida': { ru: 'Публикация объявлений ограничена', en: 'Listing publication is restricted' },
+  'El acceso a anuncios está restringido': { ru: 'Доступ к объявлениям ограничен', en: 'Access to listings is restricted' },
+  'Contactar con soporte:': { ru: 'Связаться с поддержкой:', en: 'Contact support:' },
+  'Comprobando acceso…': { ru: 'Проверяем доступ…', en: 'Checking access…' },
+  'Acción restringida por administración': { ru: 'Действие ограничено администрацией', en: 'Action restricted by administration' },
+  'Usuarios': { ru: 'Пользователи', en: 'Users' },
+  'Denuncias': { ru: 'Жалобы', en: 'Reports' },
+  'Anuncios': { ru: 'Объявления', en: 'Listings' },
+  'Actividad': { ru: 'Активность', en: 'Activity' },
+  'Ajustes': { ru: 'Настройки', en: 'Settings' },
+  'Bloqueo completo': { ru: 'Полная блокировка', en: 'Full restriction' },
+  'No puede publicar': { ru: 'Не может публиковать', en: 'Cannot publish' },
+  'No puede ver anuncios': { ru: 'Не может просматривать объявления', en: 'Cannot view listings' },
+  'No puede publicar anuncios': { ru: 'Не может публиковать объявления', en: 'Cannot publish listings' },
+  'No puede acceder a anuncios': { ru: 'Не может открывать объявления', en: 'Cannot access listings' },
+  '1 día': { ru: '1 день', en: '1 day' },
+  '1 semana': { ru: '1 неделя', en: '1 week' },
+  '1 mes': { ru: '1 месяц', en: '1 month' },
+  'Para siempre': { ru: 'Бессрочно', en: 'Permanent' },
+  'Fecha personalizada': { ru: 'Своя дата', en: 'Custom date' },
+  'Nueva': { ru: 'Новая', en: 'New' },
+  'En revisión': { ru: 'На рассмотрении', en: 'In review' },
+  'Resuelta': { ru: 'Решена', en: 'Resolved' },
+  'Descartada': { ru: 'Отклонена', en: 'Dismissed' },
+  'Eliminada': { ru: 'Удалена', en: 'Deleted' },
+  'Bloqueada (legacy)': { ru: 'Заблокирована (legacy)', en: 'Blocked (legacy)' },
+  'Activa': { ru: 'Активна', en: 'Active' },
+  'Selecciona una fecha futura válida.': { ru: 'Выберите корректную будущую дату.', en: 'Select a valid future date.' },
+  'No se pudo completar la operación.': { ru: 'Не удалось выполнить операцию.', en: 'The operation could not be completed.' },
+  'Restricción aplicada y usuario notificado': { ru: 'Ограничение применено, пользователь уведомлён', en: 'Restriction applied and user notified' },
+  'Elige exactamente qué dejará de poder hacer, durante cuánto tiempo y el motivo visible para el usuario.': { ru: 'Укажите, что именно будет недоступно пользователю, на какой срок и какую причину он увидит.', en: 'Choose exactly what the user will no longer be able to do, for how long, and the reason shown to them.' },
+  'Tipo de restricción': { ru: 'Тип ограничения', en: 'Restriction type' },
+  'Duración': { ru: 'Срок', en: 'Duration' },
+  'Hasta': { ru: 'До', en: 'Until' },
+  'Motivo que verá el usuario': { ru: 'Причина, которую увидит пользователь', en: 'Reason shown to the user' },
+  'Explica claramente por qué se aplica la restricción…': { ru: 'Чётко объясните причину ограничения…', en: 'Clearly explain why the restriction is being applied…' },
+  'Sus anuncios se ocultarán mientras exista la restricción. Se enviará un email y un aviso dentro de la cuenta.': { ru: 'Объявления будут скрыты на время ограничения. Пользователь получит письмо и уведомление в аккаунте.', en: 'Their listings will be hidden while the restriction is active. An email and an in-account notice will be sent.' },
+  'Solo otro administrador podrá retirarla manualmente.': { ru: 'Снять его вручную сможет только другой администратор.', en: 'Only another administrator can remove it manually.' },
+  'Al finalizar, se retirará automáticamente.': { ru: 'После окончания срока ограничение снимется автоматически.', en: 'It will be removed automatically when the period ends.' },
+  'Aplicando…': { ru: 'Применяем…', en: 'Applying…' },
+  'Confirmar restricción': { ru: 'Подтвердить ограничение', en: 'Confirm restriction' },
+  'Anuncio restringido y propietario notificado': { ru: 'Объявление ограничено, владелец уведомлён', en: 'Listing restricted and owner notified' },
+  'Bloquear anuncio': { ru: 'Заблокировать объявление', en: 'Block listing' },
+  'Motivo que verá el propietario': { ru: 'Причина, которую увидит владелец', en: 'Reason shown to the owner' },
+  'Motivo de la retirada temporal…': { ru: 'Причина временного снятия объявления…', en: 'Reason for the temporary removal…' },
+  'Cuenta eliminada': { ru: 'Аккаунт удалён', en: 'Account deleted' },
+  'Cargando usuario…': { ru: 'Загружаем пользователя…', en: 'Loading user…' },
+  'Restricción retirada y usuario notificado': { ru: 'Ограничение снято, пользователь уведомлён', en: 'Restriction removed and user notified' },
+  'Nota interna guardada': { ru: 'Внутренняя заметка сохранена', en: 'Internal note saved' },
+  'Volver a usuarios': { ru: 'Назад к пользователям', en: 'Back to users' },
+  'Desbloquear ahora': { ru: 'Снять ограничение', en: 'Unblock now' },
+  'Restringir': { ru: 'Ограничить', en: 'Restrict' },
+  'Último acceso': { ru: 'Последний вход', en: 'Last sign-in' },
+  'Rol de producto': { ru: 'Роль в продукте', en: 'Product role' },
+  'Soporte': { ru: 'Поддержка', en: 'Support' },
+  'Restringido': { ru: 'Ограничено', en: 'Restricted' },
+  'Visible según estado': { ru: 'Видимость определяется статусом', en: 'Visibility follows status' },
+  'Denuncias relacionadas': { ru: 'Связанные жалобы', en: 'Related reports' },
+  'Historial de restricciones': { ru: 'История ограничений', en: 'Restriction history' },
+  'Notas internas': { ru: 'Внутренние заметки', en: 'Internal notes' },
+  'Administrador añadido': { ru: 'Администратор добавлен', en: 'Administrator added' },
+  'Acceso de administrador revocado': { ru: 'Доступ администратора отозван', en: 'Administrator access revoked' },
+  'Buscar por nombre…': { ru: 'Поиск по имени…', en: 'Search by name…' },
+  'Buscar usuarios por nombre': { ru: 'Искать пользователей по имени', en: 'Search users by name' },
+  'Filtrar usuarios': { ru: 'Фильтр пользователей', en: 'Filter users' },
+  'Con restricción': { ru: 'С ограничением', en: 'Restricted' },
+  'Sin publicación': { ru: 'Без публикации', en: 'Publishing blocked' },
+  'Sin acceso a anuncios': { ru: 'Без доступа к объявлениям', en: 'Listing access blocked' },
+  'Tomar revisión': { ru: 'Взять на проверку', en: 'Start review' },
+  'Resolver': { ru: 'Решить', en: 'Resolve' },
+  'Título, usuario o zona…': { ru: 'Название, пользователь или район…', en: 'Title, user or area…' },
+  'Sin bloqueo administrativo': { ru: 'Без административной блокировки', en: 'No administrative block' },
+  'Administradores': { ru: 'Администраторы', en: 'Administrators' },
+  'Añadir administrador': { ru: 'Добавить администратора', en: 'Add administrator' },
+  'Revocar acceso': { ru: 'Отозвать доступ', en: 'Revoke access' },
+  'Correo de soporte': { ru: 'Почта поддержки', en: 'Support email' },
+  'No se pudo enviar este formulario.': { ru: 'Не удалось отправить форму.', en: 'This form could not be sent.' },
+  'Revisa los datos antes de enviar.': { ru: 'Проверьте данные перед отправкой.', en: 'Review the details before sending.' },
+  'Escribe al menos 2 caracteres.': { ru: 'Введите не менее 2 символов.', en: 'Enter at least 2 characters.' },
+  'Indica un email o teléfono.': { ru: 'Укажите email или телефон.', en: 'Enter an email or phone number.' },
+  'Escribe al menos 10 caracteres.': { ru: 'Введите не менее 10 символов.', en: 'Enter at least 10 characters.' },
+  'El mensaje no puede superar 1000 caracteres.': { ru: 'Сообщение не может быть длиннее 1000 символов.', en: 'The message cannot exceed 1000 characters.' },
+  'Confirma las condiciones del anuncio.': { ru: 'Подтвердите условия объявления.', en: 'Confirm the listing conditions.' },
+  'Este mismo mensaje ya se ha registrado. Espera 30 segundos.': { ru: 'Такое сообщение уже отправлено. Подождите 30 секунд.', en: 'This same message has already been recorded. Wait 30 seconds.' },
+  'Espera 30 segundos antes de enviar otro mensaje.': { ru: 'Подождите 30 секунд перед отправкой следующего сообщения.', en: 'Wait 30 seconds before sending another message.' },
+  'Corrige los campos indicados.': { ru: 'Исправьте указанные поля.', en: 'Correct the highlighted fields.' },
+  'Enviando mensaje…': { ru: 'Отправляем сообщение…', en: 'Sending message…' },
+  'No se pudo enviar el mensaje.': { ru: 'Не удалось отправить сообщение.', en: 'The message could not be sent.' },
+  'Enviar un mensaje': { ru: 'Отправить сообщение', en: 'Send a message' },
+  'El mensaje se enviará al anunciante y quedará disponible en tus conversaciones.': { ru: 'Сообщение будет отправлено владельцу и сохранится в ваших диалогах.', en: 'The message will be sent to the advertiser and remain available in your conversations.' },
+  'Email o teléfono': { ru: 'Email или телефон', en: 'Email or phone' },
+  'Enviando…': { ru: 'Отправляем…', en: 'Sending…' },
+}
+
+Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations)
 
 const localeByLanguage: Record<Language, string> = { es: 'es-ES', ru: 'ru-RU', en: 'en-GB' }
 const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русский', en: 'English' }
@@ -1079,6 +1183,22 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Más acciones para (.+)$/))) return target(`Дополнительные действия: ${translateCore(match[1], language)}`, `More actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Acciones para (.+)$/))) return target(`Действия: ${translateCore(match[1], language)}`, `Actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
+  if ((match = source.match(/^¿Revocar acceso de administrador a (.+)\?$/))) return target(`Отозвать права администратора у ${match[1]}?`, `Revoke administrator access for ${match[1]}?`)
+  if ((match = source.match(/^Restringir a (.+)$/))) return target(`Ограничить: ${match[1]}`, `Restrict ${match[1]}`)
+  if ((match = source.match(/^Eliminar cuenta de (.+)$/))) return target(`Удалить аккаунт: ${match[1]}`, `Delete ${match[1]}'s account`)
+  if ((match = source.match(/^(\d+) asociados a esta cuenta$/))) return target(`Связано с аккаунтом: ${match[1]}`, `${match[1]} linked to this account`)
+  if ((match = source.match(/^(\d+) sobre sus anuncios o su cuenta$/))) return target(`Жалоб на объявления или аккаунт: ${match[1]}`, `${match[1]} about their listings or account`)
+  if ((match = source.match(/^Denuncia: (.+)$/))) return target(`Жалоба: ${translateCore(match[1], language)}`, `Report: ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^(\d+) anuncios$/))) return target(`Объявлений: ${match[1]}`, `${match[1]} listings`)
+  if ((match = source.match(/^Último acceso: (.+)$/))) return target(`Последний вход: ${match[1]}`, `Last sign-in: ${match[1]}`)
+  if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${match[1]}`, `Blocked until ${match[1]}`)
+  if ((match = source.match(/^Activo desde (.+)$/))) return target(`Активен с ${match[1]}`, `Active since ${match[1]}`)
+  if ((match = source.match(/^Fuente: (.+)$/))) return target(`Источник: ${match[1]}`, `Source: ${match[1]}`)
+  if ((match = source.match(/^Estancia mínima de (\d+) (?:noche|noches)$/))) return target(`Минимальный срок: ${match[1]} ноч.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
+  if ((match = source.match(/^Estancia mínima de (\d+) (?:mes|meses)$/))) return target(`Минимальный срок: ${match[1]} мес.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
+  if ((match = source.match(/^Mínimo (\d+) (?:noche|noches)$/))) return target(`Минимум ${match[1]} ноч.`, `Minimum ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
+  if ((match = source.match(/^Mínimo (\d+) (?:mes|meses)$/))) return target(`Минимум ${match[1]} мес.`, `Minimum ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
+  if ((match = source.match(/^Revisaremos «(.+)»\. No compartiremos tu identidad con el anunciante\.$/))) return target(`Мы проверим «${translateCore(match[1], language)}». Мы не сообщим владельцу вашу личность.`, `We will review “${translateCore(match[1], language)}”. We will not share your identity with the advertiser.`)
   if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)
   if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
   if ((match = source.match(/^(\d+) euros, (.+), ubicación aproximada$/))) return target(`${match[1]} евро, ${match[2]}, примерное местоположение`, `${match[1]} euros, ${match[2]}, approximate location`)

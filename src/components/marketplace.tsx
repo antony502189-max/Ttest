@@ -481,10 +481,11 @@ export function FavoriteButton({ listing }: { listing: Listing }) {
 }
 
 export function CriticalRestrictionOverlay({ listing, compact = false }: { listing: Listing; compact?: boolean }) {
-  const restrictions = getImageCriticalRestrictions(listing);
+  const { t } = useI18n();
+  const restrictions = getImageCriticalRestrictions(listing).map((restriction) => t(restriction));
   if (!restrictions.length) return null;
   return (
-    <div className={cn("critical-restriction-overlay", compact && "critical-restriction-overlay--compact")} role="note" aria-label={`Condiciones importantes: ${restrictions.join(", ")}`}>
+    <div className={cn("critical-restriction-overlay", compact && "critical-restriction-overlay--compact")} role="note" aria-label={`${t("Condiciones importantes")}: ${restrictions.join(", ")}`}>
       {restrictions.map((restriction) => <span key={restriction}>{restriction}</span>)}
     </div>
   );
@@ -528,8 +529,9 @@ export function PropertyCard({
   onFocus?: () => void;
 }) {
   const { discardListing } = useApp();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [imageIndex, setImageIndex] = useState(0);
+  const availability = listing.availableFrom ? t(`Disponible desde ${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${listing.availableFrom}T12:00:00`))}`) : t(listing.available);
   const share = async () => {
     const url = `${location.origin}${location.pathname}#/habitacion/${listing.id}`;
     if (navigator.share)
@@ -610,14 +612,14 @@ export function PropertyCard({
           <div className="property-facts">
             <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
             <span>{t(`${listing.currentResidents} ${listing.currentResidents === 1 ? "residente" : "residentes"} · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>
-            <span><CalendarDays aria-hidden="true" />{listing.available}</span>
+            <span><CalendarDays aria-hidden="true" />{availability}</span>
           </div>
           {compact ? null : <p className="property-description">{listing.description}</p>}
           <div className="badge-row">
             {visibleRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}
             {criticalRestrictions.length > visibleRestrictions.length ? <Badge variant="secondary">{t(`+${criticalRestrictions.length - visibleRestrictions.length} condiciones`)}</Badge> : null}
           </div>
-          <div className="property-card__meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>{listing.primarySource ? `Fuente: ${listing.primarySource}` : listing.advertiserType}</span></div>
+          <div className="property-card__meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>{listing.primarySource ? t(`Fuente: ${listing.primarySource}`) : t(listing.advertiserType)}</span></div>
         </ListingDestination>
         {compact ? null : (
           <div className="property-card__actions">
@@ -1342,6 +1344,7 @@ export function ContactPanel({
   mobile?: boolean;
 }) {
   const { addLocalMessage } = useApp();
+  const { language, t } = useI18n();
   const [confirmed, setConfirmed] = useState(false);
   const [phone, setPhone] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
@@ -1353,7 +1356,12 @@ export function ContactPanel({
   const messageFormRef = useRef<HTMLFormElement>(null);
   const messageTimerRef = useRef<number | null>(null);
   const checkboxId = useId();
-  const confirmationText = buildContactConfirmationText(listing);
+  const localizedConditions = getCriticalRestrictions(listing).slice(0, 5).map((item) => t(item));
+  const confirmationText = language === "es"
+    ? buildContactConfirmationText(listing)
+    : language === "ru"
+      ? `Подтверждаю, что соответствую этим условиям: ${localizedConditions.join(", ")}.`
+      : `I confirm that I meet these conditions: ${localizedConditions.join(", ")}.`;
   useEffect(() => {
     setConfirmed(false);
     setPhone(false);
@@ -1364,7 +1372,7 @@ export function ContactPanel({
     if (messageTimerRef.current !== null) window.clearTimeout(messageTimerRef.current);
   }, []);
   const contactText = encodeURIComponent(
-    `Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`,
+    t(`Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`),
   );
   const updateMessage = (key: keyof typeof messageForm, value: string | boolean) => setMessageForm((current) => ({ ...current, [key]: value }));
   const submitMessage = async (event: FormEvent<HTMLFormElement>) => {
@@ -1520,6 +1528,7 @@ export function ContactPanel({
 
 export function ReportDialog({ listing, open: controlledOpen, onOpenChange, trigger }: { listing: Listing; open?: boolean; onOpenChange?: (open: boolean) => void; trigger?: ReactNode | false }) {
   const { addReport } = useApp();
+  const { t } = useI18n();
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
   const [internalOpen, setInternalOpen] = useState(false);
@@ -1536,10 +1545,7 @@ export function ReportDialog({ listing, open: controlledOpen, onOpenChange, trig
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Denunciar este anuncio</DialogTitle>
-          <DialogDescription>
-            Revisaremos «{listing.title}». No compartiremos tu identidad con el
-            anunciante.
-          </DialogDescription>
+          <DialogDescription>{t(`Revisaremos «${listing.title}». No compartiremos tu identidad con el anunciante.`)}</DialogDescription>
         </DialogHeader>
         <fieldset className="report-options">
           <legend>Motivo</legend>

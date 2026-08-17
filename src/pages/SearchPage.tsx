@@ -496,7 +496,7 @@ export function SearchPage() {
           onPolygonSearch={commitPolygon}
           onDrawingStart={() => {
             if (!filters.areas.length) return true;
-            if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;
+            if (!window.confirm(t('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?'))) return false;
             return true;
           }}
         />

@@ -4,6 +4,7 @@ import { Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
+import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import type { Listing } from '@/types'
@@ -146,8 +147,9 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [mapReady, mapRef])
 
   if (!selected) return null
-  const capacity = selected.roomCapacity == null ? 'Consultar con el anunciante' : t.capacity(selected.roomCapacity)
-  const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2), capacity]))
+  const capacity = selected.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(selected.roomCapacity)
+  const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacity]))
+  const cadence = selected.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
   const saved = favorites.has(selected.id)
   const openListing = () => {
     if (selected.isExternal && selected.sourceUrl) {
@@ -162,8 +164,8 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     <div className="m2-map-listing-preview__body">
       <button type="button" className="m2-map-listing-preview__close" onClick={() => setSelectedId('')} aria-label={t.close}><X /></button>
       <p><MapPin />{selected.area}, {selected.city}</p>
-      <h2>{selected.title}</h2>
-      <strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{selected.cadence}</small>}</strong>
+      <h2>{translateText(selected.title, language)}</h2>
+      <strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
       <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
       <div className="m2-map-listing-preview__actions">
         <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(selected.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>

@@ -37,6 +37,13 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('3 residentes · 18 m²', 'en')).toBe('3 residents · 18 m²')
   expect(translateText('Hasta 18 August 2026, 12:00', 'ru')).toBe('До 18 August 2026, 12:00')
   expect(translateText('Hasta 18 August 2026, 12:00', 'en')).toBe('Until 18 August 2026, 12:00')
+  expect(translateText('Estancia mínima de 7 noches', 'ru')).toBe('Минимальный срок: 7 ноч.')
+  expect(translateText('Estancia mínima de 7 noches', 'en')).toBe('Minimum stay: 7 nights')
+  expect(translateText('Mínimo 11 meses', 'en')).toBe('Minimum 11 months')
+  expect(translateText('Fuente: portal externo', 'ru')).toBe('Источник: portal externo')
+  expect(translateText('Revisaremos «Habitación privada». No compartiremos tu identidad con el anunciante.', 'en')).toBe('We will review “Private room”. We will not share your identity with the advertiser.')
+  expect(translateText('Tu cuenta está restringida', 'en')).toBe('Your account is restricted')
+  expect(translateText('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?', 'ru')).toBe('Нарисованная область заменит выбранные муниципалитеты. Продолжить?')
 })
 
 for (const language of ['ru', 'en'] as const) {
@@ -89,4 +96,28 @@ test('publish requirement post-processing follows English instead of restoring S
   for (let step = 0; step < 5; step += 1) await page.getByRole('button', { name: 'Continue' }).click()
   const options = await page.locator('#publish-tenant-requirement option').allTextContents()
   expect(options).toEqual(['Man only', 'Woman only', '1 person', '2 people (couple/friends)', 'No restrictions'])
+})
+
+test('English listing contact flow does not reuse Spanish dynamic copy', async ({ page }) => {
+  await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')
+  const href = await page.locator('a[href*="/habitacion/"]').first().getAttribute('href')
+  expect(href).toBeTruthy()
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.contact-panel').first()).toBeVisible()
+  const body = await page.locator('body').innerText()
+  expect(body).toContain('I confirm that I meet these conditions:')
+  expect(body).not.toContain('Confirmo que cumplo estas condiciones:')
+  expect(body).not.toMatch(/Estancia mínima de \d+/)
+})
+
+test('English mobile results localize data-backed room labels', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')
+  const card = page.locator('.m2-result-card').first()
+  await expect(card).toBeVisible()
+  const body = await card.innerText()
+  expect(body).not.toContain('Habitación individual')
+  expect(body).not.toContain('Habitación compartida')
+  expect(body).not.toContain('Consultar con el anunciante')
+  expect(body).not.toContain('Disponible desde')
 })
