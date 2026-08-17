@@ -44,6 +44,10 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Revisaremos «Habitación privada». No compartiremos tu identidad con el anunciante.', 'en')).toBe('We will review “Private room”. We will not share your identity with the advertiser.')
   expect(translateText('Tu cuenta está restringida', 'en')).toBe('Your account is restricted')
   expect(translateText('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?', 'ru')).toBe('Нарисованная область заменит выбранные муниципалитеты. Продолжить?')
+  expect(translateText('Hola, me interesa la habitación de Costa Adeje. ¿Sigue disponible?', 'en')).toBe('Hello, I am interested in the room in Costa Adeje. Is it still available?')
+  expect(translateText('Hola, me interesa la habitación de Costa Adeje. ¿Sigue disponible?', 'ru')).toBe('Здравствуйте! Меня интересует комната в Costa Adeje. Она ещё доступна?')
+  expect(translateText('No se pudo enviar este formulario.', 'en')).toBe('This form could not be sent.')
+  expect(translateText('Corrige los campos indicados.', 'ru')).toBe('Исправьте указанные поля.')
 })
 
 for (const language of ['ru', 'en'] as const) {
@@ -113,6 +117,18 @@ test('English listing contact flow does not reuse Spanish dynamic copy', async (
 test('English mobile results localize data-backed room labels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')
+  const card = page.locator('.m2-result-card').first()
+  await expect(card).toBeVisible()
+  const body = await card.innerText()
+  expect(body).not.toContain('Habitación individual')
+  expect(body).not.toContain('Habitación compartida')
+  expect(body).not.toContain('Consultar con el anunciante')
+  expect(body).not.toContain('Disponible desde')
+})
+
+test('Russian mobile results localize data-backed room labels', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openAsHost(page, 'ru', '/#/buscar?q=Tenerife&alquiler=long')
   const card = page.locator('.m2-result-card').first()
   await expect(card).toBeVisible()
   const body = await card.innerText()
