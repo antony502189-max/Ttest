@@ -27,6 +27,8 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Fibra', 'en')).toBe('Wi-Fi')
   expect(translateText('1 residente · 9 m²', 'ru')).toBe('Жильцов: 1 · 9 m²')
   expect(translateText('1 residente · 9 m²', 'en')).toBe('1 resident · 9 m²')
+  expect(translateText('3 residentes · 18 m²', 'ru')).toBe('Жильцов: 3 · 18 m²')
+  expect(translateText('3 residentes · 18 m²', 'en')).toBe('3 residents · 18 m²')
 })
 
 for (const language of ['ru', 'en'] as const) {
