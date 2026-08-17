@@ -25,6 +25,8 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Se alquila la habitación completa', 'en')).toBe('Whole room for rent')
   expect(translateText('Fibra', 'ru')).toBe('Wi-Fi')
   expect(translateText('Fibra', 'en')).toBe('Wi-Fi')
+  expect(translateText('1 residente · 9 m²', 'ru')).toBe('Жильцов: 1 · 9 m²')
+  expect(translateText('1 residente · 9 m²', 'en')).toBe('1 resident · 9 m²')
 })
 
 for (const language of ['ru', 'en'] as const) {
@@ -42,6 +44,22 @@ for (const language of ['ru', 'en'] as const) {
     }
   })
 }
+
+test('Spanish cards use correct singular residente grammar', async ({ page }) => {
+  await page.goto('/#/')
+  await page.evaluate(() => {
+    localStorage.clear()
+    localStorage.setItem('112233:language:v1', 'es')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
+  await page.reload()
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await expect(page.locator('.property-card').first()).toBeVisible()
+  const body = await page.locator('body').innerText()
+  expect(body).toContain('1 residente ·')
+  expect(body).not.toContain('1 residentes ·')
+})
 
 test('English search does not leak known Spanish room-first labels', async ({ page }) => {
   await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')

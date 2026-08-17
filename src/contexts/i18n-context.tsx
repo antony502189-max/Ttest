@@ -1014,7 +1014,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   }
   if ((match = source.match(/^Gastos aparte: aprox\. (.+) €$/))) return target(`Коммунальные расходы отдельно: примерно ${match[1]} €`, `Utilities extra: approx. €${match[1]}`)
   if ((match = source.match(/^Disponible desde (.+)$/))) return target(`Доступно с ${localizeSpanishDate(match[1])}`, `Available from ${localizeSpanishDate(match[1])}`)
-  if ((match = source.match(/^(\d+) residentes · (.+)$/))) return target(`${match[1]} жильцов · ${match[2]}`, `${match[1]} ${match[1] === '1' ? 'resident' : 'residents'} · ${match[2]}`)
+  if ((match = source.match(/^(\d+) (?:residente|residentes) · (.+)$/))) return target(`Жильцов: ${match[1]} · ${match[2]}`, `${match[1]} ${match[1] === '1' ? 'resident' : 'residents'} · ${match[2]}`)
   if ((match = source.match(/^Habitación para (\d+) (?:persona|personas)$/))) return target(`Комната для ${match[1]} чел.`, `Room for ${match[1]} ${match[1] === '1' ? 'person' : 'people'}`)
   if ((match = source.match(/^\+(\d+) condiciones$/))) return target(`+${match[1]} условий`, `+${match[1]} conditions`)
   if ((match = source.match(/^Publicado hace (\d+) días$/))) return target(`Опубликовано ${match[1]} дн. назад`, `Published ${match[1]} days ago`)

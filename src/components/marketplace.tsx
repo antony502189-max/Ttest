@@ -609,7 +609,7 @@ export function PropertyCard({
           <p className="property-location"><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
           <div className="property-facts">
             <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
-            <span>{t(`${listing.currentResidents} residentes · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>
+            <span>{t(`${listing.currentResidents} ${listing.currentResidents === 1 ? "residente" : "residentes"} · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>
             <span><CalendarDays aria-hidden="true" />{listing.available}</span>
           </div>
           {compact ? null : <p className="property-description">{listing.description}</p>}
