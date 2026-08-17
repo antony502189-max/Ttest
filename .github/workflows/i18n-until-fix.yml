@@ -1,0 +1,63 @@
+name: I18n until fix
+
+on:
+  push:
+    branches:
+      - fix/i18n-language-audit
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/i18n-language-audit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Patch dynamic restriction date prefix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          i18n = Path('src/contexts/i18n-context.tsx')
+          text = i18n.read_text()
+          old = "  if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)"
+          new = "  if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)\n" + old
+          if old not in text:
+              raise SystemExit('Finaliza translation anchor not found')
+          if "source.match(/^Hasta (.+)$/)" not in text:
+              text = text.replace(old, new, 1)
+          i18n.write_text(text)
+
+          test = Path('tests/i18n-language-regression.spec.ts')
+          text = test.read_text()
+          anchor = "  expect(translateText('3 residentes · 18 m²', 'en')).toBe('3 residents · 18 m²')"
+          addition = anchor + "\n  expect(translateText('Hasta 18 August 2026, 12:00', 'ru')).toBe('До 18 August 2026, 12:00')\n  expect(translateText('Hasta 18 August 2026, 12:00', 'en')).toBe('Until 18 August 2026, 12:00')"
+          if anchor not in text:
+              raise SystemExit('i18n regression anchor not found')
+          if "translateText('Hasta 18 August 2026, 12:00', 'en')" not in text:
+              text = text.replace(anchor, addition, 1)
+          test.write_text(text)
+          PY
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/i18n-language-regression.spec.ts --reporter=line
+      - name: Commit verified product changes and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/i18n-until-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/contexts/i18n-context.tsx tests/i18n-language-regression.spec.ts .github/workflows/i18n-until-fix.yml
+          git commit -m 'fix: localize restriction date prefix'
+          git push origin HEAD:fix/i18n-language-audit
