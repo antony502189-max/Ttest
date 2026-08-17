@@ -14,6 +14,15 @@ async function openAsHost(page: Page, language: 'ru' | 'en', route = '/#/publica
   await expect(page.locator('html')).toHaveAttribute('lang', language)
 }
 
+const spanishSearchResidues = [
+  'Calefacción', 'Sin calefacción', 'Tipo de cama', 'Aseo / WC', 'Ducha',
+  'Habitación privada', 'Habitación completa', 'Adaptada para movilidad reducida',
+  'Gastos aparte: aprox.', 'Disponible desde', 'Publicado hace', ' residentes · ',
+  'Habitación para', ' condiciones', 'Particular', 'Anfitrión', 'Aparcamiento',
+  'Más antiguos', 'Precio más alto', 'Sin niños', 'Crea tu perfil',
+  ' personas (pareja/amigos)', ' habitaciones en ',
+]
+
 test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Calefacción', 'ru')).toBe('Отопление')
   expect(translateText('Calefacción', 'en')).toBe('Heating')
@@ -63,13 +72,20 @@ test('Spanish cards use correct singular residente grammar', async ({ page }) =>
   expect(body).not.toContain('1 residentes ·')
 })
 
+test('Russian search does not leak known Spanish room-first labels', async ({ page }) => {
+  await openAsHost(page, 'ru', '/#/buscar?q=Tenerife&alquiler=long')
+  await expect(page.locator('.property-card').first()).toBeVisible()
+  const body = await page.locator('body').innerText()
+  expect(body).toContain('Жильцов: 1 ·')
+  for (const spanish of spanishSearchResidues) expect(body).not.toContain(spanish)
+})
+
 test('English search does not leak known Spanish room-first labels', async ({ page }) => {
   await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')
-  await page.waitForTimeout(300)
+  await expect(page.locator('.property-card').first()).toBeVisible()
   const body = await page.locator('body').innerText()
-  for (const spanish of ['Calefacción', 'Sin calefacción', 'Tipo de cama', 'Aseo / WC', 'Ducha', 'Habitación privada', 'Habitación completa', 'Adaptada para movilidad reducida', 'Gastos aparte: aprox.', 'Disponible desde', 'Publicado hace', ' residentes · ', 'Habitación para', ' condiciones', 'Particular', 'Anfitrión', 'Aparcamiento', 'Más antiguos', 'Precio más alto', 'Sin niños', 'Crea tu perfil', ' personas (pareja/amigos)', ' habitaciones en ']) {
-    expect(body).not.toContain(spanish)
-  }
+  expect(body).toContain('1 resident ·')
+  for (const spanish of spanishSearchResidues) expect(body).not.toContain(spanish)
 })
 
 test('publish requirement post-processing follows English instead of restoring Spanish', async ({ page }) => {
