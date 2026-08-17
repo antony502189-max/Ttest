@@ -1,0 +1,254 @@
+name: I18n admin fallback fix
+
+on:
+  push:
+    branches:
+      - fix/i18n-language-audit
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/i18n-language-audit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply remaining localization fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          i18n = Path('src/contexts/i18n-context.tsx')
+          text = i18n.read_text()
+          anchor = "Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations)"
+          if anchor not in text:
+              raise SystemExit('i18n assignment anchor not found')
+          extra = r'''const auditTranslations: Record<string, Translation> = {
+            'No pudimos abrir esta página': { ru: 'Не удалось открыть эту страницу', en: "We couldn't open this page" },
+            'Recarga la aplicación. Tus datos locales permanecen guardados.': { ru: 'Перезагрузите приложение. Локальные данные останутся сохранены.', en: 'Reload the app. Your local data remains saved.' },
+            'Recargar': { ru: 'Перезагрузить', en: 'Reload' },
+            'Fuente:': { ru: 'Источник:', en: 'Source:' },
+            'Zona dibujada': { ru: 'Нарисованная область', en: 'Drawn area' },
+            'Área visible del mapa': { ru: 'Видимая область карты', en: 'Visible map area' },
+            'Habitaciones en': { ru: 'Комнаты в', en: 'Rooms in' },
+            'Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?': { ru: 'Нарисованная область заменит выбранные муниципалитеты. Продолжить?', en: 'Drawing an area will replace the selected municipalities. Continue?' },
+            'Tu cuenta está restringida': { ru: 'Ваша учётная запись ограничена', en: 'Your account is restricted' },
+            'La publicación de anuncios está restringida': { ru: 'Публикация объявлений ограничена', en: 'Listing publication is restricted' },
+            'El acceso a anuncios está restringido': { ru: 'Доступ к объявлениям ограничен', en: 'Access to listings is restricted' },
+            'Contactar con soporte:': { ru: 'Связаться с поддержкой:', en: 'Contact support:' },
+            'Comprobando acceso…': { ru: 'Проверяем доступ…', en: 'Checking access…' },
+            'Acción restringida por administración': { ru: 'Действие ограничено администрацией', en: 'Action restricted by administration' },
+            'Usuarios': { ru: 'Пользователи', en: 'Users' },
+            'Denuncias': { ru: 'Жалобы', en: 'Reports' },
+            'Anuncios': { ru: 'Объявления', en: 'Listings' },
+            'Actividad': { ru: 'Активность', en: 'Activity' },
+            'Ajustes': { ru: 'Настройки', en: 'Settings' },
+            'Bloqueo completo': { ru: 'Полная блокировка', en: 'Full restriction' },
+            'No puede publicar': { ru: 'Не может публиковать', en: 'Cannot publish' },
+            'No puede ver anuncios': { ru: 'Не может просматривать объявления', en: 'Cannot view listings' },
+            'No puede publicar anuncios': { ru: 'Не может публиковать объявления', en: 'Cannot publish listings' },
+            'No puede acceder a anuncios': { ru: 'Не может открывать объявления', en: 'Cannot access listings' },
+            '1 día': { ru: '1 день', en: '1 day' },
+            '1 semana': { ru: '1 неделя', en: '1 week' },
+            '1 mes': { ru: '1 месяц', en: '1 month' },
+            'Para siempre': { ru: 'Бессрочно', en: 'Permanent' },
+            'Fecha personalizada': { ru: 'Своя дата', en: 'Custom date' },
+            'Nueva': { ru: 'Новая', en: 'New' },
+            'En revisión': { ru: 'На рассмотрении', en: 'In review' },
+            'Resuelta': { ru: 'Решена', en: 'Resolved' },
+            'Descartada': { ru: 'Отклонена', en: 'Dismissed' },
+            'Eliminada': { ru: 'Удалена', en: 'Deleted' },
+            'Bloqueada (legacy)': { ru: 'Заблокирована (legacy)', en: 'Blocked (legacy)' },
+            'Activa': { ru: 'Активна', en: 'Active' },
+            'Selecciona una fecha futura válida.': { ru: 'Выберите корректную будущую дату.', en: 'Select a valid future date.' },
+            'No se pudo completar la operación.': { ru: 'Не удалось выполнить операцию.', en: 'The operation could not be completed.' },
+            'Restricción aplicada y usuario notificado': { ru: 'Ограничение применено, пользователь уведомлён', en: 'Restriction applied and user notified' },
+            'Elige exactamente qué dejará de poder hacer, durante cuánto tiempo y el motivo visible para el usuario.': { ru: 'Укажите, что именно будет недоступно пользователю, на какой срок и какую причину он увидит.', en: 'Choose exactly what the user will no longer be able to do, for how long, and the reason shown to them.' },
+            'Tipo de restricción': { ru: 'Тип ограничения', en: 'Restriction type' },
+            'Duración': { ru: 'Срок', en: 'Duration' },
+            'Duración:': { ru: 'Срок:', en: 'Duration:' },
+            'Hasta': { ru: 'До', en: 'Until' },
+            'Motivo que verá el usuario': { ru: 'Причина, которую увидит пользователь', en: 'Reason shown to the user' },
+            'Explica claramente por qué se aplica la restricción…': { ru: 'Чётко объясните причину ограничения…', en: 'Clearly explain why the restriction is being applied…' },
+            'Sus anuncios se ocultarán mientras exista la restricción. Se enviará un email y un aviso dentro de la cuenta.': { ru: 'Объявления будут скрыты на время ограничения. Пользователь получит письмо и уведомление в аккаунте.', en: 'Their listings will be hidden while the restriction is active. An email and an in-account notice will be sent.' },
+            'Solo otro administrador podrá retirarla manualmente.': { ru: 'Снять его вручную сможет только другой администратор.', en: 'Only another administrator can remove it manually.' },
+            'Al finalizar, se retirará automáticamente.': { ru: 'После окончания срока ограничение снимется автоматически.', en: 'It will be removed automatically when the period ends.' },
+            'Aplicando…': { ru: 'Применяем…', en: 'Applying…' },
+            'Confirmar restricción': { ru: 'Подтвердить ограничение', en: 'Confirm restriction' },
+            'Anuncio restringido y propietario notificado': { ru: 'Объявление ограничено, владелец уведомлён', en: 'Listing restricted and owner notified' },
+            'Bloquear anuncio': { ru: 'Заблокировать объявление', en: 'Block listing' },
+            'Motivo que verá el propietario': { ru: 'Причина, которую увидит владелец', en: 'Reason shown to the owner' },
+            'Motivo de la retirada temporal…': { ru: 'Причина временного снятия объявления…', en: 'Reason for the temporary removal…' },
+            'Cuenta eliminada': { ru: 'Аккаунт удалён', en: 'Account deleted' },
+            'La cuenta se desactivará, dejará de ser accesible y sus anuncios desaparecerán de la parte pública. La auditoría y las denuncias se conservarán.': { ru: 'Аккаунт будет отключён и станет недоступен, а его объявления исчезнут из публичной части. История аудита и жалобы сохранятся.', en: 'The account will be deactivated and become inaccessible, and its listings will disappear from the public site. Audit history and reports will be retained.' },
+            'Escribe DELETE para confirmar': { ru: 'Введите DELETE для подтверждения', en: 'Type DELETE to confirm' },
+            'Cargando usuario…': { ru: 'Загружаем пользователя…', en: 'Loading user…' },
+            'Restricción retirada y usuario notificado': { ru: 'Ограничение снято, пользователь уведомлён', en: 'Restriction removed and user notified' },
+            'Nota interna guardada': { ru: 'Внутренняя заметка сохранена', en: 'Internal note saved' },
+            'Volver a usuarios': { ru: 'Назад к пользователям', en: 'Back to users' },
+            'Desbloquear ahora': { ru: 'Снять ограничение', en: 'Unblock now' },
+            'Restringir': { ru: 'Ограничить', en: 'Restrict' },
+            'Esta cuenta está eliminada. La ficha se conserva únicamente como historial de moderación y es de solo lectura.': { ru: 'Этот аккаунт удалён. Карточка сохранена только для истории модерации и доступна только для чтения.', en: 'This account is deleted. The record is retained only for moderation history and is read-only.' },
+            'Esta cuenta es administradora. Para restringirla o eliminarla primero hay que revocar sus permisos en Ajustes → Administradores.': { ru: 'Это аккаунт администратора. Чтобы ограничить или удалить его, сначала отзовите права в Настройки → Администраторы.', en: 'This is an administrator account. To restrict or delete it, first revoke its permissions in Settings → Administrators.' },
+            'Último acceso': { ru: 'Последний вход', en: 'Last sign-in' },
+            'Último acceso:': { ru: 'Последний вход:', en: 'Last sign-in:' },
+            'Rol de producto': { ru: 'Роль в продукте', en: 'Product role' },
+            'Soporte': { ru: 'Поддержка', en: 'Support' },
+            'Los avisos de moderación incluyen el motivo, la fecha final —si existe— y esta dirección.': { ru: 'Уведомления модерации содержат причину, дату окончания — если она есть — и этот адрес.', en: 'Moderation notices include the reason, the end date—if any—and this address.' },
+            'Restringido': { ru: 'Ограничено', en: 'Restricted' },
+            'Visible según estado': { ru: 'Видимость определяется статусом', en: 'Visibility follows status' },
+            'Sin anuncios': { ru: 'Нет объявлений', en: 'No listings' },
+            'Esta cuenta todavía no tiene anuncios.': { ru: 'У этого аккаунта пока нет объявлений.', en: 'This account has no listings yet.' },
+            'Denuncias relacionadas': { ru: 'Связанные жалобы', en: 'Related reports' },
+            'Sin denuncias': { ru: 'Нет жалоб', en: 'No reports' },
+            'No hay denuncias asociadas a esta cuenta.': { ru: 'С этим аккаунтом не связано ни одной жалобы.', en: 'There are no reports associated with this account.' },
+            'Historial de restricciones': { ru: 'История ограничений', en: 'Restriction history' },
+            'Registro cronológico no editable.': { ru: 'Хронологическая история без возможности редактирования.', en: 'A chronological, read-only record.' },
+            'Sin historial': { ru: 'Нет истории', en: 'No history' },
+            'Nunca se aplicaron restricciones a esta cuenta.': { ru: 'К этому аккаунту никогда не применялись ограничения.', en: 'No restrictions have ever been applied to this account.' },
+            'Notas internas': { ru: 'Внутренние заметки', en: 'Internal notes' },
+            'Historial de solo lectura.': { ru: 'История только для чтения.', en: 'Read-only history.' },
+            'Solo las ven los administradores.': { ru: 'Их видят только администраторы.', en: 'Only administrators can see them.' },
+            'Añadir contexto para futuras revisiones…': { ru: 'Добавить контекст для будущих проверок…', en: 'Add context for future reviews…' },
+            'Guardar nota': { ru: 'Сохранить заметку', en: 'Save note' },
+            'Restricción retirada y propietario notificado': { ru: 'Ограничение снято, владелец уведомлён', en: 'Restriction removed and owner notified' },
+            'Administrador añadido': { ru: 'Администратор добавлен', en: 'Administrator added' },
+            'Acceso de administrador revocado': { ru: 'Доступ администратора отозван', en: 'Administrator access revoked' },
+            'Busca una cuenta, revisa su contexto y aplica solo la restricción necesaria.': { ru: 'Найдите аккаунт, проверьте контекст и примените только необходимое ограничение.', en: 'Find an account, review its context, and apply only the restriction that is needed.' },
+            'Actualizar': { ru: 'Обновить', en: 'Refresh' },
+            'Buscar por nombre…': { ru: 'Поиск по имени…', en: 'Search by name…' },
+            'Buscar usuarios por nombre': { ru: 'Искать пользователей по имени', en: 'Search users by name' },
+            'Filtrar usuarios': { ru: 'Фильтр пользователей', en: 'Filter users' },
+            'Todos': { ru: 'Все', en: 'All' },
+            'Activos': { ru: 'Активные', en: 'Active' },
+            'Con restricción': { ru: 'С ограничением', en: 'Restricted' },
+            'Sin publicación': { ru: 'Без публикации', en: 'Publishing blocked' },
+            'Sin acceso a anuncios': { ru: 'Без доступа к объявлениям', en: 'Listing access blocked' },
+            'Eliminados': { ru: 'Удалённые', en: 'Deleted' },
+            'Cargando…': { ru: 'Загрузка…', en: 'Loading…' },
+            'Sin resultados': { ru: 'Нет результатов', en: 'No results' },
+            'No hay usuarios que coincidan con este filtro.': { ru: 'Нет пользователей, соответствующих этому фильтру.', en: 'No users match this filter.' },
+            'Revisa el contexto y llega al usuario o al anuncio sin tener que buscarlo manualmente.': { ru: 'Проверьте контекст и перейдите к пользователю или объявлению без ручного поиска.', en: 'Review the context and open the user or listing without searching for it manually.' },
+            'Sin comentario adicional.': { ru: 'Без дополнительного комментария.', en: 'No additional comment.' },
+            'Objetivo:': { ru: 'Объект:', en: 'Target:' },
+            'Usuario:': { ru: 'Пользователь:', en: 'User:' },
+            'Anuncio:': { ru: 'Объявление:', en: 'Listing:' },
+            'Ver usuario': { ru: 'Открыть пользователя', en: 'View user' },
+            'Ver anuncio': { ru: 'Открыть объявление', en: 'View listing' },
+            'Tomar revisión': { ru: 'Взять на проверку', en: 'Start review' },
+            'Resolver': { ru: 'Решить', en: 'Resolve' },
+            'Descartar': { ru: 'Отклонить', en: 'Dismiss' },
+            'No hay reportes pendientes ni históricos disponibles.': { ru: 'Нет доступных текущих или архивных жалоб.', en: 'No pending or historical reports are available.' },
+            'Consulta el propietario y bloquea temporalmente un anuncio sin alterar permanentemente su estado original.': { ru: 'Проверьте владельца и временно заблокируйте объявление, не меняя его исходный статус навсегда.', en: 'Review the owner and temporarily block a listing without permanently changing its original status.' },
+            'Título, usuario o zona…': { ru: 'Название, пользователь или район…', en: 'Title, user or area…' },
+            'Sin propietario': { ru: 'Без владельца', en: 'No owner' },
+            'visitas': { ru: 'просмотров', en: 'views' },
+            'Bloqueado hasta': { ru: 'Заблокировано до', en: 'Blocked until' },
+            'Sin bloqueo administrativo': { ru: 'Без административной блокировки', en: 'No administrative block' },
+            'Desbloquear': { ru: 'Разблокировать', en: 'Unblock' },
+            'Bloquear': { ru: 'Заблокировать', en: 'Block' },
+            'No hay anuncios que coincidan con la búsqueda.': { ru: 'Нет объявлений, соответствующих поиску.', en: 'No listings match the search.' },
+            'Historial de acciones administrativas: quién hizo qué y cuándo.': { ru: 'История административных действий: кто, что и когда сделал.', en: 'Administrative action history: who did what and when.' },
+            'Sistema': { ru: 'Система', en: 'System' },
+            'Sin actividad': { ru: 'Нет активности', en: 'No activity' },
+            'Las acciones administrativas aparecerán aquí.': { ru: 'Здесь появятся административные действия.', en: 'Administrative actions will appear here.' },
+            'Gestiona quién puede entrar en esta administración mediante una cuenta Google vinculada.': { ru: 'Управляйте доступом к админке через привязанные аккаунты Google.', en: 'Manage who can access this administration area through a linked Google account.' },
+            'Administradores': { ru: 'Администраторы', en: 'Administrators' },
+            'Todos tienen los mismos permisos. No se puede eliminar el último administrador ni revocar tus propios permisos desde aquí.': { ru: 'У всех одинаковые права. Здесь нельзя удалить последнего администратора или отозвать собственные права.', en: 'All administrators have the same permissions. You cannot remove the last administrator or revoke your own permissions here.' },
+            'Añadir administrador': { ru: 'Добавить администратора', en: 'Add administrator' },
+            'Activo desde': { ru: 'Активен с', en: 'Active since' },
+            'Revocar acceso': { ru: 'Отозвать доступ', en: 'Revoke access' },
+            'Correo de soporte': { ru: 'Почта поддержки', en: 'Support email' },
+            'Se muestra al usuario en bloqueos, avisos y correos de moderación.': { ru: 'Показывается пользователю в блокировках, уведомлениях и письмах модерации.', en: 'Shown to the user in restrictions, notices, and moderation emails.' },
+          }
+
+          '''
+          if 'const auditTranslations:' not in text:
+              text = text.replace(anchor, extra + "Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, auditTranslations)", 1)
+          i18n.write_text(text)
+
+          # Add dynamic phrases that cannot be represented as exact dictionary keys.
+          text = i18n.read_text()
+          pattern_anchor = "  if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)"
+          patterns = r'''  if ((match = source.match(/^¿Revocar acceso de administrador a (.+)\?$/))) return target(`Отозвать права администратора у ${match[1]}?`, `Revoke administrator access for ${match[1]}?`)
+          if ((match = source.match(/^Restringir a (.+)$/))) return target(`Ограничить: ${match[1]}`, `Restrict ${match[1]}`)
+          if ((match = source.match(/^Eliminar cuenta de (.+)$/))) return target(`Удалить аккаунт: ${match[1]}`, `Delete ${match[1]}'s account`)
+          if ((match = source.match(/^(\d+) asociados a esta cuenta$/))) return target(`Связано с аккаунтом: ${match[1]}`, `${match[1]} linked to this account`)
+          if ((match = source.match(/^(\d+) sobre sus anuncios o su cuenta$/))) return target(`Жалоб на объявления или аккаунт: ${match[1]}`, `${match[1]} about their listings or account`)
+          if ((match = source.match(/^· Retirada: (.+)$/))) return target(`· Снято: ${match[1]}`, `· Removed: ${match[1]}`)
+          if ((match = source.match(/^Denuncia: (.+)$/))) return target(`Жалоба: ${translateCore(match[1], language)}`, `Report: ${translateCore(match[1], language)}`)
+          if ((match = source.match(/^(\d+) anuncios$/))) return target(`Объявлений: ${match[1]}`, `${match[1]} listings`)
+          if ((match = source.match(/^Último acceso: (.+)$/))) return target(`Последний вход: ${match[1]}`, `Last sign-in: ${match[1]}`)
+          if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${match[1]}`, `Blocked until ${match[1]}`)
+          if ((match = source.match(/^Activo desde (.+)$/))) return target(`Активен с ${match[1]}`, `Active since ${match[1]}`)
+          if ((match = source.match(/^(\d+) habitaciones, (.+)$/))) return target(`${match[1]} комнат, ${match[2]}`, `${match[1]} rooms, ${match[2]}`)
+'''
+          if pattern_anchor not in text:
+              raise SystemExit('Hasta pattern anchor not found')
+          if '¿Revocar acceso de administrador' not in text[text.index('const translatePattern'):]:
+              text = text.replace(pattern_anchor, patterns + pattern_anchor, 1)
+          i18n.write_text(text)
+
+          admin = Path('src/pages/AdminPage.tsx')
+          text = admin.read_text()
+          old = "import { useApp } from '@/contexts/app-context'"
+          new = old + "\nimport { useI18n } from '@/contexts/i18n-context'"
+          if old not in text:
+              raise SystemExit('AdminPage useApp import anchor not found')
+          if "useI18n } from '@/contexts/i18n-context'" not in text:
+              text = text.replace(old, new, 1)
+          old = "export function AdminPage() {\n  const { currentUser } = useApp()"
+          new = old + "\n  const { t } = useI18n()"
+          if old not in text:
+              raise SystemExit('AdminPage component anchor not found')
+          if "const { t } = useI18n()" not in text:
+              text = text.replace(old, new, 1)
+          old = "if (!confirm(`¿Revocar acceso de administrador a ${email}?`)) return"
+          new = "if (!confirm(t(`¿Revocar acceso de administrador a ${email}?`))) return"
+          if old not in text:
+              raise SystemExit('AdminPage confirm anchor not found')
+          text = text.replace(old, new, 1)
+          admin.write_text(text)
+
+          search = Path('src/pages/SearchPage.tsx')
+          text = search.read_text()
+          old = "if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;"
+          new = "if (!window.confirm(t('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?'))) return false;"
+          if old not in text:
+              raise SystemExit('SearchPage confirm anchor not found')
+          text = text.replace(old, new, 1)
+          search.write_text(text)
+
+          test = Path('tests/i18n-language-regression.spec.ts')
+          text = test.read_text()
+          anchor = "  expect(translateText('Hasta 18 August 2026, 12:00', 'en')).toBe('Until 18 August 2026, 12:00')"
+          additions = anchor + "\n  expect(translateText('Tu cuenta está restringida', 'ru')).toBe('Ваша учётная запись ограничена')\n  expect(translateText('Tu cuenta está restringida', 'en')).toBe('Your account is restricted')\n  expect(translateText('Fuente:', 'ru')).toBe('Источник:')\n  expect(translateText('Fuente:', 'en')).toBe('Source:')\n  expect(translateText('¿Revocar acceso de administrador a admin@example.com?', 'en')).toBe('Revoke administrator access for admin@example.com?')\n  expect(translateText('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?', 'ru')).toBe('Нарисованная область заменит выбранные муниципалитеты. Продолжить?')"
+          if anchor not in text:
+              raise SystemExit('i18n test until anchor not found')
+          if "Tu cuenta está restringida', 'ru'" not in text:
+              text = text.replace(anchor, additions, 1)
+          test.write_text(text)
+          PY
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/i18n-language-regression.spec.ts --reporter=line
+      - name: Commit verified product changes and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/i18n-admin-fallback-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/contexts/i18n-context.tsx src/pages/AdminPage.tsx src/pages/SearchPage.tsx tests/i18n-language-regression.spec.ts .github/workflows/i18n-admin-fallback-fix.yml
+          git commit -m 'fix: localize admin and fallback surfaces'
+          git push origin HEAD:fix/i18n-language-audit
