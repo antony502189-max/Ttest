@@ -2,14 +2,11 @@ import { expect, test, type Page } from '@playwright/test'
 import { translateText } from '../src/contexts/i18n-context'
 
 async function openAsHost(page: Page, language: 'ru' | 'en', route = '/#/publicar') {
-  await page.goto('/#/')
-  await page.evaluate(({ language }) => {
-    localStorage.clear()
+  await page.addInitScript(({ language }) => {
     localStorage.setItem('112233:language:v1', language)
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
   }, { language })
-  await page.reload()
   await page.goto(route)
   await expect(page.locator('html')).toHaveAttribute('lang', language)
 }
@@ -57,14 +54,11 @@ for (const language of ['ru', 'en'] as const) {
 }
 
 test('Spanish cards use correct singular residente grammar', async ({ page }) => {
-  await page.goto('/#/')
-  await page.evaluate(() => {
-    localStorage.clear()
+  await page.addInitScript(() => {
     localStorage.setItem('112233:language:v1', 'es')
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
   })
-  await page.reload()
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator('.property-card').first()).toBeVisible()
   const body = await page.locator('body').innerText()
