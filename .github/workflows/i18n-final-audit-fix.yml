@@ -1,0 +1,377 @@
+name: I18n final audit fix
+
+on:
+  push:
+    branches:
+      - fix/i18n-language-audit
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/i18n-language-audit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply final i18n fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, count: int = 1):
+              p = Path(path)
+              text = p.read_text()
+              if text.count(old) < count:
+                  raise SystemExit(f'{path}: missing replacement anchor: {old[:140]!r}')
+              p.write_text(text.replace(old, new, count))
+
+          # ---- Central translation dictionary and dynamic phrases ----
+          i18n = Path('src/contexts/i18n-context.tsx')
+          text = i18n.read_text()
+          anchor = 'Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations)'
+          if anchor not in text:
+              raise SystemExit('i18n assignment anchor not found')
+          extra = r'''const finalAuditTranslations: Record<string, Translation> = {
+            'No pudimos abrir esta página': { ru: 'Не удалось открыть эту страницу', en: "We couldn't open this page" },
+            'Recarga la aplicación. Tus datos locales permanecen guardados.': { ru: 'Перезагрузите приложение. Локальные данные останутся сохранены.', en: 'Reload the app. Your local data remains saved.' },
+            'Recargar': { ru: 'Перезагрузить', en: 'Reload' },
+            'Fuente:': { ru: 'Источник:', en: 'Source:' },
+            'Zona dibujada': { ru: 'Нарисованная область', en: 'Drawn area' },
+            'Área visible del mapa': { ru: 'Видимая область карты', en: 'Visible map area' },
+            'Condiciones importantes': { ru: 'Важные условия', en: 'Important conditions' },
+            'Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?': { ru: 'Нарисованная область заменит выбранные муниципалитеты. Продолжить?', en: 'Drawing an area will replace the selected municipalities. Continue?' },
+            'Tu cuenta está restringida': { ru: 'Ваша учётная запись ограничена', en: 'Your account is restricted' },
+            'La publicación de anuncios está restringida': { ru: 'Публикация объявлений ограничена', en: 'Listing publication is restricted' },
+            'El acceso a anuncios está restringido': { ru: 'Доступ к объявлениям ограничен', en: 'Access to listings is restricted' },
+            'Contactar con soporte:': { ru: 'Связаться с поддержкой:', en: 'Contact support:' },
+            'Comprobando acceso…': { ru: 'Проверяем доступ…', en: 'Checking access…' },
+            'Acción restringida por administración': { ru: 'Действие ограничено администрацией', en: 'Action restricted by administration' },
+            'Usuarios': { ru: 'Пользователи', en: 'Users' },
+            'Denuncias': { ru: 'Жалобы', en: 'Reports' },
+            'Anuncios': { ru: 'Объявления', en: 'Listings' },
+            'Actividad': { ru: 'Активность', en: 'Activity' },
+            'Ajustes': { ru: 'Настройки', en: 'Settings' },
+            'Bloqueo completo': { ru: 'Полная блокировка', en: 'Full restriction' },
+            'No puede publicar': { ru: 'Не может публиковать', en: 'Cannot publish' },
+            'No puede ver anuncios': { ru: 'Не может просматривать объявления', en: 'Cannot view listings' },
+            'No puede publicar anuncios': { ru: 'Не может публиковать объявления', en: 'Cannot publish listings' },
+            'No puede acceder a anuncios': { ru: 'Не может открывать объявления', en: 'Cannot access listings' },
+            '1 día': { ru: '1 день', en: '1 day' },
+            '1 semana': { ru: '1 неделя', en: '1 week' },
+            '1 mes': { ru: '1 месяц', en: '1 month' },
+            'Para siempre': { ru: 'Бессрочно', en: 'Permanent' },
+            'Fecha personalizada': { ru: 'Своя дата', en: 'Custom date' },
+            'Nueva': { ru: 'Новая', en: 'New' },
+            'En revisión': { ru: 'На рассмотрении', en: 'In review' },
+            'Resuelta': { ru: 'Решена', en: 'Resolved' },
+            'Descartada': { ru: 'Отклонена', en: 'Dismissed' },
+            'Eliminada': { ru: 'Удалена', en: 'Deleted' },
+            'Bloqueada (legacy)': { ru: 'Заблокирована (legacy)', en: 'Blocked (legacy)' },
+            'Activa': { ru: 'Активна', en: 'Active' },
+            'Selecciona una fecha futura válida.': { ru: 'Выберите корректную будущую дату.', en: 'Select a valid future date.' },
+            'No se pudo completar la operación.': { ru: 'Не удалось выполнить операцию.', en: 'The operation could not be completed.' },
+            'Restricción aplicada y usuario notificado': { ru: 'Ограничение применено, пользователь уведомлён', en: 'Restriction applied and user notified' },
+            'Elige exactamente qué dejará de poder hacer, durante cuánto tiempo y el motivo visible para el usuario.': { ru: 'Укажите, что именно будет недоступно пользователю, на какой срок и какую причину он увидит.', en: 'Choose exactly what the user will no longer be able to do, for how long, and the reason shown to them.' },
+            'Tipo de restricción': { ru: 'Тип ограничения', en: 'Restriction type' },
+            'Duración': { ru: 'Срок', en: 'Duration' },
+            'Duración:': { ru: 'Срок:', en: 'Duration:' },
+            'Hasta': { ru: 'До', en: 'Until' },
+            'Motivo que verá el usuario': { ru: 'Причина, которую увидит пользователь', en: 'Reason shown to the user' },
+            'Explica claramente por qué se aplica la restricción…': { ru: 'Чётко объясните причину ограничения…', en: 'Clearly explain why the restriction is being applied…' },
+            'Sus anuncios se ocultarán mientras exista la restricción. Se enviará un email y un aviso dentro de la cuenta.': { ru: 'Объявления будут скрыты на время ограничения. Пользователь получит письмо и уведомление в аккаунте.', en: 'Their listings will be hidden while the restriction is active. An email and an in-account notice will be sent.' },
+            'Solo otro administrador podrá retirarla manualmente.': { ru: 'Снять его вручную сможет только другой администратор.', en: 'Only another administrator can remove it manually.' },
+            'Al finalizar, se retirará automáticamente.': { ru: 'После окончания срока ограничение снимется автоматически.', en: 'It will be removed automatically when the period ends.' },
+            'Aplicando…': { ru: 'Применяем…', en: 'Applying…' },
+            'Confirmar restricción': { ru: 'Подтвердить ограничение', en: 'Confirm restriction' },
+            'Anuncio restringido y propietario notificado': { ru: 'Объявление ограничено, владелец уведомлён', en: 'Listing restricted and owner notified' },
+            'Bloquear anuncio': { ru: 'Заблокировать объявление', en: 'Block listing' },
+            'Motivo que verá el propietario': { ru: 'Причина, которую увидит владелец', en: 'Reason shown to the owner' },
+            'Motivo de la retirada temporal…': { ru: 'Причина временного снятия объявления…', en: 'Reason for the temporary removal…' },
+            'Cuenta eliminada': { ru: 'Аккаунт удалён', en: 'Account deleted' },
+            'La cuenta se desactivará, dejará de ser accesible y sus anuncios desaparecerán de la parte pública. La auditoría y las denuncias se conservarán.': { ru: 'Аккаунт будет отключён и станет недоступен, а его объявления исчезнут из публичной части. История аудита и жалобы сохранятся.', en: 'The account will be deactivated and become inaccessible, and its listings will disappear from the public site. Audit history and reports will be retained.' },
+            'Escribe DELETE para confirmar': { ru: 'Введите DELETE для подтверждения', en: 'Type DELETE to confirm' },
+            'Cargando usuario…': { ru: 'Загружаем пользователя…', en: 'Loading user…' },
+            'Restricción retirada y usuario notificado': { ru: 'Ограничение снято, пользователь уведомлён', en: 'Restriction removed and user notified' },
+            'Nota interna guardada': { ru: 'Внутренняя заметка сохранена', en: 'Internal note saved' },
+            'Volver a usuarios': { ru: 'Назад к пользователям', en: 'Back to users' },
+            'Desbloquear ahora': { ru: 'Снять ограничение', en: 'Unblock now' },
+            'Restringir': { ru: 'Ограничить', en: 'Restrict' },
+            'Último acceso': { ru: 'Последний вход', en: 'Last sign-in' },
+            'Rol de producto': { ru: 'Роль в продукте', en: 'Product role' },
+            'Soporte': { ru: 'Поддержка', en: 'Support' },
+            'Restringido': { ru: 'Ограничено', en: 'Restricted' },
+            'Visible según estado': { ru: 'Видимость определяется статусом', en: 'Visibility follows status' },
+            'Denuncias relacionadas': { ru: 'Связанные жалобы', en: 'Related reports' },
+            'Historial de restricciones': { ru: 'История ограничений', en: 'Restriction history' },
+            'Notas internas': { ru: 'Внутренние заметки', en: 'Internal notes' },
+            'Administrador añadido': { ru: 'Администратор добавлен', en: 'Administrator added' },
+            'Acceso de administrador revocado': { ru: 'Доступ администратора отозван', en: 'Administrator access revoked' },
+            'Buscar por nombre…': { ru: 'Поиск по имени…', en: 'Search by name…' },
+            'Buscar usuarios por nombre': { ru: 'Искать пользователей по имени', en: 'Search users by name' },
+            'Filtrar usuarios': { ru: 'Фильтр пользователей', en: 'Filter users' },
+            'Con restricción': { ru: 'С ограничением', en: 'Restricted' },
+            'Sin publicación': { ru: 'Без публикации', en: 'Publishing blocked' },
+            'Sin acceso a anuncios': { ru: 'Без доступа к объявлениям', en: 'Listing access blocked' },
+            'Tomar revisión': { ru: 'Взять на проверку', en: 'Start review' },
+            'Resolver': { ru: 'Решить', en: 'Resolve' },
+            'Título, usuario o zona…': { ru: 'Название, пользователь или район…', en: 'Title, user or area…' },
+            'Sin bloqueo administrativo': { ru: 'Без административной блокировки', en: 'No administrative block' },
+            'Administradores': { ru: 'Администраторы', en: 'Administrators' },
+            'Añadir administrador': { ru: 'Добавить администратора', en: 'Add administrator' },
+            'Revocar acceso': { ru: 'Отозвать доступ', en: 'Revoke access' },
+            'Correo de soporte': { ru: 'Почта поддержки', en: 'Support email' },
+            'No se pudo enviar este formulario.': { ru: 'Не удалось отправить форму.', en: 'This form could not be sent.' },
+            'Revisa los datos antes de enviar.': { ru: 'Проверьте данные перед отправкой.', en: 'Review the details before sending.' },
+            'Escribe al menos 2 caracteres.': { ru: 'Введите не менее 2 символов.', en: 'Enter at least 2 characters.' },
+            'Indica un email o teléfono.': { ru: 'Укажите email или телефон.', en: 'Enter an email or phone number.' },
+            'Escribe al menos 10 caracteres.': { ru: 'Введите не менее 10 символов.', en: 'Enter at least 10 characters.' },
+            'El mensaje no puede superar 1000 caracteres.': { ru: 'Сообщение не может быть длиннее 1000 символов.', en: 'The message cannot exceed 1000 characters.' },
+            'Confirma las condiciones del anuncio.': { ru: 'Подтвердите условия объявления.', en: 'Confirm the listing conditions.' },
+            'Este mismo mensaje ya se ha registrado. Espera 30 segundos.': { ru: 'Такое сообщение уже отправлено. Подождите 30 секунд.', en: 'This same message has already been recorded. Wait 30 seconds.' },
+            'Espera 30 segundos antes de enviar otro mensaje.': { ru: 'Подождите 30 секунд перед отправкой следующего сообщения.', en: 'Wait 30 seconds before sending another message.' },
+            'Corrige los campos indicados.': { ru: 'Исправьте указанные поля.', en: 'Correct the highlighted fields.' },
+            'Enviando mensaje…': { ru: 'Отправляем сообщение…', en: 'Sending message…' },
+            'No se pudo enviar el mensaje.': { ru: 'Не удалось отправить сообщение.', en: 'The message could not be sent.' },
+            'Enviar un mensaje': { ru: 'Отправить сообщение', en: 'Send a message' },
+            'El mensaje se enviará al anunciante y quedará disponible en tus conversaciones.': { ru: 'Сообщение будет отправлено владельцу и сохранится в ваших диалогах.', en: 'The message will be sent to the advertiser and remain available in your conversations.' },
+            'Email o teléfono': { ru: 'Email или телефон', en: 'Email or phone' },
+            'Enviando…': { ru: 'Отправляем…', en: 'Sending…' },
+          }
+
+          '''
+          if 'const finalAuditTranslations:' not in text:
+              text = text.replace(anchor, extra + 'Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations)', 1)
+          i18n.write_text(text)
+
+          text = i18n.read_text()
+          pattern_anchor = "  if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)"
+          if pattern_anchor not in text:
+              raise SystemExit('Hasta dynamic pattern anchor not found')
+          dynamic = r'''  if ((match = source.match(/^¿Revocar acceso de administrador a (.+)\?$/))) return target(`Отозвать права администратора у ${match[1]}?`, `Revoke administrator access for ${match[1]}?`)
+          if ((match = source.match(/^Restringir a (.+)$/))) return target(`Ограничить: ${match[1]}`, `Restrict ${match[1]}`)
+          if ((match = source.match(/^Eliminar cuenta de (.+)$/))) return target(`Удалить аккаунт: ${match[1]}`, `Delete ${match[1]}'s account`)
+          if ((match = source.match(/^(\d+) asociados a esta cuenta$/))) return target(`Связано с аккаунтом: ${match[1]}`, `${match[1]} linked to this account`)
+          if ((match = source.match(/^(\d+) sobre sus anuncios o su cuenta$/))) return target(`Жалоб на объявления или аккаунт: ${match[1]}`, `${match[1]} about their listings or account`)
+          if ((match = source.match(/^Denuncia: (.+)$/))) return target(`Жалоба: ${translateCore(match[1], language)}`, `Report: ${translateCore(match[1], language)}`)
+          if ((match = source.match(/^(\d+) anuncios$/))) return target(`Объявлений: ${match[1]}`, `${match[1]} listings`)
+          if ((match = source.match(/^Último acceso: (.+)$/))) return target(`Последний вход: ${match[1]}`, `Last sign-in: ${match[1]}`)
+          if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${match[1]}`, `Blocked until ${match[1]}`)
+          if ((match = source.match(/^Activo desde (.+)$/))) return target(`Активен с ${match[1]}`, `Active since ${match[1]}`)
+          if ((match = source.match(/^Fuente: (.+)$/))) return target(`Источник: ${match[1]}`, `Source: ${match[1]}`)
+          if ((match = source.match(/^Estancia mínima de (\d+) (?:noche|noches)$/))) return target(`Минимальный срок: ${match[1]} ноч.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
+          if ((match = source.match(/^Estancia mínima de (\d+) (?:mes|meses)$/))) return target(`Минимальный срок: ${match[1]} мес.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
+          if ((match = source.match(/^Mínimo (\d+) (?:noche|noches)$/))) return target(`Минимум ${match[1]} ноч.`, `Minimum ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
+          if ((match = source.match(/^Mínimo (\d+) (?:mes|meses)$/))) return target(`Минимум ${match[1]} мес.`, `Minimum ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
+          if ((match = source.match(/^Revisaremos «(.+)»\. No compartiremos tu identidad con el anunciante\.$/))) return target(`Мы проверим «${translateCore(match[1], language)}». Мы не сообщим владельцу вашу личность.`, `We will review “${translateCore(match[1], language)}”. We will not share your identity with the advertiser.`)
+'''
+          if 'source.match(/^Estancia mínima de' not in text:
+              text = text.replace(pattern_anchor, dynamic + pattern_anchor, 1)
+          i18n.write_text(text)
+
+          # ---- Native browser dialogs must be translated before leaving React ----
+          admin = Path('src/pages/AdminPage.tsx')
+          text = admin.read_text()
+          old = "import { useApp } from '@/contexts/app-context'"
+          if "useI18n } from '@/contexts/i18n-context'" not in text:
+              text = text.replace(old, old + "\nimport { useI18n } from '@/contexts/i18n-context'", 1)
+          old = "export function AdminPage() {\n  const { currentUser } = useApp()"
+          if "const { t } = useI18n()" not in text:
+              text = text.replace(old, old + "\n  const { t } = useI18n()", 1)
+          old = "if (!confirm(`¿Revocar acceso de administrador a ${email}?`)) return"
+          if old in text:
+              text = text.replace(old, "if (!confirm(t(`¿Revocar acceso de administrador a ${email}?`))) return", 1)
+          admin.write_text(text)
+
+          search = Path('src/pages/SearchPage.tsx')
+          text = search.read_text()
+          old = "if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;"
+          if old in text:
+              text = text.replace(old, "if (!window.confirm(t('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?'))) return false;", 1)
+          search.write_text(text)
+
+          # ---- Desktop cards, contact panel and report dialog ----
+          market = Path('src/components/marketplace.tsx')
+          text = market.read_text()
+          old = '''export function CriticalRestrictionOverlay({ listing, compact = false }: { listing: Listing; compact?: boolean }) {
+            const restrictions = getImageCriticalRestrictions(listing);
+            if (!restrictions.length) return null;
+            return (
+              <div className={cn("critical-restriction-overlay", compact && "critical-restriction-overlay--compact")} role="note" aria-label={`Condiciones importantes: ${restrictions.join(", ")}`}>
+                {restrictions.map((restriction) => <span key={restriction}>{restriction}</span>)}
+              </div>
+            );
+          }'''
+          new = '''export function CriticalRestrictionOverlay({ listing, compact = false }: { listing: Listing; compact?: boolean }) {
+            const { t } = useI18n();
+            const restrictions = getImageCriticalRestrictions(listing).map((restriction) => t(restriction));
+            if (!restrictions.length) return null;
+            return (
+              <div className={cn("critical-restriction-overlay", compact && "critical-restriction-overlay--compact")} role="note" aria-label={`${t("Condiciones importantes")}: ${restrictions.join(", ")}`}>
+                {restrictions.map((restriction) => <span key={restriction}>{restriction}</span>)}
+              </div>
+            );
+          }'''
+          if old not in text:
+              raise SystemExit('CriticalRestrictionOverlay anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '  const { t } = useI18n();\n  const [imageIndex, setImageIndex] = useState(0);'
+          new = '  const { t, locale } = useI18n();\n  const [imageIndex, setImageIndex] = useState(0);\n  const availability = listing.availableFrom ? t(`Disponible desde ${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${listing.availableFrom}T12:00:00`))}`) : t(listing.available);'
+          if old not in text:
+              raise SystemExit('PropertyCard i18n anchor not found')
+          text = text.replace(old, new, 1)
+          text = text.replace('<span><CalendarDays aria-hidden="true" />{listing.available}</span>', '<span><CalendarDays aria-hidden="true" />{availability}</span>', 1)
+          text = text.replace('{listing.primarySource ? `Fuente: ${listing.primarySource}` : listing.advertiserType}', '{listing.primarySource ? t(`Fuente: ${listing.primarySource}`) : t(listing.advertiserType)}', 1)
+
+          old = '  const { addLocalMessage } = useApp();\n  const [confirmed, setConfirmed] = useState(false);'
+          new = '  const { addLocalMessage } = useApp();\n  const { language, t } = useI18n();\n  const [confirmed, setConfirmed] = useState(false);'
+          if old not in text:
+              raise SystemExit('ContactPanel app anchor not found')
+          text = text.replace(old, new, 1)
+          old = '  const confirmationText = buildContactConfirmationText(listing);'
+          new = '''  const localizedConditions = getCriticalRestrictions(listing).slice(0, 5).map((item) => t(item));
+            const confirmationText = language === "es"
+              ? buildContactConfirmationText(listing)
+              : language === "ru"
+                ? `Подтверждаю, что соответствую этим условиям: ${localizedConditions.join(", ")}.`
+                : `I confirm that I meet these conditions: ${localizedConditions.join(", ")}.`;'''
+          if old not in text:
+              raise SystemExit('ContactPanel confirmation anchor not found')
+          text = text.replace(old, new, 1)
+          old = '''  const contactText = encodeURIComponent(
+            `Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`,
+          );'''
+          new = '''  const contactText = encodeURIComponent(
+            t(`Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`),
+          );'''
+          if old not in text:
+              raise SystemExit('ContactPanel WhatsApp anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''export function ReportDialog({ listing, open: controlledOpen, onOpenChange, trigger }: { listing: Listing; open?: boolean; onOpenChange?: (open: boolean) => void; trigger?: ReactNode | false }) {
+            const { addReport } = useApp();'''
+          new = '''export function ReportDialog({ listing, open: controlledOpen, onOpenChange, trigger }: { listing: Listing; open?: boolean; onOpenChange?: (open: boolean) => void; trigger?: ReactNode | false }) {
+            const { addReport } = useApp();
+            const { t } = useI18n();'''
+          if old not in text:
+              raise SystemExit('ReportDialog anchor not found')
+          text = text.replace(old, new, 1)
+          old = '''          <DialogDescription>
+            Revisaremos «{listing.title}». No compartiremos tu identidad con el
+            anunciante.
+          </DialogDescription>'''
+          new = '''          <DialogDescription>{t(`Revisaremos «${listing.title}». No compartiremos tu identidad con el anunciante.`)}</DialogDescription>'''
+          if old not in text:
+              raise SystemExit('ReportDialog description anchor not found')
+          text = text.replace(old, new, 1)
+          market.write_text(text)
+
+          # ---- Mobile list must not fall back to Spanish data labels ----
+          mobile = Path('src/components/mobile-search-results-v2.tsx')
+          text = mobile.read_text()
+          text = text.replace("import { useI18n, type Language } from '@/contexts/i18n-context'", "import { translateText, useI18n, type Language } from '@/contexts/i18n-context'", 1)
+          old = "function capacityLabel(language: ResultsLanguage, count: number | null) {\n  if (count == null) return 'Consultar con el anunciante'"
+          new = "function capacityLabel(language: ResultsLanguage, count: number | null) {\n  if (count == null) return translateText('Consultar con el anunciante', language)"
+          if old not in text:
+              raise SystemExit('mobile capacity anchor not found')
+          text = text.replace(old, new, 1)
+          helper_anchor = '''function bedroomFact(language: ResultsLanguage, count: number) {
+            if (language === 'ru') return `${count} ${count === 1 ? 'комната' : count >= 2 && count <= 4 ? 'комнаты' : 'комнат'}`
+            if (language === 'en') return `${count} ${count === 1 ? 'room' : 'rooms'}`
+            return `${count} ${count === 1 ? 'habitación' : 'habitaciones'}`
+          }
+'''
+          helper_new = helper_anchor + '''
+          function availabilityFact(listing: Listing, language: ResultsLanguage) {
+            if (!listing.availableFrom) return translateText(listing.available, language)
+            const locale = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-GB' : 'es-ES'
+            const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${listing.availableFrom}T12:00:00`))
+            return translateText(`Disponible desde ${date}`, language)
+          }
+'''
+          if helper_anchor not in text:
+              raise SystemExit('mobile bedroom helper anchor not found')
+          text = text.replace(helper_anchor, helper_new, 1)
+          old = '''    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? 'Consultar con el anunciante' : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>'''
+          new = '''    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>'''
+          if old not in text:
+              raise SystemExit('mobile result card content anchor not found')
+          text = text.replace(old, new, 1)
+          mobile.write_text(text)
+
+          # ---- Mobile map preview ----
+          mobile_map = Path('src/components/mobile-map-listings-layer.tsx')
+          text = mobile_map.read_text()
+          if "@/contexts/i18n-context" not in text:
+              text = text.replace("import { useApp } from '@/contexts/app-context'", "import { useApp } from '@/contexts/app-context'\nimport { translateText } from '@/contexts/i18n-context'", 1)
+          old = "  const capacity = selected.roomCapacity == null ? 'Consultar con el anunciante' : t.capacity(selected.roomCapacity)\n  const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2), capacity]))"
+          new = "  const capacity = selected.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(selected.roomCapacity)\n  const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacity]))\n  const cadence = selected.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'"
+          if old not in text:
+              raise SystemExit('mobile map requirements anchor not found')
+          text = text.replace(old, new, 1)
+          text = text.replace('<h2>{selected.title}</h2>', '<h2>{translateText(selected.title, language)}</h2>', 1)
+          text = text.replace('<strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{selected.cadence}</small>}</strong>', '<strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{cadence}</small>}</strong>', 1)
+          mobile_map.write_text(text)
+
+          # ---- Permanent regression coverage ----
+          test = Path('tests/i18n-language-regression.spec.ts')
+          text = test.read_text()
+          unit_anchor = "  expect(translateText('Hasta 18 August 2026, 12:00', 'en')).toBe('Until 18 August 2026, 12:00')"
+          if unit_anchor not in text:
+              raise SystemExit('unit regression anchor not found')
+          addition = unit_anchor + "\n  expect(translateText('Estancia mínima de 7 noches', 'ru')).toBe('Минимальный срок: 7 ноч.')\n  expect(translateText('Estancia mínima de 7 noches', 'en')).toBe('Minimum stay: 7 nights')\n  expect(translateText('Mínimo 11 meses', 'en')).toBe('Minimum 11 months')\n  expect(translateText('Fuente: portal externo', 'ru')).toBe('Источник: portal externo')\n  expect(translateText('Revisaremos «Habitación privada». No compartiremos tu identidad con el anunciante.', 'en')).toBe('We will review “Private room”. We will not share your identity with the advertiser.')\n  expect(translateText('Tu cuenta está restringida', 'en')).toBe('Your account is restricted')\n  expect(translateText('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?', 'ru')).toBe('Нарисованная область заменит выбранные муниципалитеты. Продолжить?')"
+          if "Estancia mínima de 7 noches', 'ru'" not in text:
+              text = text.replace(unit_anchor, addition, 1)
+          e2e = r'''
+
+test('English listing contact flow does not reuse Spanish dynamic copy', async ({ page }) => {
+  await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')
+  const href = await page.locator('a[href*="/habitacion/"]').first().getAttribute('href')
+  expect(href).toBeTruthy()
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.contact-panel').first()).toBeVisible()
+  const body = await page.locator('body').innerText()
+  expect(body).toContain('I confirm that I meet these conditions:')
+  expect(body).not.toContain('Confirmo que cumplo estas condiciones:')
+  expect(body).not.toMatch(/Estancia mínima de \d+/)
+})
+
+test('English mobile results localize room type, availability and restrictions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openAsHost(page, 'en', '/#/buscar?q=Tenerife&alquiler=long')
+  const card = page.locator('.m2-result-card').first()
+  await expect(card).toBeVisible()
+  const text = await card.innerText()
+  expect(text).not.toContain('Habitación individual')
+  expect(text).not.toContain('Habitación compartida')
+  expect(text).not.toContain('Consultar con el anunciante')
+  expect(text).not.toContain('Disponible desde')
+})
+'''
+          if "English listing contact flow does not reuse Spanish dynamic copy" not in text:
+              text += e2e
+          test.write_text(text)
+          PY
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/i18n-language-regression.spec.ts tests/mobile-search-results.spec.ts tests/mobile-map-ideal.spec.ts --reporter=line
+      - name: Commit verified changes and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/i18n-final-audit-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/contexts/i18n-context.tsx src/pages/AdminPage.tsx src/pages/SearchPage.tsx src/components/marketplace.tsx src/components/mobile-search-results-v2.tsx src/components/mobile-map-listings-layer.tsx tests/i18n-language-regression.spec.ts .github/workflows/i18n-final-audit-fix.yml
+          git commit -m 'fix: finish language localization audit'
+          git push origin HEAD:fix/i18n-language-audit
