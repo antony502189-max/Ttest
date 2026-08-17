@@ -20,7 +20,9 @@ jobs:
           node-version: '22'
           cache: npm
       - name: Apply i18n corrections
-        run: python scripts/apply_i18n_fixes.py
+        run: |
+          python scripts/apply_i18n_fixes.py
+          python scripts/apply_i18n_search_followup.py
       - name: Reload runtime after locale selection in regression test
         run: sed -i '/  await page.goto(route)/i\  await page.reload()' tests/i18n-language-regression.spec.ts
       - run: npm ci
@@ -32,7 +34,7 @@ jobs:
       - name: Commit verified product changes
         shell: bash
         run: |
-          rm -f .github/workflows/i18n-diagnostic.yml .github/workflows/i18n-fix.yml scripts/apply_i18n_fixes.py
+          rm -f .github/workflows/i18n-diagnostic.yml .github/workflows/i18n-fix.yml scripts/apply_i18n_fixes.py scripts/apply_i18n_search_followup.py
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
