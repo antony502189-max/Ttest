@@ -1,0 +1,63 @@
+name: I18n Spanish grammar
+
+on:
+  push:
+    branches:
+      - fix/i18n-language-audit
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/i18n-language-audit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Fix singular resident grammar and translation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/marketplace.tsx')
+          text = p.read_text()
+          old = '<span>{t(`${listing.currentResidents} residentes · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>'
+          new = '<span>{t(`${listing.currentResidents} ${listing.currentResidents === 1 ? "residente" : "residentes"} · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>'
+          if old not in text: raise SystemExit('marketplace resident anchor not found')
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('src/contexts/i18n-context.tsx')
+          text = p.read_text()
+          old = r"/^(\d+) residentes · (.+)$/"
+          new = r"/^(\d+) (?:residente|residentes) · (.+)$/"
+          if old not in text: raise SystemExit('resident translation pattern not found')
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('tests/i18n-language-regression.spec.ts')
+          text = p.read_text()
+          anchor = "test('English search does not leak known Spanish room-first labels', async ({ page }) => {"
+          addition = '''test('Spanish cards use correct singular residente grammar', async ({ page }) => {\n  await page.goto('/#/')\n  await page.evaluate(() => {\n    localStorage.clear()\n    localStorage.setItem('112233:language:v1', 'es')\n    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))\n    localStorage.setItem('112233:mobile-onboarding:v1', 'done')\n  })\n  await page.reload()\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long')\n  const body = await page.locator('body').innerText()\n  expect(body).toContain('1 residente ·')\n  expect(body).not.toContain('1 residentes ·')\n})\n\n'''
+          if anchor not in text: raise SystemExit('i18n regression anchor not found')
+          p.write_text(text.replace(anchor, addition + anchor, 1))
+          PY
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/i18n-language-regression.spec.ts --reporter=line
+      - name: Commit verified change and remove workflow
+        shell: bash
+        run: |
+          rm .github/workflows/i18n-spanish-grammar.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix: correct Spanish singular resident grammar"
+          git push origin HEAD:fix/i18n-language-audit
