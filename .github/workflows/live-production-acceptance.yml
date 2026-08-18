@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 15
     env:
       BASE_URL: https://app.112233.es
+      EXPECTED_MAIN_SHA: ${{ github.event.pull_request.base.sha }}
     steps:
       - name: Resolve production DNS
         run: |
@@ -40,6 +41,22 @@ jobs:
               with open(path, encoding='utf-8') as handle:
                   json.load(handle)
           print('production JSON endpoints are valid')
+          PY
+
+      - name: Verify deployed frontend revision matches main
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_MAIN_SHA"
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/build-info.json" -o /tmp/build-info.json
+          python - <<'PY'
+          import json
+          import os
+          with open('/tmp/build-info.json', encoding='utf-8') as handle:
+              payload = json.load(handle)
+          actual = payload.get('commit') if isinstance(payload, dict) else None
+          expected = os.environ['EXPECTED_MAIN_SHA']
+          assert actual == expected, {'expected': expected, 'actual': actual}
+          print(f'production revision: {actual}')
           PY
 
       - name: Verify production-only security surface
