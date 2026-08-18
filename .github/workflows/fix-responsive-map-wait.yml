@@ -1,4 +1,4 @@
-name: Fix responsive map wait
+name: Fix responsive matrix initialization
 
 on:
   push:
@@ -19,18 +19,26 @@ jobs:
           ref: fix/customer-map-mobile-polish
           persist-credentials: false
 
-      - name: Remove unrelated map readiness wait
+      - name: Keep responsive audit outside reload onboarding
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path('tests/delta.spec.ts')
           text = path.read_text(encoding='utf-8')
-          old = "      if (route.includes('vista=mapa')) await page.locator('.google-map-canvas, .m2-map-canvas').waitFor({ state: 'visible' })\n"
+          old = """  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.reload()
+  const routes = [
+"""
+          new = """  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await page.reload()
+  const routes = [
+"""
           count = text.count(old)
           if count != 1:
-              raise SystemExit(f'expected one map wait, found {count}')
-          path.write_text(text.replace(old, '', 1), encoding='utf-8')
+              raise SystemExit(f'expected one responsive setup block, found {count}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
 
       - name: Set up Node.js
@@ -56,6 +64,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tests/delta.spec.ts .github/workflows/fix-responsive-map-wait.yml
-          git commit -m 'test: keep responsive overflow check independent of map readiness'
+          git commit -m 'test: initialize responsive matrix outside reload onboarding'
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push origin HEAD:fix/customer-map-mobile-polish
