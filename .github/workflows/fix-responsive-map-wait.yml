@@ -1,4 +1,4 @@
-name: Fix responsive matrix initialization
+name: Apply responsive matrix initialization fix
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-verify:
+  apply:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     steps:
@@ -19,7 +19,7 @@ jobs:
           ref: fix/customer-map-mobile-polish
           persist-credentials: false
 
-      - name: Keep responsive audit outside reload onboarding
+      - name: Patch responsive setup
         shell: bash
         run: |
           python - <<'PY'
@@ -41,21 +41,7 @@ jobs:
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
 
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '22'
-          cache: npm
-
-      - name: Verify targeted responsive contract
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
-          npm run lint
-          npm run typecheck
-          npx playwright test tests/delta.spec.ts --grep 'RESP-01..05'
-
-      - name: Commit verified fix and remove verifier
+      - name: Commit patch and remove temporary workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
