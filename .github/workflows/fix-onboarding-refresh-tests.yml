@@ -20,6 +20,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Checkout approved visual baselines
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: visual-baselines
+          path: .visual-baselines
+          persist-credentials: false
+
+      - name: Install approved visual baselines
+        run: |
+          mkdir -p tests/visual-snapshots
+          cp -R .visual-baselines/tests/visual-snapshots/. tests/visual-snapshots/
+          rm -rf .visual-baselines
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
@@ -37,6 +50,23 @@ jobs:
               if text.count(old) != 1:
                   raise SystemExit(f'{path}: expected exactly one matching block, found {text.count(old)}')
               file.write_text(text.replace(old, new, 1))
+
+          # Test bootstrap must not overwrite a deliberately selected refreshable state on every new document.
+          replace_once(
+              'tests/acceptance-flows.spec.ts',
+              '''    localStorage.setItem("112233:mobile-onboarding:v1", "done");\n    localStorage.setItem("112233:listing-access-profile:v1", JSON.stringify({''',
+              '''    if (!localStorage.getItem("112233:mobile-onboarding:v1")) {\n      localStorage.setItem("112233:mobile-onboarding:v1", "done");\n    }\n    localStorage.setItem("112233:listing-access-profile:v1", JSON.stringify({''',
+          )
+          replace_once(
+              'tests/final-mobile-delta.spec.ts',
+              '''  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))''',
+              '''  await page.addInitScript(() => {\n    if (!localStorage.getItem('112233:mobile-onboarding:v1')) localStorage.setItem('112233:mobile-onboarding:v1', 'done')\n  })''',
+          )
+          replace_once(
+              'tests/visual-parity.spec.ts',
+              '''  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))''',
+              '''  await page.addInitScript(() => {\n    if (!localStorage.getItem('112233:mobile-onboarding:v1')) localStorage.setItem('112233:mobile-onboarding:v1', 'done')\n  })''',
+          )
 
           replace_once(
               'tests/acceptance-flows.spec.ts',
