@@ -7,7 +7,7 @@
 
 /* The map itself is now the location selector: pan, then double-tap the point. */
 .approximate-location-selector > p,
-.approximate-location-selector > .button,
+.approximate-location-selector > button,
 .approximate-location-selector__grid,
 .approximate-location-selector > output {
   display: none !important;
