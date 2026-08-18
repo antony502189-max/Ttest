@@ -1,0 +1,124 @@
+name: Live production acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/live-production-acceptance.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BASE_URL: https://app.112233.es
+    steps:
+      - name: Resolve production DNS
+        run: |
+          set -euo pipefail
+          getent ahosts app.112233.es | tee /tmp/dns.txt
+          test -s /tmp/dns.txt
+
+      - name: Verify HTTPS, public routes and API health
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 20 "$BASE_URL/" -o /tmp/index.html
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/health/live" -o /tmp/live.json
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/health/ready" -o /tmp/ready.json
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/v1/listings" -o /tmp/listings.json
+          curl --fail --silent --show-error --location --max-time 20 "$BASE_URL/privacidad" -o /tmp/privacy.html
+          curl --fail --silent --show-error --location --max-time 20 "$BASE_URL/terminos" -o /tmp/terms.html
+          test -s /tmp/index.html
+          test -s /tmp/listings.json
+          python - <<'PY'
+          import json
+          for path in ('/tmp/live.json', '/tmp/ready.json', '/tmp/listings.json'):
+              with open(path, encoding='utf-8') as handle:
+                  json.load(handle)
+          print('production JSON endpoints are valid')
+          PY
+
+      - name: Verify production-only security surface
+        run: |
+          set -euo pipefail
+          for path in /api/docs /api/openapi.json; do
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "$BASE_URL$path")"
+            test "$status" = 404 || { echo "expected $path -> 404, got $status" >&2; exit 1; }
+          done
+          google_status="$(curl --silent --show-error --output /tmp/google-invalid.json --write-out '%{http_code}' --max-time 20 \
+            -H 'Content-Type: application/json' \
+            -H 'Origin: https://app.112233.es' \
+            --data '{"credential":"invalid-production-smoke-credential"}' \
+            "$BASE_URL/api/v1/auth/google")"
+          test "$google_status" = 401 || { echo "expected invalid Google credential -> 401, got $google_status" >&2; cat /tmp/google-invalid.json >&2 || true; exit 1; }
+
+      - name: Verify external listings reach the public API
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sys
+          from urllib.parse import urlparse
+
+          with open('/tmp/listings.json', encoding='utf-8') as handle:
+              payload = json.load(handle)
+
+          def walk(value):
+              if isinstance(value, dict):
+                  yield value
+                  for child in value.values():
+                      yield from walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      yield from walk(child)
+
+          objects = list(walk(payload))
+          external = [
+              item for item in objects
+              if item.get('isExternal') is True or item.get('is_external') is True
+          ]
+          if not external:
+              print('No externally imported listing is currently visible in the public API.', file=sys.stderr)
+              sys.exit(1)
+
+          usable = []
+          for item in external:
+              source_url = item.get('sourceUrl') or item.get('source_url')
+              title = item.get('title')
+              if not isinstance(source_url, str) or not isinstance(title, str) or not title.strip():
+                  continue
+              parsed = urlparse(source_url)
+              if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+                  continue
+              usable.append(item)
+
+          if not usable:
+              print('External listings exist but none exposes a valid source URL and title.', file=sys.stderr)
+              sys.exit(1)
+
+          print(f'external listings visible through public API: {len(external)}; usable: {len(usable)}')
+          for item in usable[:5]:
+              print({
+                  'id': item.get('id'),
+                  'source': item.get('source') or item.get('sourceName') or item.get('primarySource'),
+                  'title': item.get('title'),
+                  'sourceUrl': item.get('sourceUrl') or item.get('source_url'),
+              })
+          PY
+
+      - name: Verify catalog version endpoint
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/v1/listings/catalog-version" -o /tmp/catalog-version.json
+          python - <<'PY'
+          import json
+          with open('/tmp/catalog-version.json', encoding='utf-8') as handle:
+              payload = json.load(handle)
+          version = payload.get('version') if isinstance(payload, dict) else None
+          assert isinstance(version, int) and version >= 0, payload
+          print(f'catalog version: {version}')
+          PY
