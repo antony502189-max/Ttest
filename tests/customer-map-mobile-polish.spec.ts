@@ -19,7 +19,7 @@ test.describe('customer publish-map polish', () => {
   test('map is the only visible location control and touch double-tap places the marker', async ({ page }) => {
     await openPublishAsHost(page)
 
-    await expect(page.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sitúa la habitación' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Centrar de nuevo en la zona', hidden: true })).toBeHidden()
     await expect(page.locator('.approximate-location-selector__grid')).toBeHidden()
     await expect(page.locator('.approximate-location-selector > output')).toBeHidden()
