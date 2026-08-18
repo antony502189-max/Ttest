@@ -183,7 +183,7 @@ function BackHeader({ title, onBack, backLabel }: { title: string; onBack: () =>
 }
 
 function AuthPanel({ onContinue, t }: { onContinue: () => void; t: MobileCopy }) {
-  return <div className="m2-auth-panel"><Brand /><span>España (Tenerife)</span><h1>{t.authTitle}</h1><button type="button" onClick={onContinue}><b>G</b>{t.googleContinue}</button><button type="button" onClick={onContinue}><Mail />{t.emailLogin}</button><p>{t.legalIntro}</p><a href="#privacy">{t.privacyPolicy}</a><a href="#terms">{t.terms}</a></div>
+  return <div className="m2-auth-panel"><Brand /><span>España (Tenerife)</span><h1>{t.authTitle}</h1><button type="button" onClick={onContinue}><b>G</b>{t.googleContinue}</button><button type="button" onClick={onContinue}><Mail />{t.emailLogin}</button><p>{t.legalIntro}</p><a href="#/privacidad">{t.privacyPolicy}</a><a href="#/terminos">{t.terms}</a></div>
 }
 
 function Onboarding({ step, origin, language, setLanguage, onStep, onCountryContinue, onLanguageContinue, onAuthBack, onDone }: {
@@ -549,6 +549,8 @@ export function MobileAppV2() {
   const { language, setLanguage } = useI18n()
   const { allListings, discarded, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
   const [step, setStep] = useState<OnboardingStep>(() => {
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+    if (location.pathname === '/' && navigation?.type === 'reload') return 'language'
     try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }
   })
   const [origin, setOrigin] = useState<OnboardingOrigin>('startup')
