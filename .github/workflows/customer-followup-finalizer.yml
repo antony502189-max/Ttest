@@ -1,0 +1,96 @@
+name: Customer follow-up finalizer
+
+on:
+  push:
+    branches:
+      - fix/customer-map-mobile-polish
+    paths:
+      - .github/workflows/customer-followup-finalizer.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/customer-map-mobile-polish
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply refresh onboarding and privacy follow-up
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          mobile = Path('src/components/mobile-app-v2.tsx')
+          text = mobile.read_text()
+
+          old_init = """  const [step, setStep] = useState<OnboardingStep>(() => {\n    try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }\n  })"""
+          new_init = """  const [step, setStep] = useState<OnboardingStep>(() => {\n    try {\n      const stored = localStorage.getItem(ONBOARDING_KEY)\n      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined\n      if (stored === 'done:refreshable' && navigation?.type === 'reload') return 'language'\n      return stored === 'done' || stored === 'done:refreshable' ? 'done' : 'language'\n    } catch { return 'language' }\n  })"""
+          if old_init not in text:
+              raise SystemExit('mobile onboarding initializer contract not found')
+          text = text.replace(old_init, new_init, 1)
+
+          old_persist = "const persistOnboarding = () => { try { localStorage.setItem(ONBOARDING_KEY, 'done') } catch { /* private mode */ } }"
+          new_persist = "const persistOnboarding = () => { try { localStorage.setItem(ONBOARDING_KEY, 'done:refreshable') } catch { /* private mode */ } }"
+          if old_persist not in text:
+              raise SystemExit('persistOnboarding contract not found')
+          text = text.replace(old_persist, new_persist, 1)
+
+          old_privacy = '<div className="m2-onboarding__content m2-privacy"><h1>{t.privacyTitle}</h1><p>{t.privacyText}</p></div>'
+          new_privacy = '<div className="m2-onboarding__content m2-privacy"><h1>{t.privacyTitle}</h1><p>{t.privacyText}</p><a className="m2-privacy__policy" href="#/privacidad">{t.privacyPolicy}</a></div>'
+          if old_privacy not in text:
+              raise SystemExit('privacy onboarding contract not found')
+          text = text.replace(old_privacy, new_privacy, 1)
+          mobile.write_text(text)
+
+          app = Path('src/App.tsx')
+          app_text = app.read_text()
+          old_bridge = "localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done')"
+          new_bridge = "localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done:refreshable')"
+          if old_bridge not in app_text:
+              raise SystemExit('auth bridge onboarding contract not found')
+          app.write_text(app_text.replace(old_bridge, new_bridge, 1))
+
+          css = Path('src/client-mobile-alignment-fixes.css')
+          css_text = css.read_text()
+          marker = '/* Customer follow-up: refresh onboarding legal link and hard overflow guard. */'
+          if marker not in css_text:
+              css_text += '''\n\n/* Customer follow-up: refresh onboarding legal link and hard overflow guard. */\n.m2-privacy__policy {\n  display: inline-flex;\n  width: fit-content;\n  margin-top: .85rem;\n  color: inherit;\n  font-weight: 800;\n  line-height: 1.3;\n  text-decoration: underline;\n  text-underline-offset: .18em;\n}\n\nhtml.mobile-v2-active,\nhtml.mobile-v2-active body,\nhtml.mobile-v2-active .m2-app {\n  max-width: 100%;\n  overflow-x: clip;\n}\n'''
+              css.write_text(css_text)
+
+          test = Path('tests/customer-refresh-onboarding.spec.ts')
+          test.write_text("""import { expect, test, type Page } from '@playwright/test'\n\ntest.use({ viewport: { width: 390, height: 844 } })\n\nasync function finishStartupOnboarding(page: Page) {\n  await page.goto('/')\n  await page.getByRole('button', { name: 'Continuar' }).click()\n  await page.getByRole('button', { name: 'Continuar' }).click()\n  await page.getByRole('button', { name: 'Continuar' }).click()\n  await page.getByRole('button', { name: 'Ahora no' }).click()\n  await expect(page.getByTestId('open-location')).toBeVisible()\n}\n\ntest('customer onboarding returns after a full browser refresh', async ({ page }) => {\n  await finishStartupOnboarding(page)\n  await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:mobile-onboarding:v1'))).toBe('done:refreshable')\n\n  await page.reload()\n\n  await expect(page.getByRole('heading', { name: 'Selecciona el idioma de la aplicación' })).toBeVisible()\n  const width = await page.evaluate(() => ({ viewport: innerWidth, html: document.documentElement.scrollWidth, body: document.body.scrollWidth }))\n  expect(width.html).toBeLessThanOrEqual(width.viewport)\n  expect(width.body).toBeLessThanOrEqual(width.viewport)\n})\n\ntest('privacy onboarding step links to the readable Privacy Policy', async ({ page }) => {\n  await page.goto('/')\n  await page.getByRole('button', { name: 'Continuar' }).click()\n  await page.getByRole('button', { name: 'Continuar' }).click()\n  await expect(page.getByRole('heading', { name: 'Gracias por instalar nuestra aplicación' })).toBeVisible()\n\n  const policy = page.getByRole('link', { name: 'Política de privacidad' })\n  await expect(policy).toBeVisible()\n  await expect(policy).toHaveAttribute('href', '#/privacidad')\n  await policy.click()\n\n  await expect(page).toHaveURL(/#\\/privacidad$/)\n  await expect(page.getByRole('heading', { name: 'Política de privacidad' })).toBeVisible()\n  await expect(page.getByText(/Datos tratados/)).toBeVisible()\n  await expect(page.getByText(/Conservación y derechos/)).toBeVisible()\n})\n""")
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify focused customer scenarios
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run build
+          npx playwright install --with-deps chromium
+          npx playwright test tests/customer-refresh-onboarding.spec.ts tests/customer-map-mobile-polish.spec.ts tests/mobile-map-ideal.spec.ts
+
+      - name: Commit product changes and remove temporary workflow
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          rm .github/workflows/customer-followup-finalizer.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/components/mobile-app-v2.tsx src/client-mobile-alignment-fixes.css tests/customer-refresh-onboarding.spec.ts .github/workflows/customer-followup-finalizer.yml
+          git commit -m "fix: complete customer mobile follow-up"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:fix/customer-map-mobile-polish
