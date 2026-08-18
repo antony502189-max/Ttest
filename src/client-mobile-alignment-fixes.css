@@ -5,11 +5,22 @@
  * desktop layout, application behavior, or the preserved black-theme branch.
  */
 
-@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
-  .m2-mode-switch > button:last-child {
-    translate: -4px 0;
-  }
+/* The map itself is now the location selector: pan, then double-tap the point. */
+.approximate-location-selector > p,
+.approximate-location-selector > .button,
+.approximate-location-selector__grid,
+.approximate-location-selector > output {
+  display: none !important;
+}
 
+.approximate-location-map-hint {
+  margin-top: .55rem;
+  color: var(--ink-muted);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
   .publish-page .publish-header > [data-slot="button"]:first-child svg {
     width: 1.5rem;
     height: 1.5rem;
