@@ -43,6 +43,33 @@ jobs:
           print('production JSON endpoints are valid')
           PY
 
+      - name: Detect deploy credential availability
+        env:
+          CANDIDATE_VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          CANDIDATE_SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          CANDIDATE_DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          CANDIDATE_SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          CANDIDATE_SSH_KEY: ${{ secrets.SSH_KEY }}
+          CANDIDATE_VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+          CANDIDATE_SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          CANDIDATE_SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          CANDIDATE_VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          found=0
+          for name in \
+            CANDIDATE_VPS_SSH_KEY CANDIDATE_SSH_PRIVATE_KEY CANDIDATE_DEPLOY_SSH_KEY \
+            CANDIDATE_SERVER_SSH_KEY CANDIDATE_SSH_KEY CANDIDATE_VPS_SSH_PASSWORD \
+            CANDIDATE_SSH_PASSWORD CANDIDATE_SERVER_PASSWORD CANDIDATE_VPS_PASSWORD; do
+            if [[ -n "${!name:-}" ]]; then
+              echo "$name=configured"
+              found=1
+            fi
+          done
+          if [[ "$found" = 0 ]]; then
+            echo "No conventional VPS/SSH deployment credential secret is configured."
+          fi
+
       - name: Verify deployed frontend revision matches main
         run: |
           set -euo pipefail
@@ -60,6 +87,7 @@ jobs:
           PY
 
       - name: Verify production-only security surface
+        if: always()
         run: |
           set -euo pipefail
           for path in /api/docs /api/openapi.json; do
@@ -74,6 +102,7 @@ jobs:
           test "$google_status" = 401 || { echo "expected invalid Google credential -> 401, got $google_status" >&2; cat /tmp/google-invalid.json >&2 || true; exit 1; }
 
       - name: Verify external listings reach the public API
+        if: always()
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -128,6 +157,7 @@ jobs:
           PY
 
       - name: Verify catalog version endpoint
+        if: always()
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/v1/listings/catalog-version" -o /tmp/catalog-version.json
