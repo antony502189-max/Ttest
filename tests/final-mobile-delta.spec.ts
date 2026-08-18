@@ -8,7 +8,9 @@ async function readyMobile(page: Page, route = '/#/') {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('112233:mobile-onboarding:v1')) localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
 })
 
 test('DELTA-MOBILE-01 home, occupant selector and location actions stay connected without changing the locked design', async ({ page }) => {
@@ -93,7 +95,10 @@ test('DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overf
   await page.setViewportSize({ width: 390, height: 844 })
   for (const language of ['es', 'en', 'ru'] as const) {
     await page.goto('/#/')
-    await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)
+    await page.evaluate((value) => {
+      localStorage.setItem('112233:language:v1', value)
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')
+    }, language)
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', language)
     await expect(page.locator('.m2-onboarding')).toBeVisible()

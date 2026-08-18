@@ -18,7 +18,9 @@ async function shot(page: Page, name: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('112233:mobile-onboarding:v1')) localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
 })
 
 test('current mobile home, results, location and map visual states', async ({ page }) => {
@@ -47,7 +49,10 @@ test('current mobile menu, auth and Russian visual states', async ({ page }) => 
   await open(page, '/#/acceso')
   await shot(page, 'current-auth-390x844')
 
-  await page.evaluate(() => localStorage.setItem('112233:language:v1', 'ru'))
+  await page.evaluate(() => {
+    localStorage.setItem('112233:language:v1', 'ru')
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')
+  })
   await page.goto('/#/')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
