@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useI18n } from '@/contexts/i18n-context'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, isInsideTenerife } from '@/lib/tenerife'
 import type { Coordinates } from '@/types'
@@ -8,6 +9,7 @@ const DOUBLE_TAP_DISTANCE_PX = 28
 const TAP_MOVE_TOLERANCE_PX = 14
 
 export function ApproximateLocationMap({ coordinates, onChange }: { coordinates: Coordinates; onChange: (coordinates: Coordinates) => void }) {
+  const { language } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
@@ -15,6 +17,16 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   const initialCoordinatesRef = useRef(coordinates)
   const internalChangeRef = useRef(false)
   const [error, setError] = useState('')
+  const guidance = language === 'ru'
+    ? 'Перемещайте карту пальцем и дважды коснитесь нужного места, чтобы поставить маркер.'
+    : language === 'en'
+      ? 'Move the map with your finger and double-tap the desired place to set the marker.'
+      : 'Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.'
+  const mapLabel = language === 'ru'
+    ? `Google Maps для выбора примерного местоположения. ${guidance}`
+    : language === 'en'
+      ? `Google Maps for choosing an approximate location. ${guidance}`
+      : `Google Maps para elegir una ubicación aproximada. ${guidance}`
 
   useEffect(() => { onChangeRef.current = onChange }, [onChange])
 
@@ -25,6 +37,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
     let resizeObserver: ResizeObserver | null = null
     let dragListener: google.maps.MapsEventListener | null = null
     let mapDoubleClickListener: google.maps.MapsEventListener | null = null
+    let removePointerListeners: (() => void) | null = null
     let pointerStart: { id: number; x: number; y: number } | null = null
     let lastTap: { at: number; x: number; y: number } | null = null
     const handleAuthFailure = () => setError(googleMapsAuthErrorMessage)
@@ -135,6 +148,12 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       container.addEventListener('pointerdown', handlePointerDown, true)
       container.addEventListener('pointerup', handlePointerUp, true)
       container.addEventListener('pointercancel', handlePointerCancel, true)
+      removePointerListeners = () => {
+        container.removeEventListener('dblclick', handleDoubleClick, true)
+        container.removeEventListener('pointerdown', handlePointerDown, true)
+        container.removeEventListener('pointerup', handlePointerUp, true)
+        container.removeEventListener('pointercancel', handlePointerCancel, true)
+      }
 
       mapRef.current = mapInstance
       markerRef.current = publicMarker
@@ -144,16 +163,6 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
         if (center) mapInstance.setCenter(center)
       })
       resizeObserver.observe(containerRef.current)
-
-      return () => {
-        container.removeEventListener('dblclick', handleDoubleClick, true)
-        container.removeEventListener('pointerdown', handlePointerDown, true)
-        container.removeEventListener('pointerup', handlePointerUp, true)
-        container.removeEventListener('pointercancel', handlePointerCancel, true)
-      }
-    }).then((removePointerListeners) => {
-      if (cancelled) removePointerListeners?.()
-      else if (removePointerListeners) (container as HTMLDivElement & { __removeApproximateLocationListeners?: () => void }).__removeApproximateLocationListeners = removePointerListeners
     }).catch((loadError) => { if (!cancelled) setError(googleMapsErrorMessage(loadError)) })
 
     return () => {
@@ -161,7 +170,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       resizeObserver?.disconnect()
       dragListener?.remove()
       mapDoubleClickListener?.remove()
-      ;(container as HTMLDivElement & { __removeApproximateLocationListeners?: () => void }).__removeApproximateLocationListeners?.()
+      removePointerListeners?.()
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
       if (markerRef.current) markerRef.current.map = null
       if (mapRef.current) google.maps.event.clearInstanceListeners(mapRef.current)
@@ -182,7 +191,8 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   }, [coordinates.lat, coordinates.lng, coordinates])
 
   return <div className="approximate-location-map-shell google-map-shell" data-provider="google-maps">
-    <div ref={containerRef} className="approximate-location-map google-map-canvas" role="application" aria-label="Google Maps para mover el punto público aproximado. Desplaza el mapa y toca dos veces para colocar el marcador." />
+    <div ref={containerRef} className="approximate-location-map google-map-canvas" role="application" aria-label={mapLabel} />
+    <p className="approximate-location-map-hint">{guidance}</p>
     {error ? <p className="map-inline-error" role="alert">{error}</p> : null}
   </div>
 }
