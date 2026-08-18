@@ -116,9 +116,15 @@ jobs:
           curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/v1/listings/catalog-version" -o /tmp/catalog-version.json
           python - <<'PY'
           import json
+          from datetime import datetime
+
           with open('/tmp/catalog-version.json', encoding='utf-8') as handle:
               payload = json.load(handle)
-          version = payload.get('version') if isinstance(payload, dict) else None
-          assert isinstance(version, int) and version >= 0, payload
-          print(f'catalog version: {version}')
+          assert isinstance(payload, dict), payload
+          version = payload.get('version')
+          updated_at = payload.get('updatedAt')
+          assert isinstance(version, str) and version.isdigit() and int(version) >= 0, payload
+          assert isinstance(updated_at, str) and updated_at, payload
+          datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+          print(f'catalog version: {version}; updatedAt: {updated_at}')
           PY
