@@ -90,18 +90,26 @@ test('DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are r
 })
 
 test('DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  for (const language of ['es', 'en', 'ru'] as const) {
-    await page.goto('/#/')
-    await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)
-    await page.reload()
-    await expect(page.locator('html')).toHaveAttribute('lang', language)
-    await expect(page.locator('.m2-onboarding')).toBeVisible()
-    const dimensions = await page.evaluate(() => ({
-      client: document.documentElement.clientWidth,
-      scroll: document.documentElement.scrollWidth,
-    }))
-    expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client)
+  const languagePage = await page.context().newPage()
+  await languagePage.setViewportSize({ width: 390, height: 844 })
+  try {
+    for (const language of ['es', 'en', 'ru'] as const) {
+      await languagePage.goto('/#/')
+      await languagePage.evaluate((value) => {
+        localStorage.setItem('112233:language:v1', value)
+        localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')
+      }, language)
+      await languagePage.reload()
+      await expect(languagePage.locator('html')).toHaveAttribute('lang', language)
+      await expect(languagePage.locator('.m2-onboarding')).toBeVisible()
+      const dimensions = await languagePage.evaluate(() => ({
+        client: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+      }))
+      expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client)
+    }
+  } finally {
+    await languagePage.close()
   }
 })
 

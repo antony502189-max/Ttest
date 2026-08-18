@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
 
+// Completed user onboarding is refresh-aware; legacy `done` is intentionally only a bypass.
 async function finishStartupOnboarding(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -11,7 +12,7 @@ async function finishStartupOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
-test('customer onboarding returns after a full browser refresh on mobile shell routes', async ({ page }) => {
+test('completed customer onboarding returns after a full browser refresh on mobile shell routes', async ({ page }) => {
   await finishStartupOnboarding(page)
   await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:mobile-onboarding:v1'))).toBe('done:refreshable')
 
@@ -33,7 +34,7 @@ test('legacy done marker remains a deliberate test and migration bypass', async 
   await expect(page.getByRole('heading', { name: 'Selecciona el idioma de la aplicación' })).toHaveCount(0)
 })
 
-test('privacy onboarding step links to the readable Privacy Policy', async ({ page }) => {
+test('privacy onboarding step links to the readable Privacy Policy without horizontal overflow', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -48,4 +49,7 @@ test('privacy onboarding step links to the readable Privacy Policy', async ({ pa
   await expect(page.getByRole('heading', { name: 'Política de privacidad' })).toBeVisible()
   await expect(page.getByText(/Datos tratados/)).toBeVisible()
   await expect(page.getByText(/Conservación y derechos/)).toBeVisible()
+  const policyWidth = await page.evaluate(() => ({ viewport: innerWidth, html: document.documentElement.scrollWidth, body: document.body.scrollWidth }))
+  expect(policyWidth.html).toBeLessThanOrEqual(policyWidth.viewport)
+  expect(policyWidth.body).toBeLessThanOrEqual(policyWidth.viewport)
 })

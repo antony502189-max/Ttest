@@ -579,7 +579,7 @@ test("28–29 mobile navigation and keyboard-only critical path", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
-    localStorage.setItem("112233:mobile-onboarding:v1", "done");
+    localStorage.setItem("112233:mobile-onboarding:v1", "done:refreshable");
     localStorage.setItem("112233:listing-access-profile:v1", JSON.stringify({
       occupant: "any",
       pets: "Cualquiera",
@@ -587,7 +587,7 @@ test("28–29 mobile navigation and keyboard-only critical path", async ({
     }));
   });
   await page.goto("/#/");
-  await page.evaluate(() => localStorage.setItem("112233:mobile-onboarding:v1", "done"));
+  await page.evaluate(() => localStorage.setItem("112233:mobile-onboarding:v1", "done:refreshable"));
   await page.reload();
   await expect(page.getByText("Selecciona el idioma de la aplicación")).toBeVisible();
   for (let index = 0; index < 3; index += 1) {
