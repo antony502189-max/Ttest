@@ -1,0 +1,70 @@
+name: Customer remaining hotfix
+
+on:
+  push:
+    branches:
+      - fix/customer-map-mobile-polish
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/customer-map-mobile-polish
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Patch refresh onboarding and legal links
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/mobile-app-v2.tsx')
+          source = path.read_text(encoding='utf-8')
+
+          old_state = """  const [step, setStep] = useState<OnboardingStep>(() => {\n    try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }\n  })"""
+          new_state = """  const [step, setStep] = useState<OnboardingStep>(() => {\n    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined\n    if (location.pathname === '/' && navigation?.type === 'reload') return 'language'\n    try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }\n  })"""
+          if source.count(old_state) != 1:
+              raise SystemExit(f'onboarding state contract matched {source.count(old_state)} times')
+          source = source.replace(old_state, new_state, 1)
+
+          old_links = '<a href="#privacy">{t.privacyPolicy}</a><a href="#terms">{t.terms}</a>'
+          new_links = '<a href="#/privacidad">{t.privacyPolicy}</a><a href="#/terminos">{t.terms}</a>'
+          if source.count(old_links) != 1:
+              raise SystemExit(f'legal link contract matched {source.count(old_links)} times')
+          source = source.replace(old_links, new_links, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+
+      - name: Verify frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm run build
+
+      - name: Commit product patch and remove temporary workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          rm .github/workflows/customer-remaining-hotfix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/mobile-app-v2.tsx .github/workflows/customer-remaining-hotfix.yml
+          git commit -m 'fix: restore refresh onboarding and legal routes'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:fix/customer-map-mobile-polish
