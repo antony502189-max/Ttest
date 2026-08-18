@@ -26,7 +26,8 @@ test.describe('customer publish-map polish', () => {
     await expect(page.getByText('Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.')).toBeVisible()
 
     const map = page.locator('.approximate-location-map')
-    await expect(map.locator('.gm-style')).toBeVisible()
+    await expect(map).toBeVisible()
+    await expect(map.locator('.gm-style')).toHaveCount(1)
     await expect(map.locator('.gm-test-pin')).toHaveCount(1)
 
     const output = page.locator('.approximate-location-selector output')
