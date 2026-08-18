@@ -1,9 +1,9 @@
 name: Customer follow-up finalizer
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/customer-map-mobile-polish
+      - main
     paths:
       - .github/workflows/customer-followup-finalizer.yml
 
