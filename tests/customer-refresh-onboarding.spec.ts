@@ -11,7 +11,7 @@ async function finishStartupOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
-test('customer onboarding returns after a full browser refresh on mobile shell routes', async ({ page }) => {
+test('completed customer onboarding returns after a full browser refresh on mobile shell routes', async ({ page }) => {
   await finishStartupOnboarding(page)
   await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:mobile-onboarding:v1'))).toBe('done:refreshable')
 
