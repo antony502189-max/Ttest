@@ -322,7 +322,7 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
     for (const route of routes) {
       await page.goto(route)
       await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
-      if (route.includes('vista=mapa')) await page.locator('.google-map-canvas, .m2-map-canvas').waitFor({ state: 'visible' })
+      if (route.includes('vista=mapa')) await page.locator('.google-map-canvas, .m2-map-canvas, [data-testid="google-map"]').first().waitFor({ state: 'visible', timeout: 15_000 })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), `${route} at ${width}x${height}`).toBeTruthy()
     }
     await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify(null)))
