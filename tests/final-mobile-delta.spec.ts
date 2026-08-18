@@ -96,7 +96,7 @@ test('DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overf
     await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', language)
-    await expect(page.locator('.m2-home')).toBeVisible()
+    await expect(page.locator('.m2-onboarding')).toBeVisible()
     const dimensions = await page.evaluate(() => ({
       client: document.documentElement.clientWidth,
       scroll: document.documentElement.scrollWidth,
@@ -128,7 +128,7 @@ test('DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or 
   page.on('console', (message) => {
     if (message.type() === 'error' && !isExpectedHeadlessVectorFallback(message.text())) consoleErrors.push(message.text())
   })
-  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('pageerror', (error) => pageErrors.push(error.message)
   page.on('requestfailed', (request) => {
     if (request.url().startsWith('http://127.0.0.1:4173')) failedFirstParty.push(`${request.method()} ${request.url()}`)
   })
