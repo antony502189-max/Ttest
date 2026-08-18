@@ -319,6 +319,13 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
   ]
   for (const [width, height] of viewports) {
     await page.setViewportSize({ width, height })
+    if (width <= 390) {
+      // The mobile shell intentionally restarts onboarding after a real home refresh.
+      // Bootstrap from the canonical search deep-link so this test measures responsive overflow only.
+      await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+      await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+      await page.reload()
+    }
     for (const route of routes) {
       await page.goto(route)
       await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
