@@ -16,6 +16,8 @@ import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, Dr
 import { Field, FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApp } from "@/contexts/app-context";
+import { useI18n } from "@/contexts/i18n-context";
+import { currentLocale } from "@/lib/i18n-locale";
 import { searchPublicListings } from "@/api/listings";
 import { defaultFilters } from "@/data/listings";
 import { tenantRequirementLabels } from "@/lib/listings";
@@ -58,6 +60,7 @@ function SortControl({ value, onChange }: { value: string; onChange: (value: str
 }
 
 export function SearchPage() {
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const paramString = params.toString();
   const {
@@ -244,7 +247,7 @@ export function SearchPage() {
   );
   const forcedState = params.get("estado");
   const formattedDate = filters.available
-    ? new Intl.DateTimeFormat("es-ES", {
+    ? new Intl.DateTimeFormat(currentLocale(), {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -493,7 +496,7 @@ export function SearchPage() {
           onPolygonSearch={commitPolygon}
           onDrawingStart={() => {
             if (!filters.areas.length) return true;
-            if (!window.confirm('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?')) return false;
+            if (!window.confirm(t('Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?'))) return false;
             return true;
           }}
         />
@@ -562,9 +565,7 @@ export function SearchPage() {
           <header className="results-head idealista-results-head">
             <div>
               <h1 id="results-title">
-                {items.length}{" "}
-                {items.length === 1 ? "habitación" : "habitaciones"} en{" "}
-                {query || "Tenerife"}
+                {t(`${items.length} ${items.length === 1 ? "habitación" : "habitaciones"} en ${query || "Tenerife"}`)}
               </h1>
               <p>
                 <CalendarDays aria-hidden="true" />

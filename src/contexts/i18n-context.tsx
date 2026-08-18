@@ -882,7 +882,221 @@ const screenshotLockedTranslations: Record<string, Translation> = {
   'Volver al menú': { ru: 'Вернуться в меню', en: 'Back to menu' },
 }
 
-Object.assign(translations, listingTranslations, screenshotLockedTranslations)
+const roomFirstTranslations: Record<string, Translation> = {
+  'El precio, las fechas y la duración se adaptan al tipo de alquiler.': { ru: 'Цена, даты и срок зависят от типа аренды.', en: 'Price, dates and duration adapt to the rental type.' },
+  'Larga estancia': { ru: 'Долгосрочная аренда', en: 'Long stay' },
+  'Precio mensual en euros.': { ru: 'Ежемесячная цена в евро.', en: 'Monthly price in euros.' },
+  'Alquiler vacacional': { ru: 'Краткосрочная аренда', en: 'Holiday rental' },
+  'Precio por noche en euros.': { ru: 'Цена за ночь в евро.', en: 'Price per night in euros.' },
+  'Especializado en habitaciones': { ru: 'Специализировано на комнатах', en: 'Built for room rentals' },
+  'Publica una habitación completa o, si es compartida, plazas/camas individuales. Las condiciones se muestran antes del contacto.': { ru: 'Разместите целую комнату или отдельные места/кровати в общей комнате. Условия видны до связи с владельцем.', en: 'List a whole room or individual bed spaces in a shared room. Conditions are shown before contact.' },
+  'La dirección exacta no se muestra públicamente.': { ru: 'Точный адрес публично не показывается.', en: 'The exact address is not shown publicly.' },
+  'Mostraremos un punto aproximado.': { ru: 'Мы покажем примерную точку.', en: 'We will show an approximate point.' },
+  'Selecciona un punto aproximado': { ru: 'Выберите примерную точку', en: 'Select an approximate point' },
+  'El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.': { ru: 'Маркер расположен в выбранном районе. Его можно немного сдвинуть, не раскрывая точную улицу.', en: 'The marker is centred in the area. Move it slightly without publishing the exact street.' },
+  'Centrar de nuevo en la zona': { ru: 'Снова центрировать в районе', en: 'Re-centre in the area' },
+  'Describe la habitación': { ru: 'Опишите комнату', en: 'Describe the room' },
+  'Datos estructurados de la habitación, las plazas y la vivienda.': { ru: 'Структурированные данные о комнате, местах и жилье.', en: 'Structured details about the room, spaces and home.' },
+  'Habitación privada': { ru: 'Отдельная комната', en: 'Private room' },
+  'Se alquila una habitación separada.': { ru: 'Сдаётся отдельная комната.', en: 'A separate room is rented out.' },
+  'Puede alojar a varias personas y admitir plazas individuales.': { ru: 'Подходит для нескольких человек и может сдаваться по отдельным местам.', en: 'Can accommodate several people and allow individual bed spaces.' },
+  'Espacio autónomo que se alquila completo.': { ru: 'Автономное пространство, которое сдаётся целиком.', en: 'A self-contained space rented as a whole.' },
+  'Habitación completa': { ru: 'Комната целиком', en: 'Whole room' },
+  'Un grupo alquila toda la habitación.': { ru: 'Группа арендует всю комнату.', en: 'A group rents the whole room.' },
+  'Plazas / camas': { ru: 'Места / кровати', en: 'Bed spaces' },
+  'Se alquilan plazas individuales dentro de la habitación.': { ru: 'В комнате сдаются отдельные места.', en: 'Individual bed spaces are rented within the room.' },
+  'Superficie de la habitación (m²)': { ru: 'Площадь комнаты (м²)', en: 'Room size (m²)' },
+  'Superficie total de la vivienda (m²)': { ru: 'Общая площадь жилья (м²)', en: 'Total home size (m²)' },
+  'Número de habitaciones de la vivienda': { ru: 'Количество комнат в жилье', en: 'Number of rooms in the home' },
+  'Número de baños / cuartos de baño': { ru: 'Количество ванных комнат', en: 'Number of bathrooms' },
+  'Personas que ya viven en la vivienda': { ru: 'Уже проживает в жилье', en: 'People already living in the home' },
+  'Capacidad total de esta habitación': { ru: 'Общая вместимость комнаты', en: 'Total room capacity' },
+  'Personas que ya viven en esta habitación': { ru: 'Уже проживает в этой комнате', en: 'People already living in this room' },
+  'Tipo de cama': { ru: 'Тип кровати', en: 'Bed type' },
+  'Número de camas': { ru: 'Количество кроватей', en: 'Number of beds' },
+  'Aseo / WC': { ru: 'Туалет / WC', en: 'Toilet / WC' },
+  'Aseo compartido': { ru: 'Общий туалет', en: 'Shared toilet' },
+  'Aseo privado': { ru: 'Собственный туалет', en: 'Private toilet' },
+  'Ducha': { ru: 'Душ', en: 'Shower' },
+  'Ducha compartida': { ru: 'Общий душ', en: 'Shared shower' },
+  'Ducha privada': { ru: 'Собственный душ', en: 'Private shower' },
+  'Calefacción': { ru: 'Отопление', en: 'Heating' },
+  'Sin calefacción': { ru: 'Без отопления', en: 'No heating' },
+  'Calefacción individual': { ru: 'Индивидуальное отопление', en: 'Individual heating' },
+  'Calefacción central': { ru: 'Центральное отопление', en: 'Central heating' },
+  'Calefacción no especificada': { ru: 'Отопление не указано', en: 'Heating not specified' },
+  'No especificado': { ru: 'Не указано', en: 'Not specified' },
+  'Equipamiento y accesibilidad': { ru: 'Оснащение и доступность', en: 'Equipment and accessibility' },
+  'Adaptada para personas con movilidad reducida': { ru: 'Адаптировано для людей с ограниченной мобильностью', en: 'Adapted for people with reduced mobility' },
+  'Adaptada para movilidad reducida': { ru: 'Адаптировано для маломобильных людей', en: 'Adapted for reduced mobility' },
+  'No indicada como adaptada': { ru: 'Не указано как адаптированное', en: 'Not marked as accessible' },
+  'Todos los importes se introducen y se muestran en euros (€).': { ru: 'Все суммы вводятся и отображаются в евро (€).', en: 'All amounts are entered and shown in euros (€).' },
+  'Precio por noche (€)': { ru: 'Цена за ночь (€)', en: 'Price per night (€)' },
+  'Precio por semana (€)': { ru: 'Цена за неделю (€)', en: 'Price per week (€)' },
+  'Precio por mes (€)': { ru: 'Цена за месяц (€)', en: 'Price per month (€)' },
+  'Fianza / depósito (€)': { ru: 'Залог / депозит (€)', en: 'Deposit (€)' },
+  'Indica desde qué día está disponible. La fecha final es opcional; si no la conoces, basta con indicar la estancia mínima.': { ru: 'Укажите дату, с которой жильё доступно. Конечная дата необязательна; если она неизвестна, достаточно указать минимальный срок.', en: 'State the date from which it is available. The end date is optional; if unknown, the minimum stay is enough.' },
+  'Estancia mínima (meses)': { ru: 'Минимальный срок (месяцы)', en: 'Minimum stay (months)' },
+  'Estancia mínima (noches)': { ru: 'Минимальный срок (ночи)', en: 'Minimum stay (nights)' },
+  'Condiciones de convivencia': { ru: 'Условия совместного проживания', en: 'Household conditions' },
+  'Distingue quién vive en la vivienda y qué perfiles acepta el anunciante.': { ru: 'Укажите, кто уже живёт в жилье и каких жильцов принимает владелец.', en: 'Specify who already lives in the home and which tenant profiles the advertiser accepts.' },
+  'Requisito para la persona inquilina': { ru: 'Требование к жильцу', en: 'Tenant requirement' },
+  'Quién vive actualmente en la vivienda': { ru: 'Кто сейчас живёт в жилье', en: 'Who currently lives in the home' },
+  'Hombres': { ru: 'Мужчины', en: 'Men' },
+  'Mujeres': { ru: 'Женщины', en: 'Women' },
+  'Convivencia mixta': { ru: 'Смешанный состав жильцов', en: 'Mixed household' },
+  'Perfiles admitidos': { ru: 'Допустимые жильцы', en: 'Accepted tenant profiles' },
+  'Parejas': { ru: 'Пары', en: 'Couples' },
+  'Familias': { ru: 'Семьи', en: 'Families' },
+  'Convivencia y normas': { ru: 'Совместное проживание и правила', en: 'Household and rules' },
+  'Actualmente viven niños en la vivienda': { ru: 'Сейчас в жилье живут дети', en: 'Children currently live in the home' },
+  'Se aceptan parejas': { ru: 'Можно парам', en: 'Couples accepted' },
+  'Se aceptan menores / niños': { ru: 'Можно с детьми', en: 'Children accepted' },
+  'La primera será la portada. Puedes reordenarlas.': { ru: 'Первая фотография будет обложкой. Порядок можно изменить.', en: 'The first photo will be the cover. You can reorder them.' },
+  'Responde las dudas habituales.': { ru: 'Ответьте на основные вопросы.', en: 'Answer the usual questions.' },
+  'Habitación y plazas': { ru: 'Комната и места', en: 'Room and spaces' },
+  'Vivienda y espacios': { ru: 'Жильё и помещения', en: 'Home and spaces' },
+  'Composición actual': { ru: 'Текущий состав жильцов', en: 'Current household' },
+  'Niños viviendo actualmente': { ru: 'Сейчас живут дети', en: 'Children currently living here' },
+  'Permitidas': { ru: 'Разрешены', en: 'Allowed' },
+  'No permitidas': { ru: 'Не разрешены', en: 'Not allowed' },
+  'Todas las condiciones están visibles antes del contacto.': { ru: 'Все условия видны до связи с владельцем.', en: 'All conditions are visible before contact.' },
+  'Semana': { ru: 'Неделя', en: 'Week' },
+  'Mes': { ru: 'Месяц', en: 'Month' },
+  'Condición principal': { ru: 'Главное условие', en: 'Main condition' },
+  'Comprueba esta preferencia visible del anunciante antes de contactar. Puedes seguir consultando el anuncio sin interrupciones.': { ru: 'Проверьте это условие владельца перед связью. Просматривать объявление можно без ограничений.', en: 'Check this visible advertiser preference before making contact. You can continue viewing the listing without interruption.' },
+  'Se alquilan plazas individuales': { ru: 'Сдаются отдельные места', en: 'Individual bed spaces for rent' },
+  'Se alquila la habitación completa': { ru: 'Комната сдаётся целиком', en: 'Whole room for rent' },
+  'Resumen de la habitación': { ru: 'Краткая информация о комнате', en: 'Room summary' },
+  'Fibra': { ru: 'Wi-Fi', en: 'Wi-Fi' },
+  'Fibra 600 Mb': { ru: 'Wi-Fi', en: 'Wi-Fi' },
+  'Fibra 1 Gb': { ru: 'Wi-Fi', en: 'Wi-Fi' },
+  '/mes': { ru: '/мес.', en: '/month' },
+  '/noche': { ru: '/ночь', en: '/night' },
+  'Anfitrión': { ru: 'Хозяин', en: 'Host' },
+  'Aparcamiento': { ru: 'Парковка', en: 'Parking' },
+  'Más antiguos': { ru: 'Сначала старые', en: 'Oldest' },
+  'Precio más alto': { ru: 'Сначала дороже', en: 'Highest price' },
+  'Sin niños': { ru: 'Без детей', en: 'No children' },
+  'Particular': { ru: 'Частное лицо', en: 'Private advertiser' },
+  'Crea tu perfil': { ru: 'Создайте профиль', en: 'Create your profile' },
+  'Sin restricciones': { ru: 'Без ограничений', en: 'No restrictions' },
+  '1 persona': { ru: '1 человек', en: '1 person' },
+  '2 personas (pareja/amigos)': { ru: '2 человека (пара/друзья)', en: '2 people (couple/friends)' },
+  'Habitación doble cerca de la playa y la guagua': { ru: 'Двухместная комната рядом с пляжем и автобусом', en: 'Double room near the beach and bus stops' },
+  'Habitación tranquila en piso compartido reformado': { ru: 'Тихая комната в отремонтированной общей квартире', en: 'Quiet room in a renovated shared flat' },
+  'Habitación amueblada junto a todos los servicios': { ru: 'Меблированная комната рядом со всей инфраструктурой', en: 'Furnished room close to all amenities' },
+  'Habitación exterior con armario empotrado': { ru: 'Светлая комната со встроенным шкафом', en: 'Bright room with built-in wardrobe' },
+  'Habitación amplia con balcón y Wi-Fi': { ru: 'Просторная комната с балконом и Wi-Fi', en: 'Spacious room with balcony and Wi-Fi' },
+  'Habitación económica en vivienda organizada': { ru: 'Недорогая комната в аккуратном общем жилье', en: 'Affordable room in a well-organised shared home' },
+  'Habitación exterior y cuidada en una vivienda compartida con buena conexión. El anuncio detalla gastos, disponibilidad y normas para que puedas comparar antes de contactar.': { ru: 'Светлая ухоженная комната в общем жилье с хорошей транспортной доступностью. В объявлении указаны расходы, доступность и правила, чтобы можно было сравнить варианты до связи.', en: 'Bright, well-kept room in a shared home with good transport links. The listing details costs, availability and rules so you can compare before contacting.' },
+}
+
+const finalAuditTranslations: Record<string, Translation> = {
+  'No pudimos abrir esta página': { ru: 'Не удалось открыть эту страницу', en: "We couldn't open this page" },
+  'Recarga la aplicación. Tus datos locales permanecen guardados.': { ru: 'Перезагрузите приложение. Локальные данные останутся сохранены.', en: 'Reload the app. Your local data remains saved.' },
+  'Recargar': { ru: 'Перезагрузить', en: 'Reload' },
+  'Fuente:': { ru: 'Источник:', en: 'Source:' },
+  'Zona dibujada': { ru: 'Нарисованная область', en: 'Drawn area' },
+  'Área visible del mapa': { ru: 'Видимая область карты', en: 'Visible map area' },
+  'Condiciones importantes': { ru: 'Важные условия', en: 'Important conditions' },
+  'Dibujar una zona sustituirá los municipios seleccionados. ¿Continuar?': { ru: 'Нарисованная область заменит выбранные муниципалитеты. Продолжить?', en: 'Drawing an area will replace the selected municipalities. Continue?' },
+  'Tu cuenta está restringida': { ru: 'Ваша учётная запись ограничена', en: 'Your account is restricted' },
+  'La publicación de anuncios está restringida': { ru: 'Публикация объявлений ограничена', en: 'Listing publication is restricted' },
+  'El acceso a anuncios está restringido': { ru: 'Доступ к объявлениям ограничен', en: 'Access to listings is restricted' },
+  'Contactar con soporte:': { ru: 'Связаться с поддержкой:', en: 'Contact support:' },
+  'Comprobando acceso…': { ru: 'Проверяем доступ…', en: 'Checking access…' },
+  'Acción restringida por administración': { ru: 'Действие ограничено администрацией', en: 'Action restricted by administration' },
+  'Usuarios': { ru: 'Пользователи', en: 'Users' },
+  'Denuncias': { ru: 'Жалобы', en: 'Reports' },
+  'Anuncios': { ru: 'Объявления', en: 'Listings' },
+  'Actividad': { ru: 'Активность', en: 'Activity' },
+  'Ajustes': { ru: 'Настройки', en: 'Settings' },
+  'Bloqueo completo': { ru: 'Полная блокировка', en: 'Full restriction' },
+  'No puede publicar': { ru: 'Не может публиковать', en: 'Cannot publish' },
+  'No puede ver anuncios': { ru: 'Не может просматривать объявления', en: 'Cannot view listings' },
+  'No puede publicar anuncios': { ru: 'Не может публиковать объявления', en: 'Cannot publish listings' },
+  'No puede acceder a anuncios': { ru: 'Не может открывать объявления', en: 'Cannot access listings' },
+  '1 día': { ru: '1 день', en: '1 day' },
+  '1 semana': { ru: '1 неделя', en: '1 week' },
+  '1 mes': { ru: '1 месяц', en: '1 month' },
+  'Para siempre': { ru: 'Бессрочно', en: 'Permanent' },
+  'Fecha personalizada': { ru: 'Своя дата', en: 'Custom date' },
+  'Nueva': { ru: 'Новая', en: 'New' },
+  'En revisión': { ru: 'На рассмотрении', en: 'In review' },
+  'Resuelta': { ru: 'Решена', en: 'Resolved' },
+  'Descartada': { ru: 'Отклонена', en: 'Dismissed' },
+  'Eliminada': { ru: 'Удалена', en: 'Deleted' },
+  'Bloqueada (legacy)': { ru: 'Заблокирована (legacy)', en: 'Blocked (legacy)' },
+  'Activa': { ru: 'Активна', en: 'Active' },
+  'Selecciona una fecha futura válida.': { ru: 'Выберите корректную будущую дату.', en: 'Select a valid future date.' },
+  'No se pudo completar la operación.': { ru: 'Не удалось выполнить операцию.', en: 'The operation could not be completed.' },
+  'Restricción aplicada y usuario notificado': { ru: 'Ограничение применено, пользователь уведомлён', en: 'Restriction applied and user notified' },
+  'Elige exactamente qué dejará de poder hacer, durante cuánto tiempo y el motivo visible para el usuario.': { ru: 'Укажите, что именно будет недоступно пользователю, на какой срок и какую причину он увидит.', en: 'Choose exactly what the user will no longer be able to do, for how long, and the reason shown to them.' },
+  'Tipo de restricción': { ru: 'Тип ограничения', en: 'Restriction type' },
+  'Duración': { ru: 'Срок', en: 'Duration' },
+  'Hasta': { ru: 'До', en: 'Until' },
+  'Motivo que verá el usuario': { ru: 'Причина, которую увидит пользователь', en: 'Reason shown to the user' },
+  'Explica claramente por qué se aplica la restricción…': { ru: 'Чётко объясните причину ограничения…', en: 'Clearly explain why the restriction is being applied…' },
+  'Sus anuncios se ocultarán mientras exista la restricción. Se enviará un email y un aviso dentro de la cuenta.': { ru: 'Объявления будут скрыты на время ограничения. Пользователь получит письмо и уведомление в аккаунте.', en: 'Their listings will be hidden while the restriction is active. An email and an in-account notice will be sent.' },
+  'Solo otro administrador podrá retirarla manualmente.': { ru: 'Снять его вручную сможет только другой администратор.', en: 'Only another administrator can remove it manually.' },
+  'Al finalizar, se retirará automáticamente.': { ru: 'После окончания срока ограничение снимется автоматически.', en: 'It will be removed automatically when the period ends.' },
+  'Aplicando…': { ru: 'Применяем…', en: 'Applying…' },
+  'Confirmar restricción': { ru: 'Подтвердить ограничение', en: 'Confirm restriction' },
+  'Anuncio restringido y propietario notificado': { ru: 'Объявление ограничено, владелец уведомлён', en: 'Listing restricted and owner notified' },
+  'Bloquear anuncio': { ru: 'Заблокировать объявление', en: 'Block listing' },
+  'Motivo que verá el propietario': { ru: 'Причина, которую увидит владелец', en: 'Reason shown to the owner' },
+  'Motivo de la retirada temporal…': { ru: 'Причина временного снятия объявления…', en: 'Reason for the temporary removal…' },
+  'Cuenta eliminada': { ru: 'Аккаунт удалён', en: 'Account deleted' },
+  'Cargando usuario…': { ru: 'Загружаем пользователя…', en: 'Loading user…' },
+  'Restricción retirada y usuario notificado': { ru: 'Ограничение снято, пользователь уведомлён', en: 'Restriction removed and user notified' },
+  'Nota interna guardada': { ru: 'Внутренняя заметка сохранена', en: 'Internal note saved' },
+  'Volver a usuarios': { ru: 'Назад к пользователям', en: 'Back to users' },
+  'Desbloquear ahora': { ru: 'Снять ограничение', en: 'Unblock now' },
+  'Restringir': { ru: 'Ограничить', en: 'Restrict' },
+  'Último acceso': { ru: 'Последний вход', en: 'Last sign-in' },
+  'Rol de producto': { ru: 'Роль в продукте', en: 'Product role' },
+  'Soporte': { ru: 'Поддержка', en: 'Support' },
+  'Restringido': { ru: 'Ограничено', en: 'Restricted' },
+  'Visible según estado': { ru: 'Видимость определяется статусом', en: 'Visibility follows status' },
+  'Denuncias relacionadas': { ru: 'Связанные жалобы', en: 'Related reports' },
+  'Historial de restricciones': { ru: 'История ограничений', en: 'Restriction history' },
+  'Notas internas': { ru: 'Внутренние заметки', en: 'Internal notes' },
+  'Administrador añadido': { ru: 'Администратор добавлен', en: 'Administrator added' },
+  'Acceso de administrador revocado': { ru: 'Доступ администратора отозван', en: 'Administrator access revoked' },
+  'Buscar por nombre…': { ru: 'Поиск по имени…', en: 'Search by name…' },
+  'Buscar usuarios por nombre': { ru: 'Искать пользователей по имени', en: 'Search users by name' },
+  'Filtrar usuarios': { ru: 'Фильтр пользователей', en: 'Filter users' },
+  'Con restricción': { ru: 'С ограничением', en: 'Restricted' },
+  'Sin publicación': { ru: 'Без публикации', en: 'Publishing blocked' },
+  'Sin acceso a anuncios': { ru: 'Без доступа к объявлениям', en: 'Listing access blocked' },
+  'Tomar revisión': { ru: 'Взять на проверку', en: 'Start review' },
+  'Resolver': { ru: 'Решить', en: 'Resolve' },
+  'Título, usuario o zona…': { ru: 'Название, пользователь или район…', en: 'Title, user or area…' },
+  'Sin bloqueo administrativo': { ru: 'Без административной блокировки', en: 'No administrative block' },
+  'Administradores': { ru: 'Администраторы', en: 'Administrators' },
+  'Añadir administrador': { ru: 'Добавить администратора', en: 'Add administrator' },
+  'Revocar acceso': { ru: 'Отозвать доступ', en: 'Revoke access' },
+  'Correo de soporte': { ru: 'Почта поддержки', en: 'Support email' },
+  'No se pudo enviar este formulario.': { ru: 'Не удалось отправить форму.', en: 'This form could not be sent.' },
+  'Revisa los datos antes de enviar.': { ru: 'Проверьте данные перед отправкой.', en: 'Review the details before sending.' },
+  'Escribe al menos 2 caracteres.': { ru: 'Введите не менее 2 символов.', en: 'Enter at least 2 characters.' },
+  'Indica un email o teléfono.': { ru: 'Укажите email или телефон.', en: 'Enter an email or phone number.' },
+  'Escribe al menos 10 caracteres.': { ru: 'Введите не менее 10 символов.', en: 'Enter at least 10 characters.' },
+  'El mensaje no puede superar 1000 caracteres.': { ru: 'Сообщение не может быть длиннее 1000 символов.', en: 'The message cannot exceed 1000 characters.' },
+  'Confirma las condiciones del anuncio.': { ru: 'Подтвердите условия объявления.', en: 'Confirm the listing conditions.' },
+  'Este mismo mensaje ya se ha registrado. Espera 30 segundos.': { ru: 'Такое сообщение уже отправлено. Подождите 30 секунд.', en: 'This same message has already been recorded. Wait 30 seconds.' },
+  'Espera 30 segundos antes de enviar otro mensaje.': { ru: 'Подождите 30 секунд перед отправкой следующего сообщения.', en: 'Wait 30 seconds before sending another message.' },
+  'Corrige los campos indicados.': { ru: 'Исправьте указанные поля.', en: 'Correct the highlighted fields.' },
+  'Enviando mensaje…': { ru: 'Отправляем сообщение…', en: 'Sending message…' },
+  'No se pudo enviar el mensaje.': { ru: 'Не удалось отправить сообщение.', en: 'The message could not be sent.' },
+  'Enviar un mensaje': { ru: 'Отправить сообщение', en: 'Send a message' },
+  'El mensaje se enviará al anunciante y quedará disponible en tus conversaciones.': { ru: 'Сообщение будет отправлено владельцу и сохранится в ваших диалогах.', en: 'The message will be sent to the advertiser and remain available in your conversations.' },
+  'Email o teléfono': { ru: 'Email или телефон', en: 'Email or phone' },
+  'Enviando…': { ru: 'Отправляем…', en: 'Sending…' },
+}
+
+Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations)
 
 const localeByLanguage: Record<Language, string> = { es: 'es-ES', ru: 'ru-RU', en: 'en-GB' }
 const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русский', en: 'English' }
@@ -890,6 +1104,38 @@ const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русс�
 const translatePattern = (source: string, language: Exclude<Language, 'es'>) => {
   const target = (ru: string, en: string) => language === 'ru' ? ru : en
   let match: RegExpMatchArray | null
+  const localizeSpanishDate = (value: string) => {
+    const ruMonths: Record<string, string> = {
+      enero: 'января', febrero: 'февраля', marzo: 'марта', abril: 'апреля', mayo: 'мая', junio: 'июня',
+      julio: 'июля', agosto: 'августа', septiembre: 'сентября', octubre: 'октября', noviembre: 'ноября', diciembre: 'декабря',
+    }
+    const enMonths: Record<string, string> = {
+      enero: 'January', febrero: 'February', marzo: 'March', abril: 'April', mayo: 'May', junio: 'June',
+      julio: 'July', agosto: 'August', septiembre: 'September', octubre: 'October', noviembre: 'November', diciembre: 'December',
+    }
+    const months = language === 'ru' ? ruMonths : enMonths
+    return value.replace(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/gi, (month) => months[month.toLowerCase()] ?? month)
+  }
+  if ((match = source.match(/^Gastos aparte: aprox\. (.+) €$/))) return target(`Коммунальные расходы отдельно: примерно ${match[1]} €`, `Utilities extra: approx. €${match[1]}`)
+  if ((match = source.match(/^Disponible desde (.+)$/))) return target(`Доступно с ${localizeSpanishDate(match[1])}`, `Available from ${localizeSpanishDate(match[1])}`)
+  if ((match = source.match(/^(\d+) (?:residente|residentes) · (.+)$/))) return target(`Жильцов: ${match[1]} · ${match[2]}`, `${match[1]} ${match[1] === '1' ? 'resident' : 'residents'} · ${match[2]}`)
+  if ((match = source.match(/^Habitación para (\d+) (?:persona|personas)$/))) return target(`Комната для ${match[1]} чел.`, `Room for ${match[1]} ${match[1] === '1' ? 'person' : 'people'}`)
+  if ((match = source.match(/^\+(\d+) condiciones$/))) return target(`+${match[1]} условий`, `+${match[1]} conditions`)
+  if ((match = source.match(/^Publicado hace (\d+) días$/))) return target(`Опубликовано ${match[1]} дн. назад`, `Published ${match[1]} days ago`)
+  if ((match = source.match(/^(\d+) habitación en (.+)$/))) return target(`${match[1]} комната в ${match[2]}`, `${match[1]} room in ${match[2]}`)
+  if ((match = source.match(/^(\d+) habitaciones en (.+)$/))) return target(`${match[1]} комнат в ${match[2]}`, `${match[1]} rooms in ${match[2]}`)
+  if ((match = source.match(/^(\d+) rooms en (.+)$/))) return target(`${match[1]} комнат в ${match[2]}`, `${match[1]} rooms in ${match[2]}`)
+  if ((match = source.match(/^Gastos aparte: aprox\. (.+) €\/mes$/))) return target(`Коммунальные расходы отдельно: примерно ${match[1]} €/мес.`, `Utilities extra: approx. €${match[1]}/month`)
+  if ((match = source.match(/^(\d+) (?:plaza libre|plazas libres)$/))) return target(`Свободных мест: ${match[1]}`, `${match[1]} ${match[1] === '1' ? 'space' : 'spaces'} available`)
+  if ((match = source.match(/^Capacidad: (\d+) (?:persona|personas)$/))) return target(`Вместимость: ${match[1]} чел.`, `Capacity: ${match[1]} ${match[1] === '1' ? 'person' : 'people'}`)
+  if ((match = source.match(/^Ya viven en esta habitación: (.+)$/))) return target(`Уже живут в этой комнате: ${match[1]}`, `Already living in this room: ${match[1]}`)
+  if ((match = source.match(/^Plazas libres: (.+)$/))) return target(`Свободных мест: ${match[1]}`, `Available spaces: ${match[1]}`)
+  if ((match = source.match(/^Superficie de la habitación: (.+)$/))) return target(`Площадь комнаты: ${match[1]}`, `Room size: ${match[1]}`)
+  if ((match = source.match(/^Superficie total: (.+)$/))) return target(`Общая площадь: ${match[1]}`, `Total size: ${match[1]}`)
+  if ((match = source.match(/^(\d+) habitaciones en la vivienda$/))) return target(`Комнат в жилье: ${match[1]}`, `${match[1]} ${match[1] === '1' ? 'room' : 'rooms'} in the home`)
+  if ((match = source.match(/^(\d+) (?:baño|baños) en la vivienda$/))) return target(`Ванных комнат: ${match[1]}`, `${match[1]} ${match[1] === '1' ? 'bathroom' : 'bathrooms'} in the home`)
+  if ((match = source.match(/^(\d+) residentes actuales en la vivienda$/))) return target(`Сейчас проживает: ${match[1]}`, `${match[1]} current ${match[1] === '1' ? 'resident' : 'residents'} in the home`)
+  if ((match = source.match(/^(\d+(?:[.,]\d+)?) €\/(mes|noche)$/))) return target(`${match[1]} €/${match[2] === 'mes' ? 'мес.' : 'ночь'}`, `${match[1]} €/${match[2] === 'mes' ? 'month' : 'night'}`)
   if ((match = source.match(/^Elegir zonas\. (.+) seleccionadas$/))) return target(`Выбрать районы. Выбрано: ${translateCore(match[1], language)}`, `Choose areas. Selected: ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Ver resultados en (\d+) zonas$/))) return target(`Показать результаты в ${match[1]} районах`, `View results in ${match[1]} areas`)
   if ((match = source.match(/^(\d+) zonas$/))) return target(`${match[1]} района`, `${match[1]} areas`)
@@ -937,6 +1183,23 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Más acciones para (.+)$/))) return target(`Дополнительные действия: ${translateCore(match[1], language)}`, `More actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Acciones para (.+)$/))) return target(`Действия: ${translateCore(match[1], language)}`, `Actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
+  if ((match = source.match(/^¿Revocar acceso de administrador a (.+)\?$/))) return target(`Отозвать права администратора у ${match[1]}?`, `Revoke administrator access for ${match[1]}?`)
+  if ((match = source.match(/^Restringir a (.+)$/))) return target(`Ограничить: ${match[1]}`, `Restrict ${match[1]}`)
+  if ((match = source.match(/^Eliminar cuenta de (.+)$/))) return target(`Удалить аккаунт: ${match[1]}`, `Delete ${match[1]}'s account`)
+  if ((match = source.match(/^(\d+) asociados a esta cuenta$/))) return target(`Связано с аккаунтом: ${match[1]}`, `${match[1]} linked to this account`)
+  if ((match = source.match(/^(\d+) sobre sus anuncios o su cuenta$/))) return target(`Жалоб на объявления или аккаунт: ${match[1]}`, `${match[1]} about their listings or account`)
+  if ((match = source.match(/^Denuncia: (.+)$/))) return target(`Жалоба: ${translateCore(match[1], language)}`, `Report: ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^(\d+) anuncios$/))) return target(`Объявлений: ${match[1]}`, `${match[1]} listings`)
+  if ((match = source.match(/^Último acceso: (.+)$/))) return target(`Последний вход: ${match[1]}`, `Last sign-in: ${match[1]}`)
+  if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${match[1]}`, `Blocked until ${match[1]}`)
+  if ((match = source.match(/^Activo desde (.+)$/))) return target(`Активен с ${match[1]}`, `Active since ${match[1]}`)
+  if ((match = source.match(/^Fuente: (.+)$/))) return target(`Источник: ${match[1]}`, `Source: ${match[1]}`)
+  if ((match = source.match(/^Estancia mínima de (\d+) (?:noche|noches)$/))) return target(`Минимальный срок: ${match[1]} ноч.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
+  if ((match = source.match(/^Estancia mínima de (\d+) (?:mes|meses)$/))) return target(`Минимальный срок: ${match[1]} мес.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
+  if ((match = source.match(/^Mínimo (\d+) (?:noche|noches)$/))) return target(`Минимум ${match[1]} ноч.`, `Minimum ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
+  if ((match = source.match(/^Mínimo (\d+) (?:mes|meses)$/))) return target(`Минимум ${match[1]} мес.`, `Minimum ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
+  if ((match = source.match(/^Revisaremos «(.+)»\. No compartiremos tu identidad con el anunciante\.$/))) return target(`Мы проверим «${translateCore(match[1], language)}». Мы не сообщим владельцу вашу личность.`, `We will review “${translateCore(match[1], language)}”. We will not share your identity with the advertiser.`)
+  if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)
   if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
   if ((match = source.match(/^(\d+) euros, (.+), ubicación aproximada$/))) return target(`${match[1]} евро, ${match[2]}, примерное местоположение`, `${match[1]} euros, ${match[2]}, approximate location`)
   if ((match = source.match(/^Centrar mapa en (.+), (\d+) euros$/))) return target(`Показать на карте: ${match[1]}, ${match[2]} евро`, `Center map on ${match[1]}, ${match[2]} euros`)

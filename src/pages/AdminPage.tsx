@@ -64,6 +64,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useApp } from '@/contexts/app-context'
+import { useI18n } from '@/contexts/i18n-context'
+import { currentLocale } from '@/lib/i18n-locale'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 
@@ -111,7 +113,7 @@ const listingStatusLabels: Record<string, string> = {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 function restrictionEndText(value: string | null | undefined) {
@@ -463,6 +465,7 @@ function UserDetailView({
 
 export function AdminPage() {
   const { currentUser } = useApp()
+  const { t } = useI18n()
   const [section, setSection] = useState<Section>('users')
   const [users, setUsers] = useState<AdminUser[]>([])
   const [listings, setListings] = useState<AdminListing[]>([])
@@ -552,7 +555,7 @@ export function AdminPage() {
   }
 
   const revokeAdmin = async (email: string) => {
-    if (!confirm(`¿Revocar acceso de administrador a ${email}?`)) return
+    if (!confirm(t(`¿Revocar acceso de administrador a ${email}?`))) return
     try {
       await revokeAdministrator(email)
       setAdmins((current) => current.filter((item) => item.email !== email))

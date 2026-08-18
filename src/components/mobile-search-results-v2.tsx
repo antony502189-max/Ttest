@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
-import { useI18n, type Language } from '@/contexts/i18n-context'
+import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
 import { getBedroomCount } from '@/lib/listings'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
@@ -95,7 +95,7 @@ function formatPrice(listing: Listing, language: ResultsLanguage) {
 }
 
 function capacityLabel(language: ResultsLanguage, count: number | null) {
-  if (count == null) return 'Consultar con el anunciante'
+  if (count == null) return translateText('Consultar con el anunciante', language)
   if (language === 'ru') return `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`
   if (language === 'en') return `Room for ${count} ${count === 1 ? 'person' : 'people'}`
   return `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`
@@ -105,6 +105,13 @@ function bedroomFact(language: ResultsLanguage, count: number) {
   if (language === 'ru') return `${count} ${count === 1 ? 'комната' : count >= 2 && count <= 4 ? 'комнаты' : 'комнат'}`
   if (language === 'en') return `${count} ${count === 1 ? 'room' : 'rooms'}`
   return `${count} ${count === 1 ? 'habitación' : 'habitaciones'}`
+}
+
+function availabilityFact(listing: Listing, language: ResultsLanguage) {
+  if (!listing.availableFrom) return translateText(listing.available, language)
+  const locale = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-GB' : 'es-ES'
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${listing.availableFrom}T12:00:00`))
+  return translateText(`Disponible desde ${date}`, language)
 }
 
 function toggleValue<T>(values: T[], value: T) {
@@ -133,7 +140,7 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
   return <article className="m2-result-card" data-listing-id={listing.id}>
     <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button>{index < 2 ? <span className="m2-result-card__top">{t.top}</span> : null}<span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
-    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{listing.title}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{listing.roomType} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? 'Consultar con el anunciante' : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{listing.available}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
+    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.area}, {listing.city}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
   </article>

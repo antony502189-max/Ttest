@@ -206,15 +206,14 @@ function occupantSheetSource() {
 }
 
 function updatePublishRequirementLabels() {
-  const labels: Record<string, string> = {
-    'single-man': 'Solo hombre',
-    'single-woman': 'Solo mujer',
-    'single-person': '1 persona',
-    couple: '2 personas (pareja/amigos)',
-    any: 'Sin restricciones',
+  const locale = detectOccupantLocale()
+  const labels: Record<OccupantLocale, Record<string, string>> = {
+    es: { 'single-man': 'Solo hombre', 'single-woman': 'Solo mujer', 'single-person': '1 persona', couple: '2 personas (pareja/amigos)', any: 'Sin restricciones' },
+    en: { 'single-man': 'Man only', 'single-woman': 'Woman only', 'single-person': '1 person', couple: '2 people (couple/friends)', any: 'No restrictions' },
+    ru: { 'single-man': 'Только мужчина', 'single-woman': 'Только женщина', 'single-person': '1 человек', couple: '2 человека (пара/друзья)', any: 'Без ограничений' },
   }
   document.querySelectorAll<HTMLOptionElement>('#publish-tenant-requirement option').forEach((option) => {
-    const label = labels[option.value]
+    const label = labels[locale][option.value]
     if (label && option.textContent !== label) option.textContent = label
   })
 }

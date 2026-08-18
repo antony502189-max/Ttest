@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { getModerationNotices, getMyRestriction, markModerationNoticeRead, type MyRestriction } from '@/api/moderation'
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/contexts/app-context'
+import { currentLocale } from '@/lib/i18n-locale'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MODERATION_REFRESH_MS = 60_000
@@ -17,7 +18,7 @@ const labels = {
 
 function formattedUntil(value: string | null) {
   if (!value) return 'Sin fecha final'
-  return `Hasta ${new Intl.DateTimeFormat('es-ES', {
+  return `Hasta ${new Intl.DateTimeFormat(currentLocale(), {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date(value))}`

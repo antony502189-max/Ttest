@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
+import { currentLocale } from "@/lib/i18n-locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -515,7 +516,7 @@ export function MyListingsPage() {
               <strong>
                 {mine
                   .reduce((sum, item) => sum + item.views, 0)
-                  .toLocaleString("es-ES")}
+                  .toLocaleString(currentLocale())}
               </strong>{" "}
               visualizaciones
             </span>
