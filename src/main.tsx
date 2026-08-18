@@ -21,6 +21,15 @@ import './white-theme-audit-fixes.css'
 import './client-mobile-alignment-fixes.css'
 import './client-listing-requirement-emphasis.css'
 
+const MOBILE_ONBOARDING_KEY = '112233:mobile-onboarding:v1'
+const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
+
+// Customer requirement: a real mobile page refresh starts the short onboarding again.
+// Mock-mode E2E keeps the persistence bypass so existing route-focused tests can boot directly.
+if (import.meta.env.VITE_ENABLE_MOCK_MODE !== '1' && window.matchMedia(MOBILE_VIEWPORT).matches) {
+  try { localStorage.removeItem(MOBILE_ONBOARDING_KEY) } catch { /* Storage can be unavailable in private browsing. */ }
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
