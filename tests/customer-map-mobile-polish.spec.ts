@@ -1,27 +1,29 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function openPublishAsHost(page: Page) {
-  await page.addInitScript(() => {
+async function openPublishAsHost(page: Page, language: 'es' | 'en' | 'ru' = 'es') {
+  await page.addInitScript(({ language }) => {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
-    localStorage.setItem('112233:language:v1', 'es')
+    localStorage.setItem('112233:language:v1', language)
     localStorage.removeItem('112233:listing-draft:v3')
     localStorage.removeItem('112233:listing-draft:v2')
-  })
+  }, { language })
   await page.goto('/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
+  const continueLabel = language === 'ru' ? 'Продолжить' : language === 'en' ? 'Continue' : 'Continuar'
+  await page.getByRole('button', { name: continueLabel }).click()
 }
 
 test.describe('customer publish-map polish', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('map is the only location control and double click places the marker', async ({ page }) => {
+  test('map is the only visible location control and touch double-tap places the marker', async ({ page }) => {
     await openPublishAsHost(page)
 
-    await expect(page.getByRole('button', { name: 'Centrar de nuevo en la zona' })).toHaveCount(0)
-    await expect(page.locator('.approximate-location-selector__grid')).toHaveCount(0)
-    await expect(page.getByText('Desplaza el mapa y toca dos veces donde quieras colocar el marcador.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Centrar de nuevo en la zona', hidden: true })).toBeHidden()
+    await expect(page.locator('.approximate-location-selector__grid')).toBeHidden()
+    await expect(page.locator('.approximate-location-selector > output')).toBeHidden()
+    await expect(page.getByText('Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.')).toBeVisible()
 
     const map = page.locator('.approximate-location-map')
     await expect(map.locator('.gm-style')).toBeVisible()
@@ -31,12 +33,28 @@ test.describe('customer publish-map polish', () => {
     const before = await output.textContent()
     const box = await map.boundingBox()
     expect(box).not.toBeNull()
+    const clientX = Math.round((box?.x ?? 0) + (box?.width ?? 300) * 0.72)
+    const clientY = Math.round((box?.y ?? 0) + (box?.height ?? 240) * 0.38)
 
-    await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.72), y: Math.round((box?.height ?? 240) * 0.38) } })
+    for (let tap = 0; tap < 2; tap += 1) {
+      await map.dispatchEvent('pointerdown', { pointerId: tap + 1, pointerType: 'touch', clientX, clientY })
+      await map.dispatchEvent('pointerup', { pointerId: tap + 1, pointerType: 'touch', clientX, clientY })
+    }
 
     await expect.poll(async () => output.textContent()).not.toBe(before)
     await expect(map.locator('.gm-test-pin')).toHaveCount(1)
   })
+
+  for (const { language, guidance } of [
+    { language: 'en', guidance: 'Move the map with your finger and double-tap the desired place to set the marker.' },
+    { language: 'ru', guidance: 'Перемещайте карту пальцем и дважды коснитесь нужного места, чтобы поставить маркер.' },
+  ] as const) {
+    test(`double-tap guidance follows ${language} locale`, async ({ page }) => {
+      await openPublishAsHost(page, language)
+      await expect(page.getByText(guidance, { exact: true })).toBeVisible()
+      await expect(page.locator('.approximate-location-map')).toHaveAttribute('aria-label', new RegExp(guidance.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    })
+  }
 })
 
 for (const viewport of [
@@ -66,7 +84,6 @@ for (const viewport of [
         return {
           left: rect.left,
           right: rect.right,
-          width: rect.width,
           clientWidth: (child as HTMLElement).clientWidth,
           scrollWidth: (child as HTMLElement).scrollWidth,
         }
