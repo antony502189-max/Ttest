@@ -183,7 +183,7 @@ function BackHeader({ title, onBack, backLabel }: { title: string; onBack: () =>
 }
 
 function AuthPanel({ onContinue, t }: { onContinue: () => void; t: MobileCopy }) {
-  return <div className="m2-auth-panel"><Brand /><span>España (Tenerife)</span><h1>{t.authTitle}</h1><button type="button" onClick={onContinue}><b>G</b>{t.googleContinue}</button><button type="button" onClick={onContinue}><Mail />{t.emailLogin}</button><p>{t.legalIntro}</p><a href="#privacy">{t.privacyPolicy}</a><a href="#terms">{t.terms}</a></div>
+  return <div className="m2-auth-panel"><Brand /><span>España (Tenerife)</span><h1>{t.authTitle}</h1><button type="button" onClick={onContinue}><b>G</b>{t.googleContinue}</button><button type="button" onClick={onContinue}><Mail />{t.emailLogin}</button><p>{t.legalIntro}</p><a href="#/privacidad">{t.privacyPolicy}</a><a href="#/terminos">{t.terms}</a></div>
 }
 
 function Onboarding({ step, origin, language, setLanguage, onStep, onCountryContinue, onLanguageContinue, onAuthBack, onDone }: {
@@ -195,7 +195,7 @@ function Onboarding({ step, origin, language, setLanguage, onStep, onCountryCont
   return <section className="m2-onboarding"><Brand />
     {step === 'language' ? <><div className="m2-onboarding__content"><h1>{t.languageTitle}</h1><div className="m2-language-list">{languages.map(({ value, label }) => <button key={value} type="button" className={cn(value === language && 'is-selected')} aria-pressed={value === language} onClick={() => setLanguage(value)}><span lang={value}>{label}</span>{value === language ? <Check /> : null}</button>)}</div></div><PrimaryButton onClick={onLanguageContinue}>{t.continue}</PrimaryButton></> : null}
     {step === 'country' ? <><div className="m2-onboarding__content"><h1>{t.regionTitle}</h1><button type="button" className="m2-country is-selected" aria-pressed="true"><span>ES</span><strong>España (Tenerife)</strong><Check /></button></div><PrimaryButton onClick={onCountryContinue}>{t.continue}</PrimaryButton></> : null}
-    {step === 'privacy' ? <><div className="m2-onboarding__content m2-privacy"><h1>{t.privacyTitle}</h1><p>{t.privacyText}</p></div><PrimaryButton onClick={() => onStep('auth')}>{t.continue}</PrimaryButton></> : null}
+    {step === 'privacy' ? <><div className="m2-onboarding__content m2-privacy"><h1>{t.privacyTitle}</h1><p>{t.privacyText}</p><a className="m2-privacy__policy" href="#/privacidad">{t.privacyPolicy}</a></div><PrimaryButton onClick={() => onStep('auth')}>{t.continue}</PrimaryButton></> : null}
     <span className="m2-sr-only">{origin}</span>
   </section>
 }
@@ -549,7 +549,12 @@ export function MobileAppV2() {
   const { language, setLanguage } = useI18n()
   const { allListings, discarded, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
   const [step, setStep] = useState<OnboardingStep>(() => {
-    try { return localStorage.getItem(ONBOARDING_KEY) === 'done' ? 'done' : 'language' } catch { return 'language' }
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+    try {
+      const stored = localStorage.getItem(ONBOARDING_KEY)
+      if (stored === 'done:refreshable' && navigation?.type === 'reload') return 'language'
+      return stored === 'done' || stored === 'done:refreshable' ? 'done' : 'language'
+    } catch { return 'language' }
   })
   const [origin, setOrigin] = useState<OnboardingOrigin>('startup')
   const [page, setPage] = useState<AppPage>('tabs')
@@ -619,7 +624,7 @@ export function MobileAppV2() {
     if (location.pathname !== '/buscar') return
     setHomeMode(rentalMode === 'holiday' ? 'turismo' : 'vivienda')
   }, [location.pathname, rentalMode])
-  const persistOnboarding = () => { try { localStorage.setItem(ONBOARDING_KEY, 'done') } catch { /* private mode */ } }
+  const persistOnboarding = () => { try { localStorage.setItem(ONBOARDING_KEY, 'done:refreshable') } catch { /* private mode */ } }
   const returnToApp = () => { persistOnboarding(); setStep('done'); setPage('tabs') }
   const finishAuth = () => { persistOnboarding(); if (origin === 'startup') { setTab(tabFromPath(location.pathname)); setPage('tabs') }; setStep('done') }
   const openAccount = () => navigate(currentUser ? '/perfil' : '/acceso')

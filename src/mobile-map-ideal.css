@@ -37,19 +37,31 @@
 .m2-map-listing-preview {
   position: absolute;
   right: .7rem;
-  bottom: calc(12.55rem + env(safe-area-inset-bottom));
+  bottom: calc(.75rem + env(safe-area-inset-bottom));
   left: .7rem;
-  z-index: 36;
+  z-index: 38;
   display: grid;
   grid-template-columns: 7rem minmax(0, 1fr);
   min-height: 9.5rem;
+  max-width: calc(100% - 1.4rem);
+  margin-inline: auto;
   overflow: hidden;
   border: 1px solid #d7d9d5;
-  border-radius: .45rem;
+  border-radius: .85rem;
   background: rgb(255 255 255 / .98);
   color: #252a2b;
   box-shadow: 0 12px 36px rgb(37 42 43 / .22);
   backdrop-filter: blur(12px);
+}
+
+/* When a listing card is open it owns the lower map area, like a bottom card.
+   Close it to get the drawing/location controls back; never stack controls over content. */
+.m2-map-screen:has(.m2-map-listing-preview) .m2-map-controls,
+.m2-map-screen:has(.m2-map-listing-preview) .m2-search-area,
+.m2-map-screen:has(.m2-map-listing-preview) .m2-draw-actions,
+.m2-map-screen:has(.m2-map-listing-preview) .m2-location-toast {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .m2-map-listing-preview__media {
@@ -188,6 +200,7 @@
     grid-template-columns: 5.8rem minmax(0, 1fr);
     right: .45rem;
     left: .45rem;
+    max-width: calc(100% - .9rem);
   }
 
   .m2-result-card__badges span {

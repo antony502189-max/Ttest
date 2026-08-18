@@ -589,6 +589,18 @@ test("28–29 mobile navigation and keyboard-only critical path", async ({
   await page.goto("/#/");
   await page.evaluate(() => localStorage.setItem("112233:mobile-onboarding:v1", "done"));
   await page.reload();
+  await expect(page.getByText("Selecciona el idioma de la aplicación")).toBeVisible();
+  for (let index = 0; index < 3; index += 1) {
+    const continueOnboarding = page.getByRole("button", { name: "Continuar" });
+    await continueOnboarding.focus();
+    await expect(continueOnboarding).toBeFocused();
+    await page.keyboard.press("Enter");
+  }
+  const skipOnboarding = page.getByRole("button", { name: "Ahora no" });
+  await skipOnboarding.focus();
+  await expect(skipOnboarding).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("open-location")).toBeVisible();
   await page.evaluate(() =>
     (document.activeElement as HTMLElement | null)?.blur(),
   );

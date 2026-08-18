@@ -1,12 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function finishOnboarding(page: Page) {
-  await page.goto('/')
+async function completeOnboarding(page: Page) {
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Ahora no' }).click()
   await expect(page.getByTestId('open-location')).toBeVisible()
+}
+
+async function finishOnboarding(page: Page) {
+  await page.goto('/')
+  if (await page.getByTestId('open-location').isVisible().catch(() => false)) return
+  await completeOnboarding(page)
 }
 
 const homeModeButton = (page: Page, mode: 'housing' | 'tourism') =>
@@ -15,11 +20,28 @@ const homeModeButton = (page: Page, mode: 'housing' | 'tourism') =>
 test.describe('APK shell connected to the canonical web app', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('onboarding is completed once and survives reload', async ({ page }) => {
+  test('home refresh intentionally returns to onboarding', async ({ page }) => {
     await finishOnboarding(page)
     await page.reload()
-    await expect(page.getByTestId('open-location')).toBeVisible()
-    await expect(page.getByText('Selecciona el idioma de la aplicación')).toHaveCount(0)
+    await expect(page.getByText('Selecciona el idioma de la aplicación')).toBeVisible()
+    await expect(page.getByTestId('open-location')).toHaveCount(0)
+    await completeOnboarding(page)
+  })
+
+  test('onboarding legal links open the real privacy and terms routes', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Continuar' }).click()
+    await page.getByRole('button', { name: 'Continuar' }).click()
+    await page.getByRole('button', { name: 'Continuar' }).click()
+
+    const privacy = page.getByRole('link', { name: 'Política de privacidad' })
+    const terms = page.getByRole('link', { name: 'Términos y condiciones' })
+    await expect(privacy).toHaveAttribute('href', '#/privacidad')
+    await expect(terms).toHaveAttribute('href', '#/terminos')
+
+    await privacy.click()
+    await expect(page).toHaveURL(/#\/privacidad$/)
+    await expect(page.getByRole('heading', { name: 'Política de privacidad' })).toBeVisible()
   })
 
   test('location, search, back and reload use real URLs', async ({ page }) => {
@@ -46,7 +68,10 @@ test.describe('APK shell connected to the canonical web app', () => {
     await expect(page).toHaveURL(/#\/habitacion\//)
     await expect(page.locator('.idealista-listing-page')).toBeVisible()
 
-    await page.goto('/#/').then(() => page.reload())
+    await page.goto('/#/')
+    await page.reload()
+    await expect(page.getByText('Selecciona el idioma de la aplicación')).toBeVisible()
+    await completeOnboarding(page)
     await page.getByRole('button', { name: 'Publicar anuncio' }).click()
     await expect(page).toHaveURL(/gate=publicar/)
     await expect(page.getByTestId('publication-gate')).toBeVisible()

@@ -72,7 +72,7 @@ function MobileOnboardingAuthBridge() {
       if (!button) return
       event.preventDefault()
       event.stopPropagation()
-      try { localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done') } catch { /* Navigation still works when storage is unavailable. */ }
+      try { localStorage.setItem(MOBILE_ONBOARDING_KEY, 'done:refreshable') } catch { /* Navigation still works when storage is unavailable. */ }
       navigate('/acceso')
     }
     document.addEventListener('click', openRealAuth, true)

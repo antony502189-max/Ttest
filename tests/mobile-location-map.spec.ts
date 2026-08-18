@@ -20,7 +20,7 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.body).toBeLessThanOrEqual(dimensions.viewport)
 }
 
-test('onboarding is persisted after completion and language names are never machine-translated', async ({ page }) => {
+test('onboarding returns after refresh and language names are never machine-translated', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('Español', { exact: true })).toBeVisible()
   await expect(page.getByText('English', { exact: true })).toBeVisible()
@@ -28,7 +28,11 @@ test('onboarding is persisted after completion and language names are never mach
   await expect(page.getByText('Испанский', { exact: true })).toHaveCount(0)
   await finishOnboarding(page)
   await page.reload()
-  await expect(page.getByTestId('open-location')).toBeVisible()
+  await expect(page.getByText('Español', { exact: true })).toBeVisible()
+  await expect(page.getByText('English', { exact: true })).toBeVisible()
+  await expect(page.getByText('Русский', { exact: true })).toBeVisible()
+  await expect(page.getByText('Испанский', { exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('open-location')).toHaveCount(0)
 })
 
 test('country selection contains only Tenerife and returns correctly from location editing', async ({ page }) => {

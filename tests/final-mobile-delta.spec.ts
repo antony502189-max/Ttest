@@ -96,7 +96,7 @@ test('DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overf
     await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', language)
-    await expect(page.locator('.m2-home')).toBeVisible()
+    await expect(page.locator('.m2-onboarding')).toBeVisible()
     const dimensions = await page.evaluate(() => ({
       client: document.documentElement.clientWidth,
       scroll: document.documentElement.scrollWidth,

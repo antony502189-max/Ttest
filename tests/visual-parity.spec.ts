@@ -51,6 +51,12 @@ test('current mobile menu, auth and Russian visual states', async ({ page }) => 
   await page.goto('/#/')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
+  await expect(page.getByText('Выберите язык приложения')).toBeVisible()
+  await page.getByRole('button', { name: 'Продолжить' }).click()
+  await page.getByRole('button', { name: 'Продолжить' }).click()
+  await page.getByRole('button', { name: 'Продолжить' }).click()
+  await page.getByRole('button', { name: 'Сейчас нет' }).click()
+  await expect(page.locator('.m2-home')).toBeVisible()
   await shot(page, 'current-home-ru-390x844')
 })
 

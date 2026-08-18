@@ -41,7 +41,7 @@ test('map is freely zoomable before explicit drawing activation', async ({ page 
   await expect(map).toHaveAttribute('data-map-interaction', 'interactive')
 })
 
-test('published listings are visible on the map and open the matching result', async ({ page }) => {
+test('published listings are visible on the map and open from a bottom card', async ({ page }) => {
   await finishOnboarding(page)
   const map = await openMap(page, 'search')
   await expect(map).toHaveAttribute('data-map-interaction', 'interactive')
@@ -57,6 +57,25 @@ test('published listings are visible on the map and open the matching result', a
   const listingId = await preview.getAttribute('data-listing-id')
   expect(listingId).toBeTruthy()
   await expect(preview.locator('.m2-map-listing-preview__requirements span')).not.toHaveCount(0)
+
+  const geometry = await preview.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    return {
+      left: rect.left,
+      right: rect.right,
+      bottomGap: window.innerHeight - rect.bottom,
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }
+  })
+  expect(geometry.bottomGap).toBeGreaterThanOrEqual(0)
+  expect(geometry.bottomGap).toBeLessThanOrEqual(20)
+  expect(geometry.left).toBeGreaterThanOrEqual(0)
+  expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth)
+  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth)
+  await expect(page.locator('.m2-draw-actions')).toHaveCSS('opacity', '0')
+  await expect(page.locator('.m2-map-controls')).toHaveCSS('opacity', '0')
+
   await preview.locator('.m2-map-listing-preview__open').click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()

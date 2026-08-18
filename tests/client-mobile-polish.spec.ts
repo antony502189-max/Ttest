@@ -23,11 +23,19 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(widths.body).toBeLessThanOrEqual(widths.viewport)
 }
 
-test('tourism home card is nudged left without mobile overflow', async ({ page }) => {
+test('tourism home card stays contained without the obsolete left nudge', async ({ page }) => {
   await finishOnboarding(page)
-  const tourism = page.locator('.m2-mode-switch > button').nth(1)
+  const switcher = page.locator('.m2-mode-switch')
+  const tourism = switcher.locator(':scope > button').nth(1)
   await expect(tourism).toBeVisible()
-  await expect(tourism).toHaveCSS('translate', '-4px')
+  await expect(tourism).toHaveCSS('translate', 'none')
+  const bounds = await switcher.evaluate((element) => {
+    const container = element.getBoundingClientRect()
+    const card = element.children[1]?.getBoundingClientRect()
+    return card ? { containerRight: container.right, cardRight: card.right } : null
+  })
+  expect(bounds).not.toBeNull()
+  expect(bounds!.cardRight).toBeLessThanOrEqual(bounds!.containerRight + 0.5)
   await assertNoHorizontalOverflow(page)
 })
 
