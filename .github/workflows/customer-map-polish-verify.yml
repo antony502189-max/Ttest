@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: fix/customer-map-mobile-polish
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
@@ -92,4 +93,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/pages/PublishPage.tsx src/mobile-home-mode-cards.css src/client-mobile-alignment-fixes.css src/contexts/i18n-context.tsx .github/workflows/customer-map-polish-verify.yml
           git commit -m 'fix: simplify publish map and contain mobile mode cards'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push origin HEAD:fix/customer-map-mobile-polish
