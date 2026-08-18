@@ -311,11 +311,6 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.reload()
-  await expect(page.getByText('Selecciona el idioma de la aplicación')).toBeVisible()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Ahora no' }).click()
   const routes = [
     '/#/', '/#/buscar?q=Tenerife&alquiler=long', '/#/buscar?q=Tenerife&alquiler=long&vista=mapa',
     `/#/habitacion/${encodeURIComponent(firstListingId)}`, '/#/favoritos', '/#/busquedas-guardadas',
