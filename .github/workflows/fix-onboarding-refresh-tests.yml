@@ -1,0 +1,89 @@
+name: Onboarding refresh test finalizer
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-onboarding-refresh-tests.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/onboarding-refresh-test-regressions
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Align stale tests with refreshable onboarding contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one matching block, found {text.count(old)}')
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'tests/acceptance-flows.spec.ts',
+              '''  await page.goto("/#/");\n  await page.evaluate(() => localStorage.setItem("112233:mobile-onboarding:v1", "done"));\n  await page.reload();\n  await expect(page.getByText("Selecciona el idioma de la aplicación")).toBeVisible();''',
+              '''  await page.goto("/#/");\n  // Real completed onboarding is refreshable; the legacy `done` marker intentionally bypasses refresh onboarding.\n  await page.evaluate(() => localStorage.setItem("112233:mobile-onboarding:v1", "done:refreshable"));\n  await page.reload();\n  await expect(page.getByText("Selecciona el idioma de la aplicación")).toBeVisible();''',
+          )
+
+          replace_once(
+              'tests/final-mobile-delta.spec.ts',
+              '''    await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)\n    await page.reload()\n    await expect(page.locator('html')).toHaveAttribute('lang', language)\n    await expect(page.locator('.m2-onboarding')).toBeVisible()''',
+              '''    await page.evaluate((value) => {\n      localStorage.setItem('112233:language:v1', value)\n      localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')\n    }, language)\n    await page.reload()\n    await expect(page.locator('html')).toHaveAttribute('lang', language)\n    await expect(page.locator('.m2-onboarding')).toBeVisible()''',
+          )
+
+          replace_once(
+              'tests/visual-parity.spec.ts',
+              '''  await page.evaluate(() => localStorage.setItem('112233:language:v1', 'ru'))\n  await page.goto('/#/')\n  await page.reload()\n  await expect(page.locator('html')).toHaveAttribute('lang', 'ru')''',
+              '''  await page.evaluate(() => {\n    localStorage.setItem('112233:language:v1', 'ru')\n    localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')\n  })\n  await page.goto('/#/')\n  await page.reload()\n  await expect(page.locator('html')).toHaveAttribute('lang', 'ru')''',
+          )
+
+          replace_once(
+              'tests/apk-parity.spec.ts',
+              '''    await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)\n    await page.reload()\n    await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)''',
+              '''    await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)\n    // This test isolates favorite persistence; use the documented legacy bypass so refresh onboarding is tested elsewhere.\n    await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))\n    await page.reload()\n    await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)''',
+          )
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify the four previously failing suites
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run build
+          npx playwright test tests/acceptance-flows.spec.ts tests/apk-parity.spec.ts tests/final-mobile-delta.spec.ts tests/visual-parity.spec.ts
+
+      - name: Commit fixes and remove temporary workflow
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          rm .github/workflows/fix-onboarding-refresh-tests.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/acceptance-flows.spec.ts tests/apk-parity.spec.ts tests/final-mobile-delta.spec.ts tests/visual-parity.spec.ts .github/workflows/fix-onboarding-refresh-tests.yml
+          git commit -m "test: align onboarding refresh acceptance contracts"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:fix/onboarding-refresh-test-regressions
