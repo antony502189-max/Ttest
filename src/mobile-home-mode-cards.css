@@ -1,14 +1,19 @@
 @media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
   .m2-mode-switch {
+    width: 100%;
+    min-width: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .72rem;
+    overflow: hidden;
     border: 0;
     background: transparent;
   }
 
   .m2-mode-switch > button {
     position: relative;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
     min-height: 13.8rem;
     display: flex;
@@ -16,6 +21,8 @@
     align-items: center;
     justify-content: flex-start;
     gap: 1.3rem;
+    overflow: hidden;
+    box-sizing: border-box;
     padding: 2rem .45rem 1.35rem;
     border: 1.5px solid rgb(116 185 0 / .34);
     border-radius: 1.05rem;
@@ -46,14 +53,14 @@
     background: linear-gradient(145deg, #fffffb 0%, #eef8dd 100%);
     color: #111;
     opacity: 1;
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 .55rem 1.2rem rgb(38 73 0 / .24), inset 0 0 0 4px #74b900;
+    transform: translateY(-2px);
+    box-shadow: 0 .42rem .9rem rgb(38 73 0 / .20), inset 0 0 0 4px #74b900;
   }
 
   .m2-mode-switch > button:last-child.is-active {
     border-color: #c60083;
     background: linear-gradient(145deg, #fff5fb 0%, #f9dceb 100%);
-    box-shadow: 0 .55rem 1.2rem rgb(98 0 65 / .25), inset 0 0 0 4px #c60083;
+    box-shadow: 0 .42rem .9rem rgb(98 0 65 / .20), inset 0 0 0 4px #c60083;
   }
 
   .m2-mode-switch > button.is-active:active {
@@ -120,6 +127,8 @@
   }
 
   .m2-mode-switch > button > span:last-child {
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -131,22 +140,26 @@
 
   .m2-mode-switch > button > span:last-child::before {
     content: attr(data-reference-title);
+    max-width: 100%;
     color: #111;
     font-size: clamp(1.05rem, 5vw, 1.38rem);
     font-weight: 900;
     letter-spacing: .015em;
     line-height: 1.05;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .m2-mode-switch > button > span:last-child::after {
     content: attr(data-reference-subtitle);
+    max-width: 100%;
     color: #555;
     font-size: clamp(.72rem, 3.5vw, .98rem);
     font-weight: 400;
     letter-spacing: .09em;
     line-height: 1.2;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 
