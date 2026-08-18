@@ -33,7 +33,7 @@ test('legacy done marker remains a deliberate test and migration bypass', async 
   await expect(page.getByRole('heading', { name: 'Selecciona el idioma de la aplicación' })).toHaveCount(0)
 })
 
-test('privacy onboarding step links to the readable Privacy Policy', async ({ page }) => {
+test('privacy onboarding step links to the readable Privacy Policy without horizontal overflow', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -48,4 +48,7 @@ test('privacy onboarding step links to the readable Privacy Policy', async ({ pa
   await expect(page.getByRole('heading', { name: 'Política de privacidad' })).toBeVisible()
   await expect(page.getByText(/Datos tratados/)).toBeVisible()
   await expect(page.getByText(/Conservación y derechos/)).toBeVisible()
+  const policyWidth = await page.evaluate(() => ({ viewport: innerWidth, html: document.documentElement.scrollWidth, body: document.body.scrollWidth }))
+  expect(policyWidth.html).toBeLessThanOrEqual(policyWidth.viewport)
+  expect(policyWidth.body).toBeLessThanOrEqual(policyWidth.viewport)
 })
