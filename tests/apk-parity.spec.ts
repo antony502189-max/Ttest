@@ -88,6 +88,7 @@ test.describe('APK shell connected to the canonical web app', () => {
     await page.getByRole('button', { name: 'Favoritos', exact: true }).click()
     await expect(page).toHaveURL(/#\/favoritos/)
     await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)
+    await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
     await page.reload()
     await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)
   })

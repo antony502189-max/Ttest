@@ -94,6 +94,7 @@ test('DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overf
   for (const language of ['es', 'en', 'ru'] as const) {
     await page.goto('/#/')
     await page.evaluate((value) => localStorage.setItem('112233:language:v1', value), language)
+    await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable'))
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', language)
     await expect(page.locator('.m2-onboarding')).toBeVisible()

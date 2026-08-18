@@ -49,6 +49,7 @@ test('current mobile menu, auth and Russian visual states', async ({ page }) => 
 
   await page.evaluate(() => localStorage.setItem('112233:language:v1', 'ru'))
   await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable'))
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
   await expect(page.getByText('Выберите язык приложения')).toBeVisible()
