@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
 
+// Completed user onboarding is refresh-aware; legacy `done` is intentionally only a bypass.
 async function finishStartupOnboarding(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continuar' }).click()
