@@ -1,0 +1,58 @@
+name: Customer priority request implementation
+
+on:
+  push:
+    branches:
+      - feat/customer-priority-room-filters-location
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/customer-priority-room-filters-location
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Apply customer-request patch
+        run: python scripts/apply_customer_priority_request.py
+
+      - name: Remove implementation-only files
+        run: |
+          rm scripts/apply_customer_priority_request.py
+          rm .github/workflows/customer-priority-request-implementation.yml
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Frontend typecheck
+        run: npm run typecheck
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend production build
+        run: npm run build
+
+      - name: Python syntax compile
+        run: python -m compileall -q backend/app backend/tests backend/alembic/versions
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: implement customer priority filters and address UX"
+          git push origin HEAD:feat/customer-priority-room-filters-location
