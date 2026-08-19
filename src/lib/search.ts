@@ -87,7 +87,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
       const availableSpots = listing.availableSpots ?? (listing.roomCapacity != null && listing.currentRoomResidents != null ? listing.roomCapacity - listing.currentRoomResidents : null)
       if (availableSpots == null || availableSpots < filters.availableSpotsMin) return false
     }
-    if (mode === 'holiday' && filters.minimumNights > 0 && (listing.minimumNights ?? 1) > filters.minimumNights) return false
+    if (mode === 'holiday' && filters.minimumNights > 0 && (listing.minimumNights == null || listing.minimumNights > filters.minimumNights)) return false
     if (!boolMatches(listing.smokingAllowed, filters.smoking)) return false
     if (!boolMatches(listing.petsAllowed, filters.pets)) return false
     if (!boolMatches(listing.childrenAllowed, filters.children)) return false
