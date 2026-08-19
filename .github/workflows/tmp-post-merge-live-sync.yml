@@ -1,0 +1,45 @@
+name: Temporary post-merge live synchronization audit
+
+on:
+  push:
+    branches: [feat/customer-priority-room-filters-location]
+
+permissions:
+  contents: read
+
+jobs:
+  live-sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify production health and deployed revision
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: 57d9f101ac8d1b9d538a5e985bac6fa3b017ea17
+        run: |
+          set -euo pipefail
+          base='https://app.112233.es'
+          curl --fail --silent --show-error --location "$base/api/health/live" | tee /tmp/live.json
+          echo
+          curl --fail --silent --show-error --location "$base/api/health/ready" | tee /tmp/ready.json
+          echo
+          curl --fail --silent --show-error --location "$base/build-info.json" | tee /tmp/build.json
+          echo
+          curl --fail --silent --show-error --location "$base/api/v1/catalog-version" | tee /tmp/catalog.json
+          echo
+          python - <<'PY'
+          import json, os, urllib.request
+          expected = os.environ['EXPECTED_MAIN_SHA']
+          build = json.load(open('/tmp/build.json'))
+          deployed = build.get('gitSha') or build.get('sha') or build.get('commit') or build.get('revision')
+          if deployed != expected:
+              raise SystemExit(f'PRODUCTION_STALE deployed={deployed!r} expected={expected!r}')
+          with urllib.request.urlopen('https://app.112233.es/api/v1/listings', timeout=20) as response:
+              payload = json.load(response)
+          items = payload.get('items', payload) if isinstance(payload, dict) else payload
+          if not isinstance(items, list):
+              raise SystemExit('listings response is not a list/items payload')
+          external = [item for item in items if isinstance(item, dict) and (item.get('sourceUrl') or item.get('source_url'))]
+          if not external:
+              raise SystemExit('no public external listings found')
+          print(f'LIVE_SYNC_OK revision={deployed} external_listings={len(external)}')
+          PY
