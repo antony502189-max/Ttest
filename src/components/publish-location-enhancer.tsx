@@ -9,7 +9,7 @@ type AddressDetail = { formattedAddress?: string; addressComponents?: AddressCom
 
 function component(components: AddressComponent[], type: string) {
   const item = components.find((entry) => entry.types.includes(type))
-  return item?.longText ?? item?.long_name ?? ''
+  return (item?.longText ?? item?.long_name ?? '').trim()
 }
 
 function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, value: string) {
@@ -22,17 +22,30 @@ function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, va
   element.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
+function matchingSelectValue(element: HTMLSelectElement | null, candidates: string[]) {
+  if (!element) return ''
+  const available = new Set(Array.from(element.options, (option) => option.value))
+  return candidates.find((candidate) => candidate && available.has(candidate)) ?? ''
+}
+
 function applyAddress(detail: AddressDetail) {
   const components = detail.addressComponents ?? []
   const route = component(components, 'route')
   const number = component(components, 'street_number')
   const postcode = component(components, 'postal_code')
-  const city = component(components, 'locality') || component(components, 'administrative_area_level_3')
-  const area = component(components, 'sublocality_level_1') || component(components, 'sublocality') || component(components, 'neighborhood')
+  const locality = component(components, 'locality')
+  const municipality = component(components, 'administrative_area_level_3')
+  const municipalFallback = component(components, 'administrative_area_level_4')
+  const citySelect = document.querySelector<HTMLSelectElement>('#publish-city')
+  const city = matchingSelectValue(citySelect, [municipality, municipalFallback, locality])
+  const area = component(components, 'sublocality_level_1')
+    || component(components, 'sublocality')
+    || component(components, 'neighborhood')
+    || (locality && locality !== city ? locality : '')
   const street = [route, number].filter(Boolean).join(' ').trim() || detail.formattedAddress?.split(',')[0]?.trim() || ''
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
-  setNativeValue(document.querySelector<HTMLSelectElement>('#publish-city'), city)
+  setNativeValue(citySelect, city)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-area'), area)
 }
 
