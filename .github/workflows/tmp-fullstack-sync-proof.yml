@@ -1,0 +1,109 @@
+name: Temporary full-stack synchronization proof
+
+on:
+  push:
+    branches: [feat/customer-priority-room-filters-location]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/customer-priority-room-filters-location
+          fetch-depth: 0
+      - name: Add real backend synchronization coverage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/full-stack/backend-integration.spec.ts')
+          text = path.read_text()
+
+          old = """  roomCapacity: 1,\n  shower: 'Ducha compartida',\n  tenantRequirement,\n"""
+          new = """  roomCapacity: 1,\n  shower: 'Ducha compartida',\n  homeSizeM2: 82,\n  bathroomCount: 2,\n  rentalUnit: 'room',\n  bedType: 'double',\n  bedCount: 1,\n  currentRoomResidents: 0,\n  toilet: 'Aseo privado',\n  householdGender: 'mixed',\n  householdHasChildren: false,\n  heatingType: 'none',\n  accessible: true,\n  floor: 'top',\n  couplesAllowed: true,\n  acceptedTenantTypes: ['man', 'woman', 'couple'],\n  tenantRequirement,\n"""
+          if text.count(old) != 1:
+              raise SystemExit(f'room-details anchor count={text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          old = "  amenities: ['Wifi'],\n"
+          new = "  amenities: ['Wifi', 'Aire acondicionado', 'Jardín'],\n"
+          if text.count(old) != 1:
+              raise SystemExit(f'amenities anchor count={text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          anchor = "test('unrestricted search does not send a strict tenant requirement to the API', async ({ page }) => {\n"
+          proof = r'''test('customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only', async () => {
+            const unique = `${Date.now()}-customer-sync-${test.info().project.name}`
+            const title = `Habitación customer sync ${unique}`
+            const created = await createBackendListing(unique, title)
+            const api = await playwrightRequest.newContext({
+              baseURL: API,
+              extraHTTPHeaders: {
+                Origin: 'http://127.0.0.1:4174',
+                Authorization: `Bearer ${created.accessToken}`,
+                'X-Real-IP': testClientIp(),
+              },
+            })
+
+            const mineResponse = await api.get(`${API_PREFIX}/listings/mine`)
+            expect(mineResponse.status()).toBe(200)
+            const mine = await mineResponse.json() as Array<Record<string, unknown>>
+            const owned = mine.find((item) => item.id === created.listingId)
+            expect(owned).toBeTruthy()
+            expect(owned).toMatchObject({
+              id: created.listingId,
+              floor: 'top',
+              toilet: 'Aseo privado',
+              bedType: 'double',
+              accessible: true,
+              street: 'Private street',
+              postcode: '38001',
+              exactLatitude: 28.464,
+              exactLongitude: -16.2514,
+            })
+
+            const searchResponse = await api.post(`${API_PREFIX}/listings/search`, {
+              data: {
+                rentalMode: 'long',
+                floor: 'top',
+                amenities: ['Aire acondicionado', 'Jardín'],
+                availableUntil: '2030-01-01',
+                limit: 100,
+                offset: 0,
+              },
+            })
+            expect(searchResponse.status()).toBe(200)
+            const search = await searchResponse.json() as { items: Array<Record<string, unknown>> }
+            const publicListing = search.items.find((item) => item.id === created.listingId)
+            expect(publicListing).toBeTruthy()
+            expect(publicListing).toMatchObject({ id: created.listingId, floor: 'top', latitude: 28.4636, longitude: -16.2518 })
+            expect(publicListing).not.toHaveProperty('street')
+            expect(publicListing).not.toHaveProperty('postcode')
+            expect(publicListing).not.toHaveProperty('exactLatitude')
+            expect(publicListing).not.toHaveProperty('exactLongitude')
+
+            const wrongFloorResponse = await api.post(`${API_PREFIX}/listings/search`, {
+              data: { rentalMode: 'long', floor: '1', limit: 100, offset: 0 },
+            })
+            expect(wrongFloorResponse.status()).toBe(200)
+            const wrongFloor = await wrongFloorResponse.json() as { items: Array<{ id: string }> }
+            expect(wrongFloor.items.some((item) => item.id === created.listingId)).toBe(false)
+            await api.dispose()
+          })
+
+          '''.replace('\n          ', '\n').lstrip()
+          if text.count(anchor) != 1:
+              raise SystemExit(f'test insertion anchor count={text.count(anchor)}')
+          text = text.replace(anchor, proof + anchor, 1)
+          path.write_text(text)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/full-stack/backend-integration.spec.ts
+          git diff --cached --check
+          git commit -m 'test: prove customer priority backend synchronization'
+          git push origin HEAD:feat/customer-priority-room-filters-location
