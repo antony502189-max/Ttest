@@ -28,6 +28,9 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Correct implementation anchor
+        run: sed -i "s/accessible: index % 5 === 0/accessible: index % 8 === 0/" scripts/apply_customer_priority_request.py
+
       - name: Apply customer-request patch
         run: python scripts/apply_customer_priority_request.py
 
