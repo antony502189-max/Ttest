@@ -31,9 +31,39 @@ jobs:
           set +e
           rm -f CUSTOMER_IMPLEMENTATION_FAILURE.txt
           sed -i "s/accessible: index % 5 === 0/accessible: index % 8 === 0/" scripts/apply_customer_priority_request.py
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('scripts/apply_customer_priority_request.py')
+          text = path.read_text(encoding='utf-8')
+          text = re.sub(
+              r'# Desktop advanced filter retains all prior controls and gains structured floor\.\n.*?# ---------------------------------------------------------------------------\n# Mobile filter state and priority ordering requested by customer\.\n',
+              '# Desktop filter is patched against the current component by the validation workflow.\n\n# ---------------------------------------------------------------------------\n# Mobile filter state and priority ordering requested by customer.\n',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
 
           {
             python scripts/apply_customer_priority_request.py &&
+            python - <<'PY'
+          from pathlib import Path
+          path = Path('src/components/localized-search-filters.tsx')
+          text = path.read_text(encoding='utf-8')
+          accessibility = '      <YesNoFilter label={text("Adaptada para movilidad reducida", "Адаптировано для маломобильных", "Accessible")} value={value.accessible} onChange={(next) => update("accessible", next)} language={language} />\n'
+          floor = '      <NativeSelect label={text("Planta", "Этаж", "Floor")} value={value.floor} options={[{ value: "Cualquiera", label: anyLabel }, { value: "basement", label: text("Sótano / semisótano", "Цокольный", "Basement") }, "1", "2", "3", { value: "4+", label: "4+" }, { value: "top", label: text("Última planta", "Последний этаж", "Top floor") }]} onChange={(next) => update("floor", next as Filters["floor"])} />\n'
+          if floor not in text:
+              if accessibility not in text:
+                  raise RuntimeError('desktop accessibility anchor not found')
+              text = text.replace(accessibility, accessibility + floor, 1)
+          old_kitchen = '<NativeSelect label={text("Cocina", "Кухня", "Kitchen")} value={value.kitchen}'
+          new_kitchen = '<NativeSelect label={text("Cocina / mini-cocina en la habitación", "Личная кухня / мини-кухня в комнате", "Kitchen / kitchenette in the room")} value={value.kitchen}'
+          if old_kitchen in text:
+              text = text.replace(old_kitchen, new_kitchen, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
             rm scripts/apply_customer_priority_request.py .github/workflows/customer-priority-request-implementation.yml &&
             npm ci &&
             npm run typecheck &&
