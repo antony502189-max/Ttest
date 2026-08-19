@@ -1,0 +1,56 @@
+name: Fix customer regressions
+
+on:
+  push:
+    branches:
+      - feat/customer-priority-room-filters-location
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feat/customer-priority-room-filters-location
+          fetch-depth: 0
+      - name: Restore locked copy contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+            'src/components/localized-search-filters.tsx': [
+              ('<NativeSelect label={text("Cocina / mini-cocina en la habitación", "Личная кухня / мини-кухня в комнате", "Kitchen / kitchenette in the room")} value={value.kitchen}', '<NativeSelect label={text("Cocina", "Кухня", "Kitchen")} value={value.kitchen}'),
+            ],
+            'src/pages/PublishPage.tsx': [
+              ('label="Ducha / baño en la habitación"', 'label="Ducha"'),
+              ('label="Cocina / mini-cocina en la habitación"', 'label="Cocina"'),
+            ],
+            'src/components/map/approximate-location-map.tsx': [
+              ("? 'Перемещайте карту: после отпускания маркер встанет в центр, а адрес определится автоматически. Маркер также можно перетаскивать.'", "? 'Перемещайте карту пальцем и дважды коснитесь нужного места, чтобы поставить маркер.'"),
+              ("? 'Move the map: when you release it, the marker is placed in the centre and the address is detected automatically. You can also drag the marker.'", "? 'Move the map with your finger and double-tap the desired place to set the marker.'"),
+              (": 'Mueve el mapa: al soltarlo, el marcador se coloca en el centro y la dirección se detecta automáticamente. También puedes arrastrar el marcador.'", ": 'Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.'"),
+            ],
+          }
+          for filename, pairs in replacements.items():
+            path = Path(filename)
+            text = path.read_text(encoding='utf-8')
+            for old, new in pairs:
+              if old not in text:
+                raise SystemExit(f'{filename}: anchor not found: {old}')
+              text = text.replace(old, new, 1)
+            path.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/fix-customer-regressions.yml
+          git diff --check
+      - name: Commit regression fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: preserve locked filter and map copy contracts"
+          git push origin HEAD:feat/customer-priority-room-filters-location
