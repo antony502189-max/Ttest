@@ -440,3 +440,10 @@
 .m2-results-filter__checks--rooms > label:last-child {
   grid-column: 1 / -1;
 }
+
+
+/* Customer-priority filter controls */
+.m2-results-filter__pair--dates input { min-width: 0; padding-inline: .45rem; font-size: .72rem; text-align: left; }
+.m2-results-filter__checks--priority { gap: .2rem; margin-bottom: .75rem; }
+.m2-results-filter__checks--priority > label { min-height: 2.8rem; padding: .3rem 0; border-bottom: 1px solid #303030; }
+.m2-results-filter__checks--priority > label:last-child { border-bottom: 0; }

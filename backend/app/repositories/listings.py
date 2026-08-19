@@ -134,6 +134,7 @@ def response_from(row: Any) -> ListingResponse:
         householdHasChildren=room_details.household_has_children if room_details else None,
         heatingType=room_details.heating_type if room_details else None,
         accessible=room_details.accessible if room_details else None,
+        floor=getattr(room_details, "floor", None) if room_details else None,
         couplesAllowed=room_details.couples_allowed if room_details else None,
         acceptedTenantTypes=room_details.accepted_tenant_types if room_details else [],
         restrictions=listing.restrictions,
@@ -348,6 +349,8 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
         query = query.where(ListingRoomDetails.heating_type == payload.heatingType)
     if payload.accessible is not None:
         query = query.where(ListingRoomDetails.accessible == payload.accessible)
+    if payload.floor:
+        query = query.where(ListingRoomDetails.floor == payload.floor)
     if payload.couplesAllowed is not None:
         query = query.where(ListingRoomDetails.couples_allowed == payload.couplesAllowed)
     if payload.acceptedTenantTypes:

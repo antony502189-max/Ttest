@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { MobileAppV2 } from '@/components/mobile-app-v2'
 import { MobilePublicationGate } from '@/components/mobile-publication-gate'
 import { MobileSearchResults } from '@/components/mobile-search-results-v2'
+import { PublishLocationEnhancer } from '@/components/publish-location-enhancer'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
@@ -60,5 +61,5 @@ export function AppLayout() {
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Outlet />}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Outlet />}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
 }

@@ -41,6 +41,7 @@ import { ApproximateLocationMap } from "@/components/map-view";
 import { useApp } from "@/contexts/app-context";
 import { amenityOptions, areaCenters, createDefaultDraft } from "@/data/listings";
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
+import { approximatePublicCoordinates } from "@/lib/location-privacy";
 import { removeUnusedMediaReferences } from "@/lib/media-storage";
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from "@/types";
@@ -103,6 +104,7 @@ const toDraft = (listing: Listing): ListingDraft => {
     kitchen: listing.kitchen ?? "Cocina compartida",
     heatingType: listing.heatingType ?? "none",
     accessible: listing.accessible ?? false,
+    floor: listing.floor ?? '1',
     furnished: listing.furnished ?? true,
     amenities: listing.amenities.map((item) => item === "Fibra" ? "Wi-Fi" : item),
     monthlyPrice: listing.monthlyPrice ?? (listing.rentalMode === "long" ? listing.price : 0),
@@ -150,6 +152,8 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
   const id = previous?.id ?? `${draft.area.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-6)}`;
   const primaryPrice = draft.rentalMode === "holiday" ? draft.nightlyPrice : draft.monthlyPrice;
   const availableSpots = Math.max(0, draft.roomCapacity - draft.currentRoomResidents);
+  const exactCoordinates = draft.coordinates;
+  const publicCoordinates = approximatePublicCoordinates(exactCoordinates);
   const listing: Listing = {
     id,
     title: draft.title,
@@ -193,9 +197,11 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     householdHasChildren: draft.householdHasChildren,
     heatingType: draft.heatingType,
     accessible: draft.accessible,
+    floor: draft.floor,
     couplesAllowed: draft.couplesAllowed,
     acceptedTenantTypes: draft.acceptedTenantTypes,
-    coordinates: draft.coordinates,
+    coordinates: publicCoordinates,
+    exactCoordinates,
     tenantRequirement: draft.tenantRequirement,
     smokingAllowed: draft.smokingAllowed,
     petsAllowed: draft.petsAllowed,
@@ -402,7 +408,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       case 1:
         return <WizardSection title="Sitúa la habitación" description="La dirección exacta no se muestra públicamente.">
           <div className="form-grid">
-            <FormField label="Municipio" htmlFor="publish-city"><select id="publish-city" value={draft.city} onChange={(event) => set("city", event.target.value)}><option>Adeje</option><option>Arona</option><option>Granadilla de Abona</option><option>Santa Cruz de Tenerife</option><option>San Cristóbal de La Laguna</option></select></FormField>
+            <FormField label="Municipio" htmlFor="publish-city"><select id="publish-city" value={draft.city} onChange={(event) => set("city", event.target.value)}>{['Adeje','Arafo','Arico','Arona','Buenavista del Norte','Candelaria','El Rosario','El Sauzal','El Tanque','Fasnia','Garachico','Granadilla de Abona','Guía de Isora','Güímar','Icod de los Vinos','La Guancha','La Matanza de Acentejo','La Orotava','La Victoria de Acentejo','Los Realejos','Los Silos','Puerto de la Cruz','San Cristóbal de La Laguna','San Juan de la Rambla','San Miguel de Abona','Santa Cruz de Tenerife','Santa Úrsula','Santiago del Teide','Tacoronte','Tegueste','Vilaflor de Chasna'].map((city) => <option key={city}>{city}</option>)}</select></FormField>
             <FormField label="Zona o barrio" htmlFor="publish-area" error={errors.area}><Input id="publish-area" value={draft.area} aria-invalid={Boolean(errors.area)} aria-describedby={errors.area ? "publish-area-error" : undefined} onChange={(event) => { const area = event.target.value; setDraft((current) => ({ ...current, area, coordinates: current.locationManuallyMoved ? current.coordinates : areaCenters[area] ?? current.coordinates })); }} /></FormField>
             <FormField label="Calle" htmlFor="publish-street"><Input id="publish-street" value={draft.street} onChange={(event) => set("street", event.target.value)} /></FormField>
             <FormField label="Código postal" htmlFor="publish-postcode"><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} onChange={(event) => set("postcode", event.target.value)} /></FormField>
@@ -447,6 +453,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <FormField label="Aseo / WC" htmlFor="publish-toilet"><select id="publish-toilet" value={draft.toilet} onChange={(e) => set("toilet", e.target.value as ListingDraft["toilet"])}><option>Aseo compartido</option><option>Aseo privado</option></select></FormField>
             <FormField label="Ducha" htmlFor="publish-shower"><select id="publish-shower" value={draft.shower} onChange={(e) => set("shower", e.target.value as ListingDraft["shower"])}><option>Ducha compartida</option><option>Ducha privada</option></select></FormField>
             <FormField label="Cocina" htmlFor="publish-kitchen"><select id="publish-kitchen" value={draft.kitchen} onChange={(e) => set("kitchen", e.target.value as ListingDraft["kitchen"])}><option>Cocina compartida</option><option>Cocina privada</option></select></FormField>
+            <FormField label="Planta" htmlFor="publish-floor"><select id="publish-floor" value={draft.floor} onChange={(e) => set("floor", e.target.value as ListingDraft["floor"])}><option value="basement">Sótano / semisótano</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4+">4+</option><option value="top">Última planta</option></select></FormField>
             <FormField label="Calefacción" htmlFor="publish-heating"><select id="publish-heating" value={draft.heatingType} onChange={(e) => set("heatingType", e.target.value as ListingDraft["heatingType"])}><option value="none">Sin calefacción</option><option value="individual">Calefacción individual</option><option value="central">Calefacción central</option><option value="unknown">No especificado</option></select></FormField>
           </div>
           <fieldset className="checks-panel"><legend>Equipamiento y accesibilidad</legend>

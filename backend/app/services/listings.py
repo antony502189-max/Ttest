@@ -36,6 +36,7 @@ ROOM_DETAIL_MAPPING = {
     "householdHasChildren": "household_has_children",
     "heatingType": "heating_type",
     "accessible": "accessible",
+    "floor": "floor",
     "couplesAllowed": "couples_allowed",
     "acceptedTenantTypes": "accepted_tenant_types",
 }

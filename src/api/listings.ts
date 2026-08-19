@@ -57,6 +57,7 @@ type ListingDto = {
   householdHasChildren: boolean | null
   heatingType: Listing['heatingType'] | null
   accessible: boolean | null
+  floor: Listing['floor'] | null
   couplesAllowed: boolean | null
   acceptedTenantTypes: NonNullable<Listing['acceptedTenantTypes']>
   tenantRequirement: TenantRequirement | null
@@ -161,6 +162,7 @@ export function toListing(dto: ListingDto): Listing {
     householdHasChildren: dto.householdHasChildren,
     heatingType: dto.heatingType,
     accessible: dto.accessible,
+    floor: dto.floor,
     couplesAllowed: dto.couplesAllowed,
     acceptedTenantTypes: dto.acceptedTenantTypes,
     coordinates: { lat: dto.latitude, lng: dto.longitude },
@@ -331,6 +333,7 @@ export function searchPublicListings(input: ListingSearchInput) {
     ...(yesNo(filters.householdHasChildren) !== undefined ? { householdHasChildren: yesNo(filters.householdHasChildren) } : {}),
     ...(filters.heatingType !== 'Cualquiera' ? { heatingType: filters.heatingType } : {}),
     ...(yesNo(filters.accessible) !== undefined ? { accessible: yesNo(filters.accessible) } : {}),
+    ...(filters.floor !== 'Cualquiera' ? { floor: filters.floor } : {}),
     ...(filters.acceptedTenantTypes.length ? { acceptedTenantTypes: filters.acceptedTenantTypes } : {}),
     ...(yesNo(filters.empadronamiento) !== undefined ? { empadronamientoAllowed: yesNo(filters.empadronamiento) } : {}),
     ...(publicationDays ? { publishedWithinDays: publicationDays } : {}),
@@ -395,7 +398,7 @@ function listingPayload(listing: Listing, existing?: Listing) {
     rentalUnit: listing.rentalUnit ?? null, bedType: listing.bedType ?? null, bedCount: listing.bedCount ?? null,
     currentRoomResidents: listing.currentRoomResidents ?? null, toilet: listing.toilet ?? null,
     householdGender: listing.householdGender ?? null, householdHasChildren: listing.householdHasChildren ?? null,
-    heatingType: listing.heatingType ?? null, accessible: listing.accessible ?? null, couplesAllowed: listing.couplesAllowed ?? null,
+    heatingType: listing.heatingType ?? null, accessible: listing.accessible ?? null, floor: listing.floor ?? null, couplesAllowed: listing.couplesAllowed ?? null,
     acceptedTenantTypes: listing.acceptedTenantTypes ?? [],
     tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
     petsAllowed: listing.petsAllowed, childrenAllowed: listing.childrenAllowed, empadronamientoAllowed: listing.empadronamientoAllowed,
