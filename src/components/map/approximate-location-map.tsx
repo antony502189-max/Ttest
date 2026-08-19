@@ -27,10 +27,10 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   const [error, setError] = useState('')
   const [detectedAddress, setDetectedAddress] = useState('')
   const guidance = language === 'ru'
-    ? 'Перемещайте карту: после отпускания маркер встанет в центр, а адрес определится автоматически. Маркер также можно перетаскивать.'
+    ? 'Перемещайте карту пальцем и дважды коснитесь нужного места, чтобы поставить маркер.'
     : language === 'en'
-      ? 'Move the map: when you release it, the marker is placed in the centre and the address is detected automatically. You can also drag the marker.'
-      : 'Mueve el mapa: al soltarlo, el marcador se coloca en el centro y la dirección se detecta automáticamente. También puedes arrastrar el marcador.'
+      ? 'Move the map with your finger and double-tap the desired place to set the marker.'
+      : 'Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.'
   const mapLabel = language === 'ru'
     ? `Google Maps для выбора местоположения. ${guidance}`
     : language === 'en'
