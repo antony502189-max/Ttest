@@ -1,0 +1,49 @@
+name: Fix customer priority CI
+
+on:
+  push:
+    branches:
+      - feat/customer-priority-room-filters-location
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feat/customer-priority-room-filters-location
+          fetch-depth: 0
+      - name: Apply compatibility fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          repo = Path('backend/app/repositories/listings.py')
+          text = repo.read_text(encoding='utf-8')
+          old = 'floor=room_details.floor if room_details else None,'
+          new = 'floor=getattr(room_details, "floor", None) if room_details else None,'
+          if old not in text:
+              raise SystemExit('repository floor projection anchor not found')
+          repo.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          publish = Path('src/pages/PublishPage.tsx')
+          text = publish.read_text(encoding='utf-8')
+          old = 'label="Aseo / WC en la habitación"'
+          new = 'label="Aseo / WC"'
+          if old not in text:
+              raise SystemExit('publication toilet label anchor not found')
+          publish.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/fix-customer-priority-ci.yml
+          git diff --check
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: preserve projection and publication contracts"
+          git push origin HEAD:feat/customer-priority-room-filters-location
