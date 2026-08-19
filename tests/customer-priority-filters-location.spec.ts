@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+// Customer acceptance contract: keep the requested priority, privacy combinations,
+// structured floor, and address-resolution flow covered as one regression surface.
 async function openAsHost(page: Page) {
   await page.goto('/#/')
   await page.evaluate(() => {
