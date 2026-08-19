@@ -134,7 +134,7 @@ def response_from(row: Any) -> ListingResponse:
         householdHasChildren=room_details.household_has_children if room_details else None,
         heatingType=room_details.heating_type if room_details else None,
         accessible=room_details.accessible if room_details else None,
-        floor=room_details.floor if room_details else None,
+        floor=getattr(room_details, "floor", None) if room_details else None,
         couplesAllowed=room_details.couples_allowed if room_details else None,
         acceptedTenantTypes=room_details.accepted_tenant_types if room_details else [],
         restrictions=listing.restrictions,
