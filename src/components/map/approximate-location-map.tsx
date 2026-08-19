@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
-import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
+import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, isInsideTenerife } from '@/lib/tenerife'
 import type { Coordinates } from '@/types'
 
 const DOUBLE_TAP_DELAY_MS = 360
 const DOUBLE_TAP_DISTANCE_PX = 28
 const TAP_MOVE_TOLERANCE_PX = 14
+
+type AddressResolvedDetail = {
+  formattedAddress: string
+  addressComponents: google.maps.GeocoderAddressComponent[]
+  coordinates: Coordinates
+}
+
+type LocationSelectedDetail = { coordinates?: Coordinates }
 
 export function ApproximateLocationMap({ coordinates, onChange }: { coordinates: Coordinates; onChange: (coordinates: Coordinates) => void }) {
   const { language } = useI18n()
@@ -17,16 +25,18 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   const initialCoordinatesRef = useRef(coordinates)
   const internalChangeRef = useRef(false)
   const [error, setError] = useState('')
+  const [detectedAddress, setDetectedAddress] = useState('')
   const guidance = language === 'ru'
-    ? 'Перемещайте карту пальцем и дважды коснитесь нужного места, чтобы поставить маркер.'
+    ? 'Перемещайте карту: после отпускания маркер встанет в центр, а адрес определится автоматически. Маркер также можно перетаскивать.'
     : language === 'en'
-      ? 'Move the map with your finger and double-tap the desired place to set the marker.'
-      : 'Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.'
+      ? 'Move the map: when you release it, the marker is placed in the centre and the address is detected automatically. You can also drag the marker.'
+      : 'Mueve el mapa: al soltarlo, el marcador se coloca en el centro y la dirección se detecta automáticamente. También puedes arrastrar el marcador.'
   const mapLabel = language === 'ru'
-    ? `Google Maps для выбора примерного местоположения. ${guidance}`
+    ? `Google Maps для выбора местоположения. ${guidance}`
     : language === 'en'
-      ? `Google Maps for choosing an approximate location. ${guidance}`
-      : `Google Maps para elegir una ubicación aproximada. ${guidance}`
+      ? `Google Maps for choosing a location. ${guidance}`
+      : `Google Maps para elegir una ubicación. ${guidance}`
+  const detectedLabel = language === 'ru' ? 'Определённый адрес' : language === 'en' ? 'Detected address' : 'Dirección detectada'
 
   useEffect(() => { onChangeRef.current = onChange }, [onChange])
 
@@ -36,24 +46,27 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
     let cancelled = false
     let resizeObserver: ResizeObserver | null = null
     let dragListener: google.maps.MapsEventListener | null = null
+    let mapDragEndListener: google.maps.MapsEventListener | null = null
     let mapDoubleClickListener: google.maps.MapsEventListener | null = null
     let removePointerListeners: (() => void) | null = null
     let pointerStart: { id: number; x: number; y: number } | null = null
     let lastTap: { at: number; x: number; y: number } | null = null
+    let geocoder: google.maps.Geocoder | null = null
     const handleAuthFailure = () => setError(googleMapsAuthErrorMessage)
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
 
-    loadGoogleMaps().then(({ maps, marker }) => {
+    loadGoogleMaps().then(async ({ maps, marker }) => {
       if (cancelled || !containerRef.current) return
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const requestedInitial = initialCoordinatesRef.current
       const initial = isInsideTenerife(requestedInitial) ? requestedInitial : TENERIFE_CENTER
       const mapInstance = new maps.Map(containerRef.current, {
         center: initial,
-        zoom: 14,
+        zoom: 16,
         minZoom: 10,
-        maxZoom: 18,
+        maxZoom: 20,
         mapId: googleMapsConfig.mapId,
+        mapTypeId: 'roadmap',
         disableDefaultUI: true,
         zoomControl: true,
         clickableIcons: false,
@@ -62,19 +75,36 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
         restriction: { latLngBounds: TENERIFE_BOUNDS, strictBounds: true },
       })
       const pin = new marker.PinElement({ background: '#dff34f', borderColor: '#344500', glyphColor: '#344500', scale: 1.15 })
-      const publicMarker = new marker.AdvancedMarkerElement({
-        map: mapInstance,
-        position: initial,
-        content: pin,
-        gmpDraggable: true,
-        title: 'Ubicación pública aproximada',
-      })
+      const publicMarker = new marker.AdvancedMarkerElement({ map: mapInstance, position: initial, content: pin, gmpDraggable: true, title: 'Ubicación seleccionada' })
 
-      const commitPoint = (point: Coordinates) => {
+      if (!googleMapsTestSdkEnabled) {
+        try {
+          const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
+          geocoder = new geocoding.Geocoder()
+        } catch {
+          // The map remains fully usable if geocoding is temporarily unavailable.
+        }
+      }
+
+      const resolveAddress = async (point: Coordinates) => {
+        if (!geocoder || cancelled) return
+        try {
+          const response = await geocoder.geocode({ location: point })
+          const result = response.results[0]
+          if (!result || cancelled) return
+          setDetectedAddress(result.formatted_address)
+          window.dispatchEvent(new CustomEvent<AddressResolvedDetail>('112233:map-address-resolved', { detail: { formattedAddress: result.formatted_address, addressComponents: result.address_components, coordinates: point } }))
+        } catch {
+          if (!cancelled) setDetectedAddress('')
+        }
+      }
+
+      const commitPoint = (point: Coordinates, detectAddress = true) => {
         if (!isInsideTenerife(point)) return
         publicMarker.position = point
         internalChangeRef.current = true
         onChangeRef.current(point)
+        if (detectAddress) void resolveAddress(point)
       }
 
       const pointFromClientPosition = (clientX: number, clientY: number): Coordinates | null => {
@@ -87,10 +117,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
         const rect = container.getBoundingClientRect()
         if (!rect.width || !rect.height) return null
         const scale = 2 ** zoom
-        const worldPoint = new google.maps.Point(
-          centerWorld.x + (clientX - rect.left - rect.width / 2) / scale,
-          centerWorld.y + (clientY - rect.top - rect.height / 2) / scale,
-        )
+        const worldPoint = new google.maps.Point(centerWorld.x + (clientX - rect.left - rect.width / 2) / scale, centerWorld.y + (clientY - rect.top - rect.height / 2) / scale)
         const latLng = projection.fromPointToLatLng(worldPoint)
         return latLng ? { lat: latLng.lat(), lng: latLng.lng() } : null
       }
@@ -103,46 +130,42 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       dragListener = publicMarker.addListener('dragend', () => {
         const position = publicMarker.position
         if (!position) return
-        const point = position instanceof google.maps.LatLng
-          ? { lat: position.lat(), lng: position.lng() }
-          : { lat: position.lat, lng: position.lng }
+        const point = position instanceof google.maps.LatLng ? { lat: position.lat(), lng: position.lng() } : { lat: position.lat, lng: position.lng }
+        mapInstance.panTo(point)
         commitPoint(point)
       })
-
+      mapDragEndListener = mapInstance.addListener('dragend', () => {
+        const center = mapInstance.getCenter()
+        if (center) commitPoint({ lat: center.lat(), lng: center.lng() })
+      })
       mapDoubleClickListener = mapInstance.addListener('dblclick', (event: google.maps.MapMouseEvent) => {
         const latLng = event.latLng
         if (latLng) commitPoint({ lat: latLng.lat(), lng: latLng.lng() })
       })
 
-      const handleDoubleClick = (event: MouseEvent) => {
-        event.preventDefault()
-        placeFromClientPosition(event.clientX, event.clientY)
+      const handleSelectedLocation = (event: Event) => {
+        const point = (event as CustomEvent<LocationSelectedDetail>).detail?.coordinates
+        if (!point || !isInsideTenerife(point)) return
+        mapInstance.panTo(point)
+        mapInstance.setZoom(Math.max(mapInstance.getZoom() ?? 16, 17))
+        commitPoint(point, false)
       }
-      const handlePointerDown = (event: PointerEvent) => {
-        if (event.pointerType === 'mouse') return
-        pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY }
-      }
+      window.addEventListener('112233:publish-location-selected', handleSelectedLocation)
+
+      const handleDoubleClick = (event: MouseEvent) => { event.preventDefault(); placeFromClientPosition(event.clientX, event.clientY) }
+      const handlePointerDown = (event: PointerEvent) => { if (event.pointerType !== 'mouse') pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY } }
       const handlePointerUp = (event: PointerEvent) => {
         if (event.pointerType === 'mouse' || !pointerStart || pointerStart.id !== event.pointerId) return
         const moved = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
         pointerStart = null
-        if (moved > TAP_MOVE_TOLERANCE_PX) {
-          lastTap = null
-          return
-        }
+        if (moved > TAP_MOVE_TOLERANCE_PX) { lastTap = null; return }
         const now = performance.now()
         if (lastTap && now - lastTap.at <= DOUBLE_TAP_DELAY_MS && Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= DOUBLE_TAP_DISTANCE_PX) {
-          event.preventDefault()
-          placeFromClientPosition(event.clientX, event.clientY)
-          lastTap = null
-          return
+          event.preventDefault(); placeFromClientPosition(event.clientX, event.clientY); lastTap = null; return
         }
         lastTap = { at: now, x: event.clientX, y: event.clientY }
       }
-      const handlePointerCancel = () => {
-        pointerStart = null
-        lastTap = null
-      }
+      const handlePointerCancel = () => { pointerStart = null; lastTap = null }
 
       container.addEventListener('dblclick', handleDoubleClick, true)
       container.addEventListener('pointerdown', handlePointerDown, true)
@@ -153,15 +176,12 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
         container.removeEventListener('pointerdown', handlePointerDown, true)
         container.removeEventListener('pointerup', handlePointerUp, true)
         container.removeEventListener('pointercancel', handlePointerCancel, true)
+        window.removeEventListener('112233:publish-location-selected', handleSelectedLocation)
       }
 
       mapRef.current = mapInstance
       markerRef.current = publicMarker
-      resizeObserver = new ResizeObserver(() => {
-        const center = mapInstance.getCenter()
-        google.maps.event.trigger(mapInstance, 'resize')
-        if (center) mapInstance.setCenter(center)
-      })
+      resizeObserver = new ResizeObserver(() => { const center = mapInstance.getCenter(); google.maps.event.trigger(mapInstance, 'resize'); if (center) mapInstance.setCenter(center) })
       resizeObserver.observe(containerRef.current)
     }).catch((loadError) => { if (!cancelled) setError(googleMapsErrorMessage(loadError)) })
 
@@ -169,6 +189,7 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       cancelled = true
       resizeObserver?.disconnect()
       dragListener?.remove()
+      mapDragEndListener?.remove()
       mapDoubleClickListener?.remove()
       removePointerListeners?.()
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
@@ -183,16 +204,14 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   useEffect(() => {
     if (!isInsideTenerife(coordinates)) return
     if (markerRef.current) markerRef.current.position = coordinates
-    if (internalChangeRef.current) {
-      internalChangeRef.current = false
-      return
-    }
+    if (internalChangeRef.current) { internalChangeRef.current = false; return }
     mapRef.current?.panTo(coordinates)
   }, [coordinates.lat, coordinates.lng, coordinates])
 
   return <div className="approximate-location-map-shell google-map-shell" data-provider="google-maps">
     <div ref={containerRef} className="approximate-location-map google-map-canvas" role="application" aria-label={mapLabel} />
     <p className="approximate-location-map-hint">{guidance}</p>
+    {detectedAddress ? <p className="approximate-location-map-address" aria-live="polite"><strong>{detectedLabel}:</strong> {detectedAddress}</p> : null}
     {error ? <p className="map-inline-error" role="alert">{error}</p> : null}
   </div>
 }

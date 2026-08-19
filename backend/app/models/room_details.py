@@ -36,5 +36,6 @@ class ListingRoomDetails(Base):
     household_has_children: Mapped[bool | None] = mapped_column(Boolean)
     heating_type: Mapped[str | None] = mapped_column(String(16))
     accessible: Mapped[bool | None] = mapped_column(Boolean)
+    floor: Mapped[str | None] = mapped_column(String(16))
     couples_allowed: Mapped[bool | None] = mapped_column(Boolean)
     accepted_tenant_types: Mapped[list[str]] = mapped_column(JSONB, default=list)

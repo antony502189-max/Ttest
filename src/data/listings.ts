@@ -89,7 +89,7 @@ function acceptedTenants(requirement: NonNullable<Listing['tenantRequirement']>)
 }
 
 export const areas = places.map((place) => place[1])
-export const amenityOptions = ['Wi-Fi', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Aparcamiento', 'Cocina equipada']
+export const amenityOptions = ['Wi-Fi', 'Escritorio', 'Balcón', 'Ascensor', 'Lavadora', 'Aire acondicionado', 'Terraza', 'Piscina', 'Jardín', 'Limpieza incluida', 'Ventana a la calle', 'Aparcamiento', 'Cocina equipada']
 
 export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) => {
   const place = places[index < legacyPlaceIndices.length ? legacyPlaceIndices[index] : index % places.length]
@@ -149,6 +149,7 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     householdHasChildren: index % 6 === 1,
     heatingType: index % 4 === 0 ? 'individual' : index % 7 === 0 ? 'central' : 'none',
     accessible: index % 8 === 0,
+    floor: (['basement', '1', '2', '3', '4+', 'top'] as const)[index % 6],
     couplesAllowed: tenantRequirement === 'couple' || tenantRequirement === 'any',
     acceptedTenantTypes: acceptedTenants(tenantRequirement),
     coordinates: { lat: place[2] + ((index % 3) - 1) * 0.0045, lng: place[3] + ((index % 4) - 1.5) * 0.004 },
@@ -221,6 +222,7 @@ export const defaultFilters: Filters = {
   householdHasChildren: 'Cualquiera',
   heatingType: 'Cualquiera',
   accessible: 'Cualquiera',
+  floor: 'Cualquiera',
   acceptedTenantTypes: [],
   empadronamiento: 'Cualquiera',
   publicationDate: 'Cualquiera',
@@ -233,7 +235,7 @@ export const createDefaultDraft = (): ListingDraft => ({
   rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], locationManuallyMoved: false,
   roomType: 'Habitación individual', roomSizeM2: 14, homeSizeM2: 85, bedroomCount: 5, bathroomCount: 2, currentResidents: 4, roomCapacity: 1,
   rentalUnit: 'room', bedType: 'single', bedCount: 1, currentRoomResidents: 0,
-  bathroom: 'Baño compartido', toilet: 'Aseo privado', shower: 'Ducha compartida', kitchen: 'Cocina privada', heatingType: 'none', accessible: false,
+  bathroom: 'Baño compartido', toilet: 'Aseo privado', shower: 'Ducha compartida', kitchen: 'Cocina privada', heatingType: 'none', accessible: false, floor: '1',
   furnished: true, amenities: ['Wi-Fi', 'Escritorio', 'Armario', 'Lavadora', 'Cocina equipada'], monthlyPrice: 450, nightlyPrice: 55, weeklyPrice: 330, depositAmount: 100,
   billsIncluded: true, billsNote: '', availableFrom: '2026-08-15', availableUntil: '', minimumStayMonths: 3, minimumNights: 3, expiresAt: '2026-10-01',
   tenantRequirement: 'single-man', acceptedTenantTypes: ['man'], householdGender: 'men', householdHasChildren: false, couplesAllowed: false,

@@ -11,6 +11,7 @@ ALLOWED_BED_TYPES = {"single", "double"}
 ALLOWED_TOILETS = {"Aseo privado", "Aseo compartido"}
 ALLOWED_HOUSEHOLD_GENDERS = {"men", "women", "mixed", "unknown"}
 ALLOWED_HEATING_TYPES = {"individual", "central", "none", "unknown"}
+ALLOWED_FLOORS = {"basement", "1", "2", "3", "4+", "top"}
 ALLOWED_TENANT_TYPES = {"man", "woman", "couple", "family"}
 
 
@@ -64,6 +65,7 @@ class ListingWrite(BaseModel):
     householdHasChildren: bool | None = None
     heatingType: str | None = Field(default=None, max_length=16)
     accessible: bool | None = None
+    floor: str | None = Field(default=None, max_length=16)
     couplesAllowed: bool | None = None
     acceptedTenantTypes: list[str] = Field(default_factory=list, max_length=4)
     restrictions: list[str] = Field(default_factory=list, max_length=100)
@@ -98,6 +100,8 @@ class ListingWrite(BaseModel):
             raise ValueError("householdGender contains an unsupported value")
         if self.heatingType is not None and self.heatingType not in ALLOWED_HEATING_TYPES:
             raise ValueError("heatingType contains an unsupported value")
+        if self.floor is not None and self.floor not in ALLOWED_FLOORS:
+            raise ValueError("floor contains an unsupported value")
         if len(set(self.acceptedTenantTypes)) != len(self.acceptedTenantTypes) or any(
             value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
         ):
@@ -166,6 +170,7 @@ class ListingPatch(BaseModel):
     householdHasChildren: bool | None = None
     heatingType: str | None = Field(default=None, max_length=16)
     accessible: bool | None = None
+    floor: str | None = Field(default=None, max_length=16)
     couplesAllowed: bool | None = None
     acceptedTenantTypes: list[str] | None = Field(default=None, max_length=4)
     restrictions: list[str] | None = Field(default=None, max_length=100)
@@ -203,6 +208,7 @@ class ListingPatch(BaseModel):
             "householdHasChildren",
             "heatingType",
             "accessible",
+            "floor",
             "couplesAllowed",
             "acceptedTenantTypes",
             "exactLatitude",
@@ -229,6 +235,8 @@ class ListingPatch(BaseModel):
             raise ValueError("householdGender contains an unsupported value")
         if self.heatingType is not None and self.heatingType not in ALLOWED_HEATING_TYPES:
             raise ValueError("heatingType contains an unsupported value")
+        if self.floor is not None and self.floor not in ALLOWED_FLOORS:
+            raise ValueError("floor contains an unsupported value")
         if self.acceptedTenantTypes is not None and (
             len(set(self.acceptedTenantTypes)) != len(self.acceptedTenantTypes)
             or any(value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes)
@@ -304,6 +312,7 @@ class ListingResponse(BaseModel):
     householdHasChildren: bool | None = None
     heatingType: str | None = None
     accessible: bool | None = None
+    floor: str | None = None
     couplesAllowed: bool | None = None
     acceptedTenantTypes: list[str] = Field(default_factory=list)
     restrictions: list[str]
@@ -403,6 +412,7 @@ class ListingSearchRequest(BaseModel):
     householdHasChildren: bool | None = None
     heatingType: str | None = Field(default=None, max_length=16)
     accessible: bool | None = None
+    floor: str | None = Field(default=None, max_length=16)
     couplesAllowed: bool | None = None
     acceptedTenantTypes: list[str] = Field(default_factory=list, max_length=4)
     publishedWithinDays: int | None = Field(default=None, ge=1, le=365)
@@ -462,6 +472,8 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("householdGender contains an unsupported value")
         if self.heatingType not in {None, *ALLOWED_HEATING_TYPES}:
             raise ValueError("heatingType contains an unsupported value")
+        if self.floor not in {None, *ALLOWED_FLOORS}:
+            raise ValueError("floor contains an unsupported value")
         if len(set(self.acceptedTenantTypes)) != len(self.acceptedTenantTypes) or any(
             value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
         ):

@@ -96,6 +96,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     if (!boolMatches(listing.householdHasChildren, filters.householdHasChildren)) return false
     if (filters.heatingType !== 'Cualquiera' && listing.heatingType !== filters.heatingType) return false
     if (!boolMatches(listing.accessible, filters.accessible)) return false
+    if (filters.floor !== 'Cualquiera' && listing.floor !== filters.floor) return false
     if (filters.acceptedTenantTypes.length) {
       const accepted = listing.acceptedTenantTypes ?? []
       if (!filters.acceptedTenantTypes.some((type) => accepted.includes(type))) return false
@@ -158,6 +159,7 @@ export function getActiveFilterKeys(filters: Filters) {
   if (filters.householdHasChildren !== defaultFilters.householdHasChildren) keys.push('householdHasChildren')
   if (filters.heatingType !== defaultFilters.heatingType) keys.push('heatingType')
   if (filters.accessible !== defaultFilters.accessible) keys.push('accessible')
+  if (filters.floor !== defaultFilters.floor) keys.push('floor')
   if (filters.acceptedTenantTypes.length) keys.push('acceptedTenantTypes')
   if (filters.empadronamiento !== defaultFilters.empadronamiento) keys.push('empadronamiento')
   if (filters.publicationDate !== defaultFilters.publicationDate) keys.push('publicationDate')
@@ -175,7 +177,7 @@ const numericFields: (keyof Filters)[] = [
 const paramNames: Partial<Record<keyof Filters, string>> = {
   minPrice: 'precioMin', maxPrice: 'precioMax', areas: 'zonas', roomType: 'habitacion', available: 'fecha', availableUntil: 'hasta', minStay: 'estancia', conditions: 'condiciones', tenantRequirement: 'requisito', tenantRequirements: 'requisitos',
   bathroom: 'bano', kitchen: 'cocina', furnished: 'amueblada', billsIncluded: 'gastos', deposit: 'fianza', smoking: 'fumar', pets: 'mascotas',
-  children: 'ninos', couplesAllowed: 'parejasOk', householdGender: 'convivenciaGenero', householdHasChildren: 'convivenciaNinos', heatingType: 'calefaccion', accessible: 'adaptada', acceptedTenantTypes: 'acepta',
+  children: 'ninos', couplesAllowed: 'parejasOk', householdGender: 'convivenciaGenero', householdHasChildren: 'convivenciaNinos', heatingType: 'calefaccion', accessible: 'adaptada', floor: 'planta', acceptedTenantTypes: 'acepta',
   empadronamiento: 'padron', publicationDate: 'publicado', advertiserType: 'anunciante', amenities: 'servicios', sort: 'orden',
   roomSizeMin: 'tamanoMin', roomSizeMax: 'tamanoMax', homeSizeMin: 'viviendaMin', homeSizeMax: 'viviendaMax', bathroomCountMin: 'banosMin', rentalUnit: 'unidad', bedType: 'cama', bedCountMin: 'camasMin',
   shower: 'ducha', toilet: 'aseo', currentResidents: 'residentes', roomResidents: 'residentesHabitacion', roomCapacity: 'capacidad', availableSpotsMin: 'plazasMin', minimumNights: 'nochesMin',

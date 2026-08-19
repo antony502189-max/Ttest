@@ -11,6 +11,7 @@ export type RentalUnit = 'room' | 'bed'
 export type BedType = 'single' | 'double'
 export type HouseholdGender = 'men' | 'women' | 'mixed' | 'unknown'
 export type HeatingType = 'individual' | 'central' | 'none' | 'unknown'
+export type FloorLevel = 'basement' | '1' | '2' | '3' | '4+' | 'top'
 export type AcceptedTenantType = 'man' | 'woman' | 'couple' | 'family'
 
 export interface Owner {
@@ -72,6 +73,7 @@ export interface Listing {
   householdHasChildren?: boolean | null
   heatingType?: HeatingType | null
   accessible?: boolean | null
+  floor?: FloorLevel | null
   couplesAllowed?: boolean | null
   acceptedTenantTypes?: AcceptedTenantType[]
   coordinates: Coordinates
@@ -149,6 +151,7 @@ export interface Filters {
   householdHasChildren: YesNoAny
   heatingType: 'Cualquiera' | HeatingType
   accessible: YesNoAny
+  floor: 'Cualquiera' | FloorLevel
   acceptedTenantTypes: AcceptedTenantType[]
   empadronamiento: YesNoAny
   publicationDate: string
@@ -203,6 +206,7 @@ export interface ListingDraft {
   kitchen: NonNullable<Listing['kitchen']>
   heatingType: HeatingType
   accessible: boolean
+  floor: FloorLevel
   furnished: boolean
   amenities: string[]
   monthlyPrice: number
