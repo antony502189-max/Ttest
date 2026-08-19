@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/runner/work/Ttest/Ttest/scripts/apply_customer_priority_request.py", line 153, in <module>
+    replace(
+  File "/home/runner/work/Ttest/Ttest/scripts/apply_customer_priority_request.py", line 23, in replace
+    raise RuntimeError(f"{path}: expected at least {count} occurrence(s), found {actual}: {old[:120]!r}")
+RuntimeError: src/components/localized-search-filters.tsx: expected at least 1 occurrence(s), found 0: "        {selectRow(t('Accesibilidad'), filters.accessible, yesNoOptions, (value) => set('accessible', value as Filters['"
