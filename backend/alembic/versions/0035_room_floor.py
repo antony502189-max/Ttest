@@ -16,10 +16,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # Expand-only migration: old application versions can ignore this nullable column.
+    # Allowed values are enforced at the API/schema boundary while rollback remains safe.
     op.add_column("listing_room_details", sa.Column("floor", sa.String(length=16), nullable=True))
-    op.create_check_constraint("ck_room_details_floor", "listing_room_details", "floor IS NULL OR floor IN ('basement', '1', '2', '3', '4+', 'top')")
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_room_details_floor", "listing_room_details", type_="check")
     op.drop_column("listing_room_details", "floor")
