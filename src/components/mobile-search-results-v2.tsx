@@ -23,6 +23,7 @@ import { getBedroomCount } from '@/lib/listings'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersFromParams, filtersToParams } from '@/lib/search'
+import { compareListingFloors } from '@/lib/floor'
 import type { Filters, Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
 import '@/mobile-search-results.css'
@@ -139,10 +140,6 @@ function availabilityFact(listing: Listing, language: ResultsLanguage) {
 
 function toggleValue<T>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
-}
-
-function stableFloor(listing: Listing) {
-  return [...listing.id].reduce((value, character) => (value * 31 + character.charCodeAt(0)) % 11, 0)
 }
 
 function orderLabel(copy: ResultsCopy, order: ResultsOrder) {
@@ -324,8 +321,8 @@ export function MobileSearchResults() {
     if (order === 'sqm-expensive') return b.price / Math.max(1, b.roomSizeM2 ?? Number.NEGATIVE_INFINITY) - a.price / Math.max(1, a.roomSizeM2 ?? Number.NEGATIVE_INFINITY)
     if (order === 'area-large') return (b.roomSizeM2 ?? Number.NEGATIVE_INFINITY) - (a.roomSizeM2 ?? Number.NEGATIVE_INFINITY)
     if (order === 'area-small') return (a.roomSizeM2 ?? Number.POSITIVE_INFINITY) - (b.roomSizeM2 ?? Number.POSITIVE_INFINITY)
-    if (order === 'floor-high') return stableFloor(b) - stableFloor(a)
-    if (order === 'floor-low') return stableFloor(a) - stableFloor(b)
+    if (order === 'floor-high') return compareListingFloors(a, b, 'desc')
+    if (order === 'floor-low') return compareListingFloors(a, b, 'asc')
     return +new Date(b.publishedAt) - +new Date(a.publishedAt)
   }), [favorites, filteredListings, order])
   const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])

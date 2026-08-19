@@ -211,8 +211,9 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   const listing = (await storedListings(page))[0]
   expect(listing.area).toBe('El Médano')
-  expect(listing.coordinates.lat).toBeCloseTo(movedLat, 4)
-  expect(listing.coordinates.lng).toBeCloseTo(movedLng, 4)
+  expect(listing.exactCoordinates?.lat).toBeCloseTo(movedLat, 4)
+  expect(listing.exactCoordinates?.lng).toBeCloseTo(movedLng, 4)
+  expect(Math.abs(listing.coordinates.lat - movedLat) + Math.abs(listing.coordinates.lng - movedLng)).toBeGreaterThan(0.001)
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
   await expect(page.locator('main')).not.toContainText('Calle Secreta 99')
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(String(listing.id))}/editar`)

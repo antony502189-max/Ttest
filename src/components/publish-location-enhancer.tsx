@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useI18n } from '@/contexts/i18n-context'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS, isInsideTenerife } from '@/lib/tenerife'
 import type { Coordinates } from '@/types'
@@ -50,6 +51,10 @@ function applyAddress(detail: AddressDetail) {
 }
 
 export function PublishLocationEnhancer() {
+  const { language } = useI18n()
+  const placeholder = language === 'ru' ? 'Начните вводить улицу и номер…' : language === 'en' ? 'Start typing street and number…' : 'Empieza a escribir Calle, número…'
+  const ariaLabel = language === 'ru' ? 'Улица и номер' : language === 'en' ? 'Street and number' : 'Calle y número'
+
   useEffect(() => {
     let cancelled = false
     const widgets = new Set<HTMLElement>()
@@ -61,7 +66,7 @@ export function PublishLocationEnhancer() {
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (!input || input.dataset.addressAutocomplete) return
       input.dataset.addressAutocomplete = 'pending'
-      input.placeholder = 'Empieza a escribir Calle, número…'
+      input.placeholder = placeholder
       input.autocomplete = 'street-address'
       if (googleMapsTestSdkEnabled) { input.dataset.addressAutocomplete = 'test'; return }
       try {
@@ -70,20 +75,20 @@ export function PublishLocationEnhancer() {
         if (cancelled || !input.isConnected) return
         const autocomplete = new places.PlaceAutocompleteElement({})
         autocomplete.classList.add('publish-place-autocomplete')
-        autocomplete.placeholder = 'Empieza a escribir Calle, número…'
+        autocomplete.placeholder = placeholder
         autocomplete.includedRegionCodes = ['es']
         autocomplete.locationRestriction = TENERIFE_BOUNDS
-        autocomplete.setAttribute('aria-label', 'Calle y número')
+        autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
-          const event = rawEvent as google.maps.places.PlacePredictionSelectEvent
-          const place = event.placePrediction.toPlace()
-          await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
-          if (!place.location) return
-          const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
-          if (!isInsideTenerife(coordinates)) return
-          const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
-          applyAddress(detail)
-          window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
+const event = rawEvent as google.maps.places.PlacePredictionSelectEvent
+const place = event.placePrediction.toPlace()
+await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
+if (!place.location) return
+const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
+if (!isInsideTenerife(coordinates)) return
+const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
+applyAddress(detail)
+window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
         })
         input.insertAdjacentElement('beforebegin', autocomplete)
         input.classList.add('publish-street-source-input')
@@ -103,7 +108,12 @@ export function PublishLocationEnhancer() {
       observer.disconnect()
       window.removeEventListener('112233:map-address-resolved', handleResolved)
       widgets.forEach((widget) => widget.remove())
+      const input = document.querySelector<HTMLInputElement>('#publish-street')
+      if (input) {
+        delete input.dataset.addressAutocomplete
+        input.classList.remove('publish-street-source-input')
+      }
     }
-  }, [])
+  }, [ariaLabel, placeholder])
   return null
 }

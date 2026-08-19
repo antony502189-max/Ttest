@@ -41,6 +41,7 @@ import { ApproximateLocationMap } from "@/components/map-view";
 import { useApp } from "@/contexts/app-context";
 import { amenityOptions, areaCenters, createDefaultDraft } from "@/data/listings";
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
+import { approximatePublicCoordinates } from "@/lib/location-privacy";
 import { removeUnusedMediaReferences } from "@/lib/media-storage";
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from "@/types";
@@ -151,6 +152,8 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
   const id = previous?.id ?? `${draft.area.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-6)}`;
   const primaryPrice = draft.rentalMode === "holiday" ? draft.nightlyPrice : draft.monthlyPrice;
   const availableSpots = Math.max(0, draft.roomCapacity - draft.currentRoomResidents);
+  const exactCoordinates = draft.coordinates;
+  const publicCoordinates = approximatePublicCoordinates(exactCoordinates);
   const listing: Listing = {
     id,
     title: draft.title,
@@ -197,7 +200,8 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     floor: draft.floor,
     couplesAllowed: draft.couplesAllowed,
     acceptedTenantTypes: draft.acceptedTenantTypes,
-    coordinates: draft.coordinates,
+    coordinates: publicCoordinates,
+    exactCoordinates,
     tenantRequirement: draft.tenantRequirement,
     smokingAllowed: draft.smokingAllowed,
     petsAllowed: draft.petsAllowed,

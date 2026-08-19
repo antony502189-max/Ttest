@@ -56,7 +56,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
       if (listing.availableFrom > filters.available) return false
       if (listing.availableUntil && listing.availableUntil < filters.available) return false
     }
-    if (filters.availableUntil && (!listing.availableUntil || listing.availableUntil < filters.availableUntil)) return false
+    if (filters.availableUntil && listing.availableUntil && listing.availableUntil < filters.availableUntil) return false
     if (filters.minStay !== 'Cualquiera') {
       const requested = Number(filters.minStay)
       if (listing.minimumStayMonths == null || listing.minimumStayMonths > requested) return false
