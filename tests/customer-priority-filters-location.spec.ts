@@ -55,28 +55,28 @@ test('CUSTOMER-PRIORITY bathroom profile supports private toilet with shared sho
   await expect(page).toHaveURL(/aseo=Aseo(?:\+|%20)privado/)
 })
 
-test('CUSTOMER-LOCATION map/geocoder event updates address fields and floor is in publication data', async ({ page }) => {
+test('CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality and floor is in publication data', async ({ page }) => {
   await openAsHost(page)
   await page.goto('/#/publicar')
   await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByLabel('Calle')).toBeVisible()
   await page.evaluate(() => {
     window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail: {
-      formattedAddress: 'Calle Londres 4, 38660 Costa Adeje, España',
-      coordinates: { lat: 28.092, lng: -16.733 },
+      formattedAddress: 'Calle del Valle Menéndez 20, 38650 Los Cristianos, España',
+      coordinates: { lat: 28.0521, lng: -16.7177 },
       addressComponents: [
-        { long_name: 'Calle Londres', types: ['route'] },
-        { long_name: '4', types: ['street_number'] },
-        { long_name: '38660', types: ['postal_code'] },
-        { long_name: 'Adeje', types: ['locality'] },
-        { long_name: 'Costa Adeje', types: ['sublocality_level_1'] },
+        { long_name: 'Calle del Valle Menéndez', types: ['route'] },
+        { long_name: '20', types: ['street_number'] },
+        { long_name: '38650', types: ['postal_code'] },
+        { long_name: 'Los Cristianos', types: ['locality'] },
+        { long_name: 'Arona', types: ['administrative_area_level_3'] },
       ],
     } }))
   })
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle Londres 4')
-  await expect(page.getByLabel('Código postal')).toHaveValue('38660')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
-  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
+  await expect(page.getByLabel('Calle')).toHaveValue('Calle del Valle Menéndez 20')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38650')
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Los Cristianos')
 
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Planta').selectOption('top')
