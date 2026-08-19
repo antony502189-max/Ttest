@@ -3,6 +3,8 @@ name: Temporary post-merge live synchronization audit
 on:
   push:
     branches: [feat/customer-priority-room-filters-location]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
