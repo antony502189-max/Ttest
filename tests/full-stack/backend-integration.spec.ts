@@ -38,13 +38,27 @@ const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' =
   currentResidents: 2,
   roomCapacity: 1,
   shower: 'Ducha compartida',
+  homeSizeM2: 82,
+  bathroomCount: 2,
+  rentalUnit: 'room',
+  bedType: 'double',
+  bedCount: 1,
+  currentRoomResidents: 0,
+  toilet: 'Aseo privado',
+  householdGender: 'mixed',
+  householdHasChildren: false,
+  heatingType: 'none',
+  accessible: true,
+  floor: 'top',
+  couplesAllowed: true,
+  acceptedTenantTypes: ['man', 'woman', 'couple'],
   tenantRequirement,
   smokingAllowed: false,
   petsAllowed: false,
   childrenAllowed: false,
   empadronamientoAllowed: true,
   restrictions: ['No fumar'],
-  amenities: ['Wifi'],
+  amenities: ['Wifi', 'Aire acondicionado', 'Jardín'],
   latitude: 28.4636,
   longitude: -16.2518,
   exactLatitude: 28.464,
@@ -131,6 +145,65 @@ test('frontend renders a listing created through the real FastAPI backend', asyn
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   expect(consoleErrors).toEqual([])
+})
+
+test('customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only', async () => {
+  const unique = `${Date.now()}-customer-sync-${test.info().project.name}`
+  const title = `Habitación customer sync ${unique}`
+  const created = await createBackendListing(unique, title)
+  const api = await playwrightRequest.newContext({
+    baseURL: API,
+    extraHTTPHeaders: {
+      Origin: 'http://127.0.0.1:4174',
+      Authorization: `Bearer ${created.accessToken}`,
+      'X-Real-IP': testClientIp(),
+    },
+  })
+
+  const mineResponse = await api.get(`${API_PREFIX}/listings/mine`)
+  expect(mineResponse.status()).toBe(200)
+  const mine = await mineResponse.json() as Array<Record<string, unknown>>
+  const owned = mine.find((item) => item.id === created.listingId)
+  expect(owned).toBeTruthy()
+  expect(owned).toMatchObject({
+    id: created.listingId,
+    floor: 'top',
+    toilet: 'Aseo privado',
+    bedType: 'double',
+    accessible: true,
+    street: 'Private street',
+    postcode: '38001',
+    exactLatitude: 28.464,
+    exactLongitude: -16.2514,
+  })
+
+  const searchResponse = await api.post(`${API_PREFIX}/listings/search`, {
+    data: {
+      rentalMode: 'long',
+      floor: 'top',
+      amenities: ['Aire acondicionado', 'Jardín'],
+      availableUntil: '2030-01-01',
+      limit: 100,
+      offset: 0,
+    },
+  })
+  expect(searchResponse.status()).toBe(200)
+  const search = await searchResponse.json() as { items: Array<Record<string, unknown>> }
+  const publicListing = search.items.find((item) => item.id === created.listingId)
+  expect(publicListing).toBeTruthy()
+  expect(publicListing).toMatchObject({ id: created.listingId, floor: 'top', latitude: 28.4636, longitude: -16.2518 })
+  expect(publicListing).not.toHaveProperty('street')
+  expect(publicListing).not.toHaveProperty('postcode')
+  expect(publicListing).not.toHaveProperty('exactLatitude')
+  expect(publicListing).not.toHaveProperty('exactLongitude')
+
+  const wrongFloorResponse = await api.post(`${API_PREFIX}/listings/search`, {
+    data: { rentalMode: 'long', floor: '1', limit: 100, offset: 0 },
+  })
+  expect(wrongFloorResponse.status()).toBe(200)
+  const wrongFloor = await wrongFloorResponse.json() as { items: Array<{ id: string }> }
+  expect(wrongFloor.items.some((item) => item.id === created.listingId)).toBe(false)
+  await api.dispose()
 })
 
 test('unrestricted search does not send a strict tenant requirement to the API', async ({ page }) => {
