@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - feat/customer-priority-room-filters-location
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
@@ -28,36 +25,36 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Correct implementation anchor
-        run: sed -i "s/accessible: index % 5 === 0/accessible: index % 8 === 0/" scripts/apply_customer_priority_request.py
-
-      - name: Apply customer-request patch
-        run: python scripts/apply_customer_priority_request.py
-
-      - name: Remove implementation-only files
+      - name: Apply and validate customer request
+        shell: bash
         run: |
-          rm scripts/apply_customer_priority_request.py
-          rm .github/workflows/customer-priority-request-implementation.yml
+          set +e
+          rm -f CUSTOMER_IMPLEMENTATION_FAILURE.txt
+          sed -i "s/accessible: index % 5 === 0/accessible: index % 8 === 0/" scripts/apply_customer_priority_request.py
 
-      - name: Install frontend dependencies
-        run: npm ci
+          {
+            python scripts/apply_customer_priority_request.py &&
+            rm scripts/apply_customer_priority_request.py .github/workflows/customer-priority-request-implementation.yml &&
+            npm ci &&
+            npm run typecheck &&
+            npm run lint &&
+            npm run build &&
+            python -m compileall -q backend/app backend/tests backend/alembic/versions
+          } > >(tee /tmp/customer-implementation.log) 2>&1
+          code=$?
 
-      - name: Frontend typecheck
-        run: npm run typecheck
-
-      - name: Frontend lint
-        run: npm run lint
-
-      - name: Frontend production build
-        run: npm run build
-
-      - name: Python syntax compile
-        run: python -m compileall -q backend/app backend/tests backend/alembic/versions
-
-      - name: Commit validated implementation
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$code" -ne 0 ]; then
+            git restore scripts/apply_customer_priority_request.py .github/workflows/customer-priority-request-implementation.yml 2>/dev/null || true
+            cp /tmp/customer-implementation.log CUSTOMER_IMPLEMENTATION_FAILURE.txt
+            git add CUSTOMER_IMPLEMENTATION_FAILURE.txt
+            git commit -m "ci: capture customer implementation failure" || true
+            git push origin HEAD:feat/customer-priority-room-filters-location
+            exit "$code"
+          fi
+
           git add -A
           git diff --cached --check
           git commit -m "feat: implement customer priority filters and address UX"
