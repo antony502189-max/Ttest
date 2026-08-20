@@ -49,6 +49,22 @@ class ListingRestriction(Base):
     expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
+class ListingPromotion(Base):
+    """Admin-controlled priority for a listing in public search/map results.
+
+    One row means the listing is currently promoted. Re-promoting updates
+    ``boosted_at``, which deterministically moves it above older promotions.
+    """
+
+    __tablename__ = "listing_promotions"
+
+    listing_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), primary_key=True
+    )
+    boosted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    boosted_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+
 class AdminNote(Base):
     __tablename__ = "admin_notes"
 
