@@ -281,14 +281,14 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     const markers = itemsRef.current.map((listing) => {
       const content = createPriceMarkerContent(listing)
       setPriceMarkerState(content, listing.id === selectedIdRef.current, listing.id === highlightedIdRef.current)
-      content.dataset.markerZIndex = listing.id === selectedIdRef.current ? '3000' : '10'
+      content.dataset.markerZIndex = listing.id === selectedIdRef.current ? '3000' : listing.promoted ? '100' : '10'
       const marker = new google.maps.marker.AdvancedMarkerElement({
         position: listing.coordinates,
         content,
         title: `${listing.area}, ${priceLabel(listing)}`,
         gmpClickable: true,
         collisionBehavior: google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
-        zIndex: listing.id === selectedIdRef.current ? 3000 : 10,
+        zIndex: listing.id === selectedIdRef.current ? 3000 : listing.promoted ? 100 : 10,
       })
       const select = (original: Event) => {
         setFocusSheetOnOpen(original instanceof KeyboardEvent || (original instanceof MouseEvent && original.detail === 0))
@@ -336,9 +336,10 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       const content = markerContentRef.current.get(id)
       if (content) {
         setPriceMarkerState(content, id === selectedId, id === highlightedId)
-        content.dataset.markerZIndex = id === selectedId ? '3000' : id === highlightedId ? '2000' : '10'
+        const listing = itemsRef.current.find((item) => item.id === id)
+        content.dataset.markerZIndex = id === selectedId ? '3000' : id === highlightedId ? '2000' : listing?.promoted ? '100' : '10'
       }
-      marker.zIndex = id === selectedId ? 3000 : id === highlightedId ? 2000 : 10
+      marker.zIndex = id === selectedId ? 3000 : id === highlightedId ? 2000 : itemsRef.current.find((item) => item.id === id)?.promoted ? 100 : 10
     })
     const map = mapRef.current
     const clusterer = clusterRef.current

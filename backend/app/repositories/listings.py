@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
-from ..models.moderation import ListingRestriction, UserRestriction
+from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
 from ..models.room_details import ListingRoomDetails
 from ..schemas.listings import (
     ListingOwnerResponse,
@@ -56,8 +56,12 @@ def image_asset_ids_subquery():
     )
 
 
+def promotion_boosted_at_expression():
+    return select(ListingPromotion.boosted_at).where(ListingPromotion.listing_id == Listing.id).scalar_subquery()
+
+
 def response_from(row: Any) -> ListingResponse:
-    listing, longitude, latitude, owner, asset_ids, room_details = row
+    listing, longitude, latitude, owner, asset_ids, room_details, boosted_at = row
     price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
     image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
     if not image_urls:
@@ -160,12 +164,13 @@ def response_from(row: Any) -> ListingResponse:
         closedReason=listing.closed_reason,
         createdAt=listing.created_at,
         updatedAt=listing.updated_at,
+        promoted=boosted_at is not None,
     )
 
 
 def owned_response_from(row: Any) -> OwnedListingResponse:
-    listing, longitude, latitude, owner, asset_ids, room_details, exact_longitude, exact_latitude = row
-    public = response_from((listing, longitude, latitude, owner, asset_ids, room_details)).model_dump()
+    listing, longitude, latitude, owner, asset_ids, room_details, exact_longitude, exact_latitude, boosted_at = row
+    public = response_from((listing, longitude, latitude, owner, asset_ids, room_details, boosted_at)).model_dump()
     return OwnedListingResponse(
         **public,
         street=listing.street,
@@ -206,6 +211,7 @@ def visible_query() -> Select:
             User,
             image_asset_ids_subquery(),
             ListingRoomDetails,
+            promotion_boosted_at_expression(),
         )
         .join(User, User.id == Listing.owner_user_id)
         .outerjoin(ListingRoomDetails, ListingRoomDetails.listing_id == Listing.id)
@@ -232,6 +238,7 @@ def owned_query() -> Select:
             ListingRoomDetails,
             ST_X(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
             ST_Y(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
+            promotion_boosted_at_expression(),
         )
         .join(User, User.id == Listing.owner_user_id)
         .outerjoin(ListingRoomDetails, ListingRoomDetails.listing_id == Listing.id)
@@ -391,7 +398,7 @@ def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
         return query.order_by(price.desc().nullslast(), Listing.id)
     if payload.sort == "oldest":
         return query.order_by(Listing.created_at.asc(), Listing.id)
-    return query.order_by(Listing.created_at.desc(), Listing.id)
+    return query.order_by(promotion_boosted_at_expression().desc().nullslast(), Listing.created_at.desc(), Listing.id)
 
 
 async def search_public(session: AsyncSession, payload: ListingSearchRequest) -> ListingSearchResponse:

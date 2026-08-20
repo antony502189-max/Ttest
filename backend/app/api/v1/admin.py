@@ -33,6 +33,8 @@ from ...services.admin import (
     dashboard_stats,
     list_admins,
     list_notes,
+    promote_listing,
+    remove_listing_promotion,
     restrict_listing,
     revoke_admin,
     unrestrict_listing,
@@ -194,6 +196,24 @@ async def change_listing_status_route(
     session: AsyncSession = Depends(get_session),
 ):
     return await change_listing_status(listing_id, payload.status, user, session)
+
+
+@router.put("/listings/{listing_id}/promotion", response_model=AdminListingResponse)
+async def promote_listing_route(
+    listing_id: UUID,
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    return await promote_listing(listing_id, user, session)
+
+
+@router.delete("/listings/{listing_id}/promotion", response_model=AdminListingResponse)
+async def remove_listing_promotion_route(
+    listing_id: UUID,
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    return await remove_listing_promotion(listing_id, user, session)
 
 
 @router.post("/listings/{listing_id}/restrictions", response_model=AdminListingResponse)

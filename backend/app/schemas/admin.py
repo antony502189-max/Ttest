@@ -108,6 +108,8 @@ class AdminListingResponse(BaseModel):
     createdAt: datetime
     deletedAt: datetime | None = None
     activeRestriction: ListingRestrictionResponse | None = None
+    promoted: bool = False
+    boostedAt: datetime | None = None
 
 
 class AdminNoteResponse(BaseModel):

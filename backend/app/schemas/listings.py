@@ -338,6 +338,7 @@ class ListingResponse(BaseModel):
     closedReason: str | None
     createdAt: datetime
     updatedAt: datetime | None
+    promoted: bool = False
 
 
 class ListingOwnerResponse(BaseModel):

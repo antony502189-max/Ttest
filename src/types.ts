@@ -110,6 +110,7 @@ export interface Listing {
   showWhatsApp: boolean
   allowContactForm: boolean
   closedReason?: 'expired' | 'owner' | 'deleted' | 'account_deleted'
+  promoted?: boolean
 }
 
 export interface Filters {

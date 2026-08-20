@@ -9,7 +9,7 @@ export function createPriceMarkerContent(listing: Listing) {
   shell.className = 'map-price-marker-shell price-marker-shell'
   shell.setAttribute('aria-label', `${listing.area}, ${priceLabel(listing)}`)
   const marker = document.createElement('span')
-  marker.className = 'map-price-marker price-marker'
+  marker.className = `map-price-marker price-marker${listing.promoted ? ' is-promoted' : ''}`
   const label = document.createElement('span')
   label.textContent = priceLabel(listing)
   const tail = document.createElement('i')

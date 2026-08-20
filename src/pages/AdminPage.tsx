@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
+  ArrowUp,
   ArrowLeft,
   Ban,
   CheckCircle2,
@@ -32,6 +33,8 @@ import {
   getAdmins,
   getAdminUser,
   getAdminUserRows,
+  promoteAdminListing,
+  removeAdminListingPromotion,
   restrictAdminListing,
   restrictAdminUser,
   revokeAdministrator,
@@ -542,6 +545,16 @@ export function AdminPage() {
     } catch (error) { toast.error(errorMessage(error)) }
   }
 
+  const updateListingPromotion = async (listing: AdminListing, remove = false) => {
+    try {
+      const updated = remove
+        ? await removeAdminListingPromotion(listing.id)
+        : await promoteAdminListing(listing.id)
+      updateListingRow(updated)
+      toast.success(remove ? 'Anuncio retirado del TOP' : 'Anuncio subido al TOP')
+    } catch (error) { toast.error(errorMessage(error)) }
+  }
+
   const addAdmin = async (event: FormEvent) => {
     event.preventDefault()
     if (!newAdminEmail.trim()) return
@@ -591,7 +604,7 @@ export function AdminPage() {
       {section === 'listings' ? <>
         <SectionHeader title="Anuncios" description="Consulta el propietario y bloquea temporalmente un anuncio sin alterar permanentemente su estado original." />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, usuario o zona…" /></div></div>
-        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{listing.activeRestriction ? <><Badge variant="destructive">Bloqueado hasta {formatDate(listing.activeRestriction.endsAt)}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions"><Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
+        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{listing.promoted ? <Badge variant="destructive">TOP{listing.boostedAt ? ` · ${formatDate(listing.boostedAt)}` : ''}</Badge> : null}{listing.activeRestriction ? <><Badge variant="destructive">Bloqueado hasta {formatDate(listing.activeRestriction.endsAt)}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions"><Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => { void updateListingPromotion(listing) }}><ArrowUp />{listing.promoted ? 'Volver al TOP' : 'Subir al TOP'}</Button>{listing.promoted ? <Button variant="outline" size="sm" onClick={() => { void updateListingPromotion(listing, true) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
       </> : null}
 
       {section === 'activity' ? <>
