@@ -1,0 +1,38 @@
+{
+  "auditCommit": "59f0025614d33d1fafd5831dc502042843cefbc7",
+  "productionCommit": null,
+  "timestamp": "2026-08-21T00:00:00+03:00",
+  "scope": "Full audit with P1 remediation update",
+  "summary": {"P0": 0, "P1": 0, "P2": 1, "P3": 3, "INFO": 5},
+  "remediationStatus": "local_validation_complete_pending_pr_ci_merge_and_deployment",
+  "baseline": {
+    "repository": "antony502189-max/Ttest",
+    "remediationBranch": "codex/remediate-audit-p1",
+    "baseCommit": "59f0025614d33d1fafd5831dc502042843cefbc7",
+    "alembicHead": "0036_listing_promotions",
+    "configuredApplicationOrigin": "https://app.112233.es",
+    "separateApexProperty": "https://112233.es (WordPress; out of scope and untouched)",
+    "productionHostAccess": "SSH credentials unavailable"
+  },
+  "automatedValidation": {
+    "backendRuff": "pass",
+    "backendMypy": "pass_69_files",
+    "backendIntegrationPostgresPostGIS": "303_passed_3_skipped_full_backend_suite_against_isolated_postgres_postgis_redis_minio",
+    "s3MinioIntegration": "1_passed",
+    "alembicEmptyToHead": "pass_0036_listing_promotions",
+    "alembic0035ToHead": "pass_0036_listing_promotions",
+    "alembicCheck": "pass_no_new_upgrade_operations",
+    "publicOriginSmoke": "pass_app_112233_es_get_shell_health_catalog_and_anonymous_admin_401"
+  },
+  "findings": [
+    {"id":"AUD-001","status":"INVALID_FALSE_POSITIVE","severity":"INVALID","subsystem":"audit baseline","title":"Apex WordPress site was incorrectly treated as the application origin","evidence":"APP_DOMAIN=app.112233.es; app-origin GET smoke returned expected shell/API responses.","affectedFiles":["deploy/production.env.example:5"],"impact":"None to application; apex untouched.","recommendation":"Use APP_DOMAIN as the sole deployment and smoke origin.","regressionTest":"verify-public-origin.sh rejects a wrong HTTP-200 shell."},
+    {"id":"AUD-002","status":"REMEDIATED_PENDING_RELEASE","severity":"P1","subsystem":"administrator authorization/recovery","title":"Last viable administrator account deletion","evidence":"Viable-admin count and active-grant locks now cover deletion/revoke; real PostGIS tests cover sole, non-last, and concurrent deletes.","affectedFiles":["backend/app/services/users.py","backend/app/services/admin.py","backend/app/services/moderation.py","backend/tests/integration/test_critical_flows.py"],"impact":"Will prevent admin lockout after deployment.","recommendation":"Merge and deploy only after relevant CI passes.","regressionTest":"test_critical_flows viable-admin deletion cases."},
+    {"id":"AUD-003","status":"REMEDIATED_PENDING_RELEASE","severity":"P1","subsystem":"release verification","title":"Release success lacked configured public-origin verification","evidence":"New verifier derives HTTPS origin from APP_DOMAIN; deploy invokes it before success and error trap rolls back on failure.","affectedFiles":["deploy/verify-public-origin.sh","deploy/smoke-production.sh","deploy/deploy-release.sh","scripts/test-public-origin-smoke.sh"],"impact":"Will block release acceptance when public routing is wrong.","recommendation":"Merge and deploy via immutable release process.","regressionTest":"wrong-origin simulated HTTP-200 smoke failure."},
+    {"id":"AUD-007","status":"REMEDIATED_PENDING_RELEASE","severity":"P1","subsystem":"database migrations","title":"Alembic metadata omitted mapped tables","evidence":"All mapping modules now load before metadata; clean isolated PostGIS checks pass from empty and 0035.","affectedFiles":["backend/app/models/__init__.py","backend/alembic/env.py","backend/tests/test_alembic_metadata.py"],"impact":"Will prevent affected application tables from being proposed as removals.","recommendation":"Require alembic check in CI.","regressionTest":"test_alembic_metadata plus isolated upgrade/check commands."},
+    {"id":"AUD-004","status":"DEFERRED","severity":"P2","subsystem":"SEO","title":"Listing pages are not independently indexable","evidence":"HashRouter routes and global-only metadata.","affectedFiles":["src/App.tsx","index.html","deploy/nginx.conf"],"impact":"Weak indexing/link previews.","recommendation":"Address separately.","regressionTest":"Crawler metadata/sitemap tests."},
+    {"id":"AUD-005","status":"DEFERRED","severity":"P3","subsystem":"dependency supply chain","title":"Development dependency advisories","evidence":"Historical npm audit result.","affectedFiles":["package-lock.json"],"impact":"Bounded development-only risk.","recommendation":"Address separately.","regressionTest":"Dependency policy."},
+    {"id":"AUD-006","status":"DEFERRED","severity":"P3","subsystem":"frontend reliability","title":"React hook dependency warnings","evidence":"Historical lint result.","affectedFiles":["src/components/moderation-gate.tsx","src/App.tsx"],"impact":"Potential stale state.","recommendation":"Address separately.","regressionTest":"Mounted-route transition tests."},
+    {"id":"AUD-008","status":"DEFERRED","severity":"P3","subsystem":"test quality","title":"Visual baselines are not tracked","evidence":"Historical clean-clone Playwright visual failures.","affectedFiles":["tests/master-task-visual.spec.ts","tests/visual-parity.spec.ts"],"impact":"Non-reproducible visual regression signal.","recommendation":"Address separately.","regressionTest":"Clean-clone visual CI."}
+  ],
+  "verdict": "PRODUCTION ACCEPTABLE — REMEDIATION REQUIRED AFTER MERGED DEPLOYMENT"
+}

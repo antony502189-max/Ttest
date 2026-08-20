@@ -36,6 +36,43 @@ async def is_admin(user: User, session: AsyncSession) -> bool:
     return bool(row and row.active)
 
 
+async def lock_active_admin_access(session: AsyncSession) -> list[AdminAccess]:
+    """Lock active grants in a single stable order.
+
+    Account deletion and administrator revocation both use this barrier before
+    counting viable administrators. It prevents two concurrent operations from
+    each observing another eligible administrator and then removing both.
+    """
+    return list(
+        (
+            await session.scalars(
+                select(AdminAccess).where(AdminAccess.active.is_(True)).order_by(AdminAccess.email).with_for_update()
+            )
+        ).all()
+    )
+
+
+async def viable_admin_count(session: AsyncSession) -> int:
+    """Count accounts that can actually satisfy the Google-backed admin policy.
+
+    Callers must first lock active grants with ``lock_active_admin_access``.
+    The normalized comparison mirrors ``is_admin`` while excluding deleted and
+    blocked identities that token resolution would reject.
+    """
+    count = await session.scalar(
+        select(func.count())
+        .select_from(User)
+        .join(AdminAccess, func.lower(User.email) == AdminAccess.email)
+        .where(
+            AdminAccess.active.is_(True),
+            User.deleted_at.is_(None),
+            User.blocked.is_(False),
+            User.google_subject.is_not(None),
+        )
+    )
+    return int(count or 0)
+
+
 async def active_user_restriction(user_id: UUID, session: AsyncSession) -> UserRestriction | None:
     # Application writes serialize restrictions per user, so normally only one
     # active row exists. Keep deterministic precedence as a defensive fallback
