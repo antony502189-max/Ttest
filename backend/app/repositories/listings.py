@@ -61,7 +61,8 @@ def promotion_boosted_at_expression():
 
 
 def response_from(row: Any) -> ListingResponse:
-    listing, longitude, latitude, owner, asset_ids, room_details, boosted_at = row
+    listing, longitude, latitude, owner, asset_ids, room_details, *promotion = row
+    boosted_at = promotion[0] if promotion else None
     price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
     image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
     if not image_urls:
@@ -169,7 +170,8 @@ def response_from(row: Any) -> ListingResponse:
 
 
 def owned_response_from(row: Any) -> OwnedListingResponse:
-    listing, longitude, latitude, owner, asset_ids, room_details, exact_longitude, exact_latitude, boosted_at = row
+    listing, longitude, latitude, owner, asset_ids, room_details, exact_longitude, exact_latitude, *promotion = row
+    boosted_at = promotion[0] if promotion else None
     public = response_from((listing, longitude, latitude, owner, asset_ids, room_details, boosted_at)).model_dump()
     return OwnedListingResponse(
         **public,
