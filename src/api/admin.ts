@@ -61,6 +61,8 @@ export type AdminListing = {
   createdAt: string
   deletedAt: string | null
   activeRestriction: AdminListingRestriction | null
+  promoted: boolean
+  boostedAt: string | null
 }
 
 export type AdminNote = {
@@ -201,6 +203,12 @@ export const restrictAdminListing = (id: string, payload: { until: string; reaso
 
 export const unrestrictAdminListing = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/restrictions/active`, { method: 'DELETE' })
+
+export const promoteAdminListing = (id: string) =>
+  api<AdminListing>(`/admin/listings/${id}/promotion`, { method: 'PUT' })
+
+export const removeAdminListingPromotion = (id: string) =>
+  api<AdminListing>(`/admin/listings/${id}/promotion`, { method: 'DELETE' })
 
 export const getAdmins = () => api<AdminAccount[]>('/admin/admins')
 export const addAdministrator = (email: string) =>

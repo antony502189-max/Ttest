@@ -7,7 +7,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Listing, User
-from ..models.moderation import ListingRestriction
+from ..models.moderation import ListingPromotion, ListingRestriction
 from ..schemas.admin import AdminListingResponse
 from .admin import public_listing
 from .moderation import active_window
@@ -58,8 +58,9 @@ async def list_listings(
     queue; report history resolves its own owner/listing context separately.
     """
     query = (
-        select(Listing, User)
+        select(Listing, User, ListingPromotion)
         .join(User, User.id == Listing.owner_user_id)
+        .outerjoin(ListingPromotion, ListingPromotion.listing_id == Listing.id)
         .where(
             Listing.deleted_at.is_(None),
             User.deleted_at.is_(None),
@@ -94,13 +95,14 @@ async def list_listings(
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
     restrictions = await _active_restrictions_by_listing(
         session,
-        [listing.id for listing, _ in rows],
+        [listing.id for listing, _, _ in rows],
     )
     return [
         public_listing(
             listing,
             owner=owner,
             restriction=restrictions.get(listing.id),
+            promotion=promotion,
         )
-        for listing, owner in rows
+        for listing, owner, promotion in rows
     ]

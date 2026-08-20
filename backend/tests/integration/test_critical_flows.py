@@ -10,8 +10,8 @@ from PIL import Image
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models import User
-from app.models.moderation import AdminAccess, ListingRestriction
+from app.models import AuditLog, User
+from app.models.moderation import AdminAccess, ListingPromotion, ListingRestriction
 from app.services.moderation_expiry import process_expired_moderation
 
 pytestmark = pytest.mark.integration
@@ -322,3 +322,21 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     assert expiry_version > listing_restore_version
     visible_after_expiry = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
     assert listing_id in {item["id"] for item in visible_after_expiry.json()["items"]}
+
+    promoted = await client.put(f"/api/v1/admin/listings/{listing_id}/promotion", headers=admin_headers)
+    assert promoted.status_code == 200, promoted.text
+    assert promoted.json()["promoted"] is True
+    first_boosted_at = promoted.json()["boostedAt"]
+    assert first_boosted_at
+    re_promoted = await client.put(f"/api/v1/admin/listings/{listing_id}/promotion", headers=admin_headers)
+    assert re_promoted.status_code == 200, re_promoted.text
+    assert re_promoted.json()["promoted"] is True
+    public_after_promotion = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert public_after_promotion.json()["items"][0]["id"] == listing_id
+    assert public_after_promotion.json()["items"][0]["promoted"] is True
+    async with SessionLocal() as session:
+        assert await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing_uuid)) is not None
+        assert await session.scalar(select(AuditLog).where(AuditLog.action == "listing.promoted")) is not None
+    removed = await client.delete(f"/api/v1/admin/listings/{listing_id}/promotion", headers=admin_headers)
+    assert removed.status_code == 200, removed.text
+    assert removed.json()["promoted"] is False

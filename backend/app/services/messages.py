@@ -87,7 +87,7 @@ async def create_initial_message(
     row = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
     if not row:
         raise HTTPException(404, "Listing not found")
-    listing, _, _, owner, _, _ = row
+    listing, _, _, owner, _, _, _ = row
     if listing.owner_user_id == user.id:
         raise HTTPException(422, "You cannot message your own listing")
     if not owner.allow_contact_form:

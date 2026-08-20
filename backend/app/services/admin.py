@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import AuditLog, Listing, ListingStatusHistory, Report, User
-from ..models.moderation import AdminAccess, AdminNote, ListingRestriction
+from ..models.moderation import AdminAccess, AdminNote, ListingPromotion, ListingRestriction
 from ..schemas.admin import (
     AdminAccessResponse,
     AdminListingResponse,
@@ -49,6 +49,7 @@ def public_listing(
     *,
     owner: User | None = None,
     restriction: ListingRestriction | None = None,
+    promotion: ListingPromotion | None = None,
 ) -> AdminListingResponse:
     return AdminListingResponse(
         id=listing.id,
@@ -64,6 +65,8 @@ def public_listing(
         createdAt=listing.created_at,
         deletedAt=listing.deleted_at,
         activeRestriction=listing_restriction_response(restriction) if restriction else None,
+        promoted=promotion is not None,
+        boostedAt=promotion.boosted_at if promotion else None,
     )
 
 
@@ -166,6 +169,61 @@ async def change_listing_status(
         await touch_catalog(session)
     await session.commit()
     return public_listing(listing, owner=owner, restriction=await active_listing_restriction(listing.id, session))
+
+
+async def promote_listing(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
+    listing, owner = await _actionable_listing(listing_id, session)
+    if listing.status != "published":
+        raise HTTPException(409, "Only published listings can be promoted")
+    row = await session.scalar(
+        select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()
+    )
+    previous_boosted_at = row.boosted_at if row else None
+    now = datetime.now(UTC)
+    if row is None:
+        row = ListingPromotion(listing_id=listing.id, boosted_at=now, boosted_by=actor.id)
+        session.add(row)
+    else:
+        row.boosted_at = now
+        row.boosted_by = actor.id
+    session.add(
+        audit(
+            actor.id,
+            "listing.promoted",
+            "listing",
+            listing.id,
+            {
+                "previousBoostedAt": previous_boosted_at.isoformat() if previous_boosted_at else None,
+                "boostedAt": now.isoformat(),
+            },
+        )
+    )
+    await touch_catalog(session)
+    await session.commit()
+    return public_listing(listing, owner=owner, promotion=row)
+
+
+async def remove_listing_promotion(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
+    listing, owner = await _actionable_listing(listing_id, session)
+    row = await session.scalar(
+        select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()
+    )
+    if row is None:
+        raise HTTPException(404, "Listing is not promoted")
+    previous_boosted_at = row.boosted_at
+    await session.delete(row)
+    session.add(
+        audit(
+            actor.id,
+            "listing.unpromoted",
+            "listing",
+            listing.id,
+            {"previousBoostedAt": previous_boosted_at.isoformat()},
+        )
+    )
+    await touch_catalog(session)
+    await session.commit()
+    return public_listing(listing, owner=owner)
 
 
 async def restrict_listing(

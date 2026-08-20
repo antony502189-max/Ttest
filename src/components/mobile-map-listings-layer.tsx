@@ -87,7 +87,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
           title: `${listing.area}, ${priceLabel(listing)}`,
           gmpClickable: true,
           collisionBehavior: google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
-          zIndex: 10,
+          zIndex: listing.promoted ? 100 : 10,
         })
         const select = () => {
           setSelectedId(listing.id)

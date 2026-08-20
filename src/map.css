@@ -141,6 +141,8 @@
   transform: translateX(-50%) rotate(45deg);
 }
 .map-price-marker.is-highlighted { border-color: var(--market-magenta); box-shadow: 0 .45rem 1rem rgb(194 24 130 / .24); }
+.map-price-marker.is-promoted { border-color: #b42318; background: #d92d20; color: #fff; box-shadow: 0 .45rem 1rem rgb(180 35 24 / .28); }
+.map-price-marker.is-promoted i { border-color: #b42318; }
 .map-price-marker.is-selected { border: 2px solid #344500; background: var(--brand); color: #1b2500; box-shadow: 0 .5rem 1.15rem rgb(50 66 0 / .3); transform: none; }
 .map-price-marker.is-selected i { border-right-width: 2px; border-bottom-width: 2px; border-color: #344500; }
 

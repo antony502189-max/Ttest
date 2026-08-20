@@ -29,7 +29,7 @@ def active_window(model):
 
 
 async def is_admin(user: User, session: AsyncSession) -> bool:
-    if not user.google_subject:
+    if not getattr(user, "google_subject", None):
         return False
     email = normalize_email(user.email)
     row = await session.get(AdminAccess, email)
