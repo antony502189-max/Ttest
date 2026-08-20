@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from uuid import UUID
@@ -7,7 +8,7 @@ from uuid import UUID
 import pytest
 from httpx import AsyncClient
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.models import AuditLog, User
@@ -272,7 +273,9 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     hidden_by_user = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
     assert listing_id not in {item["id"] for item in hidden_by_user.json()["items"]}
 
-    unrestrict_user = await client.delete(f"/api/v1/admin/users/{host['id']}/restrictions/active", headers=admin_headers)
+    unrestrict_user = await client.delete(
+        f"/api/v1/admin/users/{host['id']}/restrictions/active", headers=admin_headers
+    )
     assert unrestrict_user.status_code == 200, unrestrict_user.text
     user_restore_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
     assert user_restore_version > user_restriction_version
@@ -292,7 +295,9 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     hidden_by_listing = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
     assert listing_id not in {item["id"] for item in hidden_by_listing.json()["items"]}
 
-    unrestrict_listing = await client.delete(f"/api/v1/admin/listings/{listing_id}/restrictions/active", headers=admin_headers)
+    unrestrict_listing = await client.delete(
+        f"/api/v1/admin/listings/{listing_id}/restrictions/active", headers=admin_headers
+    )
     assert unrestrict_listing.status_code == 200, unrestrict_listing.text
     listing_restore_version = int((await client.get("/api/v1/listings/catalog-version")).json()["version"])
     assert listing_restore_version > listing_restriction_version
@@ -335,8 +340,82 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     assert public_after_promotion.json()["items"][0]["id"] == listing_id
     assert public_after_promotion.json()["items"][0]["promoted"] is True
     async with SessionLocal() as session:
-        assert await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing_uuid)) is not None
+        assert (
+            await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing_uuid))
+            is not None
+        )
         assert await session.scalar(select(AuditLog).where(AuditLog.action == "listing.promoted")) is not None
     removed = await client.delete(f"/api/v1/admin/listings/{listing_id}/promotion", headers=admin_headers)
     assert removed.status_code == 200, removed.text
     assert removed.json()["promoted"] is False
+
+
+async def grant_viable_admin(user_id: str, email: str) -> None:
+    async with SessionLocal() as session:
+        user = await session.get(User, UUID(user_id))
+        assert user is not None
+        user.google_subject = f"google-subject-{user.id}"
+        session.add(AdminAccess(email=email.lower(), active=True))
+        await session.commit()
+
+
+async def test_sole_viable_admin_cannot_delete_account(client: AsyncClient, register_user):
+    token, admin = await register_user(client, email="sole-admin@example.com", role="host")
+    await grant_viable_admin(admin["id"], admin["email"])
+
+    deleted = await client.delete("/api/v1/users/me", headers=auth(token))
+    assert deleted.status_code == 409, deleted.text
+
+    async with SessionLocal() as session:
+        stored = await session.get(User, UUID(admin["id"]))
+        grant = await session.get(AdminAccess, admin["email"].lower())
+        assert stored is not None
+        assert stored.deleted_at is None
+        assert stored.email == admin["email"]
+        assert stored.google_subject
+        assert grant is not None and grant.active is True
+
+
+async def test_deleting_one_of_multiple_admins_deactivates_their_grant(client: AsyncClient, register_user):
+    first_token, first = await register_user(client, email="first-admin@example.com", role="host")
+    second_token, second = await register_user(client, email="second-admin@example.com", role="host")
+    await grant_viable_admin(first["id"], first["email"])
+    await grant_viable_admin(second["id"], second["email"])
+
+    deleted = await client.delete("/api/v1/users/me", headers=auth(first_token))
+    assert deleted.status_code == 204, deleted.text
+    assert (await client.get("/api/v1/admin/access", headers=auth(second_token))).status_code == 200
+
+    async with SessionLocal() as session:
+        deleted_user = await session.get(User, UUID(first["id"]))
+        grant = await session.get(AdminAccess, first["email"].lower())
+        assert deleted_user is not None and deleted_user.deleted_at is not None
+        assert grant is not None and grant.active is False
+
+
+async def test_concurrent_admin_self_deletion_preserves_one_viable_admin(client: AsyncClient, register_user):
+    first_token, first = await register_user(client, email="concurrent-first@example.com", role="host")
+    second_token, second = await register_user(client, email="concurrent-second@example.com", role="host")
+    await grant_viable_admin(first["id"], first["email"])
+    await grant_viable_admin(second["id"], second["email"])
+
+    first_result, second_result = await asyncio.gather(
+        client.delete("/api/v1/users/me", headers=auth(first_token)),
+        client.delete("/api/v1/users/me", headers=auth(second_token)),
+    )
+    assert sorted([first_result.status_code, second_result.status_code]) == [204, 409]
+
+    async with SessionLocal() as session:
+        viable = (
+            await session.scalars(
+                select(User)
+                .join(AdminAccess, func.lower(User.email) == AdminAccess.email)
+                .where(
+                    AdminAccess.active.is_(True),
+                    User.deleted_at.is_(None),
+                    User.blocked.is_(False),
+                    User.google_subject.is_not(None),
+                )
+            )
+        ).all()
+        assert len(viable) == 1

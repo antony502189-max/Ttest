@@ -36,6 +36,7 @@ required_fragments = {
     "backup runtime metadata": "backup_runtime_sha=%s",
     "dependency rollback": '"${previous_compose[@]}" up -d postgres redis minio minio-init',
     "bounded automatic rollback readiness": "automatic rollback failed readiness",
+    "mandatory external release acceptance": '"$release/deploy/smoke-production.sh"',
 }
 for fragment in worktree_requirements:
     if fragment not in text:
@@ -77,6 +78,11 @@ if not stop_position < minio_backup_position < new_dependencies_position:
     raise SystemExit("MinIO backup must run after writer quiescence and before new dependency images")
 if not new_dependencies_position < migration_position:
     raise SystemExit("new dependencies must become healthy before migrations run")
+
+public_smoke_position = text.index('"$release/deploy/smoke-production.sh"')
+success_position = text.index("status=success")
+if not migration_position < public_smoke_position < success_position:
+    raise SystemExit("external public smoke must pass after migration/readiness and before deploy success")
 
 ancestor_gate = 'merge-base --is-ancestor "$SHA" origin/main'
 if ancestor_gate in text:

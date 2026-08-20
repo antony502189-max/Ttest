@@ -239,7 +239,9 @@ class CatalogState(Base):
     __tablename__ = "catalog_state"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     version: Mapped[int] = mapped_column(Integer, default=1)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Favorite(Base):
@@ -370,3 +372,19 @@ class SearchHistory(Base):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     normalized_query: Mapped[str] = mapped_column(String(240), index=True)
     searched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+# Alembic imports this package to build Base.metadata. Keep every mapped model
+# module registered here so autogeneration can never mistake application tables
+# for orphaned schema objects.
+from .moderation import (  # noqa: F401
+    AdminAccess,
+    AdminNote,
+    ListingPromotion,
+    ListingRestriction,
+    ModerationNotice,
+    UserReportTarget,
+    UserRestriction,
+)
+from .room_details import ListingRoomDetails  # noqa: F401
+from .storage_deletion import StorageDeletionJob  # noqa: F401

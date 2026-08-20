@@ -24,7 +24,9 @@ from .moderation import (
     add_notice,
     enqueue_listing_restriction_email,
     enqueue_listing_unrestriction_email,
+    lock_active_admin_access,
     normalize_email,
+    viable_admin_count,
 )
 
 
@@ -385,12 +387,12 @@ async def revoke_admin(email: str, actor: User, session: AsyncSession) -> None:
     normalized = normalize_email(email)
     if normalized == normalize_email(actor.email):
         raise HTTPException(422, "Administrators cannot revoke their own access")
-    row = await session.get(AdminAccess, normalized)
-    if not row or not row.active:
+    active_grants = await lock_active_admin_access(session)
+    row = next((grant for grant in active_grants if grant.email == normalized), None)
+    if not row:
         raise HTTPException(404, "Administrator not found")
-    active_count = await session.scalar(select(func.count()).select_from(AdminAccess).where(AdminAccess.active.is_(True)))
-    if int(active_count or 0) <= 1:
-        raise HTTPException(409, "At least one administrator must remain active")
+    if await viable_admin_count(session) <= 1:
+        raise HTTPException(409, "At least one viable administrator must remain active")
     row.active = False
     session.add(audit(actor.id, "admin.revoked", "admin", None, {"email": normalized}))
     await session.commit()

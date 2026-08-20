@@ -35,6 +35,7 @@ bash -n scripts/test-production-monitor.sh
 bash scripts/test-production-monitor.sh
 python3 scripts/check-deploy-safety.py
 python3 scripts/check-migration-compatibility.py
+bash scripts/test-public-origin-smoke.sh
 
 grep -Fq 'location /api/' deploy/nginx.conf
 grep -Fq 'COPY --chmod=644 deploy/nginx.conf /etc/nginx/conf.d/default.conf' Dockerfile
@@ -56,9 +57,8 @@ grep -Fq 'location = /privacidad' deploy/nginx.conf
 grep -Fq 'location = /terminos' deploy/nginx.conf
 grep -Fq 'location = /favicon.svg' deploy/nginx.conf
 grep -Fq 'try_files /favicon.svg =404;' deploy/nginx.conf
-grep -Fq 'https://$domain/api/health/live' deploy/smoke-production.sh
-grep -Fq 'https://$domain/api/health/ready' deploy/smoke-production.sh
-grep -Fq 'https://$domain/api/v1/listings' deploy/smoke-production.sh
+grep -Fq 'verify-public-origin.sh' deploy/smoke-production.sh
+grep -Fq 'APP_DOMAIN="$domain"' deploy/smoke-production.sh
 grep -Fq 'expected $path to return 404' deploy/smoke-production.sh
 grep -Fq 'for _ in $(seq 1 30); do' deploy/smoke-production.sh
 test -s public/privacidad/index.html

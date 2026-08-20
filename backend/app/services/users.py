@@ -22,6 +22,7 @@ from ..models import (
 )
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
 from .media_lifecycle import lock_media_assets, lock_media_owner
+from .moderation import lock_active_admin_access, normalize_email, viable_admin_count
 from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
 
 
@@ -84,6 +85,16 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
+
+    # Lock all grants in stable email order before evaluating the last-admin
+    # invariant. A user lock alone is insufficient: two administrators could
+    # otherwise each see the other account and both complete deletion.
+    active_grants = await lock_active_admin_access(session)
+    matching_grant = next((row for row in active_grants if row.email == normalize_email(locked_user.email)), None)
+    is_viable_admin = bool(matching_grant and locked_user.google_subject and not locked_user.blocked)
+    if is_viable_admin and await viable_admin_count(session) <= 1:
+        raise HTTPException(409, "At least one viable administrator must remain active")
+
     owned_listing_ids = select(Listing.id).where(Listing.owner_user_id == locked_user.id)
     await session.scalars(owned_listing_ids.order_by(Listing.id).with_for_update())
     media_ids = set(
@@ -135,5 +146,9 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     locked_user.show_phone = locked_user.show_whatsapp = False
     locked_user.allow_contact_form = False
     locked_user.avatar_asset_id = None
+    if matching_grant:
+        # Preserve the historical grant row but make it unusable immediately;
+        # the anonymized deleted address must never count as an administrator.
+        matching_grant.active = False
     await enqueue_storage_deletions(session, media_paths)
     await session.commit()

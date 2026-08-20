@@ -196,6 +196,10 @@ done
 "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
 image_ids="$("${compose[@]}" images -q backend mail-worker external-listings-worker frontend | sort -u | paste -sd, -)"
 ln -sfn "$release" "$CURRENT"
+# Internal readiness is necessary but cannot prove that Traefik/DNS serves the
+# configured application. A failure here triggers the existing ERR rollback
+# path and never marks the release successful.
+ROOT="$ROOT" "$release/deploy/smoke-production.sh"
 printf 'revision_after=%s\nimage_ids=%s\nstatus=success\n' "$revision_after" "$image_ids" >> "$metadata"
 trap - ERR
 printf 'deployed %s (previous: %s)\n' "$SHA" "$old_sha"
