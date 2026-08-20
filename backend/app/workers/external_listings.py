@@ -28,6 +28,13 @@ end
 return 0
 """
 
+_COMPARE_AND_EXPIRE_SCRIPT = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
+end
+return 0
+"""
+
 
 async def _acquire_distributed_lock(redis, lock_key: str, token: str, ttl_seconds: int) -> bool:
     """Acquire the one shared import/removal lock without masking Redis failures."""
@@ -41,6 +48,11 @@ async def _acquire_distributed_lock(redis, lock_key: str, token: str, ttl_second
 async def _delete_distributed_lock_if_owned(redis, lock_key: str, token: str) -> bool:
     """Atomically delete a lock only while it still contains our token."""
     return bool(await redis.eval(_COMPARE_AND_DELETE_SCRIPT, 1, lock_key, token))
+
+
+async def _refresh_distributed_lock_if_owned(redis, lock_key: str, token: str, ttl_seconds: int) -> bool:
+    """Extend a lease only while it is still owned by this worker."""
+    return bool(await redis.eval(_COMPARE_AND_EXPIRE_SCRIPT, 1, lock_key, token, str(ttl_seconds)))
 
 
 async def _release_distributed_lock(redis, lock_key: str, token: str) -> None:
@@ -89,6 +101,59 @@ async def _heartbeat_while_running(stopping: asyncio.Event, run_id: str) -> None
                 # A temporary database failure must not terminate the heartbeat
                 # task and later mask the import result from the main task.
                 logger.exception("external_import_heartbeat_failed", extra={"run_id": run_id})
+
+
+async def _run_removal_probe_with_lease(
+    operation,
+    *,
+    redis,
+    lock_key: str,
+    token: str,
+    lock_ttl: int,
+    heartbeat_interval: float | None = None,
+):
+    """Run a potentially slow removal probe while maintaining health and lock ownership."""
+    interval = heartbeat_interval or min(60, max(15, get_settings().external_worker_stale_after_seconds // 3))
+    task = asyncio.create_task(operation)
+
+    async def maintain() -> None:
+        try:
+            await worker_state()
+        except Exception:
+            logger.exception("external_removal_heartbeat_failed")
+        if redis is None:
+            return
+        try:
+            refreshed = await _refresh_distributed_lock_if_owned(redis, lock_key, token, lock_ttl)
+        except RedisError as exc:
+            raise RuntimeError("external removal lock refresh failed") from exc
+        if not refreshed:
+            raise RuntimeError("external removal lock lost")
+
+    try:
+        while True:
+            try:
+                result = await asyncio.wait_for(asyncio.shield(task), timeout=interval)
+            except TimeoutError:
+                try:
+                    await maintain()
+                except Exception:
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                    raise
+                continue
+            await maintain()
+            return result
+    finally:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 async def _wait_with_idle_heartbeat(
@@ -268,20 +333,25 @@ async def run_removal_once() -> int:
     redis = None
     token = str(uuid4())
     lock_key = "ttest:external-listings-import"
+    lock_ttl = max(1_800, settings.external_removal_check_interval_seconds * 2)
     try:
         if settings.redis_url:
             redis = from_url(settings.redis_url)
-            if not await _acquire_distributed_lock(
-                redis,
-                lock_key,
-                token,
-                max(1_800, settings.external_removal_check_interval_seconds * 2),
-            ):
+            if not await _acquire_distributed_lock(redis, lock_key, token, lock_ttl):
                 return 0
+        # The removal cycle owns the shared lease, so it is responsible for
+        # keeping the heartbeat fresh while remote state checks are in flight.
+        await worker_state()
         archived = 0
         for source in configured_sources():
             async with SessionLocal() as session:
-                archived += await run_removal_check(session, source)
+                archived += await _run_removal_probe_with_lease(
+                    run_removal_check(session, source),
+                    redis=redis,
+                    lock_key=lock_key,
+                    token=token,
+                    lock_ttl=lock_ttl,
+                )
                 await session.commit()
             # A removal probe is not a full import run. It still supplies a
             # heartbeat but must not change last_started_at/health to running.
