@@ -29,8 +29,6 @@ def active_window(model):
 
 
 async def is_admin(user: User, session: AsyncSession) -> bool:
-    if getattr(user, "role", None) == "admin":
-        return True
     if not getattr(user, "google_subject", None):
         return False
     email = normalize_email(user.email)
