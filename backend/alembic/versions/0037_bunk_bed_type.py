@@ -16,8 +16,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Expand-only: keep the legacy constrained bed_type column untouched so old and
-    # new application releases remain compatible during a rolling deployment.
+    # Expand-only: preserve the legacy constrained bed_type column so the previous
+    # and new application releases can overlap safely during deployment.
     op.add_column(
         "listing_room_details",
         sa.Column("bed_type_v2", sa.String(length=16), nullable=True),
