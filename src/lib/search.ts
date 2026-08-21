@@ -37,6 +37,11 @@ export function normalizeFilters(value: unknown): Filters {
     else if (source.couples === 'Sí') next.tenantRequirement = 'couple'
   }
   if (!source.currentResidents && source.occupants === '5 o más') next.currentResidents = '5+'
+  // Customer-facing search no longer exposes room-size or air-conditioning filters.
+  // Normalize legacy URLs/saved searches so removed controls never remain active invisibly.
+  next.roomSizeMin = defaultFilters.roomSizeMin
+  next.roomSizeMax = defaultFilters.roomSizeMax
+  next.amenities = next.amenities.filter((amenity) => amenity !== 'Aire acondicionado')
   return next
 }
 

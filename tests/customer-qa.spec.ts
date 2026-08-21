@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('mobile search filters are fully localized and clamp numeric values', async ({ page }) => {
+test('mobile search filters are localized after customer filter simplification', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
     localStorage.setItem('112233:language:v1', 'ru')
@@ -12,17 +12,18 @@ test('mobile search filters are fully localized and clamp numeric values', async
   const filters = page.locator('.m2-results-filter')
   await expect(filters).toBeVisible()
   await expect(filters).toContainText('Цена')
-  await expect(filters).toContainText('Площадь')
-  await expect(filters).toContainText('Количество комнат')
   await expect(filters).toContainText('Тип жилья')
+  await expect(filters).toContainText('Двухъярусная')
+  await expect(filters).not.toContainText('Площадь')
+  await expect(filters).not.toContainText('Количество комнат')
+  await expect(filters).not.toContainText('Кондиционер')
 
   const numericInputs = filters.locator('input[type="number"]')
+  await expect(numericInputs).toHaveCount(2)
   await numericInputs.nth(0).fill('-5')
   await expect(numericInputs.nth(0)).toHaveValue('0')
   await numericInputs.nth(1).fill('05555')
   await expect(numericInputs.nth(1)).toHaveValue('5555')
-  await numericInputs.nth(2).fill('-8')
-  await expect(numericInputs.nth(2)).toHaveValue('0')
 
   await filters.locator('footer button').click()
   await expect(page.locator('.m2-results__list')).toBeVisible()

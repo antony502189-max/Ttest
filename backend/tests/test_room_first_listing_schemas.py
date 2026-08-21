@@ -87,6 +87,27 @@ def test_shared_room_with_three_individual_bed_spaces_is_valid():
     assert listing.currentRoomResidents == 2
 
 
+def test_shared_room_with_bunk_bed_is_valid():
+    payload = base_payload() | {
+        "title": "Habitación compartida con litera",
+        "roomType": "Habitación compartida",
+        "roomCapacity": 2,
+        "rentalUnit": "bed",
+        "bedType": "bunk",
+        "bedCount": 1,
+        "currentRoomResidents": 1,
+    }
+
+    listing = ListingWrite.model_validate(payload)
+
+    assert listing.bedType == "bunk"
+    assert listing.bedCount == 1
+    assert listing.roomCapacity == 2
+
+    search = ListingSearchRequest.model_validate({"bedType": "bunk"})
+    assert search.bedType == "bunk"
+
+
 def test_holiday_room_for_two_with_double_bed_is_valid():
     payload = base_payload() | {
         "title": "Habitación privada para dos huéspedes",

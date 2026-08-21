@@ -142,7 +142,7 @@ async function expectSerialized(
   ).toBe(true)
 }
 
-test('FILTER-LAYER desktop URL state serializes every server-backed filter into the FastAPI request', async ({ page }, testInfo) => {
+test('FILTER-LAYER desktop URL state serializes every active customer server-backed filter into the FastAPI request', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'Mobile results consume the fully paginated catalog and use the shared client filter engine; URL-to-FastAPI serialization is a desktop-path contract.')
   const bodies: Record<string, unknown>[] = []
   await page.route('**/api/v1/listings/search', async (route) => {
@@ -164,8 +164,6 @@ test('FILTER-LAYER desktop URL state serializes every server-backed filter into 
     { params: { amueblada: '1' }, key: 'furnished', expected: true },
     { params: { gastos: '1' }, key: 'billsIncluded', expected: true },
     { params: { fianza: 'Sin fianza' }, key: 'deposit', expected: 'Sin fianza' },
-    { params: { tamanoMin: '12' }, key: 'minRoomSizeM2', expected: 12 },
-    { params: { tamanoMax: '30' }, key: 'maxRoomSizeM2', expected: 30 },
     { params: { viviendaMin: '70' }, key: 'minHomeSizeM2', expected: 70 },
     { params: { viviendaMax: '120' }, key: 'maxHomeSizeM2', expected: 120 },
     { params: { banosMin: '2' }, key: 'minBathroomCount', expected: 2 },
@@ -192,7 +190,7 @@ test('FILTER-LAYER desktop URL state serializes every server-backed filter into 
     { params: { padron: 'Sí' }, key: 'empadronamientoAllowed', expected: true },
     { params: { publicado: '7d' }, key: 'publishedWithinDays', expected: 7 },
     { params: { anunciante: 'Profesional' }, key: 'advertiserType', expected: 'Profesional' },
-    { params: { servicios: 'Aire acondicionado|Jardín' }, key: 'amenities', expected: ['Aire acondicionado', 'Jardín'] },
+    { params: { servicios: 'Jardín' }, key: 'amenities', expected: ['Jardín'] },
     { params: { orden: 'Precio más bajo' }, key: 'sort', expected: 'price_asc' },
     { params: { cerca: '1', lat: '28.4636', lng: '-16.2518', radio: '5' }, key: 'radiusKm', expected: 5 },
   ]

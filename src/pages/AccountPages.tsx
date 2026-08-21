@@ -66,7 +66,7 @@ function AccountHeader({
 }
 
 export function FavoritesPage() {
-  const { favorites, allListings } = useApp();
+  const { favorites, allListings, toggleFavorite } = useApp();
   const saved = allListings.filter((listing) => favorites.has(listing.id));
   return (
     <div className="container account-page">
@@ -83,7 +83,13 @@ export function FavoritesPage() {
       {saved.length ? (
         <div className="property-grid">
           {saved.map((listing) => (
-            <PropertyCard key={listing.id} listing={listing} compact />
+            <div className="favorite-card" key={listing.id}>
+              <PropertyCard listing={listing} compact />
+              <Button className="favorite-card__remove" variant="outline" onClick={() => toggleFavorite(listing.id)} aria-label={`Eliminar ${listing.title} de favoritos`}>
+                <Trash2 data-icon="inline-start" />
+                Eliminar de favoritos
+              </Button>
+            </div>
           ))}
         </div>
       ) : (

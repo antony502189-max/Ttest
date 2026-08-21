@@ -130,7 +130,7 @@ def response_from(row: Any) -> ListingResponse:
         homeSizeM2=room_details.home_size_m2 if room_details else None,
         bathroomCount=room_details.bathroom_count if room_details else None,
         rentalUnit=room_details.rental_unit if room_details else None,
-        bedType=room_details.bed_type if room_details else None,
+        bedType=(getattr(room_details, "bed_type_v2", None) or room_details.bed_type) if room_details else None,
         bedCount=room_details.bed_count if room_details else None,
         currentRoomResidents=current_room_residents,
         availableSpots=available_spots,
@@ -335,7 +335,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.rentalUnit:
         query = query.where(ListingRoomDetails.rental_unit == payload.rentalUnit)
     if payload.bedType:
-        query = query.where(ListingRoomDetails.bed_type == payload.bedType)
+        query = query.where(func.coalesce(ListingRoomDetails.bed_type_v2, ListingRoomDetails.bed_type) == payload.bedType)
     if payload.minBedCount is not None:
         query = query.where(ListingRoomDetails.bed_count >= payload.minBedCount)
     if payload.currentRoomResidents is not None:

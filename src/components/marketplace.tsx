@@ -889,16 +889,6 @@ function FilterPanel({
           ]}
           onChange={(next) => update("tenantRequirement", next as Filters["tenantRequirement"])}
         />
-        <div className="form-grid form-grid--compact">
-          <label className="field-label">
-            Tamaño mínimo (m²)
-            <Input type="number" min="0" max="50" value={value.roomSizeMin} onChange={(event) => update("roomSizeMin", Number(event.target.value))} />
-          </label>
-          <label className="field-label">
-            Tamaño máximo (m²)
-            <Input type="number" min="1" max="50" value={value.roomSizeMax} onChange={(event) => update("roomSizeMax", Number(event.target.value))} />
-          </label>
-        </div>
         <NativeSelect label="Capacidad de la habitación" value={value.roomCapacity} options={["Cualquiera", { value: "1", label: "1 persona" }, { value: "2", label: "2 personas" }]} onChange={(next) => update("roomCapacity", next)} />
       </section>
       <Separator />
@@ -1015,7 +1005,7 @@ function FilterPanel({
           onCheckedChange={(checked) => update("billsIncluded", checked)}
         />
         <div className="checks-grid">
-          {amenityOptions.map((amenity) => (
+          {amenityOptions.filter((amenity) => amenity !== "Aire acondicionado").map((amenity) => (
             <CheckOption
               key={amenity}
               label={amenity}

@@ -18,37 +18,28 @@ async function openFilters(page: import('@playwright/test').Page) {
   return results
 }
 
-test('price and area ranges normalize inverted bounds and survive reload', async ({ page }) => {
+test('price range normalizes inverted bounds and survives reload', async ({ page }) => {
   const results = await openFilters(page)
   await results.getByLabel('Precio Mín').fill('700')
   await results.getByLabel('Precio Máx').fill('400')
-  await results.getByLabel('Superficie Mín').fill('18')
-  await results.getByLabel('Superficie Máx').fill('8')
   await results.getByRole('button', { name: /Ver anuncios/ }).click()
 
   const hash = new URL(page.url()).hash
   expect(hash).toContain('precioMin=400')
   expect(hash).toContain('precioMax=700')
-  expect(hash).toContain('tamanoMin=8')
-  expect(hash).toContain('tamanoMax=18')
 
   const prices = await results.locator('.m2-result-card__price').allTextContents()
-  const facts = await results.locator('.m2-result-card__facts').allTextContents()
   expect(prices.length).toBeGreaterThan(0)
   for (const text of prices) {
     const value = Number(text.split('€')[0].replace(/[^0-9]/g, ''))
     expect(value).toBeGreaterThanOrEqual(400)
     expect(value).toBeLessThanOrEqual(700)
   }
-  for (const text of facts) {
-    const area = Number(text.match(/(\d+) m²/)?.[1] ?? Number.NaN)
-    expect(area).toBeGreaterThanOrEqual(8)
-    expect(area).toBeLessThanOrEqual(18)
-  }
 
   await page.reload()
   await expect(page.getByTestId('mobile-results')).toBeVisible()
   expect(new URL(page.url()).hash).toContain('precioMin=400')
+  expect(new URL(page.url()).hash).toContain('precioMax=700')
 })
 
 test('long-stay price never leaks into Tourism when cadence changes', async ({ page }) => {

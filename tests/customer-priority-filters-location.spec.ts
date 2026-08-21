@@ -22,11 +22,10 @@ test('CUSTOMER-PRIORITY mobile filters follow the requested decision order and p
   const panel = page.locator('.m2-results-filter')
   await expect(panel).toBeVisible()
   const text = await panel.locator('.m2-results-filter__scroll').innerText()
-  const ordered = ['Precio', 'Fecha de entrada', 'Ducha / baño privado en la habitación', 'Aseo / WC privado en la habitación', 'Cocina / mini-cocina privada en la habitación', 'Zona totalmente privada', 'Aire acondicionado', 'Tipo de cama', 'Ventana a la calle', 'Se permite fumar']
+  const ordered = ['Precio', 'Fecha de entrada', 'Ducha / baño privado en la habitación', 'Aseo / WC privado en la habitación', 'Cocina / mini-cocina privada en la habitación', 'Zona totalmente privada', 'Tipo de cama', 'Ventana a la calle', 'Se permite fumar']
   for (let index = 1; index < ordered.length; index += 1) expect(text.indexOf(ordered[index - 1])).toBeLessThan(text.indexOf(ordered[index]))
 
   await panel.getByText('Zona totalmente privada', { exact: false }).click()
-  await panel.getByText('Aire acondicionado', { exact: true }).click()
   await panel.getByLabel('Tipo de cama').selectOption('double')
   await panel.getByText('Ventana a la calle', { exact: true }).click()
   await panel.getByText('Se permite fumar', { exact: true }).click()
@@ -41,6 +40,9 @@ test('CUSTOMER-PRIORITY mobile filters follow the requested decision order and p
   await expect(page).toHaveURL(/fumar=S%C3%AD/)
   await expect(page).toHaveURL(/planta=top/)
   await expect(page).toHaveURL(/servicios=/)
+  await expect(panel.getByText('Aire acondicionado', { exact: true })).toHaveCount(0)
+  await expect(panel.getByText('Número de habitaciones', { exact: true })).toHaveCount(0)
+  await expect(panel.getByText('Superficie', { exact: true })).toHaveCount(0)
 })
 
 test('CUSTOMER-PRIORITY bathroom profile supports private toilet with shared shower', async ({ page }) => {
@@ -79,6 +81,9 @@ test('CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Los Cristianos')
 
   await page.getByRole('button', { name: 'Continuar' }).click()
+  const bedType = page.getByLabel('Tipo de cama')
+  await expect(bedType.locator('option[value="bunk"]')).toHaveText('2 plazas / litera')
+  await bedType.selectOption('bunk')
   await page.getByLabel('Planta').selectOption('top')
   await expect(page.getByText('Piscina', { exact: true })).toBeVisible()
   await expect(page.getByText('Jardín', { exact: true })).toBeVisible()
@@ -86,4 +91,5 @@ test('CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality
   await expect(page.getByText('Ventana a la calle', { exact: true })).toBeVisible()
   const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}').data)
   expect(draft.floor).toBe('top')
+  expect(draft.bedType).toBe('bunk')
 })

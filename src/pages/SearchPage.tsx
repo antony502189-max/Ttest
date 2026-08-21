@@ -117,8 +117,10 @@ export function SearchPage() {
   }, [addSearchHistory, invalidLocation, query]);
 
   useLayoutEffect(() => {
-    if (["genero", "parejas", "ocupantes"].some((name) => params.has(name))) {
-      setParams(filtersToParams(filters, new URLSearchParams(params)), { replace: true });
+    const canonicalParams = filtersToParams(filters, new URLSearchParams(params));
+    canonicalParams.delete("habitaciones");
+    if (canonicalParams.toString() !== params.toString()) {
+      setParams(canonicalParams, { replace: true });
       return;
     }
     if (query !== storedQuery) setQuery(query);

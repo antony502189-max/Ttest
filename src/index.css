@@ -1798,3 +1798,8 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 }
 
 .property-card { border-top-width: 3px; border-top-color: var(--brand-active); }
+
+/* Explicit favorites removal action */
+.favorite-card { min-width: 0; display: flex; flex-direction: column; gap: .65rem; }
+.favorite-card > .property-card { flex: 1; }
+.favorite-card__remove { align-self: stretch; }
