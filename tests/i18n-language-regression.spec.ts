@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
-import { translateText } from '../src/contexts/i18n-context'
+import { translateText, translationParityErrors } from '../src/contexts/i18n-context'
+import { bedTypeLabel, bedTypeOptionLabel } from '../src/lib/bed-type-label'
 
 async function openAsHost(page: Page, language: 'ru' | 'en', route = '/#/publicar') {
   await page.addInitScript(({ language }) => {
@@ -136,4 +137,66 @@ test('Russian mobile results localize data-backed room labels', async ({ page })
   expect(body).not.toContain('Habitación compartida')
   expect(body).not.toContain('Consultar con el anunciante')
   expect(body).not.toContain('Disponible desde')
+})
+
+test('the canonical locale catalog has no missing locale values', () => {
+  expect(translationParityErrors()).toEqual([])
+})
+
+test('bed type API values have one complete customer-facing label per locale', () => {
+  expect(bedTypeLabel('es', 'single')).toBe('Cama individual')
+  expect(bedTypeLabel('en', 'double')).toBe('Double bed')
+  expect(bedTypeLabel('ru', 'bunk')).toBe('Двухъярусная кровать')
+  expect(bedTypeOptionLabel('es', 'bunk')).toBe('2 plazas / litera')
+  expect(bedTypeOptionLabel('en', 'bunk')).toBe('2 bed spaces / Bunk bed')
+  expect(bedTypeOptionLabel('ru', 'bunk')).toBe('2 места / Двухъярусная кровать')
+})
+
+async function chooseLanguage(page: Page, code: 'ES' | 'EN' | 'RU') {
+  await page.locator('.site-header .language-switcher').click()
+  await page.getByRole('menuitemradio').filter({ hasText: code }).click()
+}
+
+test('desktop language switching replaces application UI without translating listing content', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:language:v1', 'es')
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  const title = page.locator('.property-card h3').first()
+  await expect(title).toBeVisible()
+  const userCreatedTitle = await title.innerText()
+
+  await chooseLanguage(page, 'RU')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
+  await expect(page.getByText('Поиск', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('body')).not.toContainText('Buscar habitaciones')
+  await expect(title).toHaveText(userCreatedTitle)
+
+  await chooseLanguage(page, 'EN')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await expect(page.getByText('Search', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('body')).not.toContainText('Поиск')
+
+  await chooseLanguage(page, 'ES')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es')
+  await expect(page.getByText('Buscar', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('body')).not.toContainText('Search')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:language:v1'))).toBe('es')
+})
+
+test('mobile filters isolate locale copy and preserve the persisted bunk value', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:language:v1', 'ru')
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await page.getByRole('button', { name: 'Фильтры' }).click()
+  const bedType = page.locator('select').filter({ has: page.locator('option[value="bunk"]') }).first()
+  await expect(bedType.locator('option[value="bunk"]')).toHaveText('Двухъярусная кровать')
+  await expect(page.locator('body')).not.toContainText('Tipo de cama')
+  await expect(page.locator('body')).not.toContainText('Bed type')
+  await expect(page.getByText('Количество комнат', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Размер комнаты', { exact: true })).toHaveCount(0)
 })

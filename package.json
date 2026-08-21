@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "data:zones": "node scripts/fetch-tenerife-zone-hierarchy.mjs",
     "typecheck": "tsc -b --pretty false",
-    "lint": "oxlint",
+    "lint": "oxlint && node scripts/check-i18n-source.mjs",
     "preview": "vite preview",
     "test:e2e": "playwright test && playwright test --config playwright.google-auth.config.ts",
     "test:a11y": "playwright test tests/a11y.spec.ts",

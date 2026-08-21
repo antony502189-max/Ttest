@@ -765,6 +765,17 @@ const translations: Record<string, Translation> = {
   'Registro': { ru: 'Регистрация', en: 'Registered' },
 }
 
+/**
+ * Spanish is the canonical source key and RU/EN are required values. Keeping
+ * them in one catalog prevents independent locale key-set drift.
+ */
+export function translationParityErrors(): string[] {
+  return Object.entries(translations).flatMap(([key, value]) => {
+    const missing = (['ru', 'en'] as const).filter((language) => !value[language]?.trim())
+    return missing.length ? [`${key}: missing ${missing.join(', ')}`] : []
+  })
+}
+
 const listingTranslations: Record<string, Translation> = {
   'Habitación luminosa con escritorio y gastos incluidos': { ru: 'Светлая комната с рабочим столом, расходы включены', en: 'Bright room with desk and bills included' },
   'Habitación doble a 8 min de Playa de Las Vistas': { ru: 'Двухместная комната в 8 минутах от Playa de Las Vistas', en: 'Double room 8 minutes from Playa de Las Vistas' },
@@ -1246,6 +1257,11 @@ const attributeOriginals = new WeakMap<Element, Map<string, string>>()
 const attributeApplied = new WeakMap<Element, Map<string, string>>()
 const translatedAttributes = ['aria-label', 'placeholder', 'title', 'alt'] as const
 
+const isTranslationExempt = (node: Node) => {
+  const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement
+  return element?.closest('[data-i18n-exempt]') !== null
+}
+
 const readLanguage = (): Language => {
   try {
     const stored = localStorage.getItem('112233:language:v1')
@@ -1261,6 +1277,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
     document.title = language === 'ru' ? '112233.es — аренда комнат на Тенерифе' : language === 'en' ? '112233.es — rooms for rent in Tenerife' : '112233.es — habitaciones en Tenerife'
 
     const translateTextNode = (node: Text) => {
+      if (isTranslationExempt(node)) return
       const lastApplied = textApplied.get(node)
       if (!textOriginals.has(node) || (lastApplied !== undefined && node.data !== lastApplied)) textOriginals.set(node, node.data)
       const original = textOriginals.get(node) ?? node.data
@@ -1270,6 +1287,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
     }
 
     const translateElement = (element: Element) => {
+      if (isTranslationExempt(element)) return
       let originals = attributeOriginals.get(element)
       let applied = attributeApplied.get(element)
       if (!originals) { originals = new Map(); attributeOriginals.set(element, originals) }
@@ -1287,6 +1305,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
     }
 
     const translateSubtree = (root: Node) => {
+      if (isTranslationExempt(root)) return
       if (root.nodeType === Node.TEXT_NODE) { translateTextNode(root as Text); return }
       if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return
       if (root.nodeType === Node.ELEMENT_NODE) translateElement(root as Element)
