@@ -30,8 +30,6 @@ import '@/mobile-search-results.css'
 
 type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
-type ExactRoomCount = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-type RoomCountFilter = ExactRoomCount | '10+'
 type ResultsOrder = 'relevance' | 'cheap' | 'expensive' | 'saved-new' | 'saved-old' | 'reduced' | 'sqm-cheap' | 'sqm-expensive' | 'area-large' | 'area-small' | 'floor-high' | 'floor-low'
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 type ResultsFilters = {
@@ -41,7 +39,6 @@ type ResultsFilters = {
   minArea: number
   maxArea: number
   roomTypes: Listing['roomType'][]
-  roomCounts: RoomCountFilter[]
   available: string
   availableUntil: string
   shower: Filters['shower']
@@ -61,7 +58,6 @@ const createDefaultFilters = (rentalMode: RentalMode | null = null): ResultsFilt
   minArea: defaultFilters.roomSizeMin,
   maxArea: defaultFilters.roomSizeMax,
   roomTypes: [],
-  roomCounts: [],
   available: defaultFilters.available,
   availableUntil: defaultFilters.availableUntil,
   shower: defaultFilters.shower,
@@ -192,10 +188,15 @@ export function MobileSearchResults() {
     if (!shouldOpen) return
     const routeMode: RentalMode = params.get('alquiler') === 'holiday' ? 'holiday' : 'long'
     const parsed = filtersFromParams(params)
+    const canonicalParams = filtersToParams(parsed, new URLSearchParams(params))
+    canonicalParams.delete('habitaciones')
+    if (canonicalParams.toString() !== params.toString()) {
+      navigate(`/buscar?${canonicalParams.toString()}`, { replace: true })
+      return
+    }
     const explicitRoomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
     const roomTypes: Listing['roomType'][] = explicitRoomTypes.length ? explicitRoomTypes : parsed.roomType !== 'Cualquiera' ? [parsed.roomType as Listing['roomType']] : []
-    const roomCounts: RoomCountFilter[] = []
-    const routeFilters: ResultsFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts, available: parsed.available, availableUntil: parsed.availableUntil, shower: parsed.shower, toilet: parsed.toilet, kitchen: parsed.kitchen, bedType: parsed.bedType, smoking: parsed.smoking, accessible: parsed.accessible, floor: parsed.floor, amenities: [...parsed.amenities] }
+    const routeFilters: ResultsFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, available: parsed.available, availableUntil: parsed.availableUntil, shower: parsed.shower, toilet: parsed.toilet, kitchen: parsed.kitchen, bedType: parsed.bedType, smoking: parsed.smoking, accessible: parsed.accessible, floor: parsed.floor, amenities: [...parsed.amenities] }
     setFilters(routeFilters)
     setDraftFilters(routeFilters)
     setRentalMode(routeMode)
@@ -206,7 +207,7 @@ export function MobileSearchResults() {
     if (params.get('panel') === 'filtros') setPanel('filters')
     else if (params.get('panel') === 'orden') setPanel('sort')
     else if (!open) setPanel('results')
-  }, [location.pathname, location.search, mobileViewport, open, setAppFilters, setRentalMode])
+  }, [location.pathname, location.search, mobileViewport, navigate, open, setAppFilters, setRentalMode])
 
   useEffect(() => {
     const openListing = (event: Event) => {
@@ -255,8 +256,7 @@ export function MobileSearchResults() {
     if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
     params.delete('capacidades')
-    if (filters.roomCounts.length) params.set('habitaciones', filters.roomCounts.join('|'))
-    else params.delete('habitaciones')
+    params.delete('habitaciones')
     const canonicalFilters = {
       ...appFilters,
       minPrice: Math.min(filters.minPrice, filters.maxPrice),
@@ -283,8 +283,7 @@ export function MobileSearchResults() {
     if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
     params.delete('capacidades')
-    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))
-    else params.delete('habitaciones')
+    params.delete('habitaciones')
     const canonicalFilters = {
       ...appFilters,
       minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),
@@ -374,8 +373,7 @@ export function MobileSearchResults() {
     if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
     params.delete('capacidades')
-    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))
-    else params.delete('habitaciones')
+    params.delete('habitaciones')
     navigate(`/buscar?${params.toString()}`, { replace: true })
     setPanel('results')
   }

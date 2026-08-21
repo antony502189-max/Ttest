@@ -292,10 +292,8 @@ test('WIZ-01..03 dirty state warns only after edits and save clears it', async (
 test('FILTER-01 and MAP-01..03 new filters serialize and map preview shows restrictions', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   const sidebar = page.locator('.filter-sidebar')
-  await sidebar.getByLabel('Tamaño mínimo (m²)').fill('10')
   await sidebar.getByLabel('Ducha').selectOption('Ducha privada')
   await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')
-  await expect(page).toHaveURL(/tamanoMin=10/)
   await expect(page).toHaveURL(/ducha=Ducha/)
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   await page.locator('.map-results-cards .property-card').first().getByRole('link').first().focus()

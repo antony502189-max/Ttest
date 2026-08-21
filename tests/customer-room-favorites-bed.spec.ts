@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('removed customer filters stay absent and legacy values do not remain hidden', async ({ page }) => {
+test('removed customer filters stay absent and legacy values are canonicalized away', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&panel=filtros&habitaciones=2&tamanoMin=18&tamanoMax=25&servicios=Aire%20acondicionado%7CPiscina')
   const panel = page.locator('.m2-results-filter')
@@ -18,6 +18,7 @@ test('removed customer filters stay absent and legacy values do not remain hidde
   await expect.poll(() => page.url()).not.toContain('tamanoMin=')
   await expect.poll(() => page.url()).not.toContain('tamanoMax=')
   await expect.poll(() => page.url()).not.toContain('Aire%20acondicionado')
+  await expect.poll(() => page.url()).toContain('Piscina')
 })
 
 test('favorite listing has an explicit remove action that removes it from Favorites', async ({ page }) => {
