@@ -13,7 +13,7 @@ test('mobile search filters are localized after customer filter simplification',
   await expect(filters).toBeVisible()
   await expect(filters).toContainText('Цена')
   await expect(filters).toContainText('Тип жилья')
-  await expect(filters).toContainText('Двухъярусная')
+  await expect(filters).toContainText('Двухъярусная кровать')
   await expect(filters).not.toContainText('Площадь')
   await expect(filters).not.toContainText('Количество комнат')
   await expect(filters).not.toContainText('Кондиционер')

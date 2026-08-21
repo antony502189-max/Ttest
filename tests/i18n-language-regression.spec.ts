@@ -147,7 +147,7 @@ test('bed type API values have one complete customer-facing label per locale', (
   expect(bedTypeLabel('es', 'single')).toBe('Cama individual')
   expect(bedTypeLabel('en', 'double')).toBe('Double bed')
   expect(bedTypeLabel('ru', 'bunk')).toBe('Двухъярусная кровать')
-  expect(bedTypeOptionLabel('es', 'bunk')).toBe('2 plazas / Litera')
+  expect(bedTypeOptionLabel('es', 'bunk')).toBe('2 plazas / litera')
   expect(bedTypeOptionLabel('en', 'bunk')).toBe('2 bed spaces / Bunk bed')
   expect(bedTypeOptionLabel('ru', 'bunk')).toBe('2 места / Двухъярусная кровать')
 })
