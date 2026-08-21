@@ -22,6 +22,13 @@ const spanishSearchResidues = [
 ]
 
 test('room-first translation dictionary covers dynamic facts', () => {
+  expect(translateText('Habitación luminosa con cama, escritorio y ventana', 'ru')).toBe('Светлая комната с кроватью, столом и окном')
+  expect(translateText('Encuentra una habitación según quién vivirá y sus condiciones.', 'en')).toBe('Find a room that suits who will live there and their needs.')
+  expect(translateText('Resultados adaptados', 'ru')).toBe('Подходящие результаты')
+  expect(translateText('Catálogo conectado al servicio de anuncios.', 'en')).toBe('Catalog connected to the listings service.')
+  expect(translateText('Ventana a la calle', 'en')).toBe('Street-facing window')
+  expect(translateText('Abrir selección de ubicación. Tenerife', 'ru')).toBe('Открыть выбор местоположения. Tenerife')
+  expect(translateText('Abrir selección de ubicación. Tenerife', 'en')).toBe('Open location selection. Tenerife')
   expect(translateText('Calefacción', 'ru')).toBe('Отопление')
   expect(translateText('Calefacción', 'en')).toBe('Heating')
   expect(translateText('Equipamiento y accesibilidad', 'ru')).toBe('Оснащение и доступность')
@@ -63,6 +70,30 @@ for (const language of ['ru', 'en'] as const) {
     for (const label of expected) await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
     for (const spanish of ['Calefacción', 'Equipamiento y accesibilidad', 'Tipo de cama', 'Número de camas', 'Aseo / WC', 'Ducha']) {
       await expect(page.getByText(spanish, { exact: true })).toHaveCount(0)
+    }
+  })
+}
+
+for (const [language, expected] of [
+  ['ru', {
+    hero: 'Найдите комнату с учётом жильцов и нужных условий.',
+    trigger: 'Открыть выбор местоположения. Tenerife',
+    trust: 'Подходящие результаты',
+  }],
+  ['en', {
+    hero: 'Find a room that suits who will live there and their needs.',
+    trigger: 'Open location selection. Tenerife',
+    trust: 'Tailored results',
+  }],
+] as const) {
+  test(`home application copy stays localized in ${language}`, async ({ page }) => {
+    await openAsHost(page, language, '/#/')
+    await expect(page.getByText(expected.hero, { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: expected.trigger })).toBeVisible()
+    await expect(page.getByText(expected.trust, { exact: true })).toBeVisible()
+    const body = await page.locator('body').innerText()
+    for (const spanish of ['Configura tu búsqueda', 'Resultados adaptados']) {
+      expect(body).not.toContain(spanish)
     }
   })
 }
@@ -197,6 +228,8 @@ test('mobile filters isolate locale copy and preserve the persisted bunk value',
   await expect(bedType.locator('option[value="bunk"]')).toHaveText('Двухъярусная кровать')
   await expect(page.locator('body')).not.toContainText('Tipo de cama')
   await expect(page.locator('body')).not.toContainText('Bed type')
+  await expect(page.getByText('Окно на улицу', { exact: true })).toBeVisible()
+  await expect(page.getByText('Ventana a la calle', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Количество комнат', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Размер комнаты', { exact: true })).toHaveCount(0)
 })
