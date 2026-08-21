@@ -1,0 +1,171 @@
+name: Apply customer filter contract CI fix
+
+on:
+  push:
+    branches:
+      - feature/customer-room-favorites-bed
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feature/customer-room-favorites-bed
+          fetch-depth: 0
+
+      - name: Align product logic and regression tests with removed filters
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(path, old, new):
+              text = read(path)
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+              write(path, text.replace(old, new, 1))
+
+          # Hidden legacy room-count URL parameters must no longer affect results.
+          replace_once(
+              'src/lib/mobile-search.ts',
+              "import { getBedroomCount } from '@/lib/listings'\n",
+              '',
+          )
+          replace_once(
+              'src/lib/mobile-search.ts',
+              "  const bedroomFilters = (params.get('habitaciones') ?? '').split('|').filter(Boolean)\n  const exactBedroomCounts = bedroomFilters.map(Number).filter((value) => Number.isInteger(value) && value >= 1 && value <= 10)\n  const moreThanTenBedrooms = bedroomFilters.includes('10+')\n",
+              '',
+          )
+          replace_once(
+              'src/lib/mobile-search.ts',
+              "    const bedroomCount = getBedroomCount(listing)\n    if (bedroomFilters.length && !exactBedroomCounts.includes(bedroomCount) && !(moreThanTenBedrooms && bedroomCount > 10)) return false\n",
+              '',
+          )
+
+          # Remove dead room-count state from the mobile filter implementation and canonicalize old URLs.
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "type ExactRoomCount = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10\ntype RoomCountFilter = ExactRoomCount | '10+'\n",
+              '',
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "  roomCounts: RoomCountFilter[]\n",
+              '',
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "  roomCounts: [],\n",
+              '',
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "    const parsed = filtersFromParams(params)\n    const explicitRoomTypes =",
+              "    const parsed = filtersFromParams(params)\n    const canonicalParams = filtersToParams(parsed, new URLSearchParams(params))\n    canonicalParams.delete('habitaciones')\n    if (canonicalParams.toString() !== params.toString()) {\n      navigate(`/buscar?${canonicalParams.toString()}`, { replace: true })\n      return\n    }\n    const explicitRoomTypes =",
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "    const roomCounts: RoomCountFilter[] = []\n    const routeFilters: ResultsFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, roomCounts, available: parsed.available, availableUntil: parsed.availableUntil, shower: parsed.shower, toilet: parsed.toilet, kitchen: parsed.kitchen, bedType: parsed.bedType, smoking: parsed.smoking, accessible: parsed.accessible, floor: parsed.floor, amenities: [...parsed.amenities] }\n",
+              "    const routeFilters: ResultsFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, available: parsed.available, availableUntil: parsed.availableUntil, shower: parsed.shower, toilet: parsed.toilet, kitchen: parsed.kitchen, bedType: parsed.bedType, smoking: parsed.smoking, accessible: parsed.accessible, floor: parsed.floor, amenities: [...parsed.amenities] }\n",
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "  }, [location.pathname, location.search, mobileViewport, open, setAppFilters, setRentalMode])\n",
+              "  }, [location.pathname, location.search, mobileViewport, navigate, open, setAppFilters, setRentalMode])\n",
+          )
+          # Three separate blocks wrote habitaciones from obsolete state.
+          text = read('src/components/mobile-search-results-v2.tsx')
+          obsolete = "    if (filters.roomCounts.length) params.set('habitaciones', filters.roomCounts.join('|'))\n    else params.delete('habitaciones')\n"
+          if text.count(obsolete) != 1:
+              raise SystemExit(f'mobile results: expected one applied roomCounts block, found {text.count(obsolete)}')
+          text = text.replace(obsolete, "    params.delete('habitaciones')\n", 1)
+          obsolete = "    if (draftFilters.roomCounts.length) params.set('habitaciones', draftFilters.roomCounts.join('|'))\n    else params.delete('habitaciones')\n"
+          if text.count(obsolete) != 2:
+              raise SystemExit(f'mobile results: expected two draft roomCounts blocks, found {text.count(obsolete)}')
+          text = text.replace(obsolete, "    params.delete('habitaciones')\n")
+          write('src/components/mobile-search-results-v2.tsx', text)
+
+          # Customer QA: validate the new localized filter contract, not removed controls.
+          write('tests/customer-qa.spec.ts', '''import { expect, test } from '@playwright/test'\n\ntest('mobile search filters are localized after customer filter simplification', async ({ page }) => {\n  await page.setViewportSize({ width: 390, height: 844 })\n  await page.addInitScript(() => {\n    localStorage.setItem('112233:language:v1', 'ru')\n    localStorage.setItem('112233:mobile-onboarding:v1', 'done')\n  })\n  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')\n\n  await page.getByTestId('mobile-results').getByRole('button', { name: 'Фильтры' }).click()\n  const filters = page.locator('.m2-results-filter')\n  await expect(filters).toBeVisible()\n  await expect(filters).toContainText('Цена')\n  await expect(filters).toContainText('Тип жилья')\n  await expect(filters).toContainText('Двухъярусная')\n  await expect(filters).not.toContainText('Площадь')\n  await expect(filters).not.toContainText('Количество комнат')\n  await expect(filters).not.toContainText('Кондиционер')\n\n  const numericInputs = filters.locator('input[type="number"]')\n  await expect(numericInputs).toHaveCount(2)\n  await numericInputs.nth(0).fill('-5')\n  await expect(numericInputs.nth(0)).toHaveValue('0')\n  await numericInputs.nth(1).fill('05555')\n  await expect(numericInputs.nth(1)).toHaveValue('5555')\n\n  await filters.locator('footer button').click()\n  await expect(page.locator('.m2-results__list')).toBeVisible()\n\n  await page.locator('.m2-results__toolbar button').nth(1).click()\n  await expect(page.locator('.m2-results-sort [role="radio"]')).toHaveCount(12)\n  await expect(page.locator('.m2-results-sort')).toContainText('Дорогие')\n})\n''')
+
+          # New regression: old removed URL params are stripped/neutralized while valid amenities survive.
+          path = 'tests/customer-room-favorites-bed.spec.ts'
+          old = '''test('removed customer filters stay absent and legacy values do not remain hidden', async ({ page }) => {\n  await page.setViewportSize({ width: 390, height: 844 })\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long&panel=filtros&habitaciones=2&tamanoMin=18&tamanoMax=25&servicios=Aire%20acondicionado%7CPiscina')\n  const panel = page.locator('.m2-results-filter')\n  await expect(panel).toBeVisible()\n  await expect(panel.getByText('Número de habitaciones', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Aire acondicionado', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Superficie', { exact: true })).toHaveCount(0)\n  await expect.poll(() => page.url()).not.toContain('habitaciones=')\n  await expect.poll(() => page.url()).not.toContain('tamanoMin=')\n  await expect.poll(() => page.url()).not.toContain('tamanoMax=')\n  await expect.poll(() => page.url()).not.toContain('Aire%20acondicionado')\n})\n'''
+          new = '''test('removed customer filters stay absent and legacy values are canonicalized away', async ({ page }) => {\n  await page.setViewportSize({ width: 390, height: 844 })\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long&panel=filtros&habitaciones=2&tamanoMin=18&tamanoMax=25&servicios=Aire%20acondicionado%7CPiscina')\n  const panel = page.locator('.m2-results-filter')\n  await expect(panel).toBeVisible()\n  await expect(panel.getByText('Número de habitaciones', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Aire acondicionado', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Superficie', { exact: true })).toHaveCount(0)\n  await expect.poll(() => page.url()).not.toContain('habitaciones=')\n  await expect.poll(() => page.url()).not.toContain('tamanoMin=')\n  await expect.poll(() => page.url()).not.toContain('tamanoMax=')\n  await expect.poll(() => page.url()).not.toContain('Aire%20acondicionado')\n  await expect.poll(() => page.url()).toContain('Piscina')\n})\n'''
+          replace_once(path, old, new)
+
+          # Desktop legacy E2E tests: keep remaining filter contracts, drop removed room-size assertions.
+          replace_once(
+              'tests/delta-matrix.spec.ts',
+              '''  const baseline = await resultCount(page)\n  const sidebar = page.locator('.filter-sidebar')\n  await sidebar.getByLabel('Tamaño mínimo (m²)').fill('18')\n  await expect(page).toHaveURL(/tamanoMin=18/)\n  await expect.poll(() => resultCount(page)).toBeLessThan(baseline)\n  await sidebar.getByLabel('Ducha').selectOption('Ducha privada')\n  await sidebar.getByLabel('Residentes actuales').selectOption('1')\n  await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')\n  await expect(page).toHaveURL(/ducha=Ducha/)\n  await expect(page).toHaveURL(/residentes=1/)\n  await expect(page).toHaveURL(/capacidad=1/)\n  await expect(page.locator('.applied-filters')).toContainText('18–50 m²')\n  await expect(page.locator('.applied-filters')).toContainText('Ducha')\n''',
+              '''  const baseline = await resultCount(page)\n  const sidebar = page.locator('.filter-sidebar')\n  await sidebar.getByLabel('Ducha').selectOption('Ducha privada')\n  await sidebar.getByLabel('Residentes actuales').selectOption('1')\n  await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')\n  await expect(page).toHaveURL(/ducha=Ducha/)\n  await expect(page).toHaveURL(/residentes=1/)\n  await expect(page).toHaveURL(/capacidad=1/)\n  await expect(page.locator('.applied-filters')).toContainText('Ducha')\n  await expect.poll(() => resultCount(page)).toBeLessThan(baseline)\n''',
+          )
+          replace_once(
+              'tests/delta-matrix.spec.ts',
+              "  await expect(page).not.toHaveURL(/tamanoMin|ducha|residentes|capacidad/)\n",
+              "  await expect(page).not.toHaveURL(/ducha|residentes|capacidad/)\n",
+          )
+          replace_once(
+              'tests/delta.spec.ts',
+              "  await sidebar.getByLabel('Tamaño mínimo (m²)').fill('10')\n  await sidebar.getByLabel('Ducha').selectOption('Ducha privada')\n  await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')\n  await expect(page).toHaveURL(/tamanoMin=10/)\n  await expect(page).toHaveURL(/ducha=Ducha/)\n",
+              "  await sidebar.getByLabel('Ducha').selectOption('Ducha privada')\n  await sidebar.getByLabel('Capacidad de la habitación').selectOption('1')\n  await expect(page).toHaveURL(/ducha=Ducha/)\n",
+          )
+
+          # Mobile draft-state test now narrows with supported filters and derives the count dynamically.
+          path = 'tests/mobile-filter-draft-state.spec.ts'
+          old = '''test('clear is a draft action until View listings is pressed', async ({ page }) => {\n  const results = await openLongStayResults(page)\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await results.getByLabel('Precio Máx').fill('500')\n  await results.getByLabel('Superficie Máx').fill('12')\n  await results.getByLabel('1 habitación').check()\n  await results.getByLabel('Habitaciones individuales').check()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 6/ })).toBeVisible()\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(6)\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await results.getByRole('button', { name: 'Limpiar' }).click()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 23/ })).toBeVisible()\n  await results.getByRole('button', { name: 'Cerrar' }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(6)\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 6/ })).toBeVisible()\n  await results.getByRole('button', { name: 'Limpiar' }).click()\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(23)\n})'''
+          new = '''test('clear is a draft action until View listings is pressed', async ({ page }) => {\n  const results = await openLongStayResults(page)\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await results.getByLabel('Precio Máx').fill('500')\n  await results.getByLabel('Habitaciones individuales').check()\n  const apply = results.getByRole('button', { name: /Ver anuncios · \\d+/ })\n  await expect(apply).toBeVisible()\n  const filteredCount = Number((await apply.textContent())?.match(/(\\d+)$/)?.[1] ?? 0)\n  expect(filteredCount).toBeGreaterThan(0)\n  expect(filteredCount).toBeLessThan(23)\n  await apply.click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(filteredCount)\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await results.getByRole('button', { name: 'Limpiar' }).click()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 23/ })).toBeVisible()\n  await results.getByRole('button', { name: 'Cerrar' }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(filteredCount)\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await expect(results.getByLabel('Precio Máx')).toHaveValue('500')\n  await expect(results.getByLabel('Habitaciones individuales')).toBeChecked()\n  await results.getByRole('button', { name: 'Limpiar' }).click()\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(23)\n})'''
+          replace_once(path, old, new)
+
+          # Price-range regression without the removed area filter.
+          path = 'tests/mobile-filter-price-area-audit.spec.ts'
+          old = '''test('price and area ranges normalize inverted bounds and survive reload', async ({ page }) => {\n  const results = await openFilters(page)\n  await results.getByLabel('Precio Mín').fill('700')\n  await results.getByLabel('Precio Máx').fill('400')\n  await results.getByLabel('Superficie Mín').fill('18')\n  await results.getByLabel('Superficie Máx').fill('8')\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n\n  const hash = new URL(page.url()).hash\n  expect(hash).toContain('precioMin=400')\n  expect(hash).toContain('precioMax=700')\n  expect(hash).toContain('tamanoMin=8')\n  expect(hash).toContain('tamanoMax=18')\n\n  const prices = await results.locator('.m2-result-card__price').allTextContents()\n  const facts = await results.locator('.m2-result-card__facts').allTextContents()\n  expect(prices.length).toBeGreaterThan(0)\n  for (const text of prices) {\n    const value = Number(text.split('€')[0].replace(/[^0-9]/g, ''))\n    expect(value).toBeGreaterThanOrEqual(400)\n    expect(value).toBeLessThanOrEqual(700)\n  }\n  for (const text of facts) {\n    const area = Number(text.match(/(\\d+) m²/)?.[1] ?? Number.NaN)\n    expect(area).toBeGreaterThanOrEqual(8)\n    expect(area).toBeLessThanOrEqual(18)\n  }\n\n  await page.reload()\n  await expect(page.getByTestId('mobile-results')).toBeVisible()\n  expect(new URL(page.url()).hash).toContain('precioMin=400')\n})'''
+          new = '''test('price range normalizes inverted bounds and survives reload', async ({ page }) => {\n  const results = await openFilters(page)\n  await results.getByLabel('Precio Mín').fill('700')\n  await results.getByLabel('Precio Máx').fill('400')\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n\n  const hash = new URL(page.url()).hash\n  expect(hash).toContain('precioMin=400')\n  expect(hash).toContain('precioMax=700')\n\n  const prices = await results.locator('.m2-result-card__price').allTextContents()\n  expect(prices.length).toBeGreaterThan(0)\n  for (const text of prices) {\n    const value = Number(text.split('€')[0].replace(/[^0-9]/g, ''))\n    expect(value).toBeGreaterThanOrEqual(400)\n    expect(value).toBeLessThanOrEqual(700)\n  }\n\n  await page.reload()\n  await expect(page.getByTestId('mobile-results')).toBeVisible()\n  expect(new URL(page.url()).hash).toContain('precioMin=400')\n  expect(new URL(page.url()).hash).toContain('precioMax=700')\n})'''
+          replace_once(path, old, new)
+
+          # Housing-type AND test uses only supported filters.
+          path = 'tests/mobile-filter-type-combo-audit.spec.ts'
+          old = '''test('price, area, bedroom and housing type combine with AND semantics', async ({ page }) => {\n  const results = await resultsPage(page)\n  await openFilters(results)\n  await results.getByLabel('Precio Máx').fill('500')\n  await results.getByLabel('Superficie Máx').fill('12')\n  await results.getByLabel('1 habitación', { exact: true }).check()\n  await results.getByLabel('Habitaciones individuales', { exact: true }).check()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 6$/ })).toBeVisible()\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(6)\n\n  const prices = await results.locator('.m2-result-card__price').allTextContents()\n  const facts = await results.locator('.m2-result-card__facts').allTextContents()\n  for (const text of prices) expect(Number(text.split('€')[0].replace(/[^0-9]/g, ''))).toBeLessThanOrEqual(500)\n  for (const text of facts) {\n    expect(Number(text.match(/(\\d+) m²/)?.[1] ?? Number.NaN)).toBeLessThanOrEqual(12)\n    expect(text).toContain('· 1 habitación')\n    expect(text).toContain('Habitación individual')\n  }\n})'''
+          new = '''test('price and housing type combine with AND semantics', async ({ page }) => {\n  const results = await resultsPage(page)\n  await openFilters(results)\n  await results.getByLabel('Precio Máx').fill('500')\n  await results.getByLabel('Habitaciones individuales', { exact: true }).check()\n  const apply = results.getByRole('button', { name: /Ver anuncios · \\d+$/ })\n  await expect(apply).toBeVisible()\n  const filteredCount = Number((await apply.textContent())?.match(/(\\d+)$/)?.[1] ?? 0)\n  expect(filteredCount).toBeGreaterThan(0)\n  expect(filteredCount).toBeLessThan(23)\n  await apply.click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(filteredCount)\n\n  const prices = await results.locator('.m2-result-card__price').allTextContents()\n  const facts = await results.locator('.m2-result-card__facts').allTextContents()\n  for (const text of prices) expect(Number(text.split('€')[0].replace(/[^0-9]/g, ''))).toBeLessThanOrEqual(500)\n  for (const text of facts) expect(text).toContain('Habitación individual')\n})'''
+          replace_once(path, old, new)
+
+          # Replace obsolete exhaustive room-count test with the new bed/filter contract.
+          write('tests/mobile-filters-exhaustive.spec.ts', '''import { expect, test } from '@playwright/test'\n\ntest.use({ viewport: { width: 390, height: 844 } })\n\ntest('removed room-size and room-count controls stay absent while bunk bed remains selectable', async ({ page }) => {\n  await page.goto('/')\n  if (!(await page.getByTestId('open-location').isVisible().catch(() => false))) {\n    await page.getByRole('button', { name: 'Continuar' }).click()\n    await page.getByRole('button', { name: 'Continuar' }).click()\n    await page.getByRole('button', { name: 'Continuar' }).click()\n    await page.getByRole('button', { name: 'Ahora no' }).click()\n  }\n  await page.locator('.m2-mode-switch > button').first().click()\n  await page.getByTestId('open-location').click()\n  const results = page.getByTestId('mobile-results')\n  await results.getByRole('button', { name: 'Filtros' }).click()\n\n  await expect(results.getByText('Número de habitaciones', { exact: true })).toHaveCount(0)\n  await expect(results.getByText('Superficie', { exact: true })).toHaveCount(0)\n  await expect(results.getByText('Aire acondicionado', { exact: true })).toHaveCount(0)\n  const bed = results.getByLabel('Tipo de cama')\n  await expect(bed).toBeVisible()\n  await bed.selectOption('bunk')\n  await expect(bed).toHaveValue('bunk')\n  await expect(results).toContainText('Litera')\n})\n''')
+
+          # Home reset regression narrows only with controls that still exist.
+          path = 'tests/mobile-home-search-reset.spec.ts'
+          old = '''  await narrowed.getByRole('button', { name: 'Filtros' }).click()\n  await narrowed.getByLabel('Precio Máx').fill('500')\n  await narrowed.getByLabel('Superficie Máx').fill('12')\n  await narrowed.getByLabel('1 habitación').check()\n  await narrowed.getByLabel('Habitaciones individuales').check()\n  await expect(narrowed.getByRole('button', { name: /Ver anuncios · 6/ })).toBeVisible()\n  await narrowed.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(narrowed.locator('.m2-result-card')).toHaveCount(6)\n'''
+          new = '''  await narrowed.getByRole('button', { name: 'Filtros' }).click()\n  await narrowed.getByLabel('Precio Máx').fill('500')\n  await narrowed.getByLabel('Habitaciones individuales').check()\n  const apply = narrowed.getByRole('button', { name: /Ver anuncios · \\d+/ })\n  await expect(apply).toBeVisible()\n  const filteredCount = Number((await apply.textContent())?.match(/(\\d+)$/)?.[1] ?? 0)\n  expect(filteredCount).toBeGreaterThan(0)\n  expect(filteredCount).toBeLessThan(23)\n  await apply.click()\n  await expect(narrowed.locator('.m2-result-card')).toHaveCount(filteredCount)\n'''
+          replace_once(path, old, new)
+
+          # Mobile search result regression narrows only by price + housing type.
+          path = 'tests/mobile-search-results.spec.ts'
+          old = '''test('price, area, room count and housing type filters change the listing set', async ({ page }) => {\n  await finishOnboarding(page)\n  const results = await openResults(page, 'Vivienda')\n  await results.getByRole('button', { name: 'Filtros' }).click()\n\n  await results.getByLabel('Precio Máx').fill('500')\n  await results.getByLabel('Superficie Máx').fill('12')\n  await results.getByLabel('1 habitación').check()\n  await results.getByLabel('Habitaciones individuales').check()\n\n  const apply = results.getByRole('button', { name: /Ver anuncios · 6/ })\n  await expect(apply).toBeVisible()\n  await apply.click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(6)\n\n  const cards = results.locator('.m2-result-card')\n  const count = await cards.count()\n  for (let index = 0; index < count; index += 1) {\n    const card = cards.nth(index)\n    const price = Number(((await card.locator('.m2-result-card__price').textContent()) ?? '').split('€')[0].replace(/[^0-9]/g, ''))\n    const facts = (await card.locator('.m2-result-card__facts').textContent()) ?? ''\n    const area = Number(facts.match(/(\\d+) m²/)?.[1] ?? Number.NaN)\n    expect(price).toBeLessThanOrEqual(500)\n    expect(area).toBeLessThanOrEqual(12)\n    expect(facts).toContain('Habitación individual')\n  }\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await results.getByRole('button', { name: 'Limpiar' }).click()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 23/ })).toBeVisible()\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(23)\n})'''
+          new = '''test('price and housing type filters change the listing set', async ({ page }) => {\n  await finishOnboarding(page)\n  const results = await openResults(page, 'Vivienda')\n  await results.getByRole('button', { name: 'Filtros' }).click()\n\n  await results.getByLabel('Precio Máx').fill('500')\n  await results.getByLabel('Habitaciones individuales').check()\n\n  const apply = results.getByRole('button', { name: /Ver anuncios · \\d+/ })\n  await expect(apply).toBeVisible()\n  const filteredCount = Number((await apply.textContent())?.match(/(\\d+)$/)?.[1] ?? 0)\n  expect(filteredCount).toBeGreaterThan(0)\n  expect(filteredCount).toBeLessThan(23)\n  await apply.click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(filteredCount)\n\n  const cards = results.locator('.m2-result-card')\n  const count = await cards.count()\n  for (let index = 0; index < count; index += 1) {\n    const card = cards.nth(index)\n    const price = Number(((await card.locator('.m2-result-card__price').textContent()) ?? '').split('€')[0].replace(/[^0-9]/g, ''))\n    const facts = (await card.locator('.m2-result-card__facts').textContent()) ?? ''\n    expect(price).toBeLessThanOrEqual(500)\n    expect(facts).toContain('Habitación individual')\n  }\n\n  await results.getByRole('button', { name: 'Filtros' }).click()\n  await results.getByRole('button', { name: 'Limpiar' }).click()\n  await expect(results.getByRole('button', { name: /Ver anuncios · 23/ })).toBeVisible()\n  await results.getByRole('button', { name: /Ver anuncios/ }).click()\n  await expect(results.locator('.m2-result-card')).toHaveCount(23)\n})'''
+          replace_once(path, old, new)
+
+          Path('.github/workflows/customer-filter-contract-fix.yml').unlink()
+          PY
+
+      - name: Commit contract fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test: align search regressions with customer filter contract"
+          git push origin HEAD:feature/customer-room-favorites-bed
