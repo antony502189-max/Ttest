@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
 ALLOWED_RENTAL_UNITS = {"room", "bed"}
-ALLOWED_BED_TYPES = {"single", "double"}
+ALLOWED_BED_TYPES = {"single", "double", "bunk"}
 ALLOWED_TOILETS = {"Aseo privado", "Aseo compartido"}
 ALLOWED_HOUSEHOLD_GENDERS = {"men", "women", "mixed", "unknown"}
 ALLOWED_HEATING_TYPES = {"individual", "central", "none", "unknown"}
@@ -108,12 +108,12 @@ class ListingWrite(BaseModel):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
         if self.rentalUnit == "bed" and self.roomType != "Habitación compartida":
             raise ValueError("rentalUnit=bed is only valid for shared rooms")
-        if self.rentalUnit == "bed" and self.bedType not in {None, "single"}:
-            raise ValueError("bed-space listings must use single beds")
+        if self.rentalUnit == "bed" and self.bedType not in {None, "single", "bunk"}:
+            raise ValueError("bed-space listings must use single or bunk beds")
         if self.currentRoomResidents is not None and self.currentRoomResidents >= self.roomCapacity:
             raise ValueError("currentRoomResidents must leave at least one available place")
         if self.bedCount is not None and self.bedType is not None:
-            sleeping_places = self.bedCount * (2 if self.bedType == "double" else 1)
+            sleeping_places = self.bedCount * (2 if self.bedType in {"double", "bunk"} else 1)
             if sleeping_places < self.roomCapacity:
                 raise ValueError("bedCount and bedType do not provide enough sleeping places")
         if self.homeSizeM2 is not None and self.homeSizeM2 < self.roomSizeM2:

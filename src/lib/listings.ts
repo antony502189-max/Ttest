@@ -125,7 +125,7 @@ export function normalizeListing(value: unknown): Listing | null {
     ? legacy.nightlyPrice
     : rentalMode === 'holiday' ? price : undefined
   const rentalUnit = enumValue<RentalUnit>(legacy.rentalUnit, ['room', 'bed'])
-  const bedType = enumValue<BedType>(legacy.bedType, ['single', 'double'])
+  const bedType = enumValue<BedType>(legacy.bedType, ['single', 'double', 'bunk'])
   const toilet = enumValue<ToiletType>(legacy.toilet, ['Aseo privado', 'Aseo compartido'])
   const householdGender = enumValue<HouseholdGender>(legacy.householdGender, ['men', 'women', 'mixed', 'unknown'])
   const heatingType = enumValue<HeatingType>(legacy.heatingType, ['individual', 'central', 'none', 'unknown'])

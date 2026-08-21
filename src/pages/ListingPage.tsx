@@ -59,7 +59,7 @@ export function ListingPage() {
   const saved = favorites.has(listing.id)
   const listingComments = localComments.filter((comment) => comment.listingId === listing.id)
   const availableSpots = listing.availableSpots ?? (listing.roomCapacity != null && listing.currentRoomResidents != null ? Math.max(0, listing.roomCapacity - listing.currentRoomResidents) : null)
-  const bedLabel = listing.bedCount == null || listing.bedType == null ? unknownListingFact : `${listing.bedCount} ${listing.bedCount === 1 ? 'cama' : 'camas'} ${listing.bedType === 'double' ? 'doble' : 'individual'}`
+  const bedLabel = listing.bedCount == null || listing.bedType == null ? unknownListingFact : `${listing.bedCount} ${listing.bedCount === 1 ? 'cama' : 'camas'} ${listing.bedType === 'double' ? 'doble' : listing.bedType === 'bunk' ? 'litera' : 'individual'}`
   const rentalUnitLabel = listing.rentalUnit === 'bed' ? 'Se alquilan plazas individuales' : listing.rentalUnit === 'room' ? 'Se alquila la habitación completa' : unknownListingFact
 
   const share = async () => {

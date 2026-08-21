@@ -167,12 +167,12 @@ def _validate_effective_patch_state(
         raise HTTPException(422, "nightlyPrice is required for holiday rentals")
     if rental_unit == "bed" and room_type != "Habitación compartida":
         raise HTTPException(422, "rentalUnit=bed is only valid for shared rooms")
-    if rental_unit == "bed" and bed_type not in {None, "single"}:
-        raise HTTPException(422, "bed-space listings must use single beds")
+    if rental_unit == "bed" and bed_type not in {None, "single", "bunk"}:
+        raise HTTPException(422, "bed-space listings must use single or bunk beds")
     if room_residents is not None and room_capacity is not None and room_residents >= room_capacity:
         raise HTTPException(422, "currentRoomResidents must leave at least one available place")
     if bed_count is not None and bed_type is not None and room_capacity is not None:
-        sleeping_places = bed_count * (2 if bed_type == "double" else 1)
+        sleeping_places = bed_count * (2 if bed_type in {"double", "bunk"} else 1)
         if sleeping_places < room_capacity:
             raise HTTPException(422, "bedCount and bedType do not provide enough sleeping places")
     if home_size is not None and room_size is not None and home_size < room_size:
