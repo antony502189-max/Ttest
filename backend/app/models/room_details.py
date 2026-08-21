@@ -29,6 +29,7 @@ class ListingRoomDetails(Base):
     bathroom_count: Mapped[int | None] = mapped_column(Integer)
     rental_unit: Mapped[str | None] = mapped_column(String(16))
     bed_type: Mapped[str | None] = mapped_column(String(16))
+    bed_type_v2: Mapped[str | None] = mapped_column(String(16))
     bed_count: Mapped[int | None] = mapped_column(Integer)
     current_room_residents: Mapped[int | None] = mapped_column(Integer)
     toilet: Mapped[str | None] = mapped_column(String(64))

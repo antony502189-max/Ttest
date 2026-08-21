@@ -1,4 +1,4 @@
-"""Allow bunk beds in structured room details.
+"""Add expand-compatible bunk bed storage.
 
 Revision ID: 0037_bunk_bed_type
 Revises: 0036_listing_promotions
@@ -7,6 +7,7 @@ Revises: 0036_listing_promotions
 from collections.abc import Sequence
 
 from alembic import op
+import sqlalchemy as sa
 
 revision: str = "0037_bunk_bed_type"
 down_revision: str | None = "0036_listing_promotions"
@@ -15,18 +16,13 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.drop_constraint("ck_room_details_bed_type", "listing_room_details", type_="check")
-    op.create_check_constraint(
-        "ck_room_details_bed_type",
+    # Expand-only: keep the legacy constrained bed_type column untouched so old and
+    # new application releases remain compatible during a rolling deployment.
+    op.add_column(
         "listing_room_details",
-        "bed_type IS NULL OR bed_type IN ('single', 'double', 'bunk')",
+        sa.Column("bed_type_v2", sa.String(length=16), nullable=True),
     )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_room_details_bed_type", "listing_room_details", type_="check")
-    op.create_check_constraint(
-        "ck_room_details_bed_type",
-        "listing_room_details",
-        "bed_type IS NULL OR bed_type IN ('single', 'double')",
-    )
+    op.drop_column("listing_room_details", "bed_type_v2")

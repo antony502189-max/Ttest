@@ -104,6 +104,9 @@ def test_shared_room_with_bunk_bed_is_valid():
     assert listing.bedCount == 1
     assert listing.roomCapacity == 2
 
+    search = ListingSearchRequest.model_validate({"bedType": "bunk"})
+    assert search.bedType == "bunk"
+
 
 def test_holiday_room_for_two_with_double_bed_is_valid():
     payload = base_payload() | {

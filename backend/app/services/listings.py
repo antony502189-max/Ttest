@@ -28,7 +28,7 @@ ROOM_DETAIL_MAPPING = {
     "homeSizeM2": "home_size_m2",
     "bathroomCount": "bathroom_count",
     "rentalUnit": "rental_unit",
-    "bedType": "bed_type",
+    "bedType": "bed_type_v2",
     "bedCount": "bed_count",
     "currentRoomResidents": "current_room_residents",
     "toilet": "toilet",
@@ -40,6 +40,11 @@ ROOM_DETAIL_MAPPING = {
     "couplesAllowed": "couples_allowed",
     "acceptedTenantTypes": "accepted_tenant_types",
 }
+
+
+def _legacy_bed_type(value: str | None) -> str | None:
+    """Mirror new values into the old constrained column during the expand phase."""
+    return "single" if value == "bunk" else value
 
 
 async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSession) -> bool:
@@ -136,6 +141,7 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
 def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) -> None:
     for api_name, model_name in ROOM_DETAIL_MAPPING.items():
         setattr(details, model_name, getattr(payload, api_name))
+    details.bed_type = _legacy_bed_type(payload.bedType)
 
 
 def _validate_effective_patch_state(
@@ -154,7 +160,7 @@ def _validate_effective_patch_state(
     available_until = effective("availableUntil", listing.available_until)
 
     rental_unit = effective("rentalUnit", details.rental_unit if details else None)
-    bed_type = effective("bedType", details.bed_type if details else None)
+    bed_type = effective("bedType", (details.bed_type_v2 or details.bed_type) if details else None)
     bed_count = effective("bedCount", details.bed_count if details else None)
     room_residents = effective(
         "currentRoomResidents", details.current_room_residents if details else None
@@ -269,6 +275,8 @@ async def update_listing(
             session.add(details)
         for api_name, value in detail_changes.items():
             setattr(details, ROOM_DETAIL_MAPPING[api_name], value)
+            if api_name == "bedType":
+                details.bed_type = _legacy_bed_type(value if isinstance(value, str) else None)
 
     previous_status = listing.status
     latitude = changes.pop("latitude", None)
