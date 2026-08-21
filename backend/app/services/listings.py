@@ -160,7 +160,7 @@ def _validate_effective_patch_state(
     available_until = effective("availableUntil", listing.available_until)
 
     rental_unit = effective("rentalUnit", details.rental_unit if details else None)
-    bed_type = effective("bedType", (details.bed_type_v2 or details.bed_type) if details else None)
+    bed_type = effective("bedType", (getattr(details, "bed_type_v2", None) or details.bed_type) if details else None)
     bed_count = effective("bedCount", details.bed_count if details else None)
     room_residents = effective(
         "currentRoomResidents", details.current_room_residents if details else None
