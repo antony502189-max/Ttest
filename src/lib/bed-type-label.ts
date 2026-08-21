@@ -20,7 +20,6 @@ export function bedTypeOptionLabel(language: Language, bedType: BedType): string
   }
   const prefix = language === 'ru'
     ? `${places} ${places === 1 ? 'место' : 'места'}`
-    : language === 'en'
-      ? `${places} ${places === 1 ? 'bed space' : 'bed spaces'}`
+    : `${places} ${places === 1 ? 'bed space' : 'bed spaces'}`
   return `${prefix} / ${bedTypeLabel(language, bedType)}`
 }
