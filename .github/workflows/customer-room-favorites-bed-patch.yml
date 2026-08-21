@@ -1,0 +1,300 @@
+name: Apply customer room and favorites change
+
+on:
+  push:
+    branches:
+      - feature/customer-room-favorites-bed
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feature/customer-room-favorites-bed
+          fetch-depth: 0
+
+      - name: Apply focused product changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(path, old, new):
+              text = read(path)
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:100]!r}')
+              write(path, text.replace(old, new, 1))
+
+          def replace_all_checked(path, old, new, expected):
+              text = read(path)
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected} occurrences, found {count}: {old[:100]!r}')
+              write(path, text.replace(old, new))
+
+          def regex_once(path, pattern, replacement, flags=0):
+              text = read(path)
+              new, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(f'{path}: regex expected one match, found {count}: {pattern[:100]!r}')
+              write(path, new)
+
+          # 1) First-class bunk-bed value across frontend types and normalization.
+          replace_once(
+              'src/types.ts',
+              "export type BedType = 'single' | 'double'",
+              "export type BedType = 'single' | 'double' | 'bunk'",
+          )
+          replace_once(
+              'src/lib/listings.ts',
+              "const bedType = enumValue<BedType>(legacy.bedType, ['single', 'double'])",
+              "const bedType = enumValue<BedType>(legacy.bedType, ['single', 'double', 'bunk'])",
+          )
+
+          # 2) Backend write/update validation. Bunk beds provide two sleeping places and
+          # can be used when individual bed spaces are rented; double beds still cannot.
+          replace_once(
+              'backend/app/schemas/listings.py',
+              'ALLOWED_BED_TYPES = {"single", "double"}',
+              'ALLOWED_BED_TYPES = {"single", "double", "bunk"}',
+          )
+          replace_once(
+              'backend/app/schemas/listings.py',
+              'if self.rentalUnit == "bed" and self.bedType not in {None, "single"}:\n            raise ValueError("bed-space listings must use single beds")',
+              'if self.rentalUnit == "bed" and self.bedType not in {None, "single", "bunk"}:\n            raise ValueError("bed-space listings must use single or bunk beds")',
+          )
+          replace_once(
+              'backend/app/schemas/listings.py',
+              'sleeping_places = self.bedCount * (2 if self.bedType == "double" else 1)',
+              'sleeping_places = self.bedCount * (2 if self.bedType in {"double", "bunk"} else 1)',
+          )
+          replace_once(
+              'backend/app/services/listings.py',
+              'if rental_unit == "bed" and bed_type not in {None, "single"}:\n        raise HTTPException(422, "bed-space listings must use single beds")',
+              'if rental_unit == "bed" and bed_type not in {None, "single", "bunk"}:\n        raise HTTPException(422, "bed-space listings must use single or bunk beds")',
+          )
+          replace_once(
+              'backend/app/services/listings.py',
+              'sleeping_places = bed_count * (2 if bed_type == "double" else 1)',
+              'sleeping_places = bed_count * (2 if bed_type in {"double", "bunk"} else 1)',
+          )
+
+          # 3) Publication wizard: Single, Double, Bunk (Litera). For bed-space rental,
+          # double remains invalid but bunk is allowed. Capacity maths treats bunk as two places.
+          replace_all_checked(
+              'src/pages/PublishPage.tsx',
+              'const placesPerBed = current.bedType === "double" ? 2 : 1;',
+              'const placesPerBed = current.bedType === "double" || current.bedType === "bunk" ? 2 : 1;',
+              1,
+          )
+          replace_once(
+              'src/pages/PublishPage.tsx',
+              'if (draft.rentalUnit === "bed" && draft.bedType !== "single") next.bedType = "Las plazas independientes se publican como camas individuales.";',
+              'if (draft.rentalUnit === "bed" && draft.bedType === "double") next.bedType = "Las plazas independientes se publican con cama individual o litera.";',
+          )
+          replace_once(
+              'src/pages/PublishPage.tsx',
+              'const sleepingPlaces = draft.bedCount * (draft.bedType === "double" ? 2 : 1);',
+              'const sleepingPlaces = draft.bedCount * (draft.bedType === "double" || draft.bedType === "bunk" ? 2 : 1);',
+          )
+          old_select = '<FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} disabled={draft.rentalUnit === "bed"} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft["bedType"]; setDraft((current) => { const placesPerBed = bedType === "double" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}><option value="single">1 plaza / individual</option><option value="double">2 plazas / doble</option></select></FormField>'
+          new_select = '<FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft["bedType"]; setDraft((current) => { const placesPerBed = bedType === "double" || bedType === "bunk" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}><option value="single">1 plaza / individual</option><option value="double" disabled={draft.rentalUnit === "bed"}>2 plazas / doble</option><option value="bunk">2 plazas / litera</option></select></FormField>'
+          replace_once('src/pages/PublishPage.tsx', old_select, new_select)
+
+          # Listing detail renders the new value explicitly instead of falling through to "individual".
+          replace_once(
+              'src/pages/ListingPage.tsx',
+              "const bedLabel = listing.bedCount == null || listing.bedType == null ? unknownListingFact : `${listing.bedCount} ${listing.bedCount === 1 ? 'cama' : 'camas'} ${listing.bedType === 'double' ? 'doble' : 'individual'}`",
+              "const bedLabel = listing.bedCount == null || listing.bedType == null ? unknownListingFact : `${listing.bedCount} ${listing.bedCount === 1 ? 'cama' : 'camas'} ${listing.bedType === 'double' ? 'doble' : listing.bedType === 'bunk' ? 'litera' : 'individual'}`",
+          )
+
+          # 4) Customer requested search-filter removal. Keep listing fields/data intact, but
+          # normalize old URL/saved-search room-size and air-conditioning constraints away.
+          replace_once(
+              'src/lib/search.ts',
+              "  if (!source.currentResidents && source.occupants === '5 o más') next.currentResidents = '5+'\n  return next",
+              "  if (!source.currentResidents && source.occupants === '5 o más') next.currentResidents = '5+'\n  // Customer-facing search no longer exposes room-size or air-conditioning filters.\n  // Normalize legacy URLs/saved searches so removed controls never remain active invisibly.\n  next.roomSizeMin = defaultFilters.roomSizeMin\n  next.roomSizeMax = defaultFilters.roomSizeMax\n  next.amenities = next.amenities.filter((amenity) => amenity !== 'Aire acondicionado')\n  return next",
+          )
+
+          # Canonicalize removed legacy params out of SearchPage URLs, including the custom
+          # mobile room-count parameter.
+          replace_once(
+              'src/pages/SearchPage.tsx',
+              '  useLayoutEffect(() => {\n    if (["genero", "parejas", "ocupantes"].some((name) => params.has(name))) {\n      setParams(filtersToParams(filters, new URLSearchParams(params)), { replace: true });\n      return;\n    }',
+              '  useLayoutEffect(() => {\n    const canonicalParams = filtersToParams(filters, new URLSearchParams(params));\n    canonicalParams.delete("habitaciones");\n    if (canonicalParams.toString() !== params.toString()) {\n      setParams(canonicalParams, { replace: true });\n      return;\n    }',
+          )
+
+          # Desktop legacy FilterPanel: remove room-size controls and omit air conditioning
+          # from filter amenities without removing it from listing/publication amenities.
+          regex_once(
+              'src/components/marketplace.tsx',
+              r'\n        <div className="form-grid form-grid--compact">\s*<label className="field-label">\s*Tamaño mínimo \(m²\).*?</div>(?=\n        <NativeSelect label="Capacidad de la habitación")',
+              '',
+              flags=re.S,
+          )
+          replace_once(
+              'src/components/marketplace.tsx',
+              '{amenityOptions.map((amenity) => (',
+              '{amenityOptions.filter((amenity) => amenity !== "Aire acondicionado").map((amenity) => (',
+          )
+
+          # Localized desktop/mobile filter panel parity: same removals + bunk bed option.
+          regex_once(
+              'src/components/localized-search-filters.tsx',
+              r'\n      <div className="form-grid form-grid--compact"><label className="field-label">\{text\("Habitación desde \(m²\)".*?</div>(?=\n      <NativeSelect label=\{text\("Tipo de cama")',
+              '',
+              flags=re.S,
+          )
+          replace_once(
+              'src/components/localized-search-filters.tsx',
+              '{ value: "double", label: text("Doble", "Двуспальная", "Double") }]}',
+              '{ value: "double", label: text("Doble", "Двуспальная", "Double") }, { value: "bunk", label: text("Litera", "Двухъярусная", "Bunk") }]}',
+          )
+          replace_once(
+              'src/components/localized-search-filters.tsx',
+              '{amenityOptions.map((amenity) => <CheckOption',
+              '{amenityOptions.filter((amenity) => amenity !== "Aire acondicionado").map((amenity) => <CheckOption',
+          )
+
+          # Mobile results filter: remove room count, room area and AC controls. Keep the internal
+          # compatibility shape at defaults, but never parse/apply old room-count restrictions.
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "const roomCountOptions: readonly RoomCountFilter[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, '10+']\n",
+              '',
+          )
+          regex_once(
+              'src/components/mobile-search-results-v2.tsx',
+              r"    const roomCounts = \(params.get\('habitaciones'\) \?\? ''\).*?\.filter\(\(value\): value is RoomCountFilter => value !== null\)\n",
+              '    const roomCounts: RoomCountFilter[] = []\n',
+              flags=re.S,
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "        <label><input type=\"checkbox\" checked={hasDraftAmenity('Aire acondicionado')} onChange={(event) => setDraftAmenity('Aire acondicionado', event.target.checked)} /><span>{t.airConditioning}</span></label>\n",
+              '',
+          )
+          regex_once(
+              'src/components/mobile-search-results-v2.tsx',
+              r'\n      <fieldset><legend>\{t\.area\}</legend><div className="m2-results-filter__pair">.*?</fieldset>\n      <fieldset><legend>\{t\.rooms\}</legend><div className="m2-results-filter__checks m2-results-filter__checks--rooms">.*?</fieldset>',
+              '',
+              flags=re.S,
+          )
+          replace_all_checked(
+              'src/components/mobile-search-results-v2.tsx',
+              '<option value="double">{t.doubleBed}</option></select>',
+              '<option value="double">{t.doubleBed}</option><option value="bunk">{t.bunkBed}</option></select>',
+              1,
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "singleBed: 'Individual', doubleBed: 'Doble',",
+              "singleBed: 'Individual', doubleBed: 'Doble', bunkBed: 'Litera',",
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "singleBed: 'Single', doubleBed: 'Double',",
+              "singleBed: 'Single', doubleBed: 'Double', bunkBed: 'Bunk',",
+          )
+          replace_once(
+              'src/components/mobile-search-results-v2.tsx',
+              "singleBed: 'Односпальная', doubleBed: 'Двуспальная',",
+              "singleBed: 'Односпальная', doubleBed: 'Двуспальная', bunkBed: 'Двухъярусная',",
+          )
+
+          # 5) Favorites page: add an explicit visible remove action on each saved listing.
+          replace_once(
+              'src/pages/AccountPages.tsx',
+              '  const { favorites, allListings } = useApp();',
+              '  const { favorites, allListings, toggleFavorite } = useApp();',
+          )
+          replace_once(
+              'src/pages/AccountPages.tsx',
+              '          {saved.map((listing) => (\n            <PropertyCard key={listing.id} listing={listing} compact />\n          ))}',
+              '          {saved.map((listing) => (\n            <div className="favorite-card" key={listing.id}>\n              <PropertyCard listing={listing} compact />\n              <Button className="favorite-card__remove" variant="outline" onClick={() => toggleFavorite(listing.id)} aria-label={`Eliminar ${listing.title} de favoritos`}>\n                <Trash2 data-icon="inline-start" />\n                Eliminar de favoritos\n              </Button>\n            </div>\n          ))}',
+          )
+          css = read('src/index.css')
+          marker = '\n/* Explicit favorites removal action */\n'
+          if marker not in css:
+              css += marker + '.favorite-card { min-width: 0; display: flex; flex-direction: column; gap: .65rem; }\n.favorite-card > .property-card { flex: 1; }\n.favorite-card__remove { align-self: stretch; }\n'
+              write('src/index.css', css)
+
+          # 6) Migration: the database CHECK constraint must accept bunk, otherwise UI/API
+          # support would fail at INSERT/UPDATE time.
+          migration = '''"""Allow bunk beds in structured room details.\n\nRevision ID: 0037_bunk_bed_type\nRevises: 0036_listing_promotions\n"""\n\nfrom collections.abc import Sequence\n\nfrom alembic import op\n\nrevision: str = "0037_bunk_bed_type"\ndown_revision: str | None = "0036_listing_promotions"\nbranch_labels: str | Sequence[str] | None = None\ndepends_on: str | Sequence[str] | None = None\n\n\ndef upgrade() -> None:\n    op.drop_constraint("ck_room_details_bed_type", "listing_room_details", type_="check")\n    op.create_check_constraint(\n        "ck_room_details_bed_type",\n        "listing_room_details",\n        "bed_type IS NULL OR bed_type IN ('single', 'double', 'bunk')",\n    )\n\n\ndef downgrade() -> None:\n    op.drop_constraint("ck_room_details_bed_type", "listing_room_details", type_="check")\n    op.create_check_constraint(\n        "ck_room_details_bed_type",\n        "listing_room_details",\n        "bed_type IS NULL OR bed_type IN ('single', 'double')",\n    )\n'''
+          migration_path = Path('backend/alembic/versions/0037_bunk_bed_type.py')
+          if migration_path.exists():
+              raise SystemExit(f'{migration_path} already exists')
+          migration_path.write_text(migration, encoding='utf-8')
+
+          # 7) Backend regression coverage for bunk bed validation/capacity.
+          test_path = 'backend/tests/test_room_first_listing_schemas.py'
+          anchor = '''def test_holiday_room_for_two_with_double_bed_is_valid():\n'''
+          text = read(test_path)
+          idx = text.index(anchor)
+          bunk_test = '''def test_shared_room_with_bunk_bed_is_valid():\n    payload = base_payload() | {\n        "title": "Habitación compartida con litera",\n        "roomType": "Habitación compartida",\n        "roomCapacity": 2,\n        "rentalUnit": "bed",\n        "bedType": "bunk",\n        "bedCount": 1,\n        "currentRoomResidents": 1,\n    }\n\n    listing = ListingWrite.model_validate(payload)\n\n    assert listing.bedType == "bunk"\n    assert listing.bedCount == 1\n    assert listing.roomCapacity == 2\n\n\n'''
+          text = text[:idx] + bunk_test + text[idx:]
+          write(test_path, text)
+
+          # 8) Update the existing customer acceptance test to the new filter contract and
+          # verify the bunk option in the publication wizard.
+          replace_once(
+              'tests/customer-priority-filters-location.spec.ts',
+              "  const ordered = ['Precio', 'Fecha de entrada', 'Ducha / baño privado en la habitación', 'Aseo / WC privado en la habitación', 'Cocina / mini-cocina privada en la habitación', 'Zona totalmente privada', 'Aire acondicionado', 'Tipo de cama', 'Ventana a la calle', 'Se permite fumar']",
+              "  const ordered = ['Precio', 'Fecha de entrada', 'Ducha / baño privado en la habitación', 'Aseo / WC privado en la habitación', 'Cocina / mini-cocina privada en la habitación', 'Zona totalmente privada', 'Tipo de cama', 'Ventana a la calle', 'Se permite fumar']",
+          )
+          replace_once(
+              'tests/customer-priority-filters-location.spec.ts',
+              "  await panel.getByText('Aire acondicionado', { exact: true }).click()\n",
+              '',
+          )
+          replace_once(
+              'tests/customer-priority-filters-location.spec.ts',
+              "  await expect(page).toHaveURL(/servicios=/)\n",
+              "  await expect(page).toHaveURL(/servicios=/)\n  await expect(panel.getByText('Aire acondicionado', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Número de habitaciones', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Superficie', { exact: true })).toHaveCount(0)\n",
+          )
+          replace_once(
+              'tests/customer-priority-filters-location.spec.ts',
+              "  await page.getByLabel('Planta').selectOption('top')\n",
+              "  const bedType = page.getByLabel('Tipo de cama')\n  await expect(bedType.locator('option[value=\"bunk\"]')).toHaveText('2 plazas / litera')\n  await bedType.selectOption('bunk')\n  await page.getByLabel('Planta').selectOption('top')\n",
+          )
+          replace_once(
+              'tests/customer-priority-filters-location.spec.ts',
+              "  expect(draft.floor).toBe('top')\n",
+              "  expect(draft.floor).toBe('top')\n  expect(draft.bedType).toBe('bunk')\n",
+          )
+
+          # Dedicated runtime regression: old removed filters normalize away and a favorite can
+          # be explicitly removed from Favorites.
+          customer_spec = '''import { expect, test } from '@playwright/test'\n\ntest.beforeEach(async ({ page }) => {\n  await page.goto('/#/')\n  await page.evaluate(() => localStorage.clear())\n  await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))\n})\n\ntest('removed customer filters stay absent and legacy values do not remain hidden', async ({ page }) => {\n  await page.setViewportSize({ width: 390, height: 844 })\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long&panel=filtros&habitaciones=2&tamanoMin=18&tamanoMax=25&servicios=Aire%20acondicionado%7CPiscina')\n  const panel = page.locator('.m2-results-filter')\n  await expect(panel).toBeVisible()\n  await expect(panel.getByText('Número de habitaciones', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Aire acondicionado', { exact: true })).toHaveCount(0)\n  await expect(panel.getByText('Superficie', { exact: true })).toHaveCount(0)\n  await expect.poll(() => page.url()).not.toContain('habitaciones=')\n  await expect.poll(() => page.url()).not.toContain('tamanoMin=')\n  await expect.poll(() => page.url()).not.toContain('tamanoMax=')\n  await expect.poll(() => page.url()).not.toContain('Aire%20acondicionado')\n})\n\ntest('favorite listing has an explicit remove action that removes it from Favorites', async ({ page }) => {\n  await page.setViewportSize({ width: 1280, height: 900 })\n  await page.goto('/#/buscar?q=Tenerife&alquiler=long')\n  const firstFavorite = page.locator('.favorite-button').first()\n  await expect(firstFavorite).toBeVisible()\n  await firstFavorite.click()\n  await page.goto('/#/favoritos')\n  const remove = page.getByRole('button', { name: /Eliminar .* de favoritos/ }).first()\n  await expect(remove).toBeVisible()\n  await remove.click()\n  await expect(page.getByText('0 habitaciones guardadas', { exact: true })).toBeVisible()\n  await expect(page.getByText('Eliminar de favoritos', { exact: true })).toHaveCount(0)\n})\n'''
+          spec_path = Path('tests/customer-room-favorites-bed.spec.ts')
+          if spec_path.exists():
+              raise SystemExit(f'{spec_path} already exists')
+          spec_path.write_text(customer_spec, encoding='utf-8')
+
+          # Remove this one-shot workflow from the final branch diff.
+          Path('.github/workflows/customer-room-favorites-bed-patch.yml').unlink()
+          PY
+
+      - name: Commit patched product code
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: apply customer room and favorites changes"
+          git push origin HEAD:feature/customer-room-favorites-bed
