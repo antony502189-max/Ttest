@@ -44,6 +44,8 @@ import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
 import { approximatePublicCoordinates } from "@/lib/location-privacy";
 import { removeUnusedMediaReferences } from "@/lib/media-storage";
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
+import { useI18n } from "@/contexts/i18n-context";
+import { bedTypeOptionLabel } from "@/lib/bed-type-label";
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from "@/types";
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === "1";
@@ -243,6 +245,7 @@ function WizardSection({ title, description, children }: { title: string; descri
 }
 
 export function PublishPage({ editing = false }: { editing?: boolean }) {
+  const { language } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
   const { allListings, createListing, updateListing, currentUser, canManageListing } = useApp();
@@ -447,7 +450,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <FormField label="Personas que ya viven en la vivienda" htmlFor="publish-residents" error={errors.currentResidents}><Input id="publish-residents" aria-label="Personas que viven en casa" type="number" min="0" max="50" value={draft.currentResidents} aria-invalid={Boolean(errors.currentResidents)} onChange={(e) => set("currentResidents", Number(e.target.value))} /></FormField>
             <FormField label="Capacidad total de esta habitación" htmlFor="publish-capacity" error={errors.roomCapacity}><select id="publish-capacity" aria-label="Capacidad de la habitación" value={draft.roomCapacity} aria-invalid={Boolean(errors.roomCapacity)} onChange={(e) => { const roomCapacity = Number(e.target.value); setDraft((current) => { const placesPerBed = current.bedType === "double" || current.bedType === "bunk" ? 2 : 1; return { ...current, roomCapacity, bedCount: Math.max(current.bedCount, Math.ceil(roomCapacity / placesPerBed)), currentRoomResidents: Math.min(current.currentRoomResidents, roomCapacity - 1) }; }); }}>{Array.from({ length: 10 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? "persona" : "personas"}</option>)}</select></FormField>
             <FormField label="Personas que ya viven en esta habitación" htmlFor="publish-room-residents" error={errors.currentRoomResidents}><Input id="publish-room-residents" type="number" min="0" max="9" value={draft.currentRoomResidents} aria-invalid={Boolean(errors.currentRoomResidents)} onChange={(e) => set("currentRoomResidents", Number(e.target.value))} /></FormField>
-            <FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft["bedType"]; setDraft((current) => { const placesPerBed = bedType === "double" || bedType === "bunk" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}><option value="single">1 plaza / individual</option><option value="double" disabled={draft.rentalUnit === "bed"}>2 plazas / doble</option><option value="bunk">2 plazas / litera</option></select></FormField>
+            <FormField label="Tipo de cama" htmlFor="publish-bed-type" error={errors.bedType}><select id="publish-bed-type" value={draft.bedType} aria-invalid={Boolean(errors.bedType)} onChange={(e) => { const bedType = e.target.value as ListingDraft["bedType"]; setDraft((current) => { const placesPerBed = bedType === "double" || bedType === "bunk" ? 2 : 1; return { ...current, bedType, bedCount: Math.max(current.bedCount, Math.ceil(current.roomCapacity / placesPerBed)) }; }); }}><option value="single">{bedTypeOptionLabel(language, 'single')}</option><option value="double" disabled={draft.rentalUnit === "bed"}>{bedTypeOptionLabel(language, 'double')}</option><option value="bunk">{bedTypeOptionLabel(language, 'bunk')}</option></select></FormField>
             <FormField label="Número de camas" htmlFor="publish-bed-count" error={errors.bedCount}><Input id="publish-bed-count" type="number" min="1" max="10" value={draft.bedCount} aria-invalid={Boolean(errors.bedCount)} onChange={(e) => set("bedCount", Number(e.target.value))} /></FormField>
             <FormField label="Baño" htmlFor="publish-bathroom"><select id="publish-bathroom" value={draft.bathroom} onChange={(e) => set("bathroom", e.target.value as ListingDraft["bathroom"])}><option>Baño compartido</option><option>Baño privado</option></select></FormField>
             <FormField label="Aseo / WC" htmlFor="publish-toilet"><select id="publish-toilet" value={draft.toilet} onChange={(e) => set("toilet", e.target.value as ListingDraft["toilet"])}><option>Aseo compartido</option><option>Aseo privado</option></select></FormField>

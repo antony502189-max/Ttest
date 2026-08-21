@@ -603,18 +603,18 @@ export function PropertyCard({
       </div>
       <div className="property-card__content">
         <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`}>
-          <h3>{listing.title}</h3>
+          <h3 data-i18n-exempt>{listing.title}</h3>
           <div className="card-topline">
             <PriceBlock listing={listing} />
             <span>{listing.bills}</span>
           </div>
-          <p className="property-location"><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
+          <p className="property-location" data-i18n-exempt><MapPin aria-hidden="true" />{listing.area}, {listing.city}</p>
           <div className="property-facts">
             <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
             <span>{t(`${listing.currentResidents} ${listing.currentResidents === 1 ? "residente" : "residentes"} · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>
             <span><CalendarDays aria-hidden="true" />{availability}</span>
           </div>
-          {compact ? null : <p className="property-description">{listing.description}</p>}
+          {compact ? null : <p className="property-description" data-i18n-exempt>{listing.description}</p>}
           <div className="badge-row">
             {visibleRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}
             {criticalRestrictions.length > visibleRestrictions.length ? <Badge variant="secondary">{t(`+${criticalRestrictions.length - visibleRestrictions.length} condiciones`)}</Badge> : null}
@@ -1419,8 +1419,8 @@ export function ContactPanel({
               <AvatarFallback>{listing.owner.initials}</AvatarFallback>
             </Avatar>
             <div>
-              <strong>{listing.owner.name}</strong>
-              <span>{listing.owner.response}</span>
+              <strong data-i18n-exempt>{listing.owner.name}</strong>
+              <span data-i18n-exempt>{listing.owner.response}</span>
             </div>
             {listing.owner.verified ? (
               <ShieldCheck aria-label="Identidad verificada" />

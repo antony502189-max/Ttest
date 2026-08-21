@@ -18,6 +18,7 @@ import {
 import { amenityOptions, areas, defaultFilters } from "@/data/listings";
 import { useApp } from "@/contexts/app-context";
 import { useI18n, type Language } from "@/contexts/i18n-context";
+import { bedTypeLabel } from "@/lib/bed-type-label";
 import { filterListings } from "@/lib/search";
 import { priceControlValues } from "@/lib/price-filter-controls";
 import type { AcceptedTenantType, Filters, RentalMode, YesNoAny } from "@/types";
@@ -128,7 +129,7 @@ function FilterPanel({ value, onChange, rentalMode }: { value: Filters; onChange
         { value: "Estudio", label: text("Estudio", "Студия", "Studio") },
       ]} onChange={(next) => update("roomType", next)} />
       <NativeSelect label={text("Qué se alquila", "Что сдаётся", "Rental unit")} value={value.rentalUnit} options={[{ value: "Cualquiera", label: anyLabel }, { value: "room", label: text("Habitación completa", "Комната целиком", "Whole room") }, { value: "bed", label: text("Plaza / cama", "Спальное место", "Bed space") }]} onChange={(next) => update("rentalUnit", next as Filters["rentalUnit"])} />
-      <NativeSelect label={text("Tipo de cama", "Тип кровати", "Bed type")} value={value.bedType} options={[{ value: "Cualquiera", label: anyLabel }, { value: "single", label: text("Individual", "Односпальная", "Single") }, { value: "double", label: text("Doble", "Двуспальная", "Double") }, { value: "bunk", label: text("Litera", "Двухъярусная", "Bunk") }]} onChange={(next) => update("bedType", next as Filters["bedType"])} />
+      <NativeSelect label={text("Tipo de cama", "Тип кровати", "Bed type")} value={value.bedType} options={[{ value: "Cualquiera", label: anyLabel }, { value: "single", label: bedTypeLabel(language, 'single') }, { value: "double", label: bedTypeLabel(language, 'double') }, { value: "bunk", label: bedTypeLabel(language, 'bunk') }]} onChange={(next) => update("bedType", next as Filters["bedType"])} />
       <label className="field-label">{text("Mínimo de camas", "Минимум кроватей", "Minimum beds")}<NumericInput ariaLabel={text("Mínimo de camas", "Минимум кроватей", "Minimum beds")} min={0} max={10} value={value.bedCountMin} onValueChange={(next) => update("bedCountMin", next)} /></label>
       <NativeSelect label={text("Capacidad de la habitación", "Вместимость комнаты", "Room capacity")} value={value.roomCapacity} options={capacityOptions} onChange={(next) => update("roomCapacity", next)} />
       <NativeSelect label={text("Ya viven en esta habitación", "Уже живут в комнате", "Already in this room")} value={value.roomResidents} options={[{ value: "Cualquiera", label: anyLabel }, ...Array.from({ length: 10 }, (_, i) => String(i))]} onChange={(next) => update("roomResidents", next)} />
