@@ -152,6 +152,16 @@ const translations: Record<string, Translation> = {
 
   'Solo habitaciones · Tenerife': { ru: 'Только комнаты · Тенерифе', en: 'Rooms only · Tenerife' },
   'Encuentra una habitación que encaje contigo.': { ru: 'Найдите комнату, которая вам подходит.', en: 'Find a room that fits your life.' },
+  'Habitación luminosa con cama, escritorio y ventana': { ru: 'Светлая комната с кроватью, столом и окном', en: 'Bright room with a bed, desk and window' },
+  'Encuentra una habitación según quién vivirá y sus condiciones.': { ru: 'Найдите комнату с учётом жильцов и нужных условий.', en: 'Find a room that suits who will live there and their needs.' },
+  'Condiciones habituales': { ru: 'Популярные условия', en: 'Common requirements' },
+  'Elige tus condiciones': { ru: 'Выберите условия', en: 'Choose your requirements' },
+  'Configura tu búsqueda': { ru: 'Настройте поиск', en: 'Set up your search' },
+  'Selecciona al menos una condición antes de acceder a los anuncios.': { ru: 'Выберите хотя бы одно условие, прежде чем открыть объявления.', en: 'Choose at least one requirement before opening listings.' },
+  'Ventajas de 112233.es': { ru: 'Преимущества 112233.es', en: 'Benefits of 112233.es' },
+  'Resultados adaptados': { ru: 'Подходящие результаты', en: 'Tailored results' },
+  'Catálogo conectado al servicio de anuncios.': { ru: 'Каталог подключён к сервису объявлений.', en: 'Catalog connected to the listings service.' },
+  'Ventana a la calle': { ru: 'Окно на улицу', en: 'Street-facing window' },
   'Precio, gastos y condiciones de convivencia claros antes de contactar.': { ru: 'Цена, расходы и условия проживания понятны до первого контакта.', en: 'Clear price, bills and house rules before you make contact.' },
   'Larga estancia': { ru: 'Долгосрочная аренда', en: 'Long-term rental' },
   'Solo habitaciones': { ru: 'Только комнаты', en: 'Rooms only' },
@@ -1160,6 +1170,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^(\d+) zonas$/))) return target(`${match[1]} района`, `${match[1]} areas`)
   if ((match = source.match(/^Cualquier fecha · (.+)$/))) return target(`Любая дата · ${translateCore(match[1], language)}`, `Any date · ${translateCore(match[1], language)}`)
   if ((match = source.match(/^(\d+) habitaciones en alquiler en (.+)$/))) return target(`${match[1]} комнат в аренду: ${match[2]}`, `${match[1]} rooms for rent in ${match[2]}`)
+  if ((match = source.match(/^Abrir selección de ubicación\. (.+)$/))) return target(`Открыть выбор местоположения. ${match[1]}`, `Open location selection. ${match[1]}`)
   if ((match = source.match(/^Todos los filtros\. (\d+) habitaciones actuales$/))) return target(`Все фильтры. Сейчас комнат: ${match[1]}`, `All filters. ${match[1]} rooms currently`)
   if ((match = source.match(/^(\d+) guardadas?$/))) return target(`Сохранено: ${match[1]}`, `${match[1]} saved`)
   if ((match = source.match(/^Desactivar avisos para (.+)$/))) return target(`Отключить уведомления: ${match[1]}`, `Disable alerts for ${match[1]}`)
