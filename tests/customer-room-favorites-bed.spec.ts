@@ -55,10 +55,18 @@ test('favorites trash action enters selection mode and removes only selected car
 })
 
 test('favorites selection mode is localized in Russian on mobile', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => localStorage.setItem('112233:language:v1', 'ru'))
+
+  // Seed one favorite through the existing desktop result action, then resize
+  // to the mobile layout. The mobile result shell intentionally uses different
+  // card controls, while this regression is about the Favorites page itself.
+  await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  await page.locator('.favorite-button').first().click()
+  const favoriteButton = page.locator('.favorite-button').first()
+  await expect(favoriteButton).toBeVisible()
+  await favoriteButton.click()
+
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/favoritos')
 
   await expect(page.getByRole('heading', { name: 'Избранное' })).toBeVisible()
