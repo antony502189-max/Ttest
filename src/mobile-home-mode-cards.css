@@ -40,6 +40,8 @@
   }
 
   .m2-mode-switch > button:last-child {
+    width: calc(100% - .5rem);
+    justify-self: start;
     border-color: rgb(198 0 131 / .34);
     background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
   }
