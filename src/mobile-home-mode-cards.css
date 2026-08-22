@@ -1,9 +1,8 @@
 @media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
   .m2-mode-switch {
-    width: calc(100% - 1.2rem);
+    width: calc(100% - 1.5rem);
     min-width: 0;
-    margin-left: .4rem;
-    margin-right: .8rem;
+    margin-inline: auto;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .72rem;
@@ -27,12 +26,12 @@
     overflow: hidden;
     box-sizing: border-box;
     padding: 2rem .45rem 1.35rem;
-    border: 1.5px solid rgb(116 185 0 / .34);
+    border: 2px solid #74b900;
     border-radius: 1.05rem;
     background: linear-gradient(145deg, #fffffb 0%, #f4f7ed 100%);
     color: #111;
     box-shadow: 0 .2rem .65rem rgb(0 0 0 / .16);
-    opacity: .82;
+    opacity: 1;
     text-align: center;
     transform: scale(.985);
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, opacity .16s ease, filter .16s ease;
@@ -40,9 +39,7 @@
   }
 
   .m2-mode-switch > button:last-child {
-    width: calc(100% - .5rem);
-    justify-self: start;
-    border-color: rgb(198 0 131 / .34);
+    border-color: #c60083;
     background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
   }
 
