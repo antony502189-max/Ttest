@@ -54,10 +54,9 @@ test('favorites trash action enters selection mode and removes only selected car
   await expect(page.locator('.favorite-card__selector')).toHaveCount(0)
 })
 
-test('favorites selection mode is localized in Russian on mobile', async ({ page }) => {
-  // Seed a favorite through the existing desktop result action. Hash-only
-  // navigation does not create a new document, so set the mobile onboarding
-  // and locale values directly before resizing instead of relying on initScript.
+test('favorites selection mode is localized and functional in Russian on mobile', async ({ page }) => {
+  // Seed one favorite with the existing desktop result control, then open the
+  // dedicated mobile Favorites shell where the customer-facing trash workflow lives.
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   const favoriteButton = page.locator('.favorite-button').first()
@@ -73,9 +72,22 @@ test('favorites selection mode is localized in Russian on mobile', async ({ page
   await page.reload()
   await page.goto('/#/favoritos')
 
-  await expect(page.getByRole('heading', { name: 'Избранное' })).toBeVisible()
-  await page.getByRole('button', { name: 'Выбрать избранное для удаления' }).click()
+  await expect(page.getByText('Избранное и списки', { exact: true })).toBeVisible()
+  const startDelete = page.getByRole('button', { name: 'Выбрать избранное для удаления' })
+  await expect(startDelete).toBeVisible()
+  await startDelete.click()
+
   await expect(page.getByText('Выбрано: 0', { exact: true })).toBeVisible()
-  await page.locator('.favorite-card__selector').click()
-  await expect(page.getByRole('button', { name: 'Удалить выбранные (1)' })).toBeEnabled()
+  const favoriteRow = page.locator('.m2-collection__list > button').first()
+  await expect(favoriteRow).toHaveAttribute('aria-pressed', 'false')
+  await favoriteRow.click()
+  await expect(favoriteRow).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Выбрано: 1', { exact: true })).toBeVisible()
+
+  const removeSelected = page.getByRole('button', { name: 'Удалить выбранные (1)' })
+  await expect(removeSelected).toBeEnabled()
+  await removeSelected.click()
+
+  await expect(page.getByText('У вас нет объектов в избранном', { exact: true })).toBeVisible()
+  await expect(page.locator('.m2-collection__list > button')).toHaveCount(0)
 })
