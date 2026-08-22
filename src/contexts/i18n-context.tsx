@@ -233,6 +233,7 @@ const translations: Record<string, Translation> = {
   'Mostrar habitaciones en el mapa': { ru: 'Показать комнаты на карте', en: 'Show rooms on the map' },
   'Mostrar lista de habitaciones': { ru: 'Показать список комнат', en: 'Show room list' },
   'Abrir filtros': { ru: 'Открыть фильтры', en: 'Open filters' },
+  'Eliminar de favoritos': { ru: 'Удалить из избранного', en: 'Remove from favorites' },
   'Filtros rápidos': { ru: 'Быстрые фильтры', en: 'Quick filters' },
   'Hasta 500 €': { ru: 'До 500 €', en: 'Up to €500' },
   'Gastos incluidos': { ru: 'Расходы включены', en: 'Bills included' },
@@ -1209,6 +1210,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Ver (.+)$/))) return target(`Открыть: ${translateCore(match[1], language)}`, `View ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Guardar (.+) en favoritos$/))) return target(`Добавить «${translateCore(match[1], language)}» в избранное`, `Save ${translateCore(match[1], language)} to favorites`)
   if ((match = source.match(/^Quitar (.+) de favoritos$/))) return target(`Убрать «${translateCore(match[1], language)}» из избранного`, `Remove ${translateCore(match[1], language)} from favorites`)
+  if ((match = source.match(/^Eliminar (.+) de favoritos$/))) return target(`Удалить «${match[1]}» из избранного`, `Remove ${match[1]} from favorites`)
   if ((match = source.match(/^Escribir a (.+)$/))) return target(`Написать: ${match[1]}`, `Write to ${match[1]}`)
   if ((match = source.match(/^Hola, me interesa la habitación de (.+)\. ¿Sigue disponible\?$/))) return target(`Здравствуйте! Меня интересует комната в ${match[1]}. Она ещё доступна?`, `Hello, I am interested in the room in ${match[1]}. Is it still available?`)
   if ((match = source.match(/^Revisaremos el anuncio «(.+)»\. No compartiremos tu identidad con el anunciante\.$/))) return target(`Мы проверим объявление «${translateCore(match[1], language)}». Ваша личность не будет раскрыта владельцу.`, `We will review “${translateCore(match[1], language)}”. We will not share your identity with the advertiser.`)

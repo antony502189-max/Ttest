@@ -30,6 +30,8 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Mostrar habitaciones en el mapa', 'ru')).toBe('Показать комнаты на карте')
   expect(translateText('Abrir Habitación externa', 'ru')).toBe('Открыть: Habitación externa')
   expect(translateText('Más opciones para Habitación externa', 'en')).toBe('More options for Habitación externa')
+  expect(translateText('Eliminar de favoritos', 'ru')).toBe('Удалить из избранного')
+  expect(translateText('Eliminar Habitación externa de favoritos', 'en')).toBe('Remove Habitación externa from favorites')
   expect(translateText('Ventana a la calle', 'en')).toBe('Street-facing window')
   expect(translateText('Abrir selección de ubicación. Tenerife', 'ru')).toBe('Открыть выбор местоположения. Tenerife')
   expect(translateText('Abrir selección de ubicación. Tenerife', 'en')).toBe('Open location selection. Tenerife')
