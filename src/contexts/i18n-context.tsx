@@ -230,6 +230,8 @@ const translations: Record<string, Translation> = {
   'Precio más bajo': { ru: 'Сначала дешевле', en: 'Lowest price' },
   'Ver mapa': { ru: 'Открыть карту', en: 'View map' },
   'Ver lista': { ru: 'Открыть список', en: 'View list' },
+  'Mostrar habitaciones en el mapa': { ru: 'Показать комнаты на карте', en: 'Show rooms on the map' },
+  'Mostrar lista de habitaciones': { ru: 'Показать список комнат', en: 'Show room list' },
   'Abrir filtros': { ru: 'Открыть фильтры', en: 'Open filters' },
   'Filtros rápidos': { ru: 'Быстрые фильтры', en: 'Quick filters' },
   'Hasta 500 €': { ru: 'До 500 €', en: 'Up to €500' },
@@ -1172,6 +1174,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Cualquier fecha · (.+)$/))) return target(`Любая дата · ${translateCore(match[1], language)}`, `Any date · ${translateCore(match[1], language)}`)
   if ((match = source.match(/^(\d+) habitaciones en alquiler en (.+)$/))) return target(`${match[1]} комнат в аренду: ${match[2]}`, `${match[1]} rooms for rent in ${match[2]}`)
   if ((match = source.match(/^Abrir selección de ubicación\. (.+)$/))) return target(`Открыть выбор местоположения. ${match[1]}`, `Open location selection. ${match[1]}`)
+  if ((match = source.match(/^Abrir (.+)$/))) return target(`Открыть: ${match[1]}`, `Open ${match[1]}`)
   if ((match = source.match(/^Todos los filtros\. (\d+) habitaciones actuales$/))) return target(`Все фильтры. Сейчас комнат: ${match[1]}`, `All filters. ${match[1]} rooms currently`)
   if ((match = source.match(/^(\d+) guardadas?$/))) return target(`Сохранено: ${match[1]}`, `${match[1]} saved`)
   if ((match = source.match(/^Desactivar avisos para (.+)$/))) return target(`Отключить уведомления: ${match[1]}`, `Disable alerts for ${match[1]}`)
@@ -1212,6 +1215,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Referencia (.+)$/))) return target(`Номер ${match[1]}`, `Reference ${match[1]}`)
   if ((match = source.match(/^Editando (.+)$/))) return target(`Редактирование ${match[1]}`, `Editing ${match[1]}`)
   if ((match = source.match(/^Más acciones para (.+)$/))) return target(`Дополнительные действия: ${translateCore(match[1], language)}`, `More actions for ${translateCore(match[1], language)}`)
+  if ((match = source.match(/^Más opciones para (.+)$/))) return target(`Дополнительные действия: ${match[1]}`, `More options for ${match[1]}`)
   if ((match = source.match(/^Acciones para (.+)$/))) return target(`Действия: ${translateCore(match[1], language)}`, `Actions for ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Bloquear (.+)$/))) return target(`Заблокировать ${match[1]}`, `Block ${match[1]}`)
   if ((match = source.match(/^¿Revocar acceso de administrador a (.+)\?$/))) return target(`Отозвать права администратора у ${match[1]}?`, `Revoke administrator access for ${match[1]}?`)
