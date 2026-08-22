@@ -37,6 +37,7 @@ import { filtersToParams } from '@/lib/search'
 import { filtersForRentalMode } from '@/lib/price-filter-controls'
 import type { Listing } from '@/types'
 import '@/mobile-app-v2.css'
+import '@/mobile-favorites-selection.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type OnboardingOrigin = 'startup' | 'language-settings' | 'region-settings' | 'region-location' | 'account'
@@ -154,6 +155,48 @@ const copy = {
 } as const
 
 type MobileCopy = Record<keyof typeof copy.es, string>
+
+const favoriteActionCopy: Record<AppLanguage, {
+  startDelete: string
+  cancel: string
+  selectAll: string
+  clearSelection: string
+  selected: (count: number) => string
+  removeSelected: (count: number) => string
+  selectListing: (title: string) => string
+  deselectListing: (title: string) => string
+}> = {
+  es: {
+    startDelete: 'Seleccionar favoritos para eliminar',
+    cancel: 'Cancelar',
+    selectAll: 'Seleccionar todo',
+    clearSelection: 'Quitar selección',
+    selected: (count) => `${count} ${count === 1 ? 'seleccionado' : 'seleccionados'}`,
+    removeSelected: (count) => `Eliminar seleccionados (${count})`,
+    selectListing: (title) => `Seleccionar ${title} para eliminar`,
+    deselectListing: (title) => `Quitar ${title} de la selección`,
+  },
+  en: {
+    startDelete: 'Select favorites to remove',
+    cancel: 'Cancel',
+    selectAll: 'Select all',
+    clearSelection: 'Clear selection',
+    selected: (count) => `${count} selected`,
+    removeSelected: (count) => `Remove selected (${count})`,
+    selectListing: (title) => `Select ${title} for removal`,
+    deselectListing: (title) => `Deselect ${title}`,
+  },
+  ru: {
+    startDelete: 'Выбрать избранное для удаления',
+    cancel: 'Отмена',
+    selectAll: 'Выбрать всё',
+    clearSelection: 'Снять выделение',
+    selected: (count) => `Выбрано: ${count}`,
+    removeSelected: (count) => `Удалить выбранные (${count})`,
+    selectListing: (title) => `Выбрать «${title}» для удаления`,
+    deselectListing: (title) => `Снять выбор с «${title}»`,
+  },
+}
 
 const darkMapStyles: google.maps.MapTypeStyle[] = [
   { elementType: 'geometry', stylers: [{ color: '#1e2938' }] },
@@ -518,6 +561,81 @@ function EmptyScreen({ kind, onLogin, onExplore, authenticated, t, items = [] }:
   return <section className="m2-screen m2-empty"><header>{data.title}</header><div className="m2-empty__icon">{data.icon}</div><h1>{heading}</h1><p>{text}</p><PrimaryButton onClick={authenticated ? onExplore : onLogin}>{authenticated ? t.search : t.login}</PrimaryButton></section>
 }
 
+function FavoritesCollectionScreen({ items, onRemove, onLogin, onExplore, authenticated, language, t }: {
+  items: MobileCollectionItem[]
+  onRemove: (id: string) => void
+  onLogin: () => void
+  onExplore: () => void
+  authenticated: boolean
+  language: AppLanguage
+  t: MobileCopy
+}) {
+  const actionCopy = favoriteActionCopy[language]
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+
+  useEffect(() => {
+    const available = new Set(items.map((item) => item.id))
+    setSelected((current) => new Set([...current].filter((id) => available.has(id))))
+    if (!items.length) setSelecting(false)
+  }, [items])
+
+  if (!items.length) return <EmptyScreen kind="favorites" onLogin={onLogin} onExplore={onExplore} authenticated={authenticated} t={t} />
+
+  const allSelected = selected.size === items.length
+  const stopSelecting = () => { setSelecting(false); setSelected(new Set()) }
+  const toggleSelected = (id: string) => setSelected((current) => {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(items.map((item) => item.id)))
+  const removeSelected = () => {
+    const ids = [...selected]
+    if (!ids.length) return
+    ids.forEach(onRemove)
+    stopSelecting()
+  }
+
+  return <section className="m2-screen m2-empty m2-collection">
+    <header className="m2-collection__header">
+      <span>{t.favoritesTitle}</span>
+      <button
+        type="button"
+        className="m2-favorites-trash"
+        aria-label={selecting ? actionCopy.cancel : actionCopy.startDelete}
+        aria-pressed={selecting}
+        onClick={() => { if (selecting) stopSelecting(); else setSelecting(true) }}
+      >{selecting ? <X /> : <Trash2 />}</button>
+    </header>
+    {selecting ? <div className="m2-favorites-selection-bar" role="toolbar" aria-label={actionCopy.startDelete}>
+      <strong aria-live="polite">{actionCopy.selected(selected.size)}</strong>
+      <div className="m2-favorites-selection-actions">
+        <button type="button" onClick={toggleAll}>{allSelected ? actionCopy.clearSelection : actionCopy.selectAll}</button>
+        <button type="button" onClick={stopSelecting}>{actionCopy.cancel}</button>
+        <button type="button" className="m2-favorites-remove-selected" disabled={!selected.size} onClick={removeSelected}><Trash2 />{actionCopy.removeSelected(selected.size)}</button>
+      </div>
+    </div> : null}
+    <div className="m2-collection__list">
+      {items.map((item) => {
+        const isSelected = selected.has(item.id)
+        return <button
+          type="button"
+          key={item.id}
+          className={cn(selecting && 'm2-favorite-item--selecting', isSelected && 'm2-favorite-item--selected')}
+          aria-pressed={selecting ? isSelected : undefined}
+          aria-label={selecting ? (isSelected ? actionCopy.deselectListing(item.title) : actionCopy.selectListing(item.title)) : undefined}
+          onClick={selecting ? () => toggleSelected(item.id) : item.onOpen}
+        >
+          <span><strong>{item.title}</strong><small>{item.meta}</small></span>
+          {selecting ? <span className="m2-favorites-select-indicator" aria-hidden="true">{isSelected ? <Check /> : null}</span> : <ChevronRight />}
+        </button>
+      })}
+    </div>
+  </section>
+}
+
 function MenuScreen({ onLogin, onLanguage, onRegion, onAgencies, onPublish, language, t, currentUserName }: { onLogin: () => void; onLanguage: () => void; onRegion: () => void; onAgencies: () => void; onPublish: () => void; language: AppLanguage; t: MobileCopy; currentUserName?: string }) {
   const languageLabel = languages.find((item) => item.value === language)?.label ?? 'Español'
   return <section className="m2-screen m2-menu"><header>{t.menu}</header><div className="m2-menu-login"><UserRound /><div><h2>{currentUserName ?? t.login}</h2><p>{t.loginDescription}</p></div></div><PrimaryButton onClick={onLogin}>{currentUserName ? t.yourProperties : t.login}</PrimaryButton><h3>{t.yourProperties}</h3><button type="button" className="m2-menu-row" onClick={onAgencies}><span><Search />{t.findAgencies}</span><ChevronRight /></button><button type="button" className="m2-menu-row" onClick={onPublish}><span><Plus />{t.publishYourAd}</span><ChevronRight /></button><h3>{t.settings}</h3><button type="button" className="m2-menu-row" onClick={onRegion}><span>{t.searchRegion}</span><b>España (Tenerife)</b></button><button type="button" className="m2-menu-row" onClick={onLanguage}><span>{t.language}</span><b>{languageLabel}</b></button><button type="button" className="m2-menu-row"><span>{t.appearance}</span><b>{t.appearanceDefault}</b></button><button type="button" className="m2-menu-row"><span>{t.about}</span><b>{t.version}</b></button></section>
@@ -547,7 +665,7 @@ export function MobileAppV2() {
   const location = useLocation()
   const navigate = useNavigate()
   const { language, setLanguage } = useI18n()
-  const { allListings, discarded, favorites, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
+  const { allListings, discarded, favorites, toggleFavorite, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
   const [step, setStep] = useState<OnboardingStep>(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
     try {
@@ -696,5 +814,5 @@ export function MobileAppV2() {
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
-  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <EmptyScreen kind="favorites" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={favoriteItems} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} onRemove={toggleFavorite} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }
