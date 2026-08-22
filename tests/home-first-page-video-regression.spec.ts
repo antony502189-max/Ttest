@@ -45,8 +45,11 @@ for (const viewport of mobileViewports) {
     await expect(tourism).not.toHaveClass(/is-active/)
     await expect.poll(() => longStay.evaluate((element) => getComputedStyle(element, '::after').content)).toContain('✓')
 
-    const activeBorder = await longStay.evaluate((element) => getComputedStyle(element).borderColor)
-    expect(activeBorder).toBe('rgb(116, 185, 0)')
+    // The card animates its border for 160ms. Assert the final settled state,
+    // not an intermediate interpolated transition color.
+    await expect.poll(
+      () => longStay.evaluate((element) => getComputedStyle(element).borderColor),
+    ).toBe('rgb(116, 185, 0)')
 
     const after = await modeButtons.evaluateAll((buttons) => buttons.map((button) => {
       const box = button.getBoundingClientRect()
