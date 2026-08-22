@@ -157,6 +157,7 @@ const translations: Record<string, Translation> = {
   'Condiciones habituales': { ru: 'Популярные условия', en: 'Common requirements' },
   'Elige tus condiciones': { ru: 'Выберите условия', en: 'Choose your requirements' },
   'Configura tu búsqueda': { ru: 'Настройте поиск', en: 'Set up your search' },
+  'Configurar búsqueda de habitaciones': { ru: 'Настроить поиск комнат', en: 'Set up room search' },
   'Selecciona al menos una condición antes de acceder a los anuncios.': { ru: 'Выберите хотя бы одно условие, прежде чем открыть объявления.', en: 'Choose at least one requirement before opening listings.' },
   'Ventajas de 112233.es': { ru: 'Преимущества 112233.es', en: 'Benefits of 112233.es' },
   'Resultados adaptados': { ru: 'Подходящие результаты', en: 'Tailored results' },

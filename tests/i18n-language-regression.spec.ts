@@ -26,6 +26,7 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Encuentra una habitación según quién vivirá y sus condiciones.', 'en')).toBe('Find a room that suits who will live there and their needs.')
   expect(translateText('Resultados adaptados', 'ru')).toBe('Подходящие результаты')
   expect(translateText('Catálogo conectado al servicio de anuncios.', 'en')).toBe('Catalog connected to the listings service.')
+  expect(translateText('Configurar búsqueda de habitaciones', 'ru')).toBe('Настроить поиск комнат')
   expect(translateText('Ventana a la calle', 'en')).toBe('Street-facing window')
   expect(translateText('Abrir selección de ubicación. Tenerife', 'ru')).toBe('Открыть выбор местоположения. Tenerife')
   expect(translateText('Abrir selección de ubicación. Tenerife', 'en')).toBe('Open location selection. Tenerife')
