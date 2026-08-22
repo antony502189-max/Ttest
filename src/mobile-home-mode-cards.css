@@ -1,11 +1,13 @@
 @media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
   .m2-mode-switch {
-    width: 100%;
+    width: calc(100% - .8rem);
     min-width: 0;
+    margin-inline: auto;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .72rem;
-    overflow: hidden;
+    overflow: visible;
+    box-sizing: border-box;
     border: 0;
     background: transparent;
   }
@@ -165,6 +167,7 @@
 
 @media (max-width: 360px) {
   .m2-mode-switch {
+    width: calc(100% - .65rem);
     gap: .5rem;
   }
 
