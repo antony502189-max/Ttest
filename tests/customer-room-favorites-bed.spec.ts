@@ -21,16 +21,49 @@ test('removed customer filters stay absent and legacy route values are canonical
   await expect.poll(() => page.url()).toContain('Piscina')
 })
 
-test('favorite listing has an explicit remove action that removes it from Favorites', async ({ page }) => {
+test('favorites trash action enters selection mode and removes only selected cards', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  const firstFavorite = page.locator('.favorite-button').first()
-  await expect(firstFavorite).toBeVisible()
-  await firstFavorite.click()
+
+  const favoriteButtons = page.locator('.favorite-button')
+  await expect(favoriteButtons.first()).toBeVisible()
+  await favoriteButtons.nth(0).click()
+  await favoriteButtons.nth(1).click()
+
   await page.goto('/#/favoritos')
-  const remove = page.getByRole('button', { name: /Eliminar .* de favoritos/ }).first()
-  await expect(remove).toBeVisible()
-  await remove.click()
-  await expect(page.getByText('0 habitaciones guardadas', { exact: true })).toBeVisible()
-  await expect(page.getByText('Eliminar de favoritos', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('2 habitaciones guardadas', { exact: true })).toBeVisible()
+
+  const startDelete = page.getByRole('button', { name: 'Seleccionar favoritos para eliminar' })
+  await expect(startDelete).toBeVisible()
+  await startDelete.click()
+
+  const selectors = page.locator('.favorite-card__selector')
+  await expect(selectors).toHaveCount(2)
+  await expect(page.getByText('0 seleccionados', { exact: true })).toBeVisible()
+
+  await selectors.first().click()
+  await expect(selectors.first()).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('1 seleccionado', { exact: true })).toBeVisible()
+
+  const removeSelected = page.getByRole('button', { name: 'Eliminar seleccionados (1)' })
+  await expect(removeSelected).toBeEnabled()
+  await removeSelected.click()
+
+  await expect(page.getByText('1 habitación guardada', { exact: true })).toBeVisible()
+  await expect(page.locator('.favorite-card')).toHaveCount(1)
+  await expect(page.locator('.favorite-card__selector')).toHaveCount(0)
+})
+
+test('favorites selection mode is localized in Russian on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => localStorage.setItem('112233:language:v1', 'ru'))
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await page.locator('.favorite-button').first().click()
+  await page.goto('/#/favoritos')
+
+  await expect(page.getByRole('heading', { name: 'Избранное' })).toBeVisible()
+  await page.getByRole('button', { name: 'Выбрать избранное для удаления' }).click()
+  await expect(page.getByText('Выбрано: 0', { exact: true })).toBeVisible()
+  await page.locator('.favorite-card__selector').click()
+  await expect(page.getByRole('button', { name: 'Удалить выбранные (1)' })).toBeEnabled()
 })
