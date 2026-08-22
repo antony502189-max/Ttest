@@ -36,7 +36,7 @@ for (const viewport of mobileViewports) {
     expect(Math.abs(before[0].width - before[1].width)).toBeLessThanOrEqual(1)
     expect(Math.abs(before[0].height - before[1].height)).toBeLessThanOrEqual(1)
     expect(before[0].x).toBeGreaterThanOrEqual(6)
-    expect(before[1].x + before[1].width).toBeLessThanOrEqual(viewport.width - 6)
+    expect(before[1].x + before[1].width).toBeLessThanOrEqual(viewport.width - 10)
 
     const hasHorizontalOverflowBefore = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
     expect(hasHorizontalOverflowBefore).toBe(false)
@@ -59,13 +59,14 @@ for (const viewport of mobileViewports) {
 
     // Selection may lift the active card by a couple of pixels, but it must not
     // resize the cards, shift the grid, clip the neighbour, or consume the
-    // visible side gutters that keep both rounded borders fully on-screen.
+    // asymmetric side gutters that keep the tourism card visibly clear of the
+    // right viewport edge without pushing the long-stay card off the left edge.
     expect(Math.abs(after[0].width - before[0].width)).toBeLessThanOrEqual(1)
     expect(Math.abs(after[0].height - before[0].height)).toBeLessThanOrEqual(1)
     expect(Math.abs(after[1].x - before[1].x)).toBeLessThanOrEqual(1)
     expect(Math.abs(after[1].width - before[1].width)).toBeLessThanOrEqual(1)
     expect(after[0].x).toBeGreaterThanOrEqual(6)
-    expect(after[1].x + after[1].width).toBeLessThanOrEqual(viewport.width - 6)
+    expect(after[1].x + after[1].width).toBeLessThanOrEqual(viewport.width - 10)
 
     const textFits = await modeButtons.evaluateAll((buttons) => buttons.every((button) => {
       const label = button.querySelector('span:last-child') as HTMLElement | null
@@ -83,7 +84,7 @@ for (const viewport of mobileViewports) {
     expect(occupantBox).not.toBeNull()
     expect(navBox).not.toBeNull()
     expect((cardsBox?.x ?? 0)).toBeGreaterThanOrEqual(5)
-    expect((cardsBox?.x ?? 0) + (cardsBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 5)
+    expect((cardsBox?.x ?? 0) + (cardsBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width - 10)
     expect((cardsBox?.y ?? 0) + (cardsBox?.height ?? 0)).toBeLessThanOrEqual((occupantBox?.y ?? 0) + 1)
     expect((occupantBox?.y ?? 0) + (occupantBox?.height ?? 0)).toBeLessThan(navBox?.y ?? viewport.height)
 
