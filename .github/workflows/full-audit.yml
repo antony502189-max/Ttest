@@ -26,21 +26,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout approved visual baselines
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: visual-baselines
-          path: .visual-baselines
-          persist-credentials: false
-
-      - name: Install approved visual baselines
-        run: |
-          mkdir -p tests/visual-snapshots
-          cp -R .visual-baselines/tests/visual-snapshots/. tests/visual-snapshots/
-          # The baseline checkout is test input, not source code.  Remove its
-          # temporary worktree after copying so repository-wide lint does not
-          # inspect unrelated TypeScript helpers from that branch.
-          rm -rf .visual-baselines
+      - name: Install pinned visual baselines
+        run: bash scripts/install-visual-baselines.sh
 
       - name: Set up Python 3.12
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5

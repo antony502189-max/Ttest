@@ -65,3 +65,6 @@ jobs:
           git config --local credential.helper '!f() { echo username=x-access-token; echo password="$GH_TOKEN"; }; f'
           trap 'git config --local --unset-all credential.helper || true' EXIT
           git push "https://github.com/${GITHUB_REPOSITORY}.git" visual-baselines
+
+          new_ref="$(git rev-parse HEAD)"
+          echo "::notice title=Visual baseline pin update required::Approved baselines are now ${new_ref}. Open a reviewed PR updating .github/visual-baseline-ref to this SHA before CI consumes the new images."
