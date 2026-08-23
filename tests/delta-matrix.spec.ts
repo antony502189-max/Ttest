@@ -25,6 +25,7 @@ async function storedListings(page: Page) {
 }
 
 async function resultCount(page: Page) {
+  await page.getByLabel('Cargando habitaciones').waitFor({ state: 'hidden' })
   return Number.parseInt((await page.locator('#results-title').innerText()).replace(/\D/g, ''))
 }
 
