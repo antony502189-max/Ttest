@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from .api.public_pages import router as public_pages_router
 from .api.v1.admin import router as admin_router
 from .api.v1.auth import router as auth_router
 from .api.v1.favorites import router as favorites_router
@@ -275,6 +276,7 @@ async def metrics():
     return Response(content=payload, media_type=content_type)
 
 
+app.include_router(public_pages_router)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(favorites_router, prefix="/api/v1")
