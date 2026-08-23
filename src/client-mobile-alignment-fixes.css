@@ -149,4 +149,11 @@ html.mobile-v2-active .m2-app {
   .m2-app .m2-mode-switch > button:last-child {
     border: 2px solid #c60083;
   }
+
+  .m2-app .m2-mode-switch > button > span:last-child::before {
+    font-size: clamp(.92rem, 4.45vw, 1.12rem);
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
 }
