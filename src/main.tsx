@@ -20,6 +20,7 @@ import './white-theme.css'
 import './white-theme-audit-fixes.css'
 import './client-mobile-alignment-fixes.css'
 import './client-listing-requirement-emphasis.css'
+import './mobile-four-tab-nav.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
