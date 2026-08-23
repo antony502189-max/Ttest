@@ -135,3 +135,25 @@ html.mobile-v2-active .m2-app {
   max-width: 100%;
   overflow-x: clip;
 }
+
+/* Final home-card contract: the legacy base stylesheet removes the right
+   border from the second mode button. Override that rule after the theme
+   layers so both cards remain equal and fully outlined on every edge. */
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  .m2-app .m2-mode-switch > button {
+    width: 100%;
+    max-width: 100%;
+    border: 2px solid #74b900;
+  }
+
+  .m2-app .m2-mode-switch > button:last-child {
+    border: 2px solid #c60083;
+  }
+
+  .m2-app .m2-mode-switch > button > span:last-child::before {
+    font-size: clamp(.92rem, 4.45vw, 1.12rem);
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+}
