@@ -1,7 +1,8 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = (ROOT / "deploy" / "production-acceptance.sh").read_text(encoding="utf-8")
+SCRIPT_PATH = ROOT / "deploy" / "production-acceptance.sh"
+SCRIPT = SCRIPT_PATH.read_text(encoding="utf-8")
 
 
 def test_acceptance_runner_is_autonomous_and_low_priority() -> None:
@@ -41,3 +42,28 @@ def test_acceptance_runner_exposes_operational_commands() -> None:
     assert "ELAPSED=" in SCRIPT
     assert "REMAINING=" in SCRIPT
     assert "FINAL_STATUS" in SCRIPT
+
+
+def test_incomplete_or_failed_runs_cannot_report_pass() -> None:
+    assert 'completed=NO' in SCRIPT
+    assert '[[ "$lifecycle" == FINISHED' in SCRIPT
+    assert 'final=FAIL' in SCRIPT
+    assert 'if [[ "$completed" == YES' in SCRIPT
+    assert 'kv RUN_COMPLETED "$completed"' in SCRIPT
+
+
+def test_transient_service_receives_runtime_overrides() -> None:
+    for name in (
+        "ROOT",
+        "ENV_FILE",
+        "BASE_DIR",
+        "LIGHT_INTERVAL_SECONDS",
+        "FULL_INTERVAL_SECONDS",
+        "FULL_TIMEOUT_SECONDS",
+        "MAX_LOG_BYTES",
+    ):
+        assert f'--setenv="{name}=${name}"' in SCRIPT
+
+
+def test_acceptance_runner_is_executable() -> None:
+    assert SCRIPT_PATH.stat().st_mode & 0o111
