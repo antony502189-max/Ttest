@@ -190,8 +190,16 @@ test('bed type API values have one complete customer-facing label per locale', (
 })
 
 async function chooseLanguage(page: Page, code: 'ES' | 'EN' | 'RU') {
-  await page.locator('.site-header .language-switcher').click()
-  await page.getByRole('menuitemradio').filter({ hasText: code }).click()
+  const trigger = page.locator('.site-header .language-switcher')
+  await expect(trigger).toHaveAttribute('data-state', 'closed')
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('data-state', 'open')
+  const option = page.getByRole('menuitemradio').filter({ hasText: code })
+  await expect(option).toBeVisible()
+  await option.click()
+  await expect(trigger).toContainText(code)
+  await expect(trigger).toHaveAttribute('data-state', 'closed')
+  await expect(page.locator('body')).not.toHaveAttribute('data-scroll-locked', '1')
 }
 
 test('desktop language switching replaces application UI without translating listing content', async ({ page }) => {
