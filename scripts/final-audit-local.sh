@@ -15,6 +15,9 @@ trap cleanup EXIT
 
 mkdir -p output backups
 
+echo '[0/9] Installing immutable visual regression inputs'
+bash scripts/install-visual-baselines.sh
+
 echo '[1/9] Starting local infrastructure'
 docker compose up -d postgres redis minio minio-init mailpit
 
@@ -22,7 +25,7 @@ postgres_id="$(docker compose ps -q postgres)"
 until [[ "$(docker inspect --format '{{.State.Health.Status}}' "$postgres_id")" == "healthy" ]]; do sleep 2; done
 
 # Docker can expose a healthy Postgres container just before the server has
-# finished accepting database-management connections.  Wait for an actual SQL
+# finished accepting database-management connections. Wait for an actual SQL
 # round trip so a transient startup/recovery cycle cannot abort the audit.
 for attempt in {1..30}; do
   if docker compose exec -T postgres psql -U ttest -d postgres -c 'SELECT 1' >/dev/null 2>&1; then

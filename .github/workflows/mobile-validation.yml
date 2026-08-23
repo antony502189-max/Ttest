@@ -22,16 +22,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Checkout approved visual baselines
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: visual-baselines
-          path: .visual-baselines
-          persist-credentials: false
-      - name: Install approved visual baselines
-        run: |
-          mkdir -p tests/visual-snapshots
-          cp -R .visual-baselines/tests/visual-snapshots/. tests/visual-snapshots/
+      - name: Install pinned visual baselines
+        run: bash scripts/install-visual-baselines.sh
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
