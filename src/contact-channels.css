@@ -1,0 +1,4 @@
+button[aria-label="Enviar mensaje"],
+.contact-message-dialog {
+  display: none !important;
+}
