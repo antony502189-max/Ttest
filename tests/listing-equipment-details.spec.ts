@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const hostSession = 'host-demo'
+const legacyListingId = 'armeñime-luminosa-01'
 
 async function clearAndOpenAsHost(page: Page, path: string) {
   await page.goto('/#/')
@@ -83,14 +84,28 @@ test('EQUIP-01..08 landlord equipment fields persist, render and remain editable
 })
 
 test('EQUIP-09 legacy balcony and washing-machine amenities map into structured controls', async ({ page }) => {
-  await clearAndOpenAsHost(page, '/#/mis-anuncios/arme%C3%B1ime-luminosa-01/editar')
+  await clearAndOpenAsHost(page, '/#/')
+  await page.evaluate((listingId) => {
+    const key = '112233:listings:v3'
+    const payload = JSON.parse(localStorage.getItem(key) ?? '{"version":3,"data":[]}') as {
+      version: number
+      data: Array<{ id: string; amenities: string[] }>
+    }
+    const listing = payload.data.find((item) => item.id === listingId)
+    if (!listing) throw new Error(`Missing seed listing ${listingId}`)
+    listing.amenities = [
+      ...listing.amenities.filter((item) => !['Balcón', 'Lavadora', 'Balcón disponible', 'Sin balcón', 'Lavadora individual', 'Lavadora compartida', 'Sin lavadora'].includes(item)),
+      'Balcón',
+      'Lavadora',
+    ]
+    localStorage.setItem(key, JSON.stringify(payload))
+  }, legacyListingId)
+
+  await page.goto(`/#/mis-anuncios/${encodeURIComponent(legacyListingId)}/editar`)
   await advanceWizard(page, 2)
 
-  const legacyAmenities = await page.evaluate(() => {
-    const raw = localStorage.getItem('112233:listing-draft:v3')
-    return raw ? (JSON.parse(raw) as { data?: { amenities?: string[] } }).data?.amenities ?? [] : []
-  })
-
-  if (legacyAmenities.includes('Balcón')) await expect(page.locator('#publish-balcony')).toHaveValue('yes')
-  if (legacyAmenities.includes('Lavadora')) await expect(page.locator('#publish-washing-machine')).toHaveValue('shared')
+  await expect(page.locator('#publish-balcony')).toHaveValue('yes')
+  await expect(page.locator('#publish-washing-machine')).toHaveValue('shared')
+  await expect(page.getByText('Balcón', { exact: true })).toHaveCount(1)
+  await expect(page.getByText('Lavadora', { exact: true })).toHaveCount(1)
 })
