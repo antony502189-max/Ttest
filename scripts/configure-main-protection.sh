@@ -10,7 +10,9 @@ fi
 [[ "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "usage: $0 [owner/repo]" >&2; exit 64; }
 
 branch="${BRANCH:-main}"
-required_checks=(snapshot safeguards backend-production validate full-audit)
+# Five workflow gates map to six GitHub check contexts because Production audit
+# has separate frontend-static and backend-production jobs.
+required_checks=(snapshot safeguards frontend-static backend-production validate full-audit)
 api_version="2026-03-10"
 
 payload="$(mktemp)"
@@ -22,6 +24,7 @@ cat > "$payload" <<'JSON'
     "contexts": [
       "snapshot",
       "safeguards",
+      "frontend-static",
       "backend-production",
       "validate",
       "full-audit"

@@ -14,6 +14,13 @@ def test_main_branch_protection_script_enforces_release_gates() -> None:
     assert '"required_conversation_resolution": true' in script
     assert '"allow_force_pushes": false' in script
     assert '"allow_deletions": false' in script
-    for check in ("snapshot", "safeguards", "backend-production", "validate", "full-audit"):
+    for check in (
+        "snapshot",
+        "safeguards",
+        "frontend-static",
+        "backend-production",
+        "validate",
+        "full-audit",
+    ):
         assert f'"{check}"' in script
     assert "branch protection verified" in script
