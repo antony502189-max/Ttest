@@ -107,6 +107,13 @@ for (const viewport of mobileViewports) {
     }))
     expect(textFits).toBe(true)
 
+    const titlesStayOnOneLine = await modeButtons.evaluateAll((buttons) => buttons.every((button) => {
+      const label = button.querySelector('span:last-child') as HTMLElement | null
+      if (!label) return false
+      return getComputedStyle(label, '::before').whiteSpace === 'nowrap'
+    }))
+    expect(titlesStayOnOneLine).toBe(true)
+
     const [cardsBox, occupantBox, navBox] = await Promise.all([
       modeSwitch.boundingBox(),
       occupantTrigger.boundingBox(),
