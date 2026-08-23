@@ -51,8 +51,8 @@ test('P1 desktop multiple municipalities stay synchronized with URL, filters and
 
 test('P1 municipality list remains usable when detailed GeoJSON cannot load', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 844 })
-  await page.goto('/#/buscar?q=Tenerife')
   await page.route('**/tenerife-zone-hierarchy.geojson*', (route) => route.abort())
+  await page.goto('/#/buscar?q=Tenerife')
   await page.getByRole('button', { name: /Abrir selección de ubicación/i }).first().click()
   await page.getByRole('button', { name: 'Seleccionar zonas en el mapa' }).click()
   await expect(page.getByRole('status').filter({ hasText: /límites detallados/i })).toBeVisible()
