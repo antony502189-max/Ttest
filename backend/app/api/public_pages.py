@@ -25,7 +25,7 @@ def _public_origin() -> str:
 def _absolute_url(value: str | None) -> str | None:
     if not value:
         return None
-    if value.startswith("http://") or value.startswith("https://"):
+    if value.startswith(("http://", "https://")):
         return value
     return f"{_public_origin()}/{value.lstrip('/')}"
 
