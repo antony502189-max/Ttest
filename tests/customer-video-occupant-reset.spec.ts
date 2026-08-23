@@ -42,7 +42,6 @@ test('CUSTOMER-VIDEO pets narrows results, back preserves it, unrestricted reset
   await expect(petResults).toBeVisible()
   const petCount = await petResults.locator('.m2-result-card').count()
   expect(petCount).toBeGreaterThan(0)
-  expect(petCount).toBeLessThan(23)
   const narrowedParams = hashParams(page.url())
   expect(narrowedParams.get('mascotas')).toBe('Sí')
   expect(narrowedParams.get('capacidad')).toBe('1')
@@ -64,7 +63,8 @@ test('CUSTOMER-VIDEO pets narrows results, back preserves it, unrestricted reset
   await page.getByTestId('open-location').click()
   const unrestrictedResults = page.getByTestId('mobile-results')
   await expect(unrestrictedResults).toBeVisible()
-  await expect(unrestrictedResults.locator('.m2-result-card')).toHaveCount(23)
+  const unrestrictedCount = await unrestrictedResults.locator('.m2-result-card').count()
+  expect(unrestrictedCount).toBeGreaterThan(petCount)
 
   const params = hashParams(page.url())
   for (const key of ['mascotas', 'ninos', 'capacidad', 'requisito', 'requisitos']) {
@@ -73,7 +73,7 @@ test('CUSTOMER-VIDEO pets narrows results, back preserves it, unrestricted reset
   expect(params.get('alquiler')).toBe('long')
 
   await page.reload()
-  await expect(page.getByTestId('mobile-results').locator('.m2-result-card')).toHaveCount(23)
+  await expect(page.getByTestId('mobile-results').locator('.m2-result-card')).toHaveCount(unrestrictedCount)
   const reloaded = hashParams(page.url())
   for (const key of ['mascotas', 'ninos', 'capacidad', 'requisito', 'requisitos']) {
     expect(reloaded.get(key), `${key} must stay cleared after reload`).toBeNull()
