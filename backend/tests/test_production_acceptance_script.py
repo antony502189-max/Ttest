@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = (ROOT / "deploy" / "production-acceptance.sh").read_text(encoding="utf-8")
 
@@ -16,7 +15,7 @@ def test_acceptance_runner_is_autonomous_and_low_priority() -> None:
 
 
 def test_acceptance_runner_reuses_production_monitor_and_keeps_import_evidence() -> None:
-    assert 'production-monitor-check.sh' in SCRIPT
+    assert "production-monitor-check.sh" in SCRIPT
     assert "external_worker_state" in SCRIPT
     assert "external_import_runs" in SCRIPT
     assert "discovery_complete" in SCRIPT
