@@ -5,6 +5,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import get_settings
+
 pytestmark = pytest.mark.integration
 
 
@@ -67,16 +69,17 @@ async def test_canonical_listing_html_sitemap_and_visibility_lifecycle(client: A
     )
     assert created.status_code == 201, created.text
     listing_id = created.json()["id"]
+    origin = get_settings().frontend_app_url.rstrip("/")
 
     public = await client.get(f"/habitacion/{listing_id}")
     assert public.status_code == 200, public.text
     assert public.headers["content-type"].startswith("text/html")
     assert public.headers["cache-control"] == "public, max-age=60"
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in public.text
-    assert f'<link rel="canonical" href="http://localhost:5173/habitacion/{listing_id}">' in public.text
+    assert f'<link rel="canonical" href="{origin}/habitacion/{listing_id}">' in public.text
     assert '<meta property="og:title" content="Habitación luminosa &lt;Centro&gt;">' in public.text
     assert '<script type="application/ld+json">' in public.text
-    assert f'href="http://localhost:5173/#/habitacion/{listing_id}"' in public.text
+    assert f'href="{origin}/#/habitacion/{listing_id}"' in public.text
     assert "Calle privada 123" not in public.text
     assert "28.4639" not in public.text
     assert "<script>alert('x')</script>" not in public.text
@@ -85,13 +88,13 @@ async def test_canonical_listing_html_sitemap_and_visibility_lifecycle(client: A
     sitemap = await client.get("/sitemap.xml")
     assert sitemap.status_code == 200
     assert sitemap.headers["content-type"].startswith("application/xml")
-    assert f"http://localhost:5173/habitacion/{listing_id}" in sitemap.text
+    assert f"{origin}/habitacion/{listing_id}" in sitemap.text
 
     robots = await client.get("/robots.txt")
     assert robots.status_code == 200
     assert "Disallow: /api/" in robots.text
     assert "Disallow: /perfil" in robots.text
-    assert "Sitemap: http://localhost:5173/sitemap.xml" in robots.text
+    assert f"Sitemap: {origin}/sitemap.xml" in robots.text
 
     hidden = await client.patch(
         f"/api/v1/listings/{listing_id}",
