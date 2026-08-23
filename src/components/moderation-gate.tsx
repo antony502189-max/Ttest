@@ -42,11 +42,12 @@ function RestrictionCard({ restriction, full = false }: { restriction: MyRestric
 function ProductionModerationGate({ children }: { children: ReactNode }) {
   const { currentUser, logout } = useApp()
   const location = useLocation()
+  const currentUserId = currentUser?.id ?? null
   const [restriction, setRestriction] = useState<MyRestriction | null>(null)
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!currentUserId) {
       setRestriction(null)
       setLoadedFor(null)
       return
@@ -55,20 +56,20 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
     void Promise.all([getMyRestriction(), getModerationNotices()]).then(([active, notices]) => {
       if (cancelled) return
       setRestriction(active)
-      setLoadedFor(currentUser.id)
+      setLoadedFor(currentUserId)
       const unread = notices.filter((notice) => !notice.readAt)
       for (const notice of unread.slice(0, 3)) {
         toast.info(notice.title, { description: notice.body, duration: 8_000 })
         void markModerationNoticeRead(notice.id).catch(() => undefined)
       }
     }).catch(() => {
-      if (!cancelled) setLoadedFor(currentUser.id)
+      if (!cancelled) setLoadedFor(currentUserId)
     })
     return () => { cancelled = true }
-  }, [currentUser?.id, location.pathname])
+  }, [currentUserId, location.pathname])
 
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUserId) return
     let cancelled = false
     const refresh = () => {
       void getMyRestriction().then((active) => {
@@ -82,17 +83,17 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
       window.clearInterval(interval)
       window.removeEventListener('focus', refresh)
     }
-  }, [currentUser?.id])
+  }, [currentUserId])
 
   useEffect(() => {
-    if (!currentUser || !restriction?.until) return
+    if (!currentUserId || !restriction?.until) return
     const remaining = new Date(restriction.until).getTime() - Date.now()
     if (remaining > MODERATION_REFRESH_MS) return
     const timer = window.setTimeout(() => {
       void getMyRestriction().then(setRestriction).catch(() => undefined)
     }, Math.max(1_000, remaining + 1_000))
     return () => window.clearTimeout(timer)
-  }, [currentUser?.id, restriction])
+  }, [currentUserId, restriction])
 
   const routeBlocked = useMemo(() => {
     if (!restriction) return false

@@ -84,11 +84,13 @@ function MobileOnboardingAuthBridge() {
 function ProtectedRoute({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const { currentUser } = useApp()
   const location = useLocation()
+  const currentUserId = currentUser?.id ?? null
+  const currentUserRole = currentUser?.role ?? null
   const [authReady, setAuthReady] = useState(() => Boolean(currentUser) || !hasSessionHint())
   const [adminAllowed, setAdminAllowed] = useState<boolean | null>(() => admin ? null : true)
 
   useEffect(() => {
-    if (currentUser || !hasSessionHint()) {
+    if (currentUserId || !hasSessionHint()) {
       setAuthReady(true)
       return
     }
@@ -101,19 +103,19 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
       window.clearInterval(checkHint)
       window.clearTimeout(timeout)
     }
-  }, [currentUser])
+  }, [currentUserId])
 
   useEffect(() => {
     if (!admin) {
       setAdminAllowed(true)
       return
     }
-    if (!currentUser) {
+    if (!currentUserId) {
       setAdminAllowed(null)
       return
     }
     if (mockMode) {
-      setAdminAllowed(currentUser.role === 'admin')
+      setAdminAllowed(currentUserRole === 'admin')
       return
     }
     let cancelled = false
@@ -124,7 +126,7 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
       if (!cancelled) setAdminAllowed(false)
     })
     return () => { cancelled = true }
-  }, [admin, currentUser?.id, currentUser?.role])
+  }, [admin, currentUserId, currentUserRole])
 
   if (!authReady) return <RouteLoading />
   if (!currentUser) return <Navigate to="/acceso" state={{ returnTo: `${location.pathname}${location.search}` }} replace />
