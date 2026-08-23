@@ -19,6 +19,7 @@ __pycache__/
 *.py[cod]
 backend/var/
 backups/
+shared/audit/
 dist
 dist-ssr
 *.local
