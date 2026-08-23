@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('P0 current mobile home preserves the locked APK hierarchy and links all five tabs', async ({ page }) => {
+test('P0 current mobile home preserves the locked APK hierarchy and links all four tabs', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/')
   await settle(page)
@@ -19,12 +19,17 @@ test('P0 current mobile home preserves the locked APK hierarchy and links all fi
   await expect(page.locator('.m2-occupant-trigger')).toBeVisible()
   await expect(page.locator('.m2-select-row')).toBeVisible()
   await expect(page.getByTestId('open-location')).toBeVisible()
-  await expect(page.locator('.m2-bottom-nav button')).toHaveCount(5)
+  await expect(page.locator('.m2-bottom-nav button')).toHaveCount(4)
+  await expect(page.getByRole('button', { name: 'Chat', exact: true })).toHaveCount(0)
 
-  for (const [label, route] of [['Búsquedas', 'busquedas-guardadas'], ['Favoritos', 'favoritos'], ['Chat', 'mensajes'], ['Menú', 'menu']] as const) {
+  for (const [label, route] of [['Búsquedas', 'busquedas-guardadas'], ['Favoritos', 'favoritos'], ['Menú', 'menu']] as const) {
     await page.getByRole('button', { name: label, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`#/${route}`))
   }
+
+  await page.goto('/#/mensajes')
+  await expect(page).toHaveURL(/#\/$/)
+  await expect(page.locator('.m2-home')).toBeVisible()
 })
 
 test('P1 desktop multiple municipalities stay synchronized with URL, filters and reload', async ({ page }) => {
@@ -46,8 +51,8 @@ test('P1 desktop multiple municipalities stay synchronized with URL, filters and
 
 test('P1 municipality list remains usable when detailed GeoJSON cannot load', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 844 })
-  await page.route('**/tenerife-zone-hierarchy.geojson*', (route) => route.abort())
   await page.goto('/#/buscar?q=Tenerife')
+  await page.route('**/tenerife-zone-hierarchy.geojson*', (route) => route.abort())
   await page.getByRole('button', { name: /Abrir selección de ubicación/i }).first().click()
   await page.getByRole('button', { name: 'Seleccionar zonas en el mapa' }).click()
   await expect(page.getByRole('status').filter({ hasText: /límites detallados/i })).toBeVisible()
