@@ -1,0 +1,87 @@
+name: Customer predeploy patch
+
+on:
+  push:
+    branches:
+      - feature/listing-room-equipment-details
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'finish customer predeploy compatibility') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Apply focused customer compatibility fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          search = Path('src/lib/search.ts')
+          text = search.read_text()
+          import_marker = "import { getPrimaryPrice, isPublicListing } from '@/lib/listings'\n"
+          import_line = "import { listingMatchesAmenityFilter } from '@/lib/listing-equipment'\n"
+          if import_line not in text:
+              text = text.replace(import_marker, import_marker + import_line, 1)
+          old = "    if (filters.amenities.length && !filters.amenities.every((amenity) => listing.amenities.includes(amenity))) return false"
+          new = "    if (filters.amenities.length && !filters.amenities.every((amenity) => listingMatchesAmenityFilter(listing.amenities, amenity))) return false"
+          if old not in text and new not in text:
+              raise SystemExit('frontend amenity filter marker not found')
+          text = text.replace(old, new, 1)
+          search.write_text(text)
+
+          backend = Path('backend/app/repositories/listings.py')
+          text = backend.read_text()
+          old = "    if payload.amenities:\n        query = query.where(Listing.amenities.contains(payload.amenities))"
+          new = '''    if payload.amenities:\n        amenity_filter_aliases = {\n            "Balcón": ("Balcón", "Balcón disponible"),\n            "Lavadora": ("Lavadora", "Lavadora individual", "Lavadora compartida"),\n        }\n        for amenity in payload.amenities:\n            aliases = amenity_filter_aliases.get(amenity, (amenity,))\n            query = query.where(or_(*(Listing.amenities.contains([alias]) for alias in aliases)))'''
+          if old not in text and new not in text:
+              raise SystemExit('backend amenity filter marker not found')
+          text = text.replace(old, new, 1)
+          backend.write_text(text)
+
+          i18n = Path('src/contexts/i18n-context.tsx')
+          text = i18n.read_text()
+          equipment_key = "  'Ropa de cama incluida': { ru: 'Постельное бельё включено', en: 'Bedding included' },"
+          if equipment_key not in text:
+              marker = "  'Equipamiento': { ru: 'Оснащение', en: 'Equipment' },"
+              if marker not in text:
+                  raise SystemExit('i18n equipment marker not found')
+              block = """
+          'Ropa de cama': { ru: 'Постельное бельё', en: 'Bedding' },
+          'Incluida': { ru: 'Включено', en: 'Included' },
+          'No incluida': { ru: 'Не включено', en: 'Not included' },
+          'Ropa de cama incluida': { ru: 'Постельное бельё включено', en: 'Bedding included' },
+          'Ropa de cama no incluida': { ru: 'Постельное бельё не включено', en: 'Bedding not included' },
+          'Frigorífico': { ru: 'Холодильник', en: 'Refrigerator' },
+          'Individual / privado': { ru: 'Индивидуальный / личный', en: 'Individual / private' },
+          'No disponible': { ru: 'Недоступно', en: 'Unavailable' },
+          'Frigorífico individual': { ru: 'Индивидуальный холодильник', en: 'Individual refrigerator' },
+          'Frigorífico compartido': { ru: 'Общий холодильник', en: 'Shared refrigerator' },
+          'Sin frigorífico': { ru: 'Без холодильника', en: 'No refrigerator' },
+          'Sí, disponible': { ru: 'Да, доступен', en: 'Yes, available' },
+          'Balcón disponible': { ru: 'Балкон есть', en: 'Balcony available' },
+          'Sin balcón': { ru: 'Без балкона', en: 'No balcony' },
+          'Individual / privada': { ru: 'Индивидуальная / личная', en: 'Individual / private' },
+          'Compartida': { ru: 'Общая', en: 'Shared' },
+          'Lavadora individual': { ru: 'Индивидуальная стиральная машина', en: 'Individual washing machine' },
+          'Lavadora compartida': { ru: 'Общая стиральная машина', en: 'Shared washing machine' },
+          'Sin lavadora': { ru: 'Без стиральной машины', en: 'No washing machine' },"""
+              text = text.replace(marker, marker + block, 1)
+          i18n.write_text(text)
+
+          Path('tests/customer-equipment-compatibility.spec.ts').write_text("""import { expect, test } from '@playwright/test'\nimport { translateText } from '../src/contexts/i18n-context'\nimport { listingMatchesAmenityFilter } from '../src/lib/listing-equipment'\n\ntest('CUSTOMER-PREDEPLOY generic equipment filters match structured positive values', () => {\n  expect(listingMatchesAmenityFilter(['Balcón disponible'], 'Balcón')).toBe(true)\n  expect(listingMatchesAmenityFilter(['Lavadora individual'], 'Lavadora')).toBe(true)\n  expect(listingMatchesAmenityFilter(['Lavadora compartida'], 'Lavadora')).toBe(true)\n  expect(listingMatchesAmenityFilter(['Sin balcón'], 'Balcón')).toBe(false)\n  expect(listingMatchesAmenityFilter(['Sin lavadora'], 'Lavadora')).toBe(false)\n})\n\ntest('CUSTOMER-PREDEPLOY new equipment copy is localized in RU and EN', () => {\n  const values = [\n    'Ropa de cama', 'Incluida', 'No incluida', 'Ropa de cama incluida', 'Ropa de cama no incluida',\n    'Frigorífico', 'Individual / privado', 'No disponible', 'Frigorífico individual', 'Frigorífico compartido', 'Sin frigorífico',\n    'Sí, disponible', 'Balcón disponible', 'Sin balcón', 'Individual / privada', 'Compartida',\n    'Lavadora individual', 'Lavadora compartida', 'Sin lavadora',\n  ]\n  for (const value of values) {\n    expect(translateText(value, 'ru'), `RU translation for ${value}`).not.toBe(value)\n    expect(translateText(value, 'en'), `EN translation for ${value}`).not.toBe(value)\n  }\n})\n""")
+
+          Path('backend/tests/test_equipment_amenity_filter_compatibility.py').write_text("""from sqlalchemy import select\nfrom sqlalchemy.dialects import postgresql\n\nfrom app.models import Listing\nfrom app.repositories.listings import apply_search_filters\nfrom app.schemas.listings import ListingSearchRequest\n\n\ndef compiled_search(*amenities: str) -> str:\n    query = apply_search_filters(select(Listing), ListingSearchRequest(amenities=list(amenities)))\n    return str(query.compile(dialect=postgresql.dialect(), compile_kwargs={\"literal_binds\": True}))\n\n\ndef test_balcony_filter_accepts_legacy_and_structured_positive_value() -> None:\n    sql = compiled_search(\"Balcón\")\n    assert \"Balcón\" in sql\n    assert \"Balcón disponible\" in sql\n    assert \"Sin balcón\" not in sql\n\n\ndef test_washing_machine_filter_accepts_both_structured_positive_values() -> None:\n    sql = compiled_search(\"Lavadora\")\n    assert \"Lavadora individual\" in sql\n    assert \"Lavadora compartida\" in sql\n    assert \"Sin lavadora\" not in sql\n\n\ndef test_multiple_amenity_filters_remain_conjunctive() -> None:\n    sql = compiled_search(\"Lavadora\", \"Ascensor\")\n    assert \"Lavadora individual\" in sql\n    assert \"Lavadora compartida\" in sql\n    assert \"Ascensor\" in sql\n""")
+          PY
+
+          rm -f .github/workflows/customer-predeploy-patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: finish customer predeploy compatibility'
+          git push origin HEAD:feature/listing-room-equipment-details
