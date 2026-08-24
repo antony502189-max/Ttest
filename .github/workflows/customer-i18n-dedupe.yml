@@ -1,0 +1,52 @@
+name: Customer i18n dedupe
+
+on:
+  push:
+    branches:
+      - feature/listing-room-equipment-details
+
+permissions:
+  contents: write
+
+jobs:
+  dedupe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Remove only duplicate keys from canonical translation object
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('src/contexts/i18n-context.tsx')
+          text = path.read_text()
+          marker = 'const listingTranslations: Record<string, Translation> = {'
+          prefix, suffix = text.split(marker, 1)
+          seen: set[str] = set()
+          output: list[str] = []
+          pattern = re.compile(r"^\s*'((?:[^'\\]|\\.)+)':\s*\{")
+          removed: list[str] = []
+          for line in prefix.splitlines(keepends=True):
+              match = pattern.match(line)
+              if match:
+                  key = match.group(1)
+                  if key in seen:
+                      removed.append(key)
+                      continue
+                  seen.add(key)
+              output.append(line)
+          if not removed:
+              raise SystemExit('expected at least one duplicate key to remove')
+          path.write_text(''.join(output) + marker + suffix)
+          print('removed duplicate keys:', ', '.join(removed))
+          PY
+          rm -f .github/workflows/customer-i18n-dedupe.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: deduplicate customer equipment translations'
+          git push origin HEAD:feature/listing-room-equipment-details
