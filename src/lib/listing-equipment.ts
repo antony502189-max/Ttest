@@ -46,6 +46,11 @@ const definitions = {
   },
 } as const
 
+const amenityFilterAliases: Record<string, readonly string[]> = {
+  Balcón: ['Balcón', 'Balcón disponible'],
+  Lavadora: ['Lavadora', 'Lavadora individual', 'Lavadora compartida'],
+}
+
 export const newListingEquipmentDefaults: EquipmentSelections = {
   bedding: 'included',
   refrigerator: 'shared',
@@ -60,6 +65,11 @@ function definitionFor(field: EquipmentField) {
     options: Record<string, string>
     legacy: Record<string, EquipmentValue>
   }
+}
+
+export function listingMatchesAmenityFilter(amenities: string[], requested: string): boolean {
+  const aliases = amenityFilterAliases[requested] ?? [requested]
+  return aliases.some((amenity) => amenities.includes(amenity))
 }
 
 export function readEquipmentAmenities(amenities: string[]): EquipmentSelections {
