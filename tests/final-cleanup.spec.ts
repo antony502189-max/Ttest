@@ -49,6 +49,19 @@ async function advanceWizard(page: Page, count: number) {
   for (let index = 0; index < count; index += 1) await page.getByRole('button', { name: 'Continuar' }).click()
 }
 
+async function fillMissingEquipment(page: Page) {
+  const defaults = [
+    ['#publish-bedding', 'included'],
+    ['#publish-refrigerator', 'shared'],
+    ['#publish-balcony', 'no'],
+    ['#publish-washing-machine', 'shared'],
+  ] as const
+  for (const [selector, value] of defaults) {
+    const field = page.locator(selector)
+    if (await field.inputValue() === '') await field.selectOption(value)
+  }
+}
+
 test.beforeEach(async ({ page }) => clearState(page))
 
 test('MEDIA-09 orphan cleanup removes only unreferenced blobs', async ({ page }) => {
@@ -90,7 +103,9 @@ test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', asy
     localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
   }, { reference: obsolete })
   await openAsHost(page, `/#/mis-anuncios/${encodeURIComponent(firstListingId)}/editar`)
-  await advanceWizard(page, 6)
+  await advanceWizard(page, 2)
+  await fillMissingEquipment(page)
+  await advanceWizard(page, 4)
   await page.getByRole('button', { name: 'Eliminar foto 1' }).click()
   await page.locator('#publish-images').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: png })
   const replacement = await expect.poll(() => page.evaluate(() => {
@@ -168,35 +183,15 @@ test('ACCOUNT-01 deletion clears owned local data, draft and unused media after 
   await expect(page).toHaveURL(/#\/acceso/)
 })
 
-test('CONTACT-07 cooldown survives dialog close and sensitive values are cleared', async ({ page }) => {
+test('CONTACT-07 removed internal messaging stays unavailable after reload', async ({ page }) => {
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
-  const contactPanel = page.getByRole('complementary', { name: 'Contactar con el anunciante' })
-  const open = () => contactPanel.getByRole('button', { name: 'Enviar mensaje' }).click()
-  await open()
-  let dialog = page.getByRole('dialog', { name: 'Enviar un mensaje' })
-  await expect(dialog).toBeVisible()
-  await dialog.getByLabel('Nombre').fill('Lucía')
-  await dialog.getByLabel('Email o teléfono').fill('lucia@example.es')
-  await dialog.getByLabel('Mensaje').fill('Me interesa la habitación y cumplo las condiciones.')
-  await dialog.getByText(/Confirmo que cumplo/).click()
-  await page.waitForTimeout(750)
-  await dialog.getByRole('button', { name: 'Enviar mensaje' }).click()
-  await expect(dialog.getByRole('status')).toContainText('Mensaje enviado al anunciante')
-  await page.keyboard.press('Escape')
-  await expect(dialog).toBeHidden()
-  await open()
-  dialog = page.getByRole('dialog', { name: 'Enviar un mensaje' })
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByLabel('Nombre')).toHaveValue('')
-  await expect(dialog.getByLabel('Email o teléfono')).toHaveValue('')
-  await expect(dialog.getByLabel('Mensaje')).toHaveValue('')
-  await dialog.getByLabel('Nombre').fill('Lucía')
-  await dialog.getByLabel('Email o teléfono').fill('lucia@example.es')
-  await dialog.getByLabel('Mensaje').fill('Me interesa la habitación y cumplo las condiciones.')
-  await dialog.getByText(/Confirmo que cumplo/).click()
-  await page.waitForTimeout(750)
-  await dialog.getByRole('button', { name: 'Enviar mensaje' }).click()
-  await expect(dialog.getByRole('alert')).toContainText('30 segundos')
+  let contactPanel = page.getByRole('complementary', { name: 'Contactar con el anunciante' })
+  await expect(contactPanel.getByRole('button', { name: 'Enviar mensaje' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Enviar un mensaje' })).toHaveCount(0)
+  await page.reload()
+  contactPanel = page.getByRole('complementary', { name: 'Contactar con el anunciante' })
+  await expect(contactPanel.getByRole('button', { name: 'Enviar mensaje' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Enviar un mensaje' })).toHaveCount(0)
 })
 
 test('CONTACT-08 disabled phone and WhatsApp are absent from the DOM', async ({ page }) => {
@@ -264,14 +259,8 @@ test('MAP-06 selecting a card or marker preserves viewport and map instance', as
   expect(after).toEqual(before)
 })
 
-test('RESP-06 short mobile dialogs and critical map/uploader targets remain reachable', async ({ page }) => {
+test('RESP-06 critical map and uploader targets remain reachable on a short mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 680 })
-  await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
-  await page.getByRole('button', { name: 'Enviar mensaje' }).first().click()
-  const dialogBox = await page.getByRole('dialog', { name: 'Enviar un mensaje' }).boundingBox()
-  expect(dialogBox && dialogBox.y >= 0 && dialogBox.y + dialogBox.height <= 680).toBeTruthy()
-  await page.keyboard.press('Escape')
-
   await openAsHost(page, '/#/publicar')
   await advanceWizard(page, 6)
   const deletePhoto = await page.getByRole('button', { name: 'Eliminar foto 1' }).boundingBox()
