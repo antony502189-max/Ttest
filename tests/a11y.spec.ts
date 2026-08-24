@@ -92,12 +92,13 @@ for (const route of routes.filter((item) =>
   });
 }
 
-test("delta remaining contact controls support keyboard focus and axe while internal messaging stays removed", async ({ page }) => {
+test("delta remaining contact controls support keyboard operation and axe while internal messaging stays removed", async ({ page }) => {
   await openRoute(page, { name: "detalle", path: "/#/habitacion/arme%C3%B1ime-luminosa-01" });
   const panel = page.getByRole("complementary", { name: "Contactar con el anunciante" });
   const confirmation = panel.locator('.condition-confirm [role="checkbox"]').first();
-  await confirmation.focus();
-  await expect(confirmation).toBeFocused();
+  await expect(confirmation).toHaveAttribute("aria-checked", "false");
+  await confirmation.press("Space");
+  await expect(confirmation).toHaveAttribute("aria-checked", "true");
   await expect(panel.getByRole("button", { name: "Enviar mensaje" })).toHaveCount(0);
   const results = await new AxeBuilder({ page }).include(".contact-panel").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
