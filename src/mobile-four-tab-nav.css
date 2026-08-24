@@ -1,0 +1,5 @@
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  .m2-bottom-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

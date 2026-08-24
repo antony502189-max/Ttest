@@ -79,6 +79,8 @@ test('DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are r
   await page.locator('.m2-result-card__favorite').first().click()
   await expect(page.locator('[data-sonner-toast]').first()).toBeVisible()
   await page.getByRole('button', { name: 'Volver' }).click()
+  await expect(page.locator('.m2-bottom-nav button')).toHaveCount(4)
+  await expect(page.getByRole('button', { name: 'Chat', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Favoritos', exact: true }).click()
   await expect(page).toHaveURL(/#\/favoritos/)
   await expect(page.locator('.m2-collection__list > button')).toHaveCount(1)
@@ -143,9 +145,11 @@ test('DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or 
 
   await readyMobile(page)
   consoleErrors.length = 0
-  for (const route of ['/#/', '/#/buscar?q=Tenerife', '/#/buscar?q=Tenerife&vista=mapa', '/#/menu', '/#/mensajes']) {
+  for (const route of ['/#/', '/#/buscar?q=Tenerife', '/#/buscar?q=Tenerife&vista=mapa', '/#/menu']) {
     await page.goto(route)
     await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
   }
+  await page.goto('/#/mensajes')
+  await expect(page).toHaveURL(/#\/$/)
   expect({ consoleErrors, pageErrors, failedFirstParty }).toEqual({ consoleErrors: [], pageErrors: [], failedFirstParty: [] })
 })

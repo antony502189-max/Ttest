@@ -43,6 +43,15 @@ import { amenityOptions, areaCenters, createDefaultDraft } from "@/data/listings
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
 import { approximatePublicCoordinates } from "@/lib/location-privacy";
 import { removeUnusedMediaReferences } from "@/lib/media-storage";
+import {
+  legacyGenericEquipmentAmenities,
+  normalizeEquipmentAmenities,
+  readEquipmentAmenities,
+  withEquipmentDefaults,
+  writeEquipmentAmenity,
+  type EquipmentField,
+  type EquipmentSelections,
+} from "@/lib/listing-equipment";
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
 import { useI18n } from "@/contexts/i18n-context";
 import { bedTypeOptionLabel } from "@/lib/bed-type-label";
@@ -145,7 +154,8 @@ const toDraft = (listing: Listing): ListingDraft => {
 };
 
 const withProfileDefaults = (user: DemoUser | null) => {
-  const base = createDefaultDraft();
+  const initial = createDefaultDraft();
+  const base = { ...initial, amenities: withEquipmentDefaults(initial.amenities) };
   if (!user) return base;
   return { ...base, contactName: user.name, contactPhone: user.phone, contactWhatsapp: user.whatsapp, contactEmail: user.email, showPhone: user.showPhone, showWhatsApp: user.showWhatsApp, allowContactForm: user.allowContactForm };
 };
@@ -210,7 +220,7 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     childrenAllowed: draft.childrenAllowed,
     empadronamientoAllowed: draft.empadronamientoAllowed,
     restrictions: [],
-    amenities: draft.amenities,
+    amenities: normalizeEquipmentAmenities(draft.amenities),
     description: draft.description,
     homeDescription: draft.rules,
     images: draft.images,
@@ -283,6 +293,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const isDirty = JSON.stringify(draft) !== baseline;
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const preview = useMemo(() => toListing(draft, existing, currentUser?.id), [draft, existing, currentUser?.id]);
+  const equipment = readEquipmentAmenities(draft.amenities);
 
   useEffect(() => {
     try { localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft })); }
@@ -329,6 +340,10 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       if (draft.rentalUnit === "bed" && draft.bedType === "double") next.bedType = "Las plazas independientes se publican con cama individual o litera.";
       const sleepingPlaces = draft.bedCount * (draft.bedType === "double" || draft.bedType === "bunk" ? 2 : 1);
       if (sleepingPlaces < draft.roomCapacity) next.bedCount = "Las camas indicadas no cubren la capacidad de la habitación.";
+      if (!equipment.bedding) next.bedding = "Indica si la ropa de cama está incluida.";
+      if (!equipment.refrigerator) next.refrigerator = "Indica qué tipo de frigorífico está disponible.";
+      if (!equipment.balcony) next.balcony = "Indica si la habitación o vivienda dispone de balcón.";
+      if (!equipment.washingMachine) next.washingMachine = "Indica qué tipo de lavadora está disponible.";
     }
     if (step === 3) {
       if (getPrimaryPrice(preview) < 1) next.price = "El precio debe ser mayor que cero.";
@@ -396,6 +411,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     <div className="wizard-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong><small>{option.text}</small></span></label>)}</div>
   );
   const toggleAmenity = (item: string) => set("amenities", draft.amenities.includes(item) ? draft.amenities.filter((value) => value !== item) : [...draft.amenities, item]);
+  const setEquipment = (field: EquipmentField, value: EquipmentSelections[EquipmentField]) => set("amenities", writeEquipmentAmenity(draft.amenities, field, value));
   const toggleAcceptedTenant = (item: AcceptedTenantType) => set("acceptedTenantTypes", draft.acceptedTenantTypes.includes(item) ? draft.acceptedTenantTypes.filter((value) => value !== item) : [...draft.acceptedTenantTypes, item]);
 
   const content = (() => {
@@ -458,11 +474,15 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <FormField label="Cocina" htmlFor="publish-kitchen"><select id="publish-kitchen" value={draft.kitchen} onChange={(e) => set("kitchen", e.target.value as ListingDraft["kitchen"])}><option>Cocina compartida</option><option>Cocina privada</option></select></FormField>
             <FormField label="Planta" htmlFor="publish-floor"><select id="publish-floor" value={draft.floor} onChange={(e) => set("floor", e.target.value as ListingDraft["floor"])}><option value="basement">Sótano / semisótano</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4+">4+</option><option value="top">Última planta</option></select></FormField>
             <FormField label="Calefacción" htmlFor="publish-heating"><select id="publish-heating" value={draft.heatingType} onChange={(e) => set("heatingType", e.target.value as ListingDraft["heatingType"])}><option value="none">Sin calefacción</option><option value="individual">Calefacción individual</option><option value="central">Calefacción central</option><option value="unknown">No especificado</option></select></FormField>
+            <FormField label="Ropa de cama" htmlFor="publish-bedding" error={errors.bedding}><select id="publish-bedding" value={equipment.bedding} aria-invalid={Boolean(errors.bedding)} onChange={(e) => setEquipment("bedding", e.target.value as EquipmentSelections["bedding"])}><option value="">Selecciona una opción</option><option value="included">Incluida</option><option value="not_included">No incluida</option></select></FormField>
+            <FormField label="Frigorífico" htmlFor="publish-refrigerator" error={errors.refrigerator}><select id="publish-refrigerator" value={equipment.refrigerator} aria-invalid={Boolean(errors.refrigerator)} onChange={(e) => setEquipment("refrigerator", e.target.value as EquipmentSelections["refrigerator"])}><option value="">Selecciona una opción</option><option value="individual">Individual / privado</option><option value="shared">Compartido</option><option value="none">No disponible</option></select></FormField>
+            <FormField label="Balcón" htmlFor="publish-balcony" error={errors.balcony}><select id="publish-balcony" value={equipment.balcony} aria-invalid={Boolean(errors.balcony)} onChange={(e) => setEquipment("balcony", e.target.value as EquipmentSelections["balcony"])}><option value="">Selecciona una opción</option><option value="yes">Sí, disponible</option><option value="no">No</option></select></FormField>
+            <FormField label="Lavadora" htmlFor="publish-washing-machine" error={errors.washingMachine}><select id="publish-washing-machine" value={equipment.washingMachine} aria-invalid={Boolean(errors.washingMachine)} onChange={(e) => setEquipment("washingMachine", e.target.value as EquipmentSelections["washingMachine"])}><option value="">Selecciona una opción</option><option value="individual">Individual / privada</option><option value="shared">Compartida</option><option value="none">No disponible</option></select></FormField>
           </div>
           <fieldset className="checks-panel"><legend>Equipamiento y accesibilidad</legend>
             <label><Checkbox checked={draft.furnished} onCheckedChange={(value) => set("furnished", value === true)} />Amueblada</label>
             <label><Checkbox checked={draft.accessible} onCheckedChange={(value) => set("accessible", value === true)} />Adaptada para personas con movilidad reducida</label>
-            {amenityOptions.map((item) => <label key={item}><Checkbox checked={draft.amenities.includes(item)} onCheckedChange={() => toggleAmenity(item)} />{item}</label>)}
+            {amenityOptions.filter((item) => !legacyGenericEquipmentAmenities.has(item)).map((item) => <label key={item}><Checkbox checked={draft.amenities.includes(item)} onCheckedChange={() => toggleAmenity(item)} />{item}</label>)}
           </fieldset>
         </WizardSection>;
       case 3:
