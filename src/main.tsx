@@ -22,6 +22,7 @@ import './client-mobile-alignment-fixes.css'
 import './client-listing-requirement-emphasis.css'
 import './mobile-four-tab-nav.css'
 import './contact-channels.css'
+import './customer-card-clickability'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
