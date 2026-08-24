@@ -589,7 +589,6 @@ const translations: Record<string, Translation> = {
 'Balcón disponible': { ru: 'Балкон есть', en: 'Balcony available' },
 'Sin balcón': { ru: 'Без балкона', en: 'No balcony' },
 'Individual / privada': { ru: 'Индивидуальная / личная', en: 'Individual / private' },
-'Compartida': { ru: 'Общая', en: 'Shared' },
 'Lavadora individual': { ru: 'Индивидуальная стиральная машина', en: 'Individual washing machine' },
 'Lavadora compartida': { ru: 'Общая стиральная машина', en: 'Shared washing machine' },
 'Sin lavadora': { ru: 'Без стиральной машины', en: 'No washing machine' },
