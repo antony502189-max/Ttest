@@ -8,6 +8,7 @@ test('CUSTOMER-PREDEPLOY generic equipment filters match structured positive val
   expect(listingMatchesAmenityFilter(['Lavadora'], 'Lavadora')).toBe(true)
   expect(listingMatchesAmenityFilter(['Lavadora individual'], 'Lavadora')).toBe(true)
   expect(listingMatchesAmenityFilter(['Lavadora compartida'], 'Lavadora')).toBe(true)
+  expect(listingMatchesAmenityFilter(['Balcón disponible', 'Lavadora compartida'], 'Lavadora')).toBe(true)
   expect(listingMatchesAmenityFilter(['Sin balcón'], 'Balcón')).toBe(false)
   expect(listingMatchesAmenityFilter(['Sin lavadora'], 'Lavadora')).toBe(false)
   expect(listingMatchesAmenityFilter(['Ascensor'], 'Ascensor')).toBe(true)
