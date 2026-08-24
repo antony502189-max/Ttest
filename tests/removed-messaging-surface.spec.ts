@@ -14,8 +14,9 @@ test('removed messaging surface has no mobile tab, route or listing entry point'
   await expect(nav).not.toContainText('Mensajes')
 
   await page.goto('/#/menu')
-  await expect(page.locator('main')).not.toContainText('Chat')
-  await expect(page.locator('main')).not.toContainText('Mensajes')
+  const menuMain = page.locator('#main-content')
+  await expect(menuMain).not.toContainText('Chat')
+  await expect(menuMain).not.toContainText('Mensajes')
 
   await page.goto('/#/habitacion/arme%C3%B1ime-luminosa-01')
   await expect(page.getByRole('button', { name: 'Enviar mensaje' })).toHaveCount(0)
