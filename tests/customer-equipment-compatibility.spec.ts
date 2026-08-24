@@ -3,11 +3,15 @@ import { translateText } from '../src/contexts/i18n-context'
 import { listingMatchesAmenityFilter } from '../src/lib/listing-equipment'
 
 test('CUSTOMER-PREDEPLOY generic equipment filters match structured positive values', () => {
+  expect(listingMatchesAmenityFilter(['Balcón'], 'Balcón')).toBe(true)
   expect(listingMatchesAmenityFilter(['Balcón disponible'], 'Balcón')).toBe(true)
+  expect(listingMatchesAmenityFilter(['Lavadora'], 'Lavadora')).toBe(true)
   expect(listingMatchesAmenityFilter(['Lavadora individual'], 'Lavadora')).toBe(true)
   expect(listingMatchesAmenityFilter(['Lavadora compartida'], 'Lavadora')).toBe(true)
   expect(listingMatchesAmenityFilter(['Sin balcón'], 'Balcón')).toBe(false)
   expect(listingMatchesAmenityFilter(['Sin lavadora'], 'Lavadora')).toBe(false)
+  expect(listingMatchesAmenityFilter(['Ascensor'], 'Ascensor')).toBe(true)
+  expect(listingMatchesAmenityFilter(['Terraza'], 'Ascensor')).toBe(false)
 })
 
 test('CUSTOMER-PREDEPLOY new equipment copy is localized in RU and EN', () => {
