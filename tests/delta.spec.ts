@@ -336,8 +336,9 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
   }
 })
 
-test('A11Y-01 remaining contact panel has no serious or critical axe issues', async ({ page }) => {
+test('A11Y-01 listing detail stays accessible after internal messaging removal', async ({ page }) => {
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
-  const results = await new AxeBuilder({ page }).include('.contact-panel').analyze()
+  await expect(page.getByRole('button', { name: 'Enviar mensaje' })).toHaveCount(0)
+  const results = await new AxeBuilder({ page }).include('#main-content').analyze()
   expect(results.violations.filter((item) => item.impact === 'serious' || item.impact === 'critical')).toEqual([])
 })
