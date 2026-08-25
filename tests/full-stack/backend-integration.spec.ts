@@ -319,8 +319,10 @@ test('an open catalog refreshes after its version changes on focus', async ({ pa
     baseURL: API,
     extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174', Authorization: `Bearer ${created.accessToken}` },
   })
-  const removed = await api.delete(`${API_PREFIX}/listings/${created.listingId}`)
-  expect(removed.status()).toBe(204)
+  const closed = await api.patch(`${API_PREFIX}/listings/${created.listingId}`, {
+    data: { status: "closed" },
+  })
+  expect(closed.status()).toBe(200)
   await api.dispose()
 
   // The provider also polls; focus gives the same version check immediately,
