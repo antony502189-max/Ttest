@@ -174,18 +174,17 @@ export function NotificationsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(false)
-    if (mockMode) {
-      setItems([])
-      setUnread(0)
-      setLoading(false)
-      return
-    }
     try {
       const page = await getNotifications()
       setItems(page.items)
       setUnread(page.unreadCount)
     } catch {
-      setError(true)
+      if (mockMode) {
+        setItems([])
+        setUnread(0)
+      } else {
+        setError(true)
+      }
     } finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
