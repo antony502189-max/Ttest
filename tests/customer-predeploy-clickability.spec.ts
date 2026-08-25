@@ -43,7 +43,7 @@ test('CUSTOMER-PREDEPLOY desktop listing card opens from non-interactive card su
   const card = page.locator(`.property-card[data-listing-id="${localListingId}"]`)
   await expect(card).toBeVisible()
   await card.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  await expect(page).toHaveURL(new RegExp(`#\/habitacion\/${encodeURIComponent(localListingId)}`))
+  await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(localListingId)}`))
 })
 
 test('CUSTOMER-PREDEPLOY mobile listing card opens from non-interactive card surface', async ({ page }) => {
@@ -52,7 +52,7 @@ test('CUSTOMER-PREDEPLOY mobile listing card opens from non-interactive card sur
   const card = page.locator(`.m2-result-card[data-listing-id="${localListingId}"]`)
   await expect(card).toBeVisible()
   await card.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  await expect(page).toHaveURL(new RegExp(`#\/habitacion\/${encodeURIComponent(localListingId)}`))
+  await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(localListingId)}`))
 })
 
 test('CUSTOMER-PREDEPLOY card controls stay independent from whole-card navigation', async ({ page }) => {
