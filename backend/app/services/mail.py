@@ -73,16 +73,6 @@ def enqueue_email_verification(session: AsyncSession, recipient: str, code: str)
     )
 
 
-def enqueue_message_notification(session: AsyncSession, recipient: str, listing_id: str) -> None:
-    enqueue_mail(
-        session,
-        kind="new_message",
-        recipient=recipient,
-        subject="Tienes un mensaje nuevo",
-        body=f"Tienes un mensaje nuevo sobre un anuncio: {frontend_link(f'/habitacion/{listing_id}')}",
-    )
-
-
 def send_smtp(item: MailPayload, settings: Settings) -> None:
     if not settings.smtp_host:
         raise RuntimeError("SMTP_HOST is not configured")

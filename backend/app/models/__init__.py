@@ -90,6 +90,20 @@ class MailOutbox(Base):
     next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+    __table_args__ = (UniqueConstraint("recipient_user_id", "idempotency_key", name="uq_notifications_recipient_idempotency"),)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    recipient_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    type: Mapped[str] = mapped_column(String(64), index=True)
+    entity_listing_id: Mapped[UUID | None] = mapped_column(ForeignKey("listings.id", ondelete="SET NULL"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class Listing(Timestamped, Base):
     __tablename__ = "listings"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)

@@ -22,7 +22,22 @@ from ..schemas.listings import (
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
+from .notifications import create_notification
 from .storage_deletions import enqueue_storage_deletions
+
+# This is deliberately independent from the product role and AdminAccess
+# allow-list. A role carried in a token or client state must never turn an
+# ordinary lifecycle action into a destructive purge.
+HARD_DELETE_EMAILS = frozenset({"antony502189@gmail.com", "tf.shuler@gmail.com"})
+
+
+def canonical_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def require_hard_delete_authorization(user: User) -> None:
+    if canonical_email(user.email) not in HARD_DELETE_EMAILS:
+        raise HTTPException(403, "Hard deletion is restricted")
 
 ROOM_DETAIL_MAPPING = {
     "homeSizeM2": "home_size_m2",
@@ -207,13 +222,27 @@ async def create_listing(payload: ListingWrite, user: User, session: AsyncSessio
     details = ListingRoomDetails(listing_id=listing.id)
     apply_room_detail_write(details, payload)
     session.add(details)
-    session.add(
-        ListingStatusHistory(
-            listing_id=listing.id,
-            from_status="draft",
-            to_status=initial_status,
-            changed_by=user.id,
-        )
+    history = ListingStatusHistory(
+        listing_id=listing.id,
+        from_status="draft",
+        to_status=initial_status,
+        changed_by=user.id,
+    )
+    session.add(history)
+    await session.flush()
+    await create_notification(
+        session,
+        recipient=user,
+        kind="listing_published" if initial_status == "published" else "listing_submitted",
+        title="Tu anuncio está publicado" if initial_status == "published" else "Tu anuncio se ha enviado",
+        body=(
+            "Tu anuncio ya es visible en 112233.es."
+            if initial_status == "published"
+            else "Revisaremos tu anuncio antes de publicarlo."
+        ),
+        entity_listing_id=listing.id,
+        idempotency_key=f"listing-status:{history.id}",
+        email_path=f"/habitacion/{listing.id}",
     )
     await touch_catalog(session)
     await session.commit()
@@ -294,16 +323,36 @@ async def update_listing(
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value)
     if listing.status != previous_status:
-        session.add(
-            ListingStatusHistory(
-                listing_id=listing.id,
-                from_status=previous_status,
-                to_status=listing.status,
-                changed_by=user.id,
-            )
+        history = ListingStatusHistory(
+            listing_id=listing.id,
+            from_status=previous_status,
+            to_status=listing.status,
+            changed_by=user.id,
         )
+        session.add(history)
         if listing.status == "published" and listing.published_at is None:
             listing.published_at = datetime.now(UTC)
+        recipient = user if listing.owner_user_id == user.id else await session.get(User, listing.owner_user_id)
+        if recipient:
+            await session.flush()
+            notification_copy = {
+                "published": ("listing_published", "Tu anuncio está publicado", "Tu anuncio ya es visible en 112233.es."),
+                "rejected": ("listing_rejected", "Tu anuncio necesita cambios", "Revisa el estado de tu anuncio antes de volver a publicarlo."),
+                "hidden": ("listing_hidden", "Tu anuncio está oculto", "Tu anuncio ya no aparece en las búsquedas públicas."),
+                "closed": ("listing_closed", "Tu anuncio está cerrado", "Tu anuncio ya no aparece en las búsquedas públicas."),
+            }.get(listing.status)
+            if notification_copy:
+                kind, title, body = notification_copy
+                await create_notification(
+                    session,
+                    recipient=recipient,
+                    kind=kind,
+                    title=title,
+                    body=body,
+                    entity_listing_id=listing.id,
+                    idempotency_key=f"listing-status:{history.id}",
+                    email_path=f"/habitacion/{listing.id}",
+                )
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -324,13 +373,27 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
     if listing.status == "published" and listing.published_at is None:
         listing.published_at = now
     if listing.status != previous_status:
-        session.add(
-            ListingStatusHistory(
-                listing_id=listing.id,
-                from_status=previous_status,
-                to_status=listing.status,
-                changed_by=user.id,
-            )
+        history = ListingStatusHistory(
+            listing_id=listing.id,
+            from_status=previous_status,
+            to_status=listing.status,
+            changed_by=user.id,
+        )
+        session.add(history)
+        await session.flush()
+        await create_notification(
+            session,
+            recipient=user,
+            kind="listing_republished" if listing.status == "published" else "listing_submitted",
+            title="Tu anuncio se ha republicado" if listing.status == "published" else "Tu anuncio se ha enviado",
+            body=(
+                "Tu anuncio vuelve a estar visible en 112233.es."
+                if listing.status == "published"
+                else "Revisaremos tu anuncio antes de publicarlo."
+            ),
+            entity_listing_id=listing.id,
+            idempotency_key=f"listing-status:{history.id}",
+            email_path=f"/habitacion/{listing.id}",
         )
     await touch_catalog(session)
     await session.commit()
@@ -339,10 +402,14 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
 
 
 async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) -> None:
+    # `DELETE` also removes media relations and favorites, therefore this is a
+    # destructive operation even though the listing row retains a tombstone.
+    # Check the canonical, server-loaded account email before inspecting the
+    # target so neither ownership nor a forged client role is a bypass.
+    require_hard_delete_authorization(user)
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
-    await ensure_owner_or_admin(listing, user, session)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )

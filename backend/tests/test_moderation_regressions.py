@@ -12,30 +12,8 @@ from sqlalchemy.dialects import postgresql
 
 from app.models import Favorite, Listing, User
 from app.services import admin as admin_service
-from app.services import admin_listings, admin_users, listing_limits, messages, moderation_expiry, reports, search_state
+from app.services import admin_listings, admin_users, listing_limits, moderation_expiry, reports, search_state
 from app.services.catalog import touch_catalog
-
-
-@pytest.mark.asyncio
-async def test_initial_message_requires_canonical_public_listing_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
-    query = MagicMock()
-    query.where.return_value = query
-    visibility = MagicMock(return_value=query)
-    enforce_view = AsyncMock()
-    session = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(one_or_none=lambda: None)))
-    user = SimpleNamespace(id=uuid4())
-    listing_id = uuid4()
-
-    monkeypatch.setattr(messages, "visible_query", visibility)
-    monkeypatch.setattr(messages, "enforce_listing_view_access", enforce_view)
-
-    with pytest.raises(HTTPException) as exc:
-        await messages.create_initial_message(listing_id, "hello", user, session)
-
-    assert exc.value.status_code == 404
-    enforce_view.assert_awaited_once_with(user, session)
-    visibility.assert_called_once_with()
-    session.execute.assert_awaited_once()
 
 
 @pytest.mark.asyncio

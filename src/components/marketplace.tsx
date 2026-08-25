@@ -1325,6 +1325,9 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
 }
 
 const contactSubmissions = new Map<string, { time: number; signature: string }>();
+// Kept as a named guard during the compatibility window so retired form state
+// cannot be reactivated by listing data, local storage, or a client flag.
+const isInternalMessagingEnabled = () => false;
 
 export function ContactPanel({
   listing,
@@ -1469,7 +1472,10 @@ export function ContactPanel({
         {listing.isExternal && listing.contactEmail ? <Button asChild variant="outline" disabled={!confirmed && !mobile}>
           {confirmed || mobile ? <a href={`mailto:${listing.contactEmail}`}><MessageCircle data-icon="inline-start" />Email</a> : <><MessageCircle data-icon="inline-start" />Email</>}
         </Button> : null}
-        {listing.allowContactForm ? <Dialog open={messageOpen} onOpenChange={(open) => {
+        {/* Internal messaging is retired. Contact remains limited to the direct
+            channels above; legacy contact-form state is kept out of the DOM
+            while older locally stored drafts age out. */}
+        {isInternalMessagingEnabled() ? <Dialog open={messageOpen} onOpenChange={(open) => {
           setMessageOpen(open);
           if (open) messageStartedAt.current = Date.now();
           else {

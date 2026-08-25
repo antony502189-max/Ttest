@@ -15,7 +15,6 @@ import {
   Map,
   MapPin,
   Menu,
-  MessageCircle,
   PenTool,
   Plus,
   Search,
@@ -41,7 +40,7 @@ import '@/mobile-favorites-selection.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type OnboardingOrigin = 'startup' | 'language-settings' | 'region-settings' | 'region-location' | 'account'
-type MobileTab = 'home' | 'searches' | 'favorites' | 'messages' | 'menu'
+type MobileTab = 'home' | 'searches' | 'favorites' | 'menu'
 type AppLanguage = Language
 type SearchMode = 'vivienda' | 'turismo' | null
 type AppPage = 'tabs' | 'location' | 'map'
@@ -553,11 +552,11 @@ function MapScreen({ mode, language, t, query, initialCenter, polygon, items, on
 
 type MobileCollectionItem = { id: string; title: string; meta: string; onOpen: () => void }
 
-function EmptyScreen({ kind, onLogin, onExplore, authenticated, t, items = [] }: { kind: 'searches' | 'favorites' | 'messages'; onLogin: () => void; onExplore: () => void; authenticated: boolean; t: MobileCopy; items?: MobileCollectionItem[] }) {
-  const data = { searches: { title: t.searchesTitle, heading: t.searchesHeading, text: t.searchesText, icon: <Bell /> }, favorites: { title: t.favoritesTitle, heading: t.favoritesHeading, text: t.favoritesText, icon: <Heart /> }, messages: { title: t.chatTitle, heading: t.chatHeading, text: t.chatText, icon: <MessageCircle /> } }[kind]
+function EmptyScreen({ kind, onLogin, onExplore, authenticated, t, items = [] }: { kind: 'searches' | 'favorites'; onLogin: () => void; onExplore: () => void; authenticated: boolean; t: MobileCopy; items?: MobileCollectionItem[] }) {
+  const data = { searches: { title: t.searchesTitle, heading: t.searchesHeading, text: t.searchesText, icon: <Bell /> }, favorites: { title: t.favoritesTitle, heading: t.favoritesHeading, text: t.favoritesText, icon: <Heart /> } }[kind]
   if (items.length) return <section className="m2-screen m2-empty m2-collection"><header>{data.title}</header><div className="m2-collection__list">{items.map((item) => <button type="button" key={item.id} onClick={item.onOpen}><span><strong>{item.title}</strong><small>{item.meta}</small></span><ChevronRight /></button>)}</div></section>
-  const heading = authenticated && kind === 'searches' ? t.searchesEmpty : authenticated && kind === 'messages' ? t.chatEmpty : data.heading
-  const text = authenticated && kind === 'searches' ? t.searchesEmptyText : authenticated && kind === 'messages' ? t.chatEmptyText : data.text
+  const heading = authenticated && kind === 'searches' ? t.searchesEmpty : data.heading
+  const text = authenticated && kind === 'searches' ? t.searchesEmptyText : data.text
   return <section className="m2-screen m2-empty"><header>{data.title}</header><div className="m2-empty__icon">{data.icon}</div><h1>{heading}</h1><p>{text}</p><PrimaryButton onClick={authenticated ? onExplore : onLogin}>{authenticated ? t.search : t.login}</PrimaryButton></section>
 }
 
@@ -642,21 +641,19 @@ function MenuScreen({ onLogin, onLanguage, onRegion, onAgencies, onPublish, lang
 }
 
 function getNavItems(t: MobileCopy): Array<{ tab: MobileTab; label: string; icon: typeof Home }> {
-  return [{ tab: 'home', label: t.home, icon: Home }, { tab: 'searches', label: t.searches, icon: Bell }, { tab: 'favorites', label: t.favorites, icon: Heart }, { tab: 'messages', label: t.chat, icon: MessageCircle }, { tab: 'menu', label: t.menu, icon: Menu }]
+  return [{ tab: 'home', label: t.home, icon: Home }, { tab: 'searches', label: t.searches, icon: Bell }, { tab: 'favorites', label: t.favorites, icon: Heart }, { tab: 'menu', label: t.menu, icon: Menu }]
 }
 
 const tabRoutes: Record<MobileTab, string> = {
   home: '/',
   searches: '/busquedas-guardadas',
   favorites: '/favoritos',
-  messages: '/mensajes',
   menu: '/menu',
 }
 
 function tabFromPath(pathname: string): MobileTab {
   if (pathname === '/busquedas-guardadas') return 'searches'
   if (pathname === '/favoritos') return 'favorites'
-  if (pathname === '/mensajes') return 'messages'
   if (pathname === '/menu') return 'menu'
   return 'home'
 }
@@ -665,7 +662,7 @@ export function MobileAppV2() {
   const location = useLocation()
   const navigate = useNavigate()
   const { language, setLanguage } = useI18n()
-  const { allListings, discarded, favorites, toggleFavorite, savedSearches, localThreads, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
+  const { allListings, discarded, favorites, toggleFavorite, savedSearches, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
   const [step, setStep] = useState<OnboardingStep>(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
     try {
@@ -683,7 +680,7 @@ export function MobileAppV2() {
   const [tab, setTab] = useState<MobileTab>(() => tabFromPath(location.pathname))
   const [homeMode, setHomeMode] = useState<SearchMode>(null)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)').matches)
-  const shellActive = mobileViewport && ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu'].includes(location.pathname)
+  const shellActive = mobileViewport && ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu'].includes(location.pathname)
   const t: MobileCopy = copy[language]
   const navItems = getNavItems(t)
   const mapItems = useMemo(() => selectMobileSearchListings({
@@ -697,7 +694,6 @@ export function MobileAppV2() {
   }), [allListings, discarded, filters, location.search, mapPolygon, mapQuery, query, rentalMode])
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => allListings.filter((listing) => favorites.has(listing.id)).map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.area}, ${listing.city} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [allListings, favorites, navigate])
   const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
-  const messageItems = useMemo<MobileCollectionItem[]>(() => localThreads.map((thread) => ({ id: thread.id, title: thread.listingTitle, meta: `${thread.contactName} · ${thread.messagePreview}`, onOpen: () => navigate(`/habitacion/${thread.listingId}`) })), [localThreads, navigate])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
@@ -814,5 +810,5 @@ export function MobileAppV2() {
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
-  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} onRemove={toggleFavorite} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'messages' ? <EmptyScreen kind="messages" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={messageItems} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} onRemove={toggleFavorite} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }
