@@ -18,6 +18,8 @@ const pageCopy: Record<Language, {
   emptyTitle: string
   emptyBody: string
   openListing: string
+  openFavorites: string
+  openMyListings: string
   markRead: string
 }> = {
   es: {
@@ -31,6 +33,8 @@ const pageCopy: Record<Language, {
     emptyTitle: 'Aún no tienes notificaciones',
     emptyBody: 'Te avisaremos cuando haya actividad relevante.',
     openListing: 'Ver anuncio',
+    openFavorites: 'Ver favoritos',
+    openMyListings: 'Ir a Mis anuncios',
     markRead: 'Marcar leída',
   },
   en: {
@@ -44,6 +48,8 @@ const pageCopy: Record<Language, {
     emptyTitle: 'You have no notifications yet',
     emptyBody: 'We will notify you when something relevant happens.',
     openListing: 'View listing',
+    openFavorites: 'View favorites',
+    openMyListings: 'Go to My listings',
     markRead: 'Mark as read',
   },
   ru: {
@@ -57,6 +63,8 @@ const pageCopy: Record<Language, {
     emptyTitle: 'У вас пока нет уведомлений',
     emptyBody: 'Мы сообщим, когда произойдёт важное событие.',
     openListing: 'Открыть объявление',
+    openFavorites: 'Открыть избранное',
+    openMyListings: 'Перейти к моим объявлениям',
     markRead: 'Отметить прочитанным',
   },
 }
@@ -129,6 +137,17 @@ const productNotificationCopy: Record<string, Record<Language, { title: string; 
   },
 }
 
+const MY_LISTING_NOTIFICATION_TYPES = new Set([
+  'listing_submitted',
+  'listing_rejected',
+  'listing_hidden',
+  'listing_closed',
+  'listing_expired',
+  'listing_restricted',
+  'listing_unrestricted',
+  'listing_restriction_expired',
+])
+
 function formattedDate(value: string, language: Language) {
   const locale = language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-GB' : 'es-ES'
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -136,6 +155,13 @@ function formattedDate(value: string, language: Language) {
 
 function displayNotification(item: NotificationItem, language: Language) {
   return productNotificationCopy[item.type]?.[language] ?? { title: item.title, body: item.body }
+}
+
+function notificationTarget(item: NotificationItem, copy: typeof pageCopy.es) {
+  if (item.type === 'favorite_unavailable') return { to: '/favoritos', label: copy.openFavorites }
+  if (MY_LISTING_NOTIFICATION_TYPES.has(item.type)) return { to: '/mis-anuncios', label: copy.openMyListings }
+  if (item.entityListingId) return { to: `/habitacion/${item.entityListingId}`, label: copy.openListing }
+  return null
 }
 
 export function NotificationsPage() {
@@ -186,7 +212,8 @@ export function NotificationsPage() {
       {!loading && !error && !items.length ? <div className="account-empty"><Bell /><h2>{copy.emptyTitle}</h2><p>{copy.emptyBody}</p></div> : null}
       {!loading && !error && items.length ? <ol className="notifications-list">{items.map((item) => {
         const display = displayNotification(item, language)
-        return <li key={item.id} className={item.readAt ? undefined : 'is-unread'}><article><div><h2>{display.title}</h2><p>{display.body}</p><time dateTime={item.createdAt}>{formattedDate(item.createdAt, language)}</time></div><div className="notifications-list__actions">{item.entityListingId ? <Button asChild variant="outline" size="sm"><Link to={`/habitacion/${item.entityListingId}`} onClick={() => void read(item)}>{copy.openListing}</Link></Button> : null}{!item.readAt ? <Button variant="ghost" size="sm" onClick={() => void read(item)}>{copy.markRead}</Button> : null}</div></article></li>
+        const target = notificationTarget(item, copy)
+        return <li key={item.id} className={item.readAt ? undefined : 'is-unread'}><article><div><h2>{display.title}</h2><p>{display.body}</p><time dateTime={item.createdAt}>{formattedDate(item.createdAt, language)}</time></div><div className="notifications-list__actions">{target ? <Button asChild variant="outline" size="sm"><Link to={target.to} onClick={() => void read(item)}>{target.label}</Link></Button> : null}{!item.readAt ? <Button variant="ghost" size="sm" onClick={() => void read(item)}>{copy.markRead}</Button> : null}</div></article></li>
       })}</ol> : null}
     </div>
   </section>
