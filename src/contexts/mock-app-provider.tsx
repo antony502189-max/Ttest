@@ -20,7 +20,6 @@ import type {
   Listing,
   ListingStatus,
   LocalListingComment,
-  LocalMessageThread,
   MapPolygonPoint,
   RentalMode,
   ReportRecord,
@@ -55,8 +54,6 @@ const initialUsers: MockUser[] = [
     initials: 'ID',
     showPhone: false,
     showWhatsApp: false,
-    allowContactForm: true,
-    allowMessaging: true,
     blocked: false,
   },
   {
@@ -73,8 +70,6 @@ const initialUsers: MockUser[] = [
     initials: 'AD',
     showPhone: true,
     showWhatsApp: true,
-    allowContactForm: true,
-    allowMessaging: true,
     blocked: false,
   },
   {
@@ -91,8 +86,6 @@ const initialUsers: MockUser[] = [
     initials: 'A1',
     showPhone: false,
     showWhatsApp: false,
-    allowContactForm: false,
-    allowMessaging: false,
     blocked: false,
   },
 ]
@@ -108,12 +101,6 @@ const isSavedSearch = (value: unknown): value is SavedSearch =>
 
 const isScopedSavedSearches = (value: unknown): value is UserScopedState<SavedSearch[]> =>
   Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isSavedSearch))
-
-const isLocalThread = (value: unknown): value is LocalMessageThread =>
-  Boolean(value) && typeof value === 'object' && typeof (value as LocalMessageThread).listingId === 'string' && typeof (value as LocalMessageThread).messagePreview === 'string'
-
-const isScopedLocalThreads = (value: unknown): value is UserScopedState<LocalMessageThread[]> =>
-  Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isLocalThread))
 
 const isLocalComment = (value: unknown): value is LocalListingComment =>
   Boolean(value) && typeof value === 'object' && typeof (value as LocalListingComment).id === 'string' && typeof (value as LocalListingComment).userId === 'string' && typeof (value as LocalListingComment).listingId === 'string' && typeof (value as LocalListingComment).text === 'string' && typeof (value as LocalListingComment).createdAt === 'string'
@@ -188,10 +175,6 @@ function readScopedStrings(key: string, legacyKey: string) {
   return legacy.data.length ? { guest: key === '112233:search-history:v2' ? sanitizeTenerifeHistory(legacy.data) : legacy.data } : {}
 }
 
-function readScopedLocalThreads() {
-  return readVersioned('112233:message-threads:v1', 1, {} as UserScopedState<LocalMessageThread[]>, isScopedLocalThreads).data
-}
-
 function readScopedLocalComments() {
   return readVersioned('112233:listing-comments:v1', 1, {} as UserScopedState<LocalListingComment[]>, isScopedLocalComments).data
 }
@@ -232,7 +215,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
-  const [threadScopes, setThreadScopes] = useState<UserScopedState<LocalMessageThread[]>>(readScopedLocalThreads)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<MockUser[]>(initialUserLoad)
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => readSession(initialUserLoad))
@@ -245,7 +227,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const discarded = useMemo(() => new Set(discardedScopes[scopeKey] ?? []), [discardedScopes, scopeKey])
   const searchHistory = useMemo(() => historyScopes[scopeKey] ?? [], [historyScopes, scopeKey])
   const savedSearches = useMemo(() => savedSearchScopes[scopeKey] ?? [], [savedSearchScopes, scopeKey])
-  const localThreads = useMemo(() => threadScopes[scopeKey] ?? [], [scopeKey, threadScopes])
   const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
 
   const reportStorageFailure = useCallback((failure: StorageFailure | null) => {
@@ -261,7 +242,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   useEffect(() => reportStorageFailure(persistVersioned('112233:saved-searches:v3', 3, savedSearchScopes)), [savedSearchScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned(LISTINGS_KEY, LISTINGS_VERSION, allListings)), [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
-  useEffect(() => reportStorageFailure(persistVersioned('112233:message-threads:v1', 1, threadScopes)), [threadScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson(USERS_KEY, users)), [reportStorageFailure, users])
   useEffect(() => reportStorageFailure(persistJson(SESSION_KEY, currentUserId)), [currentUserId, reportStorageFailure])
@@ -383,12 +363,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     setReports((current) => [{ id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }, ...current])
   }, [])
 
-  const addLocalMessage = useCallback(async (thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'> & { body?: string }) => {
-    const stored: LocalMessageThread = { ...thread, id: `local-${Date.now()}`, createdAt: new Date().toISOString(), status: 'Demo local' }
-    updateScope(setThreadScopes, (current) => [stored, ...(current ?? [])])
-    return true
-  }, [updateScope])
-
   const addLocalComment = useCallback((listingId: string, text: string) => updateScope(setCommentScopes, (current) => [{ id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, userId: scopeKey, listingId, text: text.trim(), createdAt: new Date().toISOString() }, ...(current ?? [])]), [scopeKey, updateScope])
   const updateLocalComment = useCallback((id: string, text: string) => updateScope(setCommentScopes, (current) => (current ?? []).map((comment) => comment.id === id ? { ...comment, text: text.trim(), updatedAt: new Date().toISOString() } : comment)), [updateScope])
   const deleteLocalComment = useCallback((id: string) => updateScope(setCommentScopes, (current) => (current ?? []).filter((comment) => comment.id !== id)), [updateScope])
@@ -425,8 +399,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
       initials: 'GD',
       showPhone: false,
       showWhatsApp: false,
-      allowContactForm: true,
-      allowMessaging: true,
       blocked: false,
     }
     setUsers((current) => current.some((item) => item.email.toLowerCase() === email) ? current : [...current, user])
@@ -453,8 +425,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
       initials: makeInitials(input.name),
       showPhone: false,
       showWhatsApp: false,
-      allowContactForm: true,
-      allowMessaging: true,
       blocked: false,
     }
     setUsers((current) => [...current, user])
@@ -493,7 +463,6 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     setDiscardedScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setHistoryScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setSavedSearchScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
-    setThreadScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setCommentScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setReports((current) => current.filter((report) => !ownedListings.some((listing) => listing.id === report.listingId)))
     if (deleteDraft) {
@@ -519,7 +488,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts,
     mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing,
     setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport,
-    localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment,
+    localComments, addLocalComment, updateLocalComment, deleteLocalComment,
     users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked,
     storageError, clearStorageError: () => setStorageError(null),
   }), [
@@ -527,7 +496,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch,
     restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings,
     createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle,
-    canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment,
+    canManageListing, reports, addReport, localComments, addLocalComment,
     updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile,
     deleteAccount, toggleUserBlocked, storageError,
   ])

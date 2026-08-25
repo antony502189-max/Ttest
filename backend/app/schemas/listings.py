@@ -265,7 +265,6 @@ class ListingResponse(BaseModel):
     contactEmail: str | None
     showPhone: bool
     showWhatsApp: bool
-    allowContactForm: bool
     coverImageUrl: str | None
     imageUrls: list[str]
     title: str

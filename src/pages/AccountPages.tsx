@@ -38,6 +38,7 @@ import { EmptyState, PropertyCard } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
 import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
+import { canUseHardDelete } from "@/lib/hard-delete";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
 import type { DemoUser } from "@/types";
@@ -277,7 +278,6 @@ export function ProfilePage() {
       about: profileDraft.about,
       showPhone: profileDraft.showPhone,
       showWhatsApp: profileDraft.showWhatsApp,
-      allowContactForm: profileDraft.allowContactForm,
       avatarRef: profileDraft.avatarRef,
     });
     setEditing(false);
@@ -414,17 +414,6 @@ export function ProfilePage() {
                 disabled={!editing}
               />
             </label>
-            <label>
-              <div>
-                <strong>Permitir formulario de contacto</strong>
-                <span>Permite que las personas interesadas te escriban</span>
-              </div>
-              <Switch
-                checked={profileDraft.allowContactForm}
-                onCheckedChange={(value) => updateDraft("allowContactForm", value)}
-                disabled={!editing}
-              />
-            </label>
           </fieldset>
           {editing ? (
             <Button type="submit">
@@ -470,6 +459,7 @@ export function ProfilePage() {
 export function MyListingsPage() {
   const { allListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
+  const hardDeleteAllowed = canUseHardDelete(currentUser);
   const [status, setStatus] = useState("Todos");
   useEffect(() => refreshListingLifecycle(), [refreshListingLifecycle]);
   const visibleStatus = (listingStatus: typeof allListings[number]["status"]) => listingStatus === "Pendiente" ? "Borrador" : listingStatus === "Rechazado" ? "Oculto" : listingStatus;
@@ -607,7 +597,7 @@ export function MyListingsPage() {
                         Renovar
                       </DropdownMenuItem>
                       {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={() => { closeListing(listing.id); toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
-                      <ConfirmDialog
+                      {hardDeleteAllowed ? <ConfirmDialog
                         trigger={
                           <DropdownMenuItem
                             onSelect={(event) => event.preventDefault()}
@@ -622,7 +612,7 @@ export function MyListingsPage() {
                         confirmLabel="Eliminar"
                         destructive
                         onConfirm={() => deleteListing(listing.id)}
-                      />
+                      /> : null}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>

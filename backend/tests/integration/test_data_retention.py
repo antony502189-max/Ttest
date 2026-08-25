@@ -31,7 +31,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
         await setup.flush()
 
         old_sent = MailOutbox(
-            kind="new_message",
+            kind="notification_listing_published",
             recipient=user.email,
             subject="Old sent",
             body="old",
@@ -40,7 +40,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
             sent_at=now - timedelta(days=31),
         )
         old_failed = MailOutbox(
-            kind="new_message",
+            kind="notification_listing_published",
             recipient=user.email,
             subject="Old failed",
             body="old",
@@ -48,7 +48,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
             created_at=now - timedelta(days=31),
         )
         old_pending = MailOutbox(
-            kind="new_message",
+            kind="notification_listing_published",
             recipient=user.email,
             subject="Old pending",
             body="must remain",
@@ -56,7 +56,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
             created_at=now - timedelta(days=31),
         )
         fresh_sent = MailOutbox(
-            kind="new_message",
+            kind="notification_listing_published",
             recipient=user.email,
             subject="Fresh sent",
             body="fresh",
@@ -142,7 +142,7 @@ async def test_retention_batch_size_is_enforced_per_table():
         setup.add_all(
             [
                 MailOutbox(
-                    kind="new_message",
+                    kind="notification_listing_published",
                     recipient=f"person-{index}@example.test",
                     subject="Completed",
                     body="old",

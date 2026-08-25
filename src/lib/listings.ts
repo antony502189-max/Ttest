@@ -216,7 +216,6 @@ export function normalizeListing(value: unknown): Listing | null {
     contactEmail: legacy.contactEmail,
     showPhone: legacy.showPhone ?? true,
     showWhatsApp: legacy.showWhatsApp ?? true,
-    allowContactForm: legacy.allowContactForm ?? true,
     closedReason: legacy.closedReason,
   }
   listing.restrictions = getCriticalRestrictions(listing)

@@ -16,7 +16,7 @@ import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
-import type { DemoUser, Filters, Listing, ListingStatus, LocalListingComment, LocalMessageThread, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
+import type { DemoUser, Filters, Listing, ListingStatus, LocalListingComment, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
 
 export interface SavedSearch {
   id: string
@@ -68,8 +68,6 @@ export interface AppState {
   canManageListing: (listing: Listing) => boolean
   reports: ReportRecord[]
   addReport: (listingId: string, reason: string, comment: string) => void
-  localThreads: LocalMessageThread[]
-  addLocalMessage: (thread: Omit<LocalMessageThread, 'id' | 'createdAt' | 'status'> & { body?: string }) => Promise<boolean>
   localComments: LocalListingComment[]
   addLocalComment: (listingId: string, text: string) => void
   updateLocalComment: (id: string, text: string) => void
@@ -123,7 +121,6 @@ function toAppUser(user: RemoteUser): DemoUser {
     ...profile,
     avatarRef: avatarUrl ? resolveApiUrl(avatarUrl) : undefined,
     password: '',
-    allowMessaging: user.allowContactForm,
     blocked: false,
   }
 }
@@ -132,8 +129,6 @@ const isStringArray = (value: unknown): value is string[] => Array.isArray(value
 const isScopedStringArrays = (value: unknown): value is UserScopedState<string[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every(isStringArray)
 const isSavedSearch = (value: unknown): value is SavedSearch => Boolean(value) && typeof value === 'object' && typeof (value as SavedSearch).id === 'string' && typeof (value as SavedSearch).query === 'string'
 const isScopedSavedSearches = (value: unknown): value is UserScopedState<SavedSearch[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isSavedSearch))
-const isLocalThread = (value: unknown): value is LocalMessageThread => Boolean(value) && typeof value === 'object' && typeof (value as LocalMessageThread).listingId === 'string' && typeof (value as LocalMessageThread).messagePreview === 'string'
-const isScopedLocalThreads = (value: unknown): value is UserScopedState<LocalMessageThread[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isLocalThread))
 const isLocalComment = (value: unknown): value is LocalListingComment => Boolean(value) && typeof value === 'object' && typeof (value as LocalListingComment).id === 'string' && typeof (value as LocalListingComment).userId === 'string' && typeof (value as LocalListingComment).listingId === 'string' && typeof (value as LocalListingComment).text === 'string' && typeof (value as LocalListingComment).createdAt === 'string'
 const isScopedLocalComments = (value: unknown): value is UserScopedState<LocalListingComment[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isLocalComment))
 const isListingArray = (value: unknown): value is Listing[] => Array.isArray(value) && value.every(isListingLike)
@@ -163,10 +158,6 @@ function readScopedStrings(key: string, legacyKey: string) {
   }
   const legacy = readJson<string[]>(legacyKey, [], isStringArray)
   return legacy.data.length ? { guest: key === '112233:search-history:v2' ? sanitizeTenerifeHistory(legacy.data) : legacy.data } : {}
-}
-
-function readScopedLocalThreads() {
-  return readVersioned('112233:message-threads:v1', 1, {} as UserScopedState<LocalMessageThread[]>, isScopedLocalThreads).data
 }
 
 function readScopedLocalComments() {
@@ -201,7 +192,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
-  const [threadScopes, setThreadScopes] = useState<UserScopedState<LocalMessageThread[]>>(readScopedLocalThreads)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<DemoUser[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -218,7 +208,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const discarded = useMemo(() => new Set(discardedScopes[scopeKey] ?? []), [discardedScopes, scopeKey])
   const searchHistory = useMemo(() => historyScopes[scopeKey] ?? [], [historyScopes, scopeKey])
   const savedSearches = useMemo(() => savedSearchScopes[scopeKey] ?? [], [savedSearchScopes, scopeKey])
-  const localThreads = useMemo(() => threadScopes[scopeKey] ?? [], [scopeKey, threadScopes])
   const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
 
   const reportStorageFailure = useCallback((failure: StorageFailure | null) => {
@@ -236,7 +225,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     if (mockMode) reportStorageFailure(persistVersioned(LISTINGS_KEY, LISTINGS_VERSION, allListings))
   }, [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
-  useEffect(() => reportStorageFailure(persistVersioned('112233:message-threads:v1', 1, threadScopes)), [threadScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
   useEffect(() => {
     if (orphanCleanupStarted.current) return
@@ -557,7 +545,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       toast.error('No se pudo enviar la denuncia al servidor.')
     })
   }, [])
-  const addLocalMessage = useCallback(async () => false, [])
   const addLocalComment = useCallback((listingId: string, text: string) => updateScope(setCommentScopes, (current) => [{ id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, userId: scopeKey, listingId, text: text.trim(), createdAt: new Date().toISOString() }, ...(current ?? [])]), [scopeKey, updateScope])
   const updateLocalComment = useCallback((id: string, text: string) => updateScope(setCommentScopes, (current) => (current ?? []).map((comment) => comment.id === id ? { ...comment, text: text.trim(), updatedAt: new Date().toISOString() } : comment)), [updateScope])
   const deleteLocalComment = useCallback((id: string) => updateScope(setCommentScopes, (current) => (current ?? []).filter((comment) => comment.id !== id)), [updateScope])
@@ -605,7 +592,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     setUsers(nextUsers)
     const serverFields = Object.fromEntries(
       Object.entries(changes).filter(([key]) => [
-        'name', 'phone', 'whatsapp', 'telegram', 'about', 'showPhone', 'showWhatsApp', 'allowContactForm',
+        'name', 'phone', 'whatsapp', 'telegram', 'about', 'showPhone', 'showWhatsApp',
       ].includes(key)),
     )
     if (Object.keys(serverFields).length) {
@@ -649,7 +636,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     setDiscardedScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setHistoryScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setSavedSearchScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
-    setThreadScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setCommentScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setReports((current) => current.filter((report) => !ownedListings.some((listing) => listing.id === report.listingId)))
     if (deleteDraft) {
@@ -675,7 +661,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localThreads, addLocalMessage, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

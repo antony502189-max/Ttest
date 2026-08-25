@@ -4,7 +4,6 @@ import {
   useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -1324,11 +1323,6 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
   );
 }
 
-const contactSubmissions = new Map<string, { time: number; signature: string }>();
-// Kept as a named guard during the compatibility window so retired form state
-// cannot be reactivated by listing data, local storage, or a client flag.
-const isInternalMessagingEnabled = () => false;
-
 export function ContactPanel({
   listing,
   mobile = false,
@@ -1336,18 +1330,9 @@ export function ContactPanel({
   listing: Listing;
   mobile?: boolean;
 }) {
-  const { addLocalMessage } = useApp();
   const { language, t } = useI18n();
   const [confirmed, setConfirmed] = useState(false);
   const [phone, setPhone] = useState(false);
-  const [messageOpen, setMessageOpen] = useState(false);
-  const [messageSending, setMessageSending] = useState(false);
-  const [messageStatus, setMessageStatus] = useState("");
-  const [messageErrors, setMessageErrors] = useState<Record<string, string>>({});
-  const [messageForm, setMessageForm] = useState({ name: "", contact: "", message: "", website: "", confirmed: false });
-  const messageStartedAt = useRef(Date.now());
-  const messageFormRef = useRef<HTMLFormElement>(null);
-  const messageTimerRef = useRef<number | null>(null);
   const checkboxId = useId();
   const localizedConditions = getCriticalRestrictions(listing).slice(0, 5).map((item) => t(item));
   const confirmationText = language === "es"
@@ -1358,52 +1343,10 @@ export function ContactPanel({
   useEffect(() => {
     setConfirmed(false);
     setPhone(false);
-    setMessageOpen(false);
-    setMessageStatus("");
   }, [listing.id]);
-  useEffect(() => () => {
-    if (messageTimerRef.current !== null) window.clearTimeout(messageTimerRef.current);
-  }, []);
   const contactText = encodeURIComponent(
     t(`Hola, me interesa la habitación de ${listing.area}. ¿Sigue disponible?`),
   );
-  const updateMessage = (key: keyof typeof messageForm, value: string | boolean) => setMessageForm((current) => ({ ...current, [key]: value }));
-  const submitMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const next: Record<string, string> = {};
-    if (messageForm.website) next.form = "No se pudo enviar este formulario.";
-    if (Date.now() - messageStartedAt.current < 700) next.form = "Revisa los datos antes de enviar.";
-    if (messageForm.name.trim().length < 2) next.name = "Escribe al menos 2 caracteres.";
-    if (!messageForm.contact.trim()) next.contact = "Indica un email o teléfono.";
-    if (messageForm.message.trim().length < 10) next.message = "Escribe al menos 10 caracteres.";
-    if (messageForm.message.length > 1000) next.message = "El mensaje no puede superar 1000 caracteres.";
-    if (!messageForm.confirmed) next.confirmed = "Confirma las condiciones del anuncio.";
-    const contactIdentity = messageForm.contact.trim().toLocaleLowerCase();
-    const signature = messageForm.message.trim().toLocaleLowerCase();
-    const contactKey = `${listing.id}:${contactIdentity}`;
-    const previous = contactSubmissions.get(contactKey);
-    if (previous && Date.now() - previous.time < 30_000) next.form = previous.signature === signature ? "Este mismo mensaje ya se ha registrado. Espera 30 segundos." : "Espera 30 segundos antes de enviar otro mensaje.";
-    setMessageErrors(next);
-    if (Object.keys(next).length) {
-      setMessageStatus("Corrige los campos indicados.");
-      requestAnimationFrame(() => (messageFormRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? messageFormRef.current?.querySelector<HTMLElement>('input:not([name="website"])'))?.focus());
-      return;
-    }
-    contactSubmissions.set(contactKey, { time: Date.now(), signature });
-    setMessageSending(true);
-    setMessageStatus("Enviando mensaje…");
-    const sent = await addLocalMessage({
-      listingId: listing.id,
-      listingTitle: listing.title,
-      imageRef: listing.images[0] ?? '',
-      contactName: messageForm.name.trim(),
-      messagePreview: messageForm.message.trim().slice(0, 160),
-      body: messageForm.message.trim(),
-    });
-    setMessageSending(false);
-    setMessageStatus(sent ? "Mensaje enviado al anunciante." : "No se pudo enviar el mensaje.");
-    if (sent) setMessageForm((current) => ({ ...current, message: "", website: "", confirmed: false }));
-  };
   return (
     <aside
       id="contacto"
@@ -1472,51 +1415,6 @@ export function ContactPanel({
         {listing.isExternal && listing.contactEmail ? <Button asChild variant="outline" disabled={!confirmed && !mobile}>
           {confirmed || mobile ? <a href={`mailto:${listing.contactEmail}`}><MessageCircle data-icon="inline-start" />Email</a> : <><MessageCircle data-icon="inline-start" />Email</>}
         </Button> : null}
-        {/* Internal messaging is retired. Contact remains limited to the direct
-            channels above; legacy contact-form state is kept out of the DOM
-            while older locally stored drafts age out. */}
-        {isInternalMessagingEnabled() ? <Dialog open={messageOpen} onOpenChange={(open) => {
-          setMessageOpen(open);
-          if (open) messageStartedAt.current = Date.now();
-          else {
-            if (messageTimerRef.current !== null) window.clearTimeout(messageTimerRef.current);
-            messageTimerRef.current = null;
-            setMessageSending(false);
-            setMessageErrors({});
-            setMessageStatus("");
-            setMessageForm({ name: "", contact: "", message: "", website: "", confirmed: false });
-          }
-        }}>
-          <DialogTrigger asChild><Button variant="outline" aria-label="Enviar mensaje"><MessageCircle data-icon="inline-start" />{mobile ? "Chat" : "Enviar mensaje"}</Button></DialogTrigger>
-          <DialogContent className="contact-message-dialog">
-            <DialogHeader>
-              <DialogTitle>Enviar un mensaje</DialogTitle>
-              <DialogDescription>El mensaje se enviará al anunciante y quedará disponible en tus conversaciones.</DialogDescription>
-            </DialogHeader>
-            <form ref={messageFormRef} className="contact-message-form" onSubmit={submitMessage} noValidate>
-              <label className="field-label">Nombre
-                <Input name="name" autoComplete="name" value={messageForm.name} aria-invalid={Boolean(messageErrors.name)} aria-describedby={messageErrors.name ? "contact-name-error" : undefined} onChange={(event) => updateMessage("name", event.target.value)} />
-                {messageErrors.name ? <span id="contact-name-error" className="field-error">{messageErrors.name}</span> : null}
-              </label>
-              <label className="field-label">Email o teléfono
-                <Input name="contact" autoComplete="email" value={messageForm.contact} aria-invalid={Boolean(messageErrors.contact)} aria-describedby={messageErrors.contact ? "contact-detail-error" : undefined} onChange={(event) => updateMessage("contact", event.target.value)} />
-                {messageErrors.contact ? <span id="contact-detail-error" className="field-error">{messageErrors.contact}</span> : null}
-              </label>
-              <label className="field-label">Mensaje
-                <Textarea minLength={10} maxLength={1000} rows={5} value={messageForm.message} aria-invalid={Boolean(messageErrors.message)} aria-describedby={messageErrors.message ? "contact-message-error" : undefined} onChange={(event) => updateMessage("message", event.target.value)} />
-                {messageErrors.message ? <span id="contact-message-error" className="field-error">{messageErrors.message}</span> : <span className="field-hint">{messageForm.message.length}/1000</span>}
-              </label>
-              <label className="honeypot-field">Sitio web<Input name="website" tabIndex={-1} autoComplete="url" value={messageForm.website} onChange={(event) => updateMessage("website", event.target.value)} /></label>
-              <label className="condition-confirm">
-                <Checkbox checked={messageForm.confirmed} aria-invalid={Boolean(messageErrors.confirmed)} aria-describedby={messageErrors.confirmed ? "contact-confirm-error" : undefined} onCheckedChange={(value) => updateMessage("confirmed", value === true)} />
-                <span>{confirmationText}</span>
-              </label>
-              {messageErrors.confirmed ? <span id="contact-confirm-error" className="field-error">{messageErrors.confirmed}</span> : null}
-              {(messageErrors.form || messageStatus) ? <div className="contact-message-status" role={messageErrors.form || Object.keys(messageErrors).length ? "alert" : "status"} aria-live="polite">{messageErrors.form || messageStatus}</div> : null}
-              <DialogFooter><Button type="submit" disabled={messageSending}>{messageSending ? "Enviando…" : "Enviar mensaje"}</Button></DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog> : null}
       </div>
     </aside>
   );

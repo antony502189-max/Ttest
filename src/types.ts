@@ -108,7 +108,6 @@ export interface Listing {
   contactEmail?: string
   showPhone: boolean
   showWhatsApp: boolean
-  allowContactForm: boolean
   closedReason?: 'expired' | 'owner' | 'deleted' | 'account_deleted'
   promoted?: boolean
 }
@@ -176,9 +175,8 @@ export interface DemoUser {
   initials: string
   showPhone: boolean
   showWhatsApp: boolean
-  allowContactForm: boolean
   avatarRef?: string
-  allowMessaging?: boolean
+  emailVerified?: boolean
   blocked?: boolean
 }
 
@@ -240,7 +238,6 @@ export interface ListingDraft {
   contactEmail: string
   showPhone: boolean
   showWhatsApp: boolean
-  allowContactForm: boolean
   status: ListingStatus
 }
 
@@ -251,17 +248,6 @@ export interface ReportRecord {
   comment: string
   createdAt: string
   status: 'Abierta' | 'Resuelta'
-}
-
-export interface LocalMessageThread {
-  id: string
-  listingId: string
-  listingTitle: string
-  imageRef: string
-  contactName: string
-  messagePreview: string
-  createdAt: string
-  status: 'Demo local' | 'Enviado'
 }
 
 export interface LocalListingComment {

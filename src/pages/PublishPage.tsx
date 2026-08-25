@@ -148,7 +148,6 @@ const toDraft = (listing: Listing): ListingDraft => {
     contactEmail: listing.contactEmail ?? "",
     showPhone: listing.showPhone,
     showWhatsApp: listing.showWhatsApp,
-    allowContactForm: listing.allowContactForm,
     status: listing.status,
   };
 };
@@ -157,7 +156,7 @@ const withProfileDefaults = (user: DemoUser | null) => {
   const initial = createDefaultDraft();
   const base = { ...initial, amenities: withEquipmentDefaults(initial.amenities) };
   if (!user) return base;
-  return { ...base, contactName: user.name, contactPhone: user.phone, contactWhatsapp: user.whatsapp, contactEmail: user.email, showPhone: user.showPhone, showWhatsApp: user.showWhatsApp, allowContactForm: user.allowContactForm };
+  return { ...base, contactName: user.name, contactPhone: user.phone, contactWhatsapp: user.whatsapp, contactEmail: user.email, showPhone: user.showPhone, showWhatsApp: user.showWhatsApp };
 };
 
 const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string): Listing => {
@@ -244,7 +243,6 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     contactEmail: draft.contactEmail,
     showPhone: draft.showPhone,
     showWhatsApp: draft.showWhatsApp,
-    allowContactForm: draft.allowContactForm,
   };
   listing.restrictions = getCriticalRestrictions(listing);
   return listing;
@@ -362,10 +360,9 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     if (step === 7 && draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
     if (step === 7 && draft.description.trim().length < 40) next.description = "La descripción debe tener al menos 40 caracteres.";
     if (step === 8 && !draft.contactName.trim()) next.contactName = "Indica un nombre público.";
-    if (step === 8 && !draft.showPhone && !draft.showWhatsApp && !draft.allowContactForm) next.contactMethods = "Activa al menos una forma de contacto.";
+    if (step === 8 && !draft.showPhone && !draft.showWhatsApp) next.contactMethods = "Activa teléfono o WhatsApp como forma de contacto.";
     if (step === 8 && draft.showPhone && !/^\+?[\d\s-]{7,}$/.test(draft.contactPhone)) next.contactPhone = "Introduce un teléfono válido.";
     if (step === 8 && draft.showWhatsApp && !/^\+?[\d\s-]{7,}$/.test(draft.contactWhatsapp)) next.contactWhatsapp = "Introduce un WhatsApp válido.";
-    if (step === 8 && draft.allowContactForm && !/^\S+@\S+\.\S+$/.test(currentUser?.email ?? draft.contactEmail)) next.contactEmail = "Introduce un email válido.";
     setErrors(next);
     if (Object.keys(next).length) requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"], .field-error')?.focus());
     return Object.keys(next).length === 0;
@@ -543,14 +540,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <FormField label="WhatsApp" htmlFor="publish-contact-whatsapp" error={errors.contactWhatsapp}><Input id="publish-contact-whatsapp" type="tel" value={draft.contactWhatsapp} aria-invalid={Boolean(errors.contactWhatsapp)} onChange={(e) => set("contactWhatsapp", e.target.value)} /></FormField>
             <FormField label="Email" htmlFor="publish-contact-email" error={errors.contactEmail}><Input id="publish-contact-email" type="email" value={currentUser?.email ?? draft.contactEmail} aria-invalid={Boolean(errors.contactEmail)} readOnly aria-readonly="true" title="Se usa el email de tu cuenta" /></FormField>
           </div>
-          <fieldset className="checks-panel contact-methods" aria-describedby={errors.contactMethods ? "contact-methods-error" : undefined}><legend>Canales disponibles</legend><label><Checkbox checked={draft.showPhone} onCheckedChange={(value) => set("showPhone", value === true)} />Mostrar teléfono tras confirmar</label><label><Checkbox checked={draft.showWhatsApp} onCheckedChange={(value) => set("showWhatsApp", value === true)} />Permitir WhatsApp tras confirmar</label><label><Checkbox checked={draft.allowContactForm} onCheckedChange={(value) => set("allowContactForm", value === true)} />Permitir mensaje local</label></fieldset>
+          <fieldset className="checks-panel contact-methods" aria-describedby={errors.contactMethods ? "contact-methods-error" : undefined}><legend>Canales disponibles</legend><label><Checkbox checked={draft.showPhone} onCheckedChange={(value) => set("showPhone", value === true)} />Mostrar teléfono tras confirmar</label><label><Checkbox checked={draft.showWhatsApp} onCheckedChange={(value) => set("showWhatsApp", value === true)} />Permitir WhatsApp tras confirmar</label></fieldset>
           {errors.contactMethods ? <p id="contact-methods-error" className="field-error" role="alert">{errors.contactMethods}</p> : null}
         </WizardSection>;
       default:
         return <WizardSection title="Revisa antes de publicar" description="Así se verá el anuncio.">
           <Alert><FileCheck2 /><AlertTitle>El anuncio está completo</AlertTitle><AlertDescription>Revisa habitación, plazas, precio, convivencia y fechas.</AlertDescription></Alert>
           <div className="preview-card-wrap"><PropertyCard listing={preview} /></div>
-          <div className="preview-contact-methods" aria-label="Canales de contacto visibles"><h3>Canales tras confirmar condiciones</h3><div className="badge-row">{preview.showPhone ? <PropertyBadge>Teléfono</PropertyBadge> : null}{preview.showWhatsApp ? <PropertyBadge>WhatsApp</PropertyBadge> : null}{preview.allowContactForm ? <PropertyBadge>Mensaje local</PropertyBadge> : null}</div></div>
+          <div className="preview-contact-methods" aria-label="Canales de contacto visibles"><h3>Canales tras confirmar condiciones</h3><div className="badge-row">{preview.showPhone ? <PropertyBadge>Teléfono</PropertyBadge> : null}{preview.showWhatsApp ? <PropertyBadge>WhatsApp</PropertyBadge> : null}</div></div>
           <div className="preview-conditions"><h3>Condiciones visibles</h3><div className="badge-row">{preview.restrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></div>
           <Dialog><DialogTrigger asChild><Button variant="outline"><Eye data-icon="inline-start" />Vista previa completa</Button></DialogTrigger><DialogContent className="full-preview-dialog"><DialogHeader><DialogTitle>Vista previa del anuncio</DialogTitle><DialogDescription>Versión pública antes de publicar.</DialogDescription></DialogHeader><PropertyGallery listing={preview} /><div className="full-preview-summary"><div><span className="eyebrow">{preview.area}, {preview.city}</span><h2>{preview.title}</h2><p>{preview.description}</p></div><PriceBlock listing={preview} large /></div><dl className="detail-list"><div><dt>Disponibilidad</dt><dd>{preview.availableFrom}{preview.availableUntil ? ` — ${preview.availableUntil}` : " · sin fecha final"}</dd></div><div><dt>Estancia mínima</dt><dd>{preview.minimumStay}</dd></div><div><dt>Plazas libres</dt><dd>{preview.availableSpots ?? "Consultar"}</dd></div><div><dt>Gastos</dt><dd>{preview.bills}</dd></div><div><dt>Fianza</dt><dd>{preview.deposit}</dd></div></dl><div className="badge-row">{preview.restrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></DialogContent></Dialog>
         </WizardSection>;

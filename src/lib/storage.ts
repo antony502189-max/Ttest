@@ -13,7 +13,6 @@ export interface StorageResult<T> {
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const serverOwnedKeys = new Set([
   '112233:reports:v1',
-  '112233:message-threads:v1',
 ])
 
 function localStorageEnabled(key: string) {

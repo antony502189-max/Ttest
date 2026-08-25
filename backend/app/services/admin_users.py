@@ -63,7 +63,6 @@ def public_user(
         initials=user.initials,
         showPhone=user.show_phone,
         showWhatsApp=user.show_whatsapp,
-        allowContactForm=user.allow_contact_form,
         avatarUrl=f"/api/v1/media/{user.avatar_asset_id}" if user.avatar_asset_id else None,
         createdAt=user.created_at,
         deletedAt=user.deleted_at,

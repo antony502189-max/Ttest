@@ -35,7 +35,7 @@ test('Google GIS callback posts the credential and returns to the requested rout
   let credential = ''
   await page.route('**/api/v1/auth/google', async (route) => {
     credential = JSON.parse(route.request().postData() ?? '{}').credential
-    await route.fulfill({ json: { accessToken: 'test-access-token', user: { id: 'google-user', name: 'Google User', email: 'user@gmail.com', role: 'tenant', phone: '', whatsapp: '', telegram: '', about: '', initials: 'GU', showPhone: false, showWhatsApp: false, allowContactForm: true } } })
+    await route.fulfill({ json: { accessToken: 'test-access-token', user: { id: 'google-user', name: 'Google User', email: 'user@gmail.com', role: 'tenant', phone: '', whatsapp: '', telegram: '', about: '', initials: 'GU', showPhone: false, showWhatsApp: false, emailVerified: true } } })
   })
 
   await page.goto('/#/acceso', { waitUntil: 'networkidle' })

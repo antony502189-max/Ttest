@@ -71,7 +71,7 @@ async def test_expired_lease_is_recoverable_but_active_lease_is_not():
     async with SessionLocal() as setup:
         setup.add(
             MailOutbox(
-                kind="new_message",
+                kind="notification_listing_published",
                 recipient="person@example.test",
                 subject="Message",
                 body="New message",

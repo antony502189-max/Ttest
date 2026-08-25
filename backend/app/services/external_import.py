@@ -41,6 +41,7 @@ from ..models import ExternalListingSource as SourceRecord
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
+from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
 
 logger = logging.getLogger(__name__)
 SYSTEM_EMAIL = "external-import@112233.es"
@@ -354,7 +355,6 @@ async def system_user(session: AsyncSession) -> User:
         role="admin",
         initials="AE",
         email_verified=True,
-        allow_contact_form=False,
     )
     session.add(user)
     await session.flush()
@@ -597,6 +597,9 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     if action != "unchanged" or restored:
         await touch_catalog(session)
 
+    if action == "imported" or restored:
+        await notify_saved_search_matches(session, listing)
+
     result = "restored" if restored else action
     listing_id = listing.id
     owner_id = owner.id
@@ -642,6 +645,7 @@ async def deactivate_source_record(session: AsyncSession, row: SourceRecord, rea
     listing.status = "closed"
     listing.closed_reason = reason
     listing.last_synced_at = datetime.now(UTC)
+    await notify_favorited_listing_unavailable(session, listing, event_key=f"external:{row.id}:{reason}")
     await touch_catalog(session)
     return 1
 

@@ -92,7 +92,6 @@ def response_from(row: Any) -> ListingResponse:
         contactEmail=listing.external_contact_email if listing.is_external else None,
         showPhone=bool(listing.external_contact_phone) if listing.is_external else owner.show_phone,
         showWhatsApp=bool(listing.external_contact_whatsapp) if listing.is_external else owner.show_whatsapp,
-        allowContactForm=False if listing.is_external else owner.allow_contact_form,
         coverImageUrl=image_urls[0] if image_urls else None,
         imageUrls=image_urls,
         title=listing.title,

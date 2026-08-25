@@ -32,7 +32,9 @@ class User(Timestamped, Base):
     initials: Mapped[str] = mapped_column(String(8), default="")
     show_phone: Mapped[bool] = mapped_column(Boolean, default=False)
     show_whatsapp: Mapped[bool] = mapped_column(Boolean, default=False)
-    allow_contact_form: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Deprecated migration-only field. It is intentionally not exposed or
+    # mutated by product services, and defaults off for newly created rows.
+    allow_contact_form: Mapped[bool] = mapped_column(Boolean, default=False)
     blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_asset_id: Mapped[UUID | None] = mapped_column(ForeignKey("media_assets.id", ondelete="SET NULL"))
