@@ -91,6 +91,27 @@ def test_saved_search_alerts_use_the_canonical_search_dto() -> None:
     assert payload.polygon[0].latitude == 28.12
 
 
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {"minStay": "invalid"},
+        {"minStay": []},
+        {"currentResidents": {"unexpected": "object"}},
+        {"tenantRequirement": []},
+    ],
+)
+def test_malformed_legacy_saved_search_filters_are_skipped_without_raising(filters) -> None:
+    search = SimpleNamespace(
+        id=uuid4(),
+        query="Adeje",
+        rental_mode="long",
+        polygon=[],
+        filters=filters,
+    )
+
+    assert _saved_search_payload(search) is None
+
+
 def test_saved_search_municipality_matching_never_broadens_detailed_zones() -> None:
     listing = SimpleNamespace(city="San Cristóbal de La Laguna")
 
