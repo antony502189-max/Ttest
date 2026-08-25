@@ -51,7 +51,11 @@ function ScrollToTop() {
       let attempts = 0
       const anchorId = decodeURIComponent(hash.slice(1))
       const revealAnchor = () => {
-        const target = document.getElementById(anchorId)
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>('[id]')).filter((element) => element.id === anchorId)
+        const target = candidates.find((candidate) => {
+          const style = window.getComputedStyle(candidate)
+          return style.display !== 'none' && style.visibility !== 'hidden' && candidate.getClientRects().length > 0
+        }) ?? candidates[0]
         if (!target) {
           if (attempts < 120) {
             attempts += 1
@@ -59,11 +63,12 @@ function ScrollToTop() {
           }
           return
         }
-        target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
-        if (target instanceof HTMLElement) {
-          if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
-          target.focus({ preventScroll: true })
+        for (const candidate of candidates) {
+          if (candidate !== target) candidate.removeAttribute('id')
         }
+        target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+        target.focus({ preventScroll: true })
       }
       anchorFrame = window.requestAnimationFrame(revealAnchor)
     } else {
