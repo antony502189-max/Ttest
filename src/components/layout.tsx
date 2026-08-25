@@ -4,7 +4,7 @@ import { Bell, ChevronDown, Globe2, Heart, Home, Menu, Plus, Search, UserRound }
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
-import { getNotifications } from '@/api/notifications'
+import { getNotifications, NOTIFICATIONS_UPDATED_EVENT } from '@/api/notifications'
 import { MobileAppV2 } from '@/components/mobile-app-v2'
 import { MobilePublicationGate } from '@/components/mobile-publication-gate'
 import { MobileSearchResults } from '@/components/mobile-search-results-v2'
@@ -39,7 +39,12 @@ function NotificationLink({ mobile = false }: { mobile?: boolean }) {
     const refresh = () => void getNotifications().then((page) => { if (!cancelled) setUnread(page.unreadCount) }).catch(() => undefined)
     refresh()
     window.addEventListener('focus', refresh)
-    return () => { cancelled = true; window.removeEventListener('focus', refresh) }
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    }
   }, [])
   const label = unread ? `Abrir notificaciones (${unread} sin leer)` : 'Abrir notificaciones'
   if (mobile) return <Link to="/notificaciones" className="mobile-icon-link" aria-label={label}><Bell />{unread ? <span className="notification-count" aria-hidden="true">{unread > 99 ? '99+' : unread}</span> : null}</Link>
