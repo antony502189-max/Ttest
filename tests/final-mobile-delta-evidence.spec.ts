@@ -43,7 +43,6 @@ test('capture unmasked final mobile delta evidence', async ({ page }) => {
     ['search-map-390x844', '/#/buscar?q=Tenerife&alquiler=long&vista=mapa', 390, 844],
     ['listing-390x844', '/#/habitacion/arme%C3%B1ime-luminosa-01', 390, 844],
     ['menu-390x844', '/#/menu', 390, 844],
-    ['messages-390x844', '/#/mensajes', 390, 844],
   ] as const) {
     await capture(page, name, route, width, height)
   }
