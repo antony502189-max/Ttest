@@ -177,7 +177,7 @@ def test_saved_search_municipality_matching_never_broadens_detailed_or_malformed
 @pytest.mark.asyncio
 async def test_favorite_unavailable_notifications_exclude_deleted_and_blocked_accounts() -> None:
     session = SimpleNamespace(
-        scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [])),
+        scalars=AsyncMock(return_value=SimpleNamespace(all=list)),
     )
     listing = SimpleNamespace(id=uuid4(), title="Room")
 
