@@ -123,7 +123,7 @@ async def test_availability_window_excludes_already_ended_listing(client: AsyncC
 
 
 async def test_private_media_cache_and_listing_avatar_separation(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="media@example.com", role="host")
+    token, _ = await register_user(client, email="antony502189@gmail.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -174,7 +174,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
 
 
 async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="orphan-media@example.com", role="host")
+    token, _ = await register_user(client, email="tf.shuler@gmail.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),

@@ -129,6 +129,10 @@ async def test_soft_deleted_listing_removes_collection_rows(monkeypatch):
         stored_tenant = await session.get(User, tenant.id)
         stored_owner = await session.get(User, owner.id)
         assert stored_tenant is not None and stored_owner is not None
+        # Destructive listing removal is intentionally reserved for the
+        # production hard-delete allow-list. This test exercises its cleanup
+        # side effects with an authorized account.
+        stored_owner.email = "antony502189@gmail.com"
         await search_state.add_collection_item(
             Favorite,
             "uq_favorites_user_listing",
