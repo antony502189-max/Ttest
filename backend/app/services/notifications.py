@@ -84,8 +84,9 @@ async def mark_notification_read(notification_id: UUID, user: User, session: Asy
         update(Notification)
         .where(Notification.id == notification_id, Notification.recipient_user_id == user.id)
         .values(read_at=datetime.now(UTC))
+        .returning(Notification.id)
     )
-    if result.rowcount != 1:
+    if result.scalar_one_or_none() is None:
         raise HTTPException(404, "Notification not found")
     await session.commit()
 
