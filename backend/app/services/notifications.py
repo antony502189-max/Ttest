@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from unicodedata import combining, normalize
 from uuid import UUID
@@ -14,6 +15,8 @@ from ..repositories.listings import apply_search_filters, visible_query
 from ..schemas.listings import ListingSearchRequest
 from ..schemas.notifications import NotificationPage, NotificationResponse
 from .mail import enqueue_mail, frontend_link
+
+logger = logging.getLogger(__name__)
 
 
 def _response(notification: Notification) -> NotificationResponse:
@@ -66,65 +69,69 @@ async def create_notification(
 
 
 def _saved_search_payload(search: SavedSearch) -> ListingSearchRequest | None:
-    """Translate the customer filter shape stored with a saved search once.
+    """Translate persisted customer filters into the canonical search DTO.
 
-    Saved-search state predates the API search DTO, so alert matching must use
-    the same canonical SQL predicates rather than a weaker client-side subset.
-    Invalid legacy data is ignored safely instead of broadening an alert.
+    Saved-search rows can outlive several frontend filter schemas. Treat each
+    row as untrusted legacy data: any conversion or validation error skips only
+    that saved search and must never abort listing publication/import.
     """
-    filters = search.filters if isinstance(search.filters, dict) else {}
-    yes_no = lambda value: None if value == "Cualquiera" else value == "Sí"
-    publication_value = filters.get("publicationDate")
-    publication = {"24h": 1, "7d": 7, "30d": 30}.get(publication_value) if isinstance(publication_value, str) else None
-    payload = {
-        "query": search.query or None,
-        "rentalMode": search.rental_mode,
-        "minPrice": filters.get("minPrice"), "maxPrice": filters.get("maxPrice"),
-        "roomType": None if filters.get("roomType") == "Cualquiera" else filters.get("roomType"),
-        "availableFrom": filters.get("available") or None,
-        "availableUntil": filters.get("availableUntil") or None,
-        "maxMinimumStayMonths": None if filters.get("minStay") in {None, "Cualquiera"} else int(filters["minStay"]),
-        "restrictions": filters.get("conditions", []),
-        "tenantRequirement": None if filters.get("tenantRequirement") in {None, "Cualquiera", "any"} else filters.get("tenantRequirement"),
-        "bathroom": None if filters.get("bathroom") in {None, "Cualquiera"} else filters.get("bathroom"),
-        "kitchen": None if filters.get("kitchen") in {None, "Cualquiera"} else filters.get("kitchen"),
-        "furnished": True if filters.get("furnished") else None,
-        "billsIncluded": True if filters.get("billsIncluded") else None,
-        "deposit": None if filters.get("deposit") in {None, "Cualquiera"} else filters.get("deposit"),
-        "minRoomSizeM2": filters.get("roomSizeMin"), "maxRoomSizeM2": filters.get("roomSizeMax"),
-        "minHomeSizeM2": filters.get("homeSizeMin"), "maxHomeSizeM2": filters.get("homeSizeMax"),
-        "minBathroomCount": filters.get("bathroomCountMin") or None,
-        "rentalUnit": None if filters.get("rentalUnit") in {None, "Cualquiera"} else filters.get("rentalUnit"),
-        "bedType": None if filters.get("bedType") in {None, "Cualquiera"} else filters.get("bedType"),
-        "minBedCount": filters.get("bedCountMin") or None,
-        "shower": None if filters.get("shower") in {None, "Cualquiera"} else filters.get("shower"),
-        "toilet": None if filters.get("toilet") in {None, "Cualquiera"} else filters.get("toilet"),
-        "minCurrentResidents": 5 if filters.get("currentResidents") == "5+" else None,
-        "currentResidents": None if filters.get("currentResidents") in {None, "Cualquiera", "5+"} else int(filters["currentResidents"]),
-        "currentRoomResidents": None if filters.get("roomResidents") in {None, "Cualquiera"} else int(filters["roomResidents"]),
-        "roomCapacity": None if filters.get("roomCapacity") in {None, "Cualquiera"} else int(filters["roomCapacity"]),
-        "minAvailableSpots": filters.get("availableSpotsMin") or None,
-        "maxMinimumNights": (filters.get("minimumNights") or None) if search.rental_mode == "holiday" else None,
-        "smokingAllowed": yes_no(filters.get("smoking", "Cualquiera")),
-        "petsAllowed": yes_no(filters.get("pets", "Cualquiera")),
-        "childrenAllowed": yes_no(filters.get("children", "Cualquiera")),
-        "couplesAllowed": yes_no(filters.get("couplesAllowed", "Cualquiera")),
-        "householdGender": None if filters.get("householdGender") in {None, "Cualquiera"} else filters.get("householdGender"),
-        "householdHasChildren": yes_no(filters.get("householdHasChildren", "Cualquiera")),
-        "heatingType": None if filters.get("heatingType") in {None, "Cualquiera"} else filters.get("heatingType"),
-        "accessible": yes_no(filters.get("accessible", "Cualquiera")),
-        "floor": None if filters.get("floor") in {None, "Cualquiera"} else filters.get("floor"),
-        "acceptedTenantTypes": filters.get("acceptedTenantTypes", []),
-        "empadronamientoAllowed": yes_no(filters.get("empadronamiento", "Cualquiera")),
-        "publishedWithinDays": publication,
-        "advertiserType": None if filters.get("advertiserType") in {None, "Cualquiera"} else filters.get("advertiserType"),
-        "amenities": filters.get("amenities", []),
-        "polygon": [{"latitude": item["lat"], "longitude": item["lng"]} for item in search.polygon if isinstance(item, dict) and "lat" in item and "lng" in item],
-        "limit": 1,
-    }
     try:
+        filters = search.filters if isinstance(search.filters, dict) else {}
+        yes_no = lambda value: None if value == "Cualquiera" else value == "Sí"
+        publication_value = filters.get("publicationDate")
+        publication = {"24h": 1, "7d": 7, "30d": 30}.get(publication_value) if isinstance(publication_value, str) else None
+        payload = {
+            "query": search.query or None,
+            "rentalMode": search.rental_mode,
+            "minPrice": filters.get("minPrice"), "maxPrice": filters.get("maxPrice"),
+            "roomType": None if filters.get("roomType") == "Cualquiera" else filters.get("roomType"),
+            "availableFrom": filters.get("available") or None,
+            "availableUntil": filters.get("availableUntil") or None,
+            "maxMinimumStayMonths": None if filters.get("minStay") in {None, "Cualquiera"} else int(filters["minStay"]),
+            "restrictions": filters.get("conditions", []),
+            "tenantRequirement": None if filters.get("tenantRequirement") in {None, "Cualquiera", "any"} else filters.get("tenantRequirement"),
+            "bathroom": None if filters.get("bathroom") in {None, "Cualquiera"} else filters.get("bathroom"),
+            "kitchen": None if filters.get("kitchen") in {None, "Cualquiera"} else filters.get("kitchen"),
+            "furnished": True if filters.get("furnished") else None,
+            "billsIncluded": True if filters.get("billsIncluded") else None,
+            "deposit": None if filters.get("deposit") in {None, "Cualquiera"} else filters.get("deposit"),
+            "minRoomSizeM2": filters.get("roomSizeMin"), "maxRoomSizeM2": filters.get("roomSizeMax"),
+            "minHomeSizeM2": filters.get("homeSizeMin"), "maxHomeSizeM2": filters.get("homeSizeMax"),
+            "minBathroomCount": filters.get("bathroomCountMin") or None,
+            "rentalUnit": None if filters.get("rentalUnit") in {None, "Cualquiera"} else filters.get("rentalUnit"),
+            "bedType": None if filters.get("bedType") in {None, "Cualquiera"} else filters.get("bedType"),
+            "minBedCount": filters.get("bedCountMin") or None,
+            "shower": None if filters.get("shower") in {None, "Cualquiera"} else filters.get("shower"),
+            "toilet": None if filters.get("toilet") in {None, "Cualquiera"} else filters.get("toilet"),
+            "minCurrentResidents": 5 if filters.get("currentResidents") == "5+" else None,
+            "currentResidents": None if filters.get("currentResidents") in {None, "Cualquiera", "5+"} else int(filters["currentResidents"]),
+            "currentRoomResidents": None if filters.get("roomResidents") in {None, "Cualquiera"} else int(filters["roomResidents"]),
+            "roomCapacity": None if filters.get("roomCapacity") in {None, "Cualquiera"} else int(filters["roomCapacity"]),
+            "minAvailableSpots": filters.get("availableSpotsMin") or None,
+            "maxMinimumNights": (filters.get("minimumNights") or None) if search.rental_mode == "holiday" else None,
+            "smokingAllowed": yes_no(filters.get("smoking", "Cualquiera")),
+            "petsAllowed": yes_no(filters.get("pets", "Cualquiera")),
+            "childrenAllowed": yes_no(filters.get("children", "Cualquiera")),
+            "couplesAllowed": yes_no(filters.get("couplesAllowed", "Cualquiera")),
+            "householdGender": None if filters.get("householdGender") in {None, "Cualquiera"} else filters.get("householdGender"),
+            "householdHasChildren": yes_no(filters.get("householdHasChildren", "Cualquiera")),
+            "heatingType": None if filters.get("heatingType") in {None, "Cualquiera"} else filters.get("heatingType"),
+            "accessible": yes_no(filters.get("accessible", "Cualquiera")),
+            "floor": None if filters.get("floor") in {None, "Cualquiera"} else filters.get("floor"),
+            "acceptedTenantTypes": filters.get("acceptedTenantTypes", []),
+            "empadronamientoAllowed": yes_no(filters.get("empadronamiento", "Cualquiera")),
+            "publishedWithinDays": publication,
+            "advertiserType": None if filters.get("advertiserType") in {None, "Cualquiera"} else filters.get("advertiserType"),
+            "amenities": filters.get("amenities", []),
+            "polygon": [{"latitude": item["lat"], "longitude": item["lng"]} for item in search.polygon if isinstance(item, dict) and "lat" in item and "lng" in item],
+            "limit": 1,
+        }
         return ListingSearchRequest.model_validate(payload)
-    except (TypeError, ValueError):
+    except (KeyError, TypeError, ValueError):
+        logger.warning(
+            "saved_search_alert_filters_invalid",
+            extra={"saved_search_id": str(getattr(search, "id", "unknown"))},
+        )
         return None
 
 
