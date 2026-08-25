@@ -34,15 +34,20 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     listing_id = uuid4()
     owner_id = uuid4()
     actor_id = uuid4()
-    listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id, title="Room", deleted_at=None)
+    listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id, title="Room", status="published", deleted_at=None)
     owner = SimpleNamespace(id=owner_id, email="owner@example.com", deleted_at=None)
     actor = SimpleNamespace(id=actor_id)
     session = SimpleNamespace(
         scalar=AsyncMock(side_effect=[owner_id, owner, listing]),
         add=MagicMock(),
+        flush=AsyncMock(),
         commit=AsyncMock(),
     )
     monkeypatch.setattr(admin_service, "active_listing_restriction", AsyncMock(return_value=None))
+    product_notification = AsyncMock(return_value=True)
+    favorite_notification = AsyncMock()
+    monkeypatch.setattr(admin_service, "create_notification", product_notification)
+    monkeypatch.setattr(admin_service, "notify_favorited_listing_unavailable", favorite_notification)
     catalog_touch = AsyncMock()
     monkeypatch.setattr(admin_service, "touch_catalog", catalog_touch)
     monkeypatch.setattr(admin_service, "public_listing", lambda *args, **kwargs: "ok")
@@ -63,6 +68,9 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     assert "FOR UPDATE" in statements[1]
     assert "FROM listings" in statements[2]
     assert "FOR UPDATE" in statements[2]
+    session.flush.assert_awaited_once()
+    product_notification.assert_awaited_once()
+    favorite_notification.assert_awaited_once()
     catalog_touch.assert_awaited_once_with(session)
     session.commit.assert_awaited_once()
 
