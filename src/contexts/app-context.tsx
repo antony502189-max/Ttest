@@ -60,7 +60,7 @@ export interface AppState {
   allListings: Listing[]
   createListing: (listing: Listing) => Promise<boolean>
   updateListing: (id: string, listing: Listing) => Promise<boolean>
-  deleteListing: (id: string) => void
+  deleteListing: (id: string) => Promise<boolean>
   setListingStatus: (id: string, status: ListingStatus) => void
   renewListing: (id: string) => void
   closeListing: (id: string) => void
@@ -477,12 +477,22 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return false
     }
   }, [allListings, canManageListing])
-  const deleteListing = useCallback((id: string) => {
+  const deleteListing = useCallback(async (id: string): Promise<boolean> => {
     const listing = allListings.find((item) => item.id === id)
-    if (!listing) return
+    if (!listing) return false
     if (!canManageListing(listing)) {
       toast.error('No puedes gestionar un anuncio de otra cuenta.')
-      return
+      return false
+    }
+    try {
+      // Do not touch browser drafts or IndexedDB media until the server has
+      // accepted this intentionally restricted, irreversible operation.
+      await deleteRemoteListing(id)
+    } catch (error) {
+      toast.error(error instanceof ApiError && error.status === 403
+        ? 'La eliminación definitiva no está autorizada para esta cuenta.'
+        : 'No se pudo eliminar el anuncio en el servidor.')
+      return false
     }
     const remaining = allListings.filter((item) => item.id !== id)
     const draftRecord = readDraftRecord()
@@ -493,13 +503,12 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
     setAllListings(remaining)
-    void deleteRemoteListing(id).catch(() => {
-      setAllListings((current) => [listing, ...current])
-      toast.error('No se pudo eliminar el anuncio en el servidor.')
-    })
-    void removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value)).catch((error) =>
-      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
-    )
+    try {
+      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
+    }
+    return true
   }, [allListings, canManageListing, users])
   const setListingStatus = useCallback((id: string, status: ListingStatus) => {
     const previous = allListings.find((listing) => listing.id === id)

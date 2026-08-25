@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 
 const hostSession = 'host-demo'
 const firstListingId = 'armeñime-luminosa-01'
@@ -63,6 +64,20 @@ async function fillMissingEquipment(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => clearState(page))
+
+test('REMOTE-DELETE-01 rejected server deletion cannot erase local drafts or media first', () => {
+  const source = readFileSync('src/contexts/app-context.tsx', 'utf8')
+  const start = source.indexOf('const deleteListing = useCallback(async')
+  const end = source.indexOf('const setListingStatus', start)
+  const deletion = source.slice(start, end)
+
+  expect(start).toBeGreaterThanOrEqual(0)
+  expect(deletion).toContain('await deleteRemoteListing(id)')
+  expect(deletion).toContain('await removeUnusedMediaReferences')
+  expect(deletion.indexOf('await deleteRemoteListing(id)')).toBeLessThan(deletion.indexOf('localStorage.removeItem(DRAFT_KEY)'))
+  expect(deletion.indexOf('await deleteRemoteListing(id)')).toBeLessThan(deletion.indexOf('setAllListings(remaining)'))
+  expect(deletion).not.toContain('void deleteRemoteListing')
+})
 
 test('MEDIA-09 orphan cleanup removes only unreferenced blobs', async ({ page }) => {
   const used = await putMedia(page, 'used-reference')

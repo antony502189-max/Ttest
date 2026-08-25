@@ -36,7 +36,11 @@ def canonical_email(value: str) -> str:
 
 
 def require_hard_delete_authorization(user: User) -> None:
-    if canonical_email(user.email) not in HARD_DELETE_EMAILS:
+    # Email addresses are not proof of account ownership until the verification
+    # flow (or an authoritative Google identity) has set this server-side flag.
+    # In particular, a newly registered password account must not be able to
+    # claim an allowlisted address and purge another user's listing.
+    if canonical_email(user.email) not in HARD_DELETE_EMAILS or not user.email_verified:
         raise HTTPException(403, "Hard deletion is restricted")
 
 ROOM_DETAIL_MAPPING = {
@@ -381,20 +385,24 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
         )
         session.add(history)
         await session.flush()
-        await create_notification(
-            session,
-            recipient=user,
-            kind="listing_republished" if listing.status == "published" else "listing_submitted",
-            title="Tu anuncio se ha republicado" if listing.status == "published" else "Tu anuncio se ha enviado",
-            body=(
-                "Tu anuncio vuelve a estar visible en 112233.es."
-                if listing.status == "published"
-                else "Revisaremos tu anuncio antes de publicarlo."
-            ),
-            entity_listing_id=listing.id,
-            idempotency_key=f"listing-status:{history.id}",
-            email_path=f"/habitacion/{listing.id}",
-        )
+        # An administrator may renew another account's listing, but the
+        # customer-facing notification and email always belong to its owner.
+        recipient = user if listing.owner_user_id == user.id else await session.get(User, listing.owner_user_id)
+        if recipient:
+            await create_notification(
+                session,
+                recipient=recipient,
+                kind="listing_republished" if listing.status == "published" else "listing_submitted",
+                title="Tu anuncio se ha republicado" if listing.status == "published" else "Tu anuncio se ha enviado",
+                body=(
+                    "Tu anuncio vuelve a estar visible en 112233.es."
+                    if listing.status == "published"
+                    else "Revisaremos tu anuncio antes de publicarlo."
+                ),
+                entity_listing_id=listing.id,
+                idempotency_key=f"listing-status:{history.id}",
+                email_path=f"/habitacion/{listing.id}",
+            )
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()

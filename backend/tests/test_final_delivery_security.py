@@ -16,13 +16,20 @@ from app.services.listings import canonical_email, require_hard_delete_authoriza
 )
 def test_hard_delete_email_is_canonicalized_from_server_identity(raw: str, expected: str) -> None:
     assert canonical_email(raw) == expected
-    require_hard_delete_authorization(SimpleNamespace(email=raw))
+    require_hard_delete_authorization(SimpleNamespace(email=raw, email_verified=True))
 
 
 @pytest.mark.parametrize("email", ["renter@example.test", "owner@example.test", "antony502189@gmail.co"])
 def test_hard_delete_rejects_every_non_allowlisted_identity(email: str) -> None:
     with pytest.raises(HTTPException) as error:
-        require_hard_delete_authorization(SimpleNamespace(email=email))
+        require_hard_delete_authorization(SimpleNamespace(email=email, email_verified=True))
+    assert error.value.status_code == 403
+
+
+@pytest.mark.parametrize("email", ["antony502189@gmail.com", "TF.SHULER@gmail.com"])
+def test_hard_delete_rejects_unverified_allowlisted_identity(email: str) -> None:
+    with pytest.raises(HTTPException) as error:
+        require_hard_delete_authorization(SimpleNamespace(email=email, email_verified=False))
     assert error.value.status_code == 403
 
 
