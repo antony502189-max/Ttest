@@ -11,6 +11,7 @@ from ..models.moderation import ListingRestriction, UserRestriction
 from .catalog import touch_catalog
 from .mail import enqueue_mail
 from .moderation import SUPPORT_EMAIL, active_listing_restriction, active_user_restriction, add_notice
+from .notifications import create_notification
 
 
 async def _expired_user_candidate(
@@ -131,6 +132,16 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
             title="Tu restricción ha finalizado",
             body=f"El acceso correspondiente se ha restaurado automáticamente. Soporte: {SUPPORT_EMAIL}",
         )
+        await create_notification(
+            session,
+            recipient=user,
+            kind="user_restriction_expired",
+            title="Tu restricción ha finalizado",
+            body="El acceso correspondiente se ha restaurado automáticamente.",
+            idempotency_key=f"moderation-expiry:user:{user_restriction.id}",
+        )
+        # Keep the established moderation email path. create_notification above
+        # intentionally omits email_path so the user receives only one email.
         enqueue_mail(
             session,
             kind="moderation_restriction_expired",
@@ -183,6 +194,17 @@ async def process_expired_moderation(session: AsyncSession, *, limit: int = 100)
             title="La restricción de tu anuncio ha finalizado",
             body=f"El anuncio «{listing.title}» vuelve a regirse por su estado normal.",
         )
+        await create_notification(
+            session,
+            recipient=owner,
+            kind="listing_restriction_expired",
+            title="La restricción de tu anuncio ha finalizado",
+            body=f"El anuncio «{listing.title}» vuelve a regirse por su estado normal.",
+            entity_listing_id=listing.id,
+            idempotency_key=f"moderation-expiry:listing:{listing_restriction.id}",
+        )
+        # Keep the established moderation email path. create_notification above
+        # intentionally omits email_path so the user receives only one email.
         enqueue_mail(
             session,
             kind="moderation_restriction_expired",
