@@ -28,6 +28,7 @@ def listing(status: str):
 def owner(listing_owner_id):
     return SimpleNamespace(
         id=listing_owner_id,
+        name="Listing owner",
         email="owner@example.test",
         email_verified=True,
     )
