@@ -1,4 +1,5 @@
 import './customer-card-clickability.css'
+import './listing-main-landmark'
 
 const CARD_SELECTOR = '.property-card, .m2-result-card'
 const INTERACTIVE_SELECTOR = 'a, button, input, select, textarea, label, [role="button"], [role="menuitem"], [role="checkbox"], [role="radio"]'
