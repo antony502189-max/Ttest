@@ -38,25 +38,52 @@ function RouteLoading() {
 }
 
 function ScrollToTop() {
-  const { pathname, search } = useLocation()
+  const { pathname, search, hash } = useLocation()
   useEffect(() => {
     const previousRestoration = window.history.scrollRestoration
     window.history.scrollRestoration = 'manual'
-    const reset = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-    reset()
+    let firstFrame = 0
     let secondFrame = 0
-    const firstFrame = window.requestAnimationFrame(() => {
+    let delayedReset = 0
+    let anchorFrame = 0
+
+    if (hash) {
+      let attempts = 0
+      const anchorId = decodeURIComponent(hash.slice(1))
+      const revealAnchor = () => {
+        const target = document.getElementById(anchorId)
+        if (!target) {
+          if (attempts < 120) {
+            attempts += 1
+            anchorFrame = window.requestAnimationFrame(revealAnchor)
+          }
+          return
+        }
+        target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
+        if (target instanceof HTMLElement) {
+          if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+          target.focus({ preventScroll: true })
+        }
+      }
+      anchorFrame = window.requestAnimationFrame(revealAnchor)
+    } else {
+      const reset = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
       reset()
-      secondFrame = window.requestAnimationFrame(reset)
-    })
-    const delayedReset = window.setTimeout(reset, 100)
+      firstFrame = window.requestAnimationFrame(() => {
+        reset()
+        secondFrame = window.requestAnimationFrame(reset)
+      })
+      delayedReset = window.setTimeout(reset, 100)
+    }
+
     return () => {
-      window.cancelAnimationFrame(firstFrame)
+      if (firstFrame) window.cancelAnimationFrame(firstFrame)
       if (secondFrame) window.cancelAnimationFrame(secondFrame)
-      window.clearTimeout(delayedReset)
+      if (anchorFrame) window.cancelAnimationFrame(anchorFrame)
+      if (delayedReset) window.clearTimeout(delayedReset)
       window.history.scrollRestoration = previousRestoration
     }
-  }, [pathname, search])
+  }, [pathname, search, hash])
   return null
 }
 
