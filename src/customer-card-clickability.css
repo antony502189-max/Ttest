@@ -1,0 +1,11 @@
+.property-card,
+.m2-result-card {
+  cursor: pointer;
+}
+
+.property-card a,
+.property-card button,
+.m2-result-card a,
+.m2-result-card button {
+  cursor: pointer;
+}

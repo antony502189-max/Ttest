@@ -202,7 +202,7 @@ test('ROOM-01..04 and MODE-01..03 migrated room and rental models render consist
   expect(listings.every((item) => typeof item.roomSizeM2 === 'number' && item.currentResidents !== undefined && item.roomCapacity !== undefined && item.shower)).toBeTruthy()
 })
 
-test('CONTACT-01..06 confirmation gates channels and local form handles abuse states', async ({ page }) => {
+test('CONTACT-01..06 confirmation gates direct channels and internal messaging stays unavailable', async ({ page }) => {
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
   await expect(page.locator('.property-card').first()).not.toContainText('+34 600 112 233')
   const confirmation = page.getByText(/Confirmo que cumplo estas condiciones/).first()
@@ -215,23 +215,8 @@ test('CONTACT-01..06 confirmation gates channels and local form handles abuse st
   await expect(page.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /34611223344/)
   await page.getByRole('button', { name: /Mostrar teléfono/ }).click()
   await expect(page.getByRole('button', { name: /\+34/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Enviar mensaje' }).first().click()
-  const dialog = page.getByRole('dialog', { name: 'Enviar un mensaje' })
-  await dialog.getByLabel('Nombre').fill('Ana')
-  await dialog.getByLabel('Email o teléfono').fill('ana@example.es')
-  await dialog.getByLabel('Mensaje').fill('Me interesa esta habitación y cumplo las condiciones.')
-  await dialog.getByText(/Confirmo que cumplo/).click()
-  await dialog.locator('.honeypot-field input').fill('bot.example')
-  await page.waitForTimeout(750)
-  await dialog.getByRole('button', { name: 'Enviar mensaje' }).click()
-  await expect(dialog.getByRole('alert')).toContainText(/No se pudo enviar/)
-  await dialog.locator('.honeypot-field input').fill('')
-  await dialog.getByRole('button', { name: 'Enviar mensaje' }).click()
-  await expect(dialog.getByRole('status')).toContainText('Mensaje enviado al anunciante')
-  await dialog.getByLabel('Mensaje').fill('Me interesa esta habitación y cumplo las condiciones.')
-  await dialog.getByText(/Confirmo que cumplo/).click()
-  await dialog.getByRole('button', { name: 'Enviar mensaje' }).click()
-  await expect(dialog.getByRole('alert')).toContainText(/30 segundos/)
+  await expect(page.getByRole('button', { name: 'Enviar mensaje' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Enviar un mensaje' })).toHaveCount(0)
 })
 
 test('LIFE-01..04 expiration hides public listing and renew republishes it', async ({ page }) => {
@@ -351,9 +336,9 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
   }
 })
 
-test('A11Y-01 contact dialog has no serious or critical axe issues', async ({ page }) => {
+test('A11Y-01 listing detail stays accessible after internal messaging removal', async ({ page }) => {
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
-  await page.getByRole('button', { name: 'Enviar mensaje' }).first().click()
-  const results = await new AxeBuilder({ page }).include('.contact-message-dialog').analyze()
+  await expect(page.getByRole('button', { name: 'Enviar mensaje' })).toHaveCount(0)
+  const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((item) => item.impact === 'serious' || item.impact === 'critical')).toEqual([])
 })

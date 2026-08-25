@@ -6,8 +6,7 @@ from app.schemas.auth import LoginRequest
 from app.schemas.searches import SavedSearchPatch
 
 PAGINATED_GETS = (
-    "/api/v1/messages/threads",
-    "/api/v1/messages/threads/{thread_id}",
+    "/api/v1/notifications",
     "/api/v1/reports",
     "/api/v1/admin/listings",
     "/api/v1/admin/users",

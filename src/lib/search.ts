@@ -1,5 +1,6 @@
 import { defaultFilters } from '@/data/listings'
 import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
+import { listingMatchesAmenityFilter } from '@/lib/listing-equipment'
 import { canonicalizeZoneId, listingMatchesSelectedAreas, type TenerifeZoneCollection } from '@/lib/map/zones'
 import type { Filters, Listing, MapPolygonPoint, RentalMode, TenantRequirement, YesNoAny } from '@/types'
 
@@ -108,7 +109,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
     }
     if (!boolMatches(listing.empadronamientoAllowed, filters.empadronamiento)) return false
     if (filters.advertiserType !== 'Cualquiera' && listing.advertiserType !== filters.advertiserType) return false
-    if (filters.amenities.length && !filters.amenities.every((amenity) => listing.amenities.includes(amenity))) return false
+    if (filters.amenities.length && !filters.amenities.every((amenity) => listingMatchesAmenityFilter(listing.amenities, amenity))) return false
     if (filters.publicationDate !== 'Cualquiera') {
       const ageDays = (today - new Date(listing.publishedAt).getTime()) / 86_400_000
       const limit = filters.publicationDate === '24h' ? 1 : filters.publicationDate === '7d' ? 7 : 30

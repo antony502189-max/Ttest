@@ -123,7 +123,7 @@ async def test_availability_window_excludes_already_ended_listing(client: AsyncC
 
 
 async def test_private_media_cache_and_listing_avatar_separation(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="media@example.com", role="host")
+    token, _ = await register_user(client, email="antony502189@gmail.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -174,7 +174,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
 
 
 async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="orphan-media@example.com", role="host")
+    token, _ = await register_user(client, email="tf.shuler@gmail.com", role="host")
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -215,30 +215,6 @@ async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: Asyn
     deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(token))
     assert deleted.status_code == 204
     assert (await client.get(second.json()["url"], headers=auth(token))).status_code == 404
-
-
-async def test_disabled_contact_form_blocks_new_threads(client: AsyncClient, register_user):
-    host_token, _ = await register_user(client, email="closed-contact@example.com", role="host")
-    listing = await client.post(
-        "/api/v1/listings",
-        headers=auth(host_token),
-        json=listing_payload(title="Contact disabled listing"),
-    )
-    assert listing.status_code == 201
-    profile = await client.patch(
-        "/api/v1/users/me",
-        headers=auth(host_token),
-        json={"allowContactForm": False},
-    )
-    assert profile.status_code == 200
-
-    tenant_token, _ = await register_user(client, email="contact-tenant@example.com")
-    message = await client.post(
-        "/api/v1/messages",
-        headers=auth(tenant_token),
-        json={"listingId": listing.json()["id"], "body": "Can I visit?"},
-    )
-    assert message.status_code == 403
 
 
 async def test_account_deletion_erases_owned_state(client: AsyncClient, register_user):

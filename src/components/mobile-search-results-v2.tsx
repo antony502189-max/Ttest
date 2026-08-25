@@ -163,7 +163,7 @@ function MobileResultCard({ listing, index, language, favorite, onFavorite, onDi
 }
 
 export function MobileSearchResults() {
-  const { allListings, discarded, discardListing, favorites, toggleFavorite, currentUser, rentalMode, setRentalMode, filters: appFilters, setFilters: setAppFilters, mapPolygon, query: appQuery } = useApp()
+  const { allListings, discarded, discardListing, favorites, toggleFavorite, rentalMode, setRentalMode, filters: appFilters, setFilters: setAppFilters, mapPolygon, query: appQuery } = useApp()
   const { language } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
@@ -334,7 +334,13 @@ export function MobileSearchResults() {
       : draftFilters.shower === 'Ducha compartida' && draftFilters.toilet === 'Aseo compartido'
         ? 'shared'
         : draftFilters.shower === 'Cualquiera' && draftFilters.toilet === 'Cualquiera' ? 'any' : 'custom'
-  const contact = () => { if (!currentUser) navigate('/acceso') }
+  const contact = (listing: Listing) => {
+    if (listing.isExternal && listing.sourceUrl) {
+      window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+    navigate(`/habitacion/${listing.id}#contacto`)
+  }
   const openMap = () => {
     const params = new URLSearchParams(location.search)
     params.delete('panel')
@@ -394,7 +400,7 @@ export function MobileSearchResults() {
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
     {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => navigate('/')} aria-label={t.back}><ChevronLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
-      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={contact} onOpen={() => {
+      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing, index) => <MobileResultCard key={listing.id} listing={listing} index={index} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
       }} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}

@@ -65,7 +65,6 @@ def test_sentry_uses_explicit_release_without_pii(monkeypatch) -> None:
 
 def test_sensitive_endpoints_have_rate_limits() -> None:
     assert ("POST", "/api/v1/uploads") in RATE_LIMITS
-    assert ("POST", "/api/v1/messages") in RATE_LIMITS
     assert ("POST", "/api/v1/reports") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/forgot-password") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/refresh") in RATE_LIMITS

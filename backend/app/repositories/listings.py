@@ -373,7 +373,13 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.advertiserType:
         query = query.where(Listing.advertiser_type == payload.advertiserType)
     if payload.amenities:
-        query = query.where(Listing.amenities.contains(payload.amenities))
+        amenity_filter_aliases = {
+            "Balcón": ("Balcón", "Balcón disponible"),
+            "Lavadora": ("Lavadora", "Lavadora individual", "Lavadora compartida"),
+        }
+        for amenity in payload.amenities:
+            aliases = amenity_filter_aliases.get(amenity, (amenity,))
+            query = query.where(or_(*(Listing.amenities.contains([alias]) for alias in aliases)))
     if payload.minLongitude is not None:
         bbox = ST_MakeEnvelope(
             payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326

@@ -127,12 +127,11 @@ test('sorting, photo carousel, favorites and hiding listings work together', asy
   await expect(results.locator('.m2-result-card')).toHaveCount(beforeDiscard - 1)
 })
 
-test('contact opens the existing authentication flow and map returns to Google Maps', async ({ page }) => {
+test('contact opens the public listing contact area and map returns to Google Maps', async ({ page }) => {
   await finishOnboarding(page)
   let results = await openResults(page, 'Vivienda')
   await results.getByRole('button', { name: 'Contactar' }).first().click()
-  await expect(page).toHaveURL(/#\/acceso/)
-  await expect(page.getByRole('heading', { name: 'Inicia sesión o regístrate' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/habitacion\/.+#contacto/)
 
   await finishOnboarding(page)
   results = await openResults(page, 'Vivienda')

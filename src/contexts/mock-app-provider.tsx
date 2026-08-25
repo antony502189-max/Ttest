@@ -343,10 +343,10 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     return next ? [next] : []
   })), [canManageListing])
 
-  const deleteListing = useCallback((id: string) => {
+  const deleteListing = useCallback(async (id: string): Promise<boolean> => {
     const listing = allListings.find((item) => item.id === id)
-    if (!listing) return
-    if (!canManageListing(listing)) { toast.error('No puedes gestionar un anuncio de otra cuenta.'); return }
+    if (!listing) return false
+    if (!canManageListing(listing)) { toast.error('No puedes gestionar un anuncio de otra cuenta.'); return false }
     const remaining = allListings.filter((item) => item.id !== id)
     const draftRecord = readDraftRecord()
     const deleteDraft = draftRecord?.value.listingId === id
@@ -356,9 +356,12 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
     setAllListings(remaining)
-    void removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value)).catch((error) =>
-      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.'),
-    )
+    try {
+      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
+    }
+    return true
   }, [allListings, canManageListing, users])
 
   const setListingStatus = useCallback((id: string, status: ListingStatus) => {

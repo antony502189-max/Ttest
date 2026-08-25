@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { ChevronDown, Globe2, Heart, Home, Menu, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
+import { ChevronDown, Globe2, Heart, Home, Menu, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
@@ -13,7 +13,7 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
-const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/mensajes', '/menu']
+const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu']
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return <Link to="/" className="brand-logo" aria-label="112233.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small>.es</small>}</Link>
@@ -41,7 +41,7 @@ export function MobileHeader() {
   return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher /><Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir menú"><Menu /></Link></div></header>
 }
 
-const bottomItems = [{ to: '/', label: 'Inicio', icon: Home }, { to: '/favoritos', label: 'Favoritos', icon: Heart }, { to: '/buscar', label: 'Buscar', icon: Search }, { to: '/mensajes', label: 'Mensajes', icon: MessageCircle }, { to: '/perfil', label: 'Perfil', icon: UserRound }]
+const bottomItems = [{ to: '/', label: 'Inicio', icon: Home }, { to: '/favoritos', label: 'Favoritos', icon: Heart }, { to: '/buscar', label: 'Buscar', icon: Search }, { to: '/perfil', label: 'Perfil', icon: UserRound }]
 export function BottomNavigation() { const location = useLocation(); return <nav className="bottom-nav" aria-label="Navegación móvil">{bottomItems.map(({ to, label, icon: Icon }) => { const active = location.pathname === to; return <Link key={label} to={to} aria-current={active ? 'page' : undefined} className={cn('bottom-nav__item', active && 'is-active')}><Icon /><span>{label}</span></Link> })}</nav> }
 
 export function Footer() {
@@ -54,7 +54,7 @@ export function AppLayout() {
   const { storageError, clearStorageError } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
-  const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname === '/mensajes' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
+  const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
     const update = () => setMobileViewport(media.matches)

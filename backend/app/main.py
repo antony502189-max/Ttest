@@ -20,7 +20,7 @@ from .api.v1.admin import router as admin_router
 from .api.v1.auth import router as auth_router
 from .api.v1.favorites import router as favorites_router
 from .api.v1.listings import router as listings_router
-from .api.v1.messages import router as messages_router
+from .api.v1.notifications import router as notifications_router
 from .api.v1.reports import router as reports_router
 from .api.v1.saved_searches import router as saved_searches_router
 from .api.v1.search_history import router as search_history_router
@@ -68,7 +68,6 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/auth/reset-password"): (10, 60),
     ("POST", "/api/v1/auth/email-verification/request"): (5, 3600),
     ("POST", "/api/v1/auth/email-verification/confirm"): (10, 60),
-    ("POST", "/api/v1/messages"): (30, 60),
     ("POST", "/api/v1/reports"): (10, 60),
     ("POST", "/api/v1/uploads"): (20, 60),
     ("POST", "/api/v1/listings"): (20, 60),
@@ -95,8 +94,6 @@ def rate_limit_rule(method: str, path: str) -> tuple[str, int, int] | None:
     direct = RATE_LIMITS.get((method, path))
     if direct:
         return path, *direct
-    if method == "POST" and path.startswith("/api/v1/messages/threads/"):
-        return "/api/v1/messages/threads/{thread_id}", 30, 60
     if method in {"PUT", "DELETE"} and path.startswith("/api/v1/favorites/"):
         return "/api/v1/favorites/{listing_id}", 60, 60
     if method in {"PUT", "DELETE"} and path.startswith("/api/v1/discarded-listings/"):
@@ -281,7 +278,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(favorites_router, prefix="/api/v1")
 app.include_router(listings_router, prefix="/api/v1")
-app.include_router(messages_router, prefix="/api/v1")
+app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(saved_searches_router, prefix="/api/v1")
 app.include_router(search_history_router, prefix="/api/v1")
