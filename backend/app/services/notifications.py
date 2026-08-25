@@ -119,7 +119,7 @@ def _saved_publication_days(value: object) -> int | None:
     if value is None or value == "Cualquiera":
         return None
     if not isinstance(value, str):
-        raise ValueError("invalid saved publication filter")
+        raise TypeError("invalid saved publication filter")
     try:
         return {"24h": 1, "7d": 7, "30d": 30}[value]
     except KeyError as exc:
@@ -130,7 +130,7 @@ def _saved_polygon(value: object) -> list[dict[str, object]]:
     if value is None:
         return []
     if not isinstance(value, list):
-        raise ValueError("invalid saved polygon")
+        raise TypeError("invalid saved polygon")
     result: list[dict[str, object]] = []
     for item in value:
         if not isinstance(item, dict) or "lat" not in item or "lng" not in item:
