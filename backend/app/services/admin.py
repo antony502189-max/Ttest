@@ -28,6 +28,7 @@ from .moderation import (
     normalize_email,
     viable_admin_count,
 )
+from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
 
 
 def audit(actor_id: UUID, action: str, target_type: str, target_id: UUID | None, detail: dict) -> AuditLog:
@@ -158,17 +159,43 @@ async def change_listing_status(
         listing.published_at = datetime.now(UTC)
     if new_status != "closed":
         listing.closed_reason = None
-    session.add(
-        ListingStatusHistory(
+
+    if previous != new_status:
+        history = ListingStatusHistory(
             listing_id=listing.id,
             from_status=previous,
             to_status=listing.status,
             changed_by=actor.id,
         )
-    )
-    session.add(audit(actor.id, "listing.status_changed", "listing", listing.id, {"from": previous, "to": new_status}))
-    if previous != new_status:
+        session.add(history)
+        session.add(audit(actor.id, "listing.status_changed", "listing", listing.id, {"from": previous, "to": new_status}))
+        await session.flush()
+
+        notification_copy = {
+            "published": ("listing_published", "Tu anuncio está publicado", "Tu anuncio ya es visible en 112233.es."),
+            "rejected": ("listing_rejected", "Tu anuncio necesita cambios", "Revisa el estado de tu anuncio antes de volver a publicarlo."),
+            "hidden": ("listing_hidden", "Tu anuncio está oculto", "Tu anuncio ya no aparece en las búsquedas públicas."),
+            "closed": ("listing_closed", "Tu anuncio está cerrado", "Tu anuncio ya no aparece en las búsquedas públicas."),
+        }.get(new_status)
+        if notification_copy:
+            kind, title, body = notification_copy
+            await create_notification(
+                session,
+                recipient=owner,
+                kind=kind,
+                title=title,
+                body=body,
+                entity_listing_id=listing.id,
+                idempotency_key=f"listing-status:{history.id}",
+                email_path=f"/habitacion/{listing.id}",
+            )
+
+        if new_status == "published":
+            await notify_saved_search_matches(session, listing)
+        elif previous == "published" and new_status in {"hidden", "closed", "rejected"}:
+            await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
         await touch_catalog(session)
+
     await session.commit()
     return public_listing(listing, owner=owner, restriction=await active_listing_restriction(listing.id, session))
 
@@ -257,6 +284,7 @@ async def restrict_listing(
         created_by=actor.id,
     )
     session.add(row)
+    await session.flush()
     add_notice(
         session,
         owner.id,
@@ -271,6 +299,18 @@ async def restrict_listing(
         reason=clean_reason,
         until=until,
     )
+    await create_notification(
+        session,
+        recipient=owner,
+        kind="listing_restricted",
+        title="Uno de tus anuncios se ha ocultado",
+        body=f"{listing.title}: {clean_reason}",
+        entity_listing_id=listing.id,
+        idempotency_key=f"listing-restriction:{row.id}",
+        email_path=None,
+    )
+    if current is None and listing.status == "published":
+        await notify_favorited_listing_unavailable(session, listing, event_key=f"restriction:{row.id}")
     session.add(
         audit(
             actor.id,
@@ -300,6 +340,16 @@ async def unrestrict_listing(listing_id: UUID, actor: User, session: AsyncSessio
         body=f"El anuncio «{listing.title}» vuelve a estar disponible.",
     )
     enqueue_listing_unrestriction_email(session, owner.email, listing_title=listing.title)
+    await create_notification(
+        session,
+        recipient=owner,
+        kind="listing_unrestricted",
+        title="La restricción de tu anuncio se ha retirado",
+        body=f"El anuncio «{listing.title}» vuelve a estar disponible.",
+        entity_listing_id=listing.id,
+        idempotency_key=f"listing-unrestriction:{current.id}",
+        email_path=None,
+    )
     session.add(audit(actor.id, "listing.unrestricted", "listing", listing.id, {"restrictionId": str(current.id)}))
     await touch_catalog(session)
     await session.commit()
