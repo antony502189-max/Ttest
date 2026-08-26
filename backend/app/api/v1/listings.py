@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from secrets import token_urlsafe
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,7 +119,6 @@ async def list_my_listings(
 @router.get("/{listing_id}", response_model=ListingResponse)
 async def get_listing(
     listing_id: UUID,
-    request: Request,
     response: Response,
     visitor_token: str | None = Cookie(default=None, alias="listing_visitor"),
     user: User | None = Depends(optional_user),
