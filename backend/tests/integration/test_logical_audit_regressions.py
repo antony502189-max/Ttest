@@ -110,3 +110,40 @@ async def test_account_deletion_invalidates_catalog_and_removes_owned_listing(cl
     assert public_search.status_code == 200, public_search.text
     assert listing_id not in {item["id"] for item in public_search.json()["items"]}
     assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 404
+
+
+async def test_public_profile_changes_invalidate_catalog_and_refresh_listing_contacts(client: AsyncClient, register_user):
+    host_token, _ = await register_user(client, email="catalog-profile-owner@example.com", role="host")
+    created = await client.post(
+        "/api/v1/listings",
+        headers=auth(host_token),
+        json=listing_payload(title="Profile catalog regression"),
+    )
+    assert created.status_code == 201, created.text
+    listing_id = created.json()["id"]
+
+    before = await client.get("/api/v1/listings/catalog-version")
+    assert before.status_code == 200, before.text
+    before_version = int(before.json()["version"])
+
+    updated = await client.patch(
+        "/api/v1/users/me",
+        headers=auth(host_token),
+        json={
+            "name": "Updated Public Owner",
+            "phone": "+34600000123",
+            "showPhone": True,
+        },
+    )
+    assert updated.status_code == 200, updated.text
+
+    after = await client.get("/api/v1/listings/catalog-version")
+    assert after.status_code == 200, after.text
+    assert int(after.json()["version"]) > before_version
+
+    public_search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert public_search.status_code == 200, public_search.text
+    public_listing = next(item for item in public_search.json()["items"] if item["id"] == listing_id)
+    assert public_listing["owner"]["name"] == "Updated Public Owner"
+    assert public_listing["contactPhone"] == "+34600000123"
+    assert public_listing["showPhone"] is True
