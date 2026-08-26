@@ -76,7 +76,14 @@ export async function logoutSession() {
     setAccessToken(null)
     return
   }
-  await api<void>('/auth/logout', { method: 'POST' })
-  forgetSession()
-  setAccessToken(null)
+  try {
+    await api<void>('/auth/logout', { method: 'POST' })
+  } finally {
+    // Local logout must be authoritative even when the network request fails.
+    // The server-side refresh session may require a later retry/revocation, but
+    // this browser must stop sending the bearer token and must not auto-hydrate
+    // the session again merely because logout happened during an outage.
+    forgetSession()
+    setAccessToken(null)
+  }
 }
