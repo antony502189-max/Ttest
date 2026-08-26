@@ -97,7 +97,7 @@ test('price and housing type filters change the listing set', async ({ page }) =
   await expect(results.locator('.m2-result-card')).toHaveCount(23)
 })
 
-test('sorting, photo carousel, favorites and hiding listings work together', async ({ page }) => {
+test('sorting, photo carousel and favorites work without a delete-like guest affordance', async ({ page }) => {
   await finishOnboarding(page)
   const results = await openResults(page, 'Vivienda')
 
@@ -122,9 +122,10 @@ test('sorting, photo carousel, favorites and hiding listings work together', asy
   await favorite.click()
   await expect(favorite).toHaveAttribute('aria-pressed', 'true')
 
-  const beforeDiscard = await results.locator('.m2-result-card').count()
-  await firstCard.locator('.m2-result-card__discard').click()
-  await expect(results.locator('.m2-result-card')).toHaveCount(beforeDiscard - 1)
+  // Public/guest cards must not expose a trash-shaped control. Actual hard
+  // deletion belongs to authenticated management surfaces and is API-gated.
+  await expect(firstCard.locator('.m2-result-card__discard')).toBeHidden()
+  await expect(firstCard.getByRole('button', { name: 'Ocultar anuncio' })).toBeHidden()
 })
 
 test('contact opens the public listing contact area and map returns to Google Maps', async ({ page }) => {
