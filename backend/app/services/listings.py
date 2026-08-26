@@ -22,7 +22,7 @@ from ..schemas.listings import (
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
-from .notifications import create_notification
+from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
 from .storage_deletions import enqueue_storage_deletions
 
 # This is deliberately independent from the product role and AdminAccess
@@ -248,6 +248,8 @@ async def create_listing(payload: ListingWrite, user: User, session: AsyncSessio
         idempotency_key=f"listing-status:{history.id}",
         email_path=f"/habitacion/{listing.id}",
     )
+    if initial_status == "published":
+        await notify_saved_search_matches(session, listing)
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -357,6 +359,10 @@ async def update_listing(
                     idempotency_key=f"listing-status:{history.id}",
                     email_path=f"/habitacion/{listing.id}",
                 )
+        if listing.status == "published":
+            await notify_saved_search_matches(session, listing)
+        elif listing.status in {"hidden", "closed", "rejected"}:
+            await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -403,6 +409,8 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
                 idempotency_key=f"listing-status:{history.id}",
                 email_path=f"/habitacion/{listing.id}",
             )
+    if listing.status == "published":
+        await notify_saved_search_matches(session, listing)
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -423,7 +431,6 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     )
     await lock_media_assets(session, attached_ids)
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
-    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
     await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
     await session.flush()
     await mark_orphaned_media(session, attached_ids)
@@ -432,14 +439,16 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     listing.deleted_at = datetime.now(UTC)
     listing.status = "closed"
     listing.closed_reason = "deleted"
-    session.add(
-        ListingStatusHistory(
-            listing_id=listing.id,
-            from_status=previous_status,
-            to_status="closed",
-            changed_by=user.id,
-        )
+    history = ListingStatusHistory(
+        listing_id=listing.id,
+        from_status=previous_status,
+        to_status="closed",
+        changed_by=user.id,
     )
+    session.add(history)
+    await session.flush()
+    await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
+    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
     await touch_catalog(session)
     await session.commit()
 

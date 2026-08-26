@@ -72,10 +72,10 @@ const pages: Record<string, PageContent> = {
   '/privacidad': {
     eyebrow: 'Legal',
     title: 'Política de privacidad',
-    intro: 'Cómo utiliza 112233.es los datos necesarios para operar cuentas, anuncios, mapas, mensajes y seguridad.',
+    intro: 'Cómo utiliza 112233.es los datos necesarios para operar cuentas, anuncios, mapas y seguridad.',
     icon: Shield,
     sections: [
-      { title: 'Datos tratados', text: 'Podemos tratar nombre, email, contraseña cifrada, rol, avatar, preferencias, sesiones, identificador técnico de Google, anuncios, fotografías, mensajes, favoritos, búsquedas guardadas y registros de seguridad.' },
+      { title: 'Datos tratados', text: 'Podemos tratar nombre, email, contraseña cifrada, rol, avatar, preferencias, sesiones, identificador técnico de Google, anuncios, fotografías, favoritos, búsquedas guardadas y registros de seguridad.' },
       { title: 'Finalidades', text: 'Los datos se usan para autenticar cuentas, publicar y gestionar anuncios, mostrar resultados y mapas, facilitar contactos solicitados, recuperar contraseñas y prevenir abuso o fraude.' },
       { title: 'Proveedores técnicos', text: 'La infraestructura utiliza PostgreSQL/PostGIS, Redis y MinIO. Google Identity Services y Google Maps prestan autenticación y mapas. Gmail SMTP envía códigos y avisos transaccionales.' },
       { title: 'Ubicación', text: 'La vista pública utiliza una posición aproximada. La dirección exacta, cuando se facilita para gestionar un anuncio, no debe mostrarse públicamente.' },

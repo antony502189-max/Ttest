@@ -13,7 +13,6 @@ type AdminUserDto = {
   initials: string
   showPhone: boolean
   showWhatsApp: boolean
-  allowContactForm: boolean
   avatarUrl: string | null
   createdAt: string
   deletedAt: string | null
@@ -36,7 +35,6 @@ const userDto = (index: number, deleted = false): AdminUserDto => ({
   initials: `U${index % 10}`,
   showPhone: false,
   showWhatsApp: false,
-  allowContactForm: true,
   avatarUrl: null,
   createdAt: new Date(Date.UTC(2026, 7, 9, 12, 0, 0) - index * 1000).toISOString(),
   deletedAt: deleted ? '2026-08-09T13:00:00.000Z' : null,

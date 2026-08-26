@@ -177,7 +177,6 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     contactEmail: 'anuncios@example.es',
     showPhone: true,
     showWhatsApp: true,
-    allowContactForm: true,
   }
 })
 
@@ -242,5 +241,5 @@ export const createDefaultDraft = (): ListingDraft => ({
   smokingAllowed: false, petsAllowed: false, childrenAllowed: false, empadronamientoAllowed: true,
   rules: 'Buscamos una convivencia tranquila. Se respetan los horarios de descanso y se organizan turnos de limpieza.', images: rotatePhotos(0),
   title: 'Habitación privada con cocina y aseo propios', description: 'Habitación exterior y tranquila en una casa compartida bien cuidada. Dispone de cama, armario, cocina privada y aseo privado; la ducha es compartida.',
-  contactName: 'Equipo Casa Norte', contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344', contactEmail: 'anuncios@example.es', showPhone: true, showWhatsApp: true, allowContactForm: true, status: 'Publicado',
+  contactName: 'Equipo Casa Norte', contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344', contactEmail: 'anuncios@example.es', showPhone: true, showWhatsApp: true, status: 'Publicado',
 })

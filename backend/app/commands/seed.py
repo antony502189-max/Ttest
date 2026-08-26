@@ -86,7 +86,6 @@ async def demo_owner(session, index: int) -> User:
         whatsapp="+34 611 223 344",
         show_phone=True,
         show_whatsapp=True,
-        allow_contact_form=True,
         email_verified=index % 7 != 0,
     )
     session.add(owner)

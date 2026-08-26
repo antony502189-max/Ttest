@@ -1,4 +1,4 @@
-import { ChevronRight, CircleHelp, FileText, Heart, Home, Languages, LogOut, Plus, Search, UserRound } from 'lucide-react'
+import { Bell, ChevronRight, CircleHelp, FileText, Heart, Home, Languages, LogOut, Plus, Search, UserRound } from 'lucide-react'
 import { Link } from 'react-router'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ export function MenuPage() {
     </div>
     <nav className="app-menu-list" aria-label="Cuenta y anuncios">
       {currentUser ? <MenuRow to="/mis-anuncios" icon={Home}>Mis anuncios</MenuRow> : null}
+      {currentUser ? <MenuRow to="/notificaciones" icon={Bell}>Notificaciones</MenuRow> : null}
       <MenuRow to="/publicar" icon={Plus}>Publicar anuncio</MenuRow>
       <MenuRow to="/favoritos" icon={Heart}>Favoritos</MenuRow>
       <MenuRow to="/busquedas-guardadas" icon={Search}>Búsquedas guardadas</MenuRow>

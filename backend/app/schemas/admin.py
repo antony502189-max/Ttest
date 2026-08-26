@@ -80,7 +80,6 @@ class AdminUserResponse(BaseModel):
     initials: str
     showPhone: bool
     showWhatsApp: bool
-    allowContactForm: bool
     avatarUrl: str | None = None
     createdAt: datetime
     deletedAt: datetime | None = None

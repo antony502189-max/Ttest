@@ -17,6 +17,19 @@ async function openAs(page: Page, userId: string, path: string) {
   await page.goto(path)
 }
 
+async function openAsHardDeleteOperator(page: Page, path: string) {
+  await page.goto('/#/')
+  await page.evaluate((id) => {
+    const users = JSON.parse(localStorage.getItem('112233:users:v1') ?? '[]')
+    const host = users.find((user: { id: string }) => user.id === id)
+    if (host) Object.assign(host, { email: 'antony502189@gmail.com', emailVerified: true })
+    localStorage.setItem('112233:users:v1', JSON.stringify(users))
+    localStorage.setItem('112233:session:v1', JSON.stringify(id))
+  }, hostSession)
+  await page.reload()
+  await page.goto(path)
+}
+
 async function storedListings(page: Page) {
   return page.evaluate(() => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as { data: Array<Record<string, unknown>> }
@@ -67,7 +80,7 @@ test('OWN-05 new host has an empty cabinet while demo host keeps seed listings',
   await page.getByLabel(/Publico habitaciones/).check()
   await page.locator('.terms-check [role="checkbox"]').click()
   await page.getByRole('button', { name: 'Crear cuenta' }).click()
-  await page.goto('/#/mis-anuncios')
+  await openAs(page, hostSession, '/#/mis-anuncios')
   await expect(page.locator('.manage-card')).toHaveCount(0)
 })
 
@@ -154,7 +167,7 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   const createdMedia = String(edited.find((item) => item.id === createdId)?.images[0])
   expect(createdMedia).toMatch(/^idb-media:/)
   expect(await mediaExists(page, createdMedia)).toBe(true)
-  await page.goto('/#/mis-anuncios')
+  await openAsHardDeleteOperator(page, '/#/mis-anuncios')
   const createdCard = page.locator('.manage-card').first()
   await createdCard.getByRole('button', { name: /Más acciones/ }).click()
   await page.getByRole('menuitem', { name: 'Eliminar' }).click()

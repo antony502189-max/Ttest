@@ -222,7 +222,7 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   await expect(page.locator('.approximate-location-selector output')).toContainText(`${movedLat.toFixed(4)}, ${movedLng.toFixed(4)}`)
 })
 
-test('PROFILE-02 publish defaults and preview expose only enabled contact methods', async ({ page }) => {
+test('PROFILE-02 publish defaults require a direct contact method and preview only exposes it', async ({ page }) => {
   await openAs(page, hostSession, '/#/perfil')
   await page.getByRole('button', { name: 'Editar perfil' }).click()
   await page.getByRole('switch', { name: /Mostrar teléfono/ }).click()
@@ -230,20 +230,19 @@ test('PROFILE-02 publish defaults and preview expose only enabled contact method
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await page.goto('/#/publicar')
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}').data)).toMatchObject({
-    showPhone: false, showWhatsApp: false, allowContactForm: true,
+    showPhone: false, showWhatsApp: false,
     contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344',
   })
   await continueWizard(page, 8)
   await expect(page.getByRole('checkbox', { name: /Mostrar teléfono/ })).not.toBeChecked()
   await expect(page.getByRole('checkbox', { name: /Permitir WhatsApp/ })).not.toBeChecked()
-  await page.getByRole('checkbox', { name: /Permitir mensaje local/ }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByRole('alert')).toContainText('Activa al menos una forma de contacto')
-  await page.getByRole('checkbox', { name: /Permitir mensaje local/ }).click()
+  await expect(page.getByRole('alert')).toContainText('Activa teléfono o WhatsApp')
+  await expect(page.getByText('Permitir mensaje local')).toHaveCount(0)
+  await page.getByRole('checkbox', { name: /Mostrar teléfono/ }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   const methods = page.locator('.preview-contact-methods').first()
-  await expect(methods).toContainText('Mensaje local')
-  await expect(methods).not.toContainText('Teléfono')
+  await expect(methods).toContainText('Teléfono')
   await expect(methods).not.toContainText('WhatsApp')
 })
 

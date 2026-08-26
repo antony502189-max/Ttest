@@ -2,7 +2,7 @@ import { api, setAccessToken } from './client'
 import { uploadMediaReference } from './media'
 import type { DemoUser } from '@/types'
 
-type ProfilePayload = Partial<Pick<DemoUser, 'name' | 'phone' | 'whatsapp' | 'telegram' | 'about' | 'showPhone' | 'showWhatsApp' | 'allowContactForm'>>
+type ProfilePayload = Partial<Pick<DemoUser, 'name' | 'phone' | 'whatsapp' | 'telegram' | 'about' | 'showPhone' | 'showWhatsApp'>>
 export type RemoteUser = Omit<DemoUser, 'password' | 'avatarRef'> & { avatarUrl?: string | null }
 const SESSION_HINT = '112233:has-session'
 

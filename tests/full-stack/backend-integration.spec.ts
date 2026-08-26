@@ -75,7 +75,7 @@ const paginationListing = (index: number) => ({
   ownerUserId: '00000000-0000-4000-8000-000000000001',
   owner: { name: 'Pagination Host', initials: 'PH', since: '2026-01-01T00:00:00Z', response: 'Consulta disponibilidad', verified: true },
   contactPhone: null, contactWhatsapp: null, contactEmail: null,
-  showPhone: false, showWhatsApp: false, allowContactForm: true,
+  showPhone: false, showWhatsApp: false,
   coverImageUrl: null, imageUrls: [],
   title: `Pagination listing ${index}`,
   city: 'Santa Cruz de Tenerife', area: 'Centro', approximateAddress: 'Centro',
@@ -290,21 +290,16 @@ test('anonymous auth and publication routes render without a route error', async
   expect(consoleErrors).toEqual([])
 })
 
-test('room count filter is executed by the backend and reflected in mobile results', async ({ page }) => {
+test('legacy bedroom-count URL parameter is removed from customer search', async ({ page }) => {
   test.skip(test.info().project.name !== 'mobile-chromium', 'Mobile overlay is not rendered in the desktop project')
-  const unique = `${Date.now()}-room-filter`
-  await createBackendListing(unique, `Habitación cuatro cuartos ${unique}`)
-
-  const failedResponses: string[] = []
-  page.on('response', (response) => {
-    if (response.url().includes('/api/v1/') && response.status() >= 400) {
-      failedResponses.push(`${response.status()} ${response.url()}`)
-    }
+  const requests: Record<string, unknown>[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/listings/search') && request.method() === 'POST') requests.push(request.postDataJSON() as Record<string, unknown>)
   })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&habitaciones=4')
   await expect(page.getByTestId('mobile-results')).toBeVisible()
-  await expect(page.locator('[data-listing-id]').first()).toBeVisible()
-  expect(failedResponses).toEqual([])
+  await expect(page).not.toHaveURL(/habitaciones=/)
+  expect(requests.some((body) => 'bedroomCounts' in body)).toBe(false)
 })
 
 test('an open catalog refreshes after its version changes on focus', async ({ page }) => {

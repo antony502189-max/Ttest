@@ -31,7 +31,6 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
     mapping = {
         "showPhone": "show_phone",
         "showWhatsApp": "show_whatsapp",
-        "allowContactForm": "allow_contact_form",
     }
     for key, value in fields.items():
         setattr(user, mapping.get(key, key), value)
@@ -144,7 +143,6 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     locked_user.name = "Deleted user"
     locked_user.phone = locked_user.whatsapp = locked_user.telegram = locked_user.about = ""
     locked_user.show_phone = locked_user.show_whatsapp = False
-    locked_user.allow_contact_form = False
     locked_user.avatar_asset_id = None
     if matching_grant:
         # Preserve the historical grant row but make it unusable immediately;

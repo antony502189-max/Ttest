@@ -80,7 +80,6 @@ def owner():
         whatsapp="+34 600 000 000",
         show_phone=True,
         show_whatsapp=True,
-        allow_contact_form=True,
     )
 
 

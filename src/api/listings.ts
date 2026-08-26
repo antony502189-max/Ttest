@@ -11,7 +11,6 @@ type ListingDto = {
   contactEmail: string | null
   showPhone: boolean
   showWhatsApp: boolean
-  allowContactForm: boolean
   coverImageUrl: string | null
   imageUrls: string[]
   title: string
@@ -203,7 +202,6 @@ export function toListing(dto: ListingDto): Listing {
     contactEmail: dto.contactEmail ?? undefined,
     showPhone: dto.showPhone,
     showWhatsApp: dto.showWhatsApp,
-    allowContactForm: dto.allowContactForm,
     closedReason: dto.closedReason ?? undefined,
     promoted: dto.promoted,
   }
@@ -242,8 +240,6 @@ export async function getPublicListing(id: string) {
   return toListing(await api<ListingDto>(`/listings/${id}`))
 }
 
-export type RoomCountFilter = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | '10+'
-
 export type ListingSearchInput = {
   rentalMode: Listing['rentalMode']
   minPrice: number
@@ -251,7 +247,6 @@ export type ListingSearchInput = {
   filters: Filters
   query?: string
   roomTypes?: Listing['roomType'][]
-  bedroomCounts?: RoomCountFilter[]
   bounds?: { north: number; south: number; east: number; west: number }
   polygon?: Array<{ latitude: number; longitude: number }>
   center?: { latitude: number; longitude: number }
@@ -265,21 +260,12 @@ function routeSearchState() {
   const roomTypes = (params.get('tiposHabitacion') ?? '')
     .split('|')
     .filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
-  const bedroomCounts = (params.get('habitaciones') ?? '')
-    .split('|')
-    .map((value): RoomCountFilter | null => {
-      if (value === '10+') return value
-      const number = Number(value)
-      return Number.isInteger(number) && number >= 1 && number <= 10 ? number as RoomCountFilter : null
-    })
-    .filter((value): value is RoomCountFilter => value !== null)
   const latitude = Number(params.get('lat'))
   const longitude = Number(params.get('lng'))
   const nearby = params.get('cerca') === '1' && Number.isFinite(latitude) && Number.isFinite(longitude)
   return {
     query: params.get('q')?.trim() || 'Tenerife',
     roomTypes,
-    bedroomCounts,
     center: nearby ? { latitude, longitude } : undefined,
     radiusKm: nearby ? Math.min(50, Math.max(1, Number(params.get('radio')) || 15)) : undefined,
   }
@@ -296,7 +282,6 @@ export function searchPublicListings(input: ListingSearchInput) {
     ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice } : {}),
     query: input.query ?? route.query,
     roomTypes: input.roomTypes ?? route.roomTypes,
-    bedroomCounts: input.bedroomCounts ?? route.bedroomCounts,
     center: input.center ?? route.center,
     radiusKm: input.radiusKm ?? route.radiusKm,
     ...(filters.roomType !== 'Cualquiera' ? { roomType: filters.roomType } : {}),
@@ -376,7 +361,6 @@ async function syncContactProfile(listing: Listing) {
       whatsapp: draft?.contactWhatsapp ?? listing.contactWhatsapp ?? '',
       showPhone: listing.showPhone,
       showWhatsApp: listing.showWhatsApp,
-      allowContactForm: listing.allowContactForm,
     }),
   })
 }

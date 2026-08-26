@@ -28,7 +28,8 @@ from .api.v1.uploads import router as uploads_router
 from .api.v1.users import router as users_router
 from .core.config import get_settings
 from .core.observability import REQUEST_DURATION, REQUESTS, UNHANDLED_ERRORS, configure_logging, metrics_payload
-from .db.session import engine
+from .db.session import SessionLocal, engine
+from .services.listing_lifecycle import expire_due_listings
 from .services.rate_limit import ResilientRateLimiter
 from .storage import get_storage
 
@@ -52,6 +53,7 @@ configure_sentry()
 logger = logging.getLogger(__name__)
 rate_limiter = ResilientRateLimiter()
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+LISTING_LIFECYCLE_INTERVAL_SECONDS = 60
 
 
 def api_schema_enabled() -> bool:
@@ -140,13 +142,34 @@ def request_id_for(request: Request) -> str:
     return candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else str(uuid4())
 
 
+async def listing_lifecycle_loop() -> None:
+    """Keep persisted internal listing state aligned with expiry visibility."""
+    while True:
+        try:
+            async with SessionLocal() as session:
+                expired = await expire_due_listings(session)
+            if expired:
+                logger.info("listing_lifecycle_expired", extra={"count": expired})
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("listing_lifecycle_iteration_failed")
+        await asyncio.sleep(LISTING_LIFECYCLE_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings.validate_runtime()
     logger.info("application_started", extra={"app_env": settings.app_env})
+    lifecycle_task = asyncio.create_task(listing_lifecycle_loop())
     try:
         yield
     finally:
+        lifecycle_task.cancel()
+        try:
+            await lifecycle_task
+        except asyncio.CancelledError:
+            pass
         await rate_limiter.close()
         await engine.dispose()
         logger.info("application_stopped")

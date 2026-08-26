@@ -18,6 +18,7 @@ const RecoverPasswordPage = lazy(() => import('@/pages/AuthPages').then((module)
 const ResetPasswordPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.ResetPasswordPage })))
 const VerifyEmailPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.VerifyEmailCodePage })))
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage').then((module) => ({ default: module.FavoritesPage })))
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })))
 const SavedSearchesPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.SavedSearchesPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
 const MyListingsPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.MyListingsPage })))
@@ -37,25 +38,57 @@ function RouteLoading() {
 }
 
 function ScrollToTop() {
-  const { pathname, search } = useLocation()
+  const { pathname, search, hash } = useLocation()
   useEffect(() => {
     const previousRestoration = window.history.scrollRestoration
     window.history.scrollRestoration = 'manual'
-    const reset = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-    reset()
+    let firstFrame = 0
     let secondFrame = 0
-    const firstFrame = window.requestAnimationFrame(() => {
+    let delayedReset = 0
+    let anchorFrame = 0
+
+    if (hash) {
+      let attempts = 0
+      const anchorId = decodeURIComponent(hash.slice(1))
+      const revealAnchor = () => {
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>('[id]')).filter((element) => element.id === anchorId)
+        const target = candidates.find((candidate) => {
+          const style = window.getComputedStyle(candidate)
+          return style.display !== 'none' && style.visibility !== 'hidden' && candidate.getClientRects().length > 0
+        }) ?? candidates[0]
+        if (!target) {
+          if (attempts < 120) {
+            attempts += 1
+            anchorFrame = window.requestAnimationFrame(revealAnchor)
+          }
+          return
+        }
+        for (const candidate of candidates) {
+          if (candidate !== target) candidate.removeAttribute('id')
+        }
+        target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+        target.focus({ preventScroll: true })
+      }
+      anchorFrame = window.requestAnimationFrame(revealAnchor)
+    } else {
+      const reset = () => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
       reset()
-      secondFrame = window.requestAnimationFrame(reset)
-    })
-    const delayedReset = window.setTimeout(reset, 100)
+      firstFrame = window.requestAnimationFrame(() => {
+        reset()
+        secondFrame = window.requestAnimationFrame(reset)
+      })
+      delayedReset = window.setTimeout(reset, 100)
+    }
+
     return () => {
-      window.cancelAnimationFrame(firstFrame)
+      if (firstFrame) window.cancelAnimationFrame(firstFrame)
       if (secondFrame) window.cancelAnimationFrame(secondFrame)
-      window.clearTimeout(delayedReset)
+      if (anchorFrame) window.cancelAnimationFrame(anchorFrame)
+      if (delayedReset) window.clearTimeout(delayedReset)
       window.history.scrollRestoration = previousRestoration
     }
-  }, [pathname, search])
+  }, [pathname, search, hash])
   return null
 }
 
@@ -142,5 +175,5 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 export default function App() {
-  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><MobileOnboardingAuthBridge /><CustomerFeedbackFixes /><PublishOccupancySync /><ModerationGate><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="verificar-email" element={<VerifyEmailPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></ModerationGate></AppProvider></I18nProvider></HashRouter>
+  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><MobileOnboardingAuthBridge /><CustomerFeedbackFixes /><PublishOccupancySync /><ModerationGate><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="verificar-email" element={<VerifyEmailPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="notificaciones" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></ModerationGate></AppProvider></I18nProvider></HashRouter>
 }

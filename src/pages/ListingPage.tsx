@@ -21,6 +21,7 @@ const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const householdLabels: Record<string, string> = { men: 'Hombres', women: 'Mujeres', mixed: 'Convivencia mixta', unknown: 'No especificado' }
 const heatingLabels: Record<string, string> = { individual: 'Calefacción individual', central: 'Calefacción central', none: 'Sin calefacción', unknown: 'Calefacción no especificada' }
 const tenantTypeLabels: Record<string, string> = { man: 'Hombres', woman: 'Mujeres', couple: 'Parejas', family: 'Familias' }
+const COMPACT_CONTACT_QUERY = '(max-width: 1023px)'
 
 function ExternalListingRedirect({ sourceUrl }: { sourceUrl: string }) {
   useEffect(() => { window.location.replace(sourceUrl) }, [sourceUrl])
@@ -38,6 +39,7 @@ export function ListingPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [serverListing, setServerListing] = useState<Listing | null>(null)
   const [detailLoading, setDetailLoading] = useState(true)
+  const [compactContact, setCompactContact] = useState(() => window.matchMedia(COMPACT_CONTACT_QUERY).matches)
 
   useEffect(() => {
     if (!id || mockMode) { setDetailLoading(false); return }
@@ -47,6 +49,14 @@ export function ListingPage() {
     void getPublicListing(id).then((listing) => { if (!cancelled) setServerListing(listing) }).catch(() => { if (!cancelled) setServerListing(null) }).finally(() => { if (!cancelled) setDetailLoading(false) })
     return () => { cancelled = true }
   }, [id])
+
+  useEffect(() => {
+    const media = window.matchMedia(COMPACT_CONTACT_QUERY)
+    const update = () => setCompactContact(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   const listing = serverListing ?? allListings.find((item) => item.id === id && isPublicListing(item))
   if (!listing && detailLoading) return null
@@ -136,10 +146,10 @@ export function ListingPage() {
           <section className="listing-section owner-detail"><div className="owner-monogram" data-i18n-exempt>{listing.owner.initials}</div><div><span>Anunciante</span><h2 data-i18n-exempt>{listing.owner.name}</h2><p data-i18n-exempt>{listing.owner.since} · {listing.owner.response}</p><p>{listing.owner.verified ? 'Identidad y teléfono verificados por 112233.es.' : 'Identidad pendiente de verificación.'}</p><Button variant="ghost" size="sm" onClick={() => setUserReportOpen(true)}><CircleAlert />Denunciar anunciante</Button></div>{listing.owner.verified ? <Badge variant="outline"><ShieldCheck />Anunciante verificado</Badge> : null}</section>
           <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span data-i18n-exempt>{listing.source ?? 'Anuncio directo'}</span></div>
         </div>
-        <div className="listing-aside"><ContactPanel listing={listing} /></div>
+        <div className="listing-aside">{compactContact ? null : <ContactPanel listing={listing} />}</div>
       </div>
       <section className="section section--surface listing-similar"><div className="container"><div className="section-heading idealista-section-heading"><div><h2>También te puede interesar</h2><p>Primero mostramos zona y precio parecidos.</p></div><Button asChild variant="outline"><Link to="/buscar">Ver más</Link></Button></div><div className="property-grid">{similar.map((item) => <PropertyCard key={item.id} listing={item} compact />)}</div></div></section>
-      <div className="mobile-contact-bar"><ContactPanel listing={listing} mobile /></div>
+      {compactContact ? <div className="mobile-contact-bar"><ContactPanel listing={listing} mobile /></div> : null}
     </article>
   )
 }

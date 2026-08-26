@@ -51,7 +51,7 @@ class UserResponse(BaseModel):
     initials: str
     showPhone: bool
     showWhatsApp: bool
-    allowContactForm: bool
+    emailVerified: bool
     avatarUrl: str | None = None
 
 
@@ -65,7 +65,6 @@ class UserUpdateRequest(BaseModel):
     about: str | None = Field(default=None, max_length=4_000)
     showPhone: bool | None = None
     showWhatsApp: bool | None = None
-    allowContactForm: bool | None = None
 
     @model_validator(mode="after")
     def reject_explicit_nulls(self):

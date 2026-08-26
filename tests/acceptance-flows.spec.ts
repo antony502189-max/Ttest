@@ -33,6 +33,17 @@ const login = async (
   await expect(page).not.toHaveURL(/acceso/);
 };
 
+const grantHardDeleteForTest = async (page: Page) => {
+  await page.evaluate(() => {
+    const users = JSON.parse(localStorage.getItem("112233:users:v1") ?? "[]");
+    const sessionId = JSON.parse(localStorage.getItem("112233:session:v1") ?? "null");
+    const current = users.find((user: { id: string }) => user.id === sessionId);
+    if (current) Object.assign(current, { email: "antony502189@gmail.com", emailVerified: true });
+    localStorage.setItem("112233:users:v1", JSON.stringify(users));
+  });
+  await page.reload();
+};
+
 const resultCount = async (page: Page) =>
   Number.parseInt(
     (await page.locator("#results-title").innerText()).replace(/\D/g, ""),
@@ -519,6 +530,7 @@ test("25–26 hide/show, renew and delete listing all change shared data", async
   page,
 }) => {
   await login(page, "host");
+  await grantHardDeleteForTest(page);
   await page.goto("/#/mis-anuncios");
   const card = page.locator(".manage-card").first();
   const id = await card.locator("span").filter({ hasText: "Ref." }).innerText();

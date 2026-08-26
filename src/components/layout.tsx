@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { ChevronDown, Globe2, Heart, Home, Menu, Plus, Search, UserRound } from 'lucide-react'
+import { Bell, ChevronDown, Globe2, Heart, Home, Menu, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
+import { getNotifications, NOTIFICATIONS_UPDATED_EVENT } from '@/api/notifications'
 import { MobileAppV2 } from '@/components/mobile-app-v2'
 import { MobilePublicationGate } from '@/components/mobile-publication-gate'
 import { MobileSearchResults } from '@/components/mobile-search-results-v2'
@@ -31,14 +32,33 @@ export function LanguageSwitcher() {
   return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="language-switcher" aria-label="Seleccionar idioma"><Globe2 data-icon="inline-start" /><span>{current.code}</span><ChevronDown aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start" className="language-menu"><DropdownMenuLabel>Idioma</DropdownMenuLabel><DropdownMenuRadioGroup value={language} onValueChange={(value) => setLanguage(value as Language)}>{languageOptions.map((option) => <DropdownMenuRadioItem key={option.value} value={option.value}><span className="language-code">{option.code}</span>{option.label}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
 }
 
+function NotificationLink({ mobile = false }: { mobile?: boolean }) {
+  const [unread, setUnread] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    const refresh = () => void getNotifications().then((page) => { if (!cancelled) setUnread(page.unreadCount) }).catch(() => undefined)
+    refresh()
+    window.addEventListener('focus', refresh)
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    }
+  }, [])
+  const label = unread ? `Abrir notificaciones (${unread} sin leer)` : 'Abrir notificaciones'
+  if (mobile) return <Link to="/notificaciones" className="mobile-icon-link" aria-label={label}><Bell />{unread ? <span className="notification-count" aria-hidden="true">{unread > 99 ? '99+' : unread}</span> : null}</Link>
+  return <Button asChild variant="ghost" className="desktop-only"><Link to="/notificaciones"><Bell data-icon="inline-start" />Notificaciones{unread ? <span className="notification-count" aria-label={`${unread} sin leer`}>{unread > 99 ? '99+' : unread}</span> : null}</Link></Button>
+}
+
 export function Header() {
   const { currentUser } = useApp()
-  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button><Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
+  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser ? <NotificationLink /> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
 }
 
 export function MobileHeader() {
   const { currentUser } = useApp()
-  return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher /><Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir menú"><Menu /></Link></div></header>
+  return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher />{currentUser ? <NotificationLink mobile /> : null}<Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir menú"><Menu /></Link></div></header>
 }
 
 const bottomItems = [{ to: '/', label: 'Inicio', icon: Home }, { to: '/favoritos', label: 'Favoritos', icon: Heart }, { to: '/buscar', label: 'Buscar', icon: Search }, { to: '/perfil', label: 'Perfil', icon: UserRound }]
@@ -46,7 +66,7 @@ export function BottomNavigation() { const location = useLocation(); return <nav
 
 export function Footer() {
   const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
-  return <footer className="site-footer"><div className="container footer-grid"><div><Logo /><p>El marketplace especializado en habitaciones de Tenerife.</p></div><nav aria-label="Información"><strong>112233.es</strong><Link to="/sobre-nosotros">Sobre nosotros</Link><Link to="/como-funciona">Cómo funciona</Link><Link to="/contacto">Contacto</Link></nav><nav aria-label="Ayuda"><strong>Ayuda</strong><Link to="/ayuda">Centro de ayuda</Link><Link to="/normas-de-publicacion">Normas de publicación</Link><Link to="/publicar">Publicar</Link></nav><nav aria-label="Legal"><strong>Legal</strong><Link to="/terminos">Términos</Link><Link to="/privacidad">Privacidad</Link><Link to="/cookies">Cookies</Link></nav></div><div className="container footer-bottom"><span>© 2026 112233.es</span><span>{mockMode ? 'Entorno de demostración con datos locales.' : 'Catálogo conectado al servicio de anuncios.'}</span></div></footer>
+  return <footer className="site-footer"><div className="container footer-grid"><div><Logo /><p>El marketplace especializado en habitaciones de Tenerife.</p></div><nav aria-label="Información"><strong>112233.es</strong><Link to="/sobre-nosotros">Sobre nosotros</Link><Link to="/como-funciona">Cómo funciona</Link></nav><nav aria-label="Ayuda"><strong>Ayuda</strong><Link to="/ayuda">Centro de ayuda</Link><Link to="/normas-de-publicacion">Normas de publicación</Link><Link to="/publicar">Publicar</Link></nav><nav aria-label="Legal"><strong>Legal</strong><Link to="/terminos">Términos</Link><Link to="/privacidad">Privacidad</Link><Link to="/cookies">Cookies</Link></nav></div><div className="container footer-bottom"><span>© 2026 112233.es</span><span>{mockMode ? 'Entorno de demostración con datos locales.' : 'Catálogo conectado al servicio de anuncios.'}</span></div></footer>
 }
 
 export function AppLayout() {

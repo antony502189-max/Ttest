@@ -35,7 +35,6 @@ export type AdminUser = {
   initials: string
   showPhone: boolean
   showWhatsApp: boolean
-  allowContactForm: boolean
   avatarUrl: string | null
   createdAt: string
   deletedAt: string | null
@@ -153,8 +152,6 @@ export async function getAdminUsers(): Promise<DemoUser[]> {
     about: user.about,
     showPhone: user.showPhone,
     showWhatsApp: user.showWhatsApp,
-    allowContactForm: user.allowContactForm,
-    allowMessaging: user.allowContactForm,
     avatarRef: user.avatarUrl ? resolveApiUrl(user.avatarUrl) : undefined,
   }))
 }
