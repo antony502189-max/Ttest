@@ -37,6 +37,10 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
         setattr(user, mapping.get(key, key), value)
     if "name" in fields:
         user.initials = "".join(part[:1].upper() for part in user.name.split()[:2])
+    # Public listing responses project the owner's name and visible contact
+    # fields. Invalidate the catalog in the same transaction so already-open
+    # search pages refresh those details instead of retaining stale contact data.
+    await touch_catalog(session)
     await session.commit()
     await session.refresh(user)
     return user
