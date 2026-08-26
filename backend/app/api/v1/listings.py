@@ -4,13 +4,12 @@ from datetime import UTC, datetime
 from secrets import token_urlsafe
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
-from ...core.http import client_ip
 from ...db.session import get_session
 from ...models import CatalogState, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
@@ -120,7 +119,6 @@ async def list_my_listings(
 @router.get("/{listing_id}", response_model=ListingResponse)
 async def get_listing(
     listing_id: UUID,
-    request: Request,
     response: Response,
     visitor_token: str | None = Cookie(default=None, alias="listing_visitor"),
     user: User | None = Depends(optional_user),
@@ -145,7 +143,11 @@ async def get_listing(
                 max_age=90 * 24 * 60 * 60,
                 path="/api/v1/listings",
             )
-        viewer_key = anonymous_viewer_key(client_ip(request))
+        # The durable browser token, not the network address, is the anonymous
+        # identity boundary. Shared NAT/mobile/office IPs must not collapse many
+        # visitors into one daily view, while the HMAC-backed helper keeps the
+        # raw cookie out of persistent storage.
+        viewer_key = anonymous_viewer_key(f"visitor:{visitor_token}")
     if await register_view(row[0], viewer_key, session):
         row = (await session.execute(visible_query().where(Listing.id == listing_id))).one()
     return response_from(row)

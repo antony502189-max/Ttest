@@ -11,7 +11,9 @@ export type RemoteSavedSearch = {
   createdAt: string
 }
 
-type GuestStateBody = { favoriteIds: string[]; savedSearches: Array<Omit<RemoteSavedSearch, 'id' | 'createdAt'>> }
+type GuestSavedSearch = Omit<RemoteSavedSearch, 'id' | 'createdAt'>
+type GuestStateBody = { favoriteIds: string[]; savedSearches: GuestSavedSearch[] }
+type ConsumedGuestState = { favoriteIds: string[]; savedSearchSignatures: string[] }
 const IMPORTED_GUEST_STATE = '112233:imported-guest-state:v1'
 
 export const getFavorites = () => api<string[]>('/favorites')
@@ -39,11 +41,76 @@ function clearPersistedGuestScope(key: string) {
   } catch { /* Corrupted state is handled by the storage layer. */ }
 }
 
+function savedSearchSignature(search: GuestSavedSearch) {
+  return JSON.stringify(search)
+}
+
+function readConsumedGuestState(): ConsumedGuestState {
+  const empty: ConsumedGuestState = { favoriteIds: [], savedSearchSignatures: [] }
+  try {
+    const raw = localStorage.getItem(IMPORTED_GUEST_STATE)
+    if (!raw) return empty
+    const parsed = JSON.parse(raw) as Partial<ConsumedGuestState & GuestStateBody>
+    if (Array.isArray(parsed.savedSearchSignatures)) {
+      return {
+        favoriteIds: Array.isArray(parsed.favoriteIds) ? parsed.favoriteIds.filter((id): id is string => typeof id === 'string') : [],
+        savedSearchSignatures: parsed.savedSearchSignatures.filter((value): value is string => typeof value === 'string'),
+      }
+    }
+    // Backward compatibility with the previous value, which stored the entire
+    // imported GuestStateBody JSON as the marker.
+    if (Array.isArray(parsed.favoriteIds) && Array.isArray(parsed.savedSearches)) {
+      return {
+        favoriteIds: parsed.favoriteIds.filter((id): id is string => typeof id === 'string'),
+        savedSearchSignatures: parsed.savedSearches.map((search) => savedSearchSignature(search as GuestSavedSearch)),
+      }
+    }
+  } catch { /* Treat an unreadable marker as no consumed state. */ }
+  return empty
+}
+
+function writeConsumedGuestState(state: ConsumedGuestState) {
+  try { localStorage.setItem(IMPORTED_GUEST_STATE, JSON.stringify(state)) } catch { /* Import still succeeded server-side. */ }
+}
+
+function resetConsumedGuestState() {
+  try { localStorage.removeItem(IMPORTED_GUEST_STATE) } catch { /* Storage can be unavailable. */ }
+}
+
 export async function importGuestState(body: GuestStateBody) {
-  const signature = JSON.stringify(body)
-  if (localStorage.getItem(IMPORTED_GUEST_STATE) === signature) return
-  await api<void>('/account/import-guest-state', { method: 'POST', body: signature })
-  localStorage.setItem(IMPORTED_GUEST_STATE, signature)
+  // A reload after a successful migration rehydrates an empty guest scope. At
+  // that point a future guest browsing session is new and may legitimately save
+  // the same listing again, so release the prior consumed-state marker.
+  if (!body.favoriteIds.length && !body.savedSearches.length) {
+    resetConsumedGuestState()
+    clearPersistedGuestScope('112233:favorites:v2')
+    clearPersistedGuestScope('112233:saved-searches:v3')
+    return
+  }
+
+  const consumed = readConsumedGuestState()
+  const consumedFavorites = new Set(consumed.favoriteIds)
+  const consumedSearches = new Set(consumed.savedSearchSignatures)
+  const favoriteIds = body.favoriteIds.filter((id) => !consumedFavorites.has(id))
+  const savedSearches = body.savedSearches.filter((search) => !consumedSearches.has(savedSearchSignature(search)))
+
+  if (favoriteIds.length || savedSearches.length) {
+    await api<void>('/account/import-guest-state', {
+      method: 'POST',
+      body: JSON.stringify({ favoriteIds, savedSearches }),
+    })
+    favoriteIds.forEach((id) => consumedFavorites.add(id))
+    savedSearches.forEach((search) => consumedSearches.add(savedSearchSignature(search)))
+    writeConsumedGuestState({
+      favoriteIds: [...consumedFavorites],
+      savedSearchSignatures: [...consumedSearches],
+    })
+  }
+
+  // Persisted guest state is consumed after a successful import (or when every
+  // item was already consumed). The in-memory React guest scope may live until
+  // reload/logout transitions; the consumed sets above prevent it from leaking
+  // into a second account on the same tab.
   clearPersistedGuestScope('112233:favorites:v2')
   clearPersistedGuestScope('112233:saved-searches:v3')
 }

@@ -21,6 +21,7 @@ from ..models import (
     User,
 )
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
+from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets, lock_media_owner
 from .moderation import lock_active_admin_access, normalize_email, viable_admin_count
 from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
@@ -36,6 +37,10 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
         setattr(user, mapping.get(key, key), value)
     if "name" in fields:
         user.initials = "".join(part[:1].upper() for part in user.name.split()[:2])
+    # Public listing responses project the owner's name and visible contact
+    # fields. Invalidate the catalog in the same transaction so already-open
+    # search pages refresh those details instead of retaining stale contact data.
+    await touch_catalog(session)
     await session.commit()
     await session.refresh(user)
     return user
@@ -148,5 +153,9 @@ async def delete_account(user: User, session: AsyncSession) -> None:
         # Preserve the historical grant row but make it unusable immediately;
         # the anonymized deleted address must never count as an administrator.
         matching_grant.active = False
+    # Deleting an account changes public visibility for every listing it owns.
+    # Bump the catalog token in the same transaction so already-open clients do
+    # not retain those cards until a focus/forced refresh event happens.
+    await touch_catalog(session)
     await enqueue_storage_deletions(session, media_paths)
     await session.commit()

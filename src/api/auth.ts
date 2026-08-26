@@ -76,7 +76,14 @@ export async function logoutSession() {
     setAccessToken(null)
     return
   }
-  await api<void>('/auth/logout', { method: 'POST' })
-  forgetSession()
-  setAccessToken(null)
+  try {
+    await api<void>('/auth/logout', { method: 'POST' })
+  } catch {
+    // Server-side revocation is best-effort during an outage. Local logout is
+    // still authoritative, so callers must be allowed to clear UI state and
+    // navigate away instead of keeping a stale authenticated screen mounted.
+  } finally {
+    forgetSession()
+    setAccessToken(null)
+  }
 }

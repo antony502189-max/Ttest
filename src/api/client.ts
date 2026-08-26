@@ -51,10 +51,15 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
   const timeout = window.setTimeout(() => controller.abort(), 15_000)
   try {
     const headers = new Headers(init.headers)
+    const requestHadAccessToken = Boolean(accessToken)
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
     if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
     const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal })
-    if (response.status === 401 && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
+    // Refresh is recovery for an expired bearer token, not an authentication
+    // mechanism for anonymous requests. Session hydration explicitly calls the
+    // refresh endpoint on page load; requests made after logout must not revive
+    // a cookie-only session merely because some endpoint returned 401.
+    if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
     if (!response.ok) {
       const body = await response.json().catch(() => ({})) as {
         detail?: string | { message?: string; fieldErrors?: Record<string, string> }
