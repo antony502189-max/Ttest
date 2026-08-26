@@ -367,6 +367,13 @@
   height: 1.2rem;
 }
 
+/* Public search must never present a trash/delete affordance to guests.
+   This control only hides a card locally; destructive deletion is available
+   exclusively from authenticated management surfaces and is rechecked by API. */
+.m2-result-card__discard {
+  display: none !important;
+}
+
 .m2-result-card__favorite {
   width: 2.6rem;
   margin-left: auto;
