@@ -78,11 +78,11 @@ export async function logoutSession() {
   }
   try {
     await api<void>('/auth/logout', { method: 'POST' })
+  } catch {
+    // Server-side revocation is best-effort during an outage. Local logout is
+    // still authoritative, so callers must be allowed to clear UI state and
+    // navigate away instead of keeping a stale authenticated screen mounted.
   } finally {
-    // Local logout must be authoritative even when the network request fails.
-    // The server-side refresh session may require a later retry/revocation, but
-    // this browser must stop sending the bearer token and must not auto-hydrate
-    // the session again merely because logout happened during an outage.
     forgetSession()
     setAccessToken(null)
   }
