@@ -174,7 +174,8 @@ def test_admin_navigation_is_server_authorized_on_profile_and_mobile_menu() -> N
 
     assert "checkAdminAccess()" in hook
     assert "if (mockMode)" in hook
-    assert "setAllowed(productRole === 'admin')" in hook
+    assert "setState(productRole === 'admin' ? 'allowed' : 'denied')" in hook
+    assert "GOOGLE_IDENTITY_REQUIRED" in hook
 
     assert 'to="/admin"' not in layout
     assert "useAdminAccess" not in layout
@@ -185,8 +186,9 @@ def test_admin_navigation_is_server_authorized_on_profile_and_mobile_menu() -> N
     assert "Open administration panel" in mobile_menu
     assert "Abrir panel de administración" in mobile_menu
 
-    assert "const adminAllowed = useAdminAccess()" in profile
-    assert "adminAllowed ?" in profile
+    assert "const adminAccess = useAdminAccessState()" in profile
+    assert "adminAccess === 'allowed'" in profile
+    assert "linkGoogle: true" in profile
     assert "navigate('/admin')" in profile
     assert "Abrir panel de administración" in profile
     assert 'className="m2-account-admin"' in profile

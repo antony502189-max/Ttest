@@ -9,15 +9,15 @@ import { useMediaUrl } from '@/components/media-image'
 import { logoutSession } from '@/api/auth'
 import { MediaStorageError, saveMediaFile } from '@/lib/media-storage'
 import { ConfirmDialog } from '@/components/forms'
-import { useAdminAccess } from '@/hooks/use-admin-access'
+import { type AdminAccessState, useAdminAccessState } from '@/hooks/use-admin-access'
 import '@/mobile-app-v2.css'
 import '@/auth-account.css'
 import '@/profile-admin-entry.css'
 
 const copy = {
-  es: { title: 'Tu cuenta', photo: 'Añadir foto', data: 'Tus datos', name: 'Nombre', email: 'Email', admin: 'Abrir panel de administración', logout: 'Cerrar sesión', saving: 'Guardando…', saved: 'Guardado', invalidName: 'El nombre debe tener al menos 2 caracteres.', upload: 'No se pudo guardar la foto.', logoutError: 'No se pudo cerrar la sesión. Comprueba la conexión e inténtalo de nuevo.' },
-  en: { title: 'Your account', photo: 'Add photo', data: 'Your details', name: 'Name', email: 'Email', admin: 'Open administration panel', logout: 'Sign out', saving: 'Saving…', saved: 'Saved', invalidName: 'The name must contain at least 2 characters.', upload: 'The photo could not be saved.', logoutError: 'The session could not be closed. Check the connection and try again.' },
-  ru: { title: 'Ваш аккаунт', photo: 'Добавить фото', data: 'Ваши данные', name: 'Имя', email: 'Email', admin: 'Открыть админ-панель', logout: 'Выйти из аккаунта', saving: 'Сохранение…', saved: 'Сохранено', invalidName: 'Имя должно содержать минимум 2 символа.', upload: 'Не удалось сохранить фотографию.', logoutError: 'Не удалось завершить сессию. Проверьте соединение и повторите попытку.' },
+  es: { title: 'Tu cuenta', photo: 'Añadir foto', data: 'Tus datos', name: 'Nombre', email: 'Email', admin: 'Abrir panel de administración', verifyGoogle: 'Verificar esta cuenta con Google para administración', logout: 'Cerrar sesión', saving: 'Guardando…', saved: 'Guardado', invalidName: 'El nombre debe tener al menos 2 caracteres.', upload: 'No se pudo guardar la foto.', logoutError: 'No se pudo cerrar la sesión. Comprueba la conexión e inténtalo de nuevo.' },
+  en: { title: 'Your account', photo: 'Add photo', data: 'Your details', name: 'Name', email: 'Email', admin: 'Open administration panel', verifyGoogle: 'Verify this account with Google for administration', logout: 'Sign out', saving: 'Saving…', saved: 'Saved', invalidName: 'The name must contain at least 2 characters.', upload: 'The photo could not be saved.', logoutError: 'The session could not be closed. Check the connection and try again.' },
+  ru: { title: 'Ваш аккаунт', photo: 'Добавить фото', data: 'Ваши данные', name: 'Имя', email: 'Email', admin: 'Открыть админ-панель', verifyGoogle: 'Подтвердить этот аккаунт через Google для администрирования', logout: 'Выйти из аккаунта', saving: 'Сохранение…', saved: 'Сохранено', invalidName: 'Имя должно содержать минимум 2 символа.', upload: 'Не удалось сохранить фотографию.', logoutError: 'Не удалось завершить сессию. Проверьте соединение и повторите попытку.' },
 } as const
 
 function useMobileProfileLayout() {
@@ -31,7 +31,7 @@ function useMobileProfileLayout() {
   return mobile
 }
 
-function MobileProfilePage({ adminAllowed }: { adminAllowed: boolean }) {
+function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
   const navigate = useNavigate()
   const { language } = useI18n()
   const { currentUser, updateProfile, logout, deleteAccount } = useApp()
@@ -132,9 +132,12 @@ function MobileProfilePage({ adminAllowed }: { adminAllowed: boolean }) {
           <input id="mobile-profile-email" value={currentUser.email} type="email" readOnly aria-readonly="true" />
         </div>
         <p className="m2-account-save-state" role="status" aria-live="polite">{saveState}</p>
-        {adminAllowed ? <button type="button" className="m2-account-admin" onClick={() => navigate('/admin')}>
+        {adminAccess === 'allowed' ? <button type="button" className="m2-account-admin" onClick={() => navigate('/admin')}>
           <LayoutDashboard aria-hidden="true" />
           <span>{t.admin}</span>
+        </button> : adminAccess === 'google_identity_required' ? <button type="button" className="m2-account-admin" onClick={() => navigate('/acceso', { state: { linkGoogle: true, returnTo: '/perfil' } })}>
+          <LayoutDashboard aria-hidden="true" />
+          <span>{t.verifyGoogle}</span>
         </button> : null}
         <button type="button" className="m2-account-logout" disabled={loggingOut} onClick={() => { void signOut() }}>
           <LogOut aria-hidden="true" />
@@ -153,11 +156,11 @@ function MobileProfilePage({ adminAllowed }: { adminAllowed: boolean }) {
   </div>
 }
 
-function DesktopProfileWithAdminEntry({ adminAllowed }: { adminAllowed: boolean }) {
+function DesktopProfileWithAdminEntry({ adminAccess }: { adminAccess: AdminAccessState }) {
   const navigate = useNavigate()
   return <>
     <DesktopProfilePage />
-    {adminAllowed ? <section className="container profile-admin-entry" aria-label="Administración">
+    {adminAccess === 'allowed' ? <section className="container profile-admin-entry" aria-label="Administración">
       <div>
         <span className="profile-admin-entry__eyebrow">Administración</span>
         <strong>Panel de administración</strong>
@@ -167,12 +170,22 @@ function DesktopProfileWithAdminEntry({ adminAllowed }: { adminAllowed: boolean 
         <LayoutDashboard aria-hidden="true" />
         Abrir panel de administración
       </button>
+    </section> : adminAccess === 'google_identity_required' ? <section className="container profile-admin-entry" aria-label="Administración">
+      <div>
+        <span className="profile-admin-entry__eyebrow">Administración</span>
+        <strong>Verifica tu identidad con Google</strong>
+        <p>La administración requiere una identidad de Google verificada para esta misma dirección de correo.</p>
+      </div>
+      <button type="button" className="profile-admin-entry__button" onClick={() => navigate('/acceso', { state: { linkGoogle: true, returnTo: '/perfil' } })}>
+        <LayoutDashboard aria-hidden="true" />
+        Verificar con Google
+      </button>
     </section> : null}
   </>
 }
 
 export function ProfilePage() {
   const mobile = useMobileProfileLayout()
-  const adminAllowed = useAdminAccess()
-  return mobile ? <MobileProfilePage adminAllowed={adminAllowed} /> : <DesktopProfileWithAdminEntry adminAllowed={adminAllowed} />
+  const adminAccess = useAdminAccessState()
+  return mobile ? <MobileProfilePage adminAccess={adminAccess} /> : <DesktopProfileWithAdminEntry adminAccess={adminAccess} />
 }

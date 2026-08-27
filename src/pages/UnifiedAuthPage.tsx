@@ -33,19 +33,19 @@ const copy = {
     title: 'Inicia sesión o regístrate', google: 'Continuar con Google', email: 'Iniciar sesión con email',
     legal: 'Consulta la siguiente información:', privacy: 'Política de privacidad', terms: 'Términos y condiciones',
     back: 'Volver', country: 'España y Andorra', changeCountry: 'Cambiar país', password: 'Contraseña',
-    create: 'Crear una cuenta', forgot: '¿Has olvidado tu contraseña?', googleMissing: 'Google todavía no está configurado para este entorno.',
+    create: 'Crear una cuenta', forgot: '¿Has olvidado tu contraseña?', googleMissing: 'Google todavía no está configurado para este entorno.', linkGoogleTitle: 'Verifica tu identidad con Google', linkGoogleIntro: 'Elige la misma cuenta de Google que corresponde a este email para activar el acceso de administración.',
   },
   en: {
     title: 'Sign in or create an account', google: 'Continue with Google', email: 'Sign in with email',
     legal: 'Review the following information:', privacy: 'Privacy policy', terms: 'Terms and conditions',
     back: 'Back', country: 'Spain and Andorra', changeCountry: 'Change country', password: 'Password',
-    create: 'Create an account', forgot: 'Forgot your password?', googleMissing: 'Google is not configured for this environment yet.',
+    create: 'Create an account', forgot: 'Forgot your password?', googleMissing: 'Google is not configured for this environment yet.', linkGoogleTitle: 'Verify your identity with Google', linkGoogleIntro: 'Choose the Google account that matches this email to activate administration access.',
   },
   ru: {
     title: 'Войти в аккаунт или зарегистрироваться', google: 'Продолжить с Google', email: 'Войти с помощью email',
     legal: 'Ознакомьтесь со следующей информацией:', privacy: 'Политика конфиденциальности', terms: 'Общие положения и условия',
     back: 'Назад', country: 'Испания и Андорра', changeCountry: 'Изменить страну', password: 'Пароль',
-    create: 'Создать аккаунт', forgot: 'Забыли пароль?', googleMissing: 'Google ещё не настроен для этого окружения.',
+    create: 'Создать аккаунт', forgot: 'Забыли пароль?', googleMissing: 'Google ещё не настроен для этого окружения.', linkGoogleTitle: 'Подтвердите личность через Google', linkGoogleIntro: 'Выберите аккаунт Google с тем же email, чтобы активировать доступ к администрированию.',
   },
 } as const
 
@@ -55,6 +55,7 @@ export function UnifiedAuthPage() {
   const { language } = useI18n()
   const { currentUser, login, loginGoogle, selectGoogleRole } = useApp()
   const t = copy[language]
+  const linkGoogle = Boolean((location.state as { linkGoogle?: boolean } | null)?.linkGoogle)
   const googleButtonRef = useRef<HTMLDivElement>(null)
   const [showEmail, setShowEmail] = useState(false)
   const [email, setEmail] = useState('')
@@ -74,8 +75,8 @@ export function UnifiedAuthPage() {
   }, [])
 
   useEffect(() => {
-    if (currentUser && currentUser.role !== 'pending') finishLogin()
-  }, [currentUser, finishLogin])
+    if (currentUser && currentUser.role !== 'pending' && !linkGoogle) finishLogin()
+  }, [currentUser, finishLogin, linkGoogle])
 
   const acceptGoogleCredential = useCallback(async (credential: string) => {
     setError('')
@@ -180,14 +181,15 @@ export function UnifiedAuthPage() {
   return <div className="m2-app m2-auth-screen notranslate" translate="no">
     <header className="m2-auth-appbar">
       <button type="button" onClick={back} aria-label={t.back}><ArrowLeft /></button>
-      <strong>{t.title}</strong>
+      <strong>{linkGoogle ? t.linkGoogleTitle : t.title}</strong>
     </header>
     <main className="m2-auth-content">
       <div className="m2-brand" aria-label="www.112233.es">www.112233.es</div>
       <div className="m2-auth-region"><span>{t.country}</span><button type="button" onClick={() => navigate('/?panel=ubicacion')}>{t.changeCountry}</button></div>
-      <h1>{t.title}</h1>
+      <h1>{linkGoogle ? t.linkGoogleTitle : t.title}</h1>
+      {linkGoogle ? <p className="m2-auth-status">{t.linkGoogleIntro}</p> : null}
 
-      {currentUser?.role === 'pending' ? <>
+      {!linkGoogle && currentUser?.role === 'pending' ? <>
         <h2>¿Qué quieres hacer?</h2>
         <button type="button" className="m2-auth-choice" disabled={submitting} onClick={() => { void chooseGoogleRole('tenant') }}>Busco vivienda</button>
         <button type="button" className="m2-auth-choice" disabled={submitting} onClick={() => { void chooseGoogleRole('host') }}>Publico vivienda</button>
@@ -195,13 +197,13 @@ export function UnifiedAuthPage() {
         : googleClientId ? <div ref={googleButtonRef} className="m2-auth-google-slot" aria-label={t.google} data-ready={googleReady ? '1' : '0'} />
           : <button type="button" className="m2-auth-choice" disabled title={t.googleMissing}><b className="m2-google-mark">G</b>{t.google}</button>}
 
-      {!showEmail ? <button type="button" className="m2-auth-choice" onClick={() => { setError(''); setShowEmail(true) }}><Mail />{t.email}</button>
+      {!linkGoogle && (!showEmail ? <button type="button" className="m2-auth-choice" onClick={() => { setError(''); setShowEmail(true) }}><Mail />{t.email}</button>
         : <form className="m2-auth-form m2-auth-form--expanded" onSubmit={submit}>
           <input aria-label="Email" type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} required placeholder="Email" />
           <input id="login-password" aria-label={t.password} type="password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} required placeholder={t.password} />
           <button type="submit" disabled={submitting}>{submitting ? '…' : t.email}</button>
           <div className="m2-auth-form-links"><Link to="/registro">{t.create}</Link><Link to="/recuperar-contrasena">{t.forgot}</Link></div>
-        </form>}
+        </form>)}
 
       {error ? <p className="m2-auth-error" role="alert">{error}</p> : null}
       {!mockMode && googleClientId && !googleReady ? <p className="m2-auth-status" role="status">…</p> : null}

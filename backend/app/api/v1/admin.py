@@ -48,8 +48,9 @@ from ...services.admin_users import (
     soft_delete_user,
     unrestrict_user,
 )
+from ...services.moderation import enforce_full_access, is_admin, normalize_email
 from ...workers.external_listings import run_once
-from ..dependencies import require_admin
+from ..dependencies import authenticated_user, require_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 ADMIN_MAX_OFFSET = 10_000
@@ -76,7 +77,32 @@ async def _lock_admin_access(session: AsyncSession) -> None:
 
 
 @router.get("/access")
-async def admin_access(user: User = Depends(require_admin)):
+async def admin_access(
+    user: User = Depends(authenticated_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Explain the signed-in account's navigation access without granting it."""
+    await enforce_full_access(user, session)
+    grant = await session.get(AdminAccess, normalize_email(user.email))
+    if grant and grant.active and not user.google_subject:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "GOOGLE_IDENTITY_REQUIRED",
+                "message": "Verify this account with Google before accessing administration.",
+                "fieldErrors": {},
+            },
+        )
+    if grant and not grant.active:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={"code": "ADMIN_ACCESS_INACTIVE", "message": "Administration access is inactive.", "fieldErrors": {}},
+        )
+    if not await is_admin(user, session):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={"code": "ADMIN_ACCESS_DENIED", "message": "Forbidden", "fieldErrors": {}},
+        )
     return {"isAdmin": True, "email": user.email}
 
 

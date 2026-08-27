@@ -276,24 +276,32 @@ async def test_designated_administrators_require_google_identity_before_server_a
     for email in designated:
         token, user = await register_user(client, email=email, role="host")
         sessions.append((token, user))
+    async with SessionLocal() as session:
+        for _, user in sessions:
+            session.add(AdminAccess(email=user["email"].lower(), active=True))
+        await session.commit()
 
     # The allowlist grant alone is not authority: a password-only designated
-    # account remains denied until its authoritative Google subject is linked.
-    assert (await client.get("/api/v1/admin/access", headers=auth(sessions[0][0]))).status_code == 403
+    # The signed-in designated account receives a self-only repair path; this
+    # does not reveal grants for any other email address.
+    needs_google = await client.get("/api/v1/admin/access", headers=auth(sessions[0][0]))
+    assert needs_google.status_code == 403
+    assert needs_google.json()["code"] == "GOOGLE_IDENTITY_REQUIRED"
 
     async with SessionLocal() as session:
         for _, user in sessions:
             stored = await session.get(User, UUID(user["id"]))
             assert stored is not None
             stored.google_subject = f"google-subject:{stored.id}"
-            session.add(AdminAccess(email=stored.email.lower(), active=True))
         await session.commit()
 
     for token, _ in sessions:
         assert (await client.get("/api/v1/admin/access", headers=auth(token))).status_code == 200
 
     normal_token, _ = await register_user(client, email="ordinary-google-user@example.com", role="host")
-    assert (await client.get("/api/v1/admin/access", headers=auth(normal_token))).status_code == 403
+    normal = await client.get("/api/v1/admin/access", headers=auth(normal_token))
+    assert normal.status_code == 403
+    assert normal.json()["code"] == "ADMIN_ACCESS_DENIED"
 
 
 async def test_admin_moderation_restrictions_invalidate_the_public_catalog(client: AsyncClient, register_user):
