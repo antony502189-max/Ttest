@@ -83,6 +83,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         content.dataset.testid = `mobile-map-marker-${listing.id}`
         content.dataset.listingId = listing.id
         content.classList.add('m2-listing-marker')
+        content.dataset.markerZIndex = listing.promoted ? '100' : '10'
         const marker = new google.maps.marker.AdvancedMarkerElement({
           position: listing.coordinates,
           content,
@@ -144,6 +145,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       const selectedMarker = id === selectedId
       setPriceMarkerState(marker.content, selectedMarker, false, Boolean(listing.promoted))
       marker.zIndex = selectedMarker ? 4000 : listing.promoted ? 100 : 10
+      marker.content.dataset.markerZIndex = String(marker.zIndex)
     })
   }, [items, promotionSignature, selectedId])
 
