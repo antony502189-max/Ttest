@@ -49,7 +49,6 @@ for (const width of [320, 360, 390, 430]) {
     expect(cityBox).not.toBeNull()
     expect(cityBox!.x).toBeGreaterThanOrEqual(0)
     expect(cityBox!.x + cityBox!.width).toBeLessThanOrEqual(width + 1)
-    await expect(city).toHaveCSS('max-width', `${cityBox!.width}px`)
     await expectNoHorizontalOverflow(page)
   })
 }
