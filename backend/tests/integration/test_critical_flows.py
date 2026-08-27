@@ -270,6 +270,32 @@ async def test_admin_renewal_notifies_the_listing_owner(client: AsyncClient, reg
     assert [notification.recipient_user_id for notification in notifications] == [UUID(owner["id"])]
 
 
+async def test_designated_administrators_require_google_identity_before_server_access(client: AsyncClient, register_user):
+    designated = ("antony502189@gmail.com", "tf.shuler@gmail.com")
+    sessions = []
+    for email in designated:
+        token, user = await register_user(client, email=email, role="host")
+        sessions.append((token, user))
+
+    # The allowlist grant alone is not authority: a password-only designated
+    # account remains denied until its authoritative Google subject is linked.
+    assert (await client.get("/api/v1/admin/access", headers=auth(sessions[0][0]))).status_code == 403
+
+    async with SessionLocal() as session:
+        for _, user in sessions:
+            stored = await session.get(User, UUID(user["id"]))
+            assert stored is not None
+            stored.google_subject = f"google-subject:{stored.id}"
+            session.add(AdminAccess(email=stored.email.lower(), active=True))
+        await session.commit()
+
+    for token, _ in sessions:
+        assert (await client.get("/api/v1/admin/access", headers=auth(token))).status_code == 200
+
+    normal_token, _ = await register_user(client, email="ordinary-google-user@example.com", role="host")
+    assert (await client.get("/api/v1/admin/access", headers=auth(normal_token))).status_code == 403
+
+
 async def test_admin_moderation_restrictions_invalidate_the_public_catalog(client: AsyncClient, register_user):
     """Exercise authorization, moderation, expiry and public visibility in one isolated database."""
     # Registration intentionally permits only product roles. Server-side
@@ -341,6 +367,35 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     assert listing_restore_version > listing_restriction_version
     visible_after_listing_restore = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
     assert listing_id in {item["id"] for item in visible_after_listing_restore.json()["items"]}
+
+    permanent = await client.post(
+        f"/api/v1/admin/listings/{listing_id}/restrictions",
+        headers=admin_headers,
+        json={"until": None, "reason": "Permanent public policy breach"},
+    )
+    assert permanent.status_code == 200, permanent.text
+    assert permanent.json()["activeRestriction"]["endsAt"] is None
+    assert listing_id not in {
+        item["id"] for item in (await client.post("/api/v1/listings/search", json={"rentalMode": "long"})).json()["items"]
+    }
+    async with SessionLocal() as session:
+        permanent_row = await session.scalar(
+            select(ListingRestriction).where(
+                ListingRestriction.listing_id == listing_uuid,
+                ListingRestriction.revoked_at.is_(None),
+                ListingRestriction.ends_at.is_(None),
+            )
+        )
+        assert permanent_row is not None
+        assert (await process_expired_moderation(session))["listings"] == 0
+
+    manually_unrestricted = await client.delete(
+        f"/api/v1/admin/listings/{listing_id}/restrictions/active", headers=admin_headers
+    )
+    assert manually_unrestricted.status_code == 200, manually_unrestricted.text
+    assert listing_id in {
+        item["id"] for item in (await client.post("/api/v1/listings/search", json={"rentalMode": "long"})).json()["items"]
+    }
 
     expires = await client.post(
         f"/api/v1/admin/listings/{listing_id}/restrictions",

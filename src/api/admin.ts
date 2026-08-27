@@ -17,7 +17,7 @@ export type AdminListingRestriction = {
   id: string
   reason: string
   startsAt: string
-  endsAt: string
+  endsAt: string | null
   revokedAt: string | null
   active: boolean
 }
@@ -192,7 +192,7 @@ export const moderateRemoteListing = (id: string, status: ListingStatus) =>
     body: JSON.stringify({ status: statusMap[status] }),
   })
 
-export const restrictAdminListing = (id: string, payload: { until: string; reason: string }) =>
+export const restrictAdminListing = (id: string, payload: { until: string | null; reason: string }) =>
   api<AdminListing>(`/admin/listings/${id}/restrictions`, {
     method: 'POST',
     body: JSON.stringify(payload),

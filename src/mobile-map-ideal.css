@@ -34,6 +34,22 @@
   box-shadow: 0 3px 10px rgb(37 42 43 / .28);
 }
 
+/* This follows the shared marker contract but must win over the mobile lime
+   base style.  TOP remains recognisable even while selected/highlighted. */
+.m2-listing-marker .map-price-marker.is-promoted {
+  border-color: #8f1f18;
+  background: #d92d20;
+  color: #fff;
+  box-shadow: 0 3px 12px rgb(180 35 24 / .42);
+}
+
+.m2-listing-marker .map-price-marker.is-promoted i { border-color: #8f1f18; }
+.m2-listing-marker .map-price-marker.is-promoted.is-selected {
+  border-color: #5f1712;
+  background: #b42318;
+  color: #fff;
+}
+
 .m2-map-listing-preview {
   position: absolute;
   right: .7rem;

@@ -100,7 +100,7 @@ async def active_listing_restriction(listing_id: UUID, session: AsyncSession) ->
     return await session.scalar(
         select(ListingRestriction)
         .where(ListingRestriction.listing_id == listing_id, *active_window(ListingRestriction))
-        .order_by(ListingRestriction.ends_at.desc(), ListingRestriction.starts_at.desc())
+        .order_by(ListingRestriction.ends_at.asc().nullsfirst(), ListingRestriction.starts_at.desc())
         .limit(1)
     )
 
@@ -195,7 +195,7 @@ def enqueue_listing_restriction_email(
     *,
     listing_title: str,
     reason: str,
-    until: datetime,
+    until: datetime | None,
 ) -> None:
     enqueue_mail(
         session,
@@ -203,7 +203,7 @@ def enqueue_listing_restriction_email(
         recipient=recipient,
         subject="Tu anuncio ha sido restringido",
         body=(
-            f"El anuncio «{listing_title}» se ha ocultado hasta {until.astimezone(UTC).strftime('%Y-%m-%d %H:%M UTC')}.\n\n"
+            f"El anuncio «{listing_title}» se ha ocultado {restriction_period_text(until)}.\n\n"
             f"Motivo: {reason}\n\n"
             f"Si crees que se trata de un error, escribe a {SUPPORT_EMAIL}."
         ),

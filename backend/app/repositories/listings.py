@@ -199,7 +199,7 @@ def visible_query() -> Select:
             ListingRestriction.listing_id == Listing.id,
             ListingRestriction.revoked_at.is_(None),
             ListingRestriction.starts_at <= func.now(),
-            ListingRestriction.ends_at > func.now(),
+            or_(ListingRestriction.ends_at.is_(None), ListingRestriction.ends_at > func.now()),
         )
         .correlate(Listing)
         .exists()

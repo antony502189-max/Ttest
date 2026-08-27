@@ -131,7 +131,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   const [focusSheetOnOpen, setFocusSheetOnOpen] = useState(false)
 
   const selected = items.find((item) => item.id === selectedId)
-  const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}`).join('|'), [items])
+  const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
   const selectedAreaSignature = filters.areas.map(canonicalizeZoneId).sort().join('|')
   itemsRef.current = items
   selectedIdRef.current = selectedId
@@ -280,7 +280,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
 
     const markers = itemsRef.current.map((listing) => {
       const content = createPriceMarkerContent(listing)
-      setPriceMarkerState(content, listing.id === selectedIdRef.current, listing.id === highlightedIdRef.current)
+      setPriceMarkerState(content, listing.id === selectedIdRef.current, listing.id === highlightedIdRef.current, Boolean(listing.promoted))
       content.dataset.markerZIndex = listing.id === selectedIdRef.current ? '3000' : listing.promoted ? '100' : '10'
       const marker = new google.maps.marker.AdvancedMarkerElement({
         position: listing.coordinates,
@@ -335,8 +335,8 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     markersRef.current.forEach((marker, id) => {
       const content = markerContentRef.current.get(id)
       if (content) {
-        setPriceMarkerState(content, id === selectedId, id === highlightedId)
         const listing = itemsRef.current.find((item) => item.id === id)
+        setPriceMarkerState(content, id === selectedId, id === highlightedId, Boolean(listing?.promoted))
         content.dataset.markerZIndex = id === selectedId ? '3000' : id === highlightedId ? '2000' : listing?.promoted ? '100' : '10'
       }
       marker.zIndex = id === selectedId ? 3000 : id === highlightedId ? 2000 : itemsRef.current.find((item) => item.id === id)?.promoted ? 100 : 10

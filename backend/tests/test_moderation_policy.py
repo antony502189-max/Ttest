@@ -81,6 +81,15 @@ def test_public_listing_visibility_includes_permanent_user_restrictions() -> Non
     assert "user_restrictions.ends_at > now()" in sql
 
 
+def test_listing_restriction_contract_supports_permanent_windows_without_fake_expiry() -> None:
+    from app.models.moderation import ListingRestriction
+    from app.schemas.admin import ListingRestrictionRequest
+
+    assert ListingRestriction.ends_at.property.columns[0].nullable is True
+    assert ListingRestrictionRequest(reason="Permanent policy decision").until is None
+    assert "listing_restrictions.ends_at IS NULL" in str(visible_query())
+
+
 @pytest.mark.asyncio
 async def test_revoked_legacy_admin_role_cannot_mutate_other_users_listings(
     monkeypatch: pytest.MonkeyPatch,

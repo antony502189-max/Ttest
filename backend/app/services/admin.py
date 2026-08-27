@@ -26,6 +26,7 @@ from .moderation import (
     enqueue_listing_unrestriction_email,
     lock_active_admin_access,
     normalize_email,
+    restriction_period_text,
     viable_admin_count,
 )
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
@@ -33,6 +34,19 @@ from .notifications import create_notification, notify_favorited_listing_unavail
 
 def audit(actor_id: UUID, action: str, target_type: str, target_id: UUID | None, detail: dict) -> AuditLog:
     return AuditLog(actor_id=actor_id, action=action, target_type=target_type, target_id=target_id, detail=detail)
+
+
+# Administrator moderation deliberately uses a small, reviewable lifecycle.
+# Reinstatement returns an item to pending review instead of silently exposing
+# a previously hidden/rejected/closed listing to the public catalog.
+ADMIN_STATUS_TRANSITIONS = {
+    "draft": {"pending"},
+    "pending": {"published", "hidden", "rejected"},
+    "published": {"hidden", "closed"},
+    "hidden": {"pending"},
+    "closed": {"pending"},
+    "rejected": {"pending"},
+}
 
 
 def listing_restriction_response(row: ListingRestriction) -> ListingRestrictionResponse:
@@ -43,7 +57,7 @@ def listing_restriction_response(row: ListingRestriction) -> ListingRestrictionR
         startsAt=row.starts_at,
         endsAt=row.ends_at,
         revokedAt=row.revoked_at,
-        active=row.revoked_at is None and row.starts_at <= now < row.ends_at,
+        active=row.revoked_at is None and row.starts_at <= now and (row.ends_at is None or now < row.ends_at),
     )
 
 
@@ -141,9 +155,11 @@ async def change_listing_status(
     actor: User,
     session: AsyncSession,
 ) -> AdminListingResponse:
-    if new_status not in {"draft", "pending", "published", "hidden", "closed", "rejected"}:
+    if new_status not in ADMIN_STATUS_TRANSITIONS:
         raise HTTPException(422, "Invalid listing status")
     listing, owner = await _actionable_listing(listing_id, session)
+    if new_status != listing.status and new_status not in ADMIN_STATUS_TRANSITIONS[listing.status]:
+        raise HTTPException(409, "Listing status transition is not permitted")
     if new_status == "published" and not owner.email_verified:
         raise HTTPException(
             409,
@@ -204,6 +220,8 @@ async def promote_listing(listing_id: UUID, actor: User, session: AsyncSession) 
     listing, owner = await _actionable_listing(listing_id, session)
     if listing.status != "published":
         raise HTTPException(409, "Only published listings can be promoted")
+    if await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session):
+        raise HTTPException(409, "Only publicly eligible listings can be promoted")
     row = await session.scalar(
         select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()
     )
@@ -258,16 +276,16 @@ async def remove_listing_promotion(listing_id: UUID, actor: User, session: Async
 async def restrict_listing(
     listing_id: UUID,
     *,
-    until: datetime,
+    until: datetime | None,
     reason: str,
     actor: User,
     session: AsyncSession,
 ) -> AdminListingResponse:
     listing, owner = await _actionable_listing(listing_id, session)
-    if until.tzinfo is None:
+    if until and until.tzinfo is None:
         until = until.replace(tzinfo=UTC)
     now = datetime.now(UTC)
-    if until <= now:
+    if until and until <= now:
         raise HTTPException(422, "Restriction end date must be in the future")
     clean_reason = reason.strip()
     if len(clean_reason) < 2:
@@ -290,7 +308,7 @@ async def restrict_listing(
         owner.id,
         kind="listing_restricted",
         title="Uno de tus anuncios se ha ocultado",
-        body=f"{listing.title}: {clean_reason} · Hasta {until.astimezone(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
+        body=f"{listing.title}: {clean_reason} · {restriction_period_text(until)}",
     )
     enqueue_listing_restriction_email(
         session,
@@ -317,7 +335,7 @@ async def restrict_listing(
             "listing.restricted",
             "listing",
             listing.id,
-            {"until": until.isoformat(), "reason": clean_reason},
+            {"until": until.isoformat() if until else None, "reason": clean_reason},
         )
     )
     await touch_catalog(session)

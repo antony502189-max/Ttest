@@ -31,7 +31,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
   const t = labels[language]
-  const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [items])
+  const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
   const selected = items.find((item) => item.id === selectedId)
 
   useEffect(() => {
