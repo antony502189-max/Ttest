@@ -131,7 +131,10 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   const [focusSheetOnOpen, setFocusSheetOnOpen] = useState(false)
 
   const selected = items.find((item) => item.id === selectedId)
-  const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
+  // Geometry drives marker recreation and fitting. TOP state is intentionally
+  // separate so a remote promotion refresh cannot undo the user's pan/zoom.
+  const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}`).join('|'), [items])
+  const promotionSignature = useMemo(() => items.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
   const selectedAreaSignature = filters.areas.map(canonicalizeZoneId).sort().join('|')
   itemsRef.current = items
   selectedIdRef.current = selectedId
@@ -363,7 +366,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       idleListener.remove()
       clusterListener.remove()
     }
-  }, [highlightedId, itemSignature, ready, selectedId])
+  }, [highlightedId, promotionSignature, ready, selectedId])
 
   useEffect(() => {
     const previous = previousFitResultsKeyRef.current

@@ -160,6 +160,7 @@ async def change_listing_status(
     listing, owner = await _actionable_listing(listing_id, session)
     if new_status != listing.status and new_status not in ADMIN_STATUS_TRANSITIONS[listing.status]:
         raise HTTPException(409, "Listing status transition is not permitted")
+    previous = listing.status
     if new_status == "published" and not owner.email_verified:
         raise HTTPException(
             409,
@@ -169,7 +170,17 @@ async def change_listing_status(
                 "fieldErrors": {},
             },
         )
-    previous = listing.status
+    if previous != new_status and new_status == "published" and (
+        await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session)
+    ):
+        raise HTTPException(
+            409,
+            detail={
+                "code": "PUBLICATION_RESTRICTED",
+                "message": "Remove the active moderation restriction before publishing this listing.",
+                "fieldErrors": {},
+            },
+        )
     listing.status = new_status
     if new_status == "published" and listing.published_at is None:
         listing.published_at = datetime.now(UTC)
@@ -213,7 +224,12 @@ async def change_listing_status(
         await touch_catalog(session)
 
     await session.commit()
-    return public_listing(listing, owner=owner, restriction=await active_listing_restriction(listing.id, session))
+    return public_listing(
+        listing,
+        owner=owner,
+        restriction=await active_listing_restriction(listing.id, session),
+        promotion=await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing.id)),
+    )
 
 
 async def promote_listing(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
@@ -340,7 +356,12 @@ async def restrict_listing(
     )
     await touch_catalog(session)
     await session.commit()
-    return public_listing(listing, owner=owner, restriction=row)
+    return public_listing(
+        listing,
+        owner=owner,
+        restriction=row,
+        promotion=await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing.id)),
+    )
 
 
 async def unrestrict_listing(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
@@ -371,7 +392,11 @@ async def unrestrict_listing(listing_id: UUID, actor: User, session: AsyncSessio
     session.add(audit(actor.id, "listing.unrestricted", "listing", listing.id, {"restrictionId": str(current.id)}))
     await touch_catalog(session)
     await session.commit()
-    return public_listing(listing, owner=owner)
+    return public_listing(
+        listing,
+        owner=owner,
+        promotion=await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing.id)),
+    )
 
 
 async def list_notes(user_id: UUID, session: AsyncSession) -> list[AdminNoteResponse]:

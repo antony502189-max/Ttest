@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
-import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPriceMarkerState } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
@@ -31,7 +31,9 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
   const t = labels[language]
-  const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
+  // Keep camera-fitting tied to actual marker geometry rather than TOP state.
+  const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [items])
+  const promotionSignature = useMemo(() => items.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
   const selected = items.find((item) => item.id === selectedId)
 
   useEffect(() => {
@@ -134,6 +136,16 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     if (!selectedId || items.some((item) => item.id === selectedId)) return
     setSelectedId('')
   }, [items, selectedId])
+
+  useEffect(() => {
+    markersRef.current.forEach((marker, id) => {
+      const listing = items.find((item) => item.id === id)
+      if (!listing || !(marker.content instanceof HTMLElement)) return
+      const selectedMarker = id === selectedId
+      setPriceMarkerState(marker.content, selectedMarker, false, Boolean(listing.promoted))
+      marker.zIndex = selectedMarker ? 4000 : listing.promoted ? 100 : 10
+    })
+  }, [items, promotionSignature, selectedId])
 
   useEffect(() => {
     const map = mapRef.current
