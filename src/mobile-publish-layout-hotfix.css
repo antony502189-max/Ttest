@@ -70,10 +70,17 @@
     display: none !important;
   }
 
+  /* Preserve the .container mobile gutter on wizard-layout itself. Clamp only
+     its intrinsic width and make the descendants consume that available width. */
+  .publish-page .wizard-layout {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   /* A native select can contribute its option list's intrinsic width to a grid
-     item on narrow mobile browsers. Clamp the complete publish form chain so
-     opening Municipio/other selects can never widen the document. */
-  .publish-page .wizard-layout,
+     item on narrow mobile browsers. Clamp the complete inner publish form chain
+     so opening Municipio/other selects can never widen the document. */
   .publish-page .wizard-layout > aside,
   .publish-page .wizard-content,
   .publish-page .wizard-section,
