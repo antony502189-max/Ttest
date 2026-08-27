@@ -38,7 +38,8 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     owner = SimpleNamespace(id=owner_id, email="owner@example.com", deleted_at=None)
     actor = SimpleNamespace(id=actor_id)
     session = SimpleNamespace(
-        scalar=AsyncMock(side_effect=[owner_id, owner, listing]),
+        # The moderation response now keeps a persisted TOP promotion visible.
+        scalar=AsyncMock(side_effect=[owner_id, owner, listing, None]),
         add=MagicMock(),
         flush=AsyncMock(),
         commit=AsyncMock(),
