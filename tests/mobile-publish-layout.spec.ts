@@ -11,12 +11,41 @@ async function openAsHost(page: Page) {
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
-  const geometry = await page.evaluate(() => ({
-    viewport: document.documentElement.clientWidth,
-    html: document.documentElement.scrollWidth,
-    body: document.body.scrollWidth,
-  }))
-  expect(geometry.html).toBeLessThanOrEqual(geometry.viewport + 1)
+  const geometry = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth
+    const offenders = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        return {
+          tag: element.tagName.toLowerCase(),
+          id: element.id,
+          className: typeof element.className === 'string' ? element.className : '',
+          left: Number(rect.left.toFixed(2)),
+          right: Number(rect.right.toFixed(2)),
+          width: Number(rect.width.toFixed(2)),
+          position: style.position,
+          marginLeft: style.marginLeft,
+          marginRight: style.marginRight,
+          transform: style.transform,
+        }
+      })
+      .filter((item) => item.left < -1 || item.right > viewport + 1)
+      .sort((a, b) => Math.max(b.right - viewport, -b.left) - Math.max(a.right - viewport, -a.left))
+      .slice(0, 20)
+
+    return {
+      viewport,
+      html: document.documentElement.scrollWidth,
+      body: document.body.scrollWidth,
+      offenders,
+    }
+  })
+
+  expect(
+    geometry.html,
+    `horizontal overflow: ${JSON.stringify(geometry, null, 2)}`,
+  ).toBeLessThanOrEqual(geometry.viewport + 1)
   expect(geometry.body).toBeLessThanOrEqual(geometry.viewport + 1)
 }
 
