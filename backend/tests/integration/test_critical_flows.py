@@ -323,6 +323,22 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
         await session.commit()
     assert (await client.get("/api/v1/admin/access", headers=admin_headers)).status_code == 200
 
+    low_price = await client.post(
+        "/api/v1/listings",
+        headers=host_headers,
+        json=listing_payload(
+            title="Low-price ordinary listing", latitude=28.4701, longitude=-16.2601, bedrooms=2, price=100
+        ),
+    )
+    high_price = await client.post(
+        "/api/v1/listings",
+        headers=host_headers,
+        json=listing_payload(
+            title="High-price ordinary listing", latitude=28.4751, longitude=-16.2651, bedrooms=2, price=1000
+        ),
+    )
+    assert low_price.status_code == high_price.status_code == 201
+
     created = await client.post(
         "/api/v1/listings",
         headers=host_headers,
@@ -440,6 +456,14 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     public_after_promotion = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
     assert public_after_promotion.json()["items"][0]["id"] == listing_id
     assert public_after_promotion.json()["items"][0]["promoted"] is True
+    for sort in ("newest", "oldest", "price_asc", "price_desc"):
+        sorted_page = await client.post(
+            "/api/v1/listings/search",
+            json={"rentalMode": "long", "sort": sort, "limit": 1, "offset": 0},
+        )
+        assert sorted_page.status_code == 200, sorted_page.text
+        assert sorted_page.json()["items"][0]["id"] == listing_id
+        assert sorted_page.json()["items"][0]["promoted"] is True
     async with SessionLocal() as session:
         assert (
             await session.scalar(select(ListingPromotion).where(ListingPromotion.listing_id == listing_uuid))
