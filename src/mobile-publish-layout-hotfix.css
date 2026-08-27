@@ -78,6 +78,19 @@
     max-width: 100%;
   }
 
+  /* The legacy mobile action bar uses negative inline margins to fake a
+     full-bleed sticky footer. Chromium includes the right-hand negative-margin
+     expansion in the root scrolling area even though body itself still fits,
+     producing a deterministic +10px html overflow. Keep the sticky controls
+     inside the wizard gutter instead of masking that overflow at the root. */
+  .publish-page .wizard-actions {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+
   /* A native select can contribute its option list's intrinsic width to a grid
      item on narrow mobile browsers. Clamp the complete inner publish form chain
      so opening Municipio/other selects can never widen the document. */
