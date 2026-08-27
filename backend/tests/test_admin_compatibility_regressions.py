@@ -148,7 +148,8 @@ def test_forward_admin_repair_restores_only_allowlist_grants_and_permanent_listi
 
     assert 'REQUIRED_ADMIN_EMAILS = ("antony502189@gmail.com", "tf.shuler@gmail.com")' in migration
     assert "ON CONFLICT (email) DO UPDATE SET active = TRUE" in migration
-    assert "ends_at IS NULL OR ends_at > starts_at" in migration
+    assert 'nullable=True' in migration
+    assert "three-valued CHECK semantics" in migration
     assert "UPDATE users" not in migration
 
 

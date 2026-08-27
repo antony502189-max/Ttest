@@ -41,13 +41,11 @@ def upgrade() -> None:
             {"email": email},
         )
 
-    op.drop_constraint("ck_listing_restrictions_dates", "listing_restrictions", type_="check")
+    # The existing ``ends_at > starts_at`` SQL CHECK already permits NULL under
+    # PostgreSQL's three-valued CHECK semantics.  Keeping it avoids a
+    # destructive constraint replacement in this expand-only production
+    # migration while preserving the equivalent permanent-ban invariant.
     op.alter_column("listing_restrictions", "ends_at", existing_type=sa.DateTime(timezone=True), nullable=True)
-    op.create_check_constraint(
-        "ck_listing_restrictions_dates",
-        "listing_restrictions",
-        "ends_at IS NULL OR ends_at > starts_at",
-    )
 
 
 def downgrade() -> None:
