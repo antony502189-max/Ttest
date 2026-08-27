@@ -199,7 +199,7 @@ def visible_query() -> Select:
             ListingRestriction.listing_id == Listing.id,
             ListingRestriction.revoked_at.is_(None),
             ListingRestriction.starts_at <= func.now(),
-            ListingRestriction.ends_at > func.now(),
+            or_(ListingRestriction.ends_at.is_(None), ListingRestriction.ends_at > func.now()),
         )
         .correlate(Listing)
         .exists()
@@ -399,13 +399,17 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
 
 def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
     price = primary_price_expression()
+    # Promotion is a server-owned visibility tier, not a client presentation
+    # preference.  Keep it first for every supported sort so paging cannot
+    # surface ordinary listings ahead of an eligible TOP listing.
+    promotion = promotion_boosted_at_expression().desc().nullslast()
     if payload.sort == "price_asc":
-        return query.order_by(price.asc().nullslast(), Listing.id)
+        return query.order_by(promotion, price.asc().nullslast(), Listing.id)
     if payload.sort == "price_desc":
-        return query.order_by(price.desc().nullslast(), Listing.id)
+        return query.order_by(promotion, price.desc().nullslast(), Listing.id)
     if payload.sort == "oldest":
-        return query.order_by(Listing.created_at.asc(), Listing.id)
-    return query.order_by(promotion_boosted_at_expression().desc().nullslast(), Listing.created_at.desc(), Listing.id)
+        return query.order_by(promotion, Listing.created_at.asc(), Listing.id)
+    return query.order_by(promotion, Listing.created_at.desc(), Listing.id)
 
 
 async def search_public(session: AsyncSession, payload: ListingSearchRequest) -> ListingSearchResponse:

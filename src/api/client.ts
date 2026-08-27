@@ -5,7 +5,8 @@ let refreshPromise: Promise<boolean> | null = null
 export class ApiError extends Error {
   status: number
   fieldErrors: Record<string, string>
-  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}) { super(message); this.status = status; this.fieldErrors = fieldErrors }
+  code?: string
+  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}, code?: string) { super(message); this.status = status; this.fieldErrors = fieldErrors; this.code = code }
 }
 
 export function setAccessToken(token: string | null) { accessToken = token }
@@ -62,7 +63,8 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
     if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
     if (!response.ok) {
       const body = await response.json().catch(() => ({})) as {
-        detail?: string | { message?: string; fieldErrors?: Record<string, string> }
+        detail?: string | { code?: string; message?: string; fieldErrors?: Record<string, string> }
+        code?: string
         message?: string
         fieldErrors?: Record<string, string>
       }
@@ -71,6 +73,7 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
         response.status,
         body.message ?? detail?.message ?? (typeof body.detail === 'string' ? body.detail : undefined) ?? 'No se pudo completar la solicitud.',
         body.fieldErrors ?? detail?.fieldErrors,
+        body.code ?? detail?.code,
       )
     }
     return response.status === 204 ? undefined as T : response.json() as Promise<T>

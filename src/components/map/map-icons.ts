@@ -19,8 +19,9 @@ export function createPriceMarkerContent(listing: Listing) {
   return shell
 }
 
-export function setPriceMarkerState(content: HTMLElement, selected: boolean, highlighted: boolean) {
+export function setPriceMarkerState(content: HTMLElement, selected: boolean, highlighted: boolean, promoted: boolean) {
   const marker = content.querySelector('.map-price-marker')
+  marker?.classList.toggle('is-promoted', promoted)
   marker?.classList.toggle('is-selected', selected)
   marker?.classList.toggle('is-highlighted', highlighted)
   content.setAttribute('aria-pressed', String(selected))

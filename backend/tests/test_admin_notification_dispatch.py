@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 
 import app.services.admin as admin_service
 
@@ -39,6 +40,7 @@ def session_stub():
         add=MagicMock(),
         flush=AsyncMock(),
         commit=AsyncMock(),
+        scalar=AsyncMock(return_value=None),
     )
 
 
@@ -50,6 +52,7 @@ async def test_admin_publish_dispatches_saved_search_and_owner_notifications(mon
 
     monkeypatch.setattr(admin_service, "_actionable_listing", AsyncMock(return_value=(row, recipient)))
     monkeypatch.setattr(admin_service, "active_listing_restriction", AsyncMock(return_value=None))
+    monkeypatch.setattr(admin_service, "active_user_restriction", AsyncMock(return_value=None))
     monkeypatch.setattr(admin_service, "touch_catalog", AsyncMock())
     create_notification = AsyncMock(return_value=True)
     saved_search = AsyncMock()
@@ -67,6 +70,27 @@ async def test_admin_publish_dispatches_saved_search_and_owner_notifications(mon
     saved_search.assert_awaited_once_with(session, row)
     favorite_unavailable.assert_not_awaited()
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_status_change_preserves_existing_promotion_metadata(monkeypatch) -> None:
+    row = listing("pending")
+    recipient = owner(row.owner_user_id)
+    session = session_stub()
+    promotion = SimpleNamespace(boosted_at=datetime.now(UTC))
+    session.scalar.return_value = promotion
+
+    monkeypatch.setattr(admin_service, "_actionable_listing", AsyncMock(return_value=(row, recipient)))
+    monkeypatch.setattr(admin_service, "active_listing_restriction", AsyncMock(return_value=None))
+    monkeypatch.setattr(admin_service, "active_user_restriction", AsyncMock(return_value=None))
+    monkeypatch.setattr(admin_service, "touch_catalog", AsyncMock())
+    monkeypatch.setattr(admin_service, "create_notification", AsyncMock(return_value=True))
+    monkeypatch.setattr(admin_service, "notify_saved_search_matches", AsyncMock())
+
+    result = await admin_service.change_listing_status(row.id, "published", SimpleNamespace(id=uuid4()), session)
+
+    assert result.promoted is True
+    assert result.boostedAt == promotion.boosted_at
 
 
 @pytest.mark.asyncio
@@ -118,3 +142,29 @@ async def test_admin_noop_status_does_not_emit_duplicate_product_alerts(monkeypa
     saved_search.assert_not_awaited()
     favorite_unavailable.assert_not_awaited()
     touch_catalog.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_publish_a_listing_while_it_is_moderation_restricted(monkeypatch) -> None:
+    row = listing("pending")
+    recipient = owner(row.owner_user_id)
+    session = session_stub()
+    restriction = SimpleNamespace(id=uuid4())
+
+    monkeypatch.setattr(admin_service, "_actionable_listing", AsyncMock(return_value=(row, recipient)))
+    monkeypatch.setattr(admin_service, "active_listing_restriction", AsyncMock(return_value=restriction))
+    monkeypatch.setattr(admin_service, "active_user_restriction", AsyncMock(return_value=None))
+    create_notification = AsyncMock()
+    saved_search = AsyncMock()
+    monkeypatch.setattr(admin_service, "create_notification", create_notification)
+    monkeypatch.setattr(admin_service, "notify_saved_search_matches", saved_search)
+
+    with pytest.raises(HTTPException) as error:
+        await admin_service.change_listing_status(row.id, "published", SimpleNamespace(id=uuid4()), session)
+
+    assert error.value.status_code == 409
+    assert error.value.detail["code"] == "PUBLICATION_RESTRICTED"
+    assert row.status == "pending"
+    create_notification.assert_not_awaited()
+    saved_search.assert_not_awaited()
+    session.commit.assert_not_awaited()

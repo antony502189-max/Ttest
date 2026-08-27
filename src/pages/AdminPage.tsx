@@ -33,6 +33,7 @@ import {
   getAdmins,
   getAdminUser,
   getAdminUserRows,
+  moderateRemoteListing,
   promoteAdminListing,
   removeAdminListingPromotion,
   restrictAdminListing,
@@ -69,6 +70,7 @@ import { Input } from '@/components/ui/input'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { currentLocale } from '@/lib/i18n-locale'
+import type { ListingStatus } from '@/types'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 
@@ -106,6 +108,15 @@ const reportLabels: Record<AdminReport['status'], string> = {
 }
 
 const listingStatusLabels: Record<string, string> = {
+  draft: 'Borrador',
+  pending: 'Pendiente',
+  published: 'Publicado',
+  hidden: 'Oculto',
+  closed: 'Finalizado',
+  rejected: 'Rechazado',
+}
+
+const listingStatusValues: Record<string, ListingStatus> = {
   draft: 'Borrador',
   pending: 'Pendiente',
   published: 'Publicado',
@@ -276,7 +287,8 @@ function ListingRestrictionDialog({
   onOpenChange: (open: boolean) => void
   onSaved: (listing: AdminListing) => void
 }) {
-  const [until, setUntil] = useState(dateInputDefault())
+  const [duration, setDuration] = useState<RestrictionDuration>('week')
+  const [customUntil, setCustomUntil] = useState(dateInputDefault())
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -285,14 +297,15 @@ function ListingRestrictionDialog({
     setSubmitting(true)
     try {
       const updated = await restrictAdminListing(listing.id, {
-        until: new Date(until).toISOString(),
+        until: restrictionUntil(duration, customUntil),
         reason: reason.trim(),
       })
       toast.success('Anuncio restringido y propietario notificado')
       onSaved(updated)
       onOpenChange(false)
       setReason('')
-      setUntil(dateInputDefault())
+      setDuration('week')
+      setCustomUntil(dateInputDefault())
     } catch (error) {
       toast.error(errorMessage(error))
     } finally {
@@ -304,8 +317,10 @@ function ListingRestrictionDialog({
     <DialogContent className="admin-action-dialog">
       <DialogHeader><DialogTitle>Bloquear anuncio</DialogTitle><DialogDescription>{listing.title}</DialogDescription></DialogHeader>
       <form id="admin-listing-restriction-form" className="admin-dialog-form" onSubmit={submit}>
-        <label><span>Hasta</span><Input type="datetime-local" min={localDateTimeInput(new Date())} value={until} onChange={(event) => setUntil(event.target.value)} required /></label>
+        <label><span>Duración</span><select value={duration} onChange={(event) => setDuration(event.target.value as RestrictionDuration)}><option value="day">1 día</option><option value="week">1 semana</option><option value="month">1 mes</option><option value="forever">Para siempre</option><option value="custom">Fecha personalizada</option></select></label>
+        {duration === 'custom' ? <label><span>Hasta</span><Input type="datetime-local" min={localDateTimeInput(new Date())} value={customUntil} onChange={(event) => setCustomUntil(event.target.value)} required /></label> : null}
         <label><span>Motivo que verá el propietario</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} minLength={2} maxLength={4000} required placeholder="Motivo de la retirada temporal…" /></label>
+        <div className="admin-dialog-summary"><ShieldBan /><p>{duration === 'forever' ? 'El anuncio permanecerá oculto hasta que otro administrador retire manualmente la restricción.' : `La restricción finalizará automáticamente tras ${durationLabels[duration].toLowerCase()}.`}</p></div>
       </form>
       <DialogFooter>
         <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -529,6 +544,15 @@ export function AdminPage() {
   const updateUserRow = (changed: AdminUser) => setUsers((current) => current.map((user) => user.id === changed.id ? { ...user, ...changed } : user))
   const updateListingRow = (changed: AdminListing) => setListings((current) => current.map((listing) => listing.id === changed.id ? changed : listing))
 
+  const changeListingStatus = async (listing: AdminListing, next: keyof typeof listingStatusValues, confirmation: string) => {
+    if (!window.confirm(confirmation)) return
+    try {
+      const updated = await moderateRemoteListing(listing.id, listingStatusValues[next])
+      updateListingRow(updated)
+      toast.success(`Estado actualizado: ${listingStatusLabels[next]}`)
+    } catch (error) { toast.error(errorMessage(error)) }
+  }
+
   const changeReportStatus = async (report: AdminReport, status: AdminReport['status']) => {
     try {
       const updated = await updateAdminReport(report.id, status)
@@ -602,9 +626,9 @@ export function AdminPage() {
       </> : null}
 
       {section === 'listings' ? <>
-        <SectionHeader title="Anuncios" description="Consulta el propietario y bloquea temporalmente un anuncio sin alterar permanentemente su estado original." />
+        <SectionHeader title="Anuncios" description="Consulta el propietario y aplica moderación temporal o permanente sin alterar el estado original del anuncio." />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, usuario o zona…" /></div></div>
-        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{listing.promoted ? <Badge variant="destructive">TOP{listing.boostedAt ? ` · ${formatDate(listing.boostedAt)}` : ''}</Badge> : null}{listing.activeRestriction ? <><Badge variant="destructive">Bloqueado hasta {formatDate(listing.activeRestriction.endsAt)}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions"><Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => { void updateListingPromotion(listing) }}><ArrowUp />{listing.promoted ? 'Volver al TOP' : 'Subir al TOP'}</Button>{listing.promoted ? <Button variant="outline" size="sm" onClick={() => { void updateListingPromotion(listing, true) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
+        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{listing.promoted ? <Badge variant="destructive">TOP{listing.boostedAt ? ` · ${formatDate(listing.boostedAt)}` : ''}</Badge> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => { void updateListingPromotion(listing) }}><ArrowUp />{listing.promoted ? 'Volver al TOP' : 'Subir al TOP'}</Button>{listing.promoted ? <Button variant="outline" size="sm" onClick={() => { void updateListingPromotion(listing, true) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
       </> : null}
 
       {section === 'activity' ? <>

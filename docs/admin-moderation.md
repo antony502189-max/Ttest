@@ -13,12 +13,19 @@ An account is an administrator only when:
 3. its normalized email has an active row in `admin_access`;
 4. it is not subject to an active full-account moderation restriction.
 
-The migration seeds the initial administrators:
+The initial migration seeded these administrators:
 
 - `tf.shuler@gmail.com`
 - `antony502189@gmail.com`
 
-A seeded email that belongs to a legacy blocked account is not granted administrator access during migration.
+The forward repair migration `0039_admin_grant_repair` deterministically restores
+their **allowlist grants** if either row was absent or inactive. It never creates,
+unblocks, restores, or moderates a user account, so a blocked, deleted, restricted,
+or password-only account is still not an administrator. A password-only designated
+account receives a self-only `GOOGLE_IDENTITY_REQUIRED` response from
+`GET /api/v1/admin/access`; the Profile page then offers the normal Google flow to
+link the authoritative Google account with the same email. The allowlist is never
+returned for another account or treated as an email-only authorization bypass.
 
 Administrators can add or revoke other administrator emails under **Settings → Administrators**. All administrators have equal rights. Self-revocation is rejected, and the backend never allows removal of the last active administrator. Allowlist changes are serialized so two concurrent revocations cannot both observe the same stale administrator count.
 
@@ -51,6 +58,13 @@ Manual early unrestriction records `revoked_at`/`revoked_by` and preserves the h
 ## Listing restrictions
 
 `listing_restrictions` applies the same dated/revocable model to one listing. An active listing restriction removes the listing and its public listing images from public visibility without modifying its ordinary listing status.
+
+The Listings console exposes **1 day**, **1 week**, **1 month**, **forever**, and a
+custom future date. `ends_at = NULL` means a first-class permanent restriction;
+the database check permits NULL or an end after the start, and the expiry worker
+skips permanent rows. Administrators must explicitly remove a permanent
+restriction. Restriction and unrestriction responses retain any existing TOP
+promotion metadata so the moderation UI cannot lose the persisted promotion.
 
 Listing moderation writes and automatic listing-expiry handling use the same `User → Listing → Restriction` row-lock ordering as account deletion, preventing cross-flow deadlocks and revalidating owner/listing state before mutation or restoration notices.
 
@@ -107,6 +121,28 @@ Reports can target either a listing or its advertiser/user while retaining the l
 `admin_notes` are internal and are never exposed through user-facing endpoints. Note creation locks and revalidates the target account so a concurrent soft delete cannot create a new write on a record that has already become historical.
 
 Risky operations require explicit confirmation in the UI. Account deletion additionally requires typing `DELETE`.
+
+## TOP listings and map markers
+
+`listing_promotions` is the sole TOP source of truth. Only publicly eligible,
+published listings may be promoted. A first promotion, re-promotion, and removal
+each write an audit event and invalidate the catalog. Public search applies the
+promoted tier before the ordinary tier, with newest `boosted_at` first inside TOP;
+normal filters and pagination use that server-side ordering rather than a client
+sort.
+
+Desktop and mobile map markers use the returned `promoted` state. TOP markers are
+red, have a higher collision/z-index priority, and update in place after a catalog
+refresh. Geometry changes drive map fitting; a TOP-only refresh updates marker
+styling without resetting a user's pan or zoom.
+
+## External import operations
+
+`/api/v1/admin/external-import/runs`, `/worker`, and `/run` remain protected
+operational API endpoints. They are intentionally not exposed in the moderation
+console because import execution is operated through the existing worker and
+production monitoring process; no second scheduler or worker is created. See
+`docs/production-operations.md` for the authenticated inspection workflow.
 
 ## Operational safety
 

@@ -25,7 +25,9 @@ class UserRestrictionRequest(BaseModel):
 
 
 class ListingRestrictionRequest(BaseModel):
-    until: datetime
+    # Like user restrictions, a missing end date is a first-class permanent
+    # restriction rather than a synthetic far-future timestamp.
+    until: datetime | None = None
     reason: str = Field(min_length=2, max_length=4_000)
 
 
@@ -62,7 +64,7 @@ class ListingRestrictionResponse(BaseModel):
     id: UUID
     reason: str
     startsAt: datetime
-    endsAt: datetime
+    endsAt: datetime | None
     revokedAt: datetime | None
     active: bool
 

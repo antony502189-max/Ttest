@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { checkAdminAccess } from '@/api/admin'
+import { ApiError } from '@/api/client'
 import { useApp } from '@/contexts/app-context'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
@@ -12,28 +13,32 @@ const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
  * The protected route and every admin endpoint still authorize independently
  * on the server; this hook only decides whether to expose navigation.
  */
-export function useAdminAccess() {
+export type AdminAccessState = 'allowed' | 'denied' | 'google_identity_required'
+
+export function useAdminAccessState(): AdminAccessState {
   const { currentUser } = useApp()
   const { pathname } = useLocation()
-  const [allowed, setAllowed] = useState(false)
+  const [state, setState] = useState<AdminAccessState>('denied')
   const userId = currentUser?.id
   const productRole = currentUser?.role
 
   useEffect(() => {
     if (!userId) {
-      setAllowed(false)
+      setState('denied')
       return
     }
     if (mockMode) {
-      setAllowed(productRole === 'admin')
+      setState(productRole === 'admin' ? 'allowed' : 'denied')
       return
     }
 
     let cancelled = false
     const refresh = () => {
       void checkAdminAccess()
-        .then(() => { if (!cancelled) setAllowed(true) })
-        .catch(() => { if (!cancelled) setAllowed(false) })
+        .then(() => { if (!cancelled) setState('allowed') })
+        .catch((error: unknown) => {
+          if (!cancelled) setState(error instanceof ApiError && error.code === 'GOOGLE_IDENTITY_REQUIRED' ? 'google_identity_required' : 'denied')
+        })
     }
 
     refresh()
@@ -44,5 +49,9 @@ export function useAdminAccess() {
     }
   }, [pathname, productRole, userId])
 
-  return allowed
+  return state
+}
+
+export function useAdminAccess() {
+  return useAdminAccessState() === 'allowed'
 }

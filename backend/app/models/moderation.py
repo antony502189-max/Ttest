@@ -42,7 +42,9 @@ class ListingRestriction(Base):
     listing_id: Mapped[UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), index=True)
     reason: Mapped[str] = mapped_column(Text)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    # ``NULL`` deliberately represents a permanent listing restriction.  It is
+    # not an unset end date: only a later administrator action may revoke it.
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     revoked_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

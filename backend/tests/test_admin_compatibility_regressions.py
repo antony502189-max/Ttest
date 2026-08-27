@@ -138,6 +138,21 @@ def test_admin_migration_converts_legacy_blocks_and_skips_their_admin_seed() -> 
     assert 'AND (ends_at IS NULL OR ends_at > now())' in migration
 
 
+def test_forward_admin_repair_restores_only_allowlist_grants_and_permanent_listing_schema() -> None:
+    migration = (
+        Path(__file__).resolve().parents[1]
+        / "alembic"
+        / "versions"
+        / "0039_admin_grant_repair_and_permanent_listing_restrictions.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'REQUIRED_ADMIN_EMAILS = ("antony502189@gmail.com", "tf.shuler@gmail.com")' in migration
+    assert "ON CONFLICT (email) DO UPDATE SET active = TRUE" in migration
+    assert 'nullable=True' in migration
+    assert "three-valued CHECK semantics" in migration
+    assert "UPDATE users" not in migration
+
+
 def test_deleted_admin_user_detail_is_rendered_read_only() -> None:
     admin_page = (Path(__file__).resolve().parents[2] / "src" / "pages" / "AdminPage.tsx").read_text(encoding="utf-8")
 
@@ -149,25 +164,31 @@ def test_deleted_admin_user_detail_is_rendered_read_only() -> None:
     assert 'La ficha se conserva únicamente como historial de moderación y es de solo lectura.' in admin_page
 
 
-def test_admin_navigation_is_profile_only_and_server_authorized() -> None:
+def test_admin_navigation_is_server_authorized_on_profile_and_mobile_menu() -> None:
     project_root = Path(__file__).resolve().parents[2]
     hook = (project_root / "src" / "hooks" / "use-admin-access.ts").read_text(encoding="utf-8")
     layout = (project_root / "src" / "components" / "layout.tsx").read_text(encoding="utf-8")
-    mobile_menu = (project_root / "src" / "pages" / "MobilePages.tsx").read_text(encoding="utf-8")
+    mobile_menu = (project_root / "src" / "components" / "mobile-app-v2.tsx").read_text(encoding="utf-8")
     profile = (project_root / "src" / "pages" / "ProfilePage.tsx").read_text(encoding="utf-8")
     app = (project_root / "src" / "App.tsx").read_text(encoding="utf-8")
 
     assert "checkAdminAccess()" in hook
     assert "if (mockMode)" in hook
-    assert "setAllowed(productRole === 'admin')" in hook
+    assert "setState(productRole === 'admin' ? 'allowed' : 'denied')" in hook
+    assert "GOOGLE_IDENTITY_REQUIRED" in hook
 
     assert 'to="/admin"' not in layout
     assert "useAdminAccess" not in layout
-    assert 'to="/admin"' not in mobile_menu
-    assert "useAdminAccess" not in mobile_menu
+    assert "useAdminAccess" in mobile_menu
+    assert "adminAllowed ?" in mobile_menu
+    assert "onAdmin={() => navigate('/admin')}" in mobile_menu
+    assert "Перейти в админ-панель" in mobile_menu
+    assert "Open administration panel" in mobile_menu
+    assert "Abrir panel de administración" in mobile_menu
 
-    assert "const adminAllowed = useAdminAccess()" in profile
-    assert "adminAllowed ?" in profile
+    assert "const adminAccess = useAdminAccessState()" in profile
+    assert "adminAccess === 'allowed'" in profile
+    assert "linkGoogle: true" in profile
     assert "navigate('/admin')" in profile
     assert "Abrir panel de administración" in profile
     assert 'className="m2-account-admin"' in profile
