@@ -1,0 +1,116 @@
+/* Mobile publish wizard hotfix.
+ * Loaded last to neutralize legacy cascade conflicts without changing desktop layout.
+ */
+@media (max-width: 767px), (max-height: 480px) and (max-width: 900px) {
+  .publish-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* Keep the create/edit header in one deterministic row. Older mobile layers
+     switch this element between grid/flex and can push the exit arrow/text out
+     of alignment on narrow devices. */
+  .publish-page .publish-header {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-height: 4.1rem;
+    height: 4.1rem;
+    display: grid !important;
+    grid-template-columns: 2.75rem minmax(0, 1fr) !important;
+    grid-template-rows: 1fr;
+    align-items: center !important;
+    gap: .35rem;
+    padding: .25rem .55rem;
+    overflow: hidden;
+  }
+
+  .publish-page .publish-header > [data-slot="button"]:first-of-type {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    max-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 0;
+    translate: none;
+  }
+
+  .publish-page .publish-header > [data-slot="button"]:first-of-type svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    flex: none;
+    margin: 0;
+    color: var(--ink);
+    translate: none;
+    transform: none;
+  }
+
+  .publish-page .publish-header > div:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .publish-page .publish-header > div:nth-child(2) h1 {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .publish-page .publish-header > .publish-header__actions {
+    display: none !important;
+  }
+
+  /* A native select can contribute its option list's intrinsic width to a grid
+     item on narrow mobile browsers. Clamp the complete publish form chain so
+     opening Municipio/other selects can never widen the document. */
+  .publish-page .wizard-layout,
+  .publish-page .wizard-layout > aside,
+  .publish-page .wizard-content,
+  .publish-page .wizard-section,
+  .publish-page .form-grid,
+  .publish-page [data-slot="field"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .publish-page select,
+  .publish-page input,
+  .publish-page textarea,
+  .publish-page .publish-place-autocomplete,
+  .publish-page .approximate-location-selector,
+  .publish-page .approximate-location-map-shell {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .publish-page select,
+  .publish-page input,
+  .publish-page textarea {
+    font-size: 1rem;
+  }
+
+  .publish-page select {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 359px) {
+  .publish-page .publish-header > div:nth-child(2) h1 {
+    font-size: .95rem;
+  }
+}
