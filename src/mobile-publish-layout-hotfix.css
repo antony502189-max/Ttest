@@ -78,11 +78,7 @@
     max-width: 100%;
   }
 
-  /* The legacy mobile action bar uses negative inline margins to fake a
-     full-bleed sticky footer. Chromium includes the right-hand negative-margin
-     expansion in the root scrolling area even though body itself still fits,
-     producing a deterministic +10px html overflow. Keep the sticky controls
-     inside the wizard gutter instead of masking that overflow at the root. */
+  /* Keep the sticky footer inside the wizard gutter. */
   .publish-page .wizard-actions {
     box-sizing: border-box;
     width: 100%;
@@ -105,8 +101,12 @@
     max-width: 100%;
   }
 
+  /* Do not apply width:100% to the wizard's visually-hidden absolute radio or
+     checkbox inputs. Their labels provide the interactive card geometry; making
+     an absolute radio viewport-wide from the label's 10px inset creates root
+     horizontal overflow. */
   .publish-page select,
-  .publish-page input,
+  .publish-page input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]),
   .publish-page textarea,
   .publish-page .publish-place-autocomplete,
   .publish-page .approximate-location-selector,
@@ -118,7 +118,7 @@
   }
 
   .publish-page select,
-  .publish-page input,
+  .publish-page input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]),
   .publish-page textarea {
     font-size: 1rem;
   }
