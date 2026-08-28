@@ -31,6 +31,11 @@ export interface SavedSearch {
 type RegisterInput = { name: string; email: string; password: string; role: UserRole }
 type ProfileUpdate = Partial<Omit<DemoUser, 'id' | 'email' | 'password' | 'role'>>
 type UserScopedState<T> = Record<string, T>
+export interface PartialPublicationRecovery {
+  listingId: string
+  publicationKey: string
+  ownerUserId: string
+}
 
 export interface AppState {
   rentalMode: RentalMode
@@ -58,6 +63,7 @@ export interface AppState {
   setMapPolygon: (points: MapPolygonPoint[]) => void
   clearMapPolygon: () => void
   allListings: Listing[]
+  partialPublication: PartialPublicationRecovery | null
   createListing: (listing: Listing) => Promise<boolean>
   updateListing: (id: string, listing: Listing) => Promise<boolean>
   deleteListing: (id: string) => Promise<boolean>
@@ -91,6 +97,7 @@ const LISTINGS_KEY = '112233:listings:v3'
 const LISTINGS_VERSION = 3
 const DRAFT_KEY = '112233:listing-draft:v3'
 const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
+const PARTIAL_PUBLICATION_KEY = '112233:listing-publication-recovery:v1'
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
 const publicationFieldLabels: Record<string, string> = {
@@ -145,6 +152,20 @@ function readDraftRecord() {
     if (parsed.data) return { key, value: parsed.data }
   }
   return null
+}
+
+function readPartialPublication(): PartialPublicationRecovery | null {
+  const parsed = parseJson<PartialPublicationRecovery>(localStorage.getItem(PARTIAL_PUBLICATION_KEY))
+  if (parsed.failure || !parsed.data) return null
+  const value = parsed.data
+  return typeof value.listingId === 'string' && typeof value.publicationKey === 'string' && typeof value.ownerUserId === 'string'
+    ? value
+    : null
+}
+
+function persistPartialPublication(value: PartialPublicationRecovery | null) {
+  if (value) localStorage.setItem(PARTIAL_PUBLICATION_KEY, JSON.stringify(value))
+  else localStorage.removeItem(PARTIAL_PUBLICATION_KEY)
 }
 
 function usedMediaReferences(listings: Listing[], users: DemoUser[], draft: unknown = readDraftRecord()?.value) {
@@ -227,6 +248,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [savedSearchScopes, setSavedSearchScopes] = useState<UserScopedState<SavedSearch[]>>(readScopedSavedSearches)
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
+  const [partialPublication, setPartialPublication] = useState<PartialPublicationRecovery | null>(() => mockMode ? null : readPartialPublication())
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<DemoUser[]>([])
@@ -262,6 +284,11 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
+  useEffect(() => {
+    if (!partialPublication || !currentUserId || partialPublication.ownerUserId === currentUserId) return
+    setPartialPublication(null)
+    try { persistPartialPublication(null) } catch { /* Ignore stale recovery cleanup failures. */ }
+  }, [currentUserId, partialPublication])
   useEffect(() => {
     if (orphanCleanupStarted.current) return
     orphanCleanupStarted.current = true
@@ -448,6 +475,32 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const canManageListing = useCallback((listing: Listing) => Boolean(currentUser && (currentUser.role === 'admin' || (currentUser.role === 'host' && listing.ownerUserId === currentUser.id))), [currentUser])
   const createListing = useCallback(async (listing: Listing) => {
     if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return false }
+    if (partialPublication && partialPublication.publicationKey !== listing.id) {
+      toast.error('Termina la recuperación de las fotografías del anuncio anterior antes de publicar otro.')
+      return false
+    }
+    if (partialPublication) {
+      const previous = allListings.find((item) => item.id === partialPublication.listingId)
+      try {
+        const images = await syncListingImages(partialPublication.listingId, listing.images)
+        const usedAfterRecovery = new Set([
+          ...allListings.filter((item) => item.id !== partialPublication.listingId).flatMap((item) => item.images),
+          ...images,
+          ...(currentUser.avatarRef ? [currentUser.avatarRef] : []),
+        ])
+        await removeUnusedMediaReferences(previous?.images ?? [], usedAfterRecovery)
+        const recovered = { ...listing, id: partialPublication.listingId, ownerUserId: currentUser.id, userCreated: true, images }
+        setAllListings((current) => [recovered, ...current.filter((item) => item.id !== partialPublication.listingId)])
+        setPartialPublication(null)
+        try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after the listing is recovered. */ }
+        toast.success('Las fotografías se han sincronizado y el anuncio está listo.')
+        return true
+      } catch (error) {
+        console.error('listing_image_recovery_failed', { listingId: partialPublication.listingId, ...publicationDiagnostic(error) })
+        toast.error('El anuncio ya está creado, pero las fotografías siguen pendientes. Revisa las fotos y vuelve a intentarlo.')
+        return false
+      }
+    }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
     setAllListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
@@ -461,6 +514,13 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         imagesSynced = false
         stored = { ...stored, images: optimistic.images }
+        const recovery = {
+          listingId: remote.id,
+          publicationKey: optimistic.id,
+          ownerUserId: currentUser.id,
+        }
+        setPartialPublication(recovery)
+        try { persistPartialPublication(recovery) } catch { toast.error('No se pudo guardar el estado de recuperación; mantén esta pestaña abierta para reintentar las fotos.') }
         console.error('listing_image_sync_failed', { listingId: remote.id, ...publicationDiagnostic(error) })
         const reason = error instanceof ApiError
           ? error.code === 'REQUEST_TIMEOUT' ? 'la carga agotó el tiempo de espera' : 'el servidor rechazó alguna imagen'
@@ -469,6 +529,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       }
       setAllListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
       if (!imagesSynced) return false
+      try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after a successful publication. */ }
       toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
       return true
     } catch (error) {
@@ -477,7 +538,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       toast.error(publicationErrorMessage(error))
       return false
     }
-  }, [currentUser])
+  }, [allListings, currentUser, partialPublication])
   const mutateOwned = useCallback((id: string, mutate: (listing: Listing) => Listing | null) => setAllListings((current) => current.flatMap((listing) => {
     if (listing.id !== id) return [listing]
     if (!canManageListing(listing)) { toast.error('No puedes gestionar un anuncio de otra cuenta.'); return [listing] }
@@ -706,7 +767,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

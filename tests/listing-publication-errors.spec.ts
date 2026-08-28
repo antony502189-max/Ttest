@@ -18,6 +18,14 @@ const host = {
 }
 
 type PublicationMode = 'email' | 'validation' | 'success'
+type PublicationTestState = {
+  mode: PublicationMode
+  posts: number
+  profilePatches: number
+  payload?: Record<string, unknown>
+  imageFailures?: number
+  imageListingIds?: string[]
+}
 
 function listingResponse(payload: Record<string, unknown>, id: string) {
   return {
@@ -52,7 +60,7 @@ function listingResponse(payload: Record<string, unknown>, id: string) {
   }
 }
 
-async function mockPublicationApi(page: Page, state: { mode: PublicationMode; posts: number; profilePatches: number; payload?: Record<string, unknown>; imageFailures?: number }) {
+async function mockPublicationApi(page: Page, state: PublicationTestState) {
   await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request()
     const url = new URL(request.url())
@@ -78,6 +86,7 @@ async function mockPublicationApi(page: Page, state: { mode: PublicationMode; po
     }
     if (path === '/uploads' && request.method() === 'POST') return json({ id: '22222222-2222-4222-8222-222222222222', url: '/api/v1/media/22222222-2222-4222-8222-222222222222' }, 201)
     if (/^\/listings\/[^/]+\/images$/.test(path) && request.method() === 'PUT') {
+      state.imageListingIds?.push(path.split('/')[2])
       if ((state.imageFailures ?? 0) > 0) {
         state.imageFailures = (state.imageFailures ?? 0) - 1
         return json({ code: 'internal_error', message: 'Internal server error', fieldErrors: {} }, 500)
@@ -171,19 +180,56 @@ test('publish revalidates earlier steps after the host revisits and changes them
   expect(state.posts).toBe(0)
 })
 
-test('image failure keeps the durable draft and retries the same listing', async ({ page }) => {
-  const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0, imageFailures: 1 }
+test('image failure keeps the durable draft and retries images without reposting or editing fields', async ({ page }) => {
+  const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0, imageFailures: 1, imageListingIds: [] as string[] }
   await mockPublicationApi(page, state)
   await openCompletedWizard(page)
 
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByText(/El anuncio se creó, pero/)).toBeVisible()
+  await expect(page.getByText(/Los datos del anuncio están bloqueados/)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Publicar anuncio' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Reintentar fotografías' })).toBeEnabled()
   expect(state.posts).toBe(1)
+  expect(state.imageListingIds).toHaveLength(1)
   expect(await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).toBeTruthy()
 
+  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
+  await expect(page.getByRole('heading', { name: 'Revisa antes de publicar' })).toBeVisible()
+  await page.getByRole('button', { name: 'Reintentar fotografías' }).click()
+  await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
+  expect(state.posts).toBe(1)
+  expect(state.imageListingIds).toHaveLength(2)
+  expect(state.imageListingIds[1]).toBe(state.imageListingIds[0])
+})
+
+test('publication contact validation matches the backend for hidden values and limits', async ({ page }) => {
+  const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0 }
+  await mockPublicationApi(page, state)
+  await openCompletedWizard(page)
+
+  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
+  await page.locator('#publish-contact-phone').fill('not-a-phone')
+  await page.getByRole('checkbox', { name: 'Mostrar teléfono tras confirmar' }).uncheck()
+  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await expect(page.getByText('Introduce un teléfono válido.')).toBeVisible()
+  expect(state.posts).toBe(0)
+
+  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
+  await page.locator('#publish-contact-phone').fill('1'.repeat(65))
+  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await expect(page.getByText('El teléfono no puede superar 64 caracteres.')).toBeVisible()
+  expect(state.posts).toBe(0)
+
+  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
+  await page.locator('#publish-contact-phone').fill(host.phone)
+  await page.getByRole('checkbox', { name: 'Mostrar teléfono tras confirmar' }).check()
+  await page.locator('#publish-contact-whatsapp').fill('')
+  await page.getByRole('checkbox', { name: 'Permitir WhatsApp tras confirmar' }).uncheck()
+  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
-  expect(state.posts).toBe(2)
+  expect(state.posts).toBe(1)
 })

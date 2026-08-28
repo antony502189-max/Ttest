@@ -55,6 +55,7 @@ import {
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from "@/api/auth";
 import { useI18n } from "@/contexts/i18n-context";
 import { bedTypeOptionLabel } from "@/lib/bed-type-label";
+import { validatePublicationContact } from "@/lib/publication-contact";
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from "@/types";
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === "1";
@@ -261,7 +262,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const { language } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { allListings, createListing, updateListing, currentUser, canManageListing } = useApp();
+  const { allListings, createListing, updateListing, currentUser, canManageListing, partialPublication } = useApp();
   const existing = editing ? allListings.find((listing) => listing.id === id) : undefined;
   const [draft, setDraft] = useState<ListingDraft>(() => {
     if (existing) return toDraft(existing);
@@ -296,6 +297,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     return references;
   }, [allListings, currentUser?.avatarRef]);
   const isDirty = JSON.stringify(draft) !== baseline;
+  const recoveringImages = Boolean(partialPublication && partialPublication.publicationKey === draft.publicationKey);
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const preview = useMemo(() => toListing(draft, existing, currentUser?.id), [draft, existing, currentUser?.id]);
   const equipment = readEquipmentAmenities(draft.amenities);
@@ -375,10 +377,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     if (targetStep === 7 && draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
     if (targetStep === 7 && (draft.description.trim().length < 40 || draft.description.length > 10_000)) next.description = "La descripción debe tener entre 40 y 10.000 caracteres.";
     if (targetStep === 7 && draft.rules.length > 10_000) next.rules = "Las normas no pueden superar 10.000 caracteres.";
-    if (targetStep === 8 && (draft.contactName.trim().length < 2 || draft.contactName.trim().length > 120)) next.contactName = "El nombre público debe tener entre 2 y 120 caracteres.";
-    if (targetStep === 8 && !draft.showPhone && !draft.showWhatsApp) next.contactMethods = "Activa teléfono o WhatsApp como forma de contacto.";
-    if (targetStep === 8 && draft.showPhone && !/^\+?[\d\s-]{7,}$/.test(draft.contactPhone)) next.contactPhone = "Introduce un teléfono válido.";
-    if (targetStep === 8 && draft.showWhatsApp && !/^\+?[\d\s-]{7,}$/.test(draft.contactWhatsapp)) next.contactWhatsapp = "Introduce un WhatsApp válido.";
+    if (targetStep === 8) Object.assign(next, validatePublicationContact(draft));
     setErrors(next);
     if (Object.keys(next).length) requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"], .field-error')?.focus());
     return Object.keys(next).length === 0;
@@ -592,12 +591,16 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
         {isDirty ? <ConfirmDialog trigger={<Button variant="ghost"><ArrowLeft data-icon="inline-start" />Salir</Button>} title="¿Salir del editor?" description="El borrador automático seguirá guardado para que puedas continuar después." confirmLabel="Salir y conservar borrador" onConfirm={() => navigate("/mis-anuncios")} /> : <Button variant="ghost" onClick={() => navigate("/mis-anuncios")}><ArrowLeft data-icon="inline-start" />Salir</Button>}
         <div><span className="eyebrow">{editing ? `Editando ${id?.slice(-5).toUpperCase()}` : "Nuevo anuncio"}</span><h1 aria-label={editing ? "Editar habitación" : undefined}>{editing ? "Editar anuncio" : "Publicar una habitación"}</h1></div>
         <div className="publish-header__actions">
-          <ConfirmDialog trigger={<Button variant="ghost"><RotateCcw data-icon="inline-start" />Restablecer</Button>} title="¿Restablecer el borrador?" description="Se eliminarán los cambios de todos los pasos y volverán los valores iniciales." confirmLabel="Restablecer" destructive onConfirm={resetDraft} />
-          <Button variant="outline" onClick={() => { try { localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft })); setBaseline(JSON.stringify(draft)); toast.success("Borrador guardado"); } catch { toast.error("No se pudo guardar el borrador. Revisa el espacio disponible."); } }}><Save data-icon="inline-start" />Guardar borrador</Button>
+          <ConfirmDialog trigger={<Button variant="ghost" disabled={recoveringImages}><RotateCcw data-icon="inline-start" />Restablecer</Button>} title="¿Restablecer el borrador?" description="Se eliminarán los cambios de todos los pasos y volverán los valores iniciales." confirmLabel="Restablecer" destructive onConfirm={resetDraft} />
+          <Button variant="outline" disabled={recoveringImages} onClick={() => { try { localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft })); setBaseline(JSON.stringify(draft)); toast.success("Borrador guardado"); } catch { toast.error("No se pudo guardar el borrador. Revisa el espacio disponible."); } }}><Save data-icon="inline-start" />Guardar borrador</Button>
           <span className="dirty-state" aria-live="polite">{isDirty ? "Cambios sin guardar" : "Borrador guardado"}</span>
         </div>
       </div>
-      <div className="container wizard-layout"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={setStep} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">{content}<div className="wizard-actions"><Button variant="outline" disabled={step === 0 || publishing} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button disabled={publishing} onClick={finish}>{publishing ? "Publicando…" : "Publicar anuncio"} <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div></section></div>
+      <div className="container wizard-layout"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={(value) => { if (recoveringImages && value !== 6 && value !== steps.length - 1) return; setStep(value); }} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">
+        {recoveringImages ? <Alert><Info /><AlertTitle>El anuncio ya está creado</AlertTitle><AlertDescription>Solo faltan las fotografías. Los datos del anuncio están bloqueados para que ningún cambio se pierda; revisa las fotos y reintenta la sincronización.</AlertDescription><Button type="button" variant="outline" onClick={() => setStep(6)}>Revisar fotografías</Button></Alert> : null}
+        <fieldset className="publish-recovery-fields" disabled={recoveringImages && step !== 6}>{content}</fieldset>
+        <div className="wizard-actions"><Button variant="outline" disabled={step === 0 || publishing || recoveringImages} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button disabled={publishing} onClick={finish}>{publishing ? "Publicando…" : recoveringImages ? "Reintentar fotografías" : "Publicar anuncio"} <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div>
+      </section></div>
     </div>
     <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}><DialogContent aria-describedby="email-verification-description"><DialogHeader><DialogTitle>Confirma tu email para publicar</DialogTitle><DialogDescription id="email-verification-description">Enviaremos un código de seis dígitos a {verificationEmail || "tu email"}. Tu borrador y tus fotos seguirán guardados.</DialogDescription></DialogHeader><div className="space-y-3"><Input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" aria-label="Código de seis dígitos" aria-invalid={Boolean(verificationError)} />{verificationError ? <p className="field-error" role="alert">{verificationError}</p> : null}<Button type="button" variant="outline" disabled={verificationBusy || verificationCooldown > 0} onClick={async () => { setVerificationBusy(true); try { const result = await requestEmailVerification(); setVerificationEmail(result.email); setVerificationCooldown(result.cooldownSeconds); setVerificationError(""); toast.success("Código enviado"); } catch (error) { setVerificationError(error instanceof Error ? error.message : "No se pudo enviar el código."); } finally { setVerificationBusy(false); } }}>{verificationCooldown > 0 ? `Reenviar en ${verificationCooldown}s` : "Enviar código"}</Button><Button type="button" disabled={verificationBusy || verificationCode.length !== 6} onClick={async () => { setVerificationBusy(true); try { await verifyEmail(verificationCode); setVerificationOpen(false); setVerificationCode(""); setVerificationError(""); await finish(); } catch (error) { setVerificationError(error instanceof Error ? error.message : "Código no válido."); } finally { setVerificationBusy(false); } }}>Confirmar y publicar</Button></div></DialogContent></Dialog>
     <AlertDialog open={Boolean(pendingRoute)} onOpenChange={(open) => { if (!open) setPendingRoute(null); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Salir del editor?</AlertDialogTitle><AlertDialogDescription>Hay cambios sin guardar. El borrador automático se conserva, pero puedes guardar manualmente antes de salir.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Seguir editando</AlertDialogCancel><AlertDialogAction onClick={() => { const route = pendingRoute; setPendingRoute(null); if (route) navigate(route); }}>Salir y conservar borrador</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

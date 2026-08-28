@@ -166,6 +166,17 @@ async def test_publication_is_idempotent_and_contact_sync_is_atomic(client, regi
     assert first.status_code == replay.status_code == 201
     assert first.json()["id"] == replay.json()["id"] == str(key)
 
+    changed = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(token, key),
+        json=customer_listing(
+            contactName=payload["contactName"],
+            contactPhone="+34 600 999 999",
+        ),
+    )
+    assert changed.status_code == 409
+    assert changed.json()["code"] == "IDEMPOTENCY_PAYLOAD_MISMATCH"
+
     async with SessionLocal() as session:
         assert await session.scalar(select(func.count()).select_from(Listing)) == 1
         user = await session.get(User, UUID(user_body["id"]))

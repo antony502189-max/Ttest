@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from math import isclose
 from secrets import token_urlsafe
 from uuid import UUID
 
@@ -49,6 +50,45 @@ from ..dependencies import current_user, optional_user
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 logger = logging.getLogger(__name__)
+
+IDEMPOTENCY_CONTACT_FIELDS = {
+    "contactName": "name",
+    "contactPhone": "phone",
+    "contactWhatsapp": "whatsapp",
+    "showPhone": "show_phone",
+    "showWhatsApp": "show_whatsapp",
+}
+IDEMPOTENCY_COORDINATE_FIELDS = {"latitude", "longitude", "exactLatitude", "exactLongitude"}
+
+
+def idempotency_payload_matches(payload: ListingWrite, existing: OwnedListingResponse, user: User) -> bool:
+    """Reject a reused publication key when its material input changed.
+
+    Listing fields are read back through the owner response, which includes
+    room details and private coordinates. Contact fields live on the owner
+    profile, so compare only values explicitly supplied by this operation.
+    Omitted contact fields intentionally remain no-ops for backwards
+    compatibility with older clients.
+    """
+    incoming = payload.model_dump(mode="json")
+    stored = existing.model_dump(mode="json")
+    for field, value in incoming.items():
+        if field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
+            continue
+        previous = stored[field]
+        if field in IDEMPOTENCY_COORDINATE_FIELDS and value is not None and previous is not None:
+            if not isclose(float(value), float(previous), rel_tol=0, abs_tol=1e-6):
+                return False
+        elif value != previous:
+            return False
+
+    for field, user_field in IDEMPOTENCY_CONTACT_FIELDS.items():
+        if field not in payload.model_fields_set:
+            continue
+        value = getattr(payload, field)
+        if value is not None and value != getattr(user, user_field):
+            return False
+    return True
 
 
 async def listing_hidden_by_moderation(listing_id: UUID, owner_user_id: UUID, session: AsyncSession) -> bool:
@@ -210,6 +250,20 @@ async def create_listing(
                         },
                     )
                 row = (await session.execute(owned_query().where(Listing.id == existing.id))).one()
+                existing_response = owned_response_from(row)
+                # The request-scoped user may have been loaded before a concurrent
+                # publication committed its atomic contact update. Refresh it
+                # before comparing a replay so identical payloads remain idempotent.
+                await session.refresh(user)
+                if not idempotency_payload_matches(payload, existing_response, user):
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        detail={
+                            "code": "IDEMPOTENCY_PAYLOAD_MISMATCH",
+                            "message": "The publication key has already been used for different listing data.",
+                            "fieldErrors": {},
+                        },
+                    )
                 logger.info(
                     "listing_publication_replayed",
                     extra={
@@ -219,7 +273,7 @@ async def create_listing(
                         "operation": "create_listing",
                     },
                 )
-                return owned_response_from(row)
+                return existing_response
 
         await enforce_listing_creation_limits(user, session, acquire_lock=False)
         return await create_listing_service(
