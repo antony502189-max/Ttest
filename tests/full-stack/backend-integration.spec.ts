@@ -6,10 +6,11 @@ let nextTestClient = 1
 
 function testClientIp() {
   // The full-stack backend is shared by the desktop and mobile Playwright
-  // projects.  Use distinct documentation-only client addresses for their
+  // projects. Use a project-specific documentation-only address range for
   // direct API fixtures so the real per-client verification-code limit does
   // not leak from one independent fixture into another.
-  return `192.0.2.${nextTestClient++}`
+  const projectRange = test.info().project.name === 'mobile-chromium' ? '198.51.100' : '192.0.2'
+  return `${projectRange}.${nextTestClient++}`
 }
 
 const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' = 'any') => ({
@@ -66,7 +67,6 @@ const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' =
   description: 'Anuncio creado por la prueba full-stack para comprobar la integración real.',
   homeDescription: 'Respeta las zonas comunes.',
   advertiserType: 'Particular',
-  source: 'playwright-full-stack',
   expiresAt: new Date(Date.now() + 60 * 86_400_000).toISOString(),
 })
 
@@ -303,7 +303,7 @@ test('legacy bedroom-count URL parameter is removed from customer search', async
 })
 
 test('an open catalog refreshes after its version changes on focus', async ({ page }) => {
-  const unique = `${Date.now()}-catalog-version`
+  const unique = `${Date.now()}-catalog-version-${test.info().project.name}`
   const title = `HabitaciГіn catalog ${unique}`
   const created = await createBackendListing(unique, title)
 

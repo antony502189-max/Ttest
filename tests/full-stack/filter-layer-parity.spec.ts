@@ -5,7 +5,8 @@ const API_PREFIX = '/api/v1'
 let clientCounter = 180
 
 function nextIp() {
-  return `192.0.2.${clientCounter++}`
+  const projectRange = test.info().project.name === 'mobile-chromium' ? '198.18.0' : '203.0.113'
+  return `${projectRange}.${clientCounter++}`
 }
 
 async function verifiedHost(unique: string) {
@@ -88,7 +89,6 @@ function baseListing(title: string, city: string, area: string) {
     description: 'Filter layer audit listing.',
     homeDescription: 'Structured room facts for filter parity.',
     advertiserType: 'Profesional',
-    source: 'filter-layer-audit',
     expiresAt: '2099-12-31T00:00:00Z',
   }
 }
