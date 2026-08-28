@@ -93,6 +93,42 @@ const DRAFT_KEY = '112233:listing-draft:v3'
 const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
+const publicationFieldLabels: Record<string, string> = {
+  title: 'el título', city: 'el municipio', area: 'la zona', roomType: 'el tipo de habitación',
+  monthlyPrice: 'el precio mensual', nightlyPrice: 'el precio por noche', weeklyPrice: 'el precio semanal',
+  availableFrom: 'la fecha de inicio', availableUntil: 'la fecha final', minimumStayMonths: 'la estancia mínima',
+  minimumNights: 'la estancia mínima', roomSizeM2: 'la superficie de la habitación', homeSizeM2: 'la superficie de la vivienda',
+  roomCapacity: 'la capacidad', currentRoomResidents: 'las personas que viven en la habitación', bedType: 'el tipo de cama',
+  bedCount: 'el número de camas', acceptedTenantTypes: 'los perfiles admitidos', exactLatitude: 'la ubicación exacta',
+  exactLongitude: 'la ubicación exacta', contactName: 'el nombre público', contactPhone: 'el teléfono',
+  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías',
+}
+
+function publicationErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) return 'Se produjo un error inesperado al publicar. Inténtalo de nuevo.'
+  if (error.code === 'EMAIL_VERIFICATION_REQUIRED') return 'Confirma tu email antes de publicar el anuncio.'
+  if (error.code === 'PUBLISHING_RESTRICTED' || error.code === 'ACCOUNT_RESTRICTED') return 'Tu cuenta tiene restringida la publicación de anuncios. Revisa el aviso de moderación.'
+  if (error.code === 'ACTIVE_LISTING_LIMIT_REACHED') return 'Has alcanzado el límite de anuncios activos.'
+  if (error.code === 'DAILY_LISTING_LIMIT_REACHED' || error.status === 429) return 'Has alcanzado el límite diario de publicaciones. Inténtalo más tarde.'
+  if (error.code === 'HOST_ACCOUNT_REQUIRED' || error.status === 403) return 'Necesitas una cuenta de anfitrión autorizada para publicar.'
+  if (error.status === 401) return 'Tu sesión ha caducado. Inicia sesión de nuevo para publicar.'
+  if (error.code === 'REQUEST_TIMEOUT') return 'La publicación está tardando más de lo esperado. Comprobaremos el mismo intento para evitar duplicados.'
+  if (error.code === 'NETWORK_ERROR' || error.status === 0) return 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+  if (error.code === 'VALIDATION_ERROR' || error.status === 422) {
+    const field = Object.keys(error.fieldErrors)[0]
+    return field ? `Revisa ${publicationFieldLabels[field] ?? 'los datos del anuncio'}.` : 'Revisa los datos del anuncio antes de publicarlo.'
+  }
+  return error.status >= 500
+    ? 'El servidor no pudo completar la publicación. Inténtalo de nuevo más tarde.'
+    : 'No se pudo publicar el anuncio. Revisa los datos e inténtalo de nuevo.'
+}
+
+function publicationDiagnostic(error: unknown) {
+  return error instanceof ApiError
+    ? { status: error.status, code: error.code ?? 'UNKNOWN', requestId: error.requestId, fields: Object.keys(error.fieldErrors) }
+    : { status: 0, code: error instanceof Error ? error.name : 'UNKNOWN' }
+}
+
 function collectMediaReferences(value: unknown, found = new Set<string>()) {
   if (typeof value === 'string') {
     if (isMediaReference(value)) found.add(value)
@@ -413,23 +449,32 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const createListing = useCallback(async (listing: Listing) => {
     if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return false }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
-    setAllListings((current) => [optimistic, ...current])
+    setAllListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
       const remote = await createRemoteListing(optimistic)
       let stored = { ...remote, userCreated: true }
+      let imagesSynced = true
       try {
         const images = await syncListingImages(remote.id, optimistic.images)
         stored = { ...stored, images }
         await removeUnusedMediaReferences(optimistic.images, images)
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'El anuncio se guardó, pero no se pudieron subir las imágenes.')
+        imagesSynced = false
+        stored = { ...stored, images: optimistic.images }
+        console.error('listing_image_sync_failed', { listingId: remote.id, ...publicationDiagnostic(error) })
+        const reason = error instanceof ApiError
+          ? error.code === 'REQUEST_TIMEOUT' ? 'la carga agotó el tiempo de espera' : 'el servidor rechazó alguna imagen'
+          : error instanceof Error ? error.message : 'no se pudieron subir las imágenes'
+        toast.error(`El anuncio se creó, pero ${reason}. Pulsa Publicar de nuevo para reintentar las fotos; no se duplicará.`)
       }
       setAllListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
+      if (!imagesSynced) return false
       toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
       return true
-    } catch {
+    } catch (error) {
       setAllListings((current) => current.filter((item) => item.id !== optimistic.id))
-      toast.error('No se pudo publicar el anuncio en el servidor.')
+      console.error('listing_publication_failed', publicationDiagnostic(error))
+      toast.error(publicationErrorMessage(error))
       return false
     }
   }, [currentUser])

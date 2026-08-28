@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
@@ -13,6 +14,9 @@ ALLOWED_HOUSEHOLD_GENDERS = {"men", "women", "mixed", "unknown"}
 ALLOWED_HEATING_TYPES = {"individual", "central", "none", "unknown"}
 ALLOWED_FLOORS = {"basement", "1", "2", "3", "4+", "top"}
 ALLOWED_TENANT_TYPES = {"man", "woman", "couple", "family"}
+ALLOWED_TENANT_REQUIREMENTS = {"single-man", "single-woman", "single-person", "couple", "any"}
+ALLOWED_ADVERTISER_TYPES = {"Particular", "Profesional"}
+PHONE_PATTERN = re.compile(r"^\+?[\d\s-]{7,64}$")
 
 
 class CatalogVersionResponse(BaseModel):
@@ -21,7 +25,7 @@ class CatalogVersionResponse(BaseModel):
 
 
 class ListingWrite(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str = Field(min_length=3, max_length=240)
     city: str = Field(min_length=2, max_length=120)
@@ -77,8 +81,15 @@ class ListingWrite(BaseModel):
     description: str = Field(default="", max_length=10_000)
     homeDescription: str = Field(default="", max_length=10_000)
     advertiserType: str = Field(default="Particular", max_length=32)
-    source: str | None = Field(default=None, max_length=120)
     expiresAt: datetime | None = None
+    # Publication contact changes are committed in the same transaction as
+    # the listing.  Omitted fields preserve the current profile for API
+    # clients that do not edit contact details during publication.
+    contactName: str | None = Field(default=None, min_length=2, max_length=120)
+    contactPhone: str | None = Field(default=None, max_length=64)
+    contactWhatsapp: str | None = Field(default=None, max_length=64)
+    showPhone: bool | None = None
+    showWhatsApp: bool | None = None
 
     @model_validator(mode="after")
     def validate_write(self):
@@ -106,6 +117,10 @@ class ListingWrite(BaseModel):
             value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
         ):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if self.tenantRequirement not in ALLOWED_TENANT_REQUIREMENTS:
+            raise ValueError("tenantRequirement contains an unsupported value")
+        if self.advertiserType not in ALLOWED_ADVERTISER_TYPES:
+            raise ValueError("advertiserType contains an unsupported value")
         if self.rentalUnit == "bed" and self.roomType != "Habitación compartida":
             raise ValueError("rentalUnit=bed is only valid for shared rooms")
         if self.rentalUnit == "bed" and self.bedType not in {None, "single", "bunk"}:
@@ -122,11 +137,19 @@ class ListingWrite(BaseModel):
             raise ValueError("exactLatitude and exactLongitude must be provided together")
         if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
             raise ValueError("availableUntil cannot be before availableFrom")
+        if self.contactPhone and not PHONE_PATTERN.fullmatch(self.contactPhone):
+            raise ValueError("contactPhone contains an invalid phone number")
+        if self.contactWhatsapp and not PHONE_PATTERN.fullmatch(self.contactWhatsapp):
+            raise ValueError("contactWhatsapp contains an invalid phone number")
+        if self.showPhone is True and not self.contactPhone:
+            raise ValueError("contactPhone is required when showPhone is enabled")
+        if self.showWhatsApp is True and not self.contactWhatsapp:
+            raise ValueError("contactWhatsapp is required when showWhatsApp is enabled")
         return self
 
 
 class ListingPatch(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     title: str | None = Field(default=None, min_length=3, max_length=240)
     city: str | None = Field(default=None, min_length=2, max_length=120)
@@ -182,7 +205,6 @@ class ListingPatch(BaseModel):
     description: str | None = Field(default=None, max_length=10_000)
     homeDescription: str | None = Field(default=None, max_length=10_000)
     advertiserType: str | None = Field(default=None, max_length=32)
-    source: str | None = Field(default=None, max_length=120)
     expiresAt: datetime | None = None
     status: str | None = None
 
@@ -213,7 +235,6 @@ class ListingPatch(BaseModel):
             "acceptedTenantTypes",
             "exactLatitude",
             "exactLongitude",
-            "source",
             "expiresAt",
         }
         for field in self.model_fields_set:
@@ -242,6 +263,10 @@ class ListingPatch(BaseModel):
             or any(value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes)
         ):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if self.tenantRequirement is not None and self.tenantRequirement not in ALLOWED_TENANT_REQUIREMENTS:
+            raise ValueError("tenantRequirement contains an unsupported value")
+        if self.advertiserType is not None and self.advertiserType not in ALLOWED_ADVERTISER_TYPES:
+            raise ValueError("advertiserType contains an unsupported value")
         coordinate_fields = {"latitude", "longitude"}
         if self.model_fields_set & coordinate_fields and (
             not coordinate_fields.issubset(self.model_fields_set) or self.latitude is None or self.longitude is None

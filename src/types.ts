@@ -181,6 +181,7 @@ export interface DemoUser {
 }
 
 export interface ListingDraft {
+  publicationKey: string
   rentalMode: RentalMode
   city: string
   area: string

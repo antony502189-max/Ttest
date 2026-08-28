@@ -1,4 +1,4 @@
-import { api, resolveApiUrl } from '@/api/client'
+import { api, ApiError, resolveApiUrl } from '@/api/client'
 import { defaultFilters } from '@/data/listings'
 import type { Filters, Listing, ListingStatus, TenantRequirement } from '@/types'
 
@@ -391,14 +391,32 @@ function listingPayload(listing: Listing, existing?: Listing) {
     restrictions: listing.restrictions, amenities: listing.amenities, latitude: listing.coordinates.lat,
     longitude: listing.coordinates.lng, exactLatitude: exact?.lat ?? null, exactLongitude: exact?.lng ?? null,
     description: listing.description, homeDescription: listing.homeDescription,
-    advertiserType: listing.advertiserType, source: listing.source ?? null,
+    advertiserType: listing.advertiserType,
     expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null,
+    ...(!existing ? {
+      contactName: (draft?.contactName || listing.owner.name).trim(),
+      contactPhone: draft?.contactPhone ?? listing.contactPhone ?? '',
+      contactWhatsapp: draft?.contactWhatsapp ?? listing.contactWhatsapp ?? '',
+      showPhone: listing.showPhone,
+      showWhatsApp: listing.showWhatsApp,
+    } : {}),
   }
 }
 
 export async function createRemoteListing(listing: Listing) {
-  await syncContactProfile(listing)
-  return toListing(await api<ListingDto>('/listings', { method: 'POST', body: JSON.stringify(listingPayload(listing)) }))
+  const request = () => api<ListingDto>('/listings', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': listing.id },
+    body: JSON.stringify(listingPayload(listing)),
+  })
+  try {
+    return toListing(await request())
+  } catch (error) {
+    // A timed-out POST may already have committed. The durable publication
+    // key makes one retry safe and returns the original listing if it did.
+    if (!(error instanceof ApiError) || !['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')) throw error
+    return toListing(await request())
+  }
 }
 
 export async function updateRemoteListing(id: string, listing: Listing) {

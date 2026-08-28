@@ -11,7 +11,32 @@ from .moderation import is_admin
 ACTIVE_LISTING_STATUSES = {"draft", "pending", "published", "hidden"}
 
 
-async def enforce_listing_creation_limits(user: User, session: AsyncSession) -> None:
+def limit_error(status_code: int, code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code,
+        detail={"code": code, "message": message, "fieldErrors": {}},
+    )
+
+
+async def lock_listing_creation(user: User, session: AsyncSession, idempotency_key: str | None = None) -> None:
+    """Serialize a publication key and the owner's quota decision in one transaction."""
+    if idempotency_key:
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+            {"lock_key": f"listing-publication:{idempotency_key}"},
+        )
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"listing-create:{user.id}"},
+    )
+
+
+async def enforce_listing_creation_limits(
+    user: User,
+    session: AsyncSession,
+    *,
+    acquire_lock: bool = True,
+) -> None:
     """Serialize and bound manual listing creation unless active admin access is present.
 
     The legacy product role is not an authorization boundary. Revoking an
@@ -20,13 +45,11 @@ async def enforce_listing_creation_limits(user: User, session: AsyncSession) -> 
     """
     if await is_admin(user, session):
         return
+    if acquire_lock:
+        await lock_listing_creation(user, session)
 
     settings = get_settings()
     now = datetime.now(UTC)
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-        {"lock_key": f"listing-create:{user.id}"},
-    )
     active_count, recent_count = (
         await session.execute(
             select(
@@ -50,6 +73,6 @@ async def enforce_listing_creation_limits(user: User, session: AsyncSession) -> 
     ).one()
 
     if int(active_count) >= settings.max_active_listings_per_user:
-        raise HTTPException(409, "Active listing limit reached")
+        raise limit_error(409, "ACTIVE_LISTING_LIMIT_REACHED", "Active listing limit reached")
     if int(recent_count) >= settings.max_listing_creations_per_day:
-        raise HTTPException(429, "Daily listing creation limit reached")
+        raise limit_error(429, "DAILY_LISTING_LIMIT_REACHED", "Daily listing creation limit reached")

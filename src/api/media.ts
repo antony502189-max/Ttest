@@ -29,7 +29,7 @@ export async function syncListingImages(listingId: string, references: string[])
         const uploaded = await uploadMediaReference(reference)
         assetIds.push(uploaded.id)
         newlyUploaded.push(uploaded.id)
-      }
+      } else throw new Error('Una de las imágenes ya no está disponible. Vuelve a añadirla.')
     }
     const images = await api<ListingImageDto[]>(`/listings/${listingId}/images`, {
       method: 'PUT', body: JSON.stringify({ assetIds }),

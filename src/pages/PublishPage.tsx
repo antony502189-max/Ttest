@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,7 @@ import { useApp } from "@/contexts/app-context";
 import { amenityOptions, areaCenters, createDefaultDraft } from "@/data/listings";
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
 import { approximatePublicCoordinates } from "@/lib/location-privacy";
-import { removeUnusedMediaReferences } from "@/lib/media-storage";
+import { isMediaReference, removeUnusedMediaReferences } from "@/lib/media-storage";
 import {
   legacyGenericEquipmentAmenities,
   normalizeEquipmentAmenities,
@@ -91,6 +91,7 @@ const toDraft = (listing: Listing): ListingDraft => {
   const roomCapacity = Math.min(10, Math.max(1, Math.round(listing.roomCapacity ?? 1)));
   const roomSize = Math.max(1, listing.roomSizeM2 ?? 12);
   return {
+    publicationKey: crypto.randomUUID(),
     rentalMode: listing.rentalMode,
     city: listing.city,
     area: listing.area,
@@ -154,13 +155,13 @@ const toDraft = (listing: Listing): ListingDraft => {
 
 const withProfileDefaults = (user: DemoUser | null) => {
   const initial = createDefaultDraft();
-  const base = { ...initial, amenities: withEquipmentDefaults(initial.amenities) };
+  const base = { ...initial, images: mockMode ? initial.images : [], amenities: withEquipmentDefaults(initial.amenities) };
   if (!user) return base;
   return { ...base, contactName: user.name, contactPhone: user.phone, contactWhatsapp: user.whatsapp, contactEmail: user.email, showPhone: user.showPhone, showWhatsApp: user.showWhatsApp };
 };
 
 const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string): Listing => {
-  const id = previous?.id ?? `${draft.area.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-6)}`;
+  const id = previous?.id ?? draft.publicationKey;
   const primaryPrice = draft.rentalMode === "holiday" ? draft.nightlyPrice : draft.monthlyPrice;
   const availableSpots = Math.max(0, draft.roomCapacity - draft.currentRoomResidents);
   const exactCoordinates = draft.coordinates;
@@ -276,6 +277,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const [maxVisited, setMaxVisited] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [published, setPublished] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const publishingRef = useRef(false);
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -322,18 +325,23 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   }, [verificationCooldown]);
   if (editing && (!existing || !canManageListing(existing))) return <Navigate to="/mis-anuncios" replace />;
 
-  const validate = () => {
+  const validate = (targetStep = step) => {
     const next: Record<string, string> = {};
-    if (step === 1 && !draft.area.trim()) next.area = "Indica la zona o barrio.";
-    if (step === 2) {
-      if (draft.roomSizeM2 < 1) next.roomSizeM2 = "Indica la superficie de la habitación.";
-      if (draft.homeSizeM2 < draft.roomSizeM2) next.homeSizeM2 = "La vivienda no puede ser menor que la habitación.";
-      if (draft.bedroomCount < 1 || draft.bedroomCount > 99) next.bedroomCount = "Indica entre 1 y 99 habitaciones.";
-      if (draft.bathroomCount < 0 || draft.bathroomCount > 20) next.bathroomCount = "Indica entre 0 y 20 baños.";
-      if (draft.currentResidents < 0) next.currentResidents = "El número de residentes no puede ser negativo.";
+    if (targetStep === 1) {
+      if (!draft.area.trim()) next.area = "Indica la zona o barrio.";
+      else if (draft.area.trim().length > 120) next.area = "La zona no puede superar 120 caracteres.";
+      if (draft.street.trim().length > 160) next.street = "La calle no puede superar 160 caracteres.";
+      if (draft.postcode.trim().length > 32) next.postcode = "El código postal no puede superar 32 caracteres.";
+    }
+    if (targetStep === 2) {
+      if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = "Indica una superficie entera entre 1 y 200 m².";
+      if (!Number.isInteger(draft.homeSizeM2) || draft.homeSizeM2 < draft.roomSizeM2 || draft.homeSizeM2 > 10_000) next.homeSizeM2 = "La vivienda debe tener una superficie entera, igual o mayor que la habitación.";
+      if (!Number.isInteger(draft.bedroomCount) || draft.bedroomCount < 1 || draft.bedroomCount > 99) next.bedroomCount = "Indica entre 1 y 99 habitaciones.";
+      if (!Number.isInteger(draft.bathroomCount) || draft.bathroomCount < 0 || draft.bathroomCount > 20) next.bathroomCount = "Indica entre 0 y 20 baños.";
+      if (!Number.isInteger(draft.currentResidents) || draft.currentResidents < 0) next.currentResidents = "El número de residentes debe ser un entero no negativo.";
       if (draft.roomCapacity < 1 || draft.roomCapacity > 10) next.roomCapacity = "La capacidad debe estar entre 1 y 10 personas.";
-      if (draft.bedCount < 1 || draft.bedCount > 10) next.bedCount = "Indica entre 1 y 10 camas.";
-      if (draft.currentRoomResidents < 0 || draft.currentRoomResidents >= draft.roomCapacity) next.currentRoomResidents = "Debe quedar al menos una plaza disponible.";
+      if (!Number.isInteger(draft.bedCount) || draft.bedCount < 1 || draft.bedCount > 10) next.bedCount = "Indica entre 1 y 10 camas.";
+      if (!Number.isInteger(draft.currentRoomResidents) || draft.currentRoomResidents < 0 || draft.currentRoomResidents >= draft.roomCapacity) next.currentRoomResidents = "Debe quedar al menos una plaza disponible.";
       if (draft.rentalUnit === "bed" && draft.roomType !== "Habitación compartida") next.rentalUnit = "Las plazas individuales solo se pueden alquilar en una habitación compartida.";
       if (draft.rentalUnit === "bed" && draft.bedType === "double") next.bedType = "Las plazas independientes se publican con cama individual o litera.";
       const sleepingPlaces = draft.bedCount * (draft.bedType === "double" || draft.bedType === "bunk" ? 2 : 1);
@@ -343,26 +351,30 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       if (!equipment.balcony) next.balcony = "Indica si la habitación o vivienda dispone de balcón.";
       if (!equipment.washingMachine) next.washingMachine = "Indica qué tipo de lavadora está disponible.";
     }
-    if (step === 3) {
-      if (getPrimaryPrice(preview) < 1) next.price = "El precio debe ser mayor que cero.";
+    if (targetStep === 3) {
+      if (!Number.isInteger(getPrimaryPrice(preview)) || getPrimaryPrice(preview) < 1) next.price = "El precio debe ser un número entero mayor que cero.";
+      if (draft.weeklyPrice !== undefined && (!Number.isInteger(draft.weeklyPrice) || draft.weeklyPrice < 0)) next.weeklyPrice = "El precio semanal debe ser un entero no negativo.";
+      if (!Number.isInteger(draft.depositAmount) || draft.depositAmount < 0) next.depositAmount = "La fianza debe ser un entero no negativo.";
       if (!draft.billsIncluded) {
         const billsAmount = Number(draft.billsNote);
         if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = "Indica el gasto adicional aproximado al mes.";
       }
     }
-    if (step === 4) {
+    if (targetStep === 4) {
       if (!draft.availableFrom) next.availableFrom = "Selecciona una fecha de inicio.";
       if (draft.availableFrom && draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = "La fecha final debe ser posterior a la inicial.";
-      if (draft.rentalMode === "long" && draft.minimumStayMonths < 1) next.minimumStay = "Indica al menos 1 mes.";
-      if (draft.rentalMode === "holiday" && draft.minimumNights < 1) next.minimumStay = "Indica al menos 1 noche.";
+      if (draft.rentalMode === "long" && (!Number.isInteger(draft.minimumStayMonths) || draft.minimumStayMonths < 1)) next.minimumStay = "Indica al menos 1 mes completo.";
+      if (draft.rentalMode === "holiday" && (!Number.isInteger(draft.minimumNights) || draft.minimumNights < 1)) next.minimumStay = "Indica al menos 1 noche completa.";
     }
-    if (step === 6 && !draft.images.length) next.images = "Añade al menos una fotografía.";
-    if (step === 7 && draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
-    if (step === 7 && draft.description.trim().length < 40) next.description = "La descripción debe tener al menos 40 caracteres.";
-    if (step === 8 && !draft.contactName.trim()) next.contactName = "Indica un nombre público.";
-    if (step === 8 && !draft.showPhone && !draft.showWhatsApp) next.contactMethods = "Activa teléfono o WhatsApp como forma de contacto.";
-    if (step === 8 && draft.showPhone && !/^\+?[\d\s-]{7,}$/.test(draft.contactPhone)) next.contactPhone = "Introduce un teléfono válido.";
-    if (step === 8 && draft.showWhatsApp && !/^\+?[\d\s-]{7,}$/.test(draft.contactWhatsapp)) next.contactWhatsapp = "Introduce un WhatsApp válido.";
+    if (targetStep === 6 && !draft.images.length) next.images = "Añade al menos una fotografía.";
+    else if (targetStep === 6 && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = "Vuelve a añadir las fotografías que ya no están disponibles.";
+    if (targetStep === 7 && draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
+    if (targetStep === 7 && (draft.description.trim().length < 40 || draft.description.length > 10_000)) next.description = "La descripción debe tener entre 40 y 10.000 caracteres.";
+    if (targetStep === 7 && draft.rules.length > 10_000) next.rules = "Las normas no pueden superar 10.000 caracteres.";
+    if (targetStep === 8 && (draft.contactName.trim().length < 2 || draft.contactName.trim().length > 120)) next.contactName = "El nombre público debe tener entre 2 y 120 caracteres.";
+    if (targetStep === 8 && !draft.showPhone && !draft.showWhatsApp) next.contactMethods = "Activa teléfono o WhatsApp como forma de contacto.";
+    if (targetStep === 8 && draft.showPhone && !/^\+?[\d\s-]{7,}$/.test(draft.contactPhone)) next.contactPhone = "Introduce un teléfono válido.";
+    if (targetStep === 8 && draft.showWhatsApp && !/^\+?[\d\s-]{7,}$/.test(draft.contactWhatsapp)) next.contactWhatsapp = "Introduce un WhatsApp válido.";
     setErrors(next);
     if (Object.keys(next).length) requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"], .field-error')?.focus());
     return Object.keys(next).length === 0;
@@ -375,24 +387,38 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const finish = async () => {
-    if (!editing && !mockMode) {
-      try {
+    for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1) {
+      if (!validate(targetStep)) {
+        setStep(targetStep);
+        return;
+      }
+    }
+    if (publishingRef.current) return;
+    publishingRef.current = true;
+    setPublishing(true);
+    try {
+      if (!editing && !mockMode) {
         const verification = await getEmailVerificationStatus();
         if (!verification.verified) { setVerificationEmail(verification.email); setVerificationOpen(true); return; }
-      } catch (error) { toast.error(error instanceof Error ? error.message : "No se pudo comprobar el email."); return; }
+      }
+      const authoritativeDraft = currentUser ? { ...draft, contactEmail: currentUser.email } : draft;
+      const listing = toListing(authoritativeDraft, existing, currentUser?.id);
+      const saved = existing ? await updateListing(existing.id, listing) : await createListing(listing);
+      if (!saved) return;
+      if (existing) {
+        const usedAfterUpdate = new Set([...allListings.filter((item) => item.id !== existing.id).flatMap((item) => item.images), ...listing.images, ...(currentUser?.avatarRef ? [currentUser.avatarRef] : [])]);
+        await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes reemplazadas."));
+        toast.success("Cambios guardados");
+      }
+      localStorage.removeItem(draftKey);
+      setBaseline(JSON.stringify(draft));
+      setPublished(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo completar la publicación.");
+    } finally {
+      publishingRef.current = false;
+      setPublishing(false);
     }
-    const authoritativeDraft = currentUser ? { ...draft, contactEmail: currentUser.email } : draft;
-    const listing = toListing(authoritativeDraft, existing, currentUser?.id);
-    const saved = existing ? await updateListing(existing.id, listing) : await createListing(listing);
-    if (!saved) return;
-    if (existing) {
-      const usedAfterUpdate = new Set([...allListings.filter((item) => item.id !== existing.id).flatMap((item) => item.images), ...listing.images, ...(currentUser?.avatarRef ? [currentUser.avatarRef] : [])]);
-      await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes reemplazadas."));
-      toast.success("Cambios guardados");
-    }
-    localStorage.removeItem(draftKey);
-    setBaseline(JSON.stringify(draft));
-    setPublished(true);
   };
   const resetDraft = () => {
     const fresh = existing ? toDraft(existing) : withProfileDefaults(currentUser);
@@ -426,8 +452,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <div className="form-grid">
             <FormField label="Municipio" htmlFor="publish-city"><select id="publish-city" value={draft.city} onChange={(event) => set("city", event.target.value)}>{['Adeje','Arafo','Arico','Arona','Buenavista del Norte','Candelaria','El Rosario','El Sauzal','El Tanque','Fasnia','Garachico','Granadilla de Abona','Guía de Isora','Güímar','Icod de los Vinos','La Guancha','La Matanza de Acentejo','La Orotava','La Victoria de Acentejo','Los Realejos','Los Silos','Puerto de la Cruz','San Cristóbal de La Laguna','San Juan de la Rambla','San Miguel de Abona','Santa Cruz de Tenerife','Santa Úrsula','Santiago del Teide','Tacoronte','Tegueste','Vilaflor de Chasna'].map((city) => <option key={city}>{city}</option>)}</select></FormField>
             <FormField label="Zona o barrio" htmlFor="publish-area" error={errors.area}><Input id="publish-area" value={draft.area} aria-invalid={Boolean(errors.area)} aria-describedby={errors.area ? "publish-area-error" : undefined} onChange={(event) => { const area = event.target.value; setDraft((current) => ({ ...current, area, coordinates: current.locationManuallyMoved ? current.coordinates : areaCenters[area] ?? current.coordinates })); }} /></FormField>
-            <FormField label="Calle" htmlFor="publish-street"><Input id="publish-street" value={draft.street} onChange={(event) => set("street", event.target.value)} /></FormField>
-            <FormField label="Código postal" htmlFor="publish-postcode"><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} onChange={(event) => set("postcode", event.target.value)} /></FormField>
+            <FormField label="Calle" htmlFor="publish-street" error={errors.street}><Input id="publish-street" value={draft.street} aria-invalid={Boolean(errors.street)} onChange={(event) => set("street", event.target.value)} /></FormField>
+            <FormField label="Código postal" htmlFor="publish-postcode" error={errors.postcode}><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(event) => set("postcode", event.target.value)} /></FormField>
           </div>
           <div className="location-preview"><MapPin /><div><strong>{draft.area}, {draft.city}</strong><span>Mostraremos un punto aproximado.</span></div></div>
           <fieldset className="approximate-location-selector">
@@ -487,10 +513,10 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <div className="form-grid">
             {draft.rentalMode === "long" ? <FormField label="Alquiler mensual (€)" htmlFor="publish-price" error={errors.price}><Input id="publish-price" aria-label="Alquiler mensual" type="number" min="1" value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set("monthlyPrice", Number(e.target.value))} /></FormField> : <>
               <FormField label="Precio por noche (€)" htmlFor="publish-price" error={errors.price}><Input id="publish-price" aria-label="Precio por noche" type="number" min="1" value={draft.nightlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set("nightlyPrice", Number(e.target.value))} /></FormField>
-              <FormField label="Precio por semana (€)" htmlFor="publish-weekly-price"><Input id="publish-weekly-price" aria-label="Precio por semana" type="number" min="0" value={draft.weeklyPrice ?? ""} onChange={(e) => set("weeklyPrice", e.target.value ? Number(e.target.value) : undefined)} /></FormField>
+              <FormField label="Precio por semana (€)" htmlFor="publish-weekly-price" error={errors.weeklyPrice}><Input id="publish-weekly-price" aria-label="Precio por semana" type="number" min="0" step="1" value={draft.weeklyPrice ?? ""} aria-invalid={Boolean(errors.weeklyPrice)} onChange={(e) => set("weeklyPrice", e.target.value ? Number(e.target.value) : undefined)} /></FormField>
               <FormField label="Precio por mes (€)" htmlFor="publish-monthly-price"><Input id="publish-monthly-price" aria-label="Precio por mes" type="number" min="0" value={draft.monthlyPrice} onChange={(e) => set("monthlyPrice", Number(e.target.value))} /></FormField>
             </>}
-            <FormField label="Fianza / depósito (€)" htmlFor="publish-deposit"><Input id="publish-deposit" type="number" min="0" value={draft.depositAmount} onChange={(e) => set("depositAmount", Number(e.target.value))} /></FormField>
+            <FormField label="Fianza / depósito (€)" htmlFor="publish-deposit" error={errors.depositAmount}><Input id="publish-deposit" type="number" min="0" step="1" value={draft.depositAmount} aria-invalid={Boolean(errors.depositAmount)} onChange={(e) => set("depositAmount", Number(e.target.value))} /></FormField>
           </div>
           <div className="form-grid">
             <FormField label="Gastos de suministros" htmlFor="publish-bills-included"><select id="publish-bills-included" value={draft.billsIncluded ? "included" : "extra"} onChange={(e) => setDraft((current) => ({ ...current, billsIncluded: e.target.value === "included", billsNote: e.target.value === "included" ? "" : current.billsNote }))}><option value="included">Incluidos en el precio</option><option value="extra">Se pagan aparte</option></select></FormField>
@@ -523,7 +549,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <label><Checkbox checked={draft.childrenAllowed} onCheckedChange={(value) => set("childrenAllowed", value === true)} />Se aceptan menores / niños</label>
             <label><Checkbox checked={draft.empadronamientoAllowed} onCheckedChange={(value) => set("empadronamientoAllowed", value === true)} />Empadronamiento posible</label>
           </fieldset>
-          <FormField label="Normas de la vivienda" htmlFor="publish-rules"><Textarea id="publish-rules" rows={5} value={draft.rules} onChange={(e) => set("rules", e.target.value)} /></FormField>
+          <FormField label="Normas de la vivienda" htmlFor="publish-rules" error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set("rules", e.target.value)} /></FormField>
         </WizardSection>;
       case 6:
         return <WizardSection title="Fotografías" description="La primera será la portada. Puedes reordenarlas."><ImageUploader images={draft.images} onChange={(images) => set("images", images)} onRemove={(image) => { if (!existing?.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudo limpiar la imagen local.")); }} error={errors.images} /></WizardSection>;
@@ -567,7 +593,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <span className="dirty-state" aria-live="polite">{isDirty ? "Cambios sin guardar" : "Borrador guardado"}</span>
         </div>
       </div>
-      <div className="container wizard-layout"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={setStep} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">{content}<div className="wizard-actions"><Button variant="outline" disabled={step === 0} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button onClick={finish}>Publicar anuncio <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div></section></div>
+      <div className="container wizard-layout"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={setStep} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">{content}<div className="wizard-actions"><Button variant="outline" disabled={step === 0 || publishing} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button disabled={publishing} onClick={finish}>{publishing ? "Publicando…" : "Publicar anuncio"} <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div></section></div>
     </div>
     <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}><DialogContent aria-describedby="email-verification-description"><DialogHeader><DialogTitle>Confirma tu email para publicar</DialogTitle><DialogDescription id="email-verification-description">Enviaremos un código de seis dígitos a {verificationEmail || "tu email"}. Tu borrador y tus fotos seguirán guardados.</DialogDescription></DialogHeader><div className="space-y-3"><Input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" aria-label="Código de seis dígitos" aria-invalid={Boolean(verificationError)} />{verificationError ? <p className="field-error" role="alert">{verificationError}</p> : null}<Button type="button" variant="outline" disabled={verificationBusy || verificationCooldown > 0} onClick={async () => { setVerificationBusy(true); try { const result = await requestEmailVerification(); setVerificationEmail(result.email); setVerificationCooldown(result.cooldownSeconds); setVerificationError(""); toast.success("Código enviado"); } catch (error) { setVerificationError(error instanceof Error ? error.message : "No se pudo enviar el código."); } finally { setVerificationBusy(false); } }}>{verificationCooldown > 0 ? `Reenviar en ${verificationCooldown}s` : "Enviar código"}</Button><Button type="button" disabled={verificationBusy || verificationCode.length !== 6} onClick={async () => { setVerificationBusy(true); try { await verifyEmail(verificationCode); setVerificationOpen(false); setVerificationCode(""); setVerificationError(""); await finish(); } catch (error) { setVerificationError(error instanceof Error ? error.message : "Código no válido."); } finally { setVerificationBusy(false); } }}>Confirmar y publicar</Button></div></DialogContent></Dialog>
     <AlertDialog open={Boolean(pendingRoute)} onOpenChange={(open) => { if (!open) setPendingRoute(null); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Salir del editor?</AlertDialogTitle><AlertDialogDescription>Hay cambios sin guardar. El borrador automático se conserva, pero puedes guardar manualmente antes de salir.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Seguir editando</AlertDialogCancel><AlertDialogAction onClick={() => { const route = pendingRoute; setPendingRoute(null); if (route) navigate(route); }}>Salir y conservar borrador</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from secrets import token_urlsafe
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +31,7 @@ from ...schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
-from ...services.listing_limits import enforce_listing_creation_limits
+from ...services.listing_limits import enforce_listing_creation_limits, lock_listing_creation
 from ...services.listing_views import anonymous_viewer_key, register_view
 from ...services.listings import create_listing as create_listing_service
 from ...services.listings import delete_listing as delete_listing_service
@@ -44,9 +45,10 @@ from ...services.moderation import (
     enforce_publish_access,
     is_admin,
 )
-from ..dependencies import current_user, optional_user, require_role
+from ..dependencies import current_user, optional_user
 
 router = APIRouter(prefix="/listings", tags=["listings"])
+logger = logging.getLogger(__name__)
 
 
 async def listing_hidden_by_moderation(listing_id: UUID, owner_user_id: UUID, session: AsyncSession) -> bool:
@@ -155,22 +157,101 @@ async def get_listing(
 
 @router.post("", response_model=OwnedListingResponse, status_code=status.HTTP_201_CREATED)
 async def create_listing(
+    request: Request,
     payload: ListingWrite,
-    user: User = Depends(require_role("host", "admin")),
+    idempotency_key: UUID | None = Header(default=None, alias="Idempotency-Key"),
+    user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    await enforce_publish_access(user, session)
-    if not user.email_verified:
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={
-                "code": "EMAIL_VERIFICATION_REQUIRED",
-                "message": "Confirm your email with a six-digit code before publishing a listing.",
-                "fieldErrors": {},
+    request_id = getattr(request.state, "request_id", None)
+    try:
+        admin = await is_admin(user, session)
+        if user.role != "host" and not admin:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "HOST_ACCOUNT_REQUIRED",
+                    "message": "A host account is required to publish a listing.",
+                    "fieldErrors": {},
+                },
+            )
+        await enforce_publish_access(user, session)
+        if not user.email_verified:
+            logger.warning(
+                "listing_publication_rejected",
+                extra={
+                    "request_id": request_id,
+                    "user_id": str(user.id),
+                    "operation": "create_listing",
+                    "status": 409,
+                    "error_code": "EMAIL_VERIFICATION_REQUIRED",
+                },
+            )
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content={
+                    "code": "EMAIL_VERIFICATION_REQUIRED",
+                    "message": "Confirm your email with a six-digit code before publishing a listing.",
+                    "fieldErrors": {},
+                },
+            )
+
+        await lock_listing_creation(user, session, str(idempotency_key) if idempotency_key else None)
+        if idempotency_key:
+            existing = await session.get(Listing, idempotency_key)
+            if existing:
+                if existing.owner_user_id != user.id:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        detail={
+                            "code": "IDEMPOTENCY_KEY_REUSED",
+                            "message": "The publication key has already been used.",
+                            "fieldErrors": {},
+                        },
+                    )
+                row = (await session.execute(owned_query().where(Listing.id == existing.id))).one()
+                logger.info(
+                    "listing_publication_replayed",
+                    extra={
+                        "request_id": request_id,
+                        "user_id": str(user.id),
+                        "listing_id": str(existing.id),
+                        "operation": "create_listing",
+                    },
+                )
+                return owned_response_from(row)
+
+        await enforce_listing_creation_limits(user, session, acquire_lock=False)
+        return await create_listing_service(
+            payload,
+            user,
+            session,
+            listing_id=idempotency_key,
+        )
+    except HTTPException as exc:
+        detail: dict[str, object] = exc.detail if isinstance(exc.detail, dict) else {}
+        logger.warning(
+            "listing_publication_rejected",
+            extra={
+                "request_id": request_id,
+                "user_id": str(user.id),
+                "operation": "create_listing",
+                "status": exc.status_code,
+                "error_code": detail.get("code", "HTTP_ERROR"),
             },
         )
-    await enforce_listing_creation_limits(user, session)
-    return await create_listing_service(payload, user, session)
+        raise
+    except Exception as exc:
+        logger.exception(
+            "listing_publication_failed",
+            extra={
+                "request_id": request_id,
+                "user_id": str(user.id),
+                "operation": "create_listing",
+                "exception_class": type(exc).__name__,
+            },
+        )
+        raise
 
 
 @router.patch("/{listing_id}", response_model=OwnedListingResponse)
