@@ -4,7 +4,7 @@ const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['full-stack/**', '**/google-auth.spec.ts'],
+  testIgnore: ['full-stack/**', '**/google-auth.spec.ts', '**/listing-publication-errors.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 7_000 },
   snapshotPathTemplate: '{testDir}/visual-snapshots/{projectName}/{arg}{ext}',

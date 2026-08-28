@@ -53,7 +53,6 @@ def listing_payload(*, title: str) -> dict:
         "description": "Regression fixture for logical audit coverage.",
         "homeDescription": "Shared home.",
         "advertiserType": "Particular",
-        "source": "logical-audit-test",
         "expiresAt": (datetime.now(UTC) + timedelta(days=60)).isoformat(),
     }
 

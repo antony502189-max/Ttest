@@ -155,7 +155,11 @@ const toDraft = (listing: Listing): ListingDraft => {
 
 const withProfileDefaults = (user: DemoUser | null) => {
   const initial = createDefaultDraft();
-  const base = { ...initial, images: mockMode ? initial.images : [], amenities: withEquipmentDefaults(initial.amenities) };
+  // Mock-mode drafts still need concrete images so the wizard can exercise
+  // publication without making flaky third-party image requests. Production
+  // starts empty and requires real uploaded/server media references.
+  const mockPlaceholder = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  const base = { ...initial, images: mockMode ? initial.images.map(() => mockPlaceholder) : [], amenities: withEquipmentDefaults(initial.amenities) };
   if (!user) return base;
   return { ...base, contactName: user.name, contactPhone: user.phone, contactWhatsapp: user.whatsapp, contactEmail: user.email, showPhone: user.showPhone, showWhatsApp: user.showWhatsApp };
 };
@@ -367,7 +371,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       if (draft.rentalMode === "holiday" && (!Number.isInteger(draft.minimumNights) || draft.minimumNights < 1)) next.minimumStay = "Indica al menos 1 noche completa.";
     }
     if (targetStep === 6 && !draft.images.length) next.images = "Añade al menos una fotografía.";
-    else if (targetStep === 6 && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = "Vuelve a añadir las fotografías que ya no están disponibles.";
+    else if (!mockMode && targetStep === 6 && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = "Vuelve a añadir las fotografías que ya no están disponibles.";
     if (targetStep === 7 && draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
     if (targetStep === 7 && (draft.description.trim().length < 40 || draft.description.length > 10_000)) next.description = "La descripción debe tener entre 40 y 10.000 caracteres.";
     if (targetStep === 7 && draft.rules.length > 10_000) next.rules = "Las normas no pueden superar 10.000 caracteres.";

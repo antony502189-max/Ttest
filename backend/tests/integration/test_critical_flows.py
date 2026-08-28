@@ -63,7 +63,6 @@ def listing_payload(*, title: str, latitude: float, longitude: float, bedrooms: 
         "description": "Integration listing with enough information for the complete critical flow.",
         "homeDescription": "Respect the shared home.",
         "advertiserType": "Particular",
-        "source": "integration-test",
         "expiresAt": (datetime.now(UTC) + timedelta(days=60)).isoformat(),
     }
 

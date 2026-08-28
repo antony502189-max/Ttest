@@ -96,6 +96,9 @@ async function openCompletedWizard(page: Page) {
   await page.evaluate(() => {
     localStorage.clear()
     localStorage.setItem('112233:has-session', '1')
+    // The suite also runs against the local mock provider. Keep both auth
+    // hints so the helper is deterministic in either runtime mode.
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
   })
   await page.reload()
   await page.goto('/#/publicar')
