@@ -1,0 +1,344 @@
+/* Mobile customer-feedback fixes. Imported last so it can safely override the
+   preserved reference/light layers without changing desktop geometry. */
+
+/* The date label and native control previously competed for horizontal space.
+   Keep the same outer control footprint, but give the explanatory label a
+   wrapping row and the date picker the full width below it. */
+.m2-results-filter__pair--dates > label {
+  height: 3.75rem;
+  min-height: 3.75rem;
+  display: grid;
+  grid-template-rows: minmax(1.25rem, auto) 1.55rem;
+  align-content: center;
+  align-items: stretch;
+  gap: .05rem;
+  padding: .18rem .45rem .12rem;
+  overflow: hidden;
+}
+
+.m2-results-filter__pair--dates > label > span {
+  min-width: 0;
+  padding: 0;
+  color: #737a7b;
+  font-size: .64rem;
+  line-height: 1.05;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.m2-results-filter__pair--dates > label > input {
+  width: 100%;
+  min-width: 0;
+  height: 1.55rem;
+  padding: 0;
+  font-size: .72rem;
+  line-height: 1.2;
+  text-align: left;
+}
+
+/* Desktop and mobile home now expose the same two customer-requested access
+   dimensions: pets and smoking. */
+[data-mobile-home-extra-filters-host] {
+  width: 100%;
+}
+
+.m2-home-extra-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+}
+
+.m2-home-extra-filters fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.m2-home-extra-filters legend {
+  margin-bottom: .25rem;
+  color: var(--m2-muted, #687071);
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.m2-home-extra-filters fieldset > div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .25rem;
+}
+
+.m2-home-extra-filters button {
+  min-width: 0;
+  min-height: 2.25rem;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .35rem .45rem;
+  border: 1px solid var(--m2-line, #d7d9d5);
+  border-radius: .35rem;
+  background: var(--m2-panel, #fff);
+  color: var(--m2-text, #252a2b);
+  font-size: .68rem;
+  font-weight: 680;
+  line-height: 1.15;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.m2-home-extra-filters button svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+}
+
+.m2-home-extra-filters button.is-active {
+  border-color: #708900;
+  background: #f2f8d4;
+  box-shadow: inset 0 0 0 1px #708900;
+  color: #3f5700;
+}
+
+/* Unknown imported facts are information, not actions. Do not style them like
+   a CTA/button. */
+.m2-result-card__badges span.m2-unknown-fact {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #687071 !important;
+  font-size: .72rem !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  text-decoration: none !important;
+}
+
+/* Appearance chooser */
+.m2-appearance-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(20 24 22 / .42);
+}
+
+.m2-appearance-dialog {
+  width: min(100%, 430px);
+  overflow: hidden;
+  border: 1px solid #d7d9d5;
+  border-radius: .75rem;
+  background: #fff;
+  color: #252a2b;
+  box-shadow: 0 -18px 50px rgb(37 42 43 / .22);
+}
+
+.m2-appearance-dialog > header {
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .7rem 1rem;
+  border-bottom: 1px solid #e1e3df;
+}
+
+.m2-appearance-dialog > header button {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.m2-appearance-dialog [role='radiogroup'] > button {
+  width: 100%;
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  border: 0;
+  border-bottom: 1px solid #e1e3df;
+  background: transparent;
+  color: inherit;
+  font-size: .9rem;
+  text-align: left;
+}
+
+.m2-appearance-dialog [role='radiogroup'] > button:last-child {
+  border-bottom: 0;
+}
+
+.m2-appearance-dialog [role='radiogroup'] > button.is-selected {
+  background: #f2f8d4;
+}
+
+.m2-appearance-dialog i {
+  color: #557000;
+  font-style: normal;
+}
+
+/* Explicit light state also fixes the account page that was rendered with the
+   old dark account CSS despite a light/default preference. */
+html.site-theme-light,
+html.site-theme-light body,
+html.site-theme-light #root,
+html.site-theme-light .m2-account-screen,
+html.site-theme-light .m2-account-content,
+html.site-theme-light .m2-account-form,
+html.site-theme-light .m2-account-appbar {
+  background: #fff !important;
+  color: #252a2b !important;
+}
+
+html.site-theme-light .m2-account-field,
+html.site-theme-light .m2-account-field input,
+html.site-theme-light .m2-account-field textarea,
+html.site-theme-light .m2-account-field select {
+  border-color: #d7d9d5 !important;
+  background: #fff !important;
+  color: #252a2b !important;
+}
+
+html.site-theme-light .m2-account-field label,
+html.site-theme-light .m2-account-content p,
+html.site-theme-light .m2-account-content small {
+  color: #687071 !important;
+}
+
+/* Real dark appearance. These rules intentionally sit after white-theme.css. */
+html.site-theme-dark,
+html.site-theme-dark body,
+html.site-theme-dark #root {
+  background: #111 !important;
+  color: #f2f2f2 !important;
+}
+
+html.site-theme-dark .m2-app,
+html.site-theme-dark .m2-screen,
+html.site-theme-dark .m2-menu,
+html.site-theme-dark .m2-empty,
+html.site-theme-dark .m2-onboarding,
+html.site-theme-dark .m2-location,
+html.site-theme-dark .m2-account-screen,
+html.site-theme-dark .m2-account-content,
+html.site-theme-dark .m2-account-form {
+  --m2-bg: #111;
+  --m2-panel: #191919;
+  --m2-panel-soft: #222;
+  --m2-line: #383838;
+  --m2-text: #f2f2f2;
+  --m2-muted: #b2b2b2;
+  background: #111 !important;
+  color: #f2f2f2 !important;
+  color-scheme: dark;
+}
+
+html.site-theme-dark .m2-topbar,
+html.site-theme-dark .m2-back-header,
+html.site-theme-dark .m2-menu > header,
+html.site-theme-dark .m2-empty > header,
+html.site-theme-dark .m2-account-appbar,
+html.site-theme-dark .m2-bottom-nav,
+html.site-theme-dark .m2-results__header,
+html.site-theme-dark .m2-results__toolbar,
+html.site-theme-dark .m2-results-panel,
+html.site-theme-dark .m2-results-panel > header,
+html.site-theme-dark .m2-results-filter > footer {
+  border-color: #383838 !important;
+  background: #181818 !important;
+  color: #f2f2f2 !important;
+}
+
+html.site-theme-dark .m2-search-card,
+html.site-theme-dark .m2-menu-row,
+html.site-theme-dark .m2-occupant-trigger,
+html.site-theme-dark .m2-select-row,
+html.site-theme-dark .m2-outline,
+html.site-theme-dark .m2-sheet,
+html.site-theme-dark .m2-sheet > header,
+html.site-theme-dark .m2-location-search,
+html.site-theme-dark .m2-location-action,
+html.site-theme-dark .m2-result-card,
+html.site-theme-dark .m2-results-filter__pair label,
+html.site-theme-dark .m2-results-filter__select select,
+html.site-theme-dark .m2-account-field,
+html.site-theme-dark .m2-account-field input,
+html.site-theme-dark .m2-account-field textarea,
+html.site-theme-dark .m2-account-field select {
+  border-color: #444 !important;
+  background: #1b1b1b !important;
+  color: #f2f2f2 !important;
+}
+
+html.site-theme-dark .m2-home-extra-filters button {
+  border-color: #444;
+  background: #1b1b1b;
+  color: #f2f2f2;
+}
+
+html.site-theme-dark .m2-home-extra-filters button.is-active,
+html.site-theme-dark .m2-appearance-dialog [role='radiogroup'] > button.is-selected {
+  border-color: #a9c91a;
+  background: #344500 !important;
+  color: #f4f7e7;
+}
+
+html.site-theme-dark .m2-menu h2,
+html.site-theme-dark .m2-menu h3,
+html.site-theme-dark .m2-menu-row,
+html.site-theme-dark .m2-account-content h1,
+html.site-theme-dark .m2-account-content h2,
+html.site-theme-dark .m2-result-card h2,
+html.site-theme-dark .m2-result-card__price {
+  color: #f2f2f2 !important;
+}
+
+html.site-theme-dark .m2-menu-login p,
+html.site-theme-dark .m2-account-field label,
+html.site-theme-dark .m2-account-content p,
+html.site-theme-dark .m2-account-content small,
+html.site-theme-dark .m2-result-card__facts,
+html.site-theme-dark .m2-result-card__availability {
+  color: #b2b2b2 !important;
+}
+
+html.site-theme-dark .m2-appearance-dialog {
+  border-color: #444;
+  background: #1b1b1b;
+  color: #f2f2f2;
+}
+
+html.site-theme-dark .m2-appearance-dialog > header,
+html.site-theme-dark .m2-appearance-dialog [role='radiogroup'] > button {
+  border-color: #3a3a3a;
+}
+
+@media (max-width: 340px) {
+  .m2-home-extra-filters {
+    gap: .35rem;
+  }
+
+  .m2-home-extra-filters button {
+    padding-inline: .35rem;
+    font-size: .64rem;
+  }
+
+  .m2-results-filter__pair--dates > label {
+    padding-inline: .35rem;
+  }
+
+  .m2-results-filter__pair--dates > label > span {
+    font-size: .6rem;
+  }
+}
