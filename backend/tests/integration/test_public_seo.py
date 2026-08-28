@@ -55,7 +55,6 @@ def listing_payload() -> dict:
         "description": "Habitación tranquila </script><script>alert('x')</script> cerca del tranvía.",
         "homeDescription": "Piso compartido tranquilo.",
         "advertiserType": "Particular",
-        "source": "seo-integration-test",
         "expiresAt": (datetime.now(UTC) + timedelta(days=60)).isoformat(),
     }
 

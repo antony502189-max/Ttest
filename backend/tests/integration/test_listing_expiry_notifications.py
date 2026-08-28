@@ -60,7 +60,6 @@ def listing_payload(title: str) -> dict:
         "description": "Lifecycle integration listing.",
         "homeDescription": "Shared home.",
         "advertiserType": "Particular",
-        "source": "expiry-test",
         "expiresAt": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
     }
 

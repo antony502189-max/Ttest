@@ -31,6 +31,11 @@ export interface SavedSearch {
 type RegisterInput = { name: string; email: string; password: string; role: UserRole }
 type ProfileUpdate = Partial<Omit<DemoUser, 'id' | 'email' | 'password' | 'role'>>
 type UserScopedState<T> = Record<string, T>
+export interface PartialPublicationRecovery {
+  listingId: string
+  publicationKey: string
+  ownerUserId: string
+}
 
 export interface AppState {
   rentalMode: RentalMode
@@ -58,6 +63,7 @@ export interface AppState {
   setMapPolygon: (points: MapPolygonPoint[]) => void
   clearMapPolygon: () => void
   allListings: Listing[]
+  partialPublication: PartialPublicationRecovery | null
   createListing: (listing: Listing) => Promise<boolean>
   updateListing: (id: string, listing: Listing) => Promise<boolean>
   deleteListing: (id: string) => Promise<boolean>
@@ -91,7 +97,44 @@ const LISTINGS_KEY = '112233:listings:v3'
 const LISTINGS_VERSION = 3
 const DRAFT_KEY = '112233:listing-draft:v3'
 const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
+const PARTIAL_PUBLICATION_KEY = '112233:listing-publication-recovery:v1'
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+
+const publicationFieldLabels: Record<string, string> = {
+  title: 'el título', city: 'el municipio', area: 'la zona', roomType: 'el tipo de habitación',
+  monthlyPrice: 'el precio mensual', nightlyPrice: 'el precio por noche', weeklyPrice: 'el precio semanal',
+  availableFrom: 'la fecha de inicio', availableUntil: 'la fecha final', minimumStayMonths: 'la estancia mínima',
+  minimumNights: 'la estancia mínima', roomSizeM2: 'la superficie de la habitación', homeSizeM2: 'la superficie de la vivienda',
+  roomCapacity: 'la capacidad', currentRoomResidents: 'las personas que viven en la habitación', bedType: 'el tipo de cama',
+  bedCount: 'el número de camas', acceptedTenantTypes: 'los perfiles admitidos', exactLatitude: 'la ubicación exacta',
+  exactLongitude: 'la ubicación exacta', contactName: 'el nombre público', contactPhone: 'el teléfono',
+  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías',
+}
+
+function publicationErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) return 'Se produjo un error inesperado al publicar. Inténtalo de nuevo.'
+  if (error.code === 'EMAIL_VERIFICATION_REQUIRED') return 'Confirma tu email antes de publicar el anuncio.'
+  if (error.code === 'PUBLISHING_RESTRICTED' || error.code === 'ACCOUNT_RESTRICTED') return 'Tu cuenta tiene restringida la publicación de anuncios. Revisa el aviso de moderación.'
+  if (error.code === 'ACTIVE_LISTING_LIMIT_REACHED') return 'Has alcanzado el límite de anuncios activos.'
+  if (error.code === 'DAILY_LISTING_LIMIT_REACHED' || error.status === 429) return 'Has alcanzado el límite diario de publicaciones. Inténtalo más tarde.'
+  if (error.code === 'HOST_ACCOUNT_REQUIRED' || error.status === 403) return 'Necesitas una cuenta de anfitrión autorizada para publicar.'
+  if (error.status === 401) return 'Tu sesión ha caducado. Inicia sesión de nuevo para publicar.'
+  if (error.code === 'REQUEST_TIMEOUT') return 'La publicación está tardando más de lo esperado. Comprobaremos el mismo intento para evitar duplicados.'
+  if (error.code === 'NETWORK_ERROR' || error.status === 0) return 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+  if (error.code === 'VALIDATION_ERROR' || error.status === 422) {
+    const field = Object.keys(error.fieldErrors)[0]
+    return field ? `Revisa ${publicationFieldLabels[field] ?? 'los datos del anuncio'}.` : 'Revisa los datos del anuncio antes de publicarlo.'
+  }
+  return error.status >= 500
+    ? 'El servidor no pudo completar la publicación. Inténtalo de nuevo más tarde.'
+    : 'No se pudo publicar el anuncio. Revisa los datos e inténtalo de nuevo.'
+}
+
+function publicationDiagnostic(error: unknown) {
+  return error instanceof ApiError
+    ? { status: error.status, code: error.code ?? 'UNKNOWN', requestId: error.requestId, fields: Object.keys(error.fieldErrors) }
+    : { status: 0, code: error instanceof Error ? error.name : 'UNKNOWN' }
+}
 
 function collectMediaReferences(value: unknown, found = new Set<string>()) {
   if (typeof value === 'string') {
@@ -109,6 +152,20 @@ function readDraftRecord() {
     if (parsed.data) return { key, value: parsed.data }
   }
   return null
+}
+
+function readPartialPublication(): PartialPublicationRecovery | null {
+  const parsed = parseJson<PartialPublicationRecovery>(localStorage.getItem(PARTIAL_PUBLICATION_KEY))
+  if (parsed.failure || !parsed.data) return null
+  const value = parsed.data
+  return typeof value.listingId === 'string' && typeof value.publicationKey === 'string' && typeof value.ownerUserId === 'string'
+    ? value
+    : null
+}
+
+function persistPartialPublication(value: PartialPublicationRecovery | null) {
+  if (value) localStorage.setItem(PARTIAL_PUBLICATION_KEY, JSON.stringify(value))
+  else localStorage.removeItem(PARTIAL_PUBLICATION_KEY)
 }
 
 function usedMediaReferences(listings: Listing[], users: DemoUser[], draft: unknown = readDraftRecord()?.value) {
@@ -191,6 +248,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [savedSearchScopes, setSavedSearchScopes] = useState<UserScopedState<SavedSearch[]>>(readScopedSavedSearches)
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
+  const [partialPublication, setPartialPublication] = useState<PartialPublicationRecovery | null>(() => mockMode ? null : readPartialPublication())
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<DemoUser[]>([])
@@ -226,6 +284,11 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
+  useEffect(() => {
+    if (!partialPublication || !currentUserId || partialPublication.ownerUserId === currentUserId) return
+    setPartialPublication(null)
+    try { persistPartialPublication(null) } catch { /* Ignore stale recovery cleanup failures. */ }
+  }, [currentUserId, partialPublication])
   useEffect(() => {
     if (orphanCleanupStarted.current) return
     orphanCleanupStarted.current = true
@@ -412,27 +475,70 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const canManageListing = useCallback((listing: Listing) => Boolean(currentUser && (currentUser.role === 'admin' || (currentUser.role === 'host' && listing.ownerUserId === currentUser.id))), [currentUser])
   const createListing = useCallback(async (listing: Listing) => {
     if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return false }
+    if (partialPublication && partialPublication.publicationKey !== listing.id) {
+      toast.error('Termina la recuperación de las fotografías del anuncio anterior antes de publicar otro.')
+      return false
+    }
+    if (partialPublication) {
+      const previous = allListings.find((item) => item.id === partialPublication.listingId)
+      try {
+        const images = await syncListingImages(partialPublication.listingId, listing.images)
+        const usedAfterRecovery = new Set([
+          ...allListings.filter((item) => item.id !== partialPublication.listingId).flatMap((item) => item.images),
+          ...images,
+          ...(currentUser.avatarRef ? [currentUser.avatarRef] : []),
+        ])
+        await removeUnusedMediaReferences(previous?.images ?? [], usedAfterRecovery)
+        const recovered = { ...listing, id: partialPublication.listingId, ownerUserId: currentUser.id, userCreated: true, images }
+        setAllListings((current) => [recovered, ...current.filter((item) => item.id !== partialPublication.listingId)])
+        setPartialPublication(null)
+        try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after the listing is recovered. */ }
+        toast.success('Las fotografías se han sincronizado y el anuncio está listo.')
+        return true
+      } catch (error) {
+        console.error('listing_image_recovery_failed', { listingId: partialPublication.listingId, ...publicationDiagnostic(error) })
+        toast.error('El anuncio ya está creado, pero las fotografías siguen pendientes. Revisa las fotos y vuelve a intentarlo.')
+        return false
+      }
+    }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
-    setAllListings((current) => [optimistic, ...current])
+    setAllListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
       const remote = await createRemoteListing(optimistic)
       let stored = { ...remote, userCreated: true }
+      let imagesSynced = true
       try {
         const images = await syncListingImages(remote.id, optimistic.images)
         stored = { ...stored, images }
         await removeUnusedMediaReferences(optimistic.images, images)
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'El anuncio se guardó, pero no se pudieron subir las imágenes.')
+        imagesSynced = false
+        stored = { ...stored, images: optimistic.images }
+        const recovery = {
+          listingId: remote.id,
+          publicationKey: optimistic.id,
+          ownerUserId: currentUser.id,
+        }
+        setPartialPublication(recovery)
+        try { persistPartialPublication(recovery) } catch { toast.error('No se pudo guardar el estado de recuperación; mantén esta pestaña abierta para reintentar las fotos.') }
+        console.error('listing_image_sync_failed', { listingId: remote.id, ...publicationDiagnostic(error) })
+        const reason = error instanceof ApiError
+          ? error.code === 'REQUEST_TIMEOUT' ? 'la carga agotó el tiempo de espera' : 'el servidor rechazó alguna imagen'
+          : error instanceof Error ? error.message : 'no se pudieron subir las imágenes'
+        toast.error(`El anuncio se creó, pero ${reason}. Pulsa Publicar de nuevo para reintentar las fotos; no se duplicará.`)
       }
       setAllListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
+      if (!imagesSynced) return false
+      try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after a successful publication. */ }
       toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
       return true
-    } catch {
+    } catch (error) {
       setAllListings((current) => current.filter((item) => item.id !== optimistic.id))
-      toast.error('No se pudo publicar el anuncio en el servidor.')
+      console.error('listing_publication_failed', publicationDiagnostic(error))
+      toast.error(publicationErrorMessage(error))
       return false
     }
-  }, [currentUser])
+  }, [allListings, currentUser, partialPublication])
   const mutateOwned = useCallback((id: string, mutate: (listing: Listing) => Listing | null) => setAllListings((current) => current.flatMap((listing) => {
     if (listing.id !== id) return [listing]
     if (!canManageListing(listing)) { toast.error('No puedes gestionar un anuncio de otra cuenta.'); return [listing] }
@@ -661,7 +767,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

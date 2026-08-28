@@ -6,7 +6,19 @@ export class ApiError extends Error {
   status: number
   fieldErrors: Record<string, string>
   code?: string
-  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}, code?: string) { super(message); this.status = status; this.fieldErrors = fieldErrors; this.code = code }
+  requestId?: string
+  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}, code?: string, requestId?: string) { super(message); this.status = status; this.fieldErrors = fieldErrors; this.code = code; this.requestId = requestId }
+}
+
+type ValidationDetail = { loc?: Array<string | number>; msg?: string }
+
+function validationFieldErrors(detail: ValidationDetail[] | undefined) {
+  const fields: Record<string, string> = {}
+  for (const error of detail ?? []) {
+    const field = [...(error.loc ?? [])].reverse().find((part): part is string => typeof part === 'string' && !['body', 'query', 'path', 'header'].includes(part))
+    if (field && !fields[field]) fields[field] = error.msg ?? 'Valor no válido.'
+  }
+  return fields
 }
 
 export function setAccessToken(token: string | null) { accessToken = token }
@@ -63,19 +75,30 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
     if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
     if (!response.ok) {
       const body = await response.json().catch(() => ({})) as {
-        detail?: string | { code?: string; message?: string; fieldErrors?: Record<string, string> }
+        detail?: string | ValidationDetail[] | { code?: string; message?: string; fieldErrors?: Record<string, string> }
         code?: string
         message?: string
         fieldErrors?: Record<string, string>
       }
-      const detail = typeof body.detail === 'object' ? body.detail : undefined
+      const detail = body.detail && !Array.isArray(body.detail) && typeof body.detail === 'object' ? body.detail : undefined
+      const validationErrors = validationFieldErrors(Array.isArray(body.detail) ? body.detail : undefined)
       throw new ApiError(
         response.status,
-        body.message ?? detail?.message ?? (typeof body.detail === 'string' ? body.detail : undefined) ?? 'No se pudo completar la solicitud.',
-        body.fieldErrors ?? detail?.fieldErrors,
-        body.code ?? detail?.code,
+        body.message ?? detail?.message ?? (Array.isArray(body.detail) ? 'Revisa los datos del formulario.' : typeof body.detail === 'string' ? body.detail : undefined) ?? 'No se pudo completar la solicitud.',
+        body.fieldErrors ?? detail?.fieldErrors ?? validationErrors,
+        body.code ?? detail?.code ?? (response.status === 422 ? 'VALIDATION_ERROR' : undefined),
+        response.headers.get('X-Request-ID') ?? undefined,
       )
     }
     return response.status === 204 ? undefined as T : response.json() as Promise<T>
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(0, 'La solicitud tardó demasiado.', {}, init.signal ? 'REQUEST_ABORTED' : 'REQUEST_TIMEOUT')
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(0, 'No se pudo conectar con el servidor.', {}, 'NETWORK_ERROR')
+    }
+    throw error
   } finally { window.clearTimeout(timeout) }
 }

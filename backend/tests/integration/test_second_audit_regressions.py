@@ -76,7 +76,6 @@ def listing_payload(*, title: str, available_until: str | None = None) -> dict:
         "description": "A complete integration listing used by the second audit regression suite.",
         "homeDescription": "Respect shared spaces.",
         "advertiserType": "Particular",
-        "source": "second-audit",
         "expiresAt": (datetime.now(UTC) + timedelta(days=60)).isoformat(),
     }
 

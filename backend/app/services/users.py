@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -27,8 +28,8 @@ from .moderation import lock_active_admin_access, normalize_email, viable_admin_
 from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
 
 
-async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
-    fields = payload.model_dump(exclude_unset=True)
+def apply_profile_fields(user: User, fields: Mapping[str, object]) -> None:
+    """Apply already-validated profile fields without committing a transaction."""
     mapping = {
         "showPhone": "show_phone",
         "showWhatsApp": "show_whatsapp",
@@ -37,6 +38,11 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
         setattr(user, mapping.get(key, key), value)
     if "name" in fields:
         user.initials = "".join(part[:1].upper() for part in user.name.split()[:2])
+
+
+async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
+    fields = payload.model_dump(exclude_unset=True)
+    apply_profile_fields(user, fields)
     # Public listing responses project the owner's name and visible contact
     # fields. Invalidate the catalog in the same transaction so already-open
     # search pages refresh those details instead of retaining stale contact data.

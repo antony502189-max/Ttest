@@ -486,7 +486,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded,
     filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory,
     savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts,
-    mapPolygon, setMapPolygon, clearMapPolygon, allListings, createListing, updateListing, deleteListing,
+    mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication: null, createListing, updateListing, deleteListing,
     setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport,
     localComments, addLocalComment, updateLocalComment, deleteLocalComment,
     users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked,

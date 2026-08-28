@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import sentry_sdk  # type: ignore[import-not-found]
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import text
@@ -54,6 +55,58 @@ logger = logging.getLogger(__name__)
 rate_limiter = ResilientRateLimiter()
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 LISTING_LIFECYCLE_INTERVAL_SECONDS = 60
+
+VALIDATION_FIELD_HINTS = (
+    "rentalMode",
+    "monthlyPrice",
+    "nightlyPrice",
+    "weeklyPrice",
+    "roomType",
+    "availableFrom",
+    "availableUntil",
+    "minimumStayMonths",
+    "minimumNights",
+    "depositAmount",
+    "roomSizeM2",
+    "homeSizeM2",
+    "bedroomCount",
+    "currentResidents",
+    "roomCapacity",
+    "rentalUnit",
+    "bedType",
+    "bedCount",
+    "currentRoomResidents",
+    "toilet",
+    "householdGender",
+    "heatingType",
+    "floor",
+    "acceptedTenantTypes",
+    "tenantRequirement",
+    "latitude",
+    "longitude",
+    "exactLatitude",
+    "exactLongitude",
+    "advertiserType",
+    "contactName",
+    "contactPhone",
+    "contactWhatsapp",
+    "showPhone",
+    "showWhatsApp",
+)
+
+
+def validation_field(error: dict[str, object]) -> str:
+    location = error.get("loc")
+    if isinstance(location, (tuple, list)):
+        parts = [
+            str(part)
+            for part in location
+            if part not in {"body", "query", "path", "header"} and not isinstance(part, int)
+        ]
+        if parts:
+            return parts[-1]
+    message = str(error.get("msg", ""))
+    return next((field for field in VALIDATION_FIELD_HINTS if field in message), "listing")
 
 
 def api_schema_enabled() -> bool:
@@ -250,6 +303,34 @@ async def http_error(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content=content,
         headers={**(exc.headers or {}), "X-Request-ID": request_id, **SECURITY_HEADERS},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(request: Request, exc: RequestValidationError):
+    request_id = getattr(request.state, "request_id", None) or request_id_for(request)
+    field_errors: dict[str, str] = {}
+    for error in exc.errors():
+        field_errors.setdefault(validation_field(error), str(error.get("msg", "Invalid value")))
+    logger.warning(
+        "request_validation_failed",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status": 422,
+            "error_code": "VALIDATION_ERROR",
+            "fields": sorted(field_errors),
+        },
+    )
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "VALIDATION_ERROR",
+            "message": "One or more request fields are invalid.",
+            "fieldErrors": field_errors,
+        },
+        headers={"X-Request-ID": request_id, **SECURITY_HEADERS},
     )
 
 

@@ -31,6 +31,11 @@ const login = async (page: Page, role: 'tenant' | 'host' | 'admin' = 'tenant') =
 test.beforeEach(async ({ page }) => {
   const errors: string[] = []
   runtimeErrors.set(page, errors)
+  await page.route('https://images.unsplash.com/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'image/svg+xml',
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+  }))
   page.on('console', (message) => {
     if (message.type() === 'error' && !isExpectedHeadlessVectorFallback(message.text())) errors.push(message.text())
   })

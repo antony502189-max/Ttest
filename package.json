@@ -10,7 +10,7 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "oxlint && node scripts/check-i18n-source.mjs",
     "preview": "vite preview",
-    "test:e2e": "playwright test && playwright test --config playwright.google-auth.config.ts",
+    "test:e2e": "playwright test && playwright test --config playwright.publication.config.ts && playwright test --config playwright.google-auth.config.ts",
     "test:a11y": "playwright test tests/a11y.spec.ts",
     "test:visual": "playwright test tests/visual-parity.spec.ts tests/true-target-parity.spec.ts && python scripts/build-true-target-parity.py",
     "test:fullstack": "playwright test --config playwright.fullstack.config.ts",

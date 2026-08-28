@@ -24,6 +24,7 @@ from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
 from .storage_deletions import enqueue_storage_deletions
+from .users import apply_profile_fields
 
 # This is deliberately independent from the product role and AdminAccess
 # allow-list. A role carried in a token or client state must never turn an
@@ -153,7 +154,6 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.description = payload.description
     listing.home_description = payload.homeDescription
     listing.advertiser_type = payload.advertiserType
-    listing.source = payload.source or None
     listing.expires_at = payload.expiresAt
 
 
@@ -206,10 +206,33 @@ def _validate_effective_patch_state(
         raise HTTPException(422, "availableUntil cannot be before availableFrom")
 
 
-async def create_listing(payload: ListingWrite, user: User, session: AsyncSession) -> OwnedListingResponse:
+def apply_publication_contact(payload: ListingWrite, user: User) -> None:
+    fields = {
+        api_name: value
+        for api_name, value in {
+            "name": payload.contactName,
+            "phone": payload.contactPhone,
+            "whatsapp": payload.contactWhatsapp,
+            "showPhone": payload.showPhone,
+            "showWhatsApp": payload.showWhatsApp,
+        }.items()
+        if value is not None
+    }
+    apply_profile_fields(user, fields)
+
+
+async def create_listing(
+    payload: ListingWrite,
+    user: User,
+    session: AsyncSession,
+    *,
+    listing_id: UUID | None = None,
+) -> OwnedListingResponse:
     now = datetime.now(UTC)
     initial_status = "published" if get_settings().auto_publish_listings else "pending"
+    apply_publication_contact(payload, user)
     listing = Listing(
+        **({"id": listing_id} if listing_id is not None else {}),
         owner_user_id=user.id,
         approximate_address="",
         title="",
@@ -479,7 +502,14 @@ async def replace_listing_images(
         or (not admin and asset.owner_id != user.id)
         for asset in requested_assets
     ):
-        raise HTTPException(422, "Every image must be an active listing asset owned by the requester")
+        raise HTTPException(
+            422,
+            detail={
+                "code": "LISTING_IMAGE_INVALID",
+                "message": "Every image must be an active listing asset owned by the requester.",
+                "fieldErrors": {"assetIds": "Remove unavailable images and upload them again."},
+            },
+        )
 
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     for sort_order, asset_id in enumerate(payload.assetIds):
