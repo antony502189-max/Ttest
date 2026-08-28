@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 
 const cases = [
-  { language: 'es', label: 'Predeterminada (clara)' },
-  { language: 'en', label: 'Default (light)' },
-  { language: 'ru', label: 'По умолчанию (светлый)' },
+  { language: 'es', label: 'Predeterminada — como el sistema' },
+  { language: 'en', label: 'Default — follow system' },
+  { language: 'ru', label: 'По умолчанию — как в системе' },
 ] as const
 
 for (const { language, label } of cases) {
