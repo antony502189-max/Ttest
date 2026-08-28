@@ -124,7 +124,8 @@ export function MobileSiteFeedbackFixes() {
           row.setAttribute('aria-haspopup', 'dialog')
           row.setAttribute('data-testid', 'mobile-appearance-trigger')
           const value = row.querySelector('b')
-          if (value) value.textContent = appearanceLabel(language, appearance)
+          const label = appearanceLabel(language, appearance)
+          if (value && value.textContent !== label) value.textContent = label
         }
 
         if (language !== 'es') {
