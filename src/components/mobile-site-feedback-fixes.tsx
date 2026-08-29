@@ -84,6 +84,7 @@ export function MobileSiteFeedbackFixes() {
   const [appearance, setAppearance] = useState<AppearanceMode>(readAppearance)
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [homeHost, setHomeHost] = useState<HTMLElement | null>(null)
+  const [accessProfile, setAccessProfile] = useState(readListingAccessProfile)
   const appearanceOptions = useMemo(() => [
     { value: 'light' as const, label: copy.light },
     { value: 'dark' as const, label: copy.dark },
@@ -99,6 +100,13 @@ export function MobileSiteFeedbackFixes() {
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [appearance])
+
+  useEffect(() => {
+    const persisted = readListingAccessProfile()
+    setAccessProfile((current) => current.pets === persisted.pets && current.smoking === persisted.smoking && current.occupant === persisted.occupant
+      ? current
+      : persisted)
+  }, [filters.pets, filters.smoking, filters.tenantRequirement, filters.roomCapacity, filters.children])
 
   useLayoutEffect(() => {
     let frame = 0
@@ -128,14 +136,12 @@ export function MobileSiteFeedbackFixes() {
           if (value && value.textContent !== label) value.textContent = label
         }
 
-        if (language !== 'es') {
-          document.querySelectorAll<HTMLElement>('.m2-result-card__facts, .m2-result-card__badges span, .m2-result-card__availability').forEach((element) => {
-            const text = element.textContent ?? ''
-            if (!text.includes(UNKNOWN_FACT_ES)) return
-            element.textContent = text.replaceAll(UNKNOWN_FACT_ES, copy.unknownFact)
-            if (element.matches('.m2-result-card__badges span')) element.classList.add('m2-unknown-fact')
-          })
-        }
+        document.querySelectorAll<HTMLElement>('.m2-result-card__facts, .m2-result-card__badges span, .m2-result-card__availability').forEach((element) => {
+          const text = element.textContent ?? ''
+          if (!text.includes(UNKNOWN_FACT_ES)) return
+          if (language !== 'es') element.textContent = text.replaceAll(UNKNOWN_FACT_ES, copy.unknownFact)
+          if (element.matches('.m2-result-card__badges span')) element.classList.add('m2-unknown-fact')
+        })
       })
     }
     const observer = new MutationObserver(synchronize)
@@ -174,10 +180,11 @@ export function MobileSiteFeedbackFixes() {
   }, [appearanceOpen])
 
   const setBooleanFilter = (key: 'pets' | 'smoking', value: 'Sí' | 'No') => {
-    const next = filters[key] === value ? 'Cualquiera' : value
+    const next = accessProfile[key] === value ? 'Cualquiera' : value
+    const nextProfile = { ...readListingAccessProfile(), ...accessProfile, [key]: next }
+    setAccessProfile(nextProfile)
+    persistListingAccessProfile(nextProfile)
     setFilters({ ...filters, [key]: next })
-    const profile = readListingAccessProfile()
-    persistListingAccessProfile({ ...profile, [key]: next })
   }
 
   return <>
@@ -185,15 +192,15 @@ export function MobileSiteFeedbackFixes() {
       <fieldset>
         <legend>{copy.pets}</legend>
         <div>
-          <button type="button" data-testid="mobile-home-pets-yes" className={cn(filters.pets === 'Sí' && 'is-active')} aria-pressed={filters.pets === 'Sí'} onClick={() => setBooleanFilter('pets', 'Sí')}><PawPrint />{copy.petsYes}</button>
-          <button type="button" className={cn(filters.pets === 'No' && 'is-active')} aria-pressed={filters.pets === 'No'} onClick={() => setBooleanFilter('pets', 'No')}><X />{copy.petsNo}</button>
+          <button type="button" data-testid="mobile-home-pets-yes" className={cn(accessProfile.pets === 'Sí' && 'is-active')} aria-pressed={accessProfile.pets === 'Sí'} onClick={() => setBooleanFilter('pets', 'Sí')}><PawPrint />{copy.petsYes}</button>
+          <button type="button" className={cn(accessProfile.pets === 'No' && 'is-active')} aria-pressed={accessProfile.pets === 'No'} onClick={() => setBooleanFilter('pets', 'No')}><X />{copy.petsNo}</button>
         </div>
       </fieldset>
       <fieldset>
         <legend>{copy.smoking}</legend>
         <div>
-          <button type="button" data-testid="mobile-home-smoking-yes" className={cn(filters.smoking === 'Sí' && 'is-active')} aria-pressed={filters.smoking === 'Sí'} onClick={() => setBooleanFilter('smoking', 'Sí')}><Cigarette />{copy.smokingYes}</button>
-          <button type="button" className={cn(filters.smoking === 'No' && 'is-active')} aria-pressed={filters.smoking === 'No'} onClick={() => setBooleanFilter('smoking', 'No')}><CigaretteOff />{copy.smokingNo}</button>
+          <button type="button" data-testid="mobile-home-smoking-yes" className={cn(accessProfile.smoking === 'Sí' && 'is-active')} aria-pressed={accessProfile.smoking === 'Sí'} onClick={() => setBooleanFilter('smoking', 'Sí')}><Cigarette />{copy.smokingYes}</button>
+          <button type="button" className={cn(accessProfile.smoking === 'No' && 'is-active')} aria-pressed={accessProfile.smoking === 'No'} onClick={() => setBooleanFilter('smoking', 'No')}><CigaretteOff />{copy.smokingNo}</button>
         </div>
       </fieldset>
     </div>, homeHost) : null}
