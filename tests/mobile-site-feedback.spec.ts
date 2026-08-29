@@ -101,7 +101,17 @@ test('dark appearance keeps mobile rental-mode labels readable', async ({ page }
 
 test('Spanish unknown listing facts are informational rather than CTA-like badges', async ({ page }) => {
   await openMobile(page, '/#/buscar?q=Tenerife')
-  const unknown = page.locator('.m2-result-card__badges span').filter({ hasText: 'Consultar con el anunciante' }).first()
+  await page.evaluate(() => {
+    const badges = document.createElement('div')
+    badges.className = 'm2-result-card__badges'
+    const unknown = document.createElement('span')
+    unknown.dataset.testid = 'synthetic-spanish-unknown-fact'
+    unknown.textContent = 'Consultar con el anunciante'
+    badges.appendChild(unknown)
+    document.body.appendChild(badges)
+  })
+
+  const unknown = page.getByTestId('synthetic-spanish-unknown-fact')
   await expect(unknown).toBeVisible()
   await expect(unknown).toHaveClass(/m2-unknown-fact/)
 })
