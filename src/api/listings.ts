@@ -235,8 +235,8 @@ export function getCatalogVersion(signal?: AbortSignal) {
   return api<{ version: string; updatedAt: string }>('/listings/catalog-version', { signal })
 }
 
-export async function getOwnedListings() {
-  return (await api<ListingDto[]>('/listings/mine')).map(toListing)
+export async function getOwnedListings(signal?: AbortSignal) {
+  return (await api<ListingDto[]>('/listings/mine', { signal })).map(toListing)
 }
 
 export async function getPublicListing(id: string) {

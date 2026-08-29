@@ -278,6 +278,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const listingsHydrationStarted = useRef(false)
   const catalogVersion = useRef<string | null>(null)
   const catalogRequest = useRef<AbortController | null>(null)
+  const ownedRequest = useRef<AbortController | null>(null)
+  const ownedRequestVersion = useRef(0)
 
   const currentUser = users.find((user) => user.id === currentUserId) ?? null
   const scopeKey = currentUserId ?? 'guest'
@@ -294,12 +296,32 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new Event('catalog:updated'))
   }, [])
 
+  const invalidateOwnedListings = useCallback(() => {
+    ownedRequestVersion.current += 1
+    ownedRequest.current?.abort()
+    ownedRequest.current = null
+    setOwnedListings([])
+  }, [])
+
   const refreshOwnedConsumers = useCallback(async () => {
+    const requestVersion = ++ownedRequestVersion.current
+    ownedRequest.current?.abort()
     if (!currentUserId) {
       setOwnedListings([])
       return
     }
-    setOwnedListings(await getOwnedListings())
+    const request = new AbortController()
+    ownedRequest.current = request
+    try {
+      const listings = await getOwnedListings(request.signal)
+      if (!request.signal.aborted && ownedRequestVersion.current === requestVersion) {
+        setOwnedListings(listings)
+      }
+    } catch (error) {
+      if (!request.signal.aborted) throw error
+    } finally {
+      if (ownedRequest.current === request) ownedRequest.current = null
+    }
   }, [currentUserId])
 
   const refreshListingConsumers = useCallback(async () => {
@@ -342,9 +364,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
 
   const setRemoteUser = useCallback((remote: RemoteUser) => {
     const user = toAppUser(remote)
+    if (currentUserId !== user.id) invalidateOwnedListings()
     setUsers((current) => [...current.filter((item) => item.id !== user.id), user])
     setCurrentUserId(user.id)
-  }, [])
+  }, [currentUserId, invalidateOwnedListings])
 
   useEffect(() => {
     if (authHydrationStarted.current) return
@@ -764,9 +787,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
   }, [setRemoteUser])
   const logout = useCallback(() => {
+    invalidateOwnedListings()
     setCurrentUserId(null)
     void logoutSession().catch(() => undefined)
-  }, [])
+  }, [invalidateOwnedListings])
   const updateProfile = useCallback((changes: ProfileUpdate) => {
     if (!currentUserId) return
     const previous = users.find((user) => user.id === currentUserId)
@@ -813,7 +837,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     const removedMedia = collectMediaReferences([accountListings, users.find((user) => user.id === currentUserId), deleteDraft ? draftRecord?.value : null])
     const retainedDraft = deleteDraft ? null : draftRecord?.value
     setAllListings(remainingListings)
-    setOwnedListings([])
+    invalidateOwnedListings()
     setUsers(remainingUsers)
     setFavoriteScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setDiscardedScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
@@ -830,7 +854,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar todos los datos multimedia de la cuenta.'),
     )
     return true
-  }, [allListings, currentUserId, ownedListings, users])
+  }, [allListings, currentUserId, invalidateOwnedListings, ownedListings, users])
   const toggleUserBlocked = useCallback((id: string) => {
     if (currentUser?.role !== 'admin') return
     const previous = users.find((user) => user.id === id)

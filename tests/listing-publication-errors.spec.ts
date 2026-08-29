@@ -16,6 +16,7 @@ const host = {
   blocked: false,
   avatarUrl: null,
 }
+const secondHost = { ...host, id: '44444444-4444-4444-8444-444444444444', name: 'Segunda anfitriona', email: 'second-publication-ui@example.com' }
 
 type PublicationMode = 'email' | 'validation' | 'success'
 type PublicationTestState = {
@@ -32,6 +33,10 @@ type PublicationTestState = {
   catalogVersions?: string[]
   favoriteIds?: string[]
   statusPatches?: string[]
+  authUser?: typeof host
+  loginUser?: typeof host
+  mineWait?: Promise<void>
+  mineCalls?: number
 }
 
 function lifecycleListing(status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected', id = '33333333-3333-4333-8333-333333333333') {
@@ -92,7 +97,9 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
     const path = url.pathname.replace(/^\/api\/v1/, '')
     const json = (value: unknown, status = 200, headers: Record<string, string> = {}) => route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(value) })
 
-    if (path === '/auth/refresh') return json({ accessToken: 'publication-test-token', user: host })
+    if (path === '/auth/refresh') return json({ accessToken: 'publication-test-token', user: state.authUser ?? host })
+    if (path === '/auth/login') return json({ accessToken: 'publication-test-token', user: state.loginUser ?? host })
+    if (path === '/auth/logout') return json({})
     if (path === '/auth/email-verification/status') return json({ verified: true, email: host.email })
     if (path === '/listings/search') {
       state.searchCalls = (state.searchCalls ?? 0) + 1
@@ -102,7 +109,13 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       return json({ items, total: items.length, limit: 100, offset: 0 })
     }
     if (path === '/listings/catalog-version') return json({ version: state.catalogVersions?.shift() ?? '1', updatedAt: '2026-08-28T00:00:00Z' })
-    if (path === '/listings/mine') return json(state.mine ?? [])
+    if (path === '/listings/mine') {
+      state.mineCalls = (state.mineCalls ?? 0) + 1
+      const items = state.mine ?? []
+      const wait = state.mineWait
+      if (wait) await wait
+      return json(items)
+    }
     if (/^\/listings\/[^/]+$/.test(path) && request.method() === 'PATCH') {
       const next = (request.postDataJSON() as { status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected' }).status
       state.statusPatches?.push(next)
@@ -286,6 +299,38 @@ test('catalog hydration retries when a lifecycle mutation races the public snaps
 
   await expect(page.locator('.property-card').filter({ hasText: published.title })).toHaveCount(1)
   expect(state.searchCalls).toBeGreaterThanOrEqual(2)
+})
+
+test('stale owner response cannot cross an account switch', async ({ page }) => {
+  let releaseFirstMine!: () => void
+  const firstMineWait = new Promise<void>((resolve) => { releaseFirstMine = resolve })
+  const privateA = { ...lifecycleListing('hidden'), title: 'Private listing account A', street: 'Private A street' }
+  const privateB = { ...lifecycleListing('hidden', '55555555-5555-4555-8555-555555555555'), ownerUserId: secondHost.id, title: 'Private listing account B', street: 'Private B street' }
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0, authUser: host, loginUser: secondHost,
+    mine: [privateA], mineWait: firstMineWait,
+  }
+  await mockPublicationApi(page, state)
+  await page.addInitScript(() => localStorage.setItem('112233:has-session', '1'))
+  await page.goto('/#/menu')
+  await expect.poll(() => state.mineCalls ?? 0).toBe(1)
+
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+  state.mine = [privateB]
+  state.mineWait = undefined
+  await page.goto('/#/acceso')
+  await page.getByRole('button', { name: 'Iniciar sesión con email' }).click()
+  await page.getByLabel('Email').fill(secondHost.email)
+  await page.getByLabel('Contraseña').fill('not-used-by-mock')
+  await page.getByRole('button', { name: 'Iniciar sesión con email' }).click()
+  await expect.poll(() => state.mineCalls ?? 0).toBeGreaterThanOrEqual(2)
+  await page.goto('/#/mis-anuncios')
+  await expect(page.locator('main')).toContainText(privateB.title)
+
+  releaseFirstMine()
+  await page.waitForTimeout(100)
+  await expect(page.locator('main')).not.toContainText(privateA.title)
+  await expect(page.locator('main')).not.toContainText('Private A street')
 })
 
 test('pending owner listings survive reload without leaking into public search or map state', async ({ page }) => {
