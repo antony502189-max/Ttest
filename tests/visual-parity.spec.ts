@@ -19,11 +19,11 @@ async function shot(page: Page, name: string) {
 
 async function shotLegacyMobileHome(page: Page, name: string) {
   // The new pets/smoking controls have dedicated functional/320px coverage.
-  // Exclude only that additive block from the pinned legacy screenshot so the
-  // rest of the approved mobile shell remains protected from visual drift.
+  // Exclude the complete portal host from the pinned legacy screenshot so it
+  // cannot alter the old grid while the rest of the shell remains gated.
   const feedbackControls = page.locator('.m2-home-extra-filters')
   await expect(feedbackControls).toBeVisible()
-  const style = await page.addStyleTag({ content: '.m2-home-extra-filters{display:none!important}' })
+  const style = await page.addStyleTag({ content: '[data-mobile-home-extra-filters-host]{display:none!important}' })
   try {
     await shot(page, name)
   } finally {
