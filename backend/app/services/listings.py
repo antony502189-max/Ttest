@@ -31,6 +31,19 @@ from .users import apply_profile_fields
 # ordinary lifecycle action into a destructive purge.
 HARD_DELETE_EMAILS = frozenset({"antony502189@gmail.com", "tf.shuler@gmail.com"})
 
+# Owners can only move through the lifecycle exposed by Mis anuncios.  Admin
+# moderation has its own stricter transition table and endpoint; accepting an
+# arbitrary enum value here would let either actor bypass those rules with a
+# direct PATCH request.
+OWNER_STATUS_TRANSITIONS = {
+    "draft": {"pending", "published"},
+    "pending": {"hidden", "closed"},
+    "published": {"hidden", "closed"},
+    "hidden": {"pending", "published", "closed"},
+    "closed": set(),
+    "rejected": {"pending", "published", "closed"},
+}
+
 
 def canonical_email(value: str) -> str:
     return value.strip().lower()
@@ -43,6 +56,15 @@ def require_hard_delete_authorization(user: User) -> None:
     # claim an allowlisted address and purge another user's listing.
     if canonical_email(user.email) not in HARD_DELETE_EMAILS or not user.email_verified:
         raise HTTPException(403, "Hard deletion is restricted")
+
+
+def resolve_owner_status_transition(current: str, requested: str, *, auto_publish: bool) -> str:
+    target = "published" if requested == "published" and auto_publish else (
+        "pending" if requested == "published" else requested
+    )
+    if target != current and target not in OWNER_STATUS_TRANSITIONS[current]:
+        raise HTTPException(409, "Listing status transition is not permitted")
+    return target
 
 ROOM_DETAIL_MAPPING = {
     "homeSizeM2": "home_size_m2",
@@ -289,11 +311,20 @@ async def update_listing(
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     admin = await ensure_owner_or_admin(listing, user, session)
+    if admin and payload.status is not None and payload.status != listing.status:
+        raise HTTPException(403, "Administrators must use the moderation status endpoint")
     if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
         await enforce_publish_access(user, session)
     changes = payload.model_dump(exclude_unset=True)
-    if "status" in changes and not admin and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
-        raise HTTPException(403, "Only an administrator can publish or reject listings")
+    if "status" in changes and not admin:
+        # "Show" is a publication intent. Production always returns the
+        # listing to moderation; local auto-publish environments may expose it
+        # immediately.
+        changes["status"] = resolve_owner_status_transition(
+            listing.status,
+            cast(str, changes["status"]),
+            auto_publish=get_settings().auto_publish_listings,
+        )
 
     current_details = await session.get(ListingRoomDetails, listing.id)
     _validate_effective_patch_state(listing, current_details, changes)
@@ -449,6 +480,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
+    await ensure_owner_or_admin(listing, user, session)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
