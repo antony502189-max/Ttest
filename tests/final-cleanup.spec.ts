@@ -88,7 +88,8 @@ test('REMOTE-DELETE-01 rejected server deletion cannot erase local drafts or med
   expect(deletion).toContain('await deleteRemoteListing(id)')
   expect(deletion).toContain('await removeUnusedMediaReferences')
   expect(deletion.indexOf('await deleteRemoteListing(id)')).toBeLessThan(deletion.indexOf('localStorage.removeItem(DRAFT_KEY)'))
-  expect(deletion.indexOf('await deleteRemoteListing(id)')).toBeLessThan(deletion.indexOf('setAllListings(remaining)'))
+  expect(deletion.indexOf('await deleteRemoteListing(id)')).toBeLessThan(deletion.indexOf('setOwnedListings(remaining)'))
+  expect(deletion.indexOf('await deleteRemoteListing(id)')).toBeLessThan(deletion.indexOf('setAllListings((current)'))
   expect(deletion).not.toContain('void deleteRemoteListing')
 })
 
@@ -250,7 +251,7 @@ test('FILTER-07 legacy URLs migrate to one tenant requirement and distinct resid
   await expect(page).toHaveURL(/capacidad=2/)
 })
 
-test('LISTING-STATUS-01 user-facing status filter excludes moderation-only values', async ({ page }) => {
+test('LISTING-STATUS-01 owner status filter preserves canonical moderation values', async ({ page }) => {
   await page.evaluate(() => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
     payload.data[0].status = 'Pendiente'
@@ -259,9 +260,26 @@ test('LISTING-STATUS-01 user-facing status filter excludes moderation-only value
   })
   await openAsHost(page, '/#/mis-anuncios')
   const status = page.getByLabel('Estado')
-  await expect(status.locator('option')).toHaveText(['Todos', 'Publicado', 'Oculto', 'Borrador', 'Finalizado'])
-  await expect(page.locator('main')).not.toContainText('Pendiente')
-  await expect(page.locator('main')).not.toContainText('Rechazado')
+  await expect(status.locator('option')).toHaveText(['Todos', 'Publicado', 'Oculto', 'Borrador', 'Pendiente', 'Rechazado', 'Finalizado'])
+  await expect(page.locator('main')).toContainText('Pendiente')
+  await expect(page.locator('main')).toContainText('Rechazado')
+})
+
+test('LISTING-STATUS-02 mock public consumers exclude owner-only lifecycle states', async ({ page }) => {
+  const titles = await page.evaluate(() => {
+    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
+    payload.data[0] = { ...payload.data[0], status: 'Pendiente', ownerUserId: 'host-demo', userCreated: true }
+    payload.data[1] = { ...payload.data[1], status: 'Oculto', ownerUserId: 'host-demo', userCreated: true }
+    localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
+    return [payload.data[0].title, payload.data[1].title] as string[]
+  })
+
+  await openAsHost(page, '/#/mis-anuncios')
+  await expect(page.locator('main')).toContainText(titles[0])
+  await expect(page.locator('main')).toContainText(titles[1])
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await expect(page.locator('.property-card').filter({ hasText: titles[0] })).toHaveCount(0)
+  await expect(page.locator('.property-card').filter({ hasText: titles[1] })).toHaveCount(0)
 })
 
 test('MAP-06 selecting a card or marker preserves viewport and map instance', async ({ page }) => {

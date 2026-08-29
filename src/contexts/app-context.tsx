@@ -6,7 +6,7 @@ import { ApiError, resolveApiUrl } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
-import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
+import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getOwnedListings, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
 import { syncListingImages } from '@/api/media'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
@@ -63,13 +63,15 @@ export interface AppState {
   setMapPolygon: (points: MapPolygonPoint[]) => void
   clearMapPolygon: () => void
   allListings: Listing[]
+  ownedListings: Listing[]
+  acceptListingSnapshot: (listing: Listing) => void
   partialPublication: PartialPublicationRecovery | null
   createListing: (listing: Listing) => Promise<boolean>
   updateListing: (id: string, listing: Listing) => Promise<boolean>
   deleteListing: (id: string) => Promise<boolean>
-  setListingStatus: (id: string, status: ListingStatus) => void
-  renewListing: (id: string) => void
-  closeListing: (id: string) => void
+  setListingStatus: (id: string, status: ListingStatus) => Promise<ListingStatus | null>
+  renewListing: (id: string) => Promise<ListingStatus | null>
+  closeListing: (id: string) => Promise<ListingStatus | null>
   refreshListingLifecycle: () => void
   canManageListing: (listing: Listing) => boolean
   reports: ReportRecord[]
@@ -237,6 +239,22 @@ const storageMessage = (failure: StorageFailure) => failure === 'quota'
     ? 'Había datos locales dañados. Se ha cargado una copia segura.'
     : 'No se pudo guardar en este navegador. Revisa la privacidad o el espacio disponible.'
 
+async function getStablePublicCatalog(signal?: AbortSignal) {
+  let lastVersion = await getCatalogVersion(signal)
+  let items: Listing[] = []
+  let itemsVersion = lastVersion.version
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    itemsVersion = lastVersion.version
+    items = await getPublicListings(signal)
+    const after = await getCatalogVersion(signal)
+    if (after.version === lastVersion.version) return { items, version: after.version }
+    lastVersion = after
+  }
+  // Keep the version observed before the final fetch. If another mutation won
+  // all three races, the normal poll still sees a newer version and retries.
+  return { items, version: itemsVersion }
+}
+
 function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [listingLoad] = useState(readListings)
   const [rentalMode, setRentalMode] = useState<RentalMode>('long')
@@ -248,6 +266,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [savedSearchScopes, setSavedSearchScopes] = useState<UserScopedState<SavedSearch[]>>(readScopedSavedSearches)
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
+  const [ownedListings, setOwnedListings] = useState<Listing[]>([])
   const [partialPublication, setPartialPublication] = useState<PartialPublicationRecovery | null>(() => mockMode ? null : readPartialPublication())
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
@@ -267,6 +286,32 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const searchHistory = useMemo(() => historyScopes[scopeKey] ?? [], [historyScopes, scopeKey])
   const savedSearches = useMemo(() => savedSearchScopes[scopeKey] ?? [], [savedSearchScopes, scopeKey])
   const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
+
+  const refreshPublicConsumers = useCallback(async () => {
+    const { items, version } = await getStablePublicCatalog()
+    setAllListings(items)
+    catalogVersion.current = version
+    window.dispatchEvent(new Event('catalog:updated'))
+  }, [])
+
+  const refreshOwnedConsumers = useCallback(async () => {
+    if (!currentUserId) {
+      setOwnedListings([])
+      return
+    }
+    setOwnedListings(await getOwnedListings())
+  }, [currentUserId])
+
+  const refreshListingConsumers = useCallback(async () => {
+    await Promise.all([refreshPublicConsumers(), refreshOwnedConsumers()])
+  }, [refreshOwnedConsumers, refreshPublicConsumers])
+
+  const acceptListingSnapshot = useCallback((snapshot: Listing) => {
+    setAllListings((current) => current.map((listing) => listing.id === snapshot.id ? { ...listing, ...snapshot } : listing))
+    // Preserve owner-only fields while accepting mutable public fields such as
+    // the daily view counter returned by GET /listings/{id}.
+    setOwnedListings((current) => current.map((listing) => listing.id === snapshot.id ? { ...listing, ...snapshot } : listing))
+  }, [])
 
   const reportStorageFailure = useCallback((failure: StorageFailure | null) => {
     if (!failure) return
@@ -292,8 +337,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (orphanCleanupStarted.current) return
     orphanCleanupStarted.current = true
-    void cleanupOrphanedMedia(usedMediaReferences(allListings, users)).catch(() => undefined)
-  }, [allListings, users])
+    void cleanupOrphanedMedia(usedMediaReferences([...allListings, ...ownedListings], users)).catch(() => undefined)
+  }, [allListings, ownedListings, users])
 
   const setRemoteUser = useCallback((remote: RemoteUser) => {
     const user = toAppUser(remote)
@@ -313,10 +358,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     if (listingsHydrationStarted.current) return
     listingsHydrationStarted.current = true
     if (mockMode) return
-    void getPublicListings().then((items) => {
+    void getStablePublicCatalog().then(({ items, version }) => {
       setAllListings(items)
-      return getCatalogVersion()
-    }).then((version) => { catalogVersion.current = version.version }).catch(() => {
+      catalogVersion.current = version
+    }).catch(() => {
       setAllListings([])
       toast.error('No se pudo cargar el catálogo del servidor.')
     })
@@ -331,10 +376,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         catalogRequest.current?.abort()
         const request = new AbortController()
         catalogRequest.current = request
-        return getPublicListings(request.signal).then((items) => {
+        return getStablePublicCatalog(request.signal).then(({ items, version }) => {
           if (!request.signal.aborted) {
             setAllListings(items)
-            catalogVersion.current = current.version
+            catalogVersion.current = version
             window.dispatchEvent(new Event('catalog:updated'))
           }
         })
@@ -391,6 +436,19 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       setHistoryScopes((current) => ({ ...current, [currentUserId]: sanitizeTenerifeHistory(history) }))
     }).catch(() => toast.error('No se pudo sincronizar el historial de búsqueda.'))
   }, [currentUserId])
+
+  useEffect(() => {
+    void refreshOwnedConsumers().catch(() => toast.error('No se pudieron cargar tus anuncios.'))
+    const refresh = () => { void refreshOwnedConsumers().catch(() => undefined) }
+    window.addEventListener('catalog:updated', refresh)
+    return () => window.removeEventListener('catalog:updated', refresh)
+  }, [refreshOwnedConsumers])
+
+  useEffect(() => {
+    const refresh = () => { void refreshListingConsumers().catch(() => toast.error('No se pudo actualizar el catálogo.')) }
+    window.addEventListener('catalog:refresh', refresh)
+    return () => window.removeEventListener('catalog:refresh', refresh)
+  }, [refreshListingConsumers])
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') return
@@ -480,17 +538,18 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return false
     }
     if (partialPublication) {
-      const previous = allListings.find((item) => item.id === partialPublication.listingId)
+      const previous = ownedListings.find((item) => item.id === partialPublication.listingId)
       try {
         const images = await syncListingImages(partialPublication.listingId, listing.images)
         const usedAfterRecovery = new Set([
-          ...allListings.filter((item) => item.id !== partialPublication.listingId).flatMap((item) => item.images),
+          ...[...allListings, ...ownedListings].filter((item) => item.id !== partialPublication.listingId).flatMap((item) => item.images),
           ...images,
           ...(currentUser.avatarRef ? [currentUser.avatarRef] : []),
         ])
         await removeUnusedMediaReferences(previous?.images ?? [], usedAfterRecovery)
         const recovered = { ...listing, id: partialPublication.listingId, ownerUserId: currentUser.id, userCreated: true, images }
-        setAllListings((current) => [recovered, ...current.filter((item) => item.id !== partialPublication.listingId)])
+        setOwnedListings((current) => [recovered, ...current.filter((item) => item.id !== partialPublication.listingId)])
+        await refreshListingConsumers().catch(() => toast.error('Las fotos se guardaron, pero no se pudo refrescar el catálogo.'))
         setPartialPublication(null)
         try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after the listing is recovered. */ }
         toast.success('Las fotografías se han sincronizado y el anuncio está listo.')
@@ -502,7 +561,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       }
     }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
-    setAllListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
+    setOwnedListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
       const remote = await createRemoteListing(optimistic)
       let stored = { ...remote, userCreated: true }
@@ -527,32 +586,33 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
           : error instanceof Error ? error.message : 'no se pudieron subir las imágenes'
         toast.error(`El anuncio se creó, pero ${reason}. Pulsa Publicar de nuevo para reintentar las fotos; no se duplicará.`)
       }
-      setAllListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
+      setOwnedListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
       if (!imagesSynced) return false
+      await refreshListingConsumers().catch(() => toast.error('El anuncio se guardó, pero no se pudo refrescar el catálogo.'))
       try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after a successful publication. */ }
       toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
       return true
     } catch (error) {
-      setAllListings((current) => current.filter((item) => item.id !== optimistic.id))
+      setOwnedListings((current) => current.filter((item) => item.id !== optimistic.id))
       console.error('listing_publication_failed', publicationDiagnostic(error))
       toast.error(publicationErrorMessage(error))
       return false
     }
-  }, [allListings, currentUser, partialPublication])
-  const mutateOwned = useCallback((id: string, mutate: (listing: Listing) => Listing | null) => setAllListings((current) => current.flatMap((listing) => {
+  }, [allListings, currentUser, ownedListings, partialPublication, refreshListingConsumers])
+  const mutateOwned = useCallback((id: string, mutate: (listing: Listing) => Listing | null) => setOwnedListings((current) => current.flatMap((listing) => {
     if (listing.id !== id) return [listing]
     if (!canManageListing(listing)) { toast.error('No puedes gestionar un anuncio de otra cuenta.'); return [listing] }
     const next = mutate(listing)
     return next ? [next] : []
   })), [canManageListing])
   const updateListing = useCallback(async (id: string, listing: Listing) => {
-    const previous = allListings.find((item) => item.id === id)
+    const previous = ownedListings.find((item) => item.id === id)
     if (!previous || !canManageListing(previous)) {
       if (previous) toast.error('No puedes gestionar un anuncio de otra cuenta.')
       return false
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId }
-    setAllListings((current) => current.map((item) => item.id === id ? next : item))
+    setOwnedListings((current) => current.map((item) => item.id === id ? next : item))
     try {
       const remote = await updateRemoteListing(id, next)
       let stored = { ...remote, userCreated: true }
@@ -563,16 +623,17 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'No se pudieron actualizar las imágenes del anuncio.')
       }
-      setAllListings((current) => current.map((item) => item.id === id ? stored : item))
+      setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))
+      await refreshListingConsumers().catch(() => toast.error('Los cambios se guardaron, pero no se pudo refrescar el catálogo.'))
       return true
     } catch {
-      setAllListings((current) => current.map((item) => item.id === id ? previous : item))
+      setOwnedListings((current) => current.map((item) => item.id === id ? previous : item))
       toast.error('No se pudieron guardar los cambios del anuncio.')
       return false
     }
-  }, [allListings, canManageListing])
+  }, [canManageListing, ownedListings, refreshListingConsumers])
   const deleteListing = useCallback(async (id: string): Promise<boolean> => {
-    const listing = allListings.find((item) => item.id === id)
+    const listing = ownedListings.find((item) => item.id === id)
     if (!listing) return false
     if (!canManageListing(listing)) {
       toast.error('No puedes gestionar un anuncio de otra cuenta.')
@@ -588,7 +649,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         : 'No se pudo eliminar el anuncio en el servidor.')
       return false
     }
-    const remaining = allListings.filter((item) => item.id !== id)
+    const remaining = ownedListings.filter((item) => item.id !== id)
     const draftRecord = readDraftRecord()
     const deleteDraft = draftRecord?.value.listingId === id
     const draftMedia = deleteDraft ? collectMediaReferences(draftRecord?.value) : new Set<string>()
@@ -596,35 +657,46 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(DRAFT_KEY)
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
-    setAllListings(remaining)
+    setOwnedListings(remaining)
+    setAllListings((current) => current.filter((item) => item.id !== id))
     try {
-      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value))
+      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
     }
+    await refreshListingConsumers().catch(() => toast.error('El anuncio se eliminó, pero no se pudo refrescar el catálogo.'))
     return true
-  }, [allListings, canManageListing, users])
-  const setListingStatus = useCallback((id: string, status: ListingStatus) => {
-    const previous = allListings.find((listing) => listing.id === id)
-    if (!previous || !canManageListing(previous)) return
+  }, [allListings, canManageListing, ownedListings, refreshListingConsumers, users])
+  const setListingStatus = useCallback(async (id: string, status: ListingStatus): Promise<ListingStatus | null> => {
+    const previous = ownedListings.find((listing) => listing.id === id)
+    if (!previous || !canManageListing(previous)) return null
     mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason : undefined }))
     if (currentUser?.role === 'admin' && previous) {
-      void moderateRemoteListing(id, status).catch(() => {
-        setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
+      try {
+        await moderateRemoteListing(id, status)
+        await refreshListingConsumers()
+        return status
+      } catch {
+        setOwnedListings((current) => current.map((listing) => listing.id === id ? previous : listing))
         toast.error('No se pudo moderar el anuncio en el servidor.')
-      })
+        return null
+      }
     } else {
-      void setRemoteListingStatus(id, status).then((remote) => {
-        setAllListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
-      }).catch(() => {
-        setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
+      try {
+        const remote = await setRemoteListingStatus(id, status)
+        setOwnedListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
+        await refreshListingConsumers().catch(() => toast.error('El estado se guardó, pero no se pudo refrescar el catálogo.'))
+        return remote.status
+      } catch {
+        setOwnedListings((current) => current.map((listing) => listing.id === id ? previous : listing))
         toast.error('No se pudo actualizar el estado del anuncio en el servidor.')
-      })
+        return null
+      }
     }
-  }, [allListings, canManageListing, currentUser?.role, mutateOwned])
-  const renewListing = useCallback((id: string) => {
-    const previous = allListings.find((listing) => listing.id === id)
-    if (!previous || !canManageListing(previous)) return
+  }, [canManageListing, currentUser?.role, mutateOwned, ownedListings, refreshListingConsumers])
+  const renewListing = useCallback(async (id: string): Promise<ListingStatus | null> => {
+    const previous = ownedListings.find((listing) => listing.id === id)
+    if (!previous || !canManageListing(previous)) return null
     mutateOwned(id, (listing) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const currentExpiry = new Date(`${listing.expiresAt}T00:00:00`)
@@ -632,15 +704,19 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     base.setDate(base.getDate() + 30)
     return { ...listing, expiresAt: base.toISOString().slice(0, 10), closedReason: undefined }
     })
-    void renewRemoteListing(id).then((remote) => {
-      setAllListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
-    }).catch(() => {
-      setAllListings((current) => current.map((listing) => listing.id === id ? previous : listing))
+    try {
+      const remote = await renewRemoteListing(id)
+      setOwnedListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
+      await refreshListingConsumers().catch(() => toast.error('La renovación se guardó, pero no se pudo refrescar el catálogo.'))
+      return remote.status
+    } catch {
+      setOwnedListings((current) => current.map((listing) => listing.id === id ? previous : listing))
       toast.error('No se pudo renovar el anuncio en el servidor.')
-    })
-  }, [allListings, canManageListing, mutateOwned])
+      return null
+    }
+  }, [canManageListing, mutateOwned, ownedListings, refreshListingConsumers])
   const closeListing = useCallback((id: string) => setListingStatus(id, 'Finalizado'), [setListingStatus])
-  const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
+  const refreshListingLifecycle = useCallback(() => setOwnedListings((current) => current.map((listing) => expireListing(listing))), [])
   const addReport = useCallback((listingId: string, reason: string, comment: string) => {
     const optimistic: ReportRecord = { id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }
     setReports((current) => [optimistic, ...current])
@@ -728,22 +804,23 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       toast.error('No se pudo eliminar la cuenta en el servidor.')
       return false
     }
-    const ownedListings = allListings.filter((listing) => listing.ownerUserId === currentUserId)
+    const accountListings = ownedListings.filter((listing) => listing.ownerUserId === currentUserId)
     const remainingListings = allListings.filter((listing) => listing.ownerUserId !== currentUserId)
     const remainingUsers = users.filter((user) => user.id !== currentUserId)
     const draftRecord = readDraftRecord()
     const draftOwner = draftRecord?.value.ownerUserId
     const deleteDraft = Boolean(draftRecord && (!draftOwner || draftOwner === currentUserId))
-    const removedMedia = collectMediaReferences([ownedListings, users.find((user) => user.id === currentUserId), deleteDraft ? draftRecord?.value : null])
+    const removedMedia = collectMediaReferences([accountListings, users.find((user) => user.id === currentUserId), deleteDraft ? draftRecord?.value : null])
     const retainedDraft = deleteDraft ? null : draftRecord?.value
     setAllListings(remainingListings)
+    setOwnedListings([])
     setUsers(remainingUsers)
     setFavoriteScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setDiscardedScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setHistoryScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setSavedSearchScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
     setCommentScopes((current) => Object.fromEntries(Object.entries(current).filter(([scope]) => scope !== currentUserId)))
-    setReports((current) => current.filter((report) => !ownedListings.some((listing) => listing.id === report.listingId)))
+    setReports((current) => current.filter((report) => !accountListings.some((listing) => listing.id === report.listingId)))
     if (deleteDraft) {
       localStorage.removeItem(DRAFT_KEY)
       localStorage.removeItem(LEGACY_DRAFT_KEY)
@@ -753,7 +830,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar todos los datos multimedia de la cuenta.'),
     )
     return true
-  }, [allListings, currentUserId, users])
+  }, [allListings, currentUserId, ownedListings, users])
   const toggleUserBlocked = useCallback((id: string) => {
     if (currentUser?.role !== 'admin') return
     const previous = users.find((user) => user.id === id)
@@ -767,7 +844,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

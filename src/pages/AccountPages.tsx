@@ -457,17 +457,16 @@ export function ProfilePage() {
 }
 
 export function MyListingsPage() {
-  const { allListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
+  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
   const hardDeleteAllowed = canUseHardDelete(currentUser);
   const [status, setStatus] = useState("Todos");
   useEffect(() => refreshListingLifecycle(), [refreshListingLifecycle]);
-  const visibleStatus = (listingStatus: typeof allListings[number]["status"]) => listingStatus === "Pendiente" ? "Borrador" : listingStatus === "Rechazado" ? "Oculto" : listingStatus;
-  const mine = allListings.filter((listing) => listing.ownerUserId === currentUser?.id);
+  const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
   const items =
     status === "Todos"
       ? mine
-      : mine.filter((listing) => visibleStatus(listing.status) === status);
+      : mine.filter((listing) => listing.status === status);
   return (
     <div className="owner-listings-page">
       <header className="owner-mobile-appbar"><Button asChild variant="ghost" size="icon"><Link to="/menu" aria-label="Volver al menú"><ArrowLeft /></Link></Button><strong>Tus anuncios</strong></header>
@@ -496,6 +495,8 @@ export function MyListingsPage() {
           <option>Publicado</option>
           <option>Oculto</option>
           <option>Borrador</option>
+          <option>Pendiente</option>
+          <option>Rechazado</option>
           <option>Finalizado</option>
         </select>
       </div>
@@ -528,7 +529,7 @@ export function MyListingsPage() {
               />
               <div className="manage-card__main">
                 <div>
-                  <StatusBadge status={visibleStatus(listing.status)} />
+                  <StatusBadge status={listing.status} />
                   <span>Ref. {listing.id.slice(-5).toUpperCase()}</span>
                 </div>
                 <h2>{listing.title}</h2>
@@ -568,35 +569,30 @@ export function MyListingsPage() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
                       {listing.status === "Finalizado" ? <DropdownMenuItem
-                        onClick={() => { renewListing(listing.id); toast.success("Anuncio publicado de nuevo durante 30 días"); }}
+                        onClick={async () => {
+                          const next = await renewListing(listing.id);
+                          if (next) toast.success(next === "Publicado" ? "Anuncio publicado de nuevo durante 30 días" : "Anuncio renovado y enviado a revisión");
+                        }}
                       ><RotateCcw />Volver a publicar</DropdownMenuItem> : <DropdownMenuItem
-                        onClick={() => {
-                          setListingStatus(
-                            listing.id,
-                            listing.status === "Oculto"
-                              ? "Publicado"
-                              : "Oculto",
-                          );
-                          toast.success(
-                            listing.status === "Oculto"
-                              ? "Anuncio publicado"
-                              : "Anuncio ocultado",
-                          );
+                        onClick={async () => {
+                          const showing = listing.status === "Oculto" || listing.status === "Rechazado";
+                          const next = await setListingStatus(listing.id, showing ? "Pendiente" : "Oculto");
+                          if (next) toast.success(showing ? "Anuncio enviado a revisión" : "Anuncio ocultado");
                         }}
                       >
-                        {listing.status === "Oculto" ? <Eye /> : <EyeOff />}
-                        {listing.status === "Oculto" ? "Mostrar" : "Ocultar"}
+                        {listing.status === "Oculto" || listing.status === "Rechazado" ? <Eye /> : <EyeOff />}
+                        {listing.status === "Oculto" || listing.status === "Rechazado" ? "Enviar a revisión" : "Ocultar"}
                       </DropdownMenuItem>}
                       <DropdownMenuItem
-                        onClick={() => {
-                          renewListing(listing.id);
-                          toast.success("Anuncio renovado 30 días");
+                        onClick={async () => {
+                          const next = await renewListing(listing.id);
+                          if (next) toast.success(next === "Publicado" ? "Anuncio renovado 30 días" : "Anuncio renovado y enviado a revisión");
                         }}
                       >
                         <RotateCcw />
                         Renovar
                       </DropdownMenuItem>
-                      {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={() => { closeListing(listing.id); toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
+                      {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
                       {hardDeleteAllowed ? <ConfirmDialog
                         trigger={
                           <DropdownMenuItem

@@ -25,6 +25,31 @@ type PublicationTestState = {
   payload?: Record<string, unknown>
   imageFailures?: number
   imageListingIds?: string[]
+  mine?: ReturnType<typeof listingResponse>[]
+  publicListings?: ReturnType<typeof listingResponse>[]
+  publicListingsAfterFirstSearch?: ReturnType<typeof listingResponse>[]
+  searchCalls?: number
+  catalogVersions?: string[]
+  favoriteIds?: string[]
+  statusPatches?: string[]
+}
+
+function lifecycleListing(status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected', id = '33333333-3333-4333-8333-333333333333') {
+  return { ...listingResponse({
+    title: 'Anuncio lifecycle remoto', city: 'Adeje', area: 'Costa Adeje', approximateAddress: 'Costa Adeje · ubicación aproximada',
+    rentalMode: 'long', monthlyPrice: 650, nightlyPrice: null, weeklyPrice: null, roomType: 'Habitación individual',
+    availableFrom: '2026-09-01', availableUntil: null, minimumStayMonths: 1, minimumNights: null,
+    depositAmount: 650, depositText: null, billsIncluded: true, billsText: 'Gastos incluidos',
+    bathroom: 'Baño compartido', kitchen: 'Cocina compartida', furnished: true, roomSizeM2: 14,
+    bedroomCount: 3, currentResidents: 2, roomCapacity: 1, shower: 'Ducha compartida',
+    homeSizeM2: 80, bathroomCount: 2, rentalUnit: 'room', bedType: 'single', bedCount: 1,
+    currentRoomResidents: 0, availableSpots: 1, toilet: 'Aseo compartido', householdGender: 'mixed',
+    householdHasChildren: false, heatingType: 'none', accessible: false, floor: '2', couplesAllowed: false,
+    acceptedTenantTypes: ['man', 'woman'], tenantRequirement: 'any', smokingAllowed: false, petsAllowed: false,
+    childrenAllowed: false, empadronamientoAllowed: true, restrictions: [], amenities: ['Wi-Fi'],
+    latitude: 28.09, longitude: -16.73, description: 'Lifecycle consumer regression.', homeDescription: 'Shared home.',
+    advertiserType: 'Particular', source: null, expiresAt: '2026-12-31T00:00:00Z', imageUrls: [],
+  }, id), status }
 }
 
 function listingResponse(payload: Record<string, unknown>, id: string) {
@@ -69,9 +94,22 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
 
     if (path === '/auth/refresh') return json({ accessToken: 'publication-test-token', user: host })
     if (path === '/auth/email-verification/status') return json({ verified: true, email: host.email })
-    if (path === '/listings/search') return json({ items: [], total: 0, limit: 100, offset: 0 })
-    if (path === '/listings/catalog-version') return json({ version: '1', updatedAt: '2026-08-28T00:00:00Z' })
-    if (path === '/listings/mine') return json([])
+    if (path === '/listings/search') {
+      state.searchCalls = (state.searchCalls ?? 0) + 1
+      const items = state.searchCalls > 1 && state.publicListingsAfterFirstSearch
+        ? state.publicListingsAfterFirstSearch
+        : state.publicListings ?? []
+      return json({ items, total: items.length, limit: 100, offset: 0 })
+    }
+    if (path === '/listings/catalog-version') return json({ version: state.catalogVersions?.shift() ?? '1', updatedAt: '2026-08-28T00:00:00Z' })
+    if (path === '/listings/mine') return json(state.mine ?? [])
+    if (/^\/listings\/[^/]+$/.test(path) && request.method() === 'PATCH') {
+      const next = (request.postDataJSON() as { status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected' }).status
+      state.statusPatches?.push(next)
+      const updated = lifecycleListing(next, path.split('/')[2])
+      state.mine = [updated]
+      return json(updated)
+    }
     if (path === '/users/me' && request.method() === 'PATCH') {
       state.profilePatches += 1
       return json(host)
@@ -93,7 +131,8 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       }
       return json([{ assetId: '22222222-2222-4222-8222-222222222222', url: '/api/v1/media/22222222-2222-4222-8222-222222222222', sortOrder: 0, isCover: true }])
     }
-    if (['/favorites', '/discarded-listings', '/saved-searches', '/search-history', '/reports'].includes(path)) return json([])
+    if (path === '/favorites') return json(state.favoriteIds ?? [])
+    if (['/discarded-listings', '/saved-searches', '/search-history', '/reports'].includes(path)) return json([])
     if (path === '/users/me/restriction') return json(null)
     if (path === '/users/me/moderation-notices') return json([])
     return json({ detail: `Unhandled test route: ${request.method()} ${path}` }, 404)
@@ -232,4 +271,55 @@ test('publication contact validation matches the backend for hidden values and l
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
   expect(state.posts).toBe(1)
+})
+
+test('catalog hydration retries when a lifecycle mutation races the public snapshot', async ({ page }) => {
+  const published = lifecycleListing('published')
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0,
+    publicListings: [], publicListingsAfterFirstSearch: [published], catalogVersions: ['1', '2', '2'],
+    favoriteIds: [published.id],
+  }
+  await mockPublicationApi(page, state)
+  await page.addInitScript(() => localStorage.setItem('112233:has-session', '1'))
+  await page.goto('/#/favoritos')
+
+  await expect(page.locator('.property-card').filter({ hasText: published.title })).toHaveCount(1)
+  expect(state.searchCalls).toBeGreaterThanOrEqual(2)
+})
+
+test('pending owner listings survive reload without leaking into public search or map state', async ({ page }) => {
+  const pending = lifecycleListing('pending')
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0, mine: [pending], publicListings: [], statusPatches: [],
+  }
+  await mockPublicationApi(page, state)
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:has-session', '1'))
+  await page.reload()
+
+  await page.goto('/#/mis-anuncios')
+  await expect(page.getByText('Anuncio lifecycle remoto', { exact: true })).toBeVisible()
+  await expect(page.locator('.manage-card')).toContainText('Pendiente')
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await expect(page.getByText('Anuncio lifecycle remoto', { exact: true })).toHaveCount(0)
+})
+
+test('owner show intent returns a hidden listing to moderation and refreshes every listing consumer', async ({ page }) => {
+  const hidden = lifecycleListing('hidden')
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0, mine: [hidden], publicListings: [], statusPatches: [],
+  }
+  await mockPublicationApi(page, state)
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:has-session', '1'))
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+
+  const card = page.locator('.manage-card')
+  await card.getByRole('button', { name: /Más acciones/ }).click()
+  await page.getByRole('menuitem', { name: 'Enviar a revisión' }).click()
+  await expect(card).toContainText('Pendiente')
+  expect(state.statusPatches).toEqual(['pending'])
 })

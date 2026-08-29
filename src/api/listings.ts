@@ -192,7 +192,10 @@ export function toListing(dto: ListingDto): Listing {
     priceCurrency: dto.priceCurrency ?? undefined,
     pricePeriod: dto.pricePeriod ?? undefined,
     priceIsFrom: dto.priceIsFrom ?? undefined,
-    status: statusMap[dto.status] ?? 'Publicado',
+    // A forward/invalid server value must fail closed in browser consumers.
+    // Defaulting unknown values to public previously made map/search exposure
+    // possible before the frontend understood a new lifecycle state.
+    status: statusMap[dto.status] ?? 'Pendiente',
     publishedAt: dateOnly(dto.publishedAt, availableFrom),
     views: dto.views,
     expiresAt: dateOnly(dto.expiresAt, '2099-12-31'),
