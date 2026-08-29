@@ -70,7 +70,7 @@ Public hydration and forced refresh use a bounded version/list/version handshake
 - Drafts are intentionally browser-local. Versioned v2/v3 migration keeps canonical select values stable across ES/RU/EN and language changes; there is no server draft API.
 - Canonical values for rental mode, room type, bathroom, toilet, shower, kitchen, bed type, tenant restrictions, occupant types, and status are validated before database mutation. Translated labels are not submitted as values.
 - Expired create/edit payloads fail validation. Admin approval of an already expired row fails with `LISTING_EXPIRED` and requires renewal.
-- Migration `0040_listing_capacity_contract` aligns both historical database checks with the existing API/UI range of 1–10. No production migration was applied by this task.
+- Migration `0040_listing_capacity_contract` is the production-safe expand phase for the API/UI range of 1–10: it adds nullable `listing_room_details.room_capacity_v2`, reads it before the legacy value, and dual-writes a capped 1–2 value to the still-constrained legacy column for rollback compatibility. A later contract release may consolidate storage only after the previous release is no longer a rollback target. No production migration was applied by this task.
 
 ## Media behavior
 
@@ -93,7 +93,7 @@ Uploads belong to a server-loaded user. Listing image replacement locks the list
 | local and legacy publication drafts | VERIFIED AND WORKING | v2/v3 canonical-value migration and ES/RU/EN language regressions |
 | server-side draft persistence | INTENTIONAL LIMITATION | no draft endpoint; browser-local draft is the documented product contract |
 | listing edit and contact profile synchronization | BUG FOUND AND FIXED | owner cache/public consumers now refetch; server ownership and effective-patch validation retained |
-| owner management/My Listings | BUG FOUND AND FIXED | private `/mine` state is separate and survives reload; real pending/rejected labels are shown |
+| owner management/My Listings | BUG FOUND AND FIXED | private `/mine` state is separate, stale requests are aborted/version-gated across account changes, and real pending/rejected labels are shown |
 | owner hide/show/close/renew/republish | BUG FOUND AND FIXED | show now resubmits; backend transition policy rejects lifecycle bypasses; success copy uses returned status |
 | desktop public search | VERIFIED AND WORKING | canonical backend query, paging, filter and frontend server-search regressions |
 | mobile public search | BUG FOUND AND FIXED | pending optimistic/owned rows can no longer enter `allListings` |
@@ -115,7 +115,7 @@ Uploads belong to a server-loaded user. Listing image replacement locks the list
 | analytics/view counter | BUG FOUND AND FIXED | detail response snapshot now updates public and private in-session consumers |
 | API serializers/deserializers | BUG FOUND AND FIXED | unknown status fails closed; owner DTO alone exposes private location/address |
 | validation schemas | BUG FOUND AND FIXED | future-expiry invariant added; canonical enums and privileged-field rejection retained |
-| database model, enum, constraints and indexes | BUG FOUND AND FIXED | capacity 1–10 migration added; status/owner/location/price/date checks inspected |
+| database model, enum, constraints and indexes | BUG FOUND AND FIXED | expand-compatible capacity 1–10 storage added while preserving the legacy 1–2 rollback contract; status/owner/location/price/date checks inspected |
 | lifecycle/catalog background job | VERIFIED AND WORKING | bounded skip-locked expiry transition, history, notifications, and catalog invalidation |
 | external listing importer/source lifecycle | VERIFIED AND WORKING | imported rows use published/closed, source removal is conservative, and dedicated deterministic suites cover it |
 | SEO sitemap/robots/canonical pages | BUG FOUND AND FIXED | same visibility query; mutable detail is no longer shared-cacheable |

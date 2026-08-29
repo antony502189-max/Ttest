@@ -7,8 +7,9 @@ import pytest
 from httpx import AsyncClient
 
 from app.db.session import SessionLocal
-from app.models import User
+from app.models import Listing, User
 from app.models.moderation import AdminAccess
+from app.models.room_details import ListingRoomDetails
 from app.services import listings as listing_service
 
 pytestmark = pytest.mark.integration
@@ -111,6 +112,11 @@ async def test_production_moderation_lifecycle_keeps_owner_public_map_and_detail
     listing_id = created.json()["id"]
     assert created.json()["status"] == "pending"
     assert created.json()["roomCapacity"] == 4
+    async with SessionLocal() as session:
+        stored_listing = await session.get(Listing, UUID(listing_id))
+        stored_details = await session.get(ListingRoomDetails, UUID(listing_id))
+        assert stored_listing is not None and stored_listing.room_capacity == 2
+        assert stored_details is not None and stored_details.room_capacity_v2 == 4
 
     mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
     assert {item["id"]: item["status"] for item in mine.json()}[listing_id] == "pending"
@@ -138,6 +144,7 @@ async def test_production_moderation_lifecycle_keeps_owner_public_map_and_detail
         "/api/v1/listings/search",
         json={
             "rentalMode": "long",
+            "roomCapacity": 4,
             "minLatitude": 28.0,
             "maxLatitude": 28.2,
             "minLongitude": -16.8,

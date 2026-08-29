@@ -71,6 +71,7 @@ ROOM_DETAIL_MAPPING = {
     "bathroomCount": "bathroom_count",
     "rentalUnit": "rental_unit",
     "bedType": "bed_type_v2",
+    "roomCapacity": "room_capacity_v2",
     "bedCount": "bed_count",
     "currentRoomResidents": "current_room_residents",
     "toilet": "toilet",
@@ -87,6 +88,11 @@ ROOM_DETAIL_MAPPING = {
 def _legacy_bed_type(value: str | None) -> str | None:
     """Mirror new values into the old constrained column during the expand phase."""
     return "single" if value == "bunk" else value
+
+
+def _legacy_room_capacity(value: int | None) -> int | None:
+    """Mirror the expanded 1..10 value into the old 1..2 column."""
+    return min(value, 2) if value is not None else None
 
 
 async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSession) -> bool:
@@ -158,7 +164,7 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.room_size_m2 = payload.roomSizeM2
     listing.bedroom_count = payload.bedroomCount
     listing.current_residents = payload.currentResidents
-    listing.room_capacity = payload.roomCapacity
+    listing.room_capacity = _legacy_room_capacity(payload.roomCapacity)
     listing.shower = payload.shower
     listing.tenant_requirement = payload.tenantRequirement
     listing.smoking_allowed = payload.smokingAllowed
@@ -192,7 +198,12 @@ def _validate_effective_patch_state(
         return cast(T, changes.get(api_name, current))
 
     room_type = effective("roomType", listing.room_type)
-    room_capacity = effective("roomCapacity", listing.room_capacity)
+    stored_capacity = (
+        details.room_capacity_v2
+        if details is not None and getattr(details, "room_capacity_v2", None) is not None
+        else listing.room_capacity
+    )
+    room_capacity = effective("roomCapacity", stored_capacity)
     room_size = effective("roomSizeM2", listing.room_size_m2)
     rental_mode = effective("rentalMode", listing.rental_mode)
     monthly_price = effective("monthlyPrice", listing.monthly_price)
@@ -346,7 +357,6 @@ async def update_listing(
         "roomSizeM2": "room_size_m2",
         "bedroomCount": "bedroom_count",
         "currentResidents": "current_residents",
-        "roomCapacity": "room_capacity",
         "tenantRequirement": "tenant_requirement",
         "smokingAllowed": "smoking_allowed",
         "petsAllowed": "pets_allowed",
@@ -366,6 +376,8 @@ async def update_listing(
             setattr(details, ROOM_DETAIL_MAPPING[api_name], value)
             if api_name == "bedType":
                 details.bed_type = _legacy_bed_type(value if isinstance(value, str) else None)
+            elif api_name == "roomCapacity":
+                listing.room_capacity = _legacy_room_capacity(value if isinstance(value, int) else None)
 
     previous_status = listing.status
     latitude = changes.pop("latitude", None)

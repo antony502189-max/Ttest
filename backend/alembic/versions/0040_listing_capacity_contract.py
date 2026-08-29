@@ -1,8 +1,10 @@
-"""align listing room capacity with the API contract
+"""add expand-compatible listing room capacity storage
 
 Revision ID: 0040_listing_capacity_contract
 Revises: 0039_admin_grant_repair
 """
+
+import sqlalchemy as sa
 
 from alembic import op
 
@@ -13,29 +15,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Both historical constraints cap capacity at two, while the publication
-    # and patch schemas deliberately support shared rooms with up to ten places.
-    op.drop_constraint("ck_listings_room_capacity", "listings", type_="check")
-    op.drop_constraint("ck_listings_room_capacity_range", "listings", type_="check")
-    op.create_check_constraint(
-        "ck_listings_room_capacity_range",
-        "listings",
-        "room_capacity BETWEEN 1 AND 10",
+    # Expand-only: preserve the constrained legacy listings.room_capacity so
+    # the previous application release remains a valid rollback target. The new
+    # release stores 1..10 here and mirrors a capped value into the old column.
+    op.add_column(
+        "listing_room_details",
+        sa.Column("room_capacity_v2", sa.Integer(), nullable=True),
     )
 
 
 def downgrade() -> None:
-    # A downgrade cannot preserve rows above the former limit. Normalize them
-    # explicitly before restoring the old database contract.
-    op.execute("UPDATE listings SET room_capacity = 2 WHERE room_capacity > 2")
-    op.drop_constraint("ck_listings_room_capacity_range", "listings", type_="check")
-    op.create_check_constraint(
-        "ck_listings_room_capacity_range",
-        "listings",
-        "room_capacity BETWEEN 1 AND 2",
-    )
-    op.create_check_constraint(
-        "ck_listings_room_capacity",
-        "listings",
-        "room_capacity IN (1, 2)",
-    )
+    op.drop_column("listing_room_details", "room_capacity_v2")

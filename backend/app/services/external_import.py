@@ -38,6 +38,7 @@ from ..external_sources import (
 )
 from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
+from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
@@ -428,6 +429,7 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
 
 async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False) -> str:
     now = datetime.now(UTC)
+    room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
     source = await session.scalar(
         select(SourceRecord).where(
             SourceRecord.source_name == item.source_name, SourceRecord.external_id == item.external_id
@@ -488,7 +490,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             bathroom=item.bathroom,
             kitchen=item.kitchen,
             room_size_m2=item.room_size_m2,
-            room_capacity=item.room_capacity,
+            room_capacity=min(room_capacity, 2) if room_capacity is not None else None,
             tenant_requirement=item.tenant_requirement,
             room_type=item.room_type,
             location=point(coordinates[1], coordinates[0]),
@@ -519,6 +521,12 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         or completeness_score(item) >= listing_completeness_score(listing)
     )
     if replace_primary:
+        room_details = await session.get(ListingRoomDetails, listing.id)
+        if room_details is None and room_capacity is not None:
+            room_details = ListingRoomDetails(listing_id=listing.id)
+            session.add(room_details)
+        if room_details is not None:
+            room_details.room_capacity_v2 = room_capacity
         listing.title = item.title
         listing.description = item.description
         listing.home_description = item.description
@@ -540,7 +548,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.bathroom = item.bathroom
         listing.kitchen = item.kitchen
         listing.room_size_m2 = item.room_size_m2
-        listing.room_capacity = item.room_capacity
+        listing.room_capacity = min(room_capacity, 2) if room_capacity is not None else None
         listing.tenant_requirement = item.tenant_requirement
         listing.pets_allowed = item.pets_allowed
         listing.children_allowed = item.children_allowed
