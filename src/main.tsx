@@ -24,6 +24,7 @@ import './mobile-four-tab-nav.css'
 import './customer-card-clickability'
 import './mobile-publish-layout-hotfix.css'
 import './mobile-site-feedback.css'
+import './publish-select-canonical-values'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
