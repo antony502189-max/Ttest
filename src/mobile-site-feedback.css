@@ -37,12 +37,15 @@
 }
 
 /* Desktop and mobile home now expose the same two customer-requested access
-   dimensions: pets and smoking. */
+   dimensions: pets and smoking. The portal host must not create an extra grid
+   row of its own; only the actual controls participate in the home layout. */
 [data-mobile-home-extra-filters-host] {
-  width: 100%;
+  display: contents;
 }
 
 .m2-home-extra-filters {
+  width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: .55rem;
@@ -279,6 +282,26 @@ html.site-theme-dark .m2-account-field select {
   border-color: #444 !important;
   background: #1b1b1b !important;
   color: #f2f2f2 !important;
+}
+
+/* white-theme.css and the reference-card layer set explicit dark copy on the
+   home mode cards. Override those literals when the user explicitly selects
+   dark appearance so both inactive and active labels remain readable. */
+html.site-theme-dark .m2-mode-switch > button {
+  color: #f2f2f2 !important;
+}
+
+html.site-theme-dark .m2-mode-switch > button > span:last-child::before {
+  color: #f2f2f2 !important;
+}
+
+html.site-theme-dark .m2-mode-switch > button > span:last-child::after {
+  color: #b2b2b2 !important;
+}
+
+html.site-theme-dark .m2-mode-switch > button.is-active {
+  background: #344500 !important;
+  color: #f4f7e7 !important;
 }
 
 html.site-theme-dark .m2-home-extra-filters button {
