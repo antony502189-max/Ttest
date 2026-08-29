@@ -44,6 +44,23 @@ test('mobile home exposes pets and smoking filters and carries them into search'
   expect(new URL(page.url().replace('/#/', '/')).searchParams.get('mascotas')).toBe('Sí')
 })
 
+test('persisted home access filters stay visible after reload and the first tap clears them', async ({ page }) => {
+  await openMobile(page)
+  const pets = page.getByTestId('mobile-home-pets-yes')
+  await pets.click()
+  await expect(pets).toHaveAttribute('aria-pressed', 'true')
+
+  await page.reload()
+  const reloadedPets = page.getByTestId('mobile-home-pets-yes')
+  await expect(reloadedPets).toHaveAttribute('aria-pressed', 'true')
+  await reloadedPets.click()
+  await expect(reloadedPets).toHaveAttribute('aria-pressed', 'false')
+
+  await page.getByTestId('open-location').click()
+  await expect(page).toHaveURL(/buscar/)
+  expect(new URL(page.url().replace('/#/', '/')).searchParams.get('mascotas')).toBeNull()
+})
+
 test('appearance row opens three choices and applies selected theme', async ({ page }) => {
   await openMobile(page, '/#/menu')
   const trigger = page.getByTestId('mobile-appearance-trigger')
@@ -58,6 +75,35 @@ test('appearance row opens three choices and applies selected theme', async ({ p
   await trigger.click()
   await choices.nth(0).click()
   await expect(page.locator('html')).toHaveClass(/site-theme-light/)
+})
+
+test('dark appearance keeps mobile rental-mode labels readable', async ({ page }) => {
+  await openMobile(page, '/#/menu')
+  await page.getByTestId('mobile-appearance-trigger').click()
+  await page.locator('.m2-appearance-dialog [role="radio"]').nth(1).click()
+  await page.goto('/#/')
+  await expect(page.locator('html')).toHaveClass(/site-theme-dark/)
+
+  const button = page.locator('.m2-mode-switch > button').first()
+  await expect(button).toBeVisible()
+  const colors = await button.evaluate((element) => {
+    const label = element.querySelector('span:last-child')
+    return {
+      button: getComputedStyle(element).color,
+      title: label ? getComputedStyle(label, '::before').color : '',
+      subtitle: label ? getComputedStyle(label, '::after').color : '',
+    }
+  })
+  expect(colors.button).toBe('rgb(242, 242, 242)')
+  expect(colors.title).toBe('rgb(242, 242, 242)')
+  expect(colors.subtitle).toBe('rgb(178, 178, 178)')
+})
+
+test('Spanish unknown listing facts are informational rather than CTA-like badges', async ({ page }) => {
+  await openMobile(page, '/#/buscar?q=Tenerife')
+  const unknown = page.locator('.m2-result-card__badges span').filter({ hasText: 'Consultar con el anunciante' }).first()
+  await expect(unknown).toBeVisible()
+  await expect(unknown).toHaveClass(/m2-unknown-fact/)
 })
 
 test('mobile filters remain within 320px viewport', async ({ page }) => {
