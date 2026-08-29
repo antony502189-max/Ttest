@@ -31,6 +31,19 @@ from .users import apply_profile_fields
 # ordinary lifecycle action into a destructive purge.
 HARD_DELETE_EMAILS = frozenset({"antony502189@gmail.com", "tf.shuler@gmail.com"})
 
+# Owners can only move through the lifecycle exposed by Mis anuncios.  Admin
+# moderation has its own stricter transition table and endpoint; accepting an
+# arbitrary enum value here would let either actor bypass those rules with a
+# direct PATCH request.
+OWNER_STATUS_TRANSITIONS = {
+    "draft": {"pending", "published"},
+    "pending": {"hidden", "closed"},
+    "published": {"hidden", "closed"},
+    "hidden": {"pending", "published", "closed"},
+    "closed": set(),
+    "rejected": {"pending", "published", "closed"},
+}
+
 
 def canonical_email(value: str) -> str:
     return value.strip().lower()
@@ -44,11 +57,21 @@ def require_hard_delete_authorization(user: User) -> None:
     if canonical_email(user.email) not in HARD_DELETE_EMAILS or not user.email_verified:
         raise HTTPException(403, "Hard deletion is restricted")
 
+
+def resolve_owner_status_transition(current: str, requested: str, *, auto_publish: bool) -> str:
+    target = "published" if requested == "published" and auto_publish else (
+        "pending" if requested == "published" else requested
+    )
+    if target != current and target not in OWNER_STATUS_TRANSITIONS[current]:
+        raise HTTPException(409, "Listing status transition is not permitted")
+    return target
+
 ROOM_DETAIL_MAPPING = {
     "homeSizeM2": "home_size_m2",
     "bathroomCount": "bathroom_count",
     "rentalUnit": "rental_unit",
     "bedType": "bed_type_v2",
+    "roomCapacity": "room_capacity_v2",
     "bedCount": "bed_count",
     "currentRoomResidents": "current_room_residents",
     "toilet": "toilet",
@@ -65,6 +88,11 @@ ROOM_DETAIL_MAPPING = {
 def _legacy_bed_type(value: str | None) -> str | None:
     """Mirror new values into the old constrained column during the expand phase."""
     return "single" if value == "bunk" else value
+
+
+def _legacy_room_capacity(value: int | None) -> int | None:
+    """Mirror the expanded 1..10 value into the old 1..2 column."""
+    return min(value, 2) if value is not None else None
 
 
 async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSession) -> bool:
@@ -136,7 +164,7 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.room_size_m2 = payload.roomSizeM2
     listing.bedroom_count = payload.bedroomCount
     listing.current_residents = payload.currentResidents
-    listing.room_capacity = payload.roomCapacity
+    listing.room_capacity = _legacy_room_capacity(payload.roomCapacity)
     listing.shower = payload.shower
     listing.tenant_requirement = payload.tenantRequirement
     listing.smoking_allowed = payload.smokingAllowed
@@ -170,7 +198,12 @@ def _validate_effective_patch_state(
         return cast(T, changes.get(api_name, current))
 
     room_type = effective("roomType", listing.room_type)
-    room_capacity = effective("roomCapacity", listing.room_capacity)
+    stored_capacity = (
+        details.room_capacity_v2
+        if details is not None and getattr(details, "room_capacity_v2", None) is not None
+        else listing.room_capacity
+    )
+    room_capacity = effective("roomCapacity", stored_capacity)
     room_size = effective("roomSizeM2", listing.room_size_m2)
     rental_mode = effective("rentalMode", listing.rental_mode)
     monthly_price = effective("monthlyPrice", listing.monthly_price)
@@ -289,11 +322,20 @@ async def update_listing(
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
     admin = await ensure_owner_or_admin(listing, user, session)
+    if admin and payload.status is not None and payload.status != listing.status:
+        raise HTTPException(403, "Administrators must use the moderation status endpoint")
     if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
         await enforce_publish_access(user, session)
     changes = payload.model_dump(exclude_unset=True)
-    if "status" in changes and not admin and changes["status"] not in {"draft", "pending", "hidden", "closed"}:
-        raise HTTPException(403, "Only an administrator can publish or reject listings")
+    if "status" in changes and not admin:
+        # "Show" is a publication intent. Production always returns the
+        # listing to moderation; local auto-publish environments may expose it
+        # immediately.
+        changes["status"] = resolve_owner_status_transition(
+            listing.status,
+            cast(str, changes["status"]),
+            auto_publish=get_settings().auto_publish_listings,
+        )
 
     current_details = await session.get(ListingRoomDetails, listing.id)
     _validate_effective_patch_state(listing, current_details, changes)
@@ -315,7 +357,6 @@ async def update_listing(
         "roomSizeM2": "room_size_m2",
         "bedroomCount": "bedroom_count",
         "currentResidents": "current_residents",
-        "roomCapacity": "room_capacity",
         "tenantRequirement": "tenant_requirement",
         "smokingAllowed": "smoking_allowed",
         "petsAllowed": "pets_allowed",
@@ -335,6 +376,8 @@ async def update_listing(
             setattr(details, ROOM_DETAIL_MAPPING[api_name], value)
             if api_name == "bedType":
                 details.bed_type = _legacy_bed_type(value if isinstance(value, str) else None)
+            elif api_name == "roomCapacity":
+                listing.room_capacity = _legacy_room_capacity(value if isinstance(value, int) else None)
 
     previous_status = listing.status
     latitude = changes.pop("latitude", None)
@@ -449,6 +492,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
     if not listing or listing.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
+    await ensure_owner_or_admin(listing, user, session)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )

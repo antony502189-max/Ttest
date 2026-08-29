@@ -68,9 +68,14 @@ def response_from(row: Any) -> ListingResponse:
     if not image_urls:
         image_urls = listing.external_image_urls
     current_room_residents = room_details.current_room_residents if room_details else None
+    room_capacity = (
+        room_details.room_capacity_v2
+        if room_details and getattr(room_details, "room_capacity_v2", None) is not None
+        else listing.room_capacity
+    )
     available_spots = (
-        max(0, listing.room_capacity - current_room_residents)
-        if listing.room_capacity is not None and current_room_residents is not None
+        max(0, room_capacity - current_room_residents)
+        if room_capacity is not None and current_room_residents is not None
         else None
     )
     return ListingResponse(
@@ -119,7 +124,7 @@ def response_from(row: Any) -> ListingResponse:
         roomSizeM2=listing.room_size_m2,
         bedroomCount=listing.bedroom_count,
         currentResidents=listing.current_residents,
-        roomCapacity=listing.room_capacity,
+        roomCapacity=room_capacity,
         shower=listing.shower,
         tenantRequirement=listing.tenant_requirement,
         smokingAllowed=listing.smoking_allowed,
@@ -312,7 +317,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.minCurrentResidents is not None:
         query = query.where(Listing.current_residents >= payload.minCurrentResidents)
     if payload.roomCapacity is not None:
-        query = query.where(Listing.room_capacity == payload.roomCapacity)
+        query = query.where(func.coalesce(ListingRoomDetails.room_capacity_v2, Listing.room_capacity) == payload.roomCapacity)
     if payload.maxMinimumNights is not None:
         query = query.where(Listing.minimum_nights.is_not(None), Listing.minimum_nights <= payload.maxMinimumNights)
     if payload.availableUntil:
@@ -344,8 +349,10 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.minAvailableSpots is not None:
         query = query.where(
             ListingRoomDetails.current_room_residents.is_not(None),
-            Listing.room_capacity.is_not(None),
-            Listing.room_capacity - ListingRoomDetails.current_room_residents >= payload.minAvailableSpots,
+            func.coalesce(ListingRoomDetails.room_capacity_v2, Listing.room_capacity).is_not(None),
+            func.coalesce(ListingRoomDetails.room_capacity_v2, Listing.room_capacity)
+            - ListingRoomDetails.current_room_residents
+            >= payload.minAvailableSpots,
         )
     if payload.toilet:
         query = query.where(ListingRoomDetails.toilet == payload.toilet)

@@ -31,7 +31,7 @@ function ExternalListingRedirect({ sourceUrl }: { sourceUrl: string }) {
 export function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { allListings, favorites, toggleFavorite, discardListing, localComments, addLocalComment, updateLocalComment, deleteLocalComment } = useApp()
+  const { allListings, acceptListingSnapshot, favorites, toggleFavorite, discardListing, localComments, addLocalComment, updateLocalComment, deleteLocalComment } = useApp()
   const [reportOpen, setReportOpen] = useState(false)
   const [userReportOpen, setUserReportOpen] = useState(false)
   const [commentEditorOpen, setCommentEditorOpen] = useState(false)
@@ -39,6 +39,7 @@ export function ListingPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [serverListing, setServerListing] = useState<Listing | null>(null)
   const [detailLoading, setDetailLoading] = useState(true)
+  const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [compactContact, setCompactContact] = useState(() => window.matchMedia(COMPACT_CONTACT_QUERY).matches)
 
   useEffect(() => {
@@ -46,9 +47,20 @@ export function ListingPage() {
     let cancelled = false
     setDetailLoading(true)
     setServerListing(null)
-    void getPublicListing(id).then((listing) => { if (!cancelled) setServerListing(listing) }).catch(() => { if (!cancelled) setServerListing(null) }).finally(() => { if (!cancelled) setDetailLoading(false) })
+    void getPublicListing(id).then((listing) => {
+      if (!cancelled) {
+        setServerListing(listing)
+        acceptListingSnapshot(listing)
+      }
+    }).catch(() => { if (!cancelled) setServerListing(null) }).finally(() => { if (!cancelled) setDetailLoading(false) })
     return () => { cancelled = true }
-  }, [id])
+  }, [acceptListingSnapshot, catalogEpoch, id])
+
+  useEffect(() => {
+    const refresh = () => setCatalogEpoch((current) => current + 1)
+    window.addEventListener('catalog:updated', refresh)
+    return () => window.removeEventListener('catalog:updated', refresh)
+  }, [])
 
   useEffect(() => {
     const media = window.matchMedia(COMPACT_CONTACT_QUERY)

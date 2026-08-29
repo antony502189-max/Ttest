@@ -43,7 +43,7 @@ const navItems = [
 
 export function LegacyMockAdminPage() {
   const {
-    allListings,
+    ownedListings: allListings,
     users,
     reports,
     setListingStatus,

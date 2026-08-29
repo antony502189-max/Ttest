@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { defaultFilters, initialListings } from '@/data/listings'
-import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
+import { expireListing, isListingLike, isPublicListing, normalizeListing } from '@/lib/listings'
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
@@ -228,6 +228,11 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const searchHistory = useMemo(() => historyScopes[scopeKey] ?? [], [historyScopes, scopeKey])
   const savedSearches = useMemo(() => savedSearchScopes[scopeKey] ?? [], [savedSearchScopes, scopeKey])
   const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
+  const publicListings = useMemo(() => allListings.filter((listing) => {
+    if (!isPublicListing(listing)) return false
+    const owner = listing.ownerUserId ? users.find((user) => user.id === listing.ownerUserId) : null
+    return !owner?.blocked
+  }), [allListings, users])
 
   const reportStorageFailure = useCallback((failure: StorageFailure | null) => {
     if (!failure) return
@@ -344,20 +349,25 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     return true
   }, [allListings, canManageListing, users])
 
-  const setListingStatus = useCallback((id: string, status: ListingStatus) => {
-    mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason : undefined }))
+  const setListingStatus = useCallback(async (id: string, status: ListingStatus): Promise<ListingStatus | null> => {
+    mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason ?? 'owner' : undefined }))
+    return status
   }, [mutateOwned])
 
-  const renewListing = useCallback((id: string) => mutateOwned(id, (listing) => {
+  const renewListing = useCallback(async (id: string): Promise<ListingStatus | null> => {
+    mutateOwned(id, (listing) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const currentExpiry = new Date(`${listing.expiresAt}T00:00:00`)
     const base = Number.isFinite(currentExpiry.getTime()) && currentExpiry > today ? currentExpiry : today
     base.setDate(base.getDate() + 30)
     return { ...listing, status: 'Publicado', expiresAt: base.toISOString().slice(0, 10), closedReason: undefined }
-  }), [mutateOwned])
+    })
+    return 'Publicado'
+  }, [mutateOwned])
 
-  const closeListing = useCallback((id: string) => mutateOwned(id, (listing) => ({ ...listing, status: 'Finalizado', closedReason: 'owner' })), [mutateOwned])
+  const closeListing = useCallback((id: string) => setListingStatus(id, 'Finalizado'), [setListingStatus])
   const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
+  const acceptListingSnapshot = useCallback((snapshot: Listing) => setAllListings((current) => current.map((listing) => listing.id === snapshot.id ? { ...listing, ...snapshot } : listing)), [])
 
   const addReport = useCallback((listingId: string, reason: string, comment: string) => {
     setReports((current) => [{ id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }, ...current])
@@ -486,7 +496,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded,
     filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory,
     savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts,
-    mapPolygon, setMapPolygon, clearMapPolygon, allListings, partialPublication: null, createListing, updateListing, deleteListing,
+    mapPolygon, setMapPolygon, clearMapPolygon, allListings: publicListings, ownedListings: allListings, acceptListingSnapshot, partialPublication: null, createListing, updateListing, deleteListing,
     setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport,
     localComments, addLocalComment, updateLocalComment, deleteLocalComment,
     users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked,
@@ -494,7 +504,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   }), [
     rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters,
     activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch,
-    restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings,
+    restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, publicListings, acceptListingSnapshot,
     createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle,
     canManageListing, reports, addReport, localComments, addLocalComment,
     updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile,

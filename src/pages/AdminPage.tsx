@@ -542,7 +542,10 @@ export function AdminPage() {
   const visibleReports = useMemo(() => [...reports].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [reports])
 
   const updateUserRow = (changed: AdminUser) => setUsers((current) => current.map((user) => user.id === changed.id ? { ...user, ...changed } : user))
-  const updateListingRow = (changed: AdminListing) => setListings((current) => current.map((listing) => listing.id === changed.id ? changed : listing))
+  const updateListingRow = (changed: AdminListing) => {
+    setListings((current) => current.map((listing) => listing.id === changed.id ? changed : listing))
+    window.dispatchEvent(new Event('catalog:refresh'))
+  }
 
   const changeListingStatus = async (listing: AdminListing, next: keyof typeof listingStatusValues, confirmation: string) => {
     if (!window.confirm(confirmation)) return
