@@ -20,11 +20,11 @@ async function shot(page: Page, name: string) {
 
 async function shotLegacyMobileHome(page: Page, name: string) {
   // Pets/smoking are a deliberate additive control covered by dedicated
-  // regressions. Keep the pinned master snapshot focused on the pre-existing
-  // shell so unrelated visual drift remains detectable.
+  // regressions. Remove the whole portal host from the pinned snapshot so it
+  // cannot introduce an empty grid row while the pre-existing shell is gated.
   const feedbackControls = page.locator('.m2-home-extra-filters')
   await expect(feedbackControls).toBeVisible()
-  const style = await page.addStyleTag({ content: '.m2-home-extra-filters{display:none!important}' })
+  const style = await page.addStyleTag({ content: '[data-mobile-home-extra-filters-host]{display:none!important}' })
   try {
     await shot(page, name)
   } finally {
