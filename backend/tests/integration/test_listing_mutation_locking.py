@@ -5,11 +5,12 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.models import Listing, User
-from app.schemas.listings import ListingPatch
+from app.schemas.listings import ListingPatch, ListingWrite
 from app.services import listings
 
 pytestmark = pytest.mark.integration
@@ -135,3 +136,51 @@ async def test_owner_listing_mutation_locks_row_before_authorization_and_validat
         f"{operation} reached authorization without locking the listing row; "
         "a concurrent mutation can validate against stale lifecycle state"
     )
+
+
+async def test_create_revalidates_preloaded_user_after_concurrent_deletion(
+    client,
+    register_user,
+) -> None:
+    """A stale request-scoped User must not publish after deletion commits.
+
+    The create session deliberately loads the user before another transaction
+    marks the account deleted. The service must refresh the row under FOR UPDATE
+    before applying contact/listing state; otherwise the stale ORM object could
+    create a new listing owned by an already-deleted account.
+    """
+    _token, user_body = await register_user(
+        client,
+        email="locking-create-delete@example.com",
+        role="host",
+    )
+    user_id = UUID(user_body["id"])
+    payload = ListingWrite.model_validate(listing_payload("Create vs account deletion"))
+
+    async with SessionLocal() as create_session, SessionLocal() as delete_session:
+        stale_user = await create_session.get(User, user_id)
+        assert stale_user is not None
+        assert stale_user.deleted_at is None
+
+        deleting_user = await delete_session.scalar(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        assert deleting_user is not None
+        deleting_user.deleted_at = datetime.now(UTC)
+        deleting_user.blocked = True
+
+        create_task = asyncio.create_task(
+            listings.create_listing(payload, stale_user, create_session)
+        )
+        await delete_session.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await asyncio.wait_for(create_task, timeout=5)
+        assert exc_info.value.status_code == 404
+        await create_session.rollback()
+
+    async with SessionLocal() as verify_session:
+        created_id = await verify_session.scalar(
+            select(Listing.id).where(Listing.owner_user_id == user_id)
+        )
+    assert created_id is None
