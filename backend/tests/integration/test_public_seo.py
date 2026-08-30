@@ -73,7 +73,7 @@ async def test_canonical_listing_html_sitemap_and_visibility_lifecycle(client: A
     public = await client.get(f"/habitacion/{listing_id}")
     assert public.status_code == 200, public.text
     assert public.headers["content-type"].startswith("text/html")
-    assert public.headers["cache-control"] == "public, max-age=60"
+    assert public.headers["cache-control"] == "private, max-age=0, must-revalidate"
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in public.text
     assert f'<link rel="canonical" href="{origin}/habitacion/{listing_id}">' in public.text
     assert '<meta property="og:title" content="Habitación luminosa &lt;Centro&gt;">' in public.text

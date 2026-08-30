@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from app.db.session import SessionLocal
 from app.external_sources import AlquilerDocenteCanariasSource, DiscoveryResult, NormalizedListing, SourceBlocked
 from app.models import ExternalImportRun, ExternalListingSource, Listing
+from app.models.room_details import ListingRoomDetails
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
@@ -22,7 +23,7 @@ from app.services.external_import import (
 pytestmark = pytest.mark.integration
 
 
-def external_item(*, source: str, external_id: str, url: str, price: int = 710) -> NormalizedListing:
+def external_item(*, source: str, external_id: str, url: str, price: int = 710, room_capacity: int | None = None) -> NormalizedListing:
     return NormalizedListing(
         source_name=source,
         external_id=external_id,
@@ -37,6 +38,7 @@ def external_item(*, source: str, external_id: str, url: str, price: int = 710) 
         price_currency="EUR",
         price_period="month",
         price_is_from=False,
+        room_capacity=room_capacity,
         latitude=28.1227,
         longitude=-16.7244,
         phone="+34 612 345 678",
@@ -160,6 +162,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
             source="Idealista",
             external_id="idealista-1",
             url="https://www.idealista.com/inmueble/100001/",
+            room_capacity=4,
         )
         assert await upsert(session, idealista) == "imported"
         await session.commit()
@@ -183,6 +186,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
             external_id="fotocasa-1",
             url="https://www.fotocasa.es/es/alquiler/inmueble/100001",
             price=740,
+            room_capacity=4,
         )
         assert await upsert(session, fotocasa) == "updated"
         await session.commit()
@@ -195,6 +199,9 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         assert await session.scalar(select(func.count()).select_from(ExternalListingSource)) == 2
         listing = await session.scalar(select(Listing).where(Listing.is_external.is_(True)))
         assert listing is not None and listing.source_price_text == "740 €/mes"
+        room_details = await session.get(ListingRoomDetails, listing.id)
+        assert listing.room_capacity == 2
+        assert room_details is not None and room_details.room_capacity_v2 == 4
 
         search = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
         assert search.status_code == 200, search.text
@@ -202,6 +209,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         assert external["isExternal"] is True
         assert external["sourceUrl"] == fotocasa.source_url
         assert external["sourcePriceText"] == "740 €/mes"
+        assert external["roomCapacity"] == 4
 
         future_run = datetime.now(UTC) + timedelta(minutes=1)
         assert await archive_missing(session, "Fotocasa", future_run) == 0

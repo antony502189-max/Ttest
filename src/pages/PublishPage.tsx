@@ -268,8 +268,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const { language } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { allListings, createListing, updateListing, currentUser, canManageListing, partialPublication } = useApp();
-  const existing = editing ? allListings.find((listing) => listing.id === id) : undefined;
+  const { allListings, ownedListings, createListing, updateListing, currentUser, canManageListing, partialPublication } = useApp();
+  const existing = editing ? ownedListings.find((listing) => listing.id === id) : undefined;
   const [draft, setDraft] = useState<ListingDraft>(() => {
     if (existing) return toDraft(existing);
     const defaults = withProfileDefaults(currentUser);
@@ -298,10 +298,10 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const [verificationCooldown, setVerificationCooldown] = useState(0);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const nonDraftMedia = useMemo(() => {
-    const references = new Set(allListings.flatMap((listing) => listing.images));
+    const references = new Set([...allListings, ...ownedListings].flatMap((listing) => listing.images));
     if (currentUser?.avatarRef) references.add(currentUser.avatarRef);
     return references;
-  }, [allListings, currentUser?.avatarRef]);
+  }, [allListings, currentUser?.avatarRef, ownedListings]);
   const isDirty = JSON.stringify(draft) !== baseline;
   const recoveringImages = Boolean(partialPublication && partialPublication.publicationKey === draft.publicationKey);
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
@@ -427,7 +427,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       const saved = existing ? await updateListing(existing.id, listing) : await createListing(listing);
       if (!saved) return;
       if (existing) {
-        const usedAfterUpdate = new Set([...allListings.filter((item) => item.id !== existing.id).flatMap((item) => item.images), ...listing.images, ...(currentUser?.avatarRef ? [currentUser.avatarRef] : [])]);
+        const usedAfterUpdate = new Set([...allListings, ...ownedListings].filter((item) => item.id !== existing.id).flatMap((item) => item.images).concat(listing.images, currentUser?.avatarRef ? [currentUser.avatarRef] : []));
         await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes reemplazadas."));
         toast.success("Cambios guardados");
       }

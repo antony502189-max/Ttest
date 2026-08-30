@@ -139,7 +139,10 @@ async def public_listing_page(
     listing = response_from(row)
     return HTMLResponse(
         _render_listing_page(listing),
-        headers={"Cache-Control": "public, max-age=60"},
+        # Listing visibility can change immediately through owner or moderation
+        # actions. A shared/public cache could otherwise keep serving a hidden,
+        # closed, rejected, expired, or deleted listing by direct URL.
+        headers={"Cache-Control": "private, max-age=0, must-revalidate"},
     )
 
 

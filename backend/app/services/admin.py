@@ -170,6 +170,16 @@ async def change_listing_status(
                 "fieldErrors": {},
             },
         )
+    expires_at = getattr(listing, "expires_at", None)
+    if new_status == "published" and expires_at is not None and expires_at <= datetime.now(UTC):
+        raise HTTPException(
+            409,
+            detail={
+                "code": "LISTING_EXPIRED",
+                "message": "Renew the listing before approving it for publication.",
+                "fieldErrors": {},
+            },
+        )
     if previous != new_status and new_status == "published" and (
         await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session)
     ):

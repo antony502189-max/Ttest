@@ -16,6 +16,7 @@ const host = {
   blocked: false,
   avatarUrl: null,
 }
+const secondHost = { ...host, id: '44444444-4444-4444-8444-444444444444', name: 'Segunda anfitriona', email: 'second-publication-ui@example.com' }
 
 type PublicationMode = 'email' | 'validation' | 'success'
 type PublicationTestState = {
@@ -25,6 +26,35 @@ type PublicationTestState = {
   payload?: Record<string, unknown>
   imageFailures?: number
   imageListingIds?: string[]
+  mine?: ReturnType<typeof listingResponse>[]
+  publicListings?: ReturnType<typeof listingResponse>[]
+  publicListingsAfterFirstSearch?: ReturnType<typeof listingResponse>[]
+  searchCalls?: number
+  catalogVersions?: string[]
+  favoriteIds?: string[]
+  statusPatches?: string[]
+  authUser?: typeof host
+  loginUser?: typeof host
+  mineWait?: Promise<void>
+  mineCalls?: number
+}
+
+function lifecycleListing(status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected', id = '33333333-3333-4333-8333-333333333333') {
+  return { ...listingResponse({
+    title: 'Anuncio lifecycle remoto', city: 'Adeje', area: 'Costa Adeje', approximateAddress: 'Costa Adeje · ubicación aproximada',
+    rentalMode: 'long', monthlyPrice: 650, nightlyPrice: null, weeklyPrice: null, roomType: 'Habitación individual',
+    availableFrom: '2026-09-01', availableUntil: null, minimumStayMonths: 1, minimumNights: null,
+    depositAmount: 650, depositText: null, billsIncluded: true, billsText: 'Gastos incluidos',
+    bathroom: 'Baño compartido', kitchen: 'Cocina compartida', furnished: true, roomSizeM2: 14,
+    bedroomCount: 3, currentResidents: 2, roomCapacity: 1, shower: 'Ducha compartida',
+    homeSizeM2: 80, bathroomCount: 2, rentalUnit: 'room', bedType: 'single', bedCount: 1,
+    currentRoomResidents: 0, availableSpots: 1, toilet: 'Aseo compartido', householdGender: 'mixed',
+    householdHasChildren: false, heatingType: 'none', accessible: false, floor: '2', couplesAllowed: false,
+    acceptedTenantTypes: ['man', 'woman'], tenantRequirement: 'any', smokingAllowed: false, petsAllowed: false,
+    childrenAllowed: false, empadronamientoAllowed: true, restrictions: [], amenities: ['Wi-Fi'],
+    latitude: 28.09, longitude: -16.73, description: 'Lifecycle consumer regression.', homeDescription: 'Shared home.',
+    advertiserType: 'Particular', source: null, expiresAt: '2026-12-31T00:00:00Z', imageUrls: [],
+  }, id), status }
 }
 
 function listingResponse(payload: Record<string, unknown>, id: string) {
@@ -67,11 +97,32 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
     const path = url.pathname.replace(/^\/api\/v1/, '')
     const json = (value: unknown, status = 200, headers: Record<string, string> = {}) => route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(value) })
 
-    if (path === '/auth/refresh') return json({ accessToken: 'publication-test-token', user: host })
+    if (path === '/auth/refresh') return json({ accessToken: 'publication-test-token', user: state.authUser ?? host })
+    if (path === '/auth/login') return json({ accessToken: 'publication-test-token', user: state.loginUser ?? host })
+    if (path === '/auth/logout') return json({})
     if (path === '/auth/email-verification/status') return json({ verified: true, email: host.email })
-    if (path === '/listings/search') return json({ items: [], total: 0, limit: 100, offset: 0 })
-    if (path === '/listings/catalog-version') return json({ version: '1', updatedAt: '2026-08-28T00:00:00Z' })
-    if (path === '/listings/mine') return json([])
+    if (path === '/listings/search') {
+      state.searchCalls = (state.searchCalls ?? 0) + 1
+      const items = state.searchCalls > 1 && state.publicListingsAfterFirstSearch
+        ? state.publicListingsAfterFirstSearch
+        : state.publicListings ?? []
+      return json({ items, total: items.length, limit: 100, offset: 0 })
+    }
+    if (path === '/listings/catalog-version') return json({ version: state.catalogVersions?.shift() ?? '1', updatedAt: '2026-08-28T00:00:00Z' })
+    if (path === '/listings/mine') {
+      state.mineCalls = (state.mineCalls ?? 0) + 1
+      const items = state.mine ?? []
+      const wait = state.mineWait
+      if (wait) await wait
+      return json(items)
+    }
+    if (/^\/listings\/[^/]+$/.test(path) && request.method() === 'PATCH') {
+      const next = (request.postDataJSON() as { status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected' }).status
+      state.statusPatches?.push(next)
+      const updated = lifecycleListing(next, path.split('/')[2])
+      state.mine = [updated]
+      return json(updated)
+    }
     if (path === '/users/me' && request.method() === 'PATCH') {
       state.profilePatches += 1
       return json(host)
@@ -93,7 +144,8 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       }
       return json([{ assetId: '22222222-2222-4222-8222-222222222222', url: '/api/v1/media/22222222-2222-4222-8222-222222222222', sortOrder: 0, isCover: true }])
     }
-    if (['/favorites', '/discarded-listings', '/saved-searches', '/search-history', '/reports'].includes(path)) return json([])
+    if (path === '/favorites') return json(state.favoriteIds ?? [])
+    if (['/discarded-listings', '/saved-searches', '/search-history', '/reports'].includes(path)) return json([])
     if (path === '/users/me/restriction') return json(null)
     if (path === '/users/me/moderation-notices') return json([])
     return json({ detail: `Unhandled test route: ${request.method()} ${path}` }, 404)
@@ -232,4 +284,87 @@ test('publication contact validation matches the backend for hidden values and l
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
   expect(state.posts).toBe(1)
+})
+
+test('catalog hydration retries when a lifecycle mutation races the public snapshot', async ({ page }) => {
+  const published = lifecycleListing('published')
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0,
+    publicListings: [], publicListingsAfterFirstSearch: [published], catalogVersions: ['1', '2', '2'],
+    favoriteIds: [published.id],
+  }
+  await mockPublicationApi(page, state)
+  await page.addInitScript(() => localStorage.setItem('112233:has-session', '1'))
+  await page.goto('/#/favoritos')
+
+  await expect(page.locator('.property-card').filter({ hasText: published.title })).toHaveCount(1)
+  expect(state.searchCalls).toBeGreaterThanOrEqual(2)
+})
+
+test('stale owner response cannot cross an account switch', async ({ page }) => {
+  let releaseFirstMine!: () => void
+  const firstMineWait = new Promise<void>((resolve) => { releaseFirstMine = resolve })
+  const privateA = { ...lifecycleListing('hidden'), title: 'Private listing account A', street: 'Private A street' }
+  const privateB = { ...lifecycleListing('hidden', '55555555-5555-4555-8555-555555555555'), ownerUserId: secondHost.id, title: 'Private listing account B', street: 'Private B street' }
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0, authUser: host, loginUser: secondHost,
+    mine: [privateA], mineWait: firstMineWait,
+  }
+  await mockPublicationApi(page, state)
+  await page.addInitScript(() => localStorage.setItem('112233:has-session', '1'))
+  await page.goto('/#/menu')
+  await expect.poll(() => state.mineCalls ?? 0).toBe(1)
+
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+  state.mine = [privateB]
+  state.mineWait = undefined
+  await page.goto('/#/acceso')
+  await page.getByRole('button', { name: 'Iniciar sesión con email' }).click()
+  await page.getByLabel('Email').fill(secondHost.email)
+  await page.getByLabel('Contraseña').fill('not-used-by-mock')
+  await page.getByRole('button', { name: 'Iniciar sesión con email' }).click()
+  await expect.poll(() => state.mineCalls ?? 0).toBeGreaterThanOrEqual(2)
+  await page.goto('/#/mis-anuncios')
+  await expect(page.locator('main')).toContainText(privateB.title)
+
+  releaseFirstMine()
+  await page.waitForTimeout(100)
+  await expect(page.locator('main')).not.toContainText(privateA.title)
+  await expect(page.locator('main')).not.toContainText('Private A street')
+})
+
+test('pending owner listings survive reload without leaking into public search or map state', async ({ page }) => {
+  const pending = lifecycleListing('pending')
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0, mine: [pending], publicListings: [], statusPatches: [],
+  }
+  await mockPublicationApi(page, state)
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:has-session', '1'))
+  await page.reload()
+
+  await page.goto('/#/mis-anuncios')
+  await expect(page.getByText('Anuncio lifecycle remoto', { exact: true })).toBeVisible()
+  await expect(page.locator('.manage-card')).toContainText('Pendiente')
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await expect(page.getByText('Anuncio lifecycle remoto', { exact: true })).toHaveCount(0)
+})
+
+test('owner show intent returns a hidden listing to moderation and refreshes every listing consumer', async ({ page }) => {
+  const hidden = lifecycleListing('hidden')
+  const state: PublicationTestState = {
+    mode: 'success', posts: 0, profilePatches: 0, mine: [hidden], publicListings: [], statusPatches: [],
+  }
+  await mockPublicationApi(page, state)
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:has-session', '1'))
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+
+  const card = page.locator('.manage-card')
+  await card.getByRole('button', { name: /Más acciones/ }).click()
+  await page.getByRole('menuitem', { name: 'Enviar a revisión' }).click()
+  await expect(card).toContainText('Pendiente')
+  expect(state.statusPatches).toEqual(['pending'])
 })

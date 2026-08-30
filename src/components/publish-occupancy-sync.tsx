@@ -16,7 +16,7 @@ function expectedCapacity(requirement: TenantRequirement): Listing['roomCapacity
 }
 
 export function PublishOccupancySync() {
-  const { allListings, canManageListing, filters, updateListing } = useApp()
+  const { ownedListings, canManageListing, filters, updateListing } = useApp()
   const { pathname } = useLocation()
   const pending = useRef(new Set<string>())
 
@@ -36,7 +36,7 @@ export function PublishOccupancySync() {
   }, [filters, pathname])
 
   useEffect(() => {
-    allListings.forEach((listing) => {
+    ownedListings.forEach((listing) => {
       // Shared rooms and bed-space listings have an explicit multi-person
       // capacity. Never collapse that capacity to 1/2 from the legacy primary
       // tenant requirement; doing so would destroy room-first occupancy data.
@@ -51,7 +51,7 @@ export function PublishOccupancySync() {
         pending.current.delete(listing.id)
       })
     })
-  }, [allListings, canManageListing, updateListing])
+  }, [ownedListings, canManageListing, updateListing])
 
   return null
 }
