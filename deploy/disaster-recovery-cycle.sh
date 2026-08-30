@@ -14,7 +14,7 @@ release_dir="$(dirname "$COMPOSE_FILE")"
 
 backup_set="$(
   ROOT="$ROOT" ENV_FILE="$ENV_FILE" COMPOSE_FILE="$COMPOSE_FILE" BACKUP_DIR="$BACKUP_DIR" \
-    "$release_dir/deploy/backup-production.sh"
+    bash "$release_dir/deploy/backup-production.sh"
 )"
 [[ -f "$backup_set" && "$backup_set" == "$BACKUP_DIR/"backup-set-*.manifest ]] || {
   echo "backup-production did not return a valid completed backup set" >&2
@@ -22,4 +22,4 @@ backup_set="$(
 }
 ROOT="$ROOT" ENV_FILE="$ENV_FILE" COMPOSE_FILE="$COMPOSE_FILE" BACKUP_DIR="$BACKUP_DIR" \
   BACKUP_SET_MANIFEST="$backup_set" \
-  "$release_dir/deploy/offsite-backup-sync.sh"
+  bash "$release_dir/deploy/offsite-backup-sync.sh"
