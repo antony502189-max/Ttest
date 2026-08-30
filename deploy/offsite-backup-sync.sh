@@ -60,12 +60,14 @@ fi
 }
 verify_backup_authentication "$manifest"
 
+manifest_name="${manifest##*/}"
+declared_manifest_name="$(manifest_value backup_set_file)"
 postgres_name="$(manifest_value postgres_file)"
 postgres_size="$(manifest_value postgres_size)"
 minio_name="$(manifest_value minio_file)"
 minio_size="$(manifest_value minio_size)"
-manifest_name="${manifest##*/}"
 
+[[ "$declared_manifest_name" == "$manifest_name" ]] || { echo "backup-set manifest identity mismatch" >&2; exit 65; }
 [[ "$postgres_name" == postgres-*.dump.enc && "$postgres_name" != */* ]] || { echo "invalid PostgreSQL backup-set filename" >&2; exit 65; }
 [[ "$minio_name" == minio-*.tar.enc && "$minio_name" != */* ]] || { echo "invalid MinIO backup-set filename" >&2; exit 65; }
 [[ "$postgres_size" =~ ^[0-9]+$ && "$minio_size" =~ ^[0-9]+$ ]] || { echo "invalid backup-set sizes" >&2; exit 65; }
@@ -132,6 +134,14 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
     verify_remote_size "$MINIO_BACKUP_FILE.hmac" "$MINIO_HMAC_SIZE"
     verify_remote_size "$BACKUP_SET_FILE" "$BACKUP_SET_SIZE"
     verify_remote_size "$BACKUP_SET_FILE.hmac" "$BACKUP_SET_HMAC_SIZE"
+
+    # A fixed authenticated pointer makes recovery possible when the entire VPS,
+    # including its local status files, has been lost. S3 PUT replacement is
+    # atomic; provider-side versioning/object lock preserves prior generations.
+    mc cp --quiet "/backups/$BACKUP_SET_FILE" "$target/latest-backup-set.manifest"
+    mc cp --quiet "/backups/$BACKUP_SET_FILE.hmac" "$target/latest-backup-set.manifest.hmac"
+    verify_remote_size "latest-backup-set.manifest" "$BACKUP_SET_SIZE"
+    verify_remote_size "latest-backup-set.manifest.hmac" "$BACKUP_SET_HMAC_SIZE"
   '
 
 mkdir -p "$(dirname "$STATUS_FILE")"
