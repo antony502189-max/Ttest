@@ -1,0 +1,13 @@
+{
+  "frozen_through_revision": "0040_listing_capacity_contract",
+  "files": {
+    "0033_admin_moderation.py": "ec6d4cd0ecf9696cf61e40014105b3d7879625b9",
+    "0034_room_first_listing_details.py": "aa681133058ef5ccea0efe55d7bca594523c47c2",
+    "0035_room_floor.py": "86252e07100f57840ae606594a7cd6a86bd1379d",
+    "0036_listing_promotions.py": "9bf5233cd687d235644b48bc8230e089fcbb1926",
+    "0037_bunk_bed_type.py": "394fd3d68268c3089532ff77697881dcedde9111",
+    "0038_notifications.py": "cab598577e274937b68a1453606d97b6eb3efa39",
+    "0039_admin_grant_repair_and_permanent_listing_restrictions.py": "25f681ed44605d3723c979c98c812ce951534a41",
+    "0040_listing_capacity_contract.py": "c294900b31a0f922af8f1c58c1caf8a7337b6a85"
+  }
+}

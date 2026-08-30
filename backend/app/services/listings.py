@@ -108,6 +108,60 @@ async def ensure_owner_or_admin(listing: Listing, user: User, session: AsyncSess
     return admin
 
 
+async def _lock_active_user(user_id: UUID, session: AsyncSession) -> User:
+    """Lock and refresh a live user row before a stateful listing mutation.
+
+    Account deletion locks the user row before touching owned listings. Taking
+    the same row lock here prevents a request-scoped, preloaded User object from
+    creating or mutating durable listing state after deletion has committed.
+    ``populate_existing`` makes the post-wait deletion check authoritative even
+    when SQLAlchemy already has the user in its identity map.
+    """
+    user = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if not user or user.deleted_at is not None:
+        raise HTTPException(404, "User not found")
+    return user
+
+
+async def _lock_mutable_listing(listing_id: UUID, session: AsyncSession) -> tuple[Listing, User]:
+    """Lock a listing with the global account-deletion lock order: User -> Listing.
+
+    The initial owner-id read is intentionally lock-free because ownership is
+    immutable. We then lock and refresh the owner before locking/revalidating
+    the listing itself. This matches admin moderation and account deletion, so
+    owner/admin mutations cannot validate stale lifecycle state or introduce a
+    User/Listing lock-order inversion.
+    """
+    owner_id = await session.scalar(
+        select(Listing.owner_user_id).where(
+            Listing.id == listing_id,
+            Listing.deleted_at.is_(None),
+        )
+    )
+    if owner_id is None:
+        raise HTTPException(404, "Listing not found")
+
+    owner = await _lock_active_user(owner_id, session)
+    listing = await session.scalar(
+        select(Listing)
+        .where(
+            Listing.id == listing_id,
+            Listing.owner_user_id == owner.id,
+            Listing.deleted_at.is_(None),
+        )
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    return listing, owner
+
+
 async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -> int:
     locked_assets = await lock_media_assets(session, candidate_ids)
     active_assets = {asset.id: asset for asset in locked_assets if asset.deleted_at is None}
@@ -261,6 +315,11 @@ async def create_listing(
     *,
     listing_id: UUID | None = None,
 ) -> OwnedListingResponse:
+    # The request dependency may have loaded this account before a concurrent
+    # deletion started. Serialize with delete_account() and refresh the row
+    # before changing profile/listing state so a deleted account cannot publish
+    # after the deletion transaction commits.
+    user = await _lock_active_user(user.id, session)
     now = datetime.now(UTC)
     initial_status = "published" if get_settings().auto_publish_listings else "pending"
     apply_publication_contact(payload, user)
@@ -318,9 +377,7 @@ async def update_listing(
     user: User,
     session: AsyncSession,
 ) -> OwnedListingResponse:
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
+    listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
     if admin and payload.status is not None and payload.status != listing.status:
         raise HTTPException(403, "Administrators must use the moderation status endpoint")
@@ -404,27 +461,25 @@ async def update_listing(
         session.add(history)
         if listing.status == "published" and listing.published_at is None:
             listing.published_at = datetime.now(UTC)
-        recipient = user if listing.owner_user_id == user.id else await session.get(User, listing.owner_user_id)
-        if recipient:
-            await session.flush()
-            notification_copy = {
-                "published": ("listing_published", "Tu anuncio está publicado", "Tu anuncio ya es visible en 112233.es."),
-                "rejected": ("listing_rejected", "Tu anuncio necesita cambios", "Revisa el estado de tu anuncio antes de volver a publicarlo."),
-                "hidden": ("listing_hidden", "Tu anuncio está oculto", "Tu anuncio ya no aparece en las búsquedas públicas."),
-                "closed": ("listing_closed", "Tu anuncio está cerrado", "Tu anuncio ya no aparece en las búsquedas públicas."),
-            }.get(listing.status)
-            if notification_copy:
-                kind, title, body = notification_copy
-                await create_notification(
-                    session,
-                    recipient=recipient,
-                    kind=kind,
-                    title=title,
-                    body=body,
-                    entity_listing_id=listing.id,
-                    idempotency_key=f"listing-status:{history.id}",
-                    email_path=f"/habitacion/{listing.id}",
-                )
+        await session.flush()
+        notification_copy = {
+            "published": ("listing_published", "Tu anuncio está publicado", "Tu anuncio ya es visible en 112233.es."),
+            "rejected": ("listing_rejected", "Tu anuncio necesita cambios", "Revisa el estado de tu anuncio antes de volver a publicarlo."),
+            "hidden": ("listing_hidden", "Tu anuncio está oculto", "Tu anuncio ya no aparece en las búsquedas públicas."),
+            "closed": ("listing_closed", "Tu anuncio está cerrado", "Tu anuncio ya no aparece en las búsquedas públicas."),
+        }.get(listing.status)
+        if notification_copy:
+            kind, title, body = notification_copy
+            await create_notification(
+                session,
+                recipient=owner,
+                kind=kind,
+                title=title,
+                body=body,
+                entity_listing_id=listing.id,
+                idempotency_key=f"listing-status:{history.id}",
+                email_path=f"/habitacion/{listing.id}",
+            )
         if listing.status == "published":
             await notify_saved_search_matches(session, listing)
         elif listing.status in {"hidden", "closed", "rejected"}:
@@ -436,9 +491,7 @@ async def update_listing(
 
 
 async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> OwnedListingResponse:
-    listing = await session.get(Listing, listing_id)
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
+    listing, owner = await _lock_mutable_listing(listing_id, session)
     await ensure_owner_or_admin(listing, user, session)
     now = datetime.now(UTC)
     expiry_base = listing.expires_at if listing.expires_at and listing.expires_at > now else now
@@ -457,24 +510,20 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
         )
         session.add(history)
         await session.flush()
-        # An administrator may renew another account's listing, but the
-        # customer-facing notification and email always belong to its owner.
-        recipient = user if listing.owner_user_id == user.id else await session.get(User, listing.owner_user_id)
-        if recipient:
-            await create_notification(
-                session,
-                recipient=recipient,
-                kind="listing_republished" if listing.status == "published" else "listing_submitted",
-                title="Tu anuncio se ha republicado" if listing.status == "published" else "Tu anuncio se ha enviado",
-                body=(
-                    "Tu anuncio vuelve a estar visible en 112233.es."
-                    if listing.status == "published"
-                    else "Revisaremos tu anuncio antes de publicarlo."
-                ),
-                entity_listing_id=listing.id,
-                idempotency_key=f"listing-status:{history.id}",
-                email_path=f"/habitacion/{listing.id}",
-            )
+        await create_notification(
+            session,
+            recipient=owner,
+            kind="listing_republished" if listing.status == "published" else "listing_submitted",
+            title="Tu anuncio se ha republicado" if listing.status == "published" else "Tu anuncio se ha enviado",
+            body=(
+                "Tu anuncio vuelve a estar visible en 112233.es."
+                if listing.status == "published"
+                else "Revisaremos tu anuncio antes de publicarlo."
+            ),
+            entity_listing_id=listing.id,
+            idempotency_key=f"listing-status:{history.id}",
+            email_path=f"/habitacion/{listing.id}",
+        )
     if listing.status == "published":
         await notify_saved_search_matches(session, listing)
     await touch_catalog(session)
@@ -489,9 +538,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     # Check the canonical, server-loaded account email before inspecting the
     # target so neither ownership nor a forged client role is a bypass.
     require_hard_delete_authorization(user)
-    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
+    listing, _owner = await _lock_mutable_listing(listing_id, session)
     await ensure_owner_or_admin(listing, user, session)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
@@ -526,9 +573,7 @@ async def replace_listing_images(
     user: User,
     session: AsyncSession,
 ) -> list[ListingImageResponse]:
-    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).with_for_update())
-    if not listing or listing.deleted_at is not None:
-        raise HTTPException(404, "Listing not found")
+    listing, _owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
     if not admin and listing.status == "published":
         await enforce_publish_access(user, session)
