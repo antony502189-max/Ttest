@@ -140,11 +140,21 @@ if [[ "$should_alert" == "1" ]]; then
   fi
 fi
 
+# A failed notification must not advance the deduplication state. In
+# particular, recording an undelivered recovery as "ok" would suppress every
+# later recovery retry and leave operators believing the incident never healed.
+persisted_status="$status"
+persisted_hash="$message_hash"
+if [[ "$alert_failed" == "1" ]]; then
+  persisted_status="$previous_status"
+  persisted_hash="$previous_hash"
+fi
+
 mkdir -p "$(dirname "$STATE_FILE")"
 temporary_state="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
 {
-  printf 'status=%s\n' "$status"
-  printf 'message_sha256=%s\n' "$message_hash"
+  printf 'status=%s\n' "$persisted_status"
+  printf 'message_sha256=%s\n' "$persisted_hash"
   printf 'last_alert_epoch=%s\n' "$last_alert_epoch"
   printf 'last_check_epoch=%s\n' "$now_epoch"
 } > "$temporary_state"

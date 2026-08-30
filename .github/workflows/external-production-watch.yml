@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           existing="$(
-            gh issue list --state open --limit 100 --json number,title \
+            gh issue list --state open --search 'in:title "[monitor] Production origin unavailable"' --limit 10 --json number,title \
               --jq '.[] | select(.title == "[monitor] Production origin unavailable") | .number'
           )"
           existing="${existing%%$'\n'*}"
@@ -77,7 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           existing="$(
-            gh issue list --state open --limit 100 --json number,title \
+            gh issue list --state open --search 'in:title "[monitor] Production origin unavailable"' --limit 10 --json number,title \
               --jq '.[] | select(.title == "[monitor] Production origin unavailable") | .number'
           )"
           existing="${existing%%$'\n'*}"

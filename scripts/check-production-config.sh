@@ -76,6 +76,8 @@ grep -Fq 'OFFSITE_BACKUP_ENDPOINT=' deploy/production.env.example
 grep -Fq 'OFFSITE_BACKUP_REQUIRED=1' deploy/production.env.example
 grep -Fq 'OFFSITE_RESTORE_DRILL_REQUIRED=1' deploy/production.env.example
 grep -Fq 'MONITOR_ALERTS_REQUIRED=1' deploy/production.env.example
+grep -Fq 'OPS_TIMERS_REQUIRED=1' deploy/production.env.example
+grep -Fq 'OFFSITE_NETWORK_TIMEOUT_SECONDS=1800' deploy/production.env.example
 # A backup manifest must be generated outside the mirrored tree to avoid
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
@@ -86,6 +88,12 @@ grep -Fq 'verify_backup_authentication' deploy/restore-minio-verify.sh
 # delete remote backups. Retention is a provider-side policy.
 grep -Fq 'offsite-tools' deploy/offsite-backup-sync.sh
 grep -Fq 'offsite-tools' deploy/offsite-restore-drill.sh
+grep -Fq 'latest-backup-set.tar' deploy/offsite-backup-sync.sh
+grep -Fq 'latest-backup-set.tar' deploy/offsite-restore-drill.sh
+grep -Fq '/transfer/verify/$file' deploy/offsite-backup-sync.sh
+grep -Fq 'verify_backup_authentication "$transfer_dir/verify/$postgres_name"' deploy/offsite-backup-sync.sh
+grep -Fq 'timeout --foreground --kill-after=30s' deploy/offsite-backup-sync.sh
+grep -Fq 'timeout --foreground --kill-after=30s' deploy/offsite-restore-drill.sh
 if grep -Eq '(^|[[:space:]])mc[[:space:]]+(rm|rb)([[:space:]]|$)|mirror[[:space:]].*--remove' deploy/offsite-backup-sync.sh; then
   echo 'off-site backup replication must never delete remote backup data' >&2
   exit 1

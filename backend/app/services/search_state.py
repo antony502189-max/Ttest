@@ -12,6 +12,7 @@ from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHis
 from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
 from .moderation import active_window, enforce_listing_view_access
+from .user_locks import lock_user_for_mutation
 
 MAX_HISTORY = 20
 
@@ -77,13 +78,8 @@ async def lock_active_state_user(user_id: UUID, session: AsyncSession) -> User:
     Locking/repopulating the User row first gives these writes the same durable
     identity boundary used by listing/profile mutations.
     """
-    user = await session.scalar(
-        select(User)
-        .where(User.id == user_id)
-        .execution_options(populate_existing=True)
-        .with_for_update()
-    )
-    if not user or user.deleted_at is not None:
+    user = await lock_user_for_mutation(user_id, session)
+    if not user or user.blocked or user.deleted_at is not None:
         raise HTTPException(404, "User not found")
     return user
 

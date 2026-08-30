@@ -20,6 +20,7 @@ from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ...services.moderation import active_window, enforce_listing_view_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
+from ...services.user_locks import lock_user_for_mutation
 from ...storage import get_storage
 from ..dependencies import current_user, optional_user
 
@@ -110,7 +111,7 @@ async def upload_image(
 
     # Serialize quota checks with both concurrent uploads and account deletion.
     await lock_media_owner(session, user.id)
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    locked_user = await lock_user_for_mutation(user.id, session)
     if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
         raise HTTPException(403, "Account is not active")
     active_assets, active_bytes = (
@@ -242,6 +243,12 @@ async def delete_upload(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    # Match account deletion's media-owner -> User -> MediaAsset ordering and
+    # revalidate the request-scoped identity before changing durable media.
+    await lock_media_owner(session, user.id)
+    user = await lock_user_for_mutation(user.id, session)
+    if not user or user.blocked or user.deleted_at is not None:
+        raise HTTPException(403, "Account is not active")
     locked_assets = await lock_media_assets(session, {asset_id})
     asset = locked_assets[0] if locked_assets else None
     admin = await is_admin(user, session)

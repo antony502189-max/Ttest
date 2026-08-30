@@ -17,6 +17,8 @@ SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 command -v systemctl >/dev/null || { echo "systemctl is required" >&2; exit 69; }
 command -v systemd-analyze >/dev/null || { echo "systemd-analyze is required" >&2; exit 69; }
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 69; }
+command -v tar >/dev/null || { echo "tar is required" >&2; exit 69; }
+command -v timeout >/dev/null || { echo "timeout is required" >&2; exit 69; }
 
 read_env() {
   local key="$1"
@@ -26,6 +28,7 @@ require_env() {
   local key="$1" value
   value="$(read_env "$key")"
   [[ -n "$value" ]] || { echo "$key must be configured before operational timers are enabled" >&2; exit 65; }
+  [[ "$value" != REPLACE_WITH* ]] || { echo "$key still contains the example placeholder" >&2; exit 65; }
 }
 
 # Disaster-recovery timers are useless without an independent destination.
@@ -33,8 +36,38 @@ require_env OFFSITE_BACKUP_ENDPOINT
 require_env OFFSITE_BACKUP_ACCESS_KEY
 require_env OFFSITE_BACKUP_SECRET_KEY
 require_env OFFSITE_BACKUP_BUCKET
+require_env BACKUP_ENCRYPTION_KEY
+require_env BACKUP_AUTHENTICATION_KEY
+
+require_enabled() {
+  local key="$1"
+  [[ "$(read_env "$key")" == "1" ]] || { echo "$key must be 1 before operational timers are enabled" >&2; exit 65; }
+}
+require_enabled OPS_TIMERS_REQUIRED
+require_enabled SCHEDULED_BACKUPS_REQUIRED
+require_enabled OFFSITE_BACKUP_REQUIRED
+require_enabled OFFSITE_RESTORE_DRILL_REQUIRED
+
+alerts_required="$(read_env MONITOR_ALERTS_REQUIRED)"
+alerts_required="${alerts_required:-0}"
+[[ "$alerts_required" == "0" || "$alerts_required" == "1" ]] || { echo "MONITOR_ALERTS_REQUIRED must be 0 or 1" >&2; exit 65; }
+if [[ "$alerts_required" == "1" ]]; then
+  telegram_token="$(read_env MONITOR_TELEGRAM_BOT_TOKEN)"
+  telegram_chat_id="$(read_env MONITOR_TELEGRAM_CHAT_ID)"
+  webhook_url="$(read_env MONITOR_ALERT_WEBHOOK_URL)"
+  if [[ -z "$webhook_url" && ( -z "$telegram_token" || -z "$telegram_chat_id" ) ]]; then
+    echo "required monitor alert destination is incomplete" >&2
+    exit 65
+  fi
+fi
 
 for script in \
+  backup-crypto.sh \
+  backup-postgres.sh \
+  backup-minio.sh \
+  backup-production.sh \
+  restore-verify.sh \
+  restore-minio-verify.sh \
   production-monitor-check.sh \
   production-monitor-run.sh \
   disaster-recovery-cycle.sh \
@@ -42,6 +75,11 @@ for script in \
   offsite-restore-drill.sh; do
   [[ -r "$RELEASE_DIR/deploy/$script" ]] || { echo "missing production script: $script" >&2; exit 65; }
 done
+
+# Validate backup keys with the exact runtime helper before scheduling jobs.
+# shellcheck source=deploy/backup-crypto.sh
+source "$RELEASE_DIR/deploy/backup-crypto.sh"
+load_backup_keys "$ENV_FILE"
 
 units=(
   112233-monitor.service

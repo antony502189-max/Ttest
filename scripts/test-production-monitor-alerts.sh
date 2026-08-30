@@ -92,4 +92,17 @@ printf 'warning\n' > "$mode_file"
 FAKE_CURL_FAIL=1 run_expect 1
 [[ "$(wc -l < "$curl_log")" -eq 4 ]] || { echo 'failed delivery was not attempted' >&2; exit 1; }
 
+# Failed delivery must not consume the incident transition. The next healthy
+# destination gets another attempt even though the checker output is unchanged.
+run_expect 2
+[[ "$(wc -l < "$curl_log")" -eq 5 ]] || { echo 'failed incident delivery was not retried' >&2; exit 1; }
+
+# The same rule is essential for recovery: a failed recovery notification must
+# remain pending until one destination accepts it.
+printf 'ok\n' > "$mode_file"
+FAKE_CURL_FAIL=1 run_expect 1
+[[ "$(wc -l < "$curl_log")" -eq 6 ]] || { echo 'failed recovery delivery was not attempted' >&2; exit 1; }
+run_expect 0
+[[ "$(wc -l < "$curl_log")" -eq 7 ]] || { echo 'failed recovery delivery was not retried' >&2; exit 1; }
+
 echo 'production monitor alert regression harness: PASS'

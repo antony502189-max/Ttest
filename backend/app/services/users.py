@@ -26,6 +26,7 @@ from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets, lock_media_owner
 from .moderation import lock_active_admin_access, normalize_email, viable_admin_count
 from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
+from .user_locks import lock_user_for_mutation
 
 
 def apply_profile_fields(user: User, fields: Mapping[str, object]) -> None:
@@ -44,13 +45,8 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
     # A request-scoped User may have been loaded before account deletion began.
     # Lock and repopulate the row before applying PII so a stale profile request
     # can never overwrite the anonymized fields of a concurrently deleted user.
-    locked_user = await session.scalar(
-        select(User)
-        .where(User.id == user.id)
-        .execution_options(populate_existing=True)
-        .with_for_update()
-    )
-    if not locked_user or locked_user.deleted_at is not None:
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
 
     fields = payload.model_dump(exclude_unset=True)
@@ -65,8 +61,8 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
 
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
-    if not locked_user or locked_user.deleted_at is not None:
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
     previous_id = locked_user.avatar_asset_id
     asset_ids = {asset_id for asset_id in (previous_id, payload.assetId) if asset_id is not None}
@@ -104,7 +100,7 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
 
 async def delete_account(user: User, session: AsyncSession) -> None:
     await lock_media_owner(session, user.id)
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    locked_user = await lock_user_for_mutation(user.id, session)
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
 
