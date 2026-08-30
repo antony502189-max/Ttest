@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS, isInsideTenerife } from '@/lib/tenerife'
+import { createRequestVersionGate } from '@/lib/google-maps/address'
 import type { Coordinates } from '@/types'
 import '@/publish-location-enhancer.css'
 
@@ -57,6 +58,7 @@ export function PublishLocationEnhancer() {
 
   useEffect(() => {
     let cancelled = false
+    const requestGate = createRequestVersionGate()
     const widgets = new Set<HTMLElement>()
 
     const handleResolved = (event: Event) => applyAddress((event as CustomEvent<AddressDetail>).detail ?? {})
@@ -80,15 +82,23 @@ export function PublishLocationEnhancer() {
         autocomplete.locationRestriction = TENERIFE_BOUNDS
         autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
-const event = rawEvent as google.maps.places.PlacePredictionSelectEvent
-const place = event.placePrediction.toPlace()
-await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
-if (!place.location) return
-const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
-if (!isInsideTenerife(coordinates)) return
-const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
-applyAddress(detail)
-window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
+          const version = requestGate.next()
+          const event = rawEvent as google.maps.places.PlacePredictionSelectEvent
+          const place = event.placePrediction.toPlace()
+          await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
+          if (cancelled || !requestGate.isCurrent(version)) return
+          if (!place.location) {
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: 'No se pudo encontrar la dirección seleccionada.' } }))
+            return
+          }
+          const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
+          if (!isInsideTenerife(coordinates)) {
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: 'La dirección debe estar en Tenerife.' } }))
+            return
+          }
+          const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
+          applyAddress(detail)
+          window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
         })
         input.insertAdjacentElement('beforebegin', autocomplete)
         input.classList.add('publish-street-source-input')

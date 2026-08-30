@@ -3,25 +3,27 @@ import { useI18n } from '@/contexts/i18n-context'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, isInsideTenerife } from '@/lib/tenerife'
 import type { Coordinates } from '@/types'
+import { createRequestVersionGate, parseGoogleAddress, type ResolvedGoogleAddress } from '@/lib/google-maps/address'
 
 const DOUBLE_TAP_DELAY_MS = 360
 const DOUBLE_TAP_DISTANCE_PX = 28
 const TAP_MOVE_TOLERANCE_PX = 14
 
-type AddressResolvedDetail = {
-  formattedAddress: string
-  addressComponents: google.maps.GeocoderAddressComponent[]
+type ApproximateLocationMapProps = {
   coordinates: Coordinates
+  onChange: (coordinates: Coordinates) => void
+  onAddressResolved?: (address: ResolvedGoogleAddress) => void
+  onLocationError?: (message: string) => void
 }
 
-type LocationSelectedDetail = { coordinates?: Coordinates }
-
-export function ApproximateLocationMap({ coordinates, onChange }: { coordinates: Coordinates; onChange: (coordinates: Coordinates) => void }) {
+export function ApproximateLocationMap({ coordinates, onChange, onAddressResolved, onLocationError }: ApproximateLocationMapProps) {
   const { language } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
   const onChangeRef = useRef(onChange)
+  const onAddressResolvedRef = useRef(onAddressResolved)
+  const onLocationErrorRef = useRef(onLocationError)
   const initialCoordinatesRef = useRef(coordinates)
   const internalChangeRef = useRef(false)
   const [error, setError] = useState('')
@@ -39,6 +41,8 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
   const detectedLabel = language === 'ru' ? 'Определённый адрес' : language === 'en' ? 'Detected address' : 'Dirección detectada'
 
   useEffect(() => { onChangeRef.current = onChange }, [onChange])
+  useEffect(() => { onAddressResolvedRef.current = onAddressResolved }, [onAddressResolved])
+  useEffect(() => { onLocationErrorRef.current = onLocationError }, [onLocationError])
 
   useEffect(() => {
     const container = containerRef.current
@@ -46,14 +50,16 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
     let cancelled = false
     let resizeObserver: ResizeObserver | null = null
     let dragListener: google.maps.MapsEventListener | null = null
-    let mapDragEndListener: google.maps.MapsEventListener | null = null
     let mapDoubleClickListener: google.maps.MapsEventListener | null = null
     let removePointerListeners: (() => void) | null = null
     let pointerStart: { id: number; x: number; y: number } | null = null
     let lastTap: { at: number; x: number; y: number } | null = null
     let geocoder: google.maps.Geocoder | null = null
+    const requestGate = createRequestVersionGate()
     const handleAuthFailure = () => setError(googleMapsAuthErrorMessage)
+    const handleLocationError = (event: Event) => setError((event as CustomEvent<{ message?: string }>).detail?.message ?? 'No se pudo resolver esta dirección.')
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
+    window.addEventListener('112233:publish-location-error', handleLocationError)
 
     loadGoogleMaps().then(async ({ maps, marker }) => {
       if (cancelled || !containerRef.current) return
@@ -88,14 +94,15 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
 
       const resolveAddress = async (point: Coordinates) => {
         if (!geocoder || cancelled) return
+        const version = requestGate.next()
         try {
           const response = await geocoder.geocode({ location: point })
           const result = response.results[0]
-          if (!result || cancelled) return
+          if (!result || cancelled || !requestGate.isCurrent(version)) return
           setDetectedAddress(result.formatted_address)
-          window.dispatchEvent(new CustomEvent<AddressResolvedDetail>('112233:map-address-resolved', { detail: { formattedAddress: result.formatted_address, addressComponents: result.address_components, coordinates: point } }))
+          onAddressResolvedRef.current?.(parseGoogleAddress(result.address_components, result.formatted_address, point))
         } catch {
-          if (!cancelled) setDetectedAddress('')
+          if (!cancelled && requestGate.isCurrent(version)) onLocationErrorRef.current?.('No se pudo obtener la dirección de este punto. Puedes completar los campos manualmente.')
         }
       }
 
@@ -134,18 +141,15 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
         mapInstance.panTo(point)
         commitPoint(point)
       })
-      mapDragEndListener = mapInstance.addListener('dragend', () => {
-        const center = mapInstance.getCenter()
-        if (center) commitPoint({ lat: center.lat(), lng: center.lng() })
-      })
       mapDoubleClickListener = mapInstance.addListener('dblclick', (event: google.maps.MapMouseEvent) => {
         const latLng = event.latLng
         if (latLng) commitPoint({ lat: latLng.lat(), lng: latLng.lng() })
       })
 
       const handleSelectedLocation = (event: Event) => {
-        const point = (event as CustomEvent<LocationSelectedDetail>).detail?.coordinates
+        const point = (event as CustomEvent<{ coordinates?: Coordinates }>).detail?.coordinates
         if (!point || !isInsideTenerife(point)) return
+        requestGate.next()
         mapInstance.panTo(point)
         mapInstance.setZoom(Math.max(mapInstance.getZoom() ?? 16, 17))
         commitPoint(point, false)
@@ -189,10 +193,10 @@ export function ApproximateLocationMap({ coordinates, onChange }: { coordinates:
       cancelled = true
       resizeObserver?.disconnect()
       dragListener?.remove()
-      mapDragEndListener?.remove()
       mapDoubleClickListener?.remove()
       removePointerListeners?.()
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
+      window.removeEventListener('112233:publish-location-error', handleLocationError)
       if (markerRef.current) markerRef.current.map = null
       if (mapRef.current) google.maps.event.clearInstanceListeners(mapRef.current)
       mapRef.current = null
