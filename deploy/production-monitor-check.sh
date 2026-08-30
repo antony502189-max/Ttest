@@ -78,6 +78,24 @@ command -v flock >/dev/null || critical "flock is required for release-lock insp
 # suppress transient failures if a release operation starts concurrently.
 release_in_progress && maintenance
 
+ops_timers_required="$(env_value OPS_TIMERS_REQUIRED 0)"
+require_bool OPS_TIMERS_REQUIRED "$ops_timers_required"
+if [[ "$ops_timers_required" == "1" ]]; then
+  command -v systemctl >/dev/null || critical "systemctl is required when production ops timers are mandatory"
+  for timer in \
+    112233-monitor.timer \
+    112233-dr-cycle.timer \
+    112233-offsite-restore-drill.timer; do
+    systemctl is-enabled --quiet "$timer" || critical "$timer is not enabled"
+    systemctl is-active --quiet "$timer" || critical "$timer is not active"
+  done
+  for service in 112233-dr-cycle.service 112233-offsite-restore-drill.service; do
+    if systemctl is-failed --quiet "$service"; then
+      critical "$service last execution failed"
+    fi
+  done
+fi
+
 compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 
 check_service() {
@@ -307,7 +325,7 @@ fi
 
 release_in_progress && maintenance
 
-summary="services=healthy, worker=${db_health}, heartbeat_age=${heartbeat_age}s, healthy_sources=${healthy_sources}/${required_sources}, cycle_age=${cycle_age}s, run_id=${last_run_id}"
+summary="services=healthy, worker=${db_health}, heartbeat_age=${heartbeat_age}s, healthy_sources=${healthy_sources}/${required_sources}, cycle_age=${cycle_age}s, run_id=${last_run_id}, ops_timers_required=${ops_timers_required}"
 if (( ${#warnings[@]} > 0 )); then
   printf 'WARNING: %s; %s\n' "$summary" "${warnings[*]}" >&2
   exit 2
