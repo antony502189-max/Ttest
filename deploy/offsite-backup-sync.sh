@@ -74,7 +74,7 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
   -e "POSTGRES_BACKUP_SIZE=$postgres_size" \
   -e "MINIO_BACKUP_FILE=$minio_name" \
   -e "MINIO_BACKUP_SIZE=$minio_size" \
-  --entrypoint /bin/sh minio-init -ec '
+  --entrypoint /bin/sh offsite-tools -ec '
     mc alias set offsite "$OFFSITE_BACKUP_ENDPOINT" "$OFFSITE_BACKUP_ACCESS_KEY" "$OFFSITE_BACKUP_SECRET_KEY" >/dev/null
     mc stat "offsite/$OFFSITE_BACKUP_BUCKET" >/dev/null
     target="offsite/$OFFSITE_BACKUP_BUCKET"
