@@ -49,11 +49,13 @@ mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 stamp="$(date -u +%Y%m%d-%H%M%S)-$$-$RANDOM"
 manifest="$BACKUP_DIR/backup-set-$stamp.manifest"
+manifest_name="${manifest##*/}"
 temporary_manifest="$(mktemp "$BACKUP_DIR/.backup-set-$stamp.XXXXXX.tmp")"
 cleanup() { rm -f "$temporary_manifest"; }
 trap cleanup EXIT
 {
   printf 'created_at_epoch=%s\n' "$(date -u +%s)"
+  printf 'backup_set_file=%s\n' "$manifest_name"
   printf 'postgres_file=%s\n' "${postgres_backup##*/}"
   printf 'postgres_size=%s\n' "$(stat -c %s "$postgres_backup")"
   printf 'minio_file=%s\n' "${minio_backup##*/}"
