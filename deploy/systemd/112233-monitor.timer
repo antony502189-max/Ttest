@@ -1,0 +1,13 @@
+[Unit]
+Description=Run 112233.es production monitoring every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+RandomizedDelaySec=20s
+Persistent=true
+Unit=112233-monitor.service
+
+[Install]
+WantedBy=timers.target
