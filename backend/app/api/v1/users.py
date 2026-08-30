@@ -11,8 +11,8 @@ from ...models.moderation import ModerationNotice
 from ...schemas.auth import AvatarUpdateRequest, UserResponse, UserUpdateRequest
 from ...schemas.moderation import ModerationNoticeResponse, MyRestrictionResponse
 from ...services.moderation import SUPPORT_EMAIL, active_user_restriction
-from ...services.users import delete_account, update_avatar, update_profile
 from ...services.user_locks import lock_user_for_mutation
+from ...services.users import delete_account, update_avatar, update_profile
 from ..dependencies import authenticated_user, current_user
 from .auth import public_user
 

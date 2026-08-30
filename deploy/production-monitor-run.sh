@@ -58,16 +58,23 @@ case "$checker_rc" in
 esac
 
 previous_status="unknown"
-previous_hash=""
+previous_incident_hash=""
 last_alert_epoch="0"
 if [[ -r "$STATE_FILE" ]]; then
   previous_status="$(sed -n 's/^status=//p' "$STATE_FILE" | tail -n 1)"
-  previous_hash="$(sed -n 's/^message_sha256=//p' "$STATE_FILE" | tail -n 1)"
+  previous_incident_hash="$(sed -n 's/^incident_sha256=//p' "$STATE_FILE" | tail -n 1)"
   last_alert_epoch="$(sed -n 's/^last_alert_epoch=//p' "$STATE_FILE" | tail -n 1)"
 fi
 [[ "$last_alert_epoch" =~ ^[0-9]+$ ]] || last_alert_epoch=0
 
-message_hash="$(printf '%s' "$output" | sha256sum | awk '{print $1}')"
+# Monitor diagnostics deliberately include live ages. Hashing the rendered
+# output would turn one still-open stale-heartbeat/cycle incident into a new
+# incident every timer run and bypass the repeat interval. Keep the raw output
+# for operators, but deduplicate on durable conditions and thresholds.
+incident_identity="$(printf '%s\n' "$output" | sed -E \
+  -e 's/(heartbeat_age|cycle_age|last_success_age|backup_age|offsite_age|restore_drill_age)=[0-9]+s/\1=<age>/g' \
+  -e 's/\([0-9]+s > ([0-9]+s)\)/(<age> > \1)/g')"
+incident_hash="$(printf '%s' "$incident_identity" | sha256sum | awk '{print $1}')"
 now_epoch="$(date -u +%s)"
 should_alert=0
 alert_kind="$status"
@@ -78,7 +85,7 @@ if [[ "$status" == "ok" ]]; then
     alert_kind="recovery"
   fi
 else
-  if [[ "$status" != "$previous_status" || "$message_hash" != "$previous_hash" ]]; then
+  if [[ "$status" != "$previous_status" || "$incident_hash" != "$previous_incident_hash" ]]; then
     should_alert=1
   elif (( now_epoch - last_alert_epoch >= repeat_seconds )); then
     should_alert=1
@@ -144,17 +151,17 @@ fi
 # particular, recording an undelivered recovery as "ok" would suppress every
 # later recovery retry and leave operators believing the incident never healed.
 persisted_status="$status"
-persisted_hash="$message_hash"
+persisted_incident_hash="$incident_hash"
 if [[ "$alert_failed" == "1" ]]; then
   persisted_status="$previous_status"
-  persisted_hash="$previous_hash"
+  persisted_incident_hash="$previous_incident_hash"
 fi
 
 mkdir -p "$(dirname "$STATE_FILE")"
 temporary_state="$(mktemp "${STATE_FILE}.tmp.XXXXXX")"
 {
   printf 'status=%s\n' "$persisted_status"
-  printf 'message_sha256=%s\n' "$persisted_hash"
+  printf 'incident_sha256=%s\n' "$persisted_incident_hash"
   printf 'last_alert_epoch=%s\n' "$last_alert_epoch"
   printf 'last_check_epoch=%s\n' "$now_epoch"
 } > "$temporary_state"
