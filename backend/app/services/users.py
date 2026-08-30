@@ -41,15 +41,27 @@ def apply_profile_fields(user: User, fields: Mapping[str, object]) -> None:
 
 
 async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
+    # A request-scoped User may have been loaded before account deletion began.
+    # Lock and repopulate the row before applying PII so a stale profile request
+    # can never overwrite the anonymized fields of a concurrently deleted user.
+    locked_user = await session.scalar(
+        select(User)
+        .where(User.id == user.id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if not locked_user or locked_user.deleted_at is not None:
+        raise HTTPException(404, "User not found")
+
     fields = payload.model_dump(exclude_unset=True)
-    apply_profile_fields(user, fields)
+    apply_profile_fields(locked_user, fields)
     # Public listing responses project the owner's name and visible contact
     # fields. Invalidate the catalog in the same transaction so already-open
     # search pages refresh those details instead of retaining stale contact data.
     await touch_catalog(session)
     await session.commit()
-    await session.refresh(user)
-    return user
+    await session.refresh(locked_user)
+    return locked_user
 
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
