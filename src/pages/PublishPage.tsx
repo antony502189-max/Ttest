@@ -42,6 +42,7 @@ import { useApp } from "@/contexts/app-context";
 import { amenityOptions, areaCenters, createDefaultDraft } from "@/data/listings";
 import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
 import { approximatePublicCoordinates } from "@/lib/location-privacy";
+import type { ResolvedGoogleAddress } from "@/lib/google-maps/address";
 import { isMediaReference, removeUnusedMediaReferences } from "@/lib/media-storage";
 import {
   legacyGenericEquipmentAmenities,
@@ -72,6 +73,9 @@ const steps = [
   "Contacto",
   "Vista previa",
 ];
+const publicationMunicipalities = new Set([
+  "Adeje", "Arafo", "Arico", "Arona", "Buenavista del Norte", "Candelaria", "El Rosario", "El Sauzal", "El Tanque", "Fasnia", "Garachico", "Granadilla de Abona", "Guía de Isora", "Güímar", "Icod de los Vinos", "La Guancha", "La Matanza de Acentejo", "La Orotava", "La Victoria de Acentejo", "Los Realejos", "Los Silos", "Puerto de la Cruz", "San Cristóbal de La Laguna", "San Juan de la Rambla", "San Miguel de Abona", "Santa Cruz de Tenerife", "Santa Úrsula", "Santiago del Teide", "Tacoronte", "Tegueste", "Vilaflor de Chasna",
+]);
 const draftKey = "112233:listing-draft:v3";
 const legacyDraftKey = "112233:listing-draft:v2";
 
@@ -176,6 +180,8 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     title: draft.title,
     city: draft.city,
     area: draft.area,
+    street: draft.street.trim(),
+    postcode: draft.postcode.trim(),
     approximateAddress: `${draft.area} · ubicación aproximada`,
     price: primaryPrice,
     cadence: draft.rentalMode === "holiday" ? "noche" : "mes",
@@ -299,6 +305,18 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const isDirty = JSON.stringify(draft) !== baseline;
   const recoveringImages = Boolean(partialPublication && partialPublication.publicationKey === draft.publicationKey);
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  const applyResolvedAddress = (address: ResolvedGoogleAddress) => {
+    setDraft((current) => ({
+      ...current,
+      coordinates: address.coordinates,
+      locationManuallyMoved: true,
+      ...(address.street ? { street: address.street } : {}),
+      ...(address.postcode ? { postcode: address.postcode } : {}),
+      ...(address.city && publicationMunicipalities.has(address.city) ? { city: address.city } : {}),
+      ...(address.area ? { area: address.area } : {}),
+    }));
+    setErrors((current) => ({ ...current, location: "" }));
+  };
   const preview = useMemo(() => toListing(draft, existing, currentUser?.id), [draft, existing, currentUser?.id]);
   const equipment = readEquipmentAmenities(draft.amenities);
 
@@ -460,8 +478,9 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           </div>
           <div className="location-preview"><MapPin /><div><strong>{draft.area}, {draft.city}</strong><span>Mostraremos un punto aproximado.</span></div></div>
           <fieldset className="approximate-location-selector">
-            <legend>Selecciona un punto aproximado</legend><p>El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.</p>
-            <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => ({ ...current, coordinates, locationManuallyMoved: true }))} />
+            <legend>Selecciona la ubicación exacta</legend><p>Busca una dirección o mueve el marcador para ajustarla. La calle exacta no se muestra públicamente.</p>
+            <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => ({ ...current, coordinates, locationManuallyMoved: true }))} onAddressResolved={applyResolvedAddress} onLocationError={(message) => setErrors((current) => ({ ...current, location: message }))} />
+            {errors.location ? <p className="form-error" role="alert">{errors.location}</p> : null}
             <Button type="button" variant="outline" disabled={!areaCenters[draft.area]} onClick={() => { const center = areaCenters[draft.area]; if (center) setDraft((current) => ({ ...current, coordinates: center, locationManuallyMoved: false })); }}>Centrar de nuevo en la zona</Button>
             <div className="approximate-location-selector__grid" aria-label={`Punto aproximado: ${draft.coordinates.lat.toFixed(4)}, ${draft.coordinates.lng.toFixed(4)}`}>
               <Button type="button" variant="outline" aria-label="Mover punto al norte" onClick={() => setDraft((current) => ({ ...current, locationManuallyMoved: true, coordinates: { ...current.coordinates, lat: current.coordinates.lat + 0.002 } }))}>Norte</Button>
