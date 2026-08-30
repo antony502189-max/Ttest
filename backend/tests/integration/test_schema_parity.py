@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-import app.models  # noqa: F401
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 
+import app.models  # noqa: F401
 from app.db.base import Base
 from app.db.session import engine
 
@@ -45,9 +45,7 @@ def _include_application_object(
     compare_to: Any,
 ) -> bool:
     del object_, compare_to
-    if reflected and type_ == "table" and name in IGNORED_REFLECTED_TABLES:
-        return False
-    return True
+    return not (reflected and type_ == "table" and name in IGNORED_REFLECTED_TABLES)
 
 
 def _flatten_diffs(value: Any) -> Iterator[tuple[Any, ...]]:
