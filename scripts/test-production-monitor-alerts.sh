@@ -41,6 +41,9 @@ chmod +x "$TEST_DIR/checker.sh"
 cat > "$TEST_DIR/bin/curl" <<'EOF_CURL'
 #!/usr/bin/env bash
 printf 'call\n' >> "$FAKE_CURL_LOG"
+if [[ "${FAKE_CURL_FAIL:-0}" == "1" ]]; then
+  exit 22
+fi
 exit 0
 EOF_CURL
 chmod +x "$TEST_DIR/bin/curl"
@@ -61,6 +64,7 @@ run_expect() {
     MONITOR_STATE_FILE="$state_file" \
     FAKE_MONITOR_MODE="$mode_file" \
     FAKE_CURL_LOG="$curl_log" \
+    FAKE_CURL_FAIL="${FAKE_CURL_FAIL:-0}" \
     bash "$RUNNER" >/dev/null 2>&1
   rc=$?
   set -e
@@ -81,5 +85,11 @@ run_expect 2
 printf 'ok\n' > "$mode_file"
 run_expect 0
 [[ "$(wc -l < "$curl_log")" -eq 3 ]] || { echo 'recovery notification was not delivered' >&2; exit 1; }
+
+# Required alerting must fail closed when the configured destination rejects
+# delivery. A warning would normally exit 2; delivery failure escalates to 1.
+printf 'warning\n' > "$mode_file"
+FAKE_CURL_FAIL=1 run_expect 1
+[[ "$(wc -l < "$curl_log")" -eq 4 ]] || { echo 'failed delivery was not attempted' >&2; exit 1; }
 
 echo 'production monitor alert regression harness: PASS'
