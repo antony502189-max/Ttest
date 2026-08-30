@@ -8,6 +8,13 @@ type Listener = { remove: () => void }
 type ListenerCallback = (...args: unknown[]) => void
 let markerSequence = 0
 
+declare global {
+  interface Window {
+    __googleMapsTestGeocode?: (location: PointLike) => Promise<{ results: google.maps.GeocoderResult[] }>
+    __googleMapsTestLastMap?: TestMap
+  }
+}
+
 class TestLatLng {
   private readonly point: PointLike
   constructor(point: PointLike) { this.point = point }
@@ -80,6 +87,7 @@ class TestMap {
       this.zoom += 1
       this.emit('idle')
     }, { capture: true })
+    window.__googleMapsTestLastMap = this
   }
 
   addListener(name: string, callback: ListenerCallback): Listener {
@@ -106,6 +114,13 @@ class TestMap {
       fromLatLngToPoint: (value: TestLatLng) => ({ x: (value.lng() + 180) * 256 / 360, y: (90 - value.lat()) * 256 / 180 }),
       fromPointToLatLng: (value: { x: number; y: number }) => new TestLatLng({ lat: 90 - value.y * 180 / 256, lng: value.x * 360 / 256 - 180 }),
     }
+  }
+}
+
+class TestGeocoder {
+  geocode(request: google.maps.GeocoderRequest) {
+    const location = request.location as PointLike
+    return window.__googleMapsTestGeocode?.(location) ?? Promise.resolve({ results: [] })
   }
 }
 
@@ -247,7 +262,11 @@ export function loadGoogleMapsTestSdk(): Promise<{ maps: google.maps.MapsLibrary
       event,
       marker: { AdvancedMarkerElement: TestAdvancedMarker, PinElement: TestPinElement },
       CollisionBehavior: { OPTIONAL_AND_HIDES_LOWER_PRIORITY: 'OPTIONAL_AND_HIDES_LOWER_PRIORITY' },
-      importLibrary: async (name: string) => name === 'marker' ? { AdvancedMarkerElement: TestAdvancedMarker, PinElement: TestPinElement } : maps,
+      importLibrary: async (name: string) => {
+        if (name === 'marker') return { AdvancedMarkerElement: TestAdvancedMarker, PinElement: TestPinElement }
+        if (name === 'geocoding') return { Geocoder: TestGeocoder }
+        return maps
+      },
     }
     Object.assign(window as object, { google: { maps } })
     libraries = maps as unknown as google.maps.MapsLibrary

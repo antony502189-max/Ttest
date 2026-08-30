@@ -8,7 +8,8 @@ test('Google address parsing retains only reliable structured fields', async ({ 
       { long_name: 'Avenida V Centenario', short_name: 'Av. V Centenario', types: ['route'] },
       { long_name: '1', short_name: '1', types: ['street_number'] },
       { long_name: '38660', short_name: '38660', types: ['postal_code'] },
-      { long_name: 'Adeje', short_name: 'Adeje', types: ['locality'] },
+      { long_name: 'Costa Adeje', short_name: 'Costa Adeje', types: ['locality'] },
+      { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
       { long_name: 'Costa Adeje', short_name: 'Costa Adeje', types: ['sublocality_level_1', 'sublocality'] },
     ], 'Avenida V Centenario, 1, 38660 Adeje, Spain', { lat: 28.083, lng: -16.73 })
   })

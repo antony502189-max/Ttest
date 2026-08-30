@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
-import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
+import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, isInsideTenerife } from '@/lib/tenerife'
 import type { Coordinates } from '@/types'
 import { createRequestVersionGate, parseGoogleAddress, type ResolvedGoogleAddress } from '@/lib/google-maps/address'
@@ -26,6 +26,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
   const onLocationErrorRef = useRef(onLocationError)
   const initialCoordinatesRef = useRef(coordinates)
   const internalChangeRef = useRef(false)
+  const requestGateRef = useRef(createRequestVersionGate())
   const [error, setError] = useState('')
   const [detectedAddress, setDetectedAddress] = useState('')
   const guidance = language === 'ru'
@@ -55,7 +56,6 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
     let pointerStart: { id: number; x: number; y: number } | null = null
     let lastTap: { at: number; x: number; y: number } | null = null
     let geocoder: google.maps.Geocoder | null = null
-    const requestGate = createRequestVersionGate()
     const handleAuthFailure = () => setError(googleMapsAuthErrorMessage)
     const handleLocationError = (event: Event) => setError((event as CustomEvent<{ message?: string }>).detail?.message ?? 'No se pudo resolver esta dirección.')
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
@@ -83,26 +83,24 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       const pin = new marker.PinElement({ background: '#dff34f', borderColor: '#344500', glyphColor: '#344500', scale: 1.15 })
       const publicMarker = new marker.AdvancedMarkerElement({ map: mapInstance, position: initial, content: pin, gmpDraggable: true, title: 'Ubicación seleccionada' })
 
-      if (!googleMapsTestSdkEnabled) {
-        try {
-          const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
-          geocoder = new geocoding.Geocoder()
-        } catch {
-          // The map remains fully usable if geocoding is temporarily unavailable.
-        }
+      try {
+        const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
+        geocoder = new geocoding.Geocoder()
+      } catch {
+        // The map remains fully usable if geocoding is temporarily unavailable.
       }
 
       const resolveAddress = async (point: Coordinates) => {
         if (!geocoder || cancelled) return
-        const version = requestGate.next()
+        const version = requestGateRef.current.next()
         try {
           const response = await geocoder.geocode({ location: point })
           const result = response.results[0]
-          if (!result || cancelled || !requestGate.isCurrent(version)) return
+          if (!result || cancelled || !requestGateRef.current.isCurrent(version)) return
           setDetectedAddress(result.formatted_address)
           onAddressResolvedRef.current?.(parseGoogleAddress(result.address_components, result.formatted_address, point))
         } catch {
-          if (!cancelled && requestGate.isCurrent(version)) onLocationErrorRef.current?.('No se pudo obtener la dirección de este punto. Puedes completar los campos manualmente.')
+          if (!cancelled && requestGateRef.current.isCurrent(version)) onLocationErrorRef.current?.('No se pudo obtener la dirección de este punto. Puedes completar los campos manualmente.')
         }
       }
 
@@ -149,7 +147,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       const handleSelectedLocation = (event: Event) => {
         const point = (event as CustomEvent<{ coordinates?: Coordinates }>).detail?.coordinates
         if (!point || !isInsideTenerife(point)) return
-        requestGate.next()
+        requestGateRef.current.next()
         mapInstance.panTo(point)
         mapInstance.setZoom(Math.max(mapInstance.getZoom() ?? 16, 17))
         commitPoint(point, false)
@@ -209,6 +207,9 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
     if (!isInsideTenerife(coordinates)) return
     if (markerRef.current) markerRef.current.position = coordinates
     if (internalChangeRef.current) { internalChangeRef.current = false; return }
+    // A prop-driven location change (recenter, directional control, or a newer
+    // address selection) supersedes any reverse-geocoding request in flight.
+    requestGateRef.current.next()
     mapRef.current?.panTo(coordinates)
   }, [coordinates.lat, coordinates.lng, coordinates])
 

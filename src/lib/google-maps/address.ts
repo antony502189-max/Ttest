@@ -30,6 +30,14 @@ const componentValue = (components: GoogleAddressComponent[], types: string[]) =
   return component?.longText?.trim() || component?.long_name?.trim() || undefined
 }
 
+const componentValueByPriority = (components: GoogleAddressComponent[], types: string[]) => {
+  for (const type of types) {
+    const value = componentValue(components, [type])
+    if (value) return value
+  }
+  return undefined
+}
+
 /** Extract only address data Google explicitly returned; callers retain all other draft fields. */
 export function parseGoogleAddress(
   components: GoogleAddressComponent[] | undefined,
@@ -46,7 +54,9 @@ export function parseGoogleAddress(
     coordinates,
     street,
     postcode: componentValue(values, ['postal_code']),
-    city: componentValue(values, ['locality', 'postal_town', 'administrative_area_level_3', 'administrative_area_level_4', 'administrative_area_level_2']),
+    // Google often lists a locality (such as Costa Adeje) before the municipality.
+    // The publication municipality must prefer its administrative component.
+    city: componentValueByPriority(values, ['administrative_area_level_3', 'administrative_area_level_4', 'locality', 'postal_town']),
     area: componentValue(values, ['neighborhood', 'sublocality_level_1', 'sublocality']),
   }
 }
