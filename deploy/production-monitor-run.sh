@@ -89,15 +89,24 @@ host="$(hostname -f 2>/dev/null || hostname)"
 alert_text="[112233.es][$alert_kind][$host] $output"
 
 send_alert() {
+  local attempted=0
   local delivered=0
+  local payload
+
   if [[ "$have_telegram" == "1" ]]; then
-    curl --fail --silent --show-error --max-time 15 \
+    attempted=1
+    if curl --fail --silent --show-error --max-time 15 \
       -X POST "https://api.telegram.org/bot${telegram_token}/sendMessage" \
       --data-urlencode "chat_id=$telegram_chat_id" \
-      --data-urlencode "text=$alert_text" >/dev/null
-    delivered=1
+      --data-urlencode "text=$alert_text" >/dev/null; then
+      delivered=1
+    else
+      echo "Telegram monitor alert delivery failed" >&2
+    fi
   fi
+
   if [[ "$have_webhook" == "1" ]]; then
+    attempted=1
     payload="$(ALERT_TEXT="$alert_text" WEBHOOK_FORMAT="$webhook_format" python3 - <<'PY'
 import json
 import os
@@ -105,14 +114,20 @@ key = "text" if os.environ["WEBHOOK_FORMAT"] == "slack" else "content"
 print(json.dumps({key: os.environ["ALERT_TEXT"]}))
 PY
 )"
-    curl --fail --silent --show-error --max-time 15 \
+    if curl --fail --silent --show-error --max-time 15 \
       -X POST -H 'Content-Type: application/json' \
-      --data-binary "$payload" "$webhook_url" >/dev/null
-    delivered=1
+      --data-binary "$payload" "$webhook_url" >/dev/null; then
+      delivered=1
+    else
+      echo "webhook monitor alert delivery failed" >&2
+    fi
   fi
-  if [[ "$delivered" == "0" ]]; then
+
+  if [[ "$attempted" == "0" ]]; then
     echo "monitor alert destination is not configured; incident remains in systemd journal" >&2
+    return 1
   fi
+  [[ "$delivered" == "1" ]]
 }
 
 alert_failed=0
