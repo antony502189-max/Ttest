@@ -17,12 +17,17 @@ async def expire_due_listings(session: AsyncSession, *, limit: int = 100) -> int
     transition makes persisted lifecycle state catch up with that visibility
     rule and guarantees owner/favorite notifications instead of relying on a
     landlord reopening the browser.
+
+    Stateful listing mutations use the same User -> Listing lock order as
+    account deletion and moderation. ``SKIP LOCKED`` keeps the lifecycle worker
+    non-blocking: if an account/listing is already being changed, the next cycle
+    will re-evaluate it from durable state instead of racing that transaction.
     """
     now = datetime.now(UTC)
-    candidate_ids = list(
+    candidates = list(
         (
-            await session.scalars(
-                select(Listing.id)
+            await session.execute(
+                select(Listing.id, Listing.owner_user_id)
                 .where(
                     Listing.status == "published",
                     Listing.deleted_at.is_(None),
@@ -37,17 +42,28 @@ async def expire_due_listings(session: AsyncSession, *, limit: int = 100) -> int
     )
 
     expired = 0
-    for listing_id in candidate_ids:
+    for listing_id, owner_user_id in candidates:
+        owner = await session.scalar(
+            select(User)
+            .where(User.id == owner_user_id, User.deleted_at.is_(None))
+            .execution_options(populate_existing=True)
+            .with_for_update(skip_locked=True)
+        )
+        if not owner:
+            continue
+
         listing = await session.scalar(
             select(Listing)
             .where(
                 Listing.id == listing_id,
+                Listing.owner_user_id == owner.id,
                 Listing.status == "published",
                 Listing.deleted_at.is_(None),
                 Listing.is_external.is_(False),
                 Listing.expires_at.is_not(None),
                 Listing.expires_at <= now,
             )
+            .execution_options(populate_existing=True)
             .with_for_update(skip_locked=True)
         )
         if not listing:
@@ -64,14 +80,7 @@ async def expire_due_listings(session: AsyncSession, *, limit: int = 100) -> int
         session.add(history)
         await session.flush()
 
-        owner = await session.scalar(
-            select(User).where(
-                User.id == listing.owner_user_id,
-                User.deleted_at.is_(None),
-                User.blocked.is_(False),
-            )
-        )
-        if owner:
+        if not owner.blocked:
             await create_notification(
                 session,
                 recipient=owner,
