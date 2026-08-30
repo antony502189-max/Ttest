@@ -62,11 +62,11 @@ systemctl enable --now \
   112233-dr-cycle.timer \
   112233-offsite-restore-drill.timer
 
-# Prove the monitor is executable now; maintenance (75) is acceptable if this
+# Prove the monitor is runnable now; maintenance (75) is acceptable if this
 # installation overlaps a release operation, but any other failure blocks a
 # successful installation verdict.
 set +e
-ROOT="$ROOT" ENV_FILE="$ENV_FILE" "$RELEASE_DIR/deploy/production-monitor-run.sh"
+ROOT="$ROOT" ENV_FILE="$ENV_FILE" bash "$RELEASE_DIR/deploy/production-monitor-run.sh"
 monitor_rc=$?
 set -e
 if [[ "$monitor_rc" -ne 0 && "$monitor_rc" -ne 75 ]]; then
