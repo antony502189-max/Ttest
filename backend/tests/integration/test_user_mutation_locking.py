@@ -9,8 +9,9 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models import User
+from app.models import SearchHistory, User
 from app.schemas.auth import UserUpdateRequest
+from app.services.search_state import add_history
 from app.services.users import update_profile
 
 pytestmark = pytest.mark.integration
@@ -76,3 +77,44 @@ async def test_profile_update_cannot_restore_pii_after_concurrent_account_deleti
         assert row.name == "Deleted user"
         assert row.phone == ""
         assert row.about == ""
+
+
+async def test_search_state_write_cannot_reappear_after_concurrent_account_deletion(
+    client,
+    register_user,
+) -> None:
+    """Soft-deleted users must not regain durable state from a stale request."""
+    _token, body = await register_user(
+        client,
+        email="search-state-delete-race@example.com",
+        role="tenant",
+    )
+    user_id = UUID(body["id"])
+
+    async with SessionLocal() as state_session, SessionLocal() as delete_session:
+        stale_user = await state_session.get(User, user_id)
+        assert stale_user is not None
+
+        deleting_user = await delete_session.scalar(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        assert deleting_user is not None
+
+        state_task = asyncio.create_task(
+            add_history("must not survive account deletion", stale_user, state_session)
+        )
+
+        deleting_user.deleted_at = datetime.now(UTC)
+        deleting_user.blocked = True
+        await delete_session.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await asyncio.wait_for(state_task, timeout=5)
+        assert exc_info.value.status_code == 404
+        await state_session.rollback()
+
+    async with SessionLocal() as verify_session:
+        history_id = await verify_session.scalar(
+            select(SearchHistory.id).where(SearchHistory.user_id == user_id)
+        )
+        assert history_id is None
