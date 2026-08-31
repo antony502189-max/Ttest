@@ -44,35 +44,12 @@ test('mobile move-out date is retained, persisted in URL and does not overflow',
   await expect(page.locator('.m2-result-card').first()).toBeVisible()
 })
 
-test('mobile home exposes pets and smoking filters and carries them into search', async ({ page }) => {
+test('mobile home keeps the original compact layout without extra pets or smoking controls', async ({ page }) => {
   await openMobile(page)
-  const pets = page.getByTestId('mobile-home-pets-yes')
-  const smoking = page.getByTestId('mobile-home-smoking-yes')
-  await expect(pets).toBeVisible()
-  await expect(smoking).toBeVisible()
-
-  await pets.click()
-  await expect(pets).toHaveAttribute('aria-pressed', 'true')
-  await page.getByTestId('open-location').click()
-  await expect(page).toHaveURL(/buscar/)
-  expect(new URL(page.url().replace('/#/', '/')).searchParams.get('mascotas')).toBe('Sí')
-})
-
-test('persisted home access filters stay visible after reload and the first tap clears them', async ({ page }) => {
-  await openMobile(page)
-  const pets = page.getByTestId('mobile-home-pets-yes')
-  await pets.click()
-  await expect(pets).toHaveAttribute('aria-pressed', 'true')
-
-  await page.reload()
-  const reloadedPets = page.getByTestId('mobile-home-pets-yes')
-  await expect(reloadedPets).toHaveAttribute('aria-pressed', 'true')
-  await reloadedPets.click()
-  await expect(reloadedPets).toHaveAttribute('aria-pressed', 'false')
-
-  await page.getByTestId('open-location').click()
-  await expect(page).toHaveURL(/buscar/)
-  expect(new URL(page.url().replace('/#/', '/')).searchParams.get('mascotas')).toBeNull()
+  await expect(page.getByTestId('mobile-home-pets-yes')).toHaveCount(0)
+  await expect(page.getByTestId('mobile-home-smoking-yes')).toHaveCount(0)
+  await expect(page.locator('.m2-home-extra-filters')).toHaveCount(0)
+  await expect(page.getByTestId('open-location')).toBeVisible()
 })
 
 test('appearance row opens three choices and applies selected theme', async ({ page }) => {
