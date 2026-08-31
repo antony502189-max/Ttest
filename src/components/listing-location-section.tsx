@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Expand, Navigation, StreetView } from 'lucide-react'
+import { Camera, Expand, Navigation } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS } from '@/lib/tenerife'
@@ -94,7 +94,7 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
 
   const actions = <div className="listing-location-actions" aria-label="Acciones de ubicación">
     <a href={directionsUrl} target="_blank" rel="noopener noreferrer"><Navigation aria-hidden="true" />Calcular ruta</a>
-    <a href={streetViewUrl} target="_blank" rel="noopener noreferrer"><StreetView aria-hidden="true" />Street View</a>
+    <a href={streetViewUrl} target="_blank" rel="noopener noreferrer"><Camera aria-hidden="true" />Street View</a>
   </div>
 
   return <>
