@@ -44,3 +44,26 @@ test('listing map opens a full-screen interactive street map with route and Stre
   expect(box!.width).toBeGreaterThanOrEqual(388)
   expect(box!.height).toBeGreaterThanOrEqual(842)
 })
+
+test('customer location controls are fully localized in English and Russian', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+  const location = page.locator('.listing-location-section')
+  const languageSwitcher = page.locator('.language-switcher')
+
+  await languageSwitcher.click()
+  await page.getByRole('menuitemradio', { name: /English/ }).click()
+  await expect(location.getByRole('heading', { name: 'Approximate location' })).toBeVisible()
+  await expect(location).toContainText('nearby streets and landmarks')
+  await expect(location.getByRole('link', { name: 'Get directions' })).toBeVisible()
+  await expect(location.getByRole('button', { name: 'Open the location map full screen' })).toBeVisible()
+  await expect(location.locator('.listing-location-google-map')).toHaveAttribute('aria-label', 'Map of the listing’s approximate location')
+
+  await languageSwitcher.click()
+  await page.getByRole('menuitemradio', { name: /Русский/ }).click()
+  await expect(location.getByRole('heading', { name: 'Примерное местоположение' })).toBeVisible()
+  await expect(location).toContainText('улицы и ориентиры района')
+  await expect(location.getByRole('link', { name: 'Построить маршрут' })).toBeVisible()
+  await expect(location.getByRole('button', { name: 'Открыть карту местоположения на весь экран' })).toBeVisible()
+  await expect(location.locator('.listing-location-google-map')).toHaveAttribute('aria-label', 'Карта примерного местоположения объявления')
+})
