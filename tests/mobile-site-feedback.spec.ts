@@ -52,31 +52,34 @@ test('mobile home keeps the original compact layout without extra pets or smokin
   await expect(page.getByTestId('open-location')).toBeVisible()
 })
 
-test('appearance row opens three choices and applies selected theme', async ({ page }) => {
-  await openMobile(page, '/#/menu')
-  const trigger = page.getByTestId('mobile-appearance-trigger')
-  await expect(trigger).toBeVisible()
-  await trigger.click()
+test('mobile app is light-only and discards stale dark appearance preferences', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem('112233:appearance:v1', 'dark')
+  })
+  await page.goto('/#/menu')
 
-  const choices = page.locator('.m2-appearance-dialog [role="radio"]')
-  await expect(choices).toHaveCount(3)
-  await choices.nth(1).click()
-  await expect(page.locator('html')).toHaveClass(/site-theme-dark/)
-
-  await trigger.click()
-  await choices.nth(0).click()
-  await expect(page.locator('html')).toHaveClass(/site-theme-light/)
+  const root = page.locator('html')
+  await expect(root).toHaveClass(/site-theme-light/)
+  await expect(root).not.toHaveClass(/site-theme-dark/)
+  await expect(root).toHaveAttribute('data-appearance', 'light')
+  expect(await page.evaluate(() => localStorage.getItem('112233:appearance:v1'))).toBeNull()
+  await expect(page.getByTestId('mobile-appearance-trigger')).toHaveCount(0)
+  await expect(page.locator('.m2-menu-row').filter({ hasText: /Apariencia|Appearance|Внешний вид/ })).toBeHidden()
 })
 
-test('system-light appearance keeps the authenticated mobile account light', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'light' })
+test('authenticated mobile account stays light even when the OS prefers dark', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' })
   await openMobile(page, '/#/acceso')
   await loginMobileTenant(page)
   await page.goto('/#/perfil')
 
   const root = page.locator('html')
-  await expect(root).toHaveAttribute('data-appearance', 'system')
+  await expect(root).toHaveAttribute('data-appearance', 'light')
   await expect(root).toHaveClass(/site-theme-light/)
+  await expect(root).not.toHaveClass(/site-theme-dark/)
   await expect(page.locator('.m2-account-screen')).toBeVisible()
 
   const surfaces = await page.locator('.m2-account-screen, .m2-account-content, .m2-account-form').evaluateAll((elements) => elements.map((element) => ({
@@ -98,28 +101,6 @@ test('system-light appearance keeps the authenticated mobile account light', asy
     expect(input.background).toBe('rgb(255, 255, 255)')
     expect(input.color).toBe('rgb(37, 42, 43)')
   }
-})
-
-test('dark appearance keeps mobile rental-mode labels readable', async ({ page }) => {
-  await openMobile(page, '/#/menu')
-  await page.getByTestId('mobile-appearance-trigger').click()
-  await page.locator('.m2-appearance-dialog [role="radio"]').nth(1).click()
-  await page.goto('/#/')
-  await expect(page.locator('html')).toHaveClass(/site-theme-dark/)
-
-  const button = page.locator('.m2-mode-switch > button').first()
-  await expect(button).toBeVisible()
-  const colors = await button.evaluate((element) => {
-    const label = element.querySelector('span:last-child')
-    return {
-      button: getComputedStyle(element).color,
-      title: label ? getComputedStyle(label, '::before').color : '',
-      subtitle: label ? getComputedStyle(label, '::after').color : '',
-    }
-  })
-  expect(colors.button).toBe('rgb(242, 242, 242)')
-  expect(colors.title).toBe('rgb(242, 242, 242)')
-  expect(colors.subtitle).toBe('rgb(178, 178, 178)')
 })
 
 test('Spanish unknown listing facts are informational rather than CTA-like badges', async ({ page }) => {
