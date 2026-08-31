@@ -17,20 +17,6 @@ async function shot(page: Page, name: string) {
   })
 }
 
-async function shotLegacyMobileHome(page: Page, name: string) {
-  // The new pets/smoking controls have dedicated functional/320px coverage.
-  // Exclude the complete portal host from the pinned legacy screenshot so it
-  // cannot alter the old grid while the rest of the shell remains gated.
-  const feedbackControls = page.locator('.m2-home-extra-filters')
-  await expect(feedbackControls).toBeVisible()
-  const style = await page.addStyleTag({ content: '[data-mobile-home-extra-filters-host]{display:none!important}' })
-  try {
-    await shot(page, name)
-  } finally {
-    await style.evaluate((element) => element.remove())
-  }
-}
-
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
@@ -38,7 +24,7 @@ test.beforeEach(async ({ page }) => {
 test('current mobile home, results, location and map visual states', async ({ page }) => {
   await open(page, '/#/')
   await expect(page.locator('.m2-home')).toBeVisible()
-  await shotLegacyMobileHome(page, 'current-home-390x844')
+  await shot(page, 'current-home-390x844')
 
   await open(page, '/#/buscar?q=Tenerife')
   await expect(page.getByTestId('mobile-results')).toBeVisible()
@@ -76,7 +62,7 @@ test('current mobile menu, auth and Russian visual states', async ({ page }) => 
   await russianPage.getByRole('button', { name: 'Продолжить' }).click()
   await russianPage.getByRole('button', { name: 'Сейчас нет' }).click()
   await expect(russianPage.locator('.m2-home')).toBeVisible()
-  await shotLegacyMobileHome(russianPage, 'current-home-ru-390x844')
+  await shot(russianPage, 'current-home-ru-390x844')
   await russianPage.close()
 })
 
