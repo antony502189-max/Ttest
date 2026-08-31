@@ -1,10 +1,17 @@
 import { defaultFilters } from '@/data/listings'
-import { applyListingAccessProfile, readListingAccessProfile } from '@/lib/listing-access'
+import { applyListingAccessProfile, persistListingAccessProfile, readListingAccessProfile } from '@/lib/listing-access'
 import { filtersToParams } from '@/lib/search'
 
 const PENDING_KEY = '112233:mobile-home-search-pending:v1'
 
 type HomeMode = 'long' | 'holiday'
+
+// This flag intentionally lives only in memory. A pets value left in
+// localStorage by the removed PR #155 home controls must not become active
+// invisibly after a reload. We only preserve pets when the user has actually
+// toggled the still-visible PR #154 "Con mascotas" option in the occupant
+// sheet during the current app session.
+let visibleHomePetsSelected = false
 
 function safeGet(key: string) {
   try { return sessionStorage.getItem(key) } catch { return null }
@@ -26,23 +33,28 @@ function selectedHomeMode(): HomeMode {
 }
 
 function cleanHomeSearchParams(existing = new URLSearchParams(), mode = selectedHomeMode()) {
-  // Home is a new search boundary. Only controls that exist on Home are
-  // allowed to survive here; advanced result-panel filters must not leak in.
+  // Home is a new search boundary. Only controls that are represented by the
+  // restored Home UI are allowed to survive here; advanced result-panel and
+  // removed PR #155 controls must not leak in.
   const accessProfile = readListingAccessProfile()
+  const sanitizedAccessProfile = {
+    ...accessProfile,
+    // Pets still exists as a visible option inside the PR #154 occupant sheet,
+    // so preserve it only after a real visible interaction in this app session.
+    pets: visibleHomePetsSelected ? accessProfile.pets : defaultFilters.pets,
+    // Smoking had no PR #154 Home control. Any persisted value is therefore
+    // hidden state and must always be cleared at the Home search boundary.
+    smoking: defaultFilters.smoking,
+  }
+  persistListingAccessProfile(sanitizedAccessProfile)
+
   const cleanFilters = applyListingAccessProfile({
     ...defaultFilters,
     areas: [],
     conditions: [],
     tenantRequirements: [],
     amenities: [],
-  }, {
-    ...accessProfile,
-    // PR #155 persisted these values for controls it injected into mobile
-    // Home. They are no longer represented there, so they must not silently
-    // narrow a new home search.
-    pets: defaultFilters.pets,
-    smoking: defaultFilters.smoking,
-  })
+  }, sanitizedAccessProfile)
   const next = filtersToParams(cleanFilters)
   next.set('q', existing.get('q')?.trim() || 'Tenerife')
   next.set('alquiler', mode)
@@ -82,6 +94,19 @@ function sanitizePendingLocationSearch() {
 function handleHomeInteraction(event: MouseEvent) {
   const target = event.target
   if (!(target instanceof Element)) return
+
+  // CustomerFeedbackFixes replaces the original occupant sheet with these
+  // visible controls. Observe the click before React/DOM synchronization so we
+  // can distinguish an explicit PR #154 pets choice from stale PR #155 storage.
+  const occupantOption = target.closest<HTMLButtonElement>('[data-m2-occupant-key]')
+  if (occupantOption && document.querySelector('.m2-home')) {
+    const key = occupantOption.dataset.m2OccupantKey
+    if (key === 'pets') {
+      visibleHomePetsSelected = occupantOption.getAttribute('aria-checked') !== 'true'
+    } else if (key === 'unrestricted') {
+      visibleHomePetsSelected = false
+    }
+  }
 
   const locationButton = target.closest('.m2-home .m2-select-row')
   if (locationButton) {
