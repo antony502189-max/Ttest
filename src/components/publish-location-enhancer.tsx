@@ -67,16 +67,31 @@ export function PublishLocationEnhancer() {
     : language === 'en'
       ? 'Choose a street or complete address in Tenerife.'
       : 'Selecciona una calle o una dirección completa de Tenerife.'
+  const selectorTitle = language === 'ru' ? 'Выберите примерную точку' : language === 'en' ? 'Select an approximate point' : 'Selecciona un punto aproximado'
+  const selectorHelp = language === 'ru'
+    ? 'Маркер расположен в выбранном районе. Его можно немного сдвинуть, не раскрывая точную улицу.'
+    : language === 'en'
+      ? 'The marker is centred in the area. Move it slightly without publishing the exact street.'
+      : 'El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.'
 
   useEffect(() => {
     let cancelled = false
     const requestGate = createRequestVersionGate()
     const widgets = new Set<HTMLElement>()
 
+    const restorePreviousLocationCopy = () => {
+      const selector = document.querySelector<HTMLElement>('.approximate-location-selector')
+      const legend = selector?.querySelector<HTMLElement>(':scope > legend')
+      const help = selector?.querySelector<HTMLElement>(':scope > p')
+      if (legend && legend.textContent !== selectorTitle) legend.textContent = selectorTitle
+      if (help && help.textContent !== selectorHelp) help.textContent = selectorHelp
+    }
+
     const handleResolved = (event: Event) => applyAddress((event as CustomEvent<AddressDetail>).detail ?? {})
     window.addEventListener('112233:map-address-resolved', handleResolved)
 
     const setup = async () => {
+      restorePreviousLocationCopy()
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (!input || input.dataset.addressAutocomplete) return
       input.dataset.addressAutocomplete = 'pending'
@@ -142,6 +157,6 @@ export function PublishLocationEnhancer() {
         input.classList.remove('publish-street-source-input')
       }
     }
-  }, [ariaLabel, placeholder, streetRequiredMessage])
+  }, [ariaLabel, placeholder, selectorHelp, selectorTitle, streetRequiredMessage])
   return null
 }
