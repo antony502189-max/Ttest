@@ -9,6 +9,10 @@ import '@/publish-location-enhancer.css'
 type AddressComponent = { longText?: string; long_name?: string; types: string[] }
 type AddressDetail = { formattedAddress?: string; addressComponents?: AddressComponent[]; coordinates?: Coordinates }
 
+type StreetFirstAutocomplete = google.maps.places.PlaceAutocompleteElement & {
+  includedPrimaryTypes?: string[]
+}
+
 function component(components: AddressComponent[], type: string) {
   const item = components.find((entry) => entry.types.includes(type))
   return (item?.longText ?? item?.long_name ?? '').trim()
@@ -44,17 +48,25 @@ function applyAddress(detail: AddressDetail) {
     || component(components, 'sublocality')
     || component(components, 'neighborhood')
     || (locality && locality !== city ? locality : '')
-  const street = [route, number].filter(Boolean).join(' ').trim() || detail.formattedAddress?.split(',')[0]?.trim() || ''
+  const street = [route, number].filter(Boolean).join(' ').trim()
+  // Never turn a municipality, POI or arbitrary formatted-address prefix into
+  // a street. If Google did not return a route, retain the user's manual value.
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
   setNativeValue(citySelect, city)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-area'), area)
+  return Boolean(route)
 }
 
 export function PublishLocationEnhancer() {
   const { language } = useI18n()
   const placeholder = language === 'ru' ? 'Начните вводить улицу и номер…' : language === 'en' ? 'Start typing street and number…' : 'Empieza a escribir Calle, número…'
   const ariaLabel = language === 'ru' ? 'Улица и номер' : language === 'en' ? 'Street and number' : 'Calle y número'
+  const streetRequiredMessage = language === 'ru'
+    ? 'Выберите улицу или полный адрес на Тенерифе.'
+    : language === 'en'
+      ? 'Choose a street or complete address in Tenerife.'
+      : 'Selecciona una calle o una dirección completa de Tenerife.'
 
   useEffect(() => {
     let cancelled = false
@@ -75,11 +87,14 @@ export function PublishLocationEnhancer() {
         await loadGoogleMaps()
         const places = await google.maps.importLibrary('places') as google.maps.PlacesLibrary
         if (cancelled || !input.isConnected) return
-        const autocomplete = new places.PlaceAutocompleteElement({})
+        const autocomplete = new places.PlaceAutocompleteElement({}) as StreetFirstAutocomplete
         autocomplete.classList.add('publish-place-autocomplete')
         autocomplete.placeholder = placeholder
         autocomplete.includedRegionCodes = ['es']
         autocomplete.locationRestriction = TENERIFE_BOUNDS
+        // Customer reference flow is street-first: surface actual routes and
+        // postal addresses before municipalities or generic points of interest.
+        autocomplete.includedPrimaryTypes = ['street_address', 'route', 'premise', 'subpremise']
         autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
           const version = requestGate.next()
@@ -97,7 +112,10 @@ export function PublishLocationEnhancer() {
             return
           }
           const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
-          applyAddress(detail)
+          if (!applyAddress(detail)) {
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: streetRequiredMessage } }))
+            return
+          }
           window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
         })
         input.insertAdjacentElement('beforebegin', autocomplete)
@@ -124,6 +142,6 @@ export function PublishLocationEnhancer() {
         input.classList.remove('publish-street-source-input')
       }
     }
-  }, [ariaLabel, placeholder])
+  }, [ariaLabel, placeholder, streetRequiredMessage])
   return null
 }
