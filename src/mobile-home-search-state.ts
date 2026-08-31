@@ -28,13 +28,21 @@ function selectedHomeMode(): HomeMode {
 function cleanHomeSearchParams(existing = new URLSearchParams(), mode = selectedHomeMode()) {
   // Home is a new search boundary. Only controls that exist on Home are
   // allowed to survive here; advanced result-panel filters must not leak in.
+  const accessProfile = readListingAccessProfile()
   const cleanFilters = applyListingAccessProfile({
     ...defaultFilters,
     areas: [],
     conditions: [],
     tenantRequirements: [],
     amenities: [],
-  }, readListingAccessProfile())
+  }, {
+    ...accessProfile,
+    // PR #155 persisted these values for controls it injected into mobile
+    // Home. They are no longer represented there, so they must not silently
+    // narrow a new home search.
+    pets: defaultFilters.pets,
+    smoking: defaultFilters.smoking,
+  })
   const next = filtersToParams(cleanFilters)
   next.set('q', existing.get('q')?.trim() || 'Tenerife')
   next.set('alquiler', mode)
