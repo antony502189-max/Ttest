@@ -34,9 +34,11 @@ function matchingSelectValue(element: HTMLSelectElement | null, candidates: stri
   return candidates.find((candidate) => candidate && available.has(candidate)) ?? ''
 }
 
-function applyAddress(detail: AddressDetail) {
+function applyAddress(detail: AddressDetail, requireRoute = false) {
   const components = detail.addressComponents ?? []
   const route = component(components, 'route')
+  if (requireRoute && !route) return false
+
   const number = component(components, 'street_number')
   const postcode = component(components, 'postal_code')
   const locality = component(components, 'locality')
@@ -49,8 +51,9 @@ function applyAddress(detail: AddressDetail) {
     || component(components, 'neighborhood')
     || (locality && locality !== city ? locality : '')
   const street = [route, number].filter(Boolean).join(' ').trim()
-  // Never turn a municipality, POI or arbitrary formatted-address prefix into
-  // a street. If Google did not return a route, retain the user's manual value.
+
+  // A partial reverse-geocode response may enrich postcode/city/area, but it
+  // never invents a street or clears the user's existing manual street value.
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
   setNativeValue(citySelect, city)
@@ -67,6 +70,16 @@ export function PublishLocationEnhancer() {
     : language === 'en'
       ? 'Choose a street or complete address in Tenerife.'
       : 'Selecciona una calle o una dirección completa de Tenerife.'
+  const addressNotFoundMessage = language === 'ru'
+    ? 'Не удалось найти выбранный адрес.'
+    : language === 'en'
+      ? 'The selected address could not be found.'
+      : 'No se pudo encontrar la dirección seleccionada.'
+  const outsideTenerifeMessage = language === 'ru'
+    ? 'Адрес должен находиться на Тенерифе.'
+    : language === 'en'
+      ? 'The address must be in Tenerife.'
+      : 'La dirección debe estar en Tenerife.'
   const selectorTitle = language === 'ru' ? 'Выберите примерную точку' : language === 'en' ? 'Select an approximate point' : 'Selecciona un punto aproximado'
   const selectorHelp = language === 'ru'
     ? 'Маркер расположен в выбранном районе. Его можно немного сдвинуть, не раскрывая точную улицу.'
@@ -118,16 +131,18 @@ export function PublishLocationEnhancer() {
           await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
           if (cancelled || !requestGate.isCurrent(version)) return
           if (!place.location) {
-            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: 'No se pudo encontrar la dirección seleccionada.' } }))
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: addressNotFoundMessage } }))
             return
           }
           const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
           if (!isInsideTenerife(coordinates)) {
-            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: 'La dirección debe estar en Tenerife.' } }))
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: outsideTenerifeMessage } }))
             return
           }
           const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
-          if (!applyAddress(detail)) {
+          // Selection is atomic: reject premise/POI predictions without a real
+          // route before touching street, postcode, municipality, area or map.
+          if (!applyAddress(detail, true)) {
             window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: streetRequiredMessage } }))
             return
           }
@@ -157,6 +172,6 @@ export function PublishLocationEnhancer() {
         input.classList.remove('publish-street-source-input')
       }
     }
-  }, [ariaLabel, placeholder, selectorHelp, selectorTitle, streetRequiredMessage])
+  }, [addressNotFoundMessage, ariaLabel, outsideTenerifeMessage, placeholder, selectorHelp, selectorTitle, streetRequiredMessage])
   return null
 }
