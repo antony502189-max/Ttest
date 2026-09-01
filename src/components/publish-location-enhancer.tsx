@@ -9,6 +9,10 @@ import '@/publish-location-enhancer.css'
 type AddressComponent = { longText?: string; long_name?: string; types: string[] }
 type AddressDetail = { formattedAddress?: string; addressComponents?: AddressComponent[]; coordinates?: Coordinates }
 
+type StreetFirstAutocomplete = google.maps.places.PlaceAutocompleteElement & {
+  includedPrimaryTypes?: string[]
+}
+
 function component(components: AddressComponent[], type: string) {
   const item = components.find((entry) => entry.types.includes(type))
   return (item?.longText ?? item?.long_name ?? '').trim()
@@ -30,9 +34,11 @@ function matchingSelectValue(element: HTMLSelectElement | null, candidates: stri
   return candidates.find((candidate) => candidate && available.has(candidate)) ?? ''
 }
 
-function applyAddress(detail: AddressDetail) {
+function applyAddress(detail: AddressDetail, requireRoute = false) {
   const components = detail.addressComponents ?? []
   const route = component(components, 'route')
+  if (requireRoute && !route) return false
+
   const number = component(components, 'street_number')
   const postcode = component(components, 'postal_code')
   const locality = component(components, 'locality')
@@ -44,27 +50,61 @@ function applyAddress(detail: AddressDetail) {
     || component(components, 'sublocality')
     || component(components, 'neighborhood')
     || (locality && locality !== city ? locality : '')
-  const street = [route, number].filter(Boolean).join(' ').trim() || detail.formattedAddress?.split(',')[0]?.trim() || ''
+  const street = [route, number].filter(Boolean).join(' ').trim()
+
+  // A partial reverse-geocode response may enrich postcode/city/area, but it
+  // never invents a street or clears the user's existing manual street value.
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
   setNativeValue(citySelect, city)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-area'), area)
+  return Boolean(route)
 }
 
 export function PublishLocationEnhancer() {
   const { language } = useI18n()
   const placeholder = language === 'ru' ? 'Начните вводить улицу и номер…' : language === 'en' ? 'Start typing street and number…' : 'Empieza a escribir Calle, número…'
   const ariaLabel = language === 'ru' ? 'Улица и номер' : language === 'en' ? 'Street and number' : 'Calle y número'
+  const streetRequiredMessage = language === 'ru'
+    ? 'Выберите улицу или полный адрес на Тенерифе.'
+    : language === 'en'
+      ? 'Choose a street or complete address in Tenerife.'
+      : 'Selecciona una calle o una dirección completa de Tenerife.'
+  const addressNotFoundMessage = language === 'ru'
+    ? 'Не удалось найти выбранный адрес.'
+    : language === 'en'
+      ? 'The selected address could not be found.'
+      : 'No se pudo encontrar la dirección seleccionada.'
+  const outsideTenerifeMessage = language === 'ru'
+    ? 'Адрес должен находиться на Тенерифе.'
+    : language === 'en'
+      ? 'The address must be in Tenerife.'
+      : 'La dirección debe estar en Tenerife.'
+  const selectorTitle = language === 'ru' ? 'Выберите примерную точку' : language === 'en' ? 'Select an approximate point' : 'Selecciona un punto aproximado'
+  const selectorHelp = language === 'ru'
+    ? 'Маркер расположен в выбранном районе. Его можно немного сдвинуть, не раскрывая точную улицу.'
+    : language === 'en'
+      ? 'The marker is centred in the area. Move it slightly without publishing the exact street.'
+      : 'El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.'
 
   useEffect(() => {
     let cancelled = false
     const requestGate = createRequestVersionGate()
     const widgets = new Set<HTMLElement>()
 
+    const restorePreviousLocationCopy = () => {
+      const selector = document.querySelector<HTMLElement>('.approximate-location-selector')
+      const legend = selector?.querySelector<HTMLElement>(':scope > legend')
+      const help = selector?.querySelector<HTMLElement>(':scope > p')
+      if (legend && legend.textContent !== selectorTitle) legend.textContent = selectorTitle
+      if (help && help.textContent !== selectorHelp) help.textContent = selectorHelp
+    }
+
     const handleResolved = (event: Event) => applyAddress((event as CustomEvent<AddressDetail>).detail ?? {})
     window.addEventListener('112233:map-address-resolved', handleResolved)
 
     const setup = async () => {
+      restorePreviousLocationCopy()
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (!input || input.dataset.addressAutocomplete) return
       input.dataset.addressAutocomplete = 'pending'
@@ -75,11 +115,14 @@ export function PublishLocationEnhancer() {
         await loadGoogleMaps()
         const places = await google.maps.importLibrary('places') as google.maps.PlacesLibrary
         if (cancelled || !input.isConnected) return
-        const autocomplete = new places.PlaceAutocompleteElement({})
+        const autocomplete = new places.PlaceAutocompleteElement({}) as StreetFirstAutocomplete
         autocomplete.classList.add('publish-place-autocomplete')
         autocomplete.placeholder = placeholder
         autocomplete.includedRegionCodes = ['es']
         autocomplete.locationRestriction = TENERIFE_BOUNDS
+        // Customer reference flow is street-first: surface actual routes and
+        // postal addresses before municipalities or generic points of interest.
+        autocomplete.includedPrimaryTypes = ['street_address', 'route', 'premise', 'subpremise']
         autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
           const version = requestGate.next()
@@ -88,16 +131,21 @@ export function PublishLocationEnhancer() {
           await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
           if (cancelled || !requestGate.isCurrent(version)) return
           if (!place.location) {
-            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: 'No se pudo encontrar la dirección seleccionada.' } }))
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: addressNotFoundMessage } }))
             return
           }
           const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
           if (!isInsideTenerife(coordinates)) {
-            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: 'La dirección debe estar en Tenerife.' } }))
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: outsideTenerifeMessage } }))
             return
           }
           const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
-          applyAddress(detail)
+          // Selection is atomic: reject premise/POI predictions without a real
+          // route before touching street, postcode, municipality, area or map.
+          if (!applyAddress(detail, true)) {
+            window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: streetRequiredMessage } }))
+            return
+          }
           window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
         })
         input.insertAdjacentElement('beforebegin', autocomplete)
@@ -124,6 +172,6 @@ export function PublishLocationEnhancer() {
         input.classList.remove('publish-street-source-input')
       }
     }
-  }, [ariaLabel, placeholder])
+  }, [addressNotFoundMessage, ariaLabel, outsideTenerifeMessage, placeholder, selectorHelp, selectorTitle, streetRequiredMessage])
   return null
 }

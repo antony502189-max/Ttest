@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { ContactPanel, MapView, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
+import { ContactPanel, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
+import { ListingLocationSection } from '@/components/listing-location-section'
 import { UserReportDialog } from '@/components/user-report-dialog'
 import { useApp } from '@/contexts/app-context'
 import { currentLocale } from '@/lib/i18n-locale'
@@ -153,7 +154,7 @@ export function ListingPage() {
           <Separator />
           <section className="listing-section"><h2>Precio y disponibilidad</h2><dl className="detail-list"><div><dt>Renta</dt><dd>{getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}</dd></div>{listing.rentalMode === 'holiday' && listing.weeklyPrice ? <div><dt>Semana</dt><dd>{listing.weeklyPrice} €</dd></div> : null}{listing.rentalMode === 'holiday' && listing.monthlyPrice ? <div><dt>Mes</dt><dd>{listing.monthlyPrice} €</dd></div> : null}<div><dt>Gastos</dt><dd>{listing.bills}</dd></div><div><dt>Fianza</dt><dd>{listing.deposit}</dd></div><div><dt>Disponible desde</dt><dd>{listing.availableFrom}</dd></div><div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? 'Sin fecha final'}</dd></div><div><dt>Estancia mínima</dt><dd>{listing.minimumStay}</dd></div></dl></section>
           <Separator />
-          <section className="listing-section"><h2>Ubicación aproximada</h2><p className="map-intro">El marcador protege la dirección exacta.</p><div className="detail-map"><MapView items={[listing]} selectedId={listing.id} onSelect={() => undefined} showPreview={false} /></div></section>
+          <ListingLocationSection listing={listing} />
           <Separator />
           <section className="listing-section owner-detail"><div className="owner-monogram" data-i18n-exempt>{listing.owner.initials}</div><div><span>Anunciante</span><h2 data-i18n-exempt>{listing.owner.name}</h2><p data-i18n-exempt>{listing.owner.since} · {listing.owner.response}</p><p>{listing.owner.verified ? 'Identidad y teléfono verificados por 112233.es.' : 'Identidad pendiente de verificación.'}</p><Button variant="ghost" size="sm" onClick={() => setUserReportOpen(true)}><CircleAlert />Denunciar anunciante</Button></div>{listing.owner.verified ? <Badge variant="outline"><ShieldCheck />Anunciante verificado</Badge> : null}</section>
           <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span data-i18n-exempt>{listing.source ?? 'Anuncio directo'}</span></div>

@@ -98,3 +98,36 @@ test('resolved map address updates structured fields while retaining fields abse
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Barrio manual')
 })
+
+test('publication location keeps the previous compact design copy while retaining exact sync behavior', async ({ page }) => {
+  await openPublishLocation(page)
+  const selector = page.locator('.approximate-location-selector')
+  await expect(selector.locator('legend')).toHaveText('Selecciona un punto aproximado')
+  await expect(selector.locator(':scope > p').first()).toHaveText('El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.')
+  await expect(page.getByLabel('Calle')).toBeVisible()
+  await expect(page.locator('.approximate-location-map')).toBeVisible()
+})
+
+test('reverse geocoding without a real street never overwrites a manually entered street', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Calle').fill('Calle manual 12')
+  await page.evaluate(() => {
+    window.__googleMapsTestGeocode = () => Promise.resolve({ results: [{
+      formatted_address: 'Costa Adeje, 38660 Adeje, Spain',
+      address_components: [
+        { long_name: '38660', short_name: '38660', types: ['postal_code'] },
+        { long_name: 'Costa Adeje', short_name: 'Costa Adeje', types: ['locality'] },
+        { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+      ],
+    } as google.maps.GeocoderResult] })
+  })
+
+  const map = page.locator('.approximate-location-map')
+  const box = await map.boundingBox()
+  expect(box).not.toBeNull()
+  await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.58), y: Math.round((box?.height ?? 220) * 0.52) } })
+
+  await expect(page.getByLabel('Calle')).toHaveValue('Calle manual 12')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38660')
+  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+})
