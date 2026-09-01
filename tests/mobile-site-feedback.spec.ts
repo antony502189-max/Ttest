@@ -52,7 +52,7 @@ test('mobile home keeps the original compact layout without extra pets or smokin
   await expect(page.getByTestId('open-location')).toBeVisible()
 })
 
-test('mobile app is light-only and discards stale dark appearance preferences', async ({ page }) => {
+test('mobile app preserves the PR #154 appearance row but remains permanently light-only', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.addInitScript(() => {
@@ -67,7 +67,13 @@ test('mobile app is light-only and discards stale dark appearance preferences', 
   await expect(root).toHaveAttribute('data-appearance', 'light')
   expect(await page.evaluate(() => localStorage.getItem('112233:appearance:v1'))).toBeNull()
   await expect(page.getByTestId('mobile-appearance-trigger')).toHaveCount(0)
-  await expect(page.locator('.m2-menu-row').filter({ hasText: /Apariencia|Appearance|Внешний вид/ })).toBeHidden()
+
+  const appearanceRow = page.locator('.m2-menu-row').filter({ hasText: 'Apariencia' })
+  await expect(appearanceRow).toBeVisible()
+  await expect(appearanceRow).toContainText('Predeterminada (clara)')
+  await appearanceRow.click()
+  await expect(page.locator('.m2-appearance-dialog')).toHaveCount(0)
+  await expect(root).toHaveAttribute('data-appearance', 'light')
 })
 
 test('authenticated mobile account stays light even when the OS prefers dark', async ({ page }) => {

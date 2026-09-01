@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 
 const cases = [
-  { language: 'es', appearance: 'Apariencia' },
-  { language: 'en', appearance: 'Appearance' },
-  { language: 'ru', appearance: 'Внешний вид' },
+  { language: 'es', appearance: 'Apariencia', value: 'Predeterminada (clara)' },
+  { language: 'en', appearance: 'Appearance', value: 'Default (light)' },
+  { language: 'ru', appearance: 'Внешний вид', value: 'По умолчанию (светлый)' },
 ] as const
 
-for (const { language, appearance } of cases) {
-  test(`appearance setting stays removed and light-only in ${language}`, async ({ page }) => {
+for (const { language, appearance, value } of cases) {
+  test(`PR #154 appearance row stays visible but inert and light-only in ${language}`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.addInitScript((lang) => {
@@ -20,7 +20,11 @@ for (const { language, appearance } of cases) {
     await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
 
     await expect(page.locator('.m2-menu')).toBeVisible()
-    await expect(page.locator('.m2-menu-row').filter({ hasText: appearance })).toBeHidden()
+    const appearanceRow = page.locator('.m2-menu-row').filter({ hasText: appearance })
+    await expect(appearanceRow).toBeVisible()
+    await expect(appearanceRow).toContainText(value)
+    await appearanceRow.click()
+    await expect(page.locator('.m2-appearance-dialog')).toHaveCount(0)
 
     const root = page.locator('html')
     await expect(root).toHaveClass(/site-theme-light/)

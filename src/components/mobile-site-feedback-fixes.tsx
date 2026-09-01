@@ -19,13 +19,6 @@ function forceLightAppearance() {
   try { localStorage.removeItem(APPEARANCE_KEY) } catch { /* private browsing */ }
 }
 
-function findAppearanceRow() {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>('.m2-menu-row')).find((row) => {
-    const label = row.querySelector('span')?.textContent?.trim() ?? ''
-    return ['Apariencia', 'Appearance', 'Внешний вид'].includes(label)
-  }) ?? null
-}
-
 export function MobileSiteFeedbackFixes() {
   const { language } = useI18n()
   const copy = feedbackCopy[language]
@@ -40,16 +33,6 @@ export function MobileSiteFeedbackFixes() {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         forceLightAppearance()
-
-        const appearanceRow = findAppearanceRow()
-        if (appearanceRow) {
-          appearanceRow.hidden = true
-          appearanceRow.setAttribute('aria-hidden', 'true')
-          appearanceRow.removeAttribute('data-mobile-appearance-trigger')
-          appearanceRow.removeAttribute('data-testid')
-          appearanceRow.removeAttribute('aria-haspopup')
-          appearanceRow.tabIndex = -1
-        }
 
         document.querySelectorAll<HTMLElement>('.m2-result-card__facts, .m2-result-card__badges span, .m2-result-card__availability').forEach((element) => {
           const text = element.textContent ?? ''
