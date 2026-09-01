@@ -49,7 +49,7 @@ test('customer location controls are fully localized in English and Russian', as
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
   const location = page.locator('.listing-location-section')
-  const languageSwitcher = page.locator('.language-switcher')
+  const languageSwitcher = page.locator('.language-switcher:visible')
 
   await languageSwitcher.click()
   await page.getByRole('menuitemradio', { name: /English/ }).click()
