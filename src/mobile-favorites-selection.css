@@ -128,27 +128,3 @@
   height: .92rem;
   stroke-width: 3;
 }
-
-@media (prefers-color-scheme: dark) {
-  .m2-app:not(.is-light) .m2-favorites-trash,
-  .m2-app:not(.is-light) .m2-favorites-selection-bar {
-    border-color: rgb(255 255 255 / .16);
-  }
-
-  .m2-app:not(.is-light) .m2-favorites-selection-bar {
-    background: rgb(255 255 255 / .035);
-  }
-
-  .m2-app:not(.is-light) .m2-favorites-selection-bar button,
-  .m2-app:not(.is-light) .m2-favorites-select-indicator {
-    border-color: rgb(255 255 255 / .22);
-    background: #202020;
-    color: #eee;
-  }
-
-  .m2-app:not(.is-light) .m2-favorite-item--selected .m2-favorites-select-indicator {
-    border-color: #9ecb00;
-    background: #74b900;
-    color: #fff;
-  }
-}
