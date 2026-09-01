@@ -52,7 +52,7 @@ test('mobile home keeps the original compact layout without extra pets or smokin
   await expect(page.getByTestId('open-location')).toBeVisible()
 })
 
-test('mobile app preserves the PR #154 appearance row but remains permanently light-only', async ({ page }) => {
+test('mobile Appearance row is removed and the app remains permanently light-only', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.addInitScript(() => {
@@ -69,9 +69,7 @@ test('mobile app preserves the PR #154 appearance row but remains permanently li
   await expect(page.getByTestId('mobile-appearance-trigger')).toHaveCount(0)
 
   const appearanceRow = page.locator('.m2-menu-row').filter({ hasText: 'Apariencia' })
-  await expect(appearanceRow).toBeVisible()
-  await expect(appearanceRow).toContainText('Predeterminada (clara)')
-  await appearanceRow.click()
+  await expect(appearanceRow).toBeHidden()
   await expect(page.locator('.m2-appearance-dialog')).toHaveCount(0)
   await expect(root).toHaveAttribute('data-appearance', 'light')
 })

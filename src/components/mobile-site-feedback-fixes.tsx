@@ -3,6 +3,7 @@ import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const APPEARANCE_KEY = '112233:appearance:v1'
 const UNKNOWN_FACT_ES = 'Consultar con el anunciante'
+const APPEARANCE_LABELS = new Set(['Apariencia', 'Appearance', 'Внешний вид'])
 
 const feedbackCopy: Record<Language, { unknownFact: string }> = {
   es: { unknownFact: UNKNOWN_FACT_ES },
@@ -19,6 +20,16 @@ function forceLightAppearance() {
   try { localStorage.removeItem(APPEARANCE_KEY) } catch { /* private browsing */ }
 }
 
+function hideAppearanceRow() {
+  document.querySelectorAll<HTMLButtonElement>('.m2-menu-row').forEach((row) => {
+    const label = row.querySelector('span')?.textContent?.trim() ?? ''
+    if (!APPEARANCE_LABELS.has(label)) return
+    row.hidden = true
+    row.setAttribute('aria-hidden', 'true')
+    row.tabIndex = -1
+  })
+}
+
 export function MobileSiteFeedbackFixes() {
   const { language } = useI18n()
   const copy = feedbackCopy[language]
@@ -33,6 +44,7 @@ export function MobileSiteFeedbackFixes() {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         forceLightAppearance()
+        hideAppearanceRow()
 
         document.querySelectorAll<HTMLElement>('.m2-result-card__facts, .m2-result-card__badges span, .m2-result-card__availability').forEach((element) => {
           const text = element.textContent ?? ''
