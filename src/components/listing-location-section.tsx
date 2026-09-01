@@ -78,13 +78,18 @@ function ListingLocationMap({ coordinates, interactive = false }: ListingLocatio
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const map = new maps.Map(containerRef.current, {
         center: coordinates,
-        zoom: interactive ? 16 : 15,
-        minZoom: 9,
+        // Customer reference is street-first: start close enough that road names
+        // are immediately useful, then allow normal Google Maps zoom/pan.
+        zoom: interactive ? 18 : 16,
+        minZoom: 11,
         maxZoom: 20,
         mapId: googleMapsConfig.mapId,
         mapTypeId: 'roadmap',
         disableDefaultUI: true,
         zoomControl: interactive,
+        streetViewControl: interactive,
+        mapTypeControl: false,
+        fullscreenControl: false,
         clickableIcons: false,
         keyboardShortcuts: interactive,
         gestureHandling: interactive ? 'greedy' : 'none',

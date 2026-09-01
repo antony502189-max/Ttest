@@ -25,17 +25,44 @@ test('listing location follows the customer street-map interaction without expos
   await expect(location).not.toContainText(/Calle\s+\S+\s+\d+/i)
 })
 
-test('listing map opens a full-screen interactive street map with route and Street View actions', async ({ page }) => {
+test('listing map opens a full-screen zoomable Google roadmap at street level', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
   await page.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' }).click()
 
   const dialog = page.getByRole('dialog')
+  const mapCanvas = dialog.locator('.listing-location-dialog__map .listing-location-google-map')
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
-  await expect(dialog.locator('.listing-location-dialog__map .listing-location-google-map')).toBeVisible()
+  await expect(mapCanvas).toBeVisible()
   await expect(dialog.getByRole('link', { name: 'Calcular ruta' })).toHaveAttribute('target', '_blank')
   await expect(dialog.getByRole('link', { name: 'Street View' })).toHaveAttribute('target', '_blank')
+
+  const options = await page.evaluate(() => {
+    const map = window.__googleMapsTestLastMap
+    return map ? {
+      zoom: map.get('zoom'),
+      minZoom: map.get('minZoom'),
+      maxZoom: map.get('maxZoom'),
+      mapTypeId: map.get('mapTypeId'),
+      zoomControl: map.get('zoomControl'),
+      streetViewControl: map.get('streetViewControl'),
+      gestureHandling: map.get('gestureHandling'),
+    } : null
+  })
+  expect(options).toEqual({
+    zoom: 18,
+    minZoom: 11,
+    maxZoom: 20,
+    mapTypeId: 'roadmap',
+    zoomControl: true,
+    streetViewControl: true,
+    gestureHandling: 'greedy',
+  })
+
+  const beforeZoom = await page.evaluate(() => window.__googleMapsTestLastMap?.getZoom() ?? 0)
+  await mapCanvas.dispatchEvent('wheel', { deltaY: -100 })
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom() ?? 0)).toBeGreaterThan(beforeZoom)
 
   const box = await dialog.boundingBox()
   expect(box).not.toBeNull()
