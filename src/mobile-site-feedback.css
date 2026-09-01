@@ -36,9 +36,7 @@
   text-align: left;
 }
 
-/* Desktop and mobile home now expose the same two customer-requested access
-   dimensions: pets and smoking. The portal host must not create an extra grid
-   row of its own; only the actual controls participate in the home layout. */
+/* Legacy selectors remain harmless after the home controls were removed. */
 [data-mobile-home-extra-filters-host] {
   display: contents;
 }
@@ -119,80 +117,8 @@
   text-decoration: none !important;
 }
 
-/* Appearance chooser */
-.m2-appearance-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 1rem;
-  background: rgb(20 24 22 / .42);
-}
-
-.m2-appearance-dialog {
-  width: min(100%, 430px);
-  overflow: hidden;
-  border: 1px solid #d7d9d5;
-  border-radius: .75rem;
-  background: #fff;
-  color: #252a2b;
-  box-shadow: 0 -18px 50px rgb(37 42 43 / .22);
-}
-
-.m2-appearance-dialog > header {
-  min-height: 3.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: .7rem 1rem;
-  border-bottom: 1px solid #e1e3df;
-}
-
-.m2-appearance-dialog > header button {
-  width: 2.4rem;
-  height: 2.4rem;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-}
-
-.m2-appearance-dialog [role='radiogroup'] > button {
-  width: 100%;
-  min-height: 3.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  padding: .75rem 1rem;
-  border: 0;
-  border-bottom: 1px solid #e1e3df;
-  background: transparent;
-  color: inherit;
-  font-size: .9rem;
-  text-align: left;
-}
-
-.m2-appearance-dialog [role='radiogroup'] > button:last-child {
-  border-bottom: 0;
-}
-
-.m2-appearance-dialog [role='radiogroup'] > button.is-selected {
-  background: #f2f8d4;
-}
-
-.m2-appearance-dialog i {
-  color: #557000;
-  font-style: normal;
-}
-
-/* Explicit light state also fixes the account page that was rendered with the
-   old dark account CSS despite a light/default preference. */
+/* The product is light-only. Keep the explicit light account correction so
+   older dark account styles can never win in the cascade. */
 html.site-theme-light,
 html.site-theme-light body,
 html.site-theme-light #root,
@@ -217,134 +143,6 @@ html.site-theme-light .m2-account-field label,
 html.site-theme-light .m2-account-content p,
 html.site-theme-light .m2-account-content small {
   color: #687071 !important;
-}
-
-/* Real dark appearance. These rules intentionally sit after white-theme.css. */
-html.site-theme-dark,
-html.site-theme-dark body,
-html.site-theme-dark #root {
-  background: #111 !important;
-  color: #f2f2f2 !important;
-}
-
-html.site-theme-dark .m2-app,
-html.site-theme-dark .m2-screen,
-html.site-theme-dark .m2-menu,
-html.site-theme-dark .m2-empty,
-html.site-theme-dark .m2-onboarding,
-html.site-theme-dark .m2-location,
-html.site-theme-dark .m2-account-screen,
-html.site-theme-dark .m2-account-content,
-html.site-theme-dark .m2-account-form {
-  --m2-bg: #111;
-  --m2-panel: #191919;
-  --m2-panel-soft: #222;
-  --m2-line: #383838;
-  --m2-text: #f2f2f2;
-  --m2-muted: #b2b2b2;
-  background: #111 !important;
-  color: #f2f2f2 !important;
-  color-scheme: dark;
-}
-
-html.site-theme-dark .m2-topbar,
-html.site-theme-dark .m2-back-header,
-html.site-theme-dark .m2-menu > header,
-html.site-theme-dark .m2-empty > header,
-html.site-theme-dark .m2-account-appbar,
-html.site-theme-dark .m2-bottom-nav,
-html.site-theme-dark .m2-results__header,
-html.site-theme-dark .m2-results__toolbar,
-html.site-theme-dark .m2-results-panel,
-html.site-theme-dark .m2-results-panel > header,
-html.site-theme-dark .m2-results-filter > footer {
-  border-color: #383838 !important;
-  background: #181818 !important;
-  color: #f2f2f2 !important;
-}
-
-html.site-theme-dark .m2-search-card,
-html.site-theme-dark .m2-menu-row,
-html.site-theme-dark .m2-occupant-trigger,
-html.site-theme-dark .m2-select-row,
-html.site-theme-dark .m2-outline,
-html.site-theme-dark .m2-sheet,
-html.site-theme-dark .m2-sheet > header,
-html.site-theme-dark .m2-location-search,
-html.site-theme-dark .m2-location-action,
-html.site-theme-dark .m2-result-card,
-html.site-theme-dark .m2-results-filter__pair label,
-html.site-theme-dark .m2-results-filter__select select,
-html.site-theme-dark .m2-account-field,
-html.site-theme-dark .m2-account-field input,
-html.site-theme-dark .m2-account-field textarea,
-html.site-theme-dark .m2-account-field select {
-  border-color: #444 !important;
-  background: #1b1b1b !important;
-  color: #f2f2f2 !important;
-}
-
-/* white-theme.css and the reference-card layer set explicit dark copy on the
-   home mode cards. Override those literals when the user explicitly selects
-   dark appearance so both inactive and active labels remain readable. */
-html.site-theme-dark .m2-mode-switch > button {
-  color: #f2f2f2 !important;
-}
-
-html.site-theme-dark .m2-mode-switch > button > span:last-child::before {
-  color: #f2f2f2 !important;
-}
-
-html.site-theme-dark .m2-mode-switch > button > span:last-child::after {
-  color: #b2b2b2 !important;
-}
-
-html.site-theme-dark .m2-mode-switch > button.is-active {
-  background: #344500 !important;
-  color: #f4f7e7 !important;
-}
-
-html.site-theme-dark .m2-home-extra-filters button {
-  border-color: #444;
-  background: #1b1b1b;
-  color: #f2f2f2;
-}
-
-html.site-theme-dark .m2-home-extra-filters button.is-active,
-html.site-theme-dark .m2-appearance-dialog [role='radiogroup'] > button.is-selected {
-  border-color: #a9c91a;
-  background: #344500 !important;
-  color: #f4f7e7;
-}
-
-html.site-theme-dark .m2-menu h2,
-html.site-theme-dark .m2-menu h3,
-html.site-theme-dark .m2-menu-row,
-html.site-theme-dark .m2-account-content h1,
-html.site-theme-dark .m2-account-content h2,
-html.site-theme-dark .m2-result-card h2,
-html.site-theme-dark .m2-result-card__price {
-  color: #f2f2f2 !important;
-}
-
-html.site-theme-dark .m2-menu-login p,
-html.site-theme-dark .m2-account-field label,
-html.site-theme-dark .m2-account-content p,
-html.site-theme-dark .m2-account-content small,
-html.site-theme-dark .m2-result-card__facts,
-html.site-theme-dark .m2-result-card__availability {
-  color: #b2b2b2 !important;
-}
-
-html.site-theme-dark .m2-appearance-dialog {
-  border-color: #444;
-  background: #1b1b1b;
-  color: #f2f2f2;
-}
-
-html.site-theme-dark .m2-appearance-dialog > header,
-html.site-theme-dark .m2-appearance-dialog [role='radiogroup'] > button {
-  border-color: #3a3a3a;
 }
 
 @media (max-width: 340px) {
