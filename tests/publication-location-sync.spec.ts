@@ -44,7 +44,7 @@ test('publication map ignores a late reverse-geocode response after a controlled
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
 })
 
-test('address selection synchronizes structured fields and the exact publication map point', async ({ page }) => {
+test('address selection recenters the exact publication point at a deliberately distant zoom', async ({ page }) => {
   await openPublishLocation(page)
   const selected = { lat: 28.083, lng: -16.73 }
   await page.evaluate((coordinates) => {
@@ -68,6 +68,10 @@ test('address selection synchronizes structured fields and the exact publication
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: center.lat(), lng: center.lng() } : null
   })).toEqual(selected)
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(13)
+
+  await page.evaluate(() => window.__googleMapsTestLastMap?.setZoom(18))
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
 })
 
 test('map pan leaves publication location and address unchanged', async ({ page }) => {

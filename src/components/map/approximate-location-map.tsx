@@ -8,6 +8,7 @@ import { createRequestVersionGate, parseGoogleAddress, type ResolvedGoogleAddres
 const DOUBLE_TAP_DELAY_MS = 360
 const DOUBLE_TAP_DISTANCE_PX = 28
 const TAP_MOVE_TOLERANCE_PX = 14
+const ADDRESS_SELECTION_ZOOM = 13
 
 type ApproximateLocationMapProps = {
   coordinates: Coordinates
@@ -148,8 +149,11 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         const point = (event as CustomEvent<{ coordinates?: Coordinates }>).detail?.coordinates
         if (!point || !isInsideTenerife(point)) return
         requestGateRef.current.next()
+        // Customer flow: selecting an address recenters the map on that place,
+        // but deliberately keeps a wider area visible. The user decides when
+        // and how far to zoom in afterwards.
         mapInstance.panTo(point)
-        mapInstance.setZoom(Math.max(mapInstance.getZoom() ?? 16, 17))
+        mapInstance.setZoom(ADDRESS_SELECTION_ZOOM)
         commitPoint(point, false)
       }
       window.addEventListener('112233:publish-location-selected', handleSelectedLocation)
