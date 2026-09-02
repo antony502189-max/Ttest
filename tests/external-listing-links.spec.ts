@@ -26,7 +26,7 @@ async function expectExternalPopup(page: Page, action: () => Promise<void>) {
   await expect.poll(async () => (await popup).url()).toBe(externalListing.sourceUrl)
 }
 
-test('external mobile result and map preview open the original source', async ({ page }) => {
+test('external mobile result and map preview expose native links to the original source', async ({ page }) => {
   await page.addInitScript((listing) => {
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
@@ -43,5 +43,12 @@ test('external mobile result and map preview open the original source', async ({
   await page.locator('.m2-listing-marker').first().click()
   const preview = page.getByTestId('mobile-map-listing-preview')
   await expect(preview).toBeVisible()
-  await expectExternalPopup(page, () => preview.locator('.m2-map-listing-preview__open').click())
+
+  const sourceImage = preview.locator('.m2-map-listing-preview__media')
+  const sourceCta = preview.locator('.m2-map-listing-preview__open')
+  await expect(sourceImage).toHaveAttribute('href', externalListing.sourceUrl)
+  await expect(sourceImage).toHaveAttribute('target', '_blank')
+  await expect(sourceCta).toHaveAttribute('href', externalListing.sourceUrl)
+  await expect(sourceCta).toHaveAttribute('target', '_blank')
+  await expectExternalPopup(page, () => sourceCta.click())
 })
