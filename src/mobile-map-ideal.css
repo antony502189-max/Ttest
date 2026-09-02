@@ -82,7 +82,14 @@
 
 .m2-map-listing-preview__media {
   min-height: 100%;
+  display: block;
   background: #eef0ec;
+  color: inherit;
+  text-decoration: none;
+}
+
+.m2-map-listing-preview__media[href] {
+  cursor: pointer;
 }
 
 .m2-map-listing-preview__media img {
@@ -175,7 +182,8 @@
   gap: .45rem;
 }
 
-.m2-map-listing-preview__actions button {
+.m2-map-listing-preview__actions button,
+.m2-map-listing-preview__actions a {
   min-height: 2.35rem;
   border-radius: .25rem;
   font-weight: 800;
@@ -201,10 +209,15 @@
 }
 
 .m2-map-listing-preview__open {
+  display: grid;
+  place-items: center;
   padding: .45rem .65rem;
   border: 1px solid #d2ff3f;
   background: #d2ff3f;
   color: #111;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .m2-map-screen.is-freehand-drawing .m2-map-listing-preview {
