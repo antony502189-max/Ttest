@@ -44,6 +44,62 @@ test('publication map ignores a late reverse-geocode response after a controlled
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
 })
 
+test('manual municipality change clears stale address data and moves the map to that municipality at a distant zoom', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Zona o barrio').fill('Armeñime')
+  await page.getByLabel('Calle').fill('Calle antigua 8')
+  await page.getByLabel('Código postal').fill('38678')
+
+  await page.getByLabel('Municipio').selectOption('Arico')
+
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('')
+  await expect(page.getByLabel('Calle')).toHaveValue('')
+  await expect(page.getByLabel('Código postal')).toHaveValue('')
+  await expect.poll(() => page.evaluate(() => {
+    const center = window.__googleMapsTestLastMap?.getCenter()
+    return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
+  })).toEqual({ lat: 28.1773, lng: -16.481 })
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
+  await expect(page.locator('.approximate-location-selector output')).toContainText('28.1773, -16.4810')
+})
+
+test('municipality without a hard-coded center still recenters from bundled Tenerife geometry', async ({ page }) => {
+  await openPublishLocation(page)
+  const initial = await page.evaluate(() => {
+    const center = window.__googleMapsTestLastMap?.getCenter()
+    return center ? { lat: center.lat(), lng: center.lng() } : null
+  })
+
+  await page.getByLabel('Municipio').selectOption('Arafo')
+
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arafo')
+  await expect.poll(() => page.evaluate(() => {
+    const center = window.__googleMapsTestLastMap?.getCenter()
+    return center ? { lat: center.lat(), lng: center.lng() } : null
+  })).not.toEqual(initial)
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
+  await expect(page.locator('.map-inline-error')).toHaveCount(0)
+})
+
+test('municipality focus clears a previously detected street shown under the map', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.evaluate((result) => {
+    window.__googleMapsTestGeocode = () => Promise.resolve({ results: [result] })
+  }, resolvedAddress('Calle visible 7', '38660'))
+
+  const map = page.locator('.approximate-location-map')
+  const box = await map.boundingBox()
+  expect(box).not.toBeNull()
+  await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.55), y: Math.round((box?.height ?? 220) * 0.5) } })
+  await expect(page.locator('.approximate-location-map-address')).toContainText('Calle visible 7')
+
+  await page.getByLabel('Municipio').selectOption('Arico')
+
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('.approximate-location-map-address')).toHaveCount(0)
+})
+
 test('address selection recenters the exact publication point at a deliberately distant zoom', async ({ page }) => {
   await openPublishLocation(page)
   const selected = { lat: 28.083, lng: -16.73 }
@@ -110,6 +166,7 @@ test('publication location keeps the previous compact design copy while retainin
   await expect(selector.locator(':scope > p').first()).toHaveText('El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.')
   await expect(page.getByLabel('Calle')).toBeVisible()
   await expect(page.locator('.approximate-location-map')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
 })
 
 test('reverse geocoding without a real street never overwrites a manually entered street', async ({ page }) => {
