@@ -101,8 +101,7 @@
   color: #3f5700;
 }
 
-/* Unknown imported facts are information, not actions. Do not style them like
-   a CTA/button. */
+/* Unknown imported facts remain informational on ordinary/internal cards. */
 .m2-result-card__badges span.m2-unknown-fact {
   padding: 0 !important;
   border: 0 !important;
@@ -115,6 +114,48 @@
   line-height: 1.35 !important;
   white-space: normal !important;
   text-decoration: none !important;
+}
+
+/* Imported listings use the customer-approved source CTA treatment: the same
+   unknown-capacity copy becomes a clearly actionable orange source frame. */
+.m2-result-card__badges span.m2-external-source-cta {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 2.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .58rem .82rem;
+  border: 2px solid #f36c21;
+  border-radius: .42rem;
+  background: #fff7f1;
+  box-shadow: 0 .15rem .45rem rgb(184 72 0 / .12), inset 0 0 0 1px rgb(255 255 255 / .52);
+  color: #a84400;
+  cursor: pointer;
+  font-size: .86rem;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: normal;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m2-result-card__badges span.m2-external-source-cta:hover {
+  border-color: #d95812;
+  background: #fff0e5;
+  color: #8f3900;
+}
+
+.m2-result-card__badges span.m2-external-source-cta:focus-visible {
+  outline: 3px solid rgb(243 108 33 / .28);
+  outline-offset: 2px;
+}
+
+/* The customer screenshot exposed the global 3px property-card accent as a
+   long lime rule below an internal listing. Keep card accents elsewhere but
+   remove it from the similar-listings strip on listing detail. */
+.idealista-listing-page .listing-similar .property-card {
+  border-top-width: 0 !important;
 }
 
 /* The product is light-only. Keep the explicit light account correction so
@@ -161,5 +202,11 @@ html.site-theme-light .m2-account-content small {
 
   .m2-results-filter__pair--dates > label > span {
     font-size: .6rem;
+  }
+
+  .m2-result-card__badges span.m2-external-source-cta {
+    min-height: 2.55rem;
+    padding: .54rem .7rem;
+    font-size: .82rem;
   }
 }
