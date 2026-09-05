@@ -134,7 +134,11 @@ export function PublishLocationEnhancer() {
         const collection = await loadTenerifeZones()
         if (cancelled || !locationGate.isCurrent(version)) return null
         const municipalityId = getMunicipalityId(city)
-        const feature = municipalityId ? getZoneFeature(municipalityId, collection) : undefined
+        const sourceMunicipalityId = municipalityId?.replace(/^municipality:/, '')
+        const feature = municipalityId
+          ? getZoneFeature(municipalityId, collection)
+            ?? collection.features.find((candidate) => candidate.properties.kind === 'municipality' && candidate.properties.id === sourceMunicipalityId)
+          : undefined
         const center = feature ? geometryBoundsCenter(feature.geometry) : null
         if (center && isInsideTenerife(center)) return center
       } catch {
