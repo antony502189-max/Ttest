@@ -72,6 +72,44 @@ test('listing map opens a full-screen zoomable Google roadmap at street level', 
   expect(box!.height).toBeGreaterThanOrEqual(842)
 })
 
+test('customer Android recording viewport keeps the location map edge-to-edge', async ({ page }) => {
+  await page.setViewportSize({ width: 588, height: 1280 })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+  await page.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' }).click()
+
+  const dialog = page.getByRole('dialog')
+  const mapShell = dialog.locator('.listing-location-dialog__map .listing-location-google-map-shell')
+  await expect(dialog).toBeVisible()
+  await expect(mapShell).toBeVisible()
+
+  const dialogBox = await dialog.boundingBox()
+  const mapBox = await mapShell.boundingBox()
+  expect(dialogBox).not.toBeNull()
+  expect(mapBox).not.toBeNull()
+  expect(dialogBox!.x).toBeLessThanOrEqual(1)
+  expect(dialogBox!.y).toBeLessThanOrEqual(1)
+  expect(dialogBox!.width).toBeGreaterThanOrEqual(586)
+  expect(dialogBox!.height).toBeGreaterThanOrEqual(1278)
+  expect(mapBox!.x).toBeLessThanOrEqual(1)
+  expect(mapBox!.width).toBeGreaterThanOrEqual(586)
+
+  const layout = await dialog.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      position: style.position,
+      left: style.left,
+      right: style.right,
+      maxWidth: style.maxWidth,
+      transform: style.transform,
+    }
+  })
+  expect(layout.position).toBe('fixed')
+  expect(layout.left).toBe('0px')
+  expect(layout.right).toBe('0px')
+  expect(layout.maxWidth).toBe('588px')
+  expect(layout.transform).toBe('none')
+})
+
 test('customer location controls are fully localized in English and Russian', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
