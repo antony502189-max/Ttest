@@ -25,6 +25,7 @@ const municipalityNames = [
 
 const knownCoordinates: Record<string, Coordinates> = {
   Adeje: { lat: 28.1227, lng: -16.7244 },
+  Arico: { lat: 28.1773, lng: -16.4810 },
   Arona: { lat: 28.0996, lng: -16.6809 },
   'Granadilla de Abona': { lat: 28.1188, lng: -16.5760 },
   'San Cristóbal de La Laguna': { lat: 28.4874, lng: -16.3159 },
