@@ -61,8 +61,6 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
     || (locality && locality !== city ? locality : '')
   const street = [route, number].filter(Boolean).join(' ').trim()
 
-  // A partial reverse-geocode response may enrich postcode/city/area, but it
-  // never invents a street or clears the user's existing manual street value.
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
   setNativeValue(citySelect, city, { addressSync: true })
@@ -74,27 +72,11 @@ export function PublishLocationEnhancer() {
   const { language } = useI18n()
   const placeholder = language === 'ru' ? 'Начните вводить улицу и номер…' : language === 'en' ? 'Start typing street and number…' : 'Empieza a escribir Calle, número…'
   const ariaLabel = language === 'ru' ? 'Улица и номер' : language === 'en' ? 'Street and number' : 'Calle y número'
-  const streetRequiredMessage = language === 'ru'
-    ? 'Выберите улицу или полный адрес на Тенерифе.'
-    : language === 'en'
-      ? 'Choose a street or complete address in Tenerife.'
-      : 'Selecciona una calle o una dirección completa de Tenerife.'
-  const addressNotFoundMessage = language === 'ru'
-    ? 'Не удалось найти выбранный адрес.'
-    : language === 'en'
-      ? 'The selected address could not be found.'
-      : 'No se pudo encontrar la dirección seleccionada.'
-  const outsideTenerifeMessage = language === 'ru'
-    ? 'Адрес должен находиться на Тенерифе.'
-    : language === 'en'
-      ? 'The address must be in Tenerife.'
-      : 'La dirección debe estar en Tenerife.'
+  const streetRequiredMessage = language === 'ru' ? 'Выберите улицу или полный адрес на Тенерифе.' : language === 'en' ? 'Choose a street or complete address in Tenerife.' : 'Selecciona una calle o una dirección completa de Tenerife.'
+  const addressNotFoundMessage = language === 'ru' ? 'Не удалось найти выбранный адрес.' : language === 'en' ? 'The selected address could not be found.' : 'No se pudo encontrar la dirección seleccionada.'
+  const outsideTenerifeMessage = language === 'ru' ? 'Адрес должен находиться на Тенерифе.' : language === 'en' ? 'The address must be in Tenerife.' : 'La dirección debe estar en Tenerife.'
   const selectorTitle = language === 'ru' ? 'Выберите примерную точку' : language === 'en' ? 'Select an approximate point' : 'Selecciona un punto aproximado'
-  const selectorHelp = language === 'ru'
-    ? 'Маркер расположен в выбранном районе. Его можно немного сдвинуть, не раскрывая точную улицу.'
-    : language === 'en'
-      ? 'The marker is centred in the area. Move it slightly without publishing the exact street.'
-      : 'El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.'
+  const selectorHelp = language === 'ru' ? 'Маркер расположен в выбранном районе. Его можно немного сдвинуть, не раскрывая точную улицу.' : language === 'en' ? 'The marker is centred in the area. Move it slightly without publishing the exact street.' : 'El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.'
 
   useEffect(() => {
     let cancelled = false
@@ -102,6 +84,7 @@ export function PublishLocationEnhancer() {
     const municipalityGate = createRequestVersionGate()
     const widgets = new Set<HTMLElement>()
     const municipalityListeners = new Map<HTMLSelectElement, EventListener>()
+    const municipalityTimers = new Set<number>()
 
     const restorePreviousLocationCopy = () => {
       const selector = document.querySelector<HTMLElement>('.approximate-location-selector')
@@ -128,11 +111,7 @@ export function PublishLocationEnhancer() {
       try {
         await loadGoogleMaps()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
-        const response = await new geocoding.Geocoder().geocode({
-          address: `${city}, Tenerife, Spain`,
-          bounds: TENERIFE_BOUNDS,
-          componentRestrictions: { country: 'ES' },
-        })
+        const response = await new geocoding.Geocoder().geocode({ address: `${city}, Tenerife, Spain`, bounds: TENERIFE_BOUNDS, componentRestrictions: { country: 'ES' } })
         if (cancelled || !municipalityGate.isCurrent(version)) return null
         const location = response.results[0]?.geometry.location
         if (!location) return null
@@ -147,9 +126,7 @@ export function PublishLocationEnhancer() {
       const version = municipalityGate.next()
       const coordinates = await resolveMunicipalityCoordinates(city, version)
       if (!coordinates || cancelled || !municipalityGate.isCurrent(version)) return
-      window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
-        detail: { coordinates, zoom: MUNICIPALITY_FOCUS_ZOOM },
-      }))
+      window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates, zoom: MUNICIPALITY_FOCUS_ZOOM } }))
     }
 
     const setupMunicipalitySync = () => {
@@ -162,12 +139,16 @@ export function PublishLocationEnhancer() {
       if (!select || municipalityListeners.has(select)) return
       const listener: EventListener = (event) => {
         const citySelect = event.currentTarget as HTMLSelectElement
-        // Address autocomplete updates Municipio as part of one atomic address
-        // selection. Do not treat that internal update as a manual city change.
         if (citySelect.dataset.locationAddressSync === 'true') return
-        clearStaleAddressForMunicipality()
-        window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
-        void focusMunicipality(citySelect.value)
+        const city = citySelect.value
+        const timer = window.setTimeout(() => {
+          municipalityTimers.delete(timer)
+          if (cancelled) return
+          clearStaleAddressForMunicipality()
+          window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
+          void focusMunicipality(city)
+        }, 0)
+        municipalityTimers.add(timer)
       }
       select.addEventListener('change', listener)
       municipalityListeners.set(select, listener)
@@ -191,8 +172,6 @@ export function PublishLocationEnhancer() {
         autocomplete.placeholder = placeholder
         autocomplete.includedRegionCodes = ['es']
         autocomplete.locationRestriction = TENERIFE_BOUNDS
-        // Customer reference flow is street-first: surface actual routes and
-        // postal addresses before municipalities or generic points of interest.
         autocomplete.includedPrimaryTypes = ['street_address', 'route', 'premise', 'subpremise']
         autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
@@ -211,8 +190,6 @@ export function PublishLocationEnhancer() {
             return
           }
           const detail: AddressDetail = { formattedAddress: place.formattedAddress ?? '', addressComponents: (place.addressComponents ?? []) as AddressComponent[], coordinates }
-          // Selection is atomic: reject premise/POI predictions without a real
-          // route before touching street, postcode, municipality, area or map.
           if (!applyAddress(detail, true)) {
             window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: streetRequiredMessage } }))
             return
@@ -238,6 +215,8 @@ export function PublishLocationEnhancer() {
       window.removeEventListener('112233:map-address-resolved', handleResolved)
       municipalityListeners.forEach((listener, select) => select.removeEventListener('change', listener))
       municipalityListeners.clear()
+      municipalityTimers.forEach((timer) => window.clearTimeout(timer))
+      municipalityTimers.clear()
       widgets.forEach((widget) => widget.remove())
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (input) {
