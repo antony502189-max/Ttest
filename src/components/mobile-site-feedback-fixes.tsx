@@ -67,7 +67,7 @@ export function MobileSiteFeedbackFixes() {
             element.dataset.externalSourceUrl = sourceUrl
             element.setAttribute('role', 'link')
             element.tabIndex = 0
-            element.setAttribute('aria-label', `${copy.unknownFact}: ${listing.primarySource ?? listing.source ?? 'sitio original'}`)
+            element.setAttribute('aria-label', `${copy.unknownFact}: ${listing?.primarySource ?? listing?.source ?? 'sitio original'}`)
           } else {
             element.classList.remove('m2-external-source-cta')
             delete element.dataset.externalSourceUrl
