@@ -1,31 +1,40 @@
 import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
-import { TENERIFE_BOUNDS, isInsideTenerife } from '@/lib/tenerife'
+import { TENERIFE_BOUNDS, isInsideTenerife, resolveTenerifeLocation } from '@/lib/tenerife'
 import { createRequestVersionGate } from '@/lib/google-maps/address'
 import type { Coordinates } from '@/types'
 import '@/publish-location-enhancer.css'
 
 type AddressComponent = { longText?: string; long_name?: string; types: string[] }
 type AddressDetail = { formattedAddress?: string; addressComponents?: AddressComponent[]; coordinates?: Coordinates }
+type NativeValueOptions = { allowEmpty?: boolean; addressSync?: boolean }
 
 type StreetFirstAutocomplete = google.maps.places.PlaceAutocompleteElement & {
   includedPrimaryTypes?: string[]
+  value?: string
 }
+
+const MUNICIPALITY_FOCUS_ZOOM = 11
 
 function component(components: AddressComponent[], type: string) {
   const item = components.find((entry) => entry.types.includes(type))
   return (item?.longText ?? item?.long_name ?? '').trim()
 }
 
-function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, value: string) {
-  if (!element || !value) return
-  if (element instanceof HTMLSelectElement && !Array.from(element.options).some((option) => option.value === value)) return
+function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, value: string, options: NativeValueOptions = {}) {
+  if (!element || (!value && !options.allowEmpty)) return
+  if (element instanceof HTMLSelectElement && value && !Array.from(element.options).some((option) => option.value === value)) return
   const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
   const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set
-  setter?.call(element, value)
-  element.dispatchEvent(new Event('input', { bubbles: true }))
-  element.dispatchEvent(new Event('change', { bubbles: true }))
+  if (options.addressSync) element.dataset.locationAddressSync = 'true'
+  try {
+    setter?.call(element, value)
+    element.dispatchEvent(new Event('input', { bubbles: true }))
+    element.dispatchEvent(new Event('change', { bubbles: true }))
+  } finally {
+    if (options.addressSync) delete element.dataset.locationAddressSync
+  }
 }
 
 function matchingSelectValue(element: HTMLSelectElement | null, candidates: string[]) {
@@ -56,7 +65,7 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
   // never invents a street or clears the user's existing manual street value.
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
-  setNativeValue(citySelect, city)
+  setNativeValue(citySelect, city, { addressSync: true })
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-area'), area)
   return Boolean(route)
 }
@@ -90,7 +99,9 @@ export function PublishLocationEnhancer() {
   useEffect(() => {
     let cancelled = false
     const requestGate = createRequestVersionGate()
+    const municipalityGate = createRequestVersionGate()
     const widgets = new Set<HTMLElement>()
+    const municipalityListeners = new Map<HTMLSelectElement, EventListener>()
 
     const restorePreviousLocationCopy = () => {
       const selector = document.querySelector<HTMLElement>('.approximate-location-selector')
@@ -103,8 +114,68 @@ export function PublishLocationEnhancer() {
     const handleResolved = (event: Event) => applyAddress((event as CustomEvent<AddressDetail>).detail ?? {})
     window.addEventListener('112233:map-address-resolved', handleResolved)
 
+    const clearStaleAddressForMunicipality = () => {
+      setNativeValue(document.querySelector<HTMLInputElement>('#publish-area'), '', { allowEmpty: true })
+      setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), '', { allowEmpty: true })
+      setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), '', { allowEmpty: true })
+      const autocomplete = document.querySelector<StreetFirstAutocomplete>('.publish-place-autocomplete')
+      if (autocomplete && 'value' in autocomplete) autocomplete.value = ''
+    }
+
+    const resolveMunicipalityCoordinates = async (city: string, version: number): Promise<Coordinates | null> => {
+      const known = resolveTenerifeLocation(city)?.coordinates
+      if (known && isInsideTenerife(known)) return known
+      try {
+        await loadGoogleMaps()
+        const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
+        const response = await new geocoding.Geocoder().geocode({
+          address: `${city}, Tenerife, Spain`,
+          bounds: TENERIFE_BOUNDS,
+          componentRestrictions: { country: 'ES' },
+        })
+        if (cancelled || !municipalityGate.isCurrent(version)) return null
+        const location = response.results[0]?.geometry.location
+        if (!location) return null
+        const coordinates = { lat: location.lat(), lng: location.lng() }
+        return isInsideTenerife(coordinates) ? coordinates : null
+      } catch {
+        return null
+      }
+    }
+
+    const focusMunicipality = async (city: string) => {
+      const version = municipalityGate.next()
+      const coordinates = await resolveMunicipalityCoordinates(city, version)
+      if (!coordinates || cancelled || !municipalityGate.isCurrent(version)) return
+      window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
+        detail: { coordinates, zoom: MUNICIPALITY_FOCUS_ZOOM },
+      }))
+    }
+
+    const setupMunicipalitySync = () => {
+      for (const [select, listener] of municipalityListeners) {
+        if (select.isConnected) continue
+        select.removeEventListener('change', listener)
+        municipalityListeners.delete(select)
+      }
+      const select = document.querySelector<HTMLSelectElement>('#publish-city')
+      if (!select || municipalityListeners.has(select)) return
+      const listener: EventListener = (event) => {
+        const citySelect = event.currentTarget as HTMLSelectElement
+        // Address autocomplete updates Municipio as part of one atomic address
+        // selection. Do not treat that internal update as a manual city change.
+        if (citySelect.dataset.locationAddressSync === 'true') return
+        clearStaleAddressForMunicipality()
+        window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
+        void focusMunicipality(citySelect.value)
+      }
+      select.addEventListener('change', listener)
+      municipalityListeners.set(select, listener)
+    }
+
     const setup = async () => {
       restorePreviousLocationCopy()
+      setupMunicipalitySync()
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (!input || input.dataset.addressAutocomplete) return
       input.dataset.addressAutocomplete = 'pending'
@@ -165,6 +236,8 @@ export function PublishLocationEnhancer() {
       cancelled = true
       observer.disconnect()
       window.removeEventListener('112233:map-address-resolved', handleResolved)
+      municipalityListeners.forEach((listener, select) => select.removeEventListener('change', listener))
+      municipalityListeners.clear()
       widgets.forEach((widget) => widget.remove())
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (input) {
