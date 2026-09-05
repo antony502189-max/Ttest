@@ -21,6 +21,7 @@ type ApproximateLocationMapProps = {
 type SelectedLocationDetail = {
   coordinates?: Coordinates
   zoom?: number
+  clearDetectedAddress?: boolean
 }
 
 export function ApproximateLocationMap({ coordinates, onChange, onAddressResolved, onLocationError }: ApproximateLocationMapProps) {
@@ -87,8 +88,6 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         disableDoubleClickZoom: true,
         restriction: { latLngBounds: TENERIFE_BOUNDS, strictBounds: true },
       })
-      // Keep the initial viewport deterministic across the production SDK and
-      // our CI substitute. The customer explicitly wants a wider starting view.
       mapInstance.setCenter(initial)
       mapInstance.setZoom(DEFAULT_PUBLICATION_ZOOM)
       const pin = new marker.PinElement({ background: '#dff34f', borderColor: '#344500', glyphColor: '#344500', scale: 1.15 })
@@ -160,6 +159,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         const point = detail.coordinates
         if (!point || !isInsideTenerife(point)) return
         requestGateRef.current.next()
+        if (detail.clearDetectedAddress) setDetectedAddress('')
         const zoom = Math.max(9, Math.min(20, detail.zoom ?? ADDRESS_SELECTION_ZOOM))
         mapInstance.panTo(point)
         mapInstance.setZoom(zoom)
@@ -220,8 +220,6 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
     if (!isInsideTenerife(coordinates)) return
     if (markerRef.current) markerRef.current.position = coordinates
     if (internalChangeRef.current) { internalChangeRef.current = false; return }
-    // A prop-driven location change (recenter, directional control, or a newer
-    // address selection) supersedes any reverse-geocoding request in flight.
     requestGateRef.current.next()
     mapRef.current?.panTo(coordinates)
   }, [coordinates.lat, coordinates.lng, coordinates])
