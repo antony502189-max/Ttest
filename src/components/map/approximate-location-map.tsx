@@ -8,6 +8,7 @@ import { createRequestVersionGate, parseGoogleAddress, type ResolvedGoogleAddres
 const DOUBLE_TAP_DELAY_MS = 360
 const DOUBLE_TAP_DISTANCE_PX = 28
 const TAP_MOVE_TOLERANCE_PX = 14
+const DEFAULT_PUBLICATION_ZOOM = 11
 const ADDRESS_SELECTION_ZOOM = 13
 
 type ApproximateLocationMapProps = {
@@ -15,6 +16,11 @@ type ApproximateLocationMapProps = {
   onChange: (coordinates: Coordinates) => void
   onAddressResolved?: (address: ResolvedGoogleAddress) => void
   onLocationError?: (message: string) => void
+}
+
+type SelectedLocationDetail = {
+  coordinates?: Coordinates
+  zoom?: number
 }
 
 export function ApproximateLocationMap({ coordinates, onChange, onAddressResolved, onLocationError }: ApproximateLocationMapProps) {
@@ -69,8 +75,8 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       const initial = isInsideTenerife(requestedInitial) ? requestedInitial : TENERIFE_CENTER
       const mapInstance = new maps.Map(containerRef.current, {
         center: initial,
-        zoom: 16,
-        minZoom: 10,
+        zoom: DEFAULT_PUBLICATION_ZOOM,
+        minZoom: 9,
         maxZoom: 20,
         mapId: googleMapsConfig.mapId,
         mapTypeId: 'roadmap',
@@ -146,14 +152,13 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       })
 
       const handleSelectedLocation = (event: Event) => {
-        const point = (event as CustomEvent<{ coordinates?: Coordinates }>).detail?.coordinates
+        const detail = (event as CustomEvent<SelectedLocationDetail>).detail ?? {}
+        const point = detail.coordinates
         if (!point || !isInsideTenerife(point)) return
         requestGateRef.current.next()
-        // Customer flow: selecting an address recenters the map on that place,
-        // but deliberately keeps a wider area visible. The user decides when
-        // and how far to zoom in afterwards.
+        const zoom = Math.max(9, Math.min(20, detail.zoom ?? ADDRESS_SELECTION_ZOOM))
         mapInstance.panTo(point)
-        mapInstance.setZoom(ADDRESS_SELECTION_ZOOM)
+        mapInstance.setZoom(zoom)
         commitPoint(point, false)
       }
       window.addEventListener('112233:publish-location-selected', handleSelectedLocation)
