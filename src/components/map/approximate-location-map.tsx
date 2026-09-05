@@ -87,6 +87,10 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         disableDoubleClickZoom: true,
         restriction: { latLngBounds: TENERIFE_BOUNDS, strictBounds: true },
       })
+      // Keep the initial viewport deterministic across the production SDK and
+      // our CI substitute. The customer explicitly wants a wider starting view.
+      mapInstance.setCenter(initial)
+      mapInstance.setZoom(DEFAULT_PUBLICATION_ZOOM)
       const pin = new marker.PinElement({ background: '#dff34f', borderColor: '#344500', glyphColor: '#344500', scale: 1.15 })
       const publicMarker = new marker.AdvancedMarkerElement({ map: mapInstance, position: initial, content: pin, gmpDraggable: true, title: 'Ubicación seleccionada' })
 
