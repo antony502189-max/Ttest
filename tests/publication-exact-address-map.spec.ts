@@ -9,23 +9,6 @@ async function openPublishLocation(page: Page) {
   await expect(page.locator('.approximate-location-map')).toBeVisible()
 }
 
-const exactAddressResult = (coordinates: { lat: number; lng: number }): google.maps.GeocoderResult => ({
-  formatted_address: 'Calle Londres 5, 38660 Costa Adeje, Santa Cruz de Tenerife, Spain',
-  types: ['street_address'],
-  address_components: [
-    { long_name: 'Calle Londres', short_name: 'C. Londres', types: ['route'] },
-    { long_name: '5', short_name: '5', types: ['street_number'] },
-    { long_name: '38660', short_name: '38660', types: ['postal_code'] },
-    { long_name: 'Costa Adeje', short_name: 'Costa Adeje', types: ['sublocality_level_1'] },
-    { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
-  ],
-  geometry: {
-    location: { lat: () => coordinates.lat, lng: () => coordinates.lng },
-    location_type: 'ROOFTOP',
-    viewport: {} as google.maps.LatLngBounds,
-  },
-} as google.maps.GeocoderResult)
-
 test('typing street, building number and postcode moves the owner marker to the exact building at street zoom', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
