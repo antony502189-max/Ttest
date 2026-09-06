@@ -26,7 +26,7 @@ async function expectExternalPopup(page: Page, action: () => Promise<void>) {
   await expect.poll(async () => (await popup).url()).toBe(externalListing.sourceUrl)
 }
 
-test('external mobile result uses the same lime source CTA treatment as requirement chips and keeps native links', async ({ page }) => {
+test('external mobile result uses the same lime source CTA treatment as requirement chips', async ({ page }) => {
   await page.addInitScript((listing) => {
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
