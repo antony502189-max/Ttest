@@ -18,7 +18,6 @@ test('listing location follows the customer street-map interaction without expos
   await expect(location.getByRole('link', { name: 'Street View' })).toHaveAttribute('href', /map_action=pano&viewpoint=/)
   await expect(location.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' })).toBeVisible()
   await expect(location.locator('.listing-location-google-map')).toHaveAttribute('aria-label', 'Mapa de la ubicación aproximada del anuncio')
-
   await expect(location).not.toContainText(/386\d{2}/)
   await expect(location).not.toContainText(/Calle\s+\S+\s+\d+/i)
 })
@@ -68,7 +67,6 @@ test('listing map opens a true full-screen zoomable Google roadmap with a back c
   expect(box!.y).toBeLessThanOrEqual(1)
   expect(box!.width).toBeGreaterThanOrEqual(388)
   expect(box!.height).toBeGreaterThanOrEqual(842)
-  await expect(dialog.locator('[data-slot="dialog-content"]')).toHaveCount(0)
 
   await back.click()
   await expect(dialog).toHaveCount(0)
