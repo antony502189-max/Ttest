@@ -116,8 +116,8 @@
   text-decoration: none !important;
 }
 
-/* Imported listings use the customer-approved source CTA treatment: the same
-   unknown-capacity copy becomes a clearly actionable orange source frame. */
+/* Imported listings use the same client-approved lime treatment as the
+   requirement chips below ordinary result cards while remaining actionable. */
 .m2-result-card__badges span.m2-external-source-cta {
   width: fit-content;
   max-width: 100%;
@@ -125,14 +125,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: .58rem .82rem;
-  border: 2px solid #f36c21;
+  padding: .62rem .82rem;
+  border: 2px solid #84a900;
   border-radius: .42rem;
-  background: #fff7f1;
-  box-shadow: 0 .15rem .45rem rgb(184 72 0 / .12), inset 0 0 0 1px rgb(255 255 255 / .52);
-  color: #a84400;
+  background: #e4f2a3;
+  box-shadow: 0 .15rem .45rem rgb(73 96 0 / .14), inset 0 0 0 1px rgb(255 255 255 / .24);
+  color: #304600;
   cursor: pointer;
-  font-size: .86rem;
+  font-size: .88rem;
   font-weight: 800;
   line-height: 1.25;
   white-space: normal;
@@ -141,13 +141,13 @@
 }
 
 .m2-result-card__badges span.m2-external-source-cta:hover {
-  border-color: #d95812;
-  background: #fff0e5;
-  color: #8f3900;
+  border-color: #708900;
+  background: #d9ea8c;
+  color: #263900;
 }
 
 .m2-result-card__badges span.m2-external-source-cta:focus-visible {
-  outline: 3px solid rgb(243 108 33 / .28);
+  outline: 3px solid rgb(132 169 0 / .28);
   outline-offset: 2px;
 }
 
@@ -206,7 +206,7 @@ html.site-theme-light .m2-account-content small {
 
   .m2-result-card__badges span.m2-external-source-cta {
     min-height: 2.55rem;
-    padding: .54rem .7rem;
+    padding: .56rem .7rem;
     font-size: .82rem;
   }
 }
