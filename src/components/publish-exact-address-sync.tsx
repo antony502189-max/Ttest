@@ -16,6 +16,7 @@ type PlaceAutocompleteWithValue = google.maps.places.PlaceAutocompleteElement & 
 type SelectedLocationDetail = { coordinates?: Coordinates; zoom?: number; clearDetectedAddress?: boolean }
 
 const EXACT_ADDRESS_ZOOM = 18
+const STREET_ADDRESS_ZOOM = 16
 const ADDRESS_DEBOUNCE_MS = 650
 
 function component(result: google.maps.GeocoderResult, type: string) {
@@ -24,6 +25,25 @@ function component(result: google.maps.GeocoderResult, type: string) {
 
 function normalizeHouseNumber(value: string) {
   return value.trim().toLocaleLowerCase().replace(/[\s-]+/g, '')
+}
+
+function normalizeRoute(value: string) {
+  return normalizeTenerifeText(value)
+    .replace(/[.,ºª]/g, ' ')
+    .replace(/^(calle|c|avenida|av|avda|carretera|ctra|camino|paseo|plaza|urbanizacion)\s+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function requestedHouseNumber(street: string) {
+  return [...street.matchAll(/\b\d+[A-Za-z]?\b/g)].at(-1)?.[0] ?? ''
+}
+
+function requestedRoute(street: string) {
+  const number = requestedHouseNumber(street)
+  if (!number) return street.trim()
+  const escaped = number.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return street.replace(new RegExp(`\\s*,?\\s*${escaped}\\s*$`, 'i'), '').trim()
 }
 
 function resultCoordinates(result: google.maps.GeocoderResult): Coordinates | null {
@@ -46,14 +66,18 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
   if (resolvedMunicipality && normalizeTenerifeText(resolvedMunicipality) !== normalizeTenerifeText(city)) return false
 
   const route = component(result, 'route')
-  const resultTypes = result.types ?? []
-  const premiseLike = resultTypes.some((type) => ['street_address', 'premise', 'subpremise'].includes(type))
-  if (!route && !premiseLike) return false
+  if (!route) return false
+  const wantedRoute = requestedRoute(street)
+  if (wantedRoute && normalizeRoute(route) !== normalizeRoute(wantedRoute)) return false
 
-  const requestedNumber = street.match(/\b\d+[A-Za-z]?\b/)?.[0] ?? ''
-  if (requestedNumber) {
+  const resultTypes = result.types ?? []
+  const streetLike = resultTypes.some((type) => ['street_address', 'route', 'premise', 'subpremise'].includes(type))
+  if (!streetLike) return false
+
+  const wantedNumber = requestedHouseNumber(street)
+  if (wantedNumber) {
     const resolvedNumber = component(result, 'street_number')
-    if (!resolvedNumber || normalizeHouseNumber(resolvedNumber) !== normalizeHouseNumber(requestedNumber)) return false
+    if (!resolvedNumber || normalizeHouseNumber(resolvedNumber) !== normalizeHouseNumber(wantedNumber)) return false
   }
   return true
 }
@@ -79,10 +103,10 @@ export function PublishExactAddressSync() {
       timer = undefined
     }
 
-    const dispatchExactPoint = (coordinates: Coordinates, clearDetectedAddress = true) => {
+    const dispatchAddressPoint = (coordinates: Coordinates, zoom: number, clearDetectedAddress = true) => {
       window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
       window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
-        detail: { coordinates, zoom: EXACT_ADDRESS_ZOOM, clearDetectedAddress },
+        detail: { coordinates, zoom, clearDetectedAddress },
       }))
     }
 
@@ -109,7 +133,7 @@ export function PublishExactAddressSync() {
       const city = (citySelect?.value || '').trim()
       if (!street || street.length < 3 || !city) return
 
-      const hasBuildingNumber = /\b\d+[A-Za-z]?\b/.test(street)
+      const hasBuildingNumber = Boolean(requestedHouseNumber(street))
       const hasFullPostcode = /^\d{5}$/.test(postcode)
       if (!hasBuildingNumber && !hasFullPostcode) return
 
@@ -130,7 +154,7 @@ export function PublishExactAddressSync() {
           addressComponents: result.address_components,
           coordinates,
         } }))
-        dispatchExactPoint(coordinates)
+        dispatchAddressPoint(coordinates, hasBuildingNumber ? EXACT_ADDRESS_ZOOM : STREET_ADDRESS_ZOOM)
       } catch {
         if (!cancelled && gate.isCurrent(version) && showError) {
           window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: notFoundMessage } }))
@@ -223,10 +247,12 @@ export function PublishExactAddressSync() {
       if (!detail.coordinates || detail.zoom != null) return
       const street = document.querySelector<HTMLInputElement>('#publish-street')?.value.trim() ?? ''
       const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')?.value.trim() ?? ''
-      if (!/\b\d+[A-Za-z]?\b/.test(street) && !/^\d{5}$/.test(postcode)) return
+      const hasBuildingNumber = Boolean(requestedHouseNumber(street))
+      const hasFullPostcode = /^\d{5}$/.test(postcode)
+      if (!hasBuildingNumber && !hasFullPostcode) return
       const coordinates = detail.coordinates
       queueMicrotask(() => {
-        if (!cancelled) dispatchExactPoint(coordinates, detail.clearDetectedAddress ?? true)
+        if (!cancelled) dispatchAddressPoint(coordinates, hasBuildingNumber ? EXACT_ADDRESS_ZOOM : STREET_ADDRESS_ZOOM, detail.clearDetectedAddress ?? true)
       })
     }
     window.addEventListener('112233:publish-location-selected', handleLocationSelected)
