@@ -26,7 +26,7 @@ async function expectExternalPopup(page: Page, action: () => Promise<void>) {
   await expect.poll(async () => (await popup).url()).toBe(externalListing.sourceUrl)
 }
 
-test('external mobile result and map preview expose native links to the original source', async ({ page }) => {
+test('external mobile result restores orange source CTA and map preview native links', async ({ page }) => {
   await page.addInitScript((listing) => {
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
@@ -36,6 +36,18 @@ test('external mobile result and map preview expose native links to the original
 
   const card = page.locator('.m2-result-card').first()
   await expect(card).toHaveAttribute('data-listing-id', externalListing.id)
+
+  const resultSourceCta = card.locator('.m2-external-source-cta')
+  await expect(resultSourceCta).toBeVisible()
+  await expect(resultSourceCta).toContainText('Consultar con el anunciante')
+  await expect(resultSourceCta).toHaveAttribute('role', 'link')
+  await expect(resultSourceCta).toHaveAttribute('data-external-source-url', externalListing.sourceUrl)
+  const ctaStyle = await resultSourceCta.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { borderTopWidth: style.borderTopWidth, borderTopColor: style.borderTopColor, cursor: style.cursor }
+  })
+  expect(ctaStyle).toEqual({ borderTopWidth: '2px', borderTopColor: 'rgb(243, 108, 33)', cursor: 'pointer' })
+  await expectExternalPopup(page, () => resultSourceCta.click())
   await expectExternalPopup(page, () => card.locator('.m2-result-card__image-button').click())
 
   await page.getByRole('button', { name: /Mapa/i }).click()
@@ -51,4 +63,14 @@ test('external mobile result and map preview expose native links to the original
   await expect(sourceCta).toHaveAttribute('href', externalListing.sourceUrl)
   await expect(sourceCta).toHaveAttribute('target', '_blank')
   await expectExternalPopup(page, () => sourceCta.click())
+})
+
+test('internal listing similar cards do not render the long lime top rule', async ({ page }) => {
+  await finishOnboarding(page)
+  await page.goto('/#/habitacion/arme%C3%B1ime-luminosa-01')
+
+  const similarCard = page.locator('.idealista-listing-page .listing-similar .property-card').first()
+  await expect(similarCard).toBeVisible()
+  const borderTopWidth = await similarCard.evaluate((element) => getComputedStyle(element).borderTopWidth)
+  expect(borderTopWidth).toBe('0px')
 })
