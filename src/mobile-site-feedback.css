@@ -1,9 +1,6 @@
 /* Mobile customer-feedback fixes. Imported last so it can safely override the
    preserved reference/light layers without changing desktop geometry. */
 
-/* The date label and native control previously competed for horizontal space.
-   Keep the same outer control footprint, but give the explanatory label a
-   wrapping row and the date picker the full width below it. */
 .m2-results-filter__pair--dates > label {
   height: 3.75rem;
   min-height: 3.75rem;
@@ -36,7 +33,6 @@
   text-align: left;
 }
 
-/* Legacy selectors remain harmless after the home controls were removed. */
 [data-mobile-home-extra-filters-host] {
   display: contents;
 }
@@ -101,7 +97,6 @@
   color: #3f5700;
 }
 
-/* Unknown imported facts remain informational on ordinary/internal cards. */
 .m2-result-card__badges span.m2-unknown-fact {
   padding: 0 !important;
   border: 0 !important;
@@ -116,8 +111,8 @@
   text-decoration: none !important;
 }
 
-/* Imported listings use the same client-approved lime treatment as the
-   requirement chips below ordinary result cards while remaining actionable. */
+/* External source CTA intentionally reuses the exact mobile requirement-chip
+   palette requested by the customer. */
 .m2-result-card__badges span.m2-external-source-cta {
   width: fit-content;
   max-width: 100%;
@@ -142,8 +137,8 @@
 
 .m2-result-card__badges span.m2-external-source-cta:hover {
   border-color: #708900;
-  background: #d9ea8c;
-  color: #263900;
+  background: #ddea91;
+  color: #304600;
 }
 
 .m2-result-card__badges span.m2-external-source-cta:focus-visible {
@@ -151,15 +146,10 @@
   outline-offset: 2px;
 }
 
-/* The customer screenshot exposed the global 3px property-card accent as a
-   long lime rule below an internal listing. Keep card accents elsewhere but
-   remove it from the similar-listings strip on listing detail. */
 .idealista-listing-page .listing-similar .property-card {
   border-top-width: 0 !important;
 }
 
-/* The product is light-only. Keep the explicit light account correction so
-   older dark account styles can never win in the cascade. */
 html.site-theme-light,
 html.site-theme-light body,
 html.site-theme-light #root,
