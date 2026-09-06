@@ -1,0 +1,26 @@
+/* Owner-side publication map: keep the full-width #154 form geometry, but give
+   the address/marker step enough vertical room to verify the exact building. */
+.publish-page .approximate-location-map-shell {
+  height: clamp(22rem, 54dvh, 34rem);
+  min-height: 22rem;
+}
+
+.publish-page .approximate-location-map,
+.publish-page .approximate-location-map .gm-style {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (min-width: 768px) {
+  .publish-page .approximate-location-map-shell {
+    height: clamp(26rem, 56vh, 38rem);
+    min-height: 26rem;
+  }
+}
+
+@media (max-height: 560px) and (max-width: 900px) {
+  .publish-page .approximate-location-map-shell {
+    height: 20rem;
+    min-height: 20rem;
+  }
+}
