@@ -104,10 +104,6 @@ function ListingLocationMap({ coordinates, interactive = false }: ListingLocatio
       mapRef.current = map
       markerRef.current = locationMarker
 
-      // The preview is born at its final size. Repeated resize events on some
-      // Android/WebView combinations can leave a stale Google render layer in
-      // the middle of the preview. Only the true fullscreen map needs live
-      // resize handling for browser chrome/orientation changes.
       if (interactive) {
         resizeObserver = new ResizeObserver(() => {
           const center = map.getCenter()
