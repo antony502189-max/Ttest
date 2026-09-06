@@ -111,8 +111,6 @@
   text-decoration: none !important;
 }
 
-/* External source CTA intentionally reuses the exact mobile requirement-chip
-   palette requested by the customer. */
 .m2-result-card__badges span.m2-external-source-cta {
   width: fit-content;
   max-width: 100%;
