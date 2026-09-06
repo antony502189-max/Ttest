@@ -59,7 +59,7 @@ export function Header() {
 
 export function MobileHeader() {
   const { currentUser } = useApp()
-  return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher />{currentUser ? <NotificationLink mobile /> : null}<Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir меню"><Menu /></Link></div></header>
+  return <header className="mobile-header"><Logo compact /><div className="mobile-header__actions"><LanguageSwitcher />{currentUser ? <NotificationLink mobile /> : null}<Link to={currentUser ? '/perfil' : '/acceso'} className="mobile-icon-link" aria-label={currentUser ? 'Abrir mi cuenta' : 'Acceder'}><UserRound /></Link><Link to="/menu" className="mobile-icon-link" aria-label="Abrir menú"><Menu /></Link></div></header>
 }
 
 const bottomItems = [{ to: '/', label: 'Inicio', icon: Home }, { to: '/favoritos', label: 'Favoritos', icon: Heart }, { to: '/buscar', label: 'Buscar', icon: Search }, { to: '/perfil', label: 'Perfil', icon: UserRound }]
