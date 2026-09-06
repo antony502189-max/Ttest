@@ -100,7 +100,7 @@ test('municipality focus clears a previously detected street shown under the map
   await expect(page.locator('.approximate-location-map-address')).toHaveCount(0)
 })
 
-test('address selection recenters the exact publication point at a deliberately distant zoom', async ({ page }) => {
+test('address selection recenters the exact publication point at exact-building zoom', async ({ page }) => {
   await openPublishLocation(page)
   const selected = { lat: 28.083, lng: -16.73 }
   await page.evaluate((coordinates) => {
@@ -124,10 +124,10 @@ test('address selection recenters the exact publication point at a deliberately 
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: center.lat(), lng: center.lng() } : null
   })).toEqual(selected)
-  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(13)
-
-  await page.evaluate(() => window.__googleMapsTestLastMap?.setZoom(18))
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
+
+  await page.evaluate(() => window.__googleMapsTestLastMap?.setZoom(20))
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(20)
 })
 
 test('map pan leaves publication location and address unchanged', async ({ page }) => {
