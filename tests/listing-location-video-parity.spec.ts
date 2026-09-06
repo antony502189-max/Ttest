@@ -19,24 +19,22 @@ test('listing location follows the customer street-map interaction without expos
   await expect(location.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' })).toBeVisible()
   await expect(location.locator('.listing-location-google-map')).toHaveAttribute('aria-label', 'Mapa de la ubicación aproximada del anuncio')
 
-  // The public card keeps the privacy contract from the publication sync work:
-  // no owner-only street/postcode fields are rendered as the visible location.
   await expect(location).not.toContainText(/386\d{2}/)
   await expect(location).not.toContainText(/Calle\s+\S+\s+\d+/i)
 })
 
-test('listing map opens a full-screen zoomable Google roadmap at street level', async ({ page }) => {
+test('listing map opens a true full-screen zoomable Google roadmap with a back control', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
   await page.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' }).click()
 
-  const dialog = page.getByRole('dialog')
+  const dialog = page.getByRole('dialog', { name: 'Ubicación' })
   const mapCanvas = dialog.locator('.listing-location-dialog__map .listing-location-google-map')
+  const back = dialog.getByRole('button', { name: 'Volver al anuncio' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
   await expect(mapCanvas).toBeVisible()
-  await expect(dialog.getByRole('link', { name: 'Calcular ruta' })).toHaveAttribute('target', '_blank')
-  await expect(dialog.getByRole('link', { name: 'Street View' })).toHaveAttribute('target', '_blank')
+  await expect(back).toBeVisible()
+  await expect(back).toBeFocused()
 
   const options = await page.evaluate(() => {
     const map = window.__googleMapsTestLastMap
@@ -70,14 +68,18 @@ test('listing map opens a full-screen zoomable Google roadmap at street level', 
   expect(box!.y).toBeLessThanOrEqual(1)
   expect(box!.width).toBeGreaterThanOrEqual(388)
   expect(box!.height).toBeGreaterThanOrEqual(842)
+  await expect(dialog.locator('[data-slot="dialog-content"]')).toHaveCount(0)
+
+  await back.click()
+  await expect(dialog).toHaveCount(0)
 })
 
-test('customer Android recording viewport keeps the location map edge-to-edge', async ({ page }) => {
+test('customer Android recording viewport keeps the portaled map edge-to-edge', async ({ page }) => {
   await page.setViewportSize({ width: 588, height: 1280 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
   await page.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' }).click()
 
-  const dialog = page.getByRole('dialog')
+  const dialog = page.getByRole('dialog', { name: 'Ubicación' })
   const mapShell = dialog.locator('.listing-location-dialog__map .listing-location-google-map-shell')
   await expect(dialog).toBeVisible()
   await expect(mapShell).toBeVisible()
@@ -91,7 +93,9 @@ test('customer Android recording viewport keeps the location map edge-to-edge', 
   expect(dialogBox!.width).toBeGreaterThanOrEqual(586)
   expect(dialogBox!.height).toBeGreaterThanOrEqual(1278)
   expect(mapBox!.x).toBeLessThanOrEqual(1)
+  expect(mapBox!.y).toBeLessThanOrEqual(1)
   expect(mapBox!.width).toBeGreaterThanOrEqual(586)
+  expect(mapBox!.height).toBeGreaterThanOrEqual(1278)
 
   const layout = await dialog.evaluate((element) => {
     const style = getComputedStyle(element)
@@ -99,6 +103,7 @@ test('customer Android recording viewport keeps the location map edge-to-edge', 
       position: style.position,
       left: style.left,
       right: style.right,
+      width: style.width,
       maxWidth: style.maxWidth,
       transform: style.transform,
     }
@@ -106,8 +111,38 @@ test('customer Android recording viewport keeps the location map edge-to-edge', 
   expect(layout.position).toBe('fixed')
   expect(layout.left).toBe('0px')
   expect(layout.right).toBe('0px')
-  expect(layout.maxWidth).toBe('588px')
+  expect(layout.width).toBe('588px')
+  expect(layout.maxWidth).toBe('none')
   expect(layout.transform).toBe('none')
+})
+
+test('preview uses a compact launch button and does not clamp Google map tile images', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+
+  const preview = page.locator('.listing-location-preview')
+  const open = preview.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' })
+  const previewBox = await preview.boundingBox()
+  const buttonBox = await open.boundingBox()
+  expect(previewBox).not.toBeNull()
+  expect(buttonBox).not.toBeNull()
+  expect(buttonBox!.width).toBeLessThan(previewBox!.width * 0.6)
+  expect(buttonBox!.height).toBeLessThan(previewBox!.height * 0.3)
+
+  const maxWidth = await page.evaluate(() => {
+    const map = document.querySelector('.listing-location-google-map')
+    if (!map) return null
+    const gm = document.createElement('div')
+    gm.className = 'gm-style'
+    const image = document.createElement('img')
+    image.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+    gm.appendChild(image)
+    map.appendChild(gm)
+    const value = getComputedStyle(image).maxWidth
+    gm.remove()
+    return value
+  })
+  expect(maxWidth).toBe('none')
 })
 
 test('customer location controls are fully localized in English and Russian', async ({ page }) => {
