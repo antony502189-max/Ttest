@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Expand, Navigation } from 'lucide-react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { createPortal } from 'react-dom'
+import { ArrowLeft, Camera, Expand, Navigation } from 'lucide-react'
 import { useI18n } from '@/contexts/i18n-context'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS } from '@/lib/tenerife'
@@ -20,7 +20,7 @@ const locationCopy = {
     openMapAria: 'Abrir mapa de ubicación a pantalla completa',
     openMap: 'Ver mapa',
     dialogTitle: 'Ubicación',
-    dialogDescription: 'Consulta las calles de la zona, amplía el mapa o abre la ruta y Street View.',
+    closeMap: 'Volver al anuncio',
   },
   en: {
     mapAria: 'Map of the listing’s approximate location',
@@ -34,7 +34,7 @@ const locationCopy = {
     openMapAria: 'Open the location map full screen',
     openMap: 'View map',
     dialogTitle: 'Location',
-    dialogDescription: 'Explore nearby streets, zoom the map, or open directions and Street View.',
+    closeMap: 'Back to listing',
   },
   ru: {
     mapAria: 'Карта примерного местоположения объявления',
@@ -48,7 +48,7 @@ const locationCopy = {
     openMapAria: 'Открыть карту местоположения на весь экран',
     openMap: 'Открыть карту',
     dialogTitle: 'Местоположение',
-    dialogDescription: 'Посмотрите улицы района, увеличьте карту или откройте маршрут и Street View.',
+    closeMap: 'Назад к объявлению',
   },
 } as const
 
@@ -78,8 +78,6 @@ function ListingLocationMap({ coordinates, interactive = false }: ListingLocatio
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const map = new maps.Map(containerRef.current, {
         center: coordinates,
-        // Customer reference is street-first: start close enough that road names
-        // are immediately useful, then allow normal Google Maps zoom/pan.
         zoom: interactive ? 18 : 16,
         minZoom: 11,
         maxZoom: 20,
@@ -105,12 +103,19 @@ function ListingLocationMap({ coordinates, interactive = false }: ListingLocatio
       })
       mapRef.current = map
       markerRef.current = locationMarker
-      resizeObserver = new ResizeObserver(() => {
-        const center = map.getCenter()
-        google.maps.event.trigger(map, 'resize')
-        if (center) map.setCenter(center)
-      })
-      resizeObserver.observe(containerRef.current)
+
+      // The preview is born at its final size. Repeated resize events on some
+      // Android/WebView combinations can leave a stale Google render layer in
+      // the middle of the preview. Only the true fullscreen map needs live
+      // resize handling for browser chrome/orientation changes.
+      if (interactive) {
+        resizeObserver = new ResizeObserver(() => {
+          const center = map.getCenter()
+          google.maps.event.trigger(map, 'resize')
+          if (center) map.setCenter(center)
+        })
+        resizeObserver.observe(containerRef.current)
+      }
       setError('')
     }).catch((loadError) => {
       if (!cancelled) setError(googleMapsErrorMessage(loadError))
@@ -143,14 +148,41 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
   const { language } = useI18n()
   const t = locationCopy[language]
   const [open, setOpen] = useState(false)
+  const backButtonRef = useRef<HTMLButtonElement>(null)
   const destination = `${listing.coordinates.lat},${listing.coordinates.lng}`
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
   const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeURIComponent(destination)}`
+
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    requestAnimationFrame(() => backButtonRef.current?.focus({ preventScroll: true }))
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
 
   const actions = <div className="listing-location-actions" aria-label={t.actionsAria}>
     <a href={directionsUrl} target="_blank" rel="noopener noreferrer"><Navigation aria-hidden="true" />{t.directions}</a>
     <a href={streetViewUrl} target="_blank" rel="noopener noreferrer"><Camera aria-hidden="true" />{t.streetView}</a>
   </div>
+
+  const fullscreenMap = open ? createPortal(
+    <div className="listing-location-dialog" role="dialog" aria-modal="true" aria-label={t.dialogTitle}>
+      <div className="listing-location-dialog__map"><ListingLocationMap coordinates={listing.coordinates} interactive /></div>
+      <button ref={backButtonRef} type="button" className="listing-location-dialog__back" onClick={() => setOpen(false)} aria-label={t.closeMap}>
+        <ArrowLeft aria-hidden="true" />
+      </button>
+      <h2 className="sr-only">{t.dialogTitle}</h2>
+    </div>,
+    document.body,
+  ) : null
 
   return <>
     <section className="listing-section listing-location-section">
@@ -160,20 +192,10 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
       <div className="listing-location-preview">
         <div className="listing-location-preview__map" aria-hidden="true"><ListingLocationMap coordinates={listing.coordinates} /></div>
         <button type="button" className="listing-location-preview__open" onClick={() => setOpen(true)} aria-label={t.openMapAria}>
-          <span><Expand aria-hidden="true" />{t.openMap}</span>
+          <Expand aria-hidden="true" /><span>{t.openMap}</span>
         </button>
       </div>
     </section>
-
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="listing-location-dialog">
-        <DialogHeader className="listing-location-dialog__header">
-          <DialogTitle>{t.dialogTitle}</DialogTitle>
-          <DialogDescription>{t.dialogDescription}</DialogDescription>
-        </DialogHeader>
-        <div className="listing-location-dialog__actions">{actions}</div>
-        <div className="listing-location-dialog__map"><ListingLocationMap coordinates={listing.coordinates} interactive /></div>
-      </DialogContent>
-    </Dialog>
+    {fullscreenMap}
   </>
 }
