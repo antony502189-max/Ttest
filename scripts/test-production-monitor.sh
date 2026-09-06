@@ -38,13 +38,13 @@ write_fake_docker() {
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1" == "inspect" ]]; then
-  if [[ -n "${FAKE_INSPECT_MARKER:-}" ]]; then
+  if [[ -n "${FAKE_INSPECT_MARKER:-}" && ! -e "$FAKE_INSPECT_MARKER" ]]; then
     : > "$FAKE_INSPECT_MARKER"
+    if [[ -n "${FAKE_INSPECT_DELAY:-}" ]]; then
+      sleep "$FAKE_INSPECT_DELAY"
+    fi
   fi
-  if [[ -n "${FAKE_INSPECT_DELAY:-}" ]]; then
-    sleep "$FAKE_INSPECT_DELAY"
-  fi
-  echo 'running|healthy'
+  echo "${FAKE_INSPECT_RESULT:-running|healthy}"
   exit 0
 fi
 if [[ "$1" == "compose" ]]; then
@@ -100,6 +100,11 @@ run_case() {
 run_case healthy 0 \
   FAKE_STATE_ROW='healthy|10|100' \
   FAKE_CYCLE_ROW='run-healthy|4|100'
+
+run_case core-service-unhealthy 1 \
+  FAKE_INSPECT_RESULT='running|unhealthy' \
+  FAKE_STATE_ROW='healthy|10|100' \
+  FAKE_CYCLE_ROW='run-unused|4|100'
 
 cp "$TEST_DIR/root/shared/production.env" "$TEST_DIR/root/shared/production.env.original"
 sed -i \

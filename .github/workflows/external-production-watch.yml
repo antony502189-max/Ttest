@@ -1,0 +1,92 @@
+name: External production watch
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: external-production-watch
+  cancel-in-progress: false
+
+jobs:
+  public-origin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      APP_DOMAIN: app.112233.es
+      OUTAGE_ISSUE_TITLE: "[monitor] Production origin unavailable"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout monitor definition
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Probe public production origin
+        id: probe
+        shell: bash
+        run: |
+          set +e
+          output=""
+          rc=1
+          for attempt in 1 2 3; do
+            output="$(PUBLIC_SMOKE_TIMEOUT_SECONDS=15 bash deploy/verify-public-origin.sh 2>&1)"
+            rc=$?
+            if [[ "$rc" -eq 0 ]]; then
+              break
+            fi
+            [[ "$attempt" -eq 3 ]] || sleep 10
+          done
+          set -e
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" > "$RUNNER_TEMP/production-probe-output.txt"
+          printf 'rc=%s\n' "$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Open one deduplicated outage issue
+        if: steps.probe.outputs.rc != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(
+            gh issue list --state open --search 'in:title "[monitor] Production origin unavailable"' --limit 10 --json number,title \
+              --jq '.[] | select(.title == "[monitor] Production origin unavailable") | .number'
+          )"
+          existing="${existing%%$'\n'*}"
+          if [[ -z "$existing" ]]; then
+            body_file="$RUNNER_TEMP/production-outage-issue.md"
+            {
+              printf 'Automated external availability check failed from GitHub Actions.\n\n'
+              printf 'Time (UTC): %s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+              printf 'Origin: https://%s\n' "$APP_DOMAIN"
+              printf 'Workflow: %s/%s/actions/runs/%s\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+              printf 'Probe output:\n```\n'
+              cat "$RUNNER_TEMP/production-probe-output.txt"
+              printf '\n```\n'
+            } > "$body_file"
+            gh issue create --title "$OUTAGE_ISSUE_TITLE" --body-file "$body_file"
+          fi
+
+      - name: Close outage issue after recovery
+        if: steps.probe.outputs.rc == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(
+            gh issue list --state open --search 'in:title "[monitor] Production origin unavailable"' --limit 10 --json number,title \
+              --jq '.[] | select(.title == "[monitor] Production origin unavailable") | .number'
+          )"
+          existing="${existing%%$'\n'*}"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body "Recovered at $(date -u +'%Y-%m-%dT%H:%M:%SZ'). External production probe is healthy again."
+            gh issue close "$existing" --reason completed
+          fi
+
+      - name: Fail workflow on outage
+        if: steps.probe.outputs.rc != '0'
+        shell: bash
+        run: exit 1

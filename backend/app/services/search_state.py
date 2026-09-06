@@ -12,6 +12,7 @@ from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHis
 from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
 from .moderation import active_window, enforce_listing_view_access
+from .user_locks import lock_user_for_mutation
 
 MAX_HISTORY = 20
 
@@ -68,6 +69,21 @@ def collection_query(model, user_id: UUID):
     )
 
 
+async def lock_active_state_user(user_id: UUID, session: AsyncSession) -> User:
+    """Serialize all durable per-user search state with account deletion.
+
+    Users are soft-deleted, so foreign keys alone cannot prevent a request that
+    loaded the account before deletion from re-creating favorites, saved
+    searches or history after the deletion transaction has cleaned them up.
+    Locking/repopulating the User row first gives these writes the same durable
+    identity boundary used by listing/profile mutations.
+    """
+    user = await lock_user_for_mutation(user_id, session)
+    if not user or user.blocked or user.deleted_at is not None:
+        raise HTTPException(404, "User not found")
+    return user
+
+
 async def lock_collection(model, user_id: UUID, session: AsyncSession) -> None:
     await session.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
@@ -97,6 +113,7 @@ async def list_collection(model, user: User, session: AsyncSession) -> list[UUID
 
 
 async def add_collection_item(model, constraint: str, listing_id: UUID, user: User, session: AsyncSession) -> None:
+    user = await lock_active_state_user(user.id, session)
     await enforce_listing_view_access(user, session)
     await require_listing(listing_id, session)
     await lock_collection(model, user.id, session)
@@ -115,12 +132,14 @@ async def add_collection_item(model, constraint: str, listing_id: UUID, user: Us
 
 
 async def remove_collection_item(model, listing_id: UUID, user: User, session: AsyncSession) -> None:
+    user = await lock_active_state_user(user.id, session)
     await enforce_listing_view_access(user, session)
     await session.execute(delete(model).where(model.user_id == user.id, model.listing_id == listing_id))
     await session.commit()
 
 
 async def clear_collection(model, user: User, session: AsyncSession) -> None:
+    user = await lock_active_state_user(user.id, session)
     await enforce_listing_view_access(user, session)
     await session.execute(delete(model).where(model.user_id == user.id))
     await session.commit()
@@ -157,6 +176,7 @@ async def saved_search_count(user_id: UUID, session: AsyncSession) -> int:
 
 
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:
+    user = await lock_active_state_user(user.id, session)
     await enforce_listing_view_access(user, session)
     settings = get_settings()
     requested_ids = valid_uuid_values(payload.favoriteIds)
@@ -258,6 +278,7 @@ async def create_saved_search(
     user: User,
     session: AsyncSession,
 ) -> SavedSearchResponse:
+    user = await lock_active_state_user(user.id, session)
     settings = get_settings()
     await lock_saved_searches(user.id, session)
     if await saved_search_count(user.id, session) >= settings.max_saved_searches_per_user:
@@ -283,8 +304,9 @@ async def update_saved_search(
     user: User,
     session: AsyncSession,
 ) -> SavedSearchResponse:
+    user = await lock_active_state_user(user.id, session)
     search = await session.scalar(
-        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id)
+        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id).with_for_update()
     )
     if not search:
         raise HTTPException(404, "Saved search not found")
@@ -300,8 +322,9 @@ async def update_saved_search(
 
 
 async def delete_saved_search(search_id: UUID, user: User, session: AsyncSession) -> None:
+    user = await lock_active_state_user(user.id, session)
     search = await session.scalar(
-        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id)
+        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id).with_for_update()
     )
     if not search:
         raise HTTPException(404, "Saved search not found")
@@ -326,6 +349,7 @@ async def add_history(query: str, user: User, session: AsyncSession) -> None:
     normalized = " ".join(query.split())
     if not normalized:
         return
+    user = await lock_active_state_user(user.id, session)
     await lock_search_history(user.id, session)
     await session.execute(
         delete(SearchHistory).where(
@@ -349,6 +373,7 @@ async def add_history(query: str, user: User, session: AsyncSession) -> None:
 
 
 async def clear_history(user: User, session: AsyncSession) -> None:
+    user = await lock_active_state_user(user.id, session)
     await lock_search_history(user.id, session)
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == user.id))
     await session.commit()

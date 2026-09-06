@@ -26,6 +26,7 @@ from ..core.security import (
 from ..models import AuthSession, EmailVerificationToken, PasswordResetToken, User
 from ..schemas.auth import GoogleLoginRequest, RegisterRequest
 from .mail import enqueue_email_verification, enqueue_password_reset
+from .user_locks import lock_user_for_mutation
 
 PASSWORD_RESET_COOLDOWN = timedelta(seconds=60)
 PASSWORD_RESET_WINDOW = timedelta(hours=1)
@@ -132,7 +133,13 @@ async def issue_session(
     client_ip: str,
     previous_session: AuthSession | None = None,
     sessions_locked: bool = False,
+    user_locked: bool = False,
 ) -> AuthResult:
+    if not user_locked:
+        locked_user = await lock_user_for_mutation(user.id, session)
+        if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+            raise HTTPException(401, "Authentication required")
+        user = locked_user
     settings = get_settings()
     now = datetime.now(UTC)
     await prepare_session_issuance(
@@ -305,6 +312,12 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
     if not user or user.blocked or user.deleted_at:
         return response
 
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+        await session.rollback()
+        return response
+    user = locked_user
+
     now = datetime.now(UTC)
     settings = get_settings()
     # Serialize by account so distributed callers cannot race the cooldown and
@@ -356,19 +369,33 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
 
 async def reset_user_password(raw_token: str, password: str, session: AsyncSession) -> None:
     now = datetime.now(UTC)
+    candidate = (
+        await session.execute(
+            select(PasswordResetToken.id, PasswordResetToken.user_id)
+            .where(
+                PasswordResetToken.token_hash == token_hash(raw_token),
+                PasswordResetToken.consumed_at.is_(None),
+                PasswordResetToken.expires_at > now,
+            )
+        )
+    ).one_or_none()
+    if not candidate:
+        raise HTTPException(400, "The password reset link is invalid or has expired")
+    reset_id, user_id = candidate
+    user = await lock_user_for_mutation(user_id, session)
+    if not user or user.blocked or user.deleted_at:
+        raise HTTPException(400, "The password reset link is invalid or has expired")
     reset = await session.scalar(
         select(PasswordResetToken)
         .where(
-            PasswordResetToken.token_hash == token_hash(raw_token),
+            PasswordResetToken.id == reset_id,
             PasswordResetToken.consumed_at.is_(None),
             PasswordResetToken.expires_at > now,
         )
+        .execution_options(populate_existing=True)
         .with_for_update()
     )
     if not reset:
-        raise HTTPException(400, "The password reset link is invalid or has expired")
-    user = await session.get(User, reset.user_id)
-    if not user or user.blocked or user.deleted_at:
         raise HTTPException(400, "The password reset link is invalid or has expired")
     user.password_hash = await hash_password_async(password)
     reset.consumed_at = now
@@ -382,6 +409,10 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
 
 
 async def request_verification(user: User, session: AsyncSession) -> dict[str, str | int]:
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+        raise HTTPException(403, "Account is not active")
+    user = locked_user
     response: dict[str, str | int] = {
         "message": "If needed, a six-digit verification code has been sent.",
         "email": masked_email(user.email),
@@ -430,6 +461,10 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
 
 async def verify_user_email(user: User, code: str, session: AsyncSession) -> None:
     now = datetime.now(UTC)
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+        raise HTTPException(403, "Account is not active")
+    user = locked_user
     verification = await session.scalar(
         select(EmailVerificationToken)
         .where(
@@ -466,8 +501,12 @@ async def refresh_user_session(
     if not candidate or candidate.expires_at <= now:
         raise HTTPException(401, "Invalid refresh token")
 
-    # Establish the same account-level lock order used by login/session issuance
-    # before taking the row lock, preventing cross-flow deadlocks.
+    # Establish User -> session advisory lock -> session row. Account deletion
+    # begins with the same User row, so refresh cannot recreate a session after
+    # deletion or invert the lock order while deletion removes session rows.
+    user = await lock_user_for_mutation(candidate.user_id, session)
+    if not user or user.blocked or user.deleted_at:
+        raise HTTPException(401, "Authentication required")
     await lock_user_sessions(candidate.user_id, session)
     auth = await session.scalar(
         select(AuthSession).where(AuthSession.token_hash == hashed_token).with_for_update()
@@ -483,11 +522,6 @@ async def refresh_user_session(
             )
             await session.commit()
         raise HTTPException(401, "Invalid refresh token")
-    user = await session.get(User, auth.user_id)
-    if not user or user.blocked or user.deleted_at:
-        auth.revoked_at = now
-        await session.commit()
-        raise HTTPException(401, "Authentication required")
     return await issue_session(
         user,
         session,
@@ -495,6 +529,7 @@ async def refresh_user_session(
         client_ip=client_ip,
         previous_session=auth,
         sessions_locked=True,
+        user_locked=True,
     )
 
 

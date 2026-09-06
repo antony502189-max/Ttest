@@ -24,6 +24,7 @@ from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
 from .storage_deletions import enqueue_storage_deletions
+from .user_locks import lock_user_for_mutation
 from .users import apply_profile_fields
 
 # This is deliberately independent from the product role and AdminAccess
@@ -117,13 +118,8 @@ async def _lock_active_user(user_id: UUID, session: AsyncSession) -> User:
     ``populate_existing`` makes the post-wait deletion check authoritative even
     when SQLAlchemy already has the user in its identity map.
     """
-    user = await session.scalar(
-        select(User)
-        .where(User.id == user_id)
-        .execution_options(populate_existing=True)
-        .with_for_update()
-    )
-    if not user or user.deleted_at is not None:
+    user = await lock_user_for_mutation(user_id, session)
+    if not user or user.blocked or user.deleted_at is not None:
         raise HTTPException(404, "User not found")
     return user
 
