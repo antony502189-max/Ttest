@@ -62,16 +62,10 @@
   height: 100%;
 }
 
-/* Tailwind/preflight image constraints can distort Google raster tiles on
-   Android and leave a horizontal blank seam between rendered rows. Google
-   controls the tile dimensions itself, so do not clamp images inside the map. */
 .listing-location-google-map .gm-style img {
   max-width: none !important;
 }
 
-/* Keep the launch control a real small control instead of a viewport-sized
-   transparent button layered over Google Maps. The old full-surface button was
-   unnecessary and could become a visible white strip in mobile compositing. */
 .listing-location-preview__open {
   position: absolute;
   right: .75rem;
@@ -98,9 +92,6 @@
   height: 1rem;
 }
 
-/* Do not use the shared modal component for the customer map. This element is
-   portaled directly to document.body and is the viewport itself, so no generic
-   max-width, transform or breakpoint can shrink it to the upper-left corner. */
 .listing-location-dialog {
   position: fixed !important;
   inset: 0 !important;
