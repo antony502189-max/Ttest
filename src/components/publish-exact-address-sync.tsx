@@ -13,12 +13,17 @@ declare global {
 }
 
 type PlaceAutocompleteWithValue = google.maps.places.PlaceAutocompleteElement & { value?: string }
+type SelectedLocationDetail = { coordinates?: Coordinates; zoom?: number; clearDetectedAddress?: boolean }
 
 const EXACT_ADDRESS_ZOOM = 18
 const ADDRESS_DEBOUNCE_MS = 650
 
 function component(result: google.maps.GeocoderResult, type: string) {
   return result.address_components?.find((item) => item.types.includes(type))?.long_name?.trim() ?? ''
+}
+
+function normalizeHouseNumber(value: string) {
+  return value.trim().toLocaleLowerCase().replace(/[\s-]+/g, '')
 }
 
 function resultCoordinates(result: google.maps.GeocoderResult): Coordinates | null {
@@ -48,7 +53,7 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
   const requestedNumber = street.match(/\b\d+[A-Za-z]?\b/)?.[0] ?? ''
   if (requestedNumber) {
     const resolvedNumber = component(result, 'street_number')
-    if (!resolvedNumber && !resultTypes.some((type) => ['premise', 'subpremise'].includes(type))) return false
+    if (!resolvedNumber || normalizeHouseNumber(resolvedNumber) !== normalizeHouseNumber(requestedNumber)) return false
   }
   return true
 }
@@ -186,33 +191,11 @@ export function PublishExactAddressSync() {
         rawAutocompleteStreet = (element.value ?? rawAutocompleteStreet).trim()
         if (rawAutocompleteStreet) schedule(rawAutocompleteStreet, true)
       }
-      const onSelect = async (rawEvent: Event) => {
-        cancelPending()
-        const version = gate.next()
-        try {
-          const event = rawEvent as google.maps.places.PlacePredictionSelectEvent
-          const place = event.placePrediction.toPlace()
-          await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
-          if (cancelled || !gate.isCurrent(version) || !place.location) return
-          const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
-          if (!isInsideTenerife(coordinates)) return
-          window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail: {
-            formattedAddress: place.formattedAddress ?? '',
-            addressComponents: place.addressComponents ?? [],
-            coordinates,
-          } }))
-          dispatchExactPoint(coordinates)
-        } catch {
-          // The original publication autocomplete remains the fallback path.
-        }
-      }
       element.addEventListener('input', onInput)
       element.addEventListener('blur', onBlur)
-      element.addEventListener('gmp-select', onSelect)
       cleanups.set(element, () => {
         element.removeEventListener('input', onInput)
         element.removeEventListener('blur', onBlur)
-        element.removeEventListener('gmp-select', onSelect)
       })
     }
 
@@ -234,10 +217,28 @@ export function PublishExactAddressSync() {
       if (autocomplete) setupAutocomplete(autocomplete)
     }
 
-    const onMapPointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest('.approximate-location-map')) cancelPending()
+    const handleLocationSelected = (event: Event) => {
+      const detail = (event as CustomEvent<SelectedLocationDetail>).detail ?? {}
+      cancelPending()
+      if (!detail.coordinates || detail.zoom != null) return
+      const street = document.querySelector<HTMLInputElement>('#publish-street')?.value.trim() ?? ''
+      const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')?.value.trim() ?? ''
+      if (!/\b\d+[A-Za-z]?\b/.test(street) && !/^\d{5}$/.test(postcode)) return
+      const coordinates = detail.coordinates
+      queueMicrotask(() => {
+        if (!cancelled) dispatchExactPoint(coordinates, detail.clearDetectedAddress ?? true)
+      })
     }
-    document.addEventListener('pointerdown', onMapPointerDown, true)
+    window.addEventListener('112233:publish-location-selected', handleLocationSelected)
+
+    const isManualLocationControl = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest(
+      '.approximate-location-map, .approximate-location-selector > button, .approximate-location-selector__grid button',
+    ))
+    const handleManualLocationControl = (event: Event) => {
+      if (isManualLocationControl(event.target)) cancelPending()
+    }
+    document.addEventListener('pointerdown', handleManualLocationControl, true)
+    document.addEventListener('click', handleManualLocationControl, true)
 
     const observer = new MutationObserver(setup)
     observer.observe(document.body, { childList: true, subtree: true })
@@ -247,7 +248,9 @@ export function PublishExactAddressSync() {
       cancelled = true
       cancelPending()
       observer.disconnect()
-      document.removeEventListener('pointerdown', onMapPointerDown, true)
+      window.removeEventListener('112233:publish-location-selected', handleLocationSelected)
+      document.removeEventListener('pointerdown', handleManualLocationControl, true)
+      document.removeEventListener('click', handleManualLocationControl, true)
       cleanups.forEach((cleanup) => cleanup())
       cleanups.clear()
     }
