@@ -44,7 +44,7 @@ test('publication map ignores a late reverse-geocode response after a controlled
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
 })
 
-test('manual municipality change clears stale address data and moves the map to that municipality at a distant zoom', async ({ page }) => {
+test('manual municipality change clears stale address data and moves the map to the municipality polygon center at a distant zoom', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('Armeñime')
   await page.getByLabel('Calle').fill('Calle antigua 8')
@@ -59,9 +59,9 @@ test('manual municipality change clears stale address data and moves the map to 
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
-  })).toEqual({ lat: 28.1773, lng: -16.481 })
+  })).toEqual({ lat: 28.1925, lng: -16.5042 })
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
-  await expect(page.locator('.approximate-location-selector output')).toContainText('28.1773, -16.4810')
+  await expect(page.locator('.approximate-location-selector output')).toContainText('28.1925, -16.5042')
 })
 
 test('municipality without a hard-coded center still recenters from bundled Tenerife geometry', async ({ page }) => {
