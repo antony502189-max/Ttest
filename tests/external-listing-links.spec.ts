@@ -26,7 +26,7 @@ async function expectExternalPopup(page: Page, action: () => Promise<void>) {
   await expect.poll(async () => (await popup).url()).toBe(externalListing.sourceUrl)
 }
 
-test('external mobile result restores orange source CTA and map preview native links', async ({ page }) => {
+test('external mobile result uses the same lime source CTA treatment as requirement chips and keeps native links', async ({ page }) => {
   await page.addInitScript((listing) => {
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
@@ -44,9 +44,21 @@ test('external mobile result restores orange source CTA and map preview native l
   await expect(resultSourceCta).toHaveAttribute('data-external-source-url', externalListing.sourceUrl)
   const ctaStyle = await resultSourceCta.evaluate((element) => {
     const style = getComputedStyle(element)
-    return { borderTopWidth: style.borderTopWidth, borderTopColor: style.borderTopColor, cursor: style.cursor }
+    return {
+      borderTopWidth: style.borderTopWidth,
+      borderTopColor: style.borderTopColor,
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+      cursor: style.cursor,
+    }
   })
-  expect(ctaStyle).toEqual({ borderTopWidth: '2px', borderTopColor: 'rgb(243, 108, 33)', cursor: 'pointer' })
+  expect(ctaStyle).toEqual({
+    borderTopWidth: '2px',
+    borderTopColor: 'rgb(132, 169, 0)',
+    backgroundColor: 'rgb(228, 242, 163)',
+    color: 'rgb(48, 70, 0)',
+    cursor: 'pointer',
+  })
   await expectExternalPopup(page, () => resultSourceCta.click())
   await expectExternalPopup(page, () => card.locator('.m2-result-card__image-button').click())
 
