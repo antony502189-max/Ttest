@@ -25,6 +25,7 @@ import './customer-card-clickability'
 import './mobile-publish-layout-hotfix.css'
 import './mobile-site-feedback.css'
 import './publish-select-canonical-values'
+import './customer-listing-photo-fit.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

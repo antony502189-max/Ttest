@@ -101,9 +101,14 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       }
 
       const resolveAddress = async (point: Coordinates) => {
-        if (!geocoder || cancelled) return
+        if (cancelled) return
         const version = requestGateRef.current.next()
         try {
+          if (!geocoder) {
+            const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
+            if (cancelled || !requestGateRef.current.isCurrent(version)) return
+            geocoder = new geocoding.Geocoder()
+          }
           const response = await geocoder.geocode({ location: point })
           const result = response.results[0]
           if (!result || cancelled || !requestGateRef.current.isCurrent(version)) return

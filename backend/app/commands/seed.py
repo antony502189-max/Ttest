@@ -19,7 +19,7 @@ DEMO_USERS = (
 
 PLACES = (
     ("Adeje", "Costa Adeje", 28.0902, -16.7260),
-    ("Adeje", "Armeñime", 28.1272, -16.7390),
+    ("Adeje", "Armeñime", 28.12976, -16.75563),
     ("Arona", "Playa de las Américas", 28.0640, -16.7310),
     ("Arona", "Los Cristianos", 28.0509, -16.7172),
     ("Granadilla de Abona", "San Isidro", 28.0770, -16.5580),
