@@ -72,3 +72,44 @@ test('postcode embedded in a pasted full address is not mistaken for the buildin
     'Calle José Espronceda 20, 38678, Armeñime, Santa Cruz de Tenerife, Tenerife, Spain',
   )
 })
+
+test('pasted full address overrides fresh-draft postcode and area defaults', async ({ page }) => {
+  await openPublishLocation(page)
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38678')
+
+  await page.evaluate(() => {
+    const holder = window as Window & { __friendlyAddressQueries?: string[] }
+    holder.__friendlyAddressQueries = []
+    window.__112233TestAddressGeocode = async (query) => {
+      holder.__friendlyAddressQueries?.push(query)
+      return [({
+        formatted_address: 'Avenida Juan Carlos I 20, 38650 Los Cristianos, Arona, Santa Cruz de Tenerife, Spain',
+        types: ['street_address'],
+        address_components: [
+          { long_name: 'Avenida Juan Carlos I', short_name: 'Av. Juan Carlos I', types: ['route'] },
+          { long_name: '20', short_name: '20', types: ['street_number'] },
+          { long_name: '38650', short_name: '38650', types: ['postal_code'] },
+          { long_name: 'Los Cristianos', short_name: 'Los Cristianos', types: ['sublocality_level_1'] },
+          { long_name: 'Arona', short_name: 'Arona', types: ['administrative_area_level_3'] },
+          { long_name: 'Santa Cruz de Tenerife', short_name: 'TF', types: ['administrative_area_level_2'] },
+        ],
+        geometry: {
+          location: { lat: () => 28.0509, lng: () => -16.7172 },
+          location_type: 'ROOFTOP',
+          viewport: {},
+        },
+      } as unknown as google.maps.GeocoderResult)]
+    }
+  })
+
+  await page.locator('#publish-street').fill('Avenida Juan Carlos I 20, 38650 Los Cristianos, Arona')
+
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Los Cristianos')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38650')
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida Juan Carlos I 20')
+  await expect.poll(() => page.evaluate(() => (window as Window & { __friendlyAddressQueries?: string[] }).__friendlyAddressQueries ?? [])).toContain(
+    'Avenida Juan Carlos I 20, 38650, Los Cristianos, Adeje, Tenerife, Spain',
+  )
+})
