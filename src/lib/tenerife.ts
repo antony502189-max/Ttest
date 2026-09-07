@@ -45,7 +45,7 @@ const municipalities: TenerifeLocation[] = municipalityNames.map((label) => ({
 }))
 
 const localAreas: TenerifeLocation[] = [
-  { type: 'area', label: 'Armeñime', normalizedValue: 'Armeñime', coordinates: { lat: 28.1272, lng: -16.7390 } },
+  { type: 'area', label: 'Armeñime', normalizedValue: 'Armeñime', coordinates: { lat: 28.12976, lng: -16.75563 } },
   { type: 'area', label: 'Costa Adeje', normalizedValue: 'Costa Adeje', coordinates: { lat: 28.0902, lng: -16.7260 } },
   { type: 'area', label: 'El Médano', normalizedValue: 'El Médano', coordinates: { lat: 28.0477, lng: -16.5363 }, aliases: ['Medano'] },
   { type: 'area', label: 'Los Cristianos', normalizedValue: 'Los Cristianos', coordinates: { lat: 28.0509, lng: -16.7172 } },
