@@ -67,7 +67,7 @@ function resultAreaCandidates(result: google.maps.GeocoderResult) {
 function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: string): ParsedAddressInput {
   const raw = rawStreet.trim().replace(/\s*\n+\s*/g, ', ')
   const embeddedPostcode = raw.match(/\b\d{5}\b/)?.[0] ?? ''
-  const postcode = fieldPostcode.trim() || embeddedPostcode
+  const postcode = embeddedPostcode || fieldPostcode.trim()
   let withoutPostcode = raw
   if (embeddedPostcode) withoutPostcode = withoutPostcode.replace(new RegExp(`\\b${embeddedPostcode}\\b`), ' ')
   withoutPostcode = withoutPostcode.replace(/\s+/g, ' ').trim()
@@ -76,10 +76,10 @@ function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: 
   const street = (head?.[1] ?? withoutPostcode).replace(/[.,;]+$/, '').trim()
   const remainder = (head?.[2] ?? '').trim()
 
-  let area = fieldArea.trim()
-  if (!area && remainder) {
+  let inferredArea = ''
+  if (remainder) {
     const firstSegment = remainder.split(',')[0] ?? remainder
-    area = firstSegment
+    inferredArea = firstSegment
       .replace(/\bSanta Cruz de Tenerife\b/gi, ' ')
       .replace(/\bTenerife\b/gi, ' ')
       .replace(/\b(?:España|Spain)\b/gi, ' ')
@@ -87,6 +87,7 @@ function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: 
       .replace(/\s+/g, ' ')
       .trim()
   }
+  const area = inferredArea || fieldArea.trim()
 
   return { street, postcode, area, raw }
 }
