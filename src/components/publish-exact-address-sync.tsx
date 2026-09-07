@@ -29,7 +29,7 @@ function normalizeHouseNumber(value: string) {
 
 function normalizeRoute(value: string) {
   return normalizeTenerifeText(value)
-    .replace(/[.,ºª]/g, ' ')
+    .replace(/[.,ºª/]/g, ' ')
     .replace(/^(calle|c|avenida|av|avda|carretera|ctra|camino|paseo|plaza|urbanizacion)\s+/, '')
     .replace(/\s+/g, ' ')
     .trim()
