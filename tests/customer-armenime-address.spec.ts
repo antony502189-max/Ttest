@@ -75,3 +75,35 @@ test('Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the m
   await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
 })
+
+test('C/ street abbreviation still matches the canonical Google Calle route', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Zona o barrio').fill('Armeñime')
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(13)
+
+  await page.evaluate((coordinates) => {
+    window.__112233TestAddressGeocode = async () => [({
+      formatted_address: 'Calle José Espronceda 20, 38678 Armeñime, Adeje, Santa Cruz de Tenerife, Spain',
+      types: ['street_address'],
+      address_components: [
+        { long_name: 'Calle José Espronceda', short_name: 'C. José Espronceda', types: ['route'] },
+        { long_name: '20', short_name: '20', types: ['street_number'] },
+        { long_name: '38678', short_name: '38678', types: ['postal_code'] },
+        { long_name: 'Armeñime', short_name: 'Armeñime', types: ['sublocality_level_1'] },
+        { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+      ],
+      geometry: {
+        location: { lat: () => coordinates.lat, lng: () => coordinates.lng },
+        location_type: 'ROOFTOP',
+        viewport: {},
+      },
+    } as unknown as google.maps.GeocoderResult)]
+  }, CUSTOMER_ADDRESS_REFERENCE)
+
+  await page.getByLabel('Calle').fill('C/ José Espronceda 20')
+  await page.getByLabel('Código postal').fill('38678')
+
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
+  await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)
+  await expect(page.locator('.publish-location-error')).toHaveCount(0)
+})
