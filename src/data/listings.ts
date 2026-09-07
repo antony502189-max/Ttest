@@ -66,8 +66,8 @@ const tenantRequirementCycle: NonNullable<Listing['tenantRequirement']>[] = [
   'single-woman',
   'single-man',
   'single-person',
-  couple,
-  any,
+  'couple',
+  'any',
 ]
 const compactSingleRoomSeedIndexes = new Set([0, 1, 10, 20, 21, 30])
 
