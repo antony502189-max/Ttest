@@ -37,7 +37,7 @@ test('search result cards keep their existing cover crop', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/buscar?q=Armeñime')
 
-  const image = page.locator('.property-card__media img').first()
+  const image = page.locator('.m2-result-card__media img').first()
   await expect(image).toBeVisible()
   await expect.poll(() => image.evaluate((node) => getComputedStyle(node).objectFit)).toBe('cover')
 })
