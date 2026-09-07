@@ -217,9 +217,7 @@ test('placing the marker with empty address fields reverse-geocodes and fills th
   })
 
   const map = page.locator('.approximate-location-map')
-  const box = await map.boundingBox()
-  expect(box).not.toBeNull()
-  await page.mouse.dblclick(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  await map.dblclick({ position: { x: 180, y: 180 } })
 
   await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
