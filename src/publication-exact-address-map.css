@@ -11,6 +11,13 @@
   height: 100% !important;
 }
 
+.publish-page .publish-address-example {
+  margin: .35rem 0 0;
+  color: var(--muted-foreground);
+  font-size: .8rem;
+  line-height: 1.4;
+}
+
 @media (min-width: 768px) {
   .publish-page .approximate-location-map-shell {
     height: clamp(26rem, 56vh, 38rem);
