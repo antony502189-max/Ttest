@@ -189,6 +189,45 @@ test('street plus postcode without a building number recenters at street zoom in
   })).toEqual(streetPoint)
 })
 
+test('placing the marker with empty address fields reverse-geocodes and fills the structured address', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Zona o barrio').fill('')
+  await page.getByLabel('Calle').fill('')
+  await page.getByLabel('Código postal').fill('')
+
+  await page.evaluate(() => {
+    window.__googleMapsTestGeocode = async (location) => ({
+      results: [({
+        formatted_address: 'Calle José Espronceda 20, 38678 Armeñime, Adeje, Santa Cruz de Tenerife, Spain',
+        types: ['street_address'],
+        address_components: [
+          { long_name: 'Calle José Espronceda', short_name: 'C. José Espronceda', types: ['route'] },
+          { long_name: '20', short_name: '20', types: ['street_number'] },
+          { long_name: '38678', short_name: '38678', types: ['postal_code'] },
+          { long_name: 'Armeñime', short_name: 'Armeñime', types: ['sublocality_level_1'] },
+          { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+        ],
+        geometry: {
+          location: { lat: () => location.lat, lng: () => location.lng },
+          location_type: 'ROOFTOP',
+          viewport: {},
+        },
+      } as unknown as google.maps.GeocoderResult)],
+    })
+  })
+
+  const map = page.locator('.approximate-location-map')
+  const box = await map.boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.dblclick(box!.x + box!.width / 2, box!.y + box!.height / 2)
+
+  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38678')
+  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
+  await expect(page.locator('.approximate-location-map-address')).toContainText('Calle José Espronceda 20')
+})
+
 test('manual marker controls cancel an in-flight exact-address lookup', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
