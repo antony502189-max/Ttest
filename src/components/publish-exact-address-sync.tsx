@@ -118,11 +118,13 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
 
   const resolvedMunicipality = component(result, 'administrative_area_level_3')
     || component(result, 'administrative_area_level_4')
-  const municipalityMatches = !resolvedMunicipality
+  const municipalityMatches = !city
+    || !resolvedMunicipality
     || normalizeTenerifeText(resolvedMunicipality) === normalizeTenerifeText(city)
   if (!municipalityMatches) {
-    // An exact route + building number is stronger evidence than stale/default
-    // municipality or area fields. Google may safely correct those structured fields.
+    // Exact route + building number is enough to let Google correct stale/default
+    // municipality and area values. A postcode explicitly entered by the user
+    // is still enforced above.
     if (wantedNumber) return true
     const normalizedArea = normalizeTenerifeText(area)
     const areaMatches = Boolean(normalizedArea) && resultAreaCandidates(result)
@@ -150,10 +152,10 @@ function uniqueQueries(values: string[]) {
 export function PublishExactAddressSync() {
   const { language } = useI18n()
   const notFoundMessage = language === 'ru'
-    ? 'Не нашли этот адрес или почтовый индекс. Проверьте ввод или отметьте точку на карте.'
+    ? 'Не удалось точно определить адрес. Проверьте данные или отметьте точку на карте.'
     : language === 'en'
-      ? 'We could not find this address or postcode. Check the entry or mark the point on the map.'
-      : 'No encontramos esta dirección o código postal. Revisa los datos o marca el punto en el mapa.'
+      ? 'We could not locate this address precisely. Check the entry or mark the point on the map.'
+      : 'No pudimos ubicar esta dirección con precisión. Revisa los datos o marca el punto en el mapa.'
   const streetLabel = language === 'ru' ? 'Улица или полный адрес' : language === 'en' ? 'Street or full address' : 'Calle o dirección completa'
   const streetPlaceholder = language === 'ru'
     ? 'Улица, номер или полный адрес…'
@@ -170,6 +172,9 @@ export function PublishExactAddressSync() {
     let cancelled = false
     let timer: number | undefined
     let rawAutocompleteStreet = ''
+    let postcodeTouched = false
+    let areaTouched = false
+    let cityTouched = false
     let suppressErrorsUntil = 0
     const gate = createRequestVersionGate()
     const cleanups = new Map<Element, () => void>()
@@ -209,10 +214,13 @@ export function PublishExactAddressSync() {
       const areaInput = document.querySelector<HTMLInputElement>('#publish-area')
       const citySelect = document.querySelector<HTMLSelectElement>('#publish-city')
       const rawStreet = (streetOverride || streetInput?.value || '').trim()
-      const city = (citySelect?.value || '').trim()
-      if (!city) return
+      const selectedCity = (citySelect?.value || '').trim()
+      if (!selectedCity) return
 
-      const parsed = parseAddressInput(rawStreet, postcodeInput?.value ?? '', areaInput?.value ?? '')
+      const postcodeField = postcodeTouched || !rawStreet ? postcodeInput?.value ?? '' : ''
+      const areaField = areaTouched ? areaInput?.value ?? '' : ''
+      const cityConstraint = cityTouched ? selectedCity : ''
+      const parsed = parseAddressInput(rawStreet, postcodeField, areaField)
       const { street, postcode, area } = parsed
       const hasStreet = street.length >= 3
       const hasBuildingNumber = hasStreet && Boolean(requestedHouseNumber(street))
@@ -222,11 +230,11 @@ export function PublishExactAddressSync() {
       const postcodeOnly = !hasStreet && hasFullPostcode
       const queries = postcodeOnly
         ? uniqueQueries([
-            [postcode, city, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [postcode, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
           ])
         : uniqueQueries([
-            [street, postcode, area, city, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, area, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [street, postcode, area, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [street, postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [parsed.raw || street, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
@@ -239,12 +247,12 @@ export function PublishExactAddressSync() {
           if (cancelled || !gate.isCurrent(version)) return
           result = postcodeOnly
             ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
-            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, city, area))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
         if (!result || !coordinates) {
-          if (showError && Date.now() >= suppressErrorsUntil) {
+          if ((showError || (hasBuildingNumber && hasFullPostcode)) && Date.now() >= suppressErrorsUntil) {
             window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: notFoundMessage } }))
           }
           return
@@ -275,13 +283,18 @@ export function PublishExactAddressSync() {
     const setupInput = (element: HTMLInputElement, kind: 'street' | 'postcode' | 'area') => {
       if (cleanups.has(element)) return
       if (kind === 'area') {
-        const onAreaInput = (event: Event) => { if (event.isTrusted) cancelPending() }
+        const onAreaInput = (event: Event) => {
+          if (!event.isTrusted) return
+          areaTouched = true
+          cancelPending()
+        }
         element.addEventListener('input', onAreaInput)
         cleanups.set(element, () => element.removeEventListener('input', onAreaInput))
         return
       }
       const onInput = (event: Event) => {
         if (!event.isTrusted) return
+        if (kind === 'postcode') postcodeTouched = true
         rawAutocompleteStreet = ''
         clearLocationError()
         schedule('', false)
@@ -300,7 +313,11 @@ export function PublishExactAddressSync() {
 
     const setupMunicipality = (element: HTMLSelectElement) => {
       if (cleanups.has(element)) return
-      const onChange = (event: Event) => { if (event.isTrusted) cancelPending() }
+      const onChange = (event: Event) => {
+        if (!event.isTrusted) return
+        cityTouched = true
+        cancelPending()
+      }
       element.addEventListener('change', onChange)
       cleanups.set(element, () => element.removeEventListener('change', onChange))
     }
