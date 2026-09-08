@@ -1,8 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router'
-import { checkAdminAccess } from '@/api/admin'
-import { ApiError } from '@/api/client'
-import { useApp } from '@/contexts/app-context'
+import { useLayoutEffect, useRef } from 'react'
+import { useLocation } from 'react-router'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
@@ -20,10 +17,6 @@ type CriticalCopy = {
   locationPendingHelp: string
   chooseLocation: string
   invalidPostcode: string
-  adminChecking: string
-  adminError: string
-  adminErrorHelp: string
-  retry: string
 }
 
 const COPY: Record<Language, CriticalCopy> = {
@@ -38,10 +31,6 @@ const COPY: Record<Language, CriticalCopy> = {
     locationPendingHelp: 'Detectaremos municipio y zona automáticamente. También puedes elegir el municipio manualmente.',
     chooseLocation: 'Introduce una dirección o un código postal, o selecciona un municipio.',
     invalidPostcode: 'El código postal debe tener exactamente 5 dígitos.',
-    adminChecking: 'Comprobando acceso de administración…',
-    adminError: 'No pudimos comprobar el acceso de administración',
-    adminErrorHelp: 'Tu sesión sigue activa. Reintenta la comprobación; un fallo de red no debe expulsarte del panel.',
-    retry: 'Reintentar',
   },
   en: {
     emptyTitle: 'You do not have any listings yet',
@@ -54,10 +43,6 @@ const COPY: Record<Language, CriticalCopy> = {
     locationPendingHelp: 'We will detect the municipality and area automatically. You can also choose the municipality manually.',
     chooseLocation: 'Enter an address or postcode, or select a municipality.',
     invalidPostcode: 'The postcode must contain exactly 5 digits.',
-    adminChecking: 'Checking administration access…',
-    adminError: 'We could not verify administration access',
-    adminErrorHelp: 'Your session is still active. Retry the check; a network failure must not kick you out of the panel.',
-    retry: 'Retry',
   },
   ru: {
     emptyTitle: 'У вас пока нет объявлений',
@@ -70,10 +55,6 @@ const COPY: Record<Language, CriticalCopy> = {
     locationPendingHelp: 'Муниципалитет и район определятся автоматически. При желании муниципалитет можно выбрать вручную.',
     chooseLocation: 'Введите адрес или почтовый индекс либо выберите муниципалитет.',
     invalidPostcode: 'Почтовый индекс должен состоять ровно из 5 цифр.',
-    adminChecking: 'Проверяем доступ к админ-панели…',
-    adminError: 'Не удалось проверить доступ к админ-панели',
-    adminErrorHelp: 'Сессия остаётся активной. Повторите проверку — сетевой сбой не должен выбрасывать вас из панели.',
-    retry: 'Повторить',
   },
 }
 
@@ -103,10 +84,6 @@ export function isUntouchedLegacyLocationDefault(value: unknown) {
       && draft.postcode === '38678'
       && draft.locationManuallyMoved === false,
   )
-}
-
-export function isExplicitAdminDenial(error: unknown) {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403)
 }
 
 function setNativeInputValue(input: HTMLInputElement, value: string) {
@@ -206,10 +183,16 @@ export function CustomerVideoCriticalFixes() {
       ensureAutoMunicipalityOption(city, copy.autoMunicipality)
       const raw = readDraftRecord()
       const publicationKey = raw && typeof raw === 'object'
-        ? (raw as DraftRecord).data?.publicationKey ?? 'dom-default'
-        : 'dom-default'
-      const domLooksLegacy = city.value === 'Adeje' && area.value === 'Armeñime' && !street.value.trim() && postcode.value === '38678'
-      if (migratedPublication.current !== publicationKey && (isUntouchedLegacyLocationDefault(raw) || domLooksLegacy)) {
+        ? (raw as DraftRecord).data?.publicationKey ?? 'persisted-default'
+        : 'brand-new-unpersisted'
+      const brandNewUnpersistedDefault = raw === null
+        && city.value === 'Adeje'
+        && area.value === 'Armeñime'
+        && !street.value.trim()
+        && postcode.value === '38678'
+      const shouldMigrateLegacyDefault = isUntouchedLegacyLocationDefault(raw) || brandNewUnpersistedDefault
+
+      if (migratedPublication.current !== publicationKey && shouldMigrateLegacyDefault) {
         migratedPublication.current = publicationKey
         setNativeSelectValue(city, AUTO_CITY_VALUE, true)
         setNativeInputValue(area, '')
@@ -293,58 +276,4 @@ export function CustomerVideoCriticalFixes() {
   }, [copy, pathname])
 
   return null
-}
-
-type AdminPhase = 'checking' | 'allowed' | 'denied' | 'error'
-
-export function AdminAccessRecoveryGate({ children }: { children: ReactNode }) {
-  const { currentUser } = useApp()
-  const { language } = useI18n()
-  const copy = COPY[language]
-  const [phase, setPhase] = useState<AdminPhase>('checking')
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    if (!currentUser) return
-    if (mockMode) {
-      setPhase(currentUser.role === 'admin' ? 'allowed' : 'denied')
-      return
-    }
-
-    let cancelled = false
-    let retryTimer = 0
-    setPhase('checking')
-
-    const verify = async (retry = true) => {
-      try {
-        await checkAdminAccess()
-        if (!cancelled) setPhase('allowed')
-      } catch (error) {
-        if (cancelled) return
-        if (isExplicitAdminDenial(error)) {
-          setPhase('denied')
-          return
-        }
-        if (retry) {
-          retryTimer = window.setTimeout(() => { void verify(false) }, 450)
-          return
-        }
-        setPhase('error')
-      }
-    }
-
-    void verify(true)
-    return () => {
-      cancelled = true
-      if (retryTimer) window.clearTimeout(retryTimer)
-    }
-  }, [attempt, currentUser])
-
-  if (!currentUser) return <Navigate to="/acceso" replace />
-  if (phase === 'allowed') return children
-  if (phase === 'denied') return <Navigate to="/" replace />
-  if (phase === 'error') {
-    return <div className="route-error customer-admin-access-error" role="alert"><h1>{copy.adminError}</h1><p>{copy.adminErrorHelp}</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>{copy.retry}</button></div>
-  }
-  return <div className="route-loading customer-admin-access-loading" role="status" aria-live="polite"><span /><strong>{copy.adminChecking}</strong></div>
 }
