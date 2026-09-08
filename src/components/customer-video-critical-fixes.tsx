@@ -1,22 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { checkAdminAccess } from '@/api/admin'
 import { ApiError } from '@/api/client'
-import { getOwnedListings } from '@/api/listings'
-import { AppContext, useApp } from '@/contexts/app-context'
+import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
-import type { Listing } from '@/types'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const DRAFT_KEY = '112233:listing-draft:v3'
 const AUTO_CITY_VALUE = '__112233_auto_municipality__'
 
 type CriticalCopy = {
-  ownedLoading: string
-  ownedLoadingHelp: string
-  ownedError: string
-  ownedErrorHelp: string
-  retry: string
   emptyTitle: string
   emptyText: string
   filteredEmptyTitle: string
@@ -30,15 +23,11 @@ type CriticalCopy = {
   adminChecking: string
   adminError: string
   adminErrorHelp: string
+  retry: string
 }
 
 const COPY: Record<Language, CriticalCopy> = {
   es: {
-    ownedLoading: 'Cargando tus anuncios…',
-    ownedLoadingHelp: 'Estamos sincronizando la lista actual con el servidor.',
-    ownedError: 'No pudimos cargar tus anuncios',
-    ownedErrorHelp: 'Tus anuncios no se han borrado. Reintenta la sincronización.',
-    retry: 'Reintentar',
     emptyTitle: 'Todavía no tienes anuncios',
     emptyText: 'Crea tu primer anuncio cuando quieras.',
     filteredEmptyTitle: 'No hay anuncios con este estado',
@@ -52,13 +41,9 @@ const COPY: Record<Language, CriticalCopy> = {
     adminChecking: 'Comprobando acceso de administración…',
     adminError: 'No pudimos comprobar el acceso de administración',
     adminErrorHelp: 'Tu sesión sigue activa. Reintenta la comprobación; un fallo de red no debe expulsarte del panel.',
+    retry: 'Reintentar',
   },
   en: {
-    ownedLoading: 'Loading your listings…',
-    ownedLoadingHelp: 'We are syncing the current list with the server.',
-    ownedError: 'We could not load your listings',
-    ownedErrorHelp: 'Your listings have not been deleted. Retry the sync.',
-    retry: 'Retry',
     emptyTitle: 'You do not have any listings yet',
     emptyText: 'Create your first listing whenever you are ready.',
     filteredEmptyTitle: 'No listings have this status',
@@ -72,13 +57,9 @@ const COPY: Record<Language, CriticalCopy> = {
     adminChecking: 'Checking administration access…',
     adminError: 'We could not verify administration access',
     adminErrorHelp: 'Your session is still active. Retry the check; a network failure must not kick you out of the panel.',
+    retry: 'Retry',
   },
   ru: {
-    ownedLoading: 'Загружаем ваши объявления…',
-    ownedLoadingHelp: 'Синхронизируем актуальный список с сервером.',
-    ownedError: 'Не удалось загрузить ваши объявления',
-    ownedErrorHelp: 'Объявления не удалены. Повторите синхронизацию.',
-    retry: 'Повторить',
     emptyTitle: 'У вас пока нет объявлений',
     emptyText: 'Создайте первое объявление, когда будете готовы.',
     filteredEmptyTitle: 'Нет объявлений с таким статусом',
@@ -92,6 +73,7 @@ const COPY: Record<Language, CriticalCopy> = {
     adminChecking: 'Проверяем доступ к админ-панели…',
     adminError: 'Не удалось проверить доступ к админ-панели',
     adminErrorHelp: 'Сессия остаётся активной. Повторите проверку — сетевой сбой не должен выбрасывать вас из панели.',
+    retry: 'Повторить',
   },
 }
 
@@ -165,6 +147,10 @@ function ensureAutoMunicipalityOption(select: HTMLSelectElement, label: string) 
   if (option.textContent !== label) option.textContent = label
 }
 
+function setText(element: HTMLElement | null, value: string) {
+  if (element && element.textContent !== value) element.textContent = value
+}
+
 function locationGuardHost(element: HTMLElement) {
   return element.closest<HTMLElement>('.form-field') ?? element.parentElement
 }
@@ -204,12 +190,9 @@ export function CustomerVideoCriticalFixes() {
       const empty = document.querySelector<HTMLElement>('.account-empty')
       if (!empty) return
       const filter = document.querySelector<HTMLSelectElement>('#my-listings-status')?.value ?? 'Todos'
-      const title = empty.querySelector<HTMLElement>('h2')
-      const text = empty.querySelector<HTMLElement>('p')
-      const action = empty.querySelector<HTMLElement>('a, button')
-      if (title) title.textContent = filter === 'Todos' ? copy.emptyTitle : copy.filteredEmptyTitle
-      if (text) text.textContent = filter === 'Todos' ? copy.emptyText : copy.filteredEmptyText
-      if (action) action.textContent = copy.createListing
+      setText(empty.querySelector<HTMLElement>('h2'), filter === 'Todos' ? copy.emptyTitle : copy.filteredEmptyTitle)
+      setText(empty.querySelector<HTMLElement>('p'), filter === 'Todos' ? copy.emptyText : copy.filteredEmptyText)
+      setText(empty.querySelector<HTMLElement>('a, button'), copy.createListing)
     }
 
     const setupPublicationLocation = () => {
@@ -238,7 +221,7 @@ export function CustomerVideoCriticalFixes() {
       const preview = document.querySelector<HTMLElement>('.location-preview')
       if (selector) {
         if (auto) {
-          selector.hidden = true
+          if (!selector.hidden) selector.hidden = true
           selector.dataset.customerVideoHidden = 'true'
         } else if (selector.dataset.customerVideoHidden === 'true') {
           selector.hidden = false
@@ -246,10 +229,8 @@ export function CustomerVideoCriticalFixes() {
         }
       }
       if (preview && auto) {
-        const strong = preview.querySelector<HTMLElement>('strong')
-        const help = preview.querySelector<HTMLElement>('span')
-        if (strong && strong.textContent !== copy.locationPending) strong.textContent = copy.locationPending
-        if (help && help.textContent !== copy.locationPendingHelp) help.textContent = copy.locationPendingHelp
+        setText(preview.querySelector<HTMLElement>('strong'), copy.locationPending)
+        setText(preview.querySelector<HTMLElement>('span'), copy.locationPendingHelp)
       }
     }
 
@@ -314,77 +295,19 @@ export function CustomerVideoCriticalFixes() {
   return null
 }
 
-type OwnedPhase = 'checking' | 'ready' | 'error'
-
-export function OwnedListingsHydrationGate({ children }: { children: ReactNode }) {
-  const app = useApp()
-  const { language } = useI18n()
-  const copy = COPY[language]
-  const userId = app.currentUser?.id ?? null
-  const [snapshot, setSnapshot] = useState<Listing[] | null>(null)
-  const [phase, setPhase] = useState<OwnedPhase>(() => mockMode || app.ownedListings.length ? 'ready' : 'checking')
-  const [attempt, setAttempt] = useState(0)
-  const checkedUser = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (mockMode || !userId) {
-      setSnapshot(null)
-      setPhase('ready')
-      checkedUser.current = userId
-      return
-    }
-
-    if (app.ownedListings.length) {
-      setSnapshot(null)
-      setPhase('ready')
-      checkedUser.current = userId
-      return
-    }
-
-    if (checkedUser.current === userId && (phase === 'ready' || phase === 'error')) return
-
-    const controller = new AbortController()
-    checkedUser.current = userId
-    setPhase('checking')
-    void getOwnedListings(controller.signal).then((items) => {
-      if (controller.signal.aborted) return
-      setSnapshot(items)
-      setPhase('ready')
-      if (items.length) window.dispatchEvent(new Event('catalog:updated'))
-    }).catch(() => {
-      if (!controller.signal.aborted) setPhase('error')
-    })
-    return () => controller.abort()
-  }, [app.ownedListings, attempt, phase, userId])
-
-  const effectiveValue = useMemo(() => {
-    if (app.ownedListings.length || snapshot === null) return app
-    return { ...app, ownedListings: snapshot }
-  }, [app, snapshot])
-
-  if (mockMode) return children
-  if (phase === 'checking' && !snapshot?.length) {
-    return <div className="route-loading customer-owned-listings-loading" role="status" aria-live="polite"><span /><strong>{copy.ownedLoading}</strong><p>{copy.ownedLoadingHelp}</p></div>
-  }
-  if (phase === 'error' && !snapshot?.length) {
-    return <div className="route-error customer-owned-listings-error" role="alert"><h1>{copy.ownedError}</h1><p>{copy.ownedErrorHelp}</p><button type="button" onClick={() => { checkedUser.current = null; setAttempt((value) => value + 1) }}>{copy.retry}</button></div>
-  }
-  return <AppContext.Provider value={effectiveValue}>{children}</AppContext.Provider>
-}
-
 type AdminPhase = 'checking' | 'allowed' | 'denied' | 'error'
 
 export function AdminAccessRecoveryGate({ children }: { children: ReactNode }) {
-  const app = useApp()
+  const { currentUser } = useApp()
   const { language } = useI18n()
   const copy = COPY[language]
   const [phase, setPhase] = useState<AdminPhase>('checking')
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    if (!app.currentUser) return
+    if (!currentUser) return
     if (mockMode) {
-      setPhase(app.currentUser.role === 'admin' ? 'allowed' : 'denied')
+      setPhase(currentUser.role === 'admin' ? 'allowed' : 'denied')
       return
     }
 
@@ -415,9 +338,9 @@ export function AdminAccessRecoveryGate({ children }: { children: ReactNode }) {
       cancelled = true
       if (retryTimer) window.clearTimeout(retryTimer)
     }
-  }, [app.currentUser, attempt])
+  }, [attempt, currentUser])
 
-  if (!app.currentUser) return <Navigate to="/acceso" replace />
+  if (!currentUser) return <Navigate to="/acceso" replace />
   if (phase === 'allowed') return children
   if (phase === 'denied') return <Navigate to="/" replace />
   if (phase === 'error') {
