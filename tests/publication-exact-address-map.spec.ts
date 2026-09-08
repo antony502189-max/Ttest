@@ -81,7 +81,7 @@ test('typing street, building number and postcode moves the owner marker to the 
   await expect(page.locator('.approximate-location-selector output')).toContainText('28.0912, -16.7356')
 })
 
-test('customer address Calle José Espronceda 20 in Armeñime sends the complete hierarchy and recenters to the matched rooftop', async ({ page }) => {
+test('customer address Calle José Espronceda 20 in Armeñime resolves without stale municipality context and recenters to the matched rooftop', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Municipio').selectOption('Adeje')
   await page.getByLabel('Zona o barrio').fill('Armeñime')
@@ -99,7 +99,7 @@ test('customer address Calle José Espronceda 20 in Armeñime sends the complete
   await typeExactAddress(page, 'Calle José Espronceda 20', '38678')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastExactAddressQuery?: string }).__lastExactAddressQuery ?? '')).toBe(
-    'Calle José Espronceda 20, 38678, Armeñime, Adeje, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Tenerife, Spain',
   )
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
@@ -125,7 +125,7 @@ test('nearby Google correction with a different house number is rejected instead
   await installGeocoderResult(page, { route: 'Calle Londres', number: '7', postcode: '38660', coordinates: wrongBuilding })
 
   await typeExactAddress(page)
-  await expect(page.locator('.map-inline-error')).toContainText('No pudimos ubicar esta dirección con precisión')
+  await expect(page.locator('.map-inline-error')).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: center.lat(), lng: center.lng() } : null
@@ -150,7 +150,7 @@ test('same house number and postcode on a different Google route is rejected', a
   })
 
   await typeExactAddress(page, 'Calle José Espronceda 20', '38678')
-  await expect(page.locator('.map-inline-error')).toContainText('No pudimos ubicar esta dirección con precisión')
+  await expect(page.locator('.map-inline-error')).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: center.lat(), lng: center.lng() } : null
