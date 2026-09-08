@@ -4,11 +4,11 @@
 @media (max-width: 767px) {
   .idealista-listing-page .listing-gallery-container .property-gallery {
     height: clamp(28rem, 68dvh, 38rem);
-    background: #171817;
+    background: #fff;
   }
 
   .idealista-listing-page .listing-gallery-container .gallery-main {
-    background: #171817;
+    background: #fff;
   }
 
   .idealista-listing-page .listing-gallery-container .gallery-main > img {
@@ -16,7 +16,7 @@
     height: 100%;
     object-fit: contain !important;
     object-position: center center;
-    background: #171817;
+    background: #fff;
   }
 }
 
