@@ -9,44 +9,6 @@ async function openPublishLocation(page: Page) {
   await expect(page.locator('.approximate-location-map')).toBeVisible()
 }
 
-function googleResult({
-  route = '',
-  number = '',
-  postcode,
-  area,
-  municipality,
-  coordinates,
-  types,
-}: {
-  route?: string
-  number?: string
-  postcode: string
-  area: string
-  municipality: string
-  coordinates: { lat: number; lng: number }
-  types: string[]
-}) {
-  return ({
-    formatted_address: [route && `${route}${number ? ` ${number}` : ''}`, `${postcode} ${area}`, municipality, 'Santa Cruz de Tenerife, Spain']
-      .filter(Boolean)
-      .join(', '),
-    types,
-    address_components: [
-      ...(route ? [{ long_name: route, short_name: route, types: ['route'] }] : []),
-      ...(number ? [{ long_name: number, short_name: number, types: ['street_number'] }] : []),
-      { long_name: postcode, short_name: postcode, types: ['postal_code'] },
-      { long_name: area, short_name: area, types: ['locality'] },
-      { long_name: municipality, short_name: municipality, types: ['administrative_area_level_3'] },
-      { long_name: 'Santa Cruz de Tenerife', short_name: 'TF', types: ['administrative_area_level_2'] },
-    ],
-    geometry: {
-      location: { lat: () => coordinates.lat, lng: () => coordinates.lng },
-      location_type: number ? 'ROOFTOP' : 'GEOMETRIC_CENTER',
-      viewport: {},
-    },
-  } as unknown as google.maps.GeocoderResult)
-}
-
 test('a 5-digit postcode alone recenters the map and fills the location without requiring a street', async ({ page }) => {
   await openPublishLocation(page)
   const postcodeCenter = { lat: 28.0718, lng: -16.7256 }
