@@ -275,7 +275,7 @@ export function PublishExactAddressSync() {
     }
 
     const setupAutocomplete = (element: PlaceAutocompleteWithValue) => {
-      element.placeholder = streetPlaceholder
+      if (element.placeholder !== streetPlaceholder) element.placeholder = streetPlaceholder
       if (cleanups.has(element)) return
       const onInput = (event: Event) => {
         if (!event.isTrusted) return
@@ -297,9 +297,9 @@ export function PublishExactAddressSync() {
 
     const ensureStreetGuidance = (street: HTMLInputElement | null, autocomplete: PlaceAutocompleteWithValue | null) => {
       const label = document.querySelector<HTMLLabelElement>('label[for="publish-street"]')
-      if (label) label.textContent = streetLabel
-      if (street) street.placeholder = streetPlaceholder
-      if (autocomplete) autocomplete.placeholder = streetPlaceholder
+      if (label && label.textContent !== streetLabel) label.textContent = streetLabel
+      if (street && street.placeholder !== streetPlaceholder) street.placeholder = streetPlaceholder
+      if (autocomplete && autocomplete.placeholder !== streetPlaceholder) autocomplete.placeholder = streetPlaceholder
       const anchor = autocomplete ?? street
       if (!anchor) return
       let helper = document.querySelector<HTMLElement>('.publish-address-example')
@@ -308,7 +308,7 @@ export function PublishExactAddressSync() {
         helper.className = 'publish-address-example'
         anchor.insertAdjacentElement('afterend', helper)
       }
-      helper.textContent = streetExample
+      if (helper.textContent !== streetExample) helper.textContent = streetExample
     }
 
     const setup = () => {
