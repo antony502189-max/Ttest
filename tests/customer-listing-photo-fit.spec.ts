@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('mobile listing hero preserves the full uploaded photo instead of cover-cropping it', async ({ page }) => {
+test('mobile listing hero preserves the full uploaded photo with white sidebars instead of cover-cropping it', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
@@ -19,18 +19,24 @@ test('mobile listing hero preserves the full uploaded photo instead of cover-cro
     const imageStyle = getComputedStyle(node)
     const galleryNode = node.closest('.property-gallery') as HTMLElement | null
     const galleryStyle = galleryNode ? getComputedStyle(galleryNode) : null
+    const mainNode = node.parentElement
+    const mainStyle = mainNode ? getComputedStyle(mainNode) : null
     return {
       objectFit: imageStyle.objectFit,
       objectPosition: imageStyle.objectPosition,
       galleryHeight: galleryNode?.getBoundingClientRect().height ?? 0,
-      background: galleryStyle?.backgroundColor ?? '',
+      galleryBackground: galleryStyle?.backgroundColor ?? '',
+      mainBackground: mainStyle?.backgroundColor ?? '',
+      imageBackground: imageStyle.backgroundColor,
     }
   })
 
   expect(styles.objectFit).toBe('contain')
   expect(styles.objectPosition).toContain('50%')
   expect(styles.galleryHeight).toBeGreaterThanOrEqual(440)
-  expect(styles.background).not.toBe('rgba(0, 0, 0, 0)')
+  expect(styles.galleryBackground).toBe('rgb(255, 255, 255)')
+  expect(styles.mainBackground).toBe('rgb(255, 255, 255)')
+  expect(styles.imageBackground).toBe('rgb(255, 255, 255)')
 })
 
 test('search result cards keep their existing cover crop', async ({ page }) => {
