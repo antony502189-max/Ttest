@@ -99,6 +99,7 @@ type DraftRecord = {
   version?: number
   listingId?: string
   data?: {
+    publicationKey?: string
     city?: string
     area?: string
     street?: string
@@ -221,11 +222,9 @@ export function CustomerVideoCriticalFixes() {
 
       ensureAutoMunicipalityOption(city, copy.autoMunicipality)
       const raw = readDraftRecord()
-      const publicationKey = (() => {
-        if (!raw || typeof raw !== 'object') return 'dom-default'
-        const data = (raw as { data?: { publicationKey?: string } }).data
-        return data?.publicationKey ?? 'dom-default'
-      })()
+      const publicationKey = raw && typeof raw === 'object'
+        ? (raw as DraftRecord).data?.publicationKey ?? 'dom-default'
+        : 'dom-default'
       const domLooksLegacy = city.value === 'Adeje' && area.value === 'Armeñime' && !street.value.trim() && postcode.value === '38678'
       if (migratedPublication.current !== publicationKey && (isUntouchedLegacyLocationDefault(raw) || domLooksLegacy)) {
         migratedPublication.current = publicationKey
@@ -336,13 +335,13 @@ export function OwnedListingsHydrationGate({ children }: { children: ReactNode }
     }
 
     if (app.ownedListings.length) {
-      setSnapshot(app.ownedListings)
+      setSnapshot(null)
       setPhase('ready')
       checkedUser.current = userId
       return
     }
 
-    if (checkedUser.current === userId && phase === 'ready' && snapshot !== null) return
+    if (checkedUser.current === userId && (phase === 'ready' || phase === 'error')) return
 
     const controller = new AbortController()
     checkedUser.current = userId
@@ -356,7 +355,7 @@ export function OwnedListingsHydrationGate({ children }: { children: ReactNode }
       if (!controller.signal.aborted) setPhase('error')
     })
     return () => controller.abort()
-  }, [app.ownedListings, attempt, phase, snapshot, userId])
+  }, [app.ownedListings, attempt, phase, userId])
 
   const effectiveValue = useMemo(() => {
     if (app.ownedListings.length || snapshot === null) return app
@@ -384,6 +383,11 @@ export function AdminAccessRecoveryGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!app.currentUser) return
+    if (mockMode) {
+      setPhase(app.currentUser.role === 'admin' ? 'allowed' : 'denied')
+      return
+    }
+
     let cancelled = false
     let retryTimer = 0
     setPhase('checking')
@@ -411,7 +415,7 @@ export function AdminAccessRecoveryGate({ children }: { children: ReactNode }) {
       cancelled = true
       if (retryTimer) window.clearTimeout(retryTimer)
     }
-  }, [app.currentUser?.id, attempt])
+  }, [app.currentUser, attempt])
 
   if (!app.currentUser) return <Navigate to="/acceso" replace />
   if (phase === 'allowed') return children
