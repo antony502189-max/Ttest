@@ -18,6 +18,7 @@ type ParsedAddressInput = { street: string; postcode: string; area: string; raw:
 
 const EXACT_ADDRESS_ZOOM = 18
 const STREET_ADDRESS_ZOOM = 16
+const POSTCODE_AREA_ZOOM = 13
 const ADDRESS_DEBOUNCE_MS = 650
 
 function component(result: google.maps.GeocoderResult, type: string) {
@@ -117,9 +118,14 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
 
   const resolvedMunicipality = component(result, 'administrative_area_level_3')
     || component(result, 'administrative_area_level_4')
-  const municipalityMatches = !resolvedMunicipality
+  const municipalityMatches = !city
+    || !resolvedMunicipality
     || normalizeTenerifeText(resolvedMunicipality) === normalizeTenerifeText(city)
   if (!municipalityMatches) {
+    // Exact route + building number is enough to let Google correct stale/default
+    // municipality and area values. A postcode explicitly entered by the user
+    // is still enforced above.
+    if (wantedNumber) return true
     const normalizedArea = normalizeTenerifeText(area)
     const areaMatches = Boolean(normalizedArea) && resultAreaCandidates(result)
       .some((candidate) => normalizeTenerifeText(candidate) === normalizedArea)
@@ -129,6 +135,16 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
   return true
 }
 
+function resultMatchesPostcode(result: google.maps.GeocoderResult, postcode: string) {
+  const coordinates = resultCoordinates(result)
+  return Boolean(
+    coordinates
+      && isInsideTenerife(coordinates)
+      && /^\d{5}$/.test(postcode)
+      && component(result, 'postal_code') === postcode,
+  )
+}
+
 function uniqueQueries(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
@@ -136,10 +152,10 @@ function uniqueQueries(values: string[]) {
 export function PublishExactAddressSync() {
   const { language } = useI18n()
   const notFoundMessage = language === 'ru'
-    ? 'Не удалось точно определить адрес. Вставьте полный адрес, выберите подсказку Google или отметьте точку на карте.'
+    ? 'Не удалось точно определить адрес. Проверьте данные или отметьте точку на карте.'
     : language === 'en'
-      ? 'We could not locate this address precisely. Paste the full address, choose a Google suggestion, or select the point on the map.'
-      : 'No pudimos ubicar esta dirección con precisión. Pega la dirección completa, elige una sugerencia de Google o selecciona el punto en el mapa.'
+      ? 'We could not locate this address precisely. Check the entry or mark the point on the map.'
+      : 'No pudimos ubicar esta dirección con precisión. Revisa los datos o marca el punto en el mapa.'
   const streetLabel = language === 'ru' ? 'Улица или полный адрес' : language === 'en' ? 'Street or full address' : 'Calle o dirección completa'
   const streetPlaceholder = language === 'ru'
     ? 'Улица, номер или полный адрес…'
@@ -147,15 +163,19 @@ export function PublishExactAddressSync() {
       ? 'Street, number or full address…'
       : 'Calle, número o dirección completa…'
   const streetExample = language === 'ru'
-    ? 'Пример: Calle José Espronceda 20, 38678 Armeñime, Adeje. Можно вставить адрес как есть — муниципалитет, район и индекс заполнятся автоматически.'
+    ? 'Введите полный адрес или только 5-значный почтовый индекс. Мы заполним найденные данные автоматически; точку всегда можно поправить на карте.'
     : language === 'en'
-      ? 'Example: Calle José Espronceda 20, 38678 Armeñime, Adeje. Paste the address as you have it; municipality, area and postcode will be filled automatically.'
-      : 'Ej.: Calle José Espronceda 20, 38678 Armeñime, Adeje. Puedes pegar la dirección tal como la tienes; completaremos municipio, zona y código postal automáticamente.'
+      ? 'Enter a full address or just the 5-digit postcode. We will fill the details we find automatically; you can always adjust the point on the map.'
+      : 'Introduce una dirección completa o solo el código postal de 5 dígitos. Completaremos los datos encontrados automáticamente; siempre puedes ajustar el punto en el mapa.'
 
   useEffect(() => {
     let cancelled = false
     let timer: number | undefined
     let rawAutocompleteStreet = ''
+    let postcodeTouched = false
+    let areaTouched = false
+    let cityTouched = false
+    let suppressErrorsUntil = 0
     const gate = createRequestVersionGate()
     const cleanups = new Map<Element, () => void>()
 
@@ -165,8 +185,12 @@ export function PublishExactAddressSync() {
       timer = undefined
     }
 
-    const dispatchAddressPoint = (coordinates: Coordinates, zoom: number, clearDetectedAddress = true) => {
+    const clearLocationError = () => {
       window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
+    }
+
+    const dispatchAddressPoint = (coordinates: Coordinates, zoom: number, clearDetectedAddress = true) => {
+      clearLocationError()
       window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
         detail: { coordinates, zoom, clearDetectedAddress },
       }))
@@ -184,38 +208,51 @@ export function PublishExactAddressSync() {
       return response.results
     }
 
-    const resolveExactAddress = async (version: number, streetOverride = '', showError = false) => {
+    const resolveAddressOrPostcode = async (version: number, streetOverride = '', showError = false) => {
       const streetInput = document.querySelector<HTMLInputElement>('#publish-street')
       const postcodeInput = document.querySelector<HTMLInputElement>('#publish-postcode')
       const areaInput = document.querySelector<HTMLInputElement>('#publish-area')
       const citySelect = document.querySelector<HTMLSelectElement>('#publish-city')
       const rawStreet = (streetOverride || streetInput?.value || '').trim()
-      const city = (citySelect?.value || '').trim()
-      if (!rawStreet || rawStreet.length < 3 || !city) return
+      const selectedCity = (citySelect?.value || '').trim()
+      if (!selectedCity) return
 
-      const parsed = parseAddressInput(rawStreet, postcodeInput?.value ?? '', areaInput?.value ?? '')
+      const postcodeField = postcodeTouched || !rawStreet ? postcodeInput?.value ?? '' : ''
+      const areaField = areaTouched ? areaInput?.value ?? '' : ''
+      const cityConstraint = cityTouched ? selectedCity : ''
+      const parsed = parseAddressInput(rawStreet, postcodeField, areaField)
       const { street, postcode, area } = parsed
-      const hasBuildingNumber = Boolean(requestedHouseNumber(street))
+      const hasStreet = street.length >= 3
+      const hasBuildingNumber = hasStreet && Boolean(requestedHouseNumber(street))
       const hasFullPostcode = /^\d{5}$/.test(postcode)
-      if (!street || (!hasBuildingNumber && !hasFullPostcode)) return
+      if (!hasStreet && !hasFullPostcode) return
 
-      const queries = uniqueQueries([
-        [street, postcode, area, city, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
-        [street, postcode, area, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
-        parsed.raw !== street ? [parsed.raw, 'Tenerife', 'Spain'].filter(Boolean).join(', ') : '',
-      ])
+      const postcodeOnly = !hasStreet && hasFullPostcode
+      const queries = postcodeOnly
+        ? uniqueQueries([
+            [postcode, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+          ])
+        : uniqueQueries([
+            [street, postcode, area, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, area, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [parsed.raw || street, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+          ])
 
       try {
         let result: google.maps.GeocoderResult | undefined
         for (const query of queries) {
           const results = await geocode(query)
           if (cancelled || !gate.isCurrent(version)) return
-          result = results.find((candidate) => resultMatchesQuery(candidate, street, postcode, city, area))
+          result = postcodeOnly
+            ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
         if (!result || !coordinates) {
-          if (showError || (hasBuildingNumber && hasFullPostcode)) {
+          if ((showError || (hasBuildingNumber && hasFullPostcode)) && Date.now() >= suppressErrorsUntil) {
             window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: notFoundMessage } }))
           }
           return
@@ -225,9 +262,10 @@ export function PublishExactAddressSync() {
           addressComponents: result.address_components,
           coordinates,
         } }))
-        dispatchAddressPoint(coordinates, hasBuildingNumber ? EXACT_ADDRESS_ZOOM : STREET_ADDRESS_ZOOM)
+        const zoom = hasBuildingNumber ? EXACT_ADDRESS_ZOOM : hasStreet ? STREET_ADDRESS_ZOOM : POSTCODE_AREA_ZOOM
+        dispatchAddressPoint(coordinates, zoom)
       } catch {
-        if (!cancelled && gate.isCurrent(version) && showError) {
+        if (!cancelled && gate.isCurrent(version) && showError && Date.now() >= suppressErrorsUntil) {
           window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: notFoundMessage } }))
         }
       }
@@ -238,21 +276,27 @@ export function PublishExactAddressSync() {
       const version = gate.next()
       timer = window.setTimeout(() => {
         timer = undefined
-        void resolveExactAddress(version, streetOverride, showError)
+        void resolveAddressOrPostcode(version, streetOverride, showError)
       }, ADDRESS_DEBOUNCE_MS)
     }
 
     const setupInput = (element: HTMLInputElement, kind: 'street' | 'postcode' | 'area') => {
       if (cleanups.has(element)) return
       if (kind === 'area') {
-        const onAreaInput = (event: Event) => { if (event.isTrusted) cancelPending() }
+        const onAreaInput = (event: Event) => {
+          if (!event.isTrusted) return
+          areaTouched = true
+          cancelPending()
+        }
         element.addEventListener('input', onAreaInput)
         cleanups.set(element, () => element.removeEventListener('input', onAreaInput))
         return
       }
       const onInput = (event: Event) => {
         if (!event.isTrusted) return
+        if (kind === 'postcode') postcodeTouched = true
         rawAutocompleteStreet = ''
+        clearLocationError()
         schedule('', false)
       }
       const onBlur = (event: Event) => {
@@ -269,7 +313,11 @@ export function PublishExactAddressSync() {
 
     const setupMunicipality = (element: HTMLSelectElement) => {
       if (cleanups.has(element)) return
-      const onChange = (event: Event) => { if (event.isTrusted) cancelPending() }
+      const onChange = (event: Event) => {
+        if (!event.isTrusted) return
+        cityTouched = true
+        cancelPending()
+      }
       element.addEventListener('change', onChange)
       cleanups.set(element, () => element.removeEventListener('change', onChange))
     }
@@ -280,6 +328,7 @@ export function PublishExactAddressSync() {
       const onInput = (event: Event) => {
         if (!event.isTrusted) return
         rawAutocompleteStreet = (element.value ?? '').trim()
+        clearLocationError()
         if (rawAutocompleteStreet) schedule(rawAutocompleteStreet, false)
       }
       const onBlur = (event: Event) => {
@@ -333,16 +382,21 @@ export function PublishExactAddressSync() {
     const handleLocationSelected = (event: Event) => {
       const detail = (event as CustomEvent<SelectedLocationDetail>).detail ?? {}
       cancelPending()
-      if (!detail.coordinates || detail.zoom != null) return
+      if (!detail.coordinates) return
+      suppressErrorsUntil = Date.now() + 1500
+      clearLocationError()
+      if (detail.zoom != null) return
       const street = document.querySelector<HTMLInputElement>('#publish-street')?.value.trim() ?? ''
       const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')?.value.trim() ?? ''
       const parsed = parseAddressInput(street, postcode, document.querySelector<HTMLInputElement>('#publish-area')?.value ?? '')
-      const hasBuildingNumber = Boolean(requestedHouseNumber(parsed.street))
+      const hasStreet = parsed.street.length >= 3
+      const hasBuildingNumber = hasStreet && Boolean(requestedHouseNumber(parsed.street))
       const hasFullPostcode = /^\d{5}$/.test(parsed.postcode)
-      if (!hasBuildingNumber && !hasFullPostcode) return
+      if (!hasStreet && !hasFullPostcode) return
       const coordinates = detail.coordinates
+      const zoom = hasBuildingNumber ? EXACT_ADDRESS_ZOOM : hasStreet ? STREET_ADDRESS_ZOOM : POSTCODE_AREA_ZOOM
       queueMicrotask(() => {
-        if (!cancelled) dispatchAddressPoint(coordinates, hasBuildingNumber ? EXACT_ADDRESS_ZOOM : STREET_ADDRESS_ZOOM, detail.clearDetectedAddress ?? true)
+        if (!cancelled) dispatchAddressPoint(coordinates, zoom, detail.clearDetectedAddress ?? true)
       })
     }
     window.addEventListener('112233:publish-location-selected', handleLocationSelected)

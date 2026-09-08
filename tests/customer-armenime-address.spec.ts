@@ -66,7 +66,7 @@ test('Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the m
   await page.getByLabel('Código postal').fill('38678')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __customerAddressQuery?: string }).__customerAddressQuery ?? '')).toBe(
-    'Calle José Espronceda 20, 38678, Armeñime, Adeje, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Tenerife, Spain',
   )
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)

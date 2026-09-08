@@ -49,7 +49,7 @@ test('customer postal-style address auto-corrects province-as-municipality and f
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
   await expect(page.locator('.map-inline-error')).toHaveCount(0)
-  await expect(page.locator('.publish-address-example')).toContainText('Calle José Espronceda 20, 38678 Armeñime, Adeje')
+  await expect(page.locator('.publish-address-example')).toContainText('solo el código postal de 5 dígitos')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
@@ -69,7 +69,7 @@ test('postcode embedded in a pasted full address is not mistaken for the buildin
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect.poll(() => page.evaluate(() => (window as Window & { __friendlyAddressQueries?: string[] }).__friendlyAddressQueries ?? [])).toContain(
-    'Calle José Espronceda 20, 38678, Armeñime, Santa Cruz de Tenerife, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Tenerife, Spain',
   )
 })
 
@@ -110,6 +110,6 @@ test('pasted full address overrides fresh-draft postcode and area defaults', asy
   await expect(page.getByLabel('Código postal')).toHaveValue('38650')
   await expect(page.locator('#publish-street')).toHaveValue('Avenida Juan Carlos I 20')
   await expect.poll(() => page.evaluate(() => (window as Window & { __friendlyAddressQueries?: string[] }).__friendlyAddressQueries ?? [])).toContain(
-    'Avenida Juan Carlos I 20, 38650, Los Cristianos, Adeje, Tenerife, Spain',
+    'Avenida Juan Carlos I 20, 38650, Los Cristianos, Tenerife, Spain',
   )
 })
