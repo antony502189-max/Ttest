@@ -51,6 +51,39 @@ test('a 5-digit postcode alone recenters the map and fills the location without 
   })).toEqual({ lat: 28.0718, lng: -16.7256 })
 })
 
+test('postcode-only result without a distinct locality replaces the stale draft area', async ({ page }) => {
+  await openPublishLocation(page)
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
+
+  await page.evaluate(() => {
+    window.__112233TestAddressGeocode = async () => [({
+      formatted_address: '38670 Adeje, Santa Cruz de Tenerife, Spain',
+      types: ['postal_code'],
+      address_components: [
+        { long_name: '38670', short_name: '38670', types: ['postal_code'] },
+        { long_name: 'Adeje', short_name: 'Adeje', types: ['locality'] },
+        { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+        { long_name: 'Santa Cruz de Tenerife', short_name: 'TF', types: ['administrative_area_level_2'] },
+      ],
+      geometry: {
+        location: { lat: () => 28.1227, lng: () => -16.7260 },
+        location_type: 'GEOMETRIC_CENTER',
+        viewport: {},
+      },
+    } as unknown as google.maps.GeocoderResult)]
+  })
+
+  await page.getByLabel('Código postal').fill('38670')
+
+  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Adeje')
+  await expect(page.getByLabel('Zona o barrio')).not.toHaveValue('Armeñime')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38670')
+  await expect(page.locator('.map-inline-error')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Describe la habitación')).toBeVisible()
+})
+
 test('an exact typed address ignores untouched draft postcode and falls back without stale municipality or area context', async ({ page }) => {
   await openPublishLocation(page)
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
@@ -115,4 +148,50 @@ test('an exact typed address ignores untouched draft postcode and falls back wit
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
   })).toEqual({ lat: 28.0718, lng: -16.7256 })
+})
+
+test('resetting a draft also resets address touched constraints before the next lookup', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await page.getByLabel('Zona o barrio').fill('Costa Adeje')
+  await page.getByLabel('Código postal').fill('38660')
+
+  await page.locator('.publish-header__actions').getByRole('button', { name: 'Restablecer' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Restablecer' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38678')
+
+  await page.evaluate(() => {
+    const holder = window as Window & { __addressOrPostcodeQueries?: string[] }
+    holder.__addressOrPostcodeQueries = []
+    window.__112233TestAddressGeocode = async (query) => {
+      holder.__addressOrPostcodeQueries?.push(query)
+      return [({
+        formatted_address: 'Avenida Siam 3, 38670 Costa Adeje, Adeje, Santa Cruz de Tenerife, Spain',
+        types: ['street_address'],
+        address_components: [
+          { long_name: 'Avenida Siam', short_name: 'Av. Siam', types: ['route'] },
+          { long_name: '3', short_name: '3', types: ['street_number'] },
+          { long_name: '38670', short_name: '38670', types: ['postal_code'] },
+          { long_name: 'Costa Adeje', short_name: 'Costa Adeje', types: ['locality'] },
+          { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+        ],
+        geometry: {
+          location: { lat: () => 28.0718, lng: () => -16.7256 },
+          location_type: 'ROOFTOP',
+          viewport: {},
+        },
+      } as unknown as google.maps.GeocoderResult)]
+    }
+  })
+
+  await page.locator('#publish-street').fill('Avenida Siam 3')
+
+  await expect.poll(() => page.evaluate(() => (window as Window & { __addressOrPostcodeQueries?: string[] }).__addressOrPostcodeQueries ?? [])).toContain(
+    'Avenida Siam 3, Tenerife, Spain',
+  )
+  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38670')
 })
