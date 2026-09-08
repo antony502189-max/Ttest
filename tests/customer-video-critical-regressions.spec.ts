@@ -34,15 +34,14 @@ test('customer video fix removes the fake fresh-location claim and protects post
   expect(source).toContain('selector.hidden = true')
 })
 
-test('customer video fix retries transient admin authorization instead of treating every failure as denial', () => {
+test('customer video fix retries transient admin authorization without weakening the server route guard', () => {
   const app = readFileSync('src/App.tsx', 'utf8')
-  const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
 
-  expect(app).toContain('<ProtectedRoute><AdminAccessRecoveryGate><AdminPage /></AdminAccessRecoveryGate></ProtectedRoute>')
-  expect(source).toContain("error.status === 401 || error.status === 403")
-  expect(source).toContain('window.setTimeout(() => { void verify(false) }, 450)')
-  expect(source).toContain("setPhase('error')")
-  expect(source).toContain('Сессия остаётся активной')
+  expect(app).toContain('<ProtectedRoute admin><AdminPage /></ProtectedRoute>')
+  expect(app).toContain("error.status === 401 || error.status === 403")
+  expect(app).toContain('window.setTimeout(() => { void verifyAdmin(false) }, 450)')
+  expect(app).toContain("setAdminAllowed('error')")
+  expect(app).toContain('Сессия остаётся активной')
 })
 
 test('leaving a new publication does not make existing host listings disappear', async ({ page }) => {
