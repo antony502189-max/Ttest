@@ -21,8 +21,9 @@ test('customer video fix keeps the owned-listing route behind authoritative hydr
   expect(gate).toContain('Объявления не удалены')
 })
 
-test('customer video fix removes the fake fresh-location claim and protects postcode input', () => {
+test('customer video fix removes the fake fresh-location claim and validates postcode at the wizard model boundary', () => {
   const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
+  const publish = readFileSync('src/pages/PublishPage.tsx', 'utf8')
 
   expect(source).toContain("const AUTO_CITY_VALUE = '__112233_auto_municipality__'")
   expect(source).toContain("draft.city === 'Adeje'")
@@ -34,6 +35,10 @@ test('customer video fix removes the fake fresh-location claim and protects post
   expect(source).toContain("setNativeInputValue(postcode, '')")
   expect(source).toContain("!/^\\d{5}$/.test(postcode.value.trim())")
   expect(source).toContain('selector.hidden = true')
+  expect(publish).toContain('if (draft.postcode.trim() && !/^\\d{5}$/.test(draft.postcode.trim()))')
+  expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
+  expect(publish).toContain('for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1)')
+  expect(publish).toContain('if (!validate(targetStep))')
 })
 
 test('customer video fix retries transient admin authorization without weakening the server route guard', () => {
