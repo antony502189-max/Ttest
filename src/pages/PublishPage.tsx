@@ -355,7 +355,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       if (!draft.area.trim()) next.area = "Indica la zona o barrio.";
       else if (draft.area.trim().length > 120) next.area = "La zona no puede superar 120 caracteres.";
       if (draft.street.trim().length > 160) next.street = "La calle no puede superar 160 caracteres.";
-      if (draft.postcode.trim().length > 32) next.postcode = "El código postal no puede superar 32 caracteres.";
+      if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = "El código postal debe tener exactamente 5 dígitos.";
     }
     if (targetStep === 2) {
       if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = "Indica una superficie entera entre 1 y 200 m².";
