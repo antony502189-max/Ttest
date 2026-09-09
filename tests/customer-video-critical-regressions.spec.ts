@@ -21,21 +21,27 @@ test('customer video fix keeps the owned-listing route behind authoritative hydr
   expect(gate).toContain('Объявления не удалены')
 })
 
-test('customer video fix removes the fake fresh-location claim and validates postcode at the wizard model boundary', () => {
+test('customer video fix keeps fresh location unresolved safely and validates it at the wizard model boundary', () => {
   const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
   const publish = readFileSync('src/pages/PublishPage.tsx', 'utf8')
 
+  expect(source).toContain("const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'")
   expect(source).toContain("const AUTO_CITY_VALUE = '__112233_auto_municipality__'")
   expect(source).toContain("draft.city === 'Adeje'")
   expect(source).toContain("draft.area === 'Armeñime'")
   expect(source).toContain("draft.postcode === '38678'")
+  expect(source).toContain('const hasLegacyDraft = localStorage.getItem(LEGACY_DRAFT_KEY) !== null')
   expect(source).toContain('const brandNewUnpersistedDefault = raw === null')
+  expect(source).toContain('&& !hasLegacyDraft')
   expect(source).toContain('const shouldMigrateLegacyDefault = isUntouchedLegacyLocationDefault(raw) || brandNewUnpersistedDefault')
   expect(source).toContain("setNativeSelectValue(city, AUTO_CITY_VALUE, true)")
   expect(source).toContain("setNativeInputValue(area, '')")
   expect(source).toContain("setNativeInputValue(postcode, '')")
   expect(source).toContain("!/^\\d{5}$/.test(postcode.value.trim())")
   expect(source).toContain('selector.hidden = true')
+  expect(publish).toContain('if (!publicationMunicipalities.has(draft.city)) next.city = "Selecciona un municipio válido."')
+  expect(publish).toContain('error={errors.city}')
+  expect(publish).toContain('aria-invalid={Boolean(errors.city)}')
   expect(publish).toContain('if (draft.postcode.trim() && !/^\\d{5}$/.test(draft.postcode.trim()))')
   expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
   expect(publish).toContain('for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1)')
