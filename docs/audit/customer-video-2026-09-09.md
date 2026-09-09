@@ -12,9 +12,9 @@ Observed customer flow:
 Fix contract:
 
 - `/listings/mine` remains authoritative and its in-flight state must never be represented as an authoritative empty list.
-- A same-user server snapshot may bridge a refresh race, but must never leak across account changes.
-- Fresh untouched legacy location defaults are converted to an explicit unresolved state; the user must provide an address/postcode or choose a municipality before continuing.
-- A non-empty postcode must be exactly five digits.
+- The owner route does not inject a fallback listing snapshot into a nested context. A non-empty authoritative probe triggers the existing provider refresh and keeps the route in a syncing state until the owning provider itself has hydrated `ownedListings`; timeout/failure is recoverable instead of exposing cards backed by stale callbacks.
+- Fresh untouched legacy location defaults are converted to an explicit unresolved state; a persisted legitimate `Armeñime / 38678` draft is preserved.
+- A non-empty postcode must be exactly five digits. The rule is enforced in `PublishPage.validate()`, so stepper navigation and final submission cannot bypass it.
 - Owner-page empty-state copy follows the selected UI language.
 - Admin `401/403` remains a real denial. Transient network/5xx failures retry once and then present a recoverable error without logging the user out.
 
