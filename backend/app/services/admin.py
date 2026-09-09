@@ -30,6 +30,7 @@ from .moderation import (
     viable_admin_count,
 )
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
+from .user_locks import lock_user_for_mutation
 
 
 def audit(actor_id: UUID, action: str, target_type: str, target_id: UUID | None, detail: dict) -> AuditLog:
@@ -102,8 +103,8 @@ async def _actionable_listing(listing_id: UUID, session: AsyncSession) -> tuple[
     if not owner_id:
         raise HTTPException(404, "Listing not found")
 
-    owner = await session.scalar(select(User).where(User.id == owner_id).with_for_update())
-    if not owner or owner.deleted_at is not None:
+    owner = await lock_user_for_mutation(owner_id, session)
+    if not owner or owner.blocked or owner.deleted_at is not None:
         raise HTTPException(404, "Listing not found")
 
     listing = await session.scalar(

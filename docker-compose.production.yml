@@ -152,6 +152,19 @@ services:
       minio: { condition: service_healthy }
     networks: [data]
 
+  # Dedicated ops-only client for independent S3 backup transport. It receives
+  # no production data-network access and cannot address PostgreSQL/Redis/MinIO;
+  # encrypted backup files are mounted explicitly by the invoking script.
+  offsite-tools:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.minio-tools
+    restart: "no"
+    entrypoint: ["/bin/sh"]
+    command: ["-ec", "true"]
+    profiles: [ops]
+    networks: [egress]
+
   migrate:
     build: { context: ./backend }
     restart: "no"

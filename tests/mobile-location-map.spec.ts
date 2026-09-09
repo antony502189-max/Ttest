@@ -180,7 +180,7 @@ for (const viewport of [
     await expectNoHorizontalOverflow(page)
     await page.getByRole('button', { name: /¿Quién vivirá\?/ }).click()
     await expectNoHorizontalOverflow(page)
-    const occupantDialog = page.getByRole('dialog')
+    const occupantDialog = page.locator('[role="dialog"]:visible')
     await expect(occupantDialog).toBeVisible()
     await occupantDialog.getByRole('button', { name: /Cerrar|Close/ }).click()
     await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()

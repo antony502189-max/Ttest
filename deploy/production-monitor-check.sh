@@ -56,6 +56,12 @@ require_uint() {
   [[ "$value" =~ ^[0-9]+$ ]] || critical "$name must be an unsigned integer"
 }
 
+require_bool() {
+  local name="$1"
+  local value="$2"
+  [[ "$value" == "0" || "$value" == "1" ]] || critical "$name must be 0 or 1"
+}
+
 [[ -r "$ENV_FILE" ]] || critical "production env is not readable: $ENV_FILE"
 [[ -r "$COMPOSE_FILE" ]] || critical "production compose file is not readable: $COMPOSE_FILE"
 
@@ -72,14 +78,51 @@ command -v flock >/dev/null || critical "flock is required for release-lock insp
 # suppress transient failures if a release operation starts concurrently.
 release_in_progress && maintenance
 
-compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
-worker_id="$("${compose[@]}" ps -q external-listings-worker)"
-[[ -n "$worker_id" ]] || critical "external-listings-worker container is missing"
+ops_timers_required="$(env_value OPS_TIMERS_REQUIRED 0)"
+require_bool OPS_TIMERS_REQUIRED "$ops_timers_required"
+if [[ "$ops_timers_required" == "1" ]]; then
+  command -v systemctl >/dev/null || critical "systemctl is required when production ops timers are mandatory"
+  for timer in \
+    112233-monitor.timer \
+    112233-dr-cycle.timer \
+    112233-offsite-restore-drill.timer; do
+    systemctl is-enabled --quiet "$timer" || critical "$timer is not enabled"
+    systemctl is-active --quiet "$timer" || critical "$timer is not active"
+  done
+  for service in 112233-dr-cycle.service 112233-offsite-restore-drill.service; do
+    if systemctl is-failed --quiet "$service"; then
+      critical "$service last execution failed"
+    fi
+  done
+fi
 
+compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+
+check_service() {
+  local service="$1"
+  local require_health="$2"
+  local container_id runtime state health
+  container_id="$("${compose[@]}" ps -q "$service")"
+  [[ -n "$container_id" ]] || critical "$service container is missing"
+  runtime="$(docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id")"
+  IFS='|' read -r state health <<<"$runtime"
+  [[ "$state" == "running" ]] || critical "$service state is $state"
+  if [[ "$require_health" == "1" && "$health" != "healthy" ]]; then
+    critical "$service health is $health"
+  fi
+}
+
+# Verify the whole serving/data path, not only the importer. Frontend currently
+# has no container healthcheck, so its running state is the fail-closed signal;
+# all other long-lived production services must report healthy.
+for service in postgres redis minio backend mail-worker external-listings-worker; do
+  check_service "$service" 1
+done
+check_service frontend 0
+
+worker_id="$("${compose[@]}" ps -q external-listings-worker)"
 worker_runtime="$(docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$worker_id")"
 IFS='|' read -r worker_state worker_health <<<"$worker_runtime"
-[[ "$worker_state" == "running" ]] || critical "external-listings-worker state is $worker_state"
-[[ "$worker_health" == "healthy" ]] || critical "external-listings-worker health is $worker_health"
 
 postgres_user="$(env_value POSTGRES_USER ttest)"
 postgres_db="$(env_value POSTGRES_DB ttest)"
@@ -219,9 +262,70 @@ if (( ${#criticals[@]} > 0 )); then
   critical "disk usage at or above ${DISK_CRITICAL_PERCENT}%: ${criticals[*]}"
 fi
 
+now_epoch="$(date -u +%s)"
+require_uint current_epoch "$now_epoch"
+
+scheduled_backups_required="$(env_value SCHEDULED_BACKUPS_REQUIRED 0)"
+backup_max_age="$(env_value BACKUP_MAX_AGE_SECONDS 129600)"
+require_bool SCHEDULED_BACKUPS_REQUIRED "$scheduled_backups_required"
+require_uint BACKUP_MAX_AGE_SECONDS "$backup_max_age"
+
+newest_backup_age() {
+  local pattern="$1"
+  local label="$2"
+  local newest mtime age
+  newest="$(find "$ROOT/backups" -maxdepth 1 -type f -name "$pattern" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)"
+  [[ -n "$newest" ]] || critical "$label backup is missing"
+  [[ -f "$newest.hmac" ]] || critical "$label backup authentication file is missing: ${newest##*/}.hmac"
+  mtime="$(stat -c %Y "$newest")"
+  require_uint "$label backup mtime" "$mtime"
+  age=$((now_epoch - mtime))
+  (( age >= 0 )) || age=0
+  if (( age > backup_max_age )); then
+    critical "$label backup is stale (${age}s > ${backup_max_age}s)"
+  fi
+}
+
+if [[ "$scheduled_backups_required" == "1" ]]; then
+  newest_backup_age 'postgres-*.dump.enc' PostgreSQL
+  newest_backup_age 'minio-*.tar.enc' MinIO
+fi
+
+offsite_required="$(env_value OFFSITE_BACKUP_REQUIRED 0)"
+offsite_max_age="$(env_value OFFSITE_BACKUP_MAX_AGE_SECONDS 129600)"
+require_bool OFFSITE_BACKUP_REQUIRED "$offsite_required"
+require_uint OFFSITE_BACKUP_MAX_AGE_SECONDS "$offsite_max_age"
+if [[ "$offsite_required" == "1" ]]; then
+  offsite_status="$ROOT/shared/offsite-backup.status"
+  [[ -r "$offsite_status" ]] || critical "off-site backup success status is missing"
+  offsite_epoch="$(sed -n 's/^completed_at_epoch=//p' "$offsite_status" | tail -n 1)"
+  require_uint offsite_completed_at_epoch "$offsite_epoch"
+  offsite_age=$((now_epoch - offsite_epoch))
+  (( offsite_age >= 0 )) || offsite_age=0
+  if (( offsite_age > offsite_max_age )); then
+    critical "off-site backup replication is stale (${offsite_age}s > ${offsite_max_age}s)"
+  fi
+fi
+
+restore_drill_required="$(env_value OFFSITE_RESTORE_DRILL_REQUIRED 0)"
+restore_drill_max_age="$(env_value OFFSITE_RESTORE_DRILL_MAX_AGE_SECONDS 3456000)"
+require_bool OFFSITE_RESTORE_DRILL_REQUIRED "$restore_drill_required"
+require_uint OFFSITE_RESTORE_DRILL_MAX_AGE_SECONDS "$restore_drill_max_age"
+if [[ "$restore_drill_required" == "1" ]]; then
+  drill_status="$ROOT/shared/offsite-restore-drill.status"
+  [[ -r "$drill_status" ]] || critical "off-site restore drill status is missing"
+  drill_epoch="$(sed -n 's/^completed_at_epoch=//p' "$drill_status" | tail -n 1)"
+  require_uint restore_drill_completed_at_epoch "$drill_epoch"
+  drill_age=$((now_epoch - drill_epoch))
+  (( drill_age >= 0 )) || drill_age=0
+  if (( drill_age > restore_drill_max_age )); then
+    critical "off-site restore drill is stale (${drill_age}s > ${restore_drill_max_age}s)"
+  fi
+fi
+
 release_in_progress && maintenance
 
-summary="worker=${db_health}, heartbeat_age=${heartbeat_age}s, healthy_sources=${healthy_sources}/${required_sources}, cycle_age=${cycle_age}s, run_id=${last_run_id}"
+summary="services=healthy, worker=${db_health}, heartbeat_age=${heartbeat_age}s, healthy_sources=${healthy_sources}/${required_sources}, cycle_age=${cycle_age}s, run_id=${last_run_id}, ops_timers_required=${ops_timers_required}"
 if (( ${#warnings[@]} > 0 )); then
   printf 'WARNING: %s; %s\n' "$summary" "${warnings[*]}" >&2
   exit 2

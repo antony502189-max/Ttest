@@ -31,6 +31,7 @@ from ...services.auth import (
     revoke_session,
     verify_user_email,
 )
+from ...services.user_locks import lock_user_for_mutation
 from ..dependencies import authenticated_user, current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -119,6 +120,10 @@ async def select_google_role(
     session: AsyncSession = Depends(get_session),
 ):
     require_cookie_origin(request)
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+        raise HTTPException(403, "Account is not active")
+    user = locked_user
     if user.role != "pending" or not user.google_subject:
         raise HTTPException(409, "Google account role is already set")
     user.role = payload.role
