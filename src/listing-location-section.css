@@ -41,7 +41,6 @@
   margin-top: .75rem;
   overflow: hidden;
   isolation: isolate;
-  contain: layout paint;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-muted);
@@ -62,8 +61,20 @@
   height: 100%;
 }
 
+/* Keep application-wide responsive image resets out of Google Maps. Raster
+   tiles are positioned on a fixed grid and must retain the dimensions chosen
+   by the Maps renderer. */
 .listing-location-google-map .gm-style img {
   max-width: none !important;
+  max-height: none !important;
+}
+
+/* Chrome/Android can occasionally fail to paint a complete raster tile row
+   while the page is scrolling, leaving the horizontal white band captured in
+   the customer recording. Keeping direct tile images absolutely positioned
+   matches the Maps renderer's geometry and avoids that missing-row repaint. */
+.listing-location-preview .listing-location-google-map .gm-style div > img {
+  position: absolute !important;
 }
 
 .listing-location-preview__open {
