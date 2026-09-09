@@ -165,6 +165,14 @@ async function openCompletedWizard(page: Page) {
   await page.goto('/#/publicar')
   await expect(page.getByRole('heading', { name: 'Publicar una habitación' })).toBeVisible()
   for (let step = 0; step < 9; step += 1) {
+    if (step === 1) {
+      await page.locator('#publish-city').selectOption('Adeje')
+      await page.locator('#publish-area').fill('Costa Adeje')
+      await page.locator('#publish-postcode').fill('38660')
+      await expect(page.locator('#publish-city')).toHaveValue('Adeje')
+      await expect(page.locator('#publish-area')).toHaveValue('Costa Adeje')
+      await expect(page.locator('#publish-postcode')).toHaveValue('38660')
+    }
     if (step === 6) {
       await page.getByLabel('Añadir fotos del anuncio').setInputFiles({
         name: 'synthetic-room.png',
