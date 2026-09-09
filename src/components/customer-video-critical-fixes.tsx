@@ -4,6 +4,7 @@ import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const DRAFT_KEY = '112233:listing-draft:v3'
+const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
 const AUTO_CITY_VALUE = '__112233_auto_municipality__'
 
 type CriticalCopy = {
@@ -185,7 +186,9 @@ export function CustomerVideoCriticalFixes() {
       const publicationKey = raw && typeof raw === 'object'
         ? (raw as DraftRecord).data?.publicationKey ?? 'persisted-default'
         : 'brand-new-unpersisted'
+      const hasLegacyDraft = localStorage.getItem(LEGACY_DRAFT_KEY) !== null
       const brandNewUnpersistedDefault = raw === null
+        && !hasLegacyDraft
         && city.value === 'Adeje'
         && area.value === 'Armeñime'
         && !street.value.trim()
