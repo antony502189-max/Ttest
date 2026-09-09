@@ -2,13 +2,16 @@ import { Component, lazy, Suspense, useEffect, useState, type ErrorInfo, type Re
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { checkAdminAccess } from '@/api/admin'
 import { AUTH_READY_EVENT, hasSessionHint } from '@/api/auth'
+import { ApiError } from '@/api/client'
 import { AppLayout } from '@/components/layout'
 import { CustomerFeedbackFixes } from '@/components/customer-feedback-fixes'
+import { CustomerVideoCriticalFixes } from '@/components/customer-video-critical-fixes'
 import { MobileSiteFeedbackFixes } from '@/components/mobile-site-feedback-fixes'
 import { ModerationGate } from '@/components/moderation-gate'
+import { OwnedListingsHydrationGate } from '@/components/owned-listings-hydration-gate'
 import { PublishOccupancySync } from '@/components/publish-occupancy-sync'
 import { AppProvider, useApp } from '@/contexts/app-context'
-import { I18nProvider } from '@/contexts/i18n-context'
+import { I18nProvider, useI18n } from '@/contexts/i18n-context'
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
@@ -33,6 +36,8 @@ const MenuPage = lazy(() => import('@/pages/MobilePages').then((module) => ({ de
 const infoRoutes = ['/sobre-nosotros', '/como-funciona', '/ayuda', '/terminos', '/privacidad', '/cookies', '/normas-de-publicacion']
 const MOBILE_ONBOARDING_KEY = '112233:mobile-onboarding:v1'
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
+
+type AdminRouteAccess = boolean | 'error' | null
 
 function RouteLoading() {
   return <div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>
@@ -116,11 +121,13 @@ function MobileOnboardingAuthBridge() {
 
 function ProtectedRoute({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const { currentUser } = useApp()
+  const { language } = useI18n()
   const location = useLocation()
   const currentUserId = currentUser?.id ?? null
   const currentUserRole = currentUser?.role ?? null
   const [authReady, setAuthReady] = useState(() => Boolean(currentUser) || !hasSessionHint())
-  const [adminAllowed, setAdminAllowed] = useState<boolean | null>(() => admin ? null : true)
+  const [adminAllowed, setAdminAllowed] = useState<AdminRouteAccess>(() => admin ? null : true)
+  const [adminCheckAttempt, setAdminCheckAttempt] = useState(0)
 
   useEffect(() => {
     if (currentUserId || !hasSessionHint()) {
@@ -151,20 +158,47 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
       setAdminAllowed(currentUserRole === 'admin')
       return
     }
+
     let cancelled = false
+    let retryTimer = 0
     setAdminAllowed(null)
-    void checkAdminAccess().then(() => {
-      if (!cancelled) setAdminAllowed(true)
-    }).catch(() => {
-      if (!cancelled) setAdminAllowed(false)
-    })
-    return () => { cancelled = true }
-  }, [admin, currentUserId, currentUserRole])
+
+    const verifyAdmin = async (retryTransient = true) => {
+      try {
+        await checkAdminAccess()
+        if (!cancelled) setAdminAllowed(true)
+      } catch (error) {
+        if (cancelled) return
+        const explicitDenial = error instanceof ApiError && (error.status === 401 || error.status === 403)
+        if (explicitDenial) {
+          setAdminAllowed(false)
+          return
+        }
+        if (retryTransient) {
+          retryTimer = window.setTimeout(() => { void verifyAdmin(false) }, 450)
+          return
+        }
+        setAdminAllowed('error')
+      }
+    }
+
+    void verifyAdmin(true)
+    return () => {
+      cancelled = true
+      if (retryTimer) window.clearTimeout(retryTimer)
+    }
+  }, [admin, adminCheckAttempt, currentUserId, currentUserRole])
 
   if (!authReady) return <RouteLoading />
   if (!currentUser) return <Navigate to="/acceso" state={{ returnTo: `${location.pathname}${location.search}` }} replace />
   if (admin && adminAllowed === null) return <RouteLoading />
-  if (admin && !adminAllowed) return <Navigate to="/" replace />
+  if (admin && adminAllowed === 'error') {
+    const title = language === 'ru' ? 'Не удалось проверить доступ к админ-панели' : language === 'en' ? 'We could not verify admin access' : 'No pudimos comprobar el acceso de administración'
+    const text = language === 'ru' ? 'Сессия остаётся активной. Повторите проверку.' : language === 'en' ? 'Your session is still active. Try the access check again.' : 'Tu sesión sigue activa. Vuelve a comprobar el acceso.'
+    const retry = language === 'ru' ? 'Повторить' : language === 'en' ? 'Retry' : 'Reintentar'
+    return <div className="route-error customer-admin-access-error" role="alert"><h1>{title}</h1><p>{text}</p><button type="button" onClick={() => setAdminCheckAttempt((value) => value + 1)}>{retry}</button></div>
+  }
+  if (admin && adminAllowed === false) return <Navigate to="/" replace />
   return children
 }
 
@@ -176,5 +210,5 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 export default function App() {
-  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><MobileOnboardingAuthBridge /><CustomerFeedbackFixes /><MobileSiteFeedbackFixes /><PublishOccupancySync /><ModerationGate><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="verificar-email" element={<VerifyEmailPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="notificaciones" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></ModerationGate></AppProvider></I18nProvider></HashRouter>
+  return <HashRouter><ScrollToTop /><I18nProvider><AppProvider><MobileOnboardingAuthBridge /><CustomerFeedbackFixes /><CustomerVideoCriticalFixes /><MobileSiteFeedbackFixes /><PublishOccupancySync /><ModerationGate><RouteErrorBoundary><Suspense fallback={<RouteLoading />}><Routes><Route element={<AppLayout />}><Route index element={<HomePage />} /><Route path="buscar" element={<SearchPage />} /><Route path="habitacion/:id" element={<ListingPage />} /><Route path="registro" element={<RegisterPage />} /><Route path="acceso" element={<LoginPage />} /><Route path="recuperar-contrasena" element={<RecoverPasswordPage />} /><Route path="restablecer-contrasena" element={<ResetPasswordPage />} /><Route path="verificar-email" element={<VerifyEmailPage />} /><Route path="favoritos" element={<FavoritesPage />} /><Route path="notificaciones" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} /><Route path="busquedas-guardadas" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} /><Route path="menu" element={<MenuPage />} /><Route path="perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="mis-anuncios" element={<ProtectedRoute><OwnedListingsHydrationGate><MyListingsPage /></OwnedListingsHydrationGate></ProtectedRoute>} /><Route path="publicar" element={<ProtectedRoute><PublishPage key="publish-create" /></ProtectedRoute>} /><Route path="mis-anuncios/:id/editar" element={<ProtectedRoute><PublishPage key="publish-edit" editing /></ProtectedRoute>} />{infoRoutes.map((path) => <Route key={path} path={path.slice(1)} element={<InfoPage />} />)}<Route path="admin" element={<ProtectedRoute admin><AdminPage /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></RouteErrorBoundary></ModerationGate></AppProvider></I18nProvider></HashRouter>
 }

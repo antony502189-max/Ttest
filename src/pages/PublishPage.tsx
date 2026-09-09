@@ -352,10 +352,11 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const validate = (targetStep = step) => {
     const next: Record<string, string> = {};
     if (targetStep === 1) {
+      if (!publicationMunicipalities.has(draft.city)) next.city = "Selecciona un municipio válido.";
       if (!draft.area.trim()) next.area = "Indica la zona o barrio.";
       else if (draft.area.trim().length > 120) next.area = "La zona no puede superar 120 caracteres.";
       if (draft.street.trim().length > 160) next.street = "La calle no puede superar 160 caracteres.";
-      if (draft.postcode.trim().length > 32) next.postcode = "El código postal no puede superar 32 caracteres.";
+      if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = "El código postal debe tener exactamente 5 dígitos.";
     }
     if (targetStep === 2) {
       if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = "Indica una superficie entera entre 1 y 200 m².";
@@ -471,7 +472,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       case 1:
         return <WizardSection title="Sitúa la habitación" description="La dirección exacta no se muestra públicamente.">
           <div className="form-grid">
-            <FormField label="Municipio" htmlFor="publish-city"><select id="publish-city" value={draft.city} onChange={(event) => set("city", event.target.value)}>{['Adeje','Arafo','Arico','Arona','Buenavista del Norte','Candelaria','El Rosario','El Sauzal','El Tanque','Fasnia','Garachico','Granadilla de Abona','Guía de Isora','Güímar','Icod de los Vinos','La Guancha','La Matanza de Acentejo','La Orotava','La Victoria de Acentejo','Los Realejos','Los Silos','Puerto de la Cruz','San Cristóbal de La Laguna','San Juan de la Rambla','San Miguel de Abona','Santa Cruz de Tenerife','Santa Úrsula','Santiago del Teide','Tacoronte','Tegueste','Vilaflor de Chasna'].map((city) => <option key={city}>{city}</option>)}</select></FormField>
+            <FormField label="Municipio" htmlFor="publish-city" error={errors.city}><select id="publish-city" value={draft.city} aria-invalid={Boolean(errors.city)} onChange={(event) => set("city", event.target.value)}>{['Adeje','Arafo','Arico','Arona','Buenavista del Norte','Candelaria','El Rosario','El Sauzal','El Tanque','Fasnia','Garachico','Granadilla de Abona','Guía de Isora','Güímar','Icod de los Vinos','La Guancha','La Matanza de Acentejo','La Orotava','La Victoria de Acentejo','Los Realejos','Los Silos','Puerto de la Cruz','San Cristóbal de La Laguna','San Juan de la Rambla','San Miguel de Abona','Santa Cruz de Tenerife','Santa Úrsula','Santiago del Teide','Tacoronte','Tegueste','Vilaflor de Chasna'].map((city) => <option key={city}>{city}</option>)}</select></FormField>
             <FormField label="Zona o barrio" htmlFor="publish-area" error={errors.area}><Input id="publish-area" value={draft.area} aria-invalid={Boolean(errors.area)} aria-describedby={errors.area ? "publish-area-error" : undefined} onChange={(event) => { const area = event.target.value; setDraft((current) => ({ ...current, area, coordinates: current.locationManuallyMoved ? current.coordinates : areaCenters[area] ?? current.coordinates })); }} /></FormField>
             <FormField label="Calle" htmlFor="publish-street" error={errors.street}><Input id="publish-street" value={draft.street} aria-invalid={Boolean(errors.street)} onChange={(event) => set("street", event.target.value)} /></FormField>
             <FormField label="Código postal" htmlFor="publish-postcode" error={errors.postcode}><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(event) => set("postcode", event.target.value)} /></FormField>
