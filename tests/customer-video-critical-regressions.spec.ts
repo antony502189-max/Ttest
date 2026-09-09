@@ -13,9 +13,10 @@ test('customer video fix keeps the owned-listing route behind authoritative hydr
 
   expect(app).toContain('<OwnedListingsHydrationGate><MyListingsPage /></OwnedListingsHydrationGate>')
   expect(gate).toContain("getOwnedListings(controller.signal)")
-  expect(gate).toContain("type Snapshot = { userId: string; items: Listing[] }")
-  expect(gate).toContain("snapshot?.userId === userId")
+  expect(gate).toContain("type Phase = 'checking' | 'syncing' | 'ready' | 'error'")
   expect(gate).toContain("window.dispatchEvent(new Event('catalog:updated'))")
+  expect(gate).toContain('PROVIDER_SYNC_TIMEOUT_MS')
+  expect(gate).not.toContain('<AppContext.Provider')
   expect(gate).toContain('Tus anuncios no se han borrado')
   expect(gate).toContain('Объявления не удалены')
 })
@@ -27,6 +28,7 @@ test('customer video fix removes the fake fresh-location claim and protects post
   expect(source).toContain("draft.city === 'Adeje'")
   expect(source).toContain("draft.area === 'Armeñime'")
   expect(source).toContain("draft.postcode === '38678'")
+  expect(source).toContain('const shouldMigrate = isUntouchedLegacyLocationDefault(raw) || (brandNewUnpersisted && domLooksLegacy)')
   expect(source).toContain("setNativeSelectValue(city, AUTO_CITY_VALUE, true)")
   expect(source).toContain("setNativeInputValue(area, '')")
   expect(source).toContain("setNativeInputValue(postcode, '')")
@@ -48,6 +50,7 @@ test('leaving a new publication does not make existing host listings disappear',
   await signInAsHost(page)
   await page.goto('/#/mis-anuncios')
 
+  await expect(page.locator('.manage-card').first()).toBeVisible()
   const before = await page.locator('.manage-card').count()
   expect(before).toBeGreaterThan(0)
 
