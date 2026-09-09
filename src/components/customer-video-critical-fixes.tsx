@@ -187,13 +187,15 @@ export function CustomerVideoCriticalFixes() {
         ? (raw as DraftRecord).data?.publicationKey ?? 'persisted-default'
         : 'brand-new-unpersisted'
       const hasLegacyDraft = localStorage.getItem(LEGACY_DRAFT_KEY) !== null
-      const brandNewUnpersistedDefault = raw === null
-        && !hasLegacyDraft
-        && city.value === 'Adeje'
+      const domStillUntouchedLegacyDefault = city.value === 'Adeje'
         && area.value === 'Armeñime'
         && !street.value.trim()
         && postcode.value === '38678'
-      const shouldMigrateLegacyDefault = isUntouchedLegacyLocationDefault(raw) || brandNewUnpersistedDefault
+      const brandNewUnpersistedDefault = raw === null
+        && !hasLegacyDraft
+        && domStillUntouchedLegacyDefault
+      const shouldMigrateLegacyDefault = (isUntouchedLegacyLocationDefault(raw) || brandNewUnpersistedDefault)
+        && domStillUntouchedLegacyDefault
 
       if (migratedPublication.current !== publicationKey && shouldMigrateLegacyDefault) {
         migratedPublication.current = publicationKey
