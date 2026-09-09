@@ -114,7 +114,7 @@ test('customer Android recording viewport keeps the portaled map edge-to-edge', 
   expect(layout.transform).toBe('none')
 })
 
-test('preview uses a compact launch button and does not clamp Google map tile images', async ({ page }) => {
+test('preview keeps Android Google tile rows contiguous and outside responsive image resets', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
@@ -127,20 +127,34 @@ test('preview uses a compact launch button and does not clamp Google map tile im
   expect(buttonBox!.width).toBeLessThan(previewBox!.width * 0.6)
   expect(buttonBox!.height).toBeLessThan(previewBox!.height * 0.3)
 
-  const maxWidth = await page.evaluate(() => {
-    const map = document.querySelector('.listing-location-google-map')
-    if (!map) return null
+  const tileStyles = await page.evaluate(() => {
+    const preview = document.querySelector('.listing-location-preview')
+    const map = preview?.querySelector('.listing-location-google-map')
+    if (!preview || !map) return null
     const gm = document.createElement('div')
     gm.className = 'gm-style'
+    const tileLayer = document.createElement('div')
     const image = document.createElement('img')
     image.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
-    gm.appendChild(image)
+    tileLayer.appendChild(image)
+    gm.appendChild(tileLayer)
     map.appendChild(gm)
-    const value = getComputedStyle(image).maxWidth
+    const imageStyle = getComputedStyle(image)
+    const value = {
+      previewContain: getComputedStyle(preview).contain,
+      maxWidth: imageStyle.maxWidth,
+      maxHeight: imageStyle.maxHeight,
+      position: imageStyle.position,
+    }
     gm.remove()
     return value
   })
-  expect(maxWidth).toBe('none')
+  expect(tileStyles).toEqual({
+    previewContain: 'none',
+    maxWidth: 'none',
+    maxHeight: 'none',
+    position: 'absolute',
+  })
 })
 
 test('customer location controls are fully localized in English and Russian', async ({ page }) => {
