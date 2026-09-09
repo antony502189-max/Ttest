@@ -214,9 +214,14 @@ export function CustomerVideoCriticalFixes() {
           delete selector.dataset.customerVideoHidden
         }
       }
-      if (preview && auto) {
-        setText(preview.querySelector<HTMLElement>('strong'), copy.locationPending)
-        setText(preview.querySelector<HTMLElement>('span'), copy.locationPendingHelp)
+      if (preview) {
+        if (auto) {
+          if (!preview.hidden) preview.hidden = true
+          preview.dataset.customerVideoHidden = 'true'
+        } else if (preview.dataset.customerVideoHidden === 'true') {
+          preview.hidden = false
+          delete preview.dataset.customerVideoHidden
+        }
       }
     }
 
