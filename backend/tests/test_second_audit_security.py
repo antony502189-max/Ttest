@@ -27,7 +27,7 @@ def production_settings(**overrides) -> Settings:
         "smtp_host": "smtp.example.test",
         "google_client_id": "example-client.apps.googleusercontent.com",
         "redis_url": "redis://redis:6379/0",
-        "auto_publish_listings": False,
+        "auto_publish_listings": True,
     }
     values.update(overrides)
     return Settings(**values)
@@ -57,6 +57,11 @@ def test_production_configuration_rejects_local_media_and_http_frontend():
 
 def test_valid_production_configuration_passes():
     production_settings().validate_runtime()
+
+
+def test_production_configuration_requires_direct_publication():
+    with pytest.raises(RuntimeError, match="AUTO_PUBLISH_LISTINGS must be true in production"):
+        production_settings(auto_publish_listings=False).validate_runtime()
 
 
 def test_production_configuration_requires_google_client_id():
