@@ -114,7 +114,7 @@ test('customer Android recording viewport keeps the portaled map edge-to-edge', 
   expect(layout.transform).toBe('none')
 })
 
-test('preview keeps Android Google tile rows contiguous and outside responsive image resets', async ({ page }) => {
+test('preview leaves Google tile positioning to Maps while excluding responsive image resets', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
@@ -144,7 +144,6 @@ test('preview keeps Android Google tile rows contiguous and outside responsive i
       previewContain: getComputedStyle(preview).contain,
       maxWidth: imageStyle.maxWidth,
       maxHeight: imageStyle.maxHeight,
-      position: imageStyle.position,
     }
     gm.remove()
     return value
@@ -153,7 +152,6 @@ test('preview keeps Android Google tile rows contiguous and outside responsive i
     previewContain: 'none',
     maxWidth: 'none',
     maxHeight: 'none',
-    position: 'absolute',
   })
 })
 
@@ -163,15 +161,26 @@ test('mobile listing never paints an empty fixed contact strip over the scrollin
 
   const bar = page.locator('.mobile-contact-bar')
   await expect(bar).toBeVisible()
+  await expect(bar).toHaveCSS('position', 'fixed')
 
   await bar.locator('.contact-actions [data-slot="button"]').evaluateAll((buttons) => {
     buttons.forEach((button) => button.setAttribute('disabled', ''))
   })
 
   await expect(bar).toBeHidden()
+  await expect(bar).toHaveCSS('display', 'none')
 
-  const display = await bar.evaluate((element) => getComputedStyle(element).display)
-  expect(display).toBe('none')
+  const fixedWhiteBands = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.mobile-contact-bar')]
+    .filter((element) => {
+      const style = getComputedStyle(element)
+      const box = element.getBoundingClientRect()
+      return style.position === 'fixed'
+        && style.display !== 'none'
+        && box.width >= window.innerWidth * 0.9
+        && box.height > 0
+        && (style.backgroundColor === 'rgb(255, 255, 255)' || style.backgroundColor === 'rgba(255, 255, 255, 1)')
+    }).length)
+  expect(fixedWhiteBands).toBe(0)
 })
 
 test('customer location controls are fully localized in English and Russian', async ({ page }) => {
