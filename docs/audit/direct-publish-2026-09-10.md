@@ -10,7 +10,7 @@ Production forced `AUTO_PUBLISH_LISTINGS=false`. Owner-created listings therefor
 - owner republish/renew resolves directly to `published` because production runs with auto publication enabled;
 - production runtime validation rejects `AUTO_PUBLISH_LISTINGS=false`;
 - the production compose file hardcodes `AUTO_PUBLISH_LISTINGS=true`;
-- live internal, non-deleted, non-expired rows left in `pending` by the old production behavior are repaired to `published` by Alembic migration `0041_direct_publish_existing_pending`;
+- live internal, non-deleted, non-expired rows left in `pending` by the old production behavior are repaired to `published` by Alembic migration `0041_direct_publish_pending`;
 - the migration records a `pending -> published` history row per repaired listing and bumps `catalog_state` so public consumers refetch.
 
 Administrative moderation/restriction tools remain available as post-publication safety controls. They are no longer a required owner publication gate.
