@@ -189,6 +189,16 @@
   overflow: hidden;
 }
 
+@media (max-width: 767px) {
+  /* The listing page keeps a fixed contact shell above the mobile nav. When
+     every CTA inside that shell is disabled/hidden, only its white padding
+     remains and appears as a horizontal band over the scrolling page. Never
+     paint that orphan shell; active contact CTAs keep the normal fixed bar. */
+  .idealista-listing-page .mobile-contact-bar:not(:has(.contact-actions [data-slot="button"]:not(:disabled))) {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
   .listing-location-preview {
     height: 20rem;
