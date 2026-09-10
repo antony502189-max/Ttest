@@ -67,7 +67,9 @@ class Settings(BaseSettings):
     mail_retry_base_seconds: int = 30
     mail_retry_max_seconds: int = 3_600
 
-    # In production new listings wait for moderation unless explicitly enabled.
+    # The flag remains injectable for tests/non-production fixtures. Production
+    # requires it enabled so owner publication is direct and never waits for a
+    # pre-publication moderation queue.
     auto_publish_listings: bool = False
     max_active_listings_per_user: int = 200
     max_listing_creations_per_day: int = 50
@@ -237,8 +239,8 @@ class Settings(BaseSettings):
                 problems.append("GOOGLE_CLIENT_ID is required in production")
             if not self.redis_url:
                 problems.append("REDIS_URL is required for distributed production rate limiting")
-            if self.auto_publish_listings:
-                problems.append("AUTO_PUBLISH_LISTINGS must be false in production")
+            if not self.auto_publish_listings:
+                problems.append("AUTO_PUBLISH_LISTINGS must be true in production")
             if self.external_import_enabled:
                 configured_sources = {
                     item.strip().casefold()
