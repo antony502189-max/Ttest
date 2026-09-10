@@ -189,6 +189,30 @@
   overflow: hidden;
 }
 
+@media (max-width: 767px) {
+  /* The final mobile contact cascade hides the confirmation row and disabled
+     actions. A WhatsApp-only listing therefore used to leave only the fixed
+     white shell visible. If no contact action exists, remove the shell. */
+  .idealista-listing-page .mobile-contact-bar:not(:has(.contact-actions [data-slot="button"])) {
+    display: none;
+  }
+
+  /* When the only rendered contact action is still disabled, restore the
+     confirmation row instead of painting an empty bar. Confirming it turns
+     WhatsApp into the normal enabled link and the compact CTA takes over. */
+  .idealista-listing-page .mobile-contact-bar:has(.contact-actions [data-slot="button"]:disabled):not(:has(.contact-actions [data-slot="button"]:not(:disabled))) .condition-confirm {
+    display: flex;
+  }
+
+  /* The terminal mobile cascade intentionally hides the first CTA when other
+     contact methods exist. Do not let that rule hide the only available CTA
+     after it becomes enabled (for example confirmed WhatsApp-only contact). */
+  .idealista-listing-page .mobile-contact-bar .contact-actions > [data-slot="button"]:only-child:not(:disabled) {
+    display: inline-flex;
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 640px) {
   .listing-location-preview {
     height: 20rem;
