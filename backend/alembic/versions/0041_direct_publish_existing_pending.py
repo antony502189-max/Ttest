@@ -1,6 +1,6 @@
 """publish existing internal listings that were waiting for moderation
 
-Revision ID: 0041_direct_publish_existing_pending
+Revision ID: 0041_direct_publish_pending
 Revises: 0040_listing_capacity_contract
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0041_direct_publish_existing_pending"
+revision = "0041_direct_publish_pending"
 down_revision = "0040_listing_capacity_contract"
 branch_labels = None
 depends_on = None
