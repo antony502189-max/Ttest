@@ -62,11 +62,19 @@
 }
 
 /* Keep application-wide responsive image resets out of Google Maps. Raster
-   tiles are positioned by the Maps renderer and must retain its dimensions
-   and positioning instead of being rewritten by application CSS. */
+   tiles are positioned on a fixed grid and must retain the dimensions chosen
+   by the Maps renderer. */
 .listing-location-google-map .gm-style img {
   max-width: none !important;
   max-height: none !important;
+}
+
+/* Chrome/Android can occasionally fail to paint a complete raster tile row
+   while the page is scrolling, leaving the horizontal white band captured in
+   the customer recording. Keeping direct tile images absolutely positioned
+   matches the Maps renderer's geometry and avoids that missing-row repaint. */
+.listing-location-preview .listing-location-google-map .gm-style div > img {
+  position: absolute !important;
 }
 
 .listing-location-preview__open {
@@ -182,12 +190,18 @@
 }
 
 @media (max-width: 767px) {
-  /* The listing page keeps a fixed contact shell above the mobile nav. When
-     every CTA inside that shell is disabled, only its white padding remains
-     and appears as a horizontal band over the scrolling page. Never paint
-     that orphan shell; active contact CTAs keep the normal fixed bar. */
-  .idealista-listing-page .mobile-contact-bar:not(:has(.contact-actions [data-slot="button"]:not(:disabled))) {
+  /* The final mobile contact cascade hides the confirmation row and disabled
+     actions. A WhatsApp-only listing therefore used to leave only the fixed
+     white shell visible. If no contact action exists, remove the shell. */
+  .idealista-listing-page .mobile-contact-bar:not(:has(.contact-actions [data-slot="button"])) {
     display: none;
+  }
+
+  /* When the only rendered contact action is still disabled, restore the
+     confirmation row instead of painting an empty bar. Confirming it turns
+     WhatsApp into the normal enabled link and the compact CTA takes over. */
+  .idealista-listing-page .mobile-contact-bar:has(.contact-actions [data-slot="button"]:disabled):not(:has(.contact-actions [data-slot="button"]:not(:disabled))) .condition-confirm {
+    display: flex;
   }
 }
 
