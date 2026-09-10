@@ -70,11 +70,11 @@ Public hydration and forced refresh use a bounded version/list/version handshake
 - Publication is one idempotent listing transaction followed by independently retryable media synchronization. A durable UUID key prevents duplicate rows and rejects changed-payload replay. A partial image failure retains the draft and existing listing ID.
 - Production creates `published` immediately. Success copy states that the listing is published, and catalog invalidation/refetch makes it eligible for public search/map/detail without an approval step.
 - `AUTO_PUBLISH_LISTINGS=true` is a production runtime invariant. Production startup rejects a false value so the old pre-publication moderation behavior cannot silently return through environment drift.
-- Migration `0041_direct_publish_existing_pending` repairs live, internal, non-expired legacy `pending` rows to `published`, records status history for each repaired listing and bumps catalog state so already-stuck owner listings become publicly eligible after deployment.
+- Migration `0041_direct_publish_pending` repairs live, internal, non-expired legacy `pending` rows to `published`, records status history for each repaired listing and bumps catalog state so already-stuck owner listings become publicly eligible after deployment.
 - Drafts are intentionally browser-local. Versioned v2/v3 migration keeps canonical select values stable across ES/RU/EN and language changes; there is no server draft API.
 - Canonical values for rental mode, room type, bathroom, toilet, shower, kitchen, bed type, tenant restrictions, occupant types, and status are validated before database mutation. Translated labels are not submitted as values.
 - Expired create/edit payloads fail validation. Admin approval of an already expired row fails with `LISTING_EXPIRED` and requires renewal.
-- Migration `0040_listing_capacity_contract` is the production-safe expand phase for the API/UI range of 1–10: it adds nullable `listing_room_details.room_capacity_v2`, reads it before the legacy value, and dual-writes a capped 1–2 value to the still-constrained legacy column for rollback compatibility. Migration `0041_direct_publish_existing_pending` is a forward data repair; its downgrade is intentionally a no-op because repaired published rows cannot later be distinguished safely from newly published rows, while the previous application remains compatible with `published` rows.
+- Migration `0040_listing_capacity_contract` is the production-safe expand phase for the API/UI range of 1–10: it adds nullable `listing_room_details.room_capacity_v2`, reads it before the legacy value, and dual-writes a capped 1–2 value to the still-constrained legacy column for rollback compatibility. Migration `0041_direct_publish_pending` is a forward data repair; its downgrade is intentionally a no-op because repaired published rows cannot later be distinguished safely from newly published rows, while the previous application remains compatible with `published` rows.
 
 ## Media behavior
 
@@ -131,6 +131,6 @@ No discovered listing subsystem is left unclassified.
 ## Known intentional limitations and NOT PROVEN
 
 - **INTENTIONAL LIMITATION:** server-side drafts, ordinary owner hard delete, admin hard delete, and in-product listing messaging/contact forms are not supported.
-- **MIGRATION CONTRACT:** a clean Alembic upgrade must reach `0041_direct_publish_existing_pending (head)`. The migration repairs legacy production `pending` rows without deleting data and preserves previous-release compatibility because `published` is already a supported state.
+- **MIGRATION CONTRACT:** a clean Alembic upgrade must reach `0041_direct_publish_pending (head)`. The migration repairs legacy production `pending` rows without deleting data and preserves previous-release compatibility because `published` is already a supported state.
 - **NOT PROVEN UNTIL DEPLOY:** real production data repair is not claimed until the release is deployed and the migration runs against production. CI proves migration/build/test behavior, not the production row count.
 - **NOT PROVEN:** real S3 object deletion, email delivery, live external-source crawling, Google Maps production rendering, CDN behavior, and production data are not exercised by source-only evidence. Their existing deterministic contracts remain covered by CI.
