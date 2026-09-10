@@ -157,6 +157,23 @@ test('preview keeps Android Google tile rows contiguous and outside responsive i
   })
 })
 
+test('mobile listing never paints an empty fixed contact strip over the scrolling page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+
+  const bar = page.locator('.mobile-contact-bar')
+  await expect(bar).toBeVisible()
+
+  await bar.locator('.contact-actions [data-slot="button"]').evaluateAll((buttons) => {
+    buttons.forEach((button) => button.setAttribute('disabled', ''))
+  })
+
+  await expect(bar).toBeHidden()
+
+  const display = await bar.evaluate((element) => getComputedStyle(element).display)
+  expect(display).toBe('none')
+})
+
 test('customer location controls are fully localized in English and Russian', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
