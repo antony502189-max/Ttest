@@ -1,10 +1,22 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const internalListingId = 'armeñime-luminosa-01'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
+
+async function patchInternalListingContacts(page: Page, patch: Record<string, unknown>) {
+  await page.goto('/#/')
+  await page.evaluate(({ id, contactPatch }) => {
+    const raw = localStorage.getItem('112233:listings:v3')
+    if (!raw) throw new Error('Mock listing storage was not initialized')
+    const payload = JSON.parse(raw)
+    payload.data = payload.data.map((listing: { id: string }) => listing.id === id ? { ...listing, ...contactPatch } : listing)
+    localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
+  }, { id: internalListingId, contactPatch: patch })
+  await page.reload()
+}
 
 test('listing location follows the customer street-map interaction without exposing an exact address', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -114,7 +126,7 @@ test('customer Android recording viewport keeps the portaled map edge-to-edge', 
   expect(layout.transform).toBe('none')
 })
 
-test('preview leaves Google tile positioning to Maps while excluding responsive image resets', async ({ page }) => {
+test('preview keeps Android Google tile rows contiguous and outside responsive image resets', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
@@ -144,6 +156,7 @@ test('preview leaves Google tile positioning to Maps while excluding responsive 
       previewContain: getComputedStyle(preview).contain,
       maxWidth: imageStyle.maxWidth,
       maxHeight: imageStyle.maxHeight,
+      position: imageStyle.position,
     }
     gm.remove()
     return value
@@ -152,21 +165,46 @@ test('preview leaves Google tile positioning to Maps while excluding responsive 
     previewContain: 'none',
     maxWidth: 'none',
     maxHeight: 'none',
+    position: 'absolute',
   })
 })
 
-test('mobile listing never paints an empty fixed contact strip over the scrolling page', async ({ page }) => {
+test('mobile WhatsApp-only listing exposes confirmation instead of a blank fixed strip', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
+  await patchInternalListingContacts(page, {
+    showPhone: false,
+    showWhatsApp: true,
+    contactPhone: '+34 699 999 999',
+    contactWhatsapp: '+34 688 888 888',
+  })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
   const bar = page.locator('.mobile-contact-bar')
+  const confirmation = bar.locator('.condition-confirm')
   await expect(bar).toBeVisible()
   await expect(bar).toHaveCSS('position', 'fixed')
+  await expect(confirmation).toBeVisible()
+  await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveCount(0)
 
-  await bar.locator('.contact-actions [data-slot="button"]').evaluateAll((buttons) => {
-    buttons.forEach((button) => button.setAttribute('disabled', ''))
+  await confirmation.locator('[data-slot="checkbox"]').click()
+
+  const whatsapp = bar.locator('a[href^="https://wa.me/"]')
+  await expect(whatsapp).toBeVisible()
+  await expect(whatsapp).toHaveAttribute('href', /34688888888/)
+  await expect(confirmation).toBeHidden()
+})
+
+test('mobile listing with no contact action does not paint an orphan fixed white shell', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await patchInternalListingContacts(page, {
+    showPhone: false,
+    showWhatsApp: false,
+    contactPhone: '+34 699 999 999',
+    contactWhatsapp: '+34 688 888 888',
   })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
+  const bar = page.locator('.mobile-contact-bar')
   await expect(bar).toBeHidden()
   await expect(bar).toHaveCSS('display', 'none')
 
