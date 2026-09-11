@@ -99,6 +99,7 @@ export function PublishSmartAddressAutocomplete() {
     let permissionStatus: PermissionStatus | null = null
     let permissionListener: (() => void) | null = null
     let locateButtonCleanup: (() => void) | null = null
+    let autocompleteErrorCleanup: (() => void) | null = null
     let currentBiasSource: BiasSource = 'island'
 
     const setStatus = (message: string, source: BiasSource = currentBiasSource) => {
@@ -133,7 +134,8 @@ export function PublishSmartAddressAutocomplete() {
     }
 
     const requestDeviceLocation = (fromUserGesture: boolean) => {
-      if (!navigator.geolocation || !activeAutocomplete) {
+      const autocomplete = activeAutocomplete
+      if (!navigator.geolocation || !autocomplete) {
         applyIslandRestriction(copy.unavailable)
         syncButton(false)
         return
@@ -141,7 +143,7 @@ export function PublishSmartAddressAutocomplete() {
       syncButton(true, true)
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          if (cancelled) return
+          if (cancelled || activeAutocomplete !== autocomplete) return
           const coordinates = browserCoordinates(position)
           if (!isInsideTenerife(coordinates)) {
             applyIslandRestriction(copy.outside)
@@ -152,7 +154,7 @@ export function PublishSmartAddressAutocomplete() {
           syncButton(false)
         },
         (error) => {
-          if (cancelled) return
+          if (cancelled || activeAutocomplete !== autocomplete) return
           applyIslandRestriction(error.code === error.PERMISSION_DENIED ? copy.denied : copy.unavailable)
           syncButton(!fromUserGesture || error.code !== error.PERMISSION_DENIED)
         },
@@ -162,6 +164,7 @@ export function PublishSmartAddressAutocomplete() {
 
     const bindLocationButton = () => {
       locateButtonCleanup?.()
+      locateButtonCleanup = null
       const button = document.querySelector<HTMLButtonElement>('.publish-address-assist__location')
       if (!button) return
       const onClick = () => requestDeviceLocation(true)
@@ -171,7 +174,17 @@ export function PublishSmartAddressAutocomplete() {
 
     const setupAutocomplete = (autocomplete: SmartAutocomplete) => {
       if (activeAutocomplete === autocomplete) return
+      permissionListener?.()
+      permissionListener = null
+      permissionStatus = null
+      locateButtonCleanup?.()
+      locateButtonCleanup = null
+      autocompleteErrorCleanup?.()
+      autocompleteErrorCleanup = null
+      if (activeAutocomplete) document.querySelector('.publish-address-assist')?.remove()
+
       activeAutocomplete = autocomplete
+      currentBiasSource = 'island'
       setAutocompleteLocale(autocomplete, language)
       restrictToTenerife(autocomplete)
       const assist = ensureAssist(autocomplete)
@@ -181,20 +194,22 @@ export function PublishSmartAddressAutocomplete() {
       bindLocationButton()
 
       const onError = () => {
-        if (!cancelled) setStatus(copy.unavailable, currentBiasSource)
+        if (!cancelled && activeAutocomplete === autocomplete) setStatus(copy.unavailable, currentBiasSource)
       }
       autocomplete.addEventListener('gmp-error', onError)
+      autocompleteErrorCleanup = () => autocomplete.removeEventListener('gmp-error', onError)
 
       void (async () => {
         if (!navigator.geolocation || !navigator.permissions?.query) return
         try {
-          permissionStatus = await navigator.permissions.query({ name: 'geolocation' })
+          const status = await navigator.permissions.query({ name: 'geolocation' })
           if (cancelled || activeAutocomplete !== autocomplete) return
-          if (permissionStatus.state === 'granted') requestDeviceLocation(false)
+          permissionStatus = status
+          if (status.state === 'granted') requestDeviceLocation(false)
           const onPermissionChange = () => {
             if (cancelled || activeAutocomplete !== autocomplete) return
-            if (permissionStatus?.state === 'granted') requestDeviceLocation(false)
-            else if (permissionStatus?.state === 'denied') {
+            if (status.state === 'granted') requestDeviceLocation(false)
+            else if (status.state === 'denied') {
               applyIslandRestriction(copy.denied)
               syncButton(false)
             } else {
@@ -202,10 +217,10 @@ export function PublishSmartAddressAutocomplete() {
               syncButton(true)
             }
           }
-          permissionStatus.addEventListener('change', onPermissionChange)
-          permissionListener = () => permissionStatus?.removeEventListener('change', onPermissionChange)
+          status.addEventListener('change', onPermissionChange)
+          permissionListener = () => status.removeEventListener('change', onPermissionChange)
         } catch {
-          syncButton(Boolean(navigator.geolocation))
+          if (!cancelled && activeAutocomplete === autocomplete) syncButton(Boolean(navigator.geolocation))
         }
       })()
     }
@@ -233,6 +248,7 @@ export function PublishSmartAddressAutocomplete() {
       window.removeEventListener('112233:publish-location-selected', onLocationSelected)
       permissionListener?.()
       locateButtonCleanup?.()
+      autocompleteErrorCleanup?.()
       document.querySelector('.publish-address-assist')?.remove()
     }
   }, [copy, language])
