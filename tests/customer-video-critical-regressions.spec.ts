@@ -7,9 +7,16 @@ async function signInAsHost(page: Page) {
   await page.reload()
 }
 
+async function advanceWizard(page: Page, targetStep: number) {
+  for (let index = 0; index < targetStep; index += 1) {
+    await page.getByRole('button', { name: /continuar/i }).click()
+  }
+}
+
 test('customer video fix keeps the owned-listing route behind authoritative hydration', () => {
   const app = readFileSync('src/App.tsx', 'utf8')
   const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
+  const critical = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
 
   expect(app).toContain('<OwnedListingsHydrationGate><MyListingsPage /></OwnedListingsHydrationGate>')
   expect(gate).toContain("getOwnedListings(controller.signal)")
@@ -19,6 +26,9 @@ test('customer video fix keeps the owned-listing route behind authoritative hydr
   expect(gate).not.toContain('<AppContext.Provider')
   expect(gate).toContain('Tus anuncios no se han borrado')
   expect(gate).toContain('Объявления не удалены')
+  expect(critical).toContain("const PENDING_EDIT_KEY = '112233:pending-edit-route:v1'")
+  expect(critical).toContain("if (editId && !existingEditListing) window.dispatchEvent(new Event('catalog:updated'))")
+  expect(critical).toContain("navigate(`/mis-anuncios/${encodeURIComponent(pending)}/editar`, { replace: true })")
 })
 
 test('customer video fix keeps fresh location unresolved safely and validates it at the wizard model boundary', () => {
@@ -62,6 +72,31 @@ test('customer video fix retries transient admin authorization without weakening
   expect(app).toContain('Сессия остаётся активной')
 })
 
+test('listing editing scopes autosaved drafts and never leaks them into a new publication', () => {
+  const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
+
+  expect(source).toContain("const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'")
+  expect(source).toContain("if (!mockMode && pathname === '/publicar')")
+  expect(source).toContain('localStorage.setItem(editDraftKey(globalDraft.listingId), JSON.stringify(globalDraft))')
+  expect(source).toContain('localStorage.removeItem(DRAFT_KEY)')
+  expect(source).toContain('overlayDraftOnListing(existingEditListing, scopedDraft.data)')
+  expect(source).toContain('temporaryListingRestore.current = { target: existingEditListing, snapshot: cloneListing(existingEditListing) }')
+  expect(source).toContain('Object.assign(target, snapshot)')
+  expect(source).toContain('const draftMirror = editId ? window.setInterval(mirrorEditDraft, 250) : 0')
+})
+
+test('listing editing keeps an honest failure state when image synchronization fails', () => {
+  const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
+
+  expect(source).toContain("const EDIT_RETRY_PREFIX = '112233:listing-edit-retry:v1:'")
+  expect(source).toContain("details.method === 'PUT' && /\\/listings\\/[^/?#]+\\/images")
+  expect(source).toContain('if (imageRequest && !response.ok) editImageSyncFailed.current = true')
+  expect(source).toContain('if (success && editImageSyncFailed.current && !reloadingAfterImageFailure)')
+  expect(source).toContain('localStorage.setItem(DRAFT_KEY, retryDraft)')
+  expect(source).toContain("toast.error(copy.imageRetry, { id: 'listing-edit-image-retry' })")
+  expect(source).toContain('window.setTimeout(() => window.location.reload(), 0)')
+})
+
 test('leaving a new publication does not make existing host listings disappear', async ({ page }) => {
   await signInAsHost(page)
   await page.goto('/#/mis-anuncios')
@@ -78,6 +113,36 @@ test('leaving a new publication does not make existing host listings disappear',
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
   await expect(page.locator('.manage-card')).toHaveCount(before)
   await expect(page.getByText('No hay anuncios en este estado')).toHaveCount(0)
+})
+
+test('unfinished edit draft survives a create detour and edit CTA says save changes', async ({ page }) => {
+  await signInAsHost(page)
+  await page.goto('/#/mis-anuncios')
+  const editLink = page.locator('.manage-card').first().getByRole('link', { name: /editar/i })
+  const href = await editLink.getAttribute('href')
+  expect(href).toMatch(/\/mis-anuncios\/.+\/editar$/)
+  await editLink.click()
+  await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
+
+  await advanceWizard(page, 7)
+  const uniqueTitle = `Cambio sin guardar ${Date.now()}`
+  await page.locator('#publish-title').fill(uniqueTitle)
+  await expect.poll(() => page.evaluate(() => {
+    const draft = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? 'null') as { listingId?: string; data?: { title?: string } } | null
+    return draft?.listingId && draft.data?.title
+  })).toBe(uniqueTitle)
+
+  await page.goto('/#/publicar')
+  await advanceWizard(page, 7)
+  await expect(page.locator('#publish-title')).not.toHaveValue(uniqueTitle)
+
+  await page.goto(href!)
+  await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
+  await advanceWizard(page, 7)
+  await expect(page.locator('#publish-title')).toHaveValue(uniqueTitle)
+  await page.getByRole('button', { name: /continuar/i }).click()
+  await page.getByRole('button', { name: /continuar/i }).click()
+  await expect(page.getByRole('button', { name: /guardar cambios/i })).toBeVisible()
 })
 
 test('owned-listing empty state follows the selected UI language', async ({ page }) => {
