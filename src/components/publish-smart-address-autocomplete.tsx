@@ -5,14 +5,7 @@ import type { Coordinates } from '@/types'
 
 type BiasSource = 'island' | 'device' | 'map'
 type SelectedLocationDetail = { coordinates?: Coordinates }
-
-type SmartAutocomplete = google.maps.places.PlaceAutocompleteElement & {
-  locationBias: google.maps.places.LocationBias | null
-  locationRestriction: google.maps.places.LocationRestriction | null
-  origin: google.maps.LatLng | google.maps.LatLngLiteral | null
-  requestedLanguage?: string | null
-  requestedRegion?: string | null
-}
+type SmartAutocomplete = google.maps.places.PlaceAutocompleteElement
 
 type Copy = {
   island: string
