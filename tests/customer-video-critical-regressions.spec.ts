@@ -13,6 +13,19 @@ async function advanceWizard(page: Page, targetStep: number) {
   }
 }
 
+async function fillMissingEquipment(page: Page) {
+  const defaults = [
+    ['#publish-bedding', 'included'],
+    ['#publish-refrigerator', 'shared'],
+    ['#publish-balcony', 'no'],
+    ['#publish-washing-machine', 'shared'],
+  ] as const
+  for (const [selector, value] of defaults) {
+    const field = page.locator(selector)
+    if (await field.inputValue() === '') await field.selectOption(value)
+  }
+}
+
 test('customer video fix keeps the owned-listing route behind authoritative hydration', () => {
   const app = readFileSync('src/App.tsx', 'utf8')
   const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
@@ -124,7 +137,9 @@ test('unfinished edit draft survives a create detour and edit CTA says save chan
   await editLink.click()
   await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
 
-  await advanceWizard(page, 7)
+  await advanceWizard(page, 2)
+  await fillMissingEquipment(page)
+  await advanceWizard(page, 5)
   const uniqueTitle = `Cambio sin guardar ${Date.now()}`
   await page.locator('#publish-title').fill(uniqueTitle)
   await expect.poll(() => page.evaluate(() => {
@@ -138,7 +153,9 @@ test('unfinished edit draft survives a create detour and edit CTA says save chan
 
   await page.goto(href!)
   await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
-  await advanceWizard(page, 7)
+  await advanceWizard(page, 2)
+  await fillMissingEquipment(page)
+  await advanceWizard(page, 5)
   await expect(page.locator('#publish-title')).toHaveValue(uniqueTitle)
   await page.getByRole('button', { name: /continuar/i }).click()
   await page.getByRole('button', { name: /continuar/i }).click()
