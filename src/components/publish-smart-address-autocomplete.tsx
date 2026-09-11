@@ -96,7 +96,6 @@ export function PublishSmartAddressAutocomplete() {
   useEffect(() => {
     let cancelled = false
     let activeAutocomplete: SmartAutocomplete | null = null
-    let permissionStatus: PermissionStatus | null = null
     let permissionListener: (() => void) | null = null
     let locateButtonCleanup: (() => void) | null = null
     let autocompleteErrorCleanup: (() => void) | null = null
@@ -176,7 +175,6 @@ export function PublishSmartAddressAutocomplete() {
       if (activeAutocomplete === autocomplete) return
       permissionListener?.()
       permissionListener = null
-      permissionStatus = null
       locateButtonCleanup?.()
       locateButtonCleanup = null
       autocompleteErrorCleanup?.()
@@ -204,7 +202,6 @@ export function PublishSmartAddressAutocomplete() {
         try {
           const status = await navigator.permissions.query({ name: 'geolocation' })
           if (cancelled || activeAutocomplete !== autocomplete) return
-          permissionStatus = status
           if (status.state === 'granted') requestDeviceLocation(false)
           const onPermissionChange = () => {
             if (cancelled || activeAutocomplete !== autocomplete) return
