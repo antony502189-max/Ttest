@@ -63,10 +63,12 @@ test('granted device location biases the live autocomplete near a Tenerife user 
   })
 
   await page.goto('/#/')
-  await page.evaluate(() => {
+  const main = page.locator('main')
+  await expect(main).toBeVisible()
+  await main.evaluate((container) => {
     const mock = document.createElement('div')
     mock.className = 'publish-place-autocomplete'
-    document.querySelector('main')?.append(mock)
+    container.append(mock)
   })
 
   const assist = page.locator('.publish-address-assist')
