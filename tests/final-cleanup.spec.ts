@@ -145,7 +145,7 @@ test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', asy
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) as string
   }))
   await advanceWizard(page, 3)
-  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect.poll(() => mediaExists(page, obsolete)).toBe(false)
   await expect.poll(() => mediaExists(page, replacement)).toBe(true)
 })
