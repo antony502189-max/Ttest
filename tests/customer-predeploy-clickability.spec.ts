@@ -23,7 +23,8 @@ test('CUSTOMER-PREDEPLOY Calle autocomplete has a complete visible border contra
   const rule = css.match(/\.publish-place-autocomplete\s*\{([^}]*)\}/s)?.[1] ?? ''
   expect(rule).toContain('border: 1px solid var(--border)')
   expect(rule).toContain('box-sizing: border-box')
-  expect(rule).toContain('overflow: hidden')
+  expect(rule).toContain('overflow: visible')
+  expect(css).toContain('.publish-place-autocomplete::part(prediction-list)')
 
   await page.setViewportSize({ width: 390, height: 844 })
   await openAsHost(page, '/#/publicar')

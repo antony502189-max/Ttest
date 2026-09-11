@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { PublishExactAddressSync } from '@/components/publish-exact-address-sync'
+import { PublishSmartAddressAutocomplete } from '@/components/publish-smart-address-autocomplete'
 
 type AddressComponent = { longText?: string; long_name?: string; types: string[] }
 type AddressDetail = { addressComponents?: AddressComponent[] }
@@ -89,6 +90,7 @@ export function PublishAddressLifecycle() {
 
   return <>
     <PublishExactAddressSync key={`${pathname}:${publicationKey}`} />
+    <PublishSmartAddressAutocomplete />
     <PublishPostcodeAreaNormalizer />
   </>
 }

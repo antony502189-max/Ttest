@@ -1,13 +1,144 @@
 .publish-place-autocomplete {
+  position: relative;
+  z-index: 18;
   display: block;
   width: 100%;
   min-height: 2.75rem;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border);
   border-radius: .45rem;
   background: var(--background);
   color-scheme: light;
+  font: inherit;
 }
-.publish-street-source-input { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
-.approximate-location-map-address { margin: .45rem 0 0; padding: .55rem .7rem; border: 1px solid var(--border); border-radius: .45rem; background: var(--muted); font-size: .82rem; line-height: 1.35; }
+
+.publish-place-autocomplete::part(input) {
+  min-height: 2.75rem;
+  font: inherit;
+}
+
+.publish-place-autocomplete::part(prediction-list) {
+  max-height: min(21rem, 46vh);
+  overflow-y: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: .45rem;
+  background: #fff;
+  box-shadow: 0 .8rem 2rem rgb(25 31 31 / .18);
+  color: var(--ink);
+  font: inherit;
+}
+
+.publish-place-autocomplete::part(prediction-item) {
+  min-height: 3.15rem;
+  padding-block: .45rem;
+  font: inherit;
+}
+
+.publish-place-autocomplete::part(prediction-item-main-text) {
+  color: var(--ink);
+  font-weight: 680;
+}
+
+.publish-place-autocomplete::part(prediction-item-secondary-text) {
+  color: var(--ink-muted);
+  font-size: .78rem;
+}
+
+.publish-place-autocomplete::part(prediction-item-match) {
+  font-weight: 800;
+}
+
+.publish-street-source-input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.publish-address-assist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+  margin-top: .45rem;
+  color: var(--ink-muted);
+  font-size: .76rem;
+  line-height: 1.35;
+}
+
+.publish-address-assist__status {
+  min-width: 0;
+  flex: 1;
+}
+
+.publish-address-assist__location {
+  flex: none;
+  min-height: 2rem;
+  padding: .3rem .55rem;
+  border: 0;
+  background: transparent;
+  color: var(--market-link);
+  font: inherit;
+  font-weight: 720;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.publish-address-assist__location:disabled {
+  cursor: progress;
+  opacity: .65;
+}
+
+.publish-address-assist[data-location-bias-source="device"] .publish-address-assist__status,
+.publish-address-assist[data-location-bias-source="map"] .publish-address-assist__status {
+  color: var(--success);
+}
+
+.approximate-location-map-address {
+  margin: .45rem 0 0;
+  padding: .55rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: .45rem;
+  background: var(--muted);
+  font-size: .82rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 767px) {
+  .publish-place-autocomplete {
+    z-index: 32;
+    min-height: 3rem;
+  }
+
+  .publish-place-autocomplete::part(input) {
+    min-height: 3rem;
+    font-size: 1rem;
+  }
+
+  .publish-place-autocomplete::part(prediction-list) {
+    max-height: min(18rem, 42dvh);
+    border-radius: 0;
+  }
+
+  .publish-place-autocomplete::part(prediction-item) {
+    min-height: 3.5rem;
+  }
+
+  .publish-address-assist {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .25rem;
+  }
+
+  .publish-address-assist__location {
+    min-height: 2.5rem;
+    margin-left: -.55rem;
+    padding-inline: .55rem;
+  }
+}
