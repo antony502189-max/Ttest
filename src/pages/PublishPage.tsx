@@ -78,6 +78,32 @@ const publicationMunicipalities = new Set([
 ]);
 const draftKey = "112233:listing-draft:v3";
 const legacyDraftKey = "112233:listing-draft:v2";
+const editDraftPrefix = "112233:listing-edit-draft:v1:";
+
+type StoredDraft = {
+  version?: number;
+  ownerUserId?: string;
+  listingId?: string;
+  data?: Partial<ListingDraft>;
+};
+
+const editDraftKey = (listingId: string) => `${editDraftPrefix}${listingId}`;
+
+function parseStoredDraft(raw: string | null): StoredDraft | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredDraft;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function usableStoredDraft(record: StoredDraft | null, ownerUserId: string | undefined, listingId: string | null) {
+  if (!record || record.version !== 3 || !record.data) return false;
+  if (record.ownerUserId && record.ownerUserId !== ownerUserId) return false;
+  return listingId ? record.listingId === listingId : !record.listingId;
+}
 
 function acceptedForRequirement(requirement: TenantRequirement): AcceptedTenantType[] {
   if (requirement === "single-man") return ["man"];
@@ -270,14 +296,31 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const navigate = useNavigate();
   const { allListings, ownedListings, createListing, updateListing, currentUser, canManageListing, partialPublication } = useApp();
   const existing = editing ? ownedListings.find((listing) => listing.id === id) : undefined;
+  const activeDraftKey = editing && id ? editDraftKey(id) : draftKey;
   const [draft, setDraft] = useState<ListingDraft>(() => {
-    if (existing) return toDraft(existing);
-    const defaults = withProfileDefaults(currentUser);
+    const defaults = existing ? toDraft(existing) : withProfileDefaults(currentUser);
     try {
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        const parsed = JSON.parse(saved) as { version?: number; ownerUserId?: string; listingId?: string; data?: Partial<ListingDraft> };
-        if (parsed.version === 3 && parsed.data && (!parsed.ownerUserId || parsed.ownerUserId === currentUser?.id)) return { ...defaults, ...parsed.data };
+      if (editing && existing) {
+        for (const key of [activeDraftKey, draftKey]) {
+          const raw = localStorage.getItem(key);
+          const parsed = parseStoredDraft(raw);
+          if (!usableStoredDraft(parsed, currentUser?.id, existing.id)) continue;
+          if (key === draftKey && raw) {
+            localStorage.setItem(activeDraftKey, raw);
+            localStorage.removeItem(draftKey);
+          }
+          return { ...defaults, ...parsed!.data };
+        }
+        return defaults;
+      }
+
+      const savedRaw = localStorage.getItem(draftKey);
+      const saved = parseStoredDraft(savedRaw);
+      if (savedRaw && saved?.listingId) {
+        localStorage.setItem(editDraftKey(saved.listingId), savedRaw);
+        localStorage.removeItem(draftKey);
+      } else if (usableStoredDraft(saved, currentUser?.id, null)) {
+        return { ...defaults, ...saved!.data };
       }
       const legacy = localStorage.getItem(legacyDraftKey);
       return legacy ? { ...defaults, ...(JSON.parse(legacy) as Partial<ListingDraft>) } : defaults;
@@ -321,9 +364,15 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const equipment = readEquipmentAmenities(draft.amenities);
 
   useEffect(() => {
-    try { localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft })); }
+    try {
+      localStorage.setItem(activeDraftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft }));
+      if (editing && existing) {
+        const shared = parseStoredDraft(localStorage.getItem(draftKey));
+        if (shared?.listingId === existing.id) localStorage.removeItem(draftKey);
+      }
+    }
     catch { toast.error("No se pudo guardar el borrador. Revisa el espacio disponible.", { id: "draft-storage-error" }); }
-  }, [currentUser?.id, draft, existing?.id]);
+  }, [activeDraftKey, currentUser?.id, draft, editing, existing]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (isDirty && !published) event.preventDefault(); };
     window.addEventListener("beforeunload", warn);
@@ -432,7 +481,11 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
         await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes reemplazadas."));
         toast.success("Cambios guardados");
       }
-      localStorage.removeItem(draftKey);
+      localStorage.removeItem(activeDraftKey);
+      if (existing) {
+        const shared = parseStoredDraft(localStorage.getItem(draftKey));
+        if (shared?.listingId === existing.id) localStorage.removeItem(draftKey);
+      }
       setBaseline(JSON.stringify(draft));
       setPublished(true);
     } catch (error) {
@@ -448,7 +501,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     const transientMedia = draft.images.filter((reference) => !retained.has(reference) && !existing?.images.includes(reference));
     void removeUnusedMediaReferences(transientMedia, nonDraftMedia).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudieron limpiar las imágenes locales."));
     setDraft(fresh); setStep(0); setMaxVisited(0); setErrors({}); setBaseline(JSON.stringify(fresh));
-    localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: fresh }));
+    localStorage.setItem(activeDraftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: fresh }));
     toast.success("Borrador restablecido");
   };
 
@@ -612,14 +665,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
         <div><span className="eyebrow">{editing ? `Editando ${id?.slice(-5).toUpperCase()}` : "Nuevo anuncio"}</span><h1 aria-label={editing ? "Editar habitación" : undefined}>{editing ? "Editar anuncio" : "Publicar una habitación"}</h1></div>
         <div className="publish-header__actions">
           <ConfirmDialog trigger={<Button variant="ghost" disabled={recoveringImages}><RotateCcw data-icon="inline-start" />Restablecer</Button>} title="¿Restablecer el borrador?" description="Se eliminarán los cambios de todos los pasos y volverán los valores iniciales." confirmLabel="Restablecer" destructive onConfirm={resetDraft} />
-          <Button variant="outline" disabled={recoveringImages} onClick={() => { try { localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft })); setBaseline(JSON.stringify(draft)); toast.success("Borrador guardado"); } catch { toast.error("No se pudo guardar el borrador. Revisa el espacio disponible."); } }}><Save data-icon="inline-start" />Guardar borrador</Button>
+          <Button variant="outline" disabled={recoveringImages} onClick={() => { try { localStorage.setItem(activeDraftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft })); setBaseline(JSON.stringify(draft)); toast.success("Borrador guardado"); } catch { toast.error("No se pudo guardar el borrador. Revisa el espacio disponible."); } }}><Save data-icon="inline-start" />Guardar borrador</Button>
           <span className="dirty-state" aria-live="polite">{isDirty ? "Cambios sin guardar" : "Borrador guardado"}</span>
         </div>
       </div>
       <div className="container wizard-layout"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={(value) => { if (recoveringImages && value !== 6 && value !== steps.length - 1) return; setStep(value); }} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">
         {recoveringImages ? <Alert><Info /><AlertTitle>El anuncio ya está creado</AlertTitle><AlertDescription>Solo faltan las fotografías. Los datos del anuncio están bloqueados para que ningún cambio se pierda; revisa las fotos y reintenta la sincronización.</AlertDescription><Button type="button" variant="outline" onClick={() => setStep(6)}>Revisar fotografías</Button></Alert> : null}
         <fieldset className="publish-recovery-fields" disabled={recoveringImages && step !== 6}>{content}</fieldset>
-        <div className="wizard-actions"><Button variant="outline" disabled={step === 0 || publishing || recoveringImages} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button disabled={publishing} onClick={finish}>{publishing ? "Publicando…" : recoveringImages ? "Reintentar fotografías" : "Publicar anuncio"} <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div>
+        <div className="wizard-actions"><Button variant="outline" disabled={step === 0 || publishing || recoveringImages} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button disabled={publishing} onClick={finish}>{publishing ? (editing ? "Guardando…" : "Publicando…") : recoveringImages ? "Reintentar fotografías" : editing ? "Guardar cambios" : "Publicar anuncio"} <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div>
       </section></div>
     </div>
     <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}><DialogContent aria-describedby="email-verification-description"><DialogHeader><DialogTitle>Confirma tu email para publicar</DialogTitle><DialogDescription id="email-verification-description">Enviaremos un código de seis dígitos a {verificationEmail || "tu email"}. Tu borrador y tus fotos seguirán guardados.</DialogDescription></DialogHeader><div className="space-y-3"><Input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" aria-label="Código de seis dígitos" aria-invalid={Boolean(verificationError)} />{verificationError ? <p className="field-error" role="alert">{verificationError}</p> : null}<Button type="button" variant="outline" disabled={verificationBusy || verificationCooldown > 0} onClick={async () => { setVerificationBusy(true); try { const result = await requestEmailVerification(); setVerificationEmail(result.email); setVerificationCooldown(result.cooldownSeconds); setVerificationError(""); toast.success("Código enviado"); } catch (error) { setVerificationError(error instanceof Error ? error.message : "No se pudo enviar el código."); } finally { setVerificationBusy(false); } }}>{verificationCooldown > 0 ? `Reenviar en ${verificationCooldown}s` : "Enviar código"}</Button><Button type="button" disabled={verificationBusy || verificationCode.length !== 6} onClick={async () => { setVerificationBusy(true); try { await verifyEmail(verificationCode); setVerificationOpen(false); setVerificationCode(""); setVerificationError(""); await finish(); } catch (error) { setVerificationError(error instanceof Error ? error.message : "Código no válido."); } finally { setVerificationBusy(false); } }}>Confirmar y publicar</Button></div></DialogContent></Dialog>
