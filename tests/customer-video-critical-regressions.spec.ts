@@ -26,12 +26,12 @@ async function fillMissingEquipment(page: Page) {
   }
 }
 
-test('customer video fix keeps the owned-listing route behind authoritative hydration', () => {
+test('customer video fix keeps owner routes behind authoritative hydration', () => {
   const app = readFileSync('src/App.tsx', 'utf8')
   const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
-  const critical = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
 
   expect(app).toContain('<OwnedListingsHydrationGate><MyListingsPage /></OwnedListingsHydrationGate>')
+  expect(app).toContain('<OwnedListingsHydrationGate><PublishPage key="publish-edit" editing /></OwnedListingsHydrationGate>')
   expect(gate).toContain("getOwnedListings(controller.signal)")
   expect(gate).toContain("type Phase = 'checking' | 'syncing' | 'ready' | 'error'")
   expect(gate).toContain("window.dispatchEvent(new Event('catalog:updated'))")
@@ -39,9 +39,6 @@ test('customer video fix keeps the owned-listing route behind authoritative hydr
   expect(gate).not.toContain('<AppContext.Provider')
   expect(gate).toContain('Tus anuncios no se han borrado')
   expect(gate).toContain('Объявления не удалены')
-  expect(critical).toContain("const PENDING_EDIT_KEY = '112233:pending-edit-route:v1'")
-  expect(critical).toContain("if (editId && !existingEditListing) window.dispatchEvent(new Event('catalog:updated'))")
-  expect(critical).toContain("navigate(`/mis-anuncios/${encodeURIComponent(pending)}/editar`, { replace: true })")
 })
 
 test('customer video fix keeps fresh location unresolved safely and validates it at the wizard model boundary', () => {
@@ -86,28 +83,34 @@ test('customer video fix retries transient admin authorization without weakening
 })
 
 test('listing editing scopes autosaved drafts and never leaks them into a new publication', () => {
-  const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
+  const publish = readFileSync('src/pages/PublishPage.tsx', 'utf8')
 
-  expect(source).toContain("const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'")
-  expect(source).toContain("if (!mockMode && pathname === '/publicar')")
-  expect(source).toContain('localStorage.setItem(editDraftKey(globalDraft.listingId), JSON.stringify(globalDraft))')
-  expect(source).toContain('localStorage.removeItem(DRAFT_KEY)')
-  expect(source).toContain('overlayDraftOnListing(existingEditListing, scopedDraft.data)')
-  expect(source).toContain('temporaryListingRestore.current = { target: existingEditListing, snapshot: cloneListing(existingEditListing) }')
-  expect(source).toContain('Object.assign(target, snapshot)')
-  expect(source).toContain('const draftMirror = editId ? window.setInterval(mirrorEditDraft, 250) : 0')
+  expect(publish).toContain('const editDraftPrefix = "112233:listing-edit-draft:v1:";')
+  expect(publish).toContain('const activeDraftKey = editing && id ? editDraftKey(id) : draftKey;')
+  expect(publish).toContain('return listingId ? record.listingId === listingId : !record.listingId;')
+  expect(publish).toContain('localStorage.setItem(editDraftKey(saved.listingId), savedRaw);')
+  expect(publish).toContain('localStorage.setItem(activeDraftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft }))')
+  expect(publish).toContain('localStorage.removeItem(activeDraftKey);')
+  expect(publish).toContain('editing ? "Guardar cambios" : "Publicar anuncio"')
 })
 
-test('listing editing keeps an honest failure state when image synchronization fails', () => {
-  const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
+test('listing editing returns failure when image synchronization does not finish', () => {
+  const source = readFileSync('src/contexts/app-context.tsx', 'utf8')
+  const start = source.indexOf('const updateListing = useCallback(async')
+  const end = source.indexOf('const deleteListing', start)
+  const update = source.slice(start, end)
 
-  expect(source).toContain("const EDIT_RETRY_PREFIX = '112233:listing-edit-retry:v1:'")
-  expect(source).toContain("details.method === 'PUT' && /\\/listings\\/[^/?#]+\\/images")
-  expect(source).toContain('if (imageRequest && !response.ok) editImageSyncFailed.current = true')
-  expect(source).toContain('if (success && editImageSyncFailed.current && !reloadingAfterImageFailure)')
-  expect(source).toContain('localStorage.setItem(DRAFT_KEY, retryDraft)')
-  expect(source).toContain("toast.error(copy.imageRetry, { id: 'listing-edit-image-retry' })")
-  expect(source).toContain('window.setTimeout(() => window.location.reload(), 0)')
+  expect(start).toBeGreaterThanOrEqual(0)
+  expect(update).toContain('const remote = await updateRemoteListing(id, next)')
+  expect(update).toContain('const images = await syncListingImages(id, next.images)')
+  expect(update).toContain('stored = { ...stored, images: next.images }')
+  expect(update).toContain('setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))')
+  expect(update).toContain("toast.error(error instanceof Error ? error.message : 'No se pudieron actualizar las imágenes del anuncio.')")
+  const imageCatch = update.indexOf('stored = { ...stored, images: next.images }')
+  const failureReturn = update.indexOf('return false', imageCatch)
+  const successReturn = update.lastIndexOf('return true')
+  expect(failureReturn).toBeGreaterThan(imageCatch)
+  expect(failureReturn).toBeLessThan(successReturn)
 })
 
 test('leaving a new publication does not make existing host listings disappear', async ({ page }) => {
@@ -134,22 +137,31 @@ test('unfinished edit draft survives a create detour and edit CTA says save chan
   const editLink = page.locator('.manage-card').first().getByRole('link', { name: /editar/i })
   const href = await editLink.getAttribute('href')
   expect(href).toMatch(/\/mis-anuncios\/.+\/editar$/)
+  const match = href?.match(/\/mis-anuncios\/([^/]+)\/editar$/)
+  expect(match).toBeTruthy()
+  const listingId = decodeURIComponent(match![1])
+  const editStorageKey = `112233:listing-edit-draft:v1:${listingId}`
+
   await editLink.click()
   await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
-
   await advanceWizard(page, 2)
   await fillMissingEquipment(page)
   await advanceWizard(page, 5)
+
   const uniqueTitle = `Cambio sin guardar ${Date.now()}`
   await page.locator('#publish-title').fill(uniqueTitle)
-  await expect.poll(() => page.evaluate(() => {
-    const draft = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? 'null') as { listingId?: string; data?: { title?: string } } | null
+  await expect.poll(() => page.evaluate((key) => {
+    const draft = JSON.parse(localStorage.getItem(key) ?? 'null') as { listingId?: string; data?: { title?: string } } | null
     return draft?.listingId && draft.data?.title
-  })).toBe(uniqueTitle)
+  }, editStorageKey)).toBe(uniqueTitle)
 
   await page.goto('/#/publicar')
   await advanceWizard(page, 7)
   await expect(page.locator('#publish-title')).not.toHaveValue(uniqueTitle)
+  await expect.poll(() => page.evaluate(() => {
+    const draft = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? 'null') as { listingId?: string; data?: { title?: string } } | null
+    return { listingId: draft?.listingId ?? null, title: draft?.data?.title ?? '' }
+  })).not.toEqual({ listingId, title: uniqueTitle })
 
   await page.goto(href!)
   await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
