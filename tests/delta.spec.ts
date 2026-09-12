@@ -161,7 +161,7 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   await advanceWizard(page, 6)
   await expect(page.locator('.upload-grid img')).toHaveCount(7)
   await advanceWizard(page, 3)
-  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await page.reload()
   const edited = await storedListings(page)
   const createdMedia = String(edited.find((item) => item.id === createdId)?.images[0])
