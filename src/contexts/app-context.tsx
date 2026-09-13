@@ -542,7 +542,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     return found
   }, [savedSearches])
   const removeSavedSearch = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => {
-    if (currentUserId) void deleteSavedSearch(id).catch(() => toast.error('No se pudo eliminar la búsqueda.'))
+    if (currentUserId) void deleteSavedSearch(id).catch(() => toast.error('No se pudo eliminar la búsqueda guardada.'))
     return (current ?? []).filter((item) => item.id !== id)
   }), [currentUserId, updateScope])
   const toggleSearchAlerts = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => {
@@ -644,7 +644,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         stored = { ...stored, images }
         await removeUnusedMediaReferences(next.images, images)
       } catch (error) {
+        stored = { ...stored, images: next.images }
+        setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))
         toast.error(error instanceof Error ? error.message : 'No se pudieron actualizar las imágenes del anuncio.')
+        return false
       }
       setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))
       await refreshListingConsumers().catch(() => toast.error('Los cambios se guardaron, pero no se pudo refrescar el catálogo.'))

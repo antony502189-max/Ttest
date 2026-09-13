@@ -2,6 +2,8 @@ const DATABASE_NAME = '112233-media'
 const DATABASE_VERSION = 1
 const STORE_NAME = 'media'
 const MEDIA_PREFIX = 'idb-media:'
+const DRAFT_KEYS = new Set(['112233:listing-draft:v3', '112233:listing-draft:v2'])
+const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
 
@@ -38,6 +40,36 @@ const mediaReference = (id: IDBValidKey) => `${MEDIA_PREFIX}${String(id)}`
 
 export function isMediaReference(value?: string): value is string {
   return Boolean(value?.startsWith(MEDIA_PREFIX))
+}
+
+function collectDraftMediaReferences(value: unknown, found = new Set<string>()) {
+  if (typeof value === 'string') {
+    if (isMediaReference(value)) found.add(value)
+    return found
+  }
+  if (Array.isArray(value)) value.forEach((item) => collectDraftMediaReferences(item, found))
+  else if (value && typeof value === 'object') Object.values(value as Record<string, unknown>).forEach((item) => collectDraftMediaReferences(item, found))
+  return found
+}
+
+function protectedDraftMediaReferences() {
+  const protectedReferences = new Set<string>()
+  try {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index)
+      if (!key || (!DRAFT_KEYS.has(key) && !key.startsWith(EDIT_DRAFT_PREFIX))) continue
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      try {
+        collectDraftMediaReferences(JSON.parse(raw), protectedReferences)
+      } catch {
+        // A malformed draft must not block cleanup of unrelated orphaned media.
+      }
+    }
+  } catch {
+    // Storage can be unavailable in hardened/private browser contexts.
+  }
+  return protectedReferences
 }
 
 export async function saveMediaFile(file: File) {
@@ -121,7 +153,8 @@ export async function removeUnusedMediaReferences(references: string[], usedRefe
 }
 
 export async function cleanupOrphanedMedia(usedReferences: Iterable<string>) {
-  const used = new Set(usedReferences)
+  const used = new Set([...usedReferences].filter(isMediaReference))
+  protectedDraftMediaReferences().forEach((reference) => used.add(reference))
   const stored = await getAllMediaReferences()
   await removeUnusedMediaReferences(stored, used)
   return stored.filter((reference) => !used.has(reference))

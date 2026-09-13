@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 
 const hostSession = 'host-demo'
 const firstListingId = 'armeñime-luminosa-01'
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
 
 async function clearState(page: Page) {
   await page.goto('/#/')
@@ -137,15 +137,15 @@ test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', asy
   await advanceWizard(page, 4)
   await page.getByRole('button', { name: 'Eliminar foto 1' }).click()
   await page.locator('#publish-images').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: png })
-  const replacement = await expect.poll(() => page.evaluate(() => {
-    const draft = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}')
+  const replacement = await expect.poll(() => page.evaluate((listingId) => {
+    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) ?? ''
-  })).toMatch(/^idb-media:/).then(async () => page.evaluate(() => {
-    const draft = JSON.parse(localStorage.getItem('112233:listing-draft:v3') ?? '{}')
+  }, firstListingId)).toMatch(/^idb-media:/).then(async () => page.evaluate((listingId) => {
+    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) as string
-  }))
+  }, firstListingId))
   await advanceWizard(page, 3)
-  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect.poll(() => mediaExists(page, obsolete)).toBe(false)
   await expect.poll(() => mediaExists(page, replacement)).toBe(true)
 })
