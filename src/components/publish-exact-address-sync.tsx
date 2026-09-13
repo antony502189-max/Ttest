@@ -280,6 +280,12 @@ export function PublishExactAddressSync() {
       }, ADDRESS_DEBOUNCE_MS)
     }
 
+    const resolveNow = (streetOverride = '', showError = false) => {
+      cancelPending()
+      const version = gate.next()
+      void resolveAddressOrPostcode(version, streetOverride, showError)
+    }
+
     const setupInput = (element: HTMLInputElement, kind: 'street' | 'postcode' | 'area') => {
       if (cleanups.has(element)) return
       if (kind === 'area') {
@@ -301,7 +307,7 @@ export function PublishExactAddressSync() {
       }
       const onBlur = (event: Event) => {
         if (!event.isTrusted) return
-        schedule('', true)
+        resolveNow(kind === 'street' ? element.value : '', true)
       }
       element.addEventListener('input', onInput)
       element.addEventListener('blur', onBlur)
@@ -334,7 +340,7 @@ export function PublishExactAddressSync() {
       const onBlur = (event: Event) => {
         if (!event.isTrusted) return
         rawAutocompleteStreet = (element.value ?? rawAutocompleteStreet).trim()
-        if (rawAutocompleteStreet) schedule(rawAutocompleteStreet, true)
+        if (rawAutocompleteStreet) resolveNow(rawAutocompleteStreet, true)
       }
       element.addEventListener('input', onInput)
       element.addEventListener('blur', onBlur)
