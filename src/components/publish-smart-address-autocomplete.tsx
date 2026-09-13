@@ -465,7 +465,10 @@ export function PublishSmartAddressAutocomplete() {
       if (status) status.textContent = preferredOrigin ? copy.nearby : copy.idle
       syncLocationButton()
 
-      const onInput = () => scheduleQuery(input.value)
+      const onInput = (event: Event) => {
+        if (!event.isTrusted) return
+        scheduleQuery(input.value)
+      }
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
           closeList()
