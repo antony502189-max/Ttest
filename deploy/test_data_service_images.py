@@ -28,6 +28,17 @@ def test_canonical_digest_reference_removes_a_tag_before_the_digest() -> None:
     )
 
 
+def test_canonical_digest_reference_treats_official_minio_quay_alias_as_same_image() -> None:
+    assert (
+        MODULE.canonical_digest_reference("quay.io/minio/minio:RELEASE@sha256:abc")
+        == "minio/minio@sha256:abc"
+    )
+    assert (
+        MODULE.canonical_digest_reference("minio/minio:RELEASE@sha256:abc")
+        == "minio/minio@sha256:abc"
+    )
+
+
 def test_resolve_local_digest_uses_matching_repository_digest() -> None:
     completed = SimpleNamespace(
         returncode=0,
@@ -35,6 +46,15 @@ def test_resolve_local_digest_uses_matching_repository_digest() -> None:
     )
     with patch.object(MODULE.subprocess, "run", return_value=completed):
         assert MODULE.resolve_local_digest("postgis/postgis:16-3.4") == "postgis/postgis@sha256:abc"
+
+
+def test_resolve_local_digest_accepts_official_minio_alias_with_same_digest() -> None:
+    completed = SimpleNamespace(
+        returncode=0,
+        stdout='["quay.io/minio/minio@sha256:abc"]',
+    )
+    with patch.object(MODULE.subprocess, "run", return_value=completed):
+        assert MODULE.resolve_local_digest("minio/minio:RELEASE") == "minio/minio@sha256:abc"
 
 
 def test_resolve_local_digest_rejects_ambiguous_legacy_image() -> None:
@@ -56,7 +76,7 @@ def test_main_uses_the_same_canonical_reference_for_pinned_target_images(capsys)
         "services": {
             "postgres": {"image": "postgis/postgis:16-3.4@sha256:abc"},
             "redis": {"image": "redis:7.4-alpine@sha256:def"},
-            "minio": {"image": "minio/minio:RELEASE@sha256:ghi"},
+            "minio": {"image": "quay.io/minio/minio:RELEASE@sha256:ghi"},
         }
     }
     with (
@@ -70,7 +90,7 @@ def test_main_uses_the_same_canonical_reference_for_pinned_target_images(capsys)
     assert "minio image=minio/minio@sha256:ghi" in output
 
 
-def test_main_contract_ignores_non_image_compose_settings(capsys) -> None:
+def test_main_contract_ignores_non_image_compose_settings_and_official_minio_alias(capsys) -> None:
     old_config = {
         "services": {
             "postgres": {"image": "postgis/postgis:16-3.4@sha256:abc", "networks": {"application": None}},
@@ -82,7 +102,7 @@ def test_main_contract_ignores_non_image_compose_settings(capsys) -> None:
         "services": {
             "postgres": {"image": "postgis/postgis@sha256:abc", "networks": {"data": None}},
             "redis": {"image": "redis@sha256:def", "healthcheck": {"interval": "10s"}},
-            "minio": {"image": "minio/minio@sha256:ghi", "restart": "always"},
+            "minio": {"image": "quay.io/minio/minio@sha256:ghi", "restart": "always"},
         }
     }
 
