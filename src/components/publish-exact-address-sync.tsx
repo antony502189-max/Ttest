@@ -48,6 +48,12 @@ function requestedRoute(street: string) {
   return street.replace(new RegExp(`\\s*,?\\s*${escaped}\\s*$`, 'i'), '').trim()
 }
 
+function normalizePostcodeField(value: string) {
+  const trimmed = value.trim()
+  const repeated = trimmed.match(/^(\d{5})\1$/)
+  return repeated?.[1] ?? trimmed
+}
+
 function resultCoordinates(result: google.maps.GeocoderResult): Coordinates | null {
   const location = result.geometry?.location
   if (!location) return null
@@ -68,7 +74,7 @@ function resultAreaCandidates(result: google.maps.GeocoderResult) {
 function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: string): ParsedAddressInput {
   const raw = rawStreet.trim().replace(/\s*\n+\s*/g, ', ')
   const embeddedPostcode = raw.match(/\b\d{5}\b/)?.[0] ?? ''
-  const postcode = embeddedPostcode || fieldPostcode.trim()
+  const postcode = embeddedPostcode || normalizePostcodeField(fieldPostcode)
   let withoutPostcode = raw
   if (embeddedPostcode) withoutPostcode = withoutPostcode.replace(new RegExp(`\\b${embeddedPostcode}\\b`), ' ')
   withoutPostcode = withoutPostcode.replace(/\s+/g, ' ').trim()
@@ -280,6 +286,12 @@ export function PublishExactAddressSync() {
       }, ADDRESS_DEBOUNCE_MS)
     }
 
+    const resolveNow = (streetOverride = '', showError = false) => {
+      cancelPending()
+      const version = gate.next()
+      void resolveAddressOrPostcode(version, streetOverride, showError)
+    }
+
     const setupInput = (element: HTMLInputElement, kind: 'street' | 'postcode' | 'area') => {
       if (cleanups.has(element)) return
       if (kind === 'area') {
@@ -301,7 +313,7 @@ export function PublishExactAddressSync() {
       }
       const onBlur = (event: Event) => {
         if (!event.isTrusted) return
-        schedule('', true)
+        resolveNow(kind === 'street' ? element.value : '', true)
       }
       element.addEventListener('input', onInput)
       element.addEventListener('blur', onBlur)
@@ -334,7 +346,7 @@ export function PublishExactAddressSync() {
       const onBlur = (event: Event) => {
         if (!event.isTrusted) return
         rawAutocompleteStreet = (element.value ?? rawAutocompleteStreet).trim()
-        if (rawAutocompleteStreet) schedule(rawAutocompleteStreet, true)
+        if (rawAutocompleteStreet) resolveNow(rawAutocompleteStreet, true)
       }
       element.addEventListener('input', onInput)
       element.addEventListener('blur', onBlur)

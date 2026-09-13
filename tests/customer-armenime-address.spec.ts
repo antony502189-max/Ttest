@@ -19,6 +19,25 @@ async function currentCenter(page: Page) {
   })
 }
 
+function mockEsproncedaResult(coordinates: { lat: number; lng: number }) {
+  return ({
+    formatted_address: 'Calle José Espronceda 20, 38678 Armeñime, Adeje, Santa Cruz de Tenerife, Spain',
+    types: ['street_address'],
+    address_components: [
+      { long_name: 'Calle José Espronceda', short_name: 'C. José Espronceda', types: ['route'] },
+      { long_name: '20', short_name: '20', types: ['street_number'] },
+      { long_name: '38678', short_name: '38678', types: ['postal_code'] },
+      { long_name: 'Armeñime', short_name: 'Armeñime', types: ['sublocality_level_1'] },
+      { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+    ],
+    geometry: {
+      location: { lat: () => coordinates.lat, lng: () => coordinates.lng },
+      location_type: 'ROOFTOP',
+      viewport: {},
+    },
+  } as unknown as google.maps.GeocoderResult)
+}
+
 test('Armeñime area focus uses the corrected real-world area center instead of the old east-shifted point', async ({ page }) => {
   await openPublishLocation(page)
   const area = page.getByLabel('Zona o barrio')
@@ -106,4 +125,47 @@ test('C/ street abbreviation still matches the canonical Google Calle route', as
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)
   await expect(page.locator('.publish-location-error')).toHaveCount(0)
+})
+
+test('full pasted Espronceda address resolves even when the selected municipality is stale and postcode is initially empty', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await page.getByLabel('Zona o barrio').fill('Armeñime')
+
+  await page.evaluate((coordinates) => {
+    const holder = window as Window & { __fullAddressQueries?: string[] }
+    holder.__fullAddressQueries = []
+    window.__112233TestAddressGeocode = async (query) => {
+      holder.__fullAddressQueries?.push(query)
+      return [({
+        formatted_address: 'Calle José Espronceda 20, 38678 Armeñime, Adeje, Santa Cruz de Tenerife, Spain',
+        types: ['street_address'],
+        address_components: [
+          { long_name: 'Calle José Espronceda', short_name: 'C. José Espronceda', types: ['route'] },
+          { long_name: '20', short_name: '20', types: ['street_number'] },
+          { long_name: '38678', short_name: '38678', types: ['postal_code'] },
+          { long_name: 'Armeñime', short_name: 'Armeñime', types: ['sublocality_level_1'] },
+          { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+        ],
+        geometry: {
+          location: { lat: () => coordinates.lat, lng: () => coordinates.lng },
+          location_type: 'ROOFTOP',
+          viewport: {},
+        },
+      } as unknown as google.maps.GeocoderResult)]
+    }
+  }, CUSTOMER_ADDRESS_REFERENCE)
+
+  const street = page.getByLabel('Calle')
+  await street.fill('Calle José Espronceda 20. Armeñime\nSanta Cruz de Tenerife.')
+  await street.blur()
+
+  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
+  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38678')
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
+  await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)
+  const queries = await page.evaluate(() => (window as Window & { __fullAddressQueries?: string[] }).__fullAddressQueries ?? [])
+  expect(queries.some((query) => query.includes('Calle José Espronceda 20'))).toBe(true)
 })

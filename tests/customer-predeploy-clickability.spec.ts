@@ -18,24 +18,24 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('CUSTOMER-PREDEPLOY Calle autocomplete has a complete visible border contract', async ({ page }) => {
+test('CUSTOMER-PREDEPLOY Calle autocomplete keeps the native field visible with an inline suggestion contract', async ({ page }) => {
   const css = readFileSync(resolve(process.cwd(), 'src/publish-location-enhancer.css'), 'utf8')
-  const rule = css.match(/\.publish-place-autocomplete\s*\{([^}]*)\}/s)?.[1] ?? ''
-  expect(rule).toContain('border: 1px solid var(--border)')
-  expect(rule).toContain('box-sizing: border-box')
-  expect(rule).toContain('overflow: visible')
-  expect(css).toContain('.publish-place-autocomplete::part(prediction-list)')
+  expect(css).toContain('#publish-street[data-address-autocomplete="native"]')
+  expect(css).toContain('.publish-address-predictions')
+  expect(css).toContain('.publish-address-prediction')
+  expect(css).toContain('.publish-address-predictions[hidden]')
 
   await page.setViewportSize({ width: 390, height: 844 })
   await openAsHost(page, '/#/publicar')
   await page.getByRole('button', { name: 'Continuar' }).click()
-  const street = page.getByLabel('Calle')
+  const street = page.locator('#publish-street[data-address-autocomplete="native"]')
   await expect(street).toBeVisible()
   const borders = await street.evaluate((element) => {
     const style = getComputedStyle(element)
     return [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth]
   })
   expect(borders.every((width) => Number.parseFloat(width) > 0)).toBe(true)
+  await expect(page.locator('.publish-place-autocomplete')).toHaveCount(0)
 })
 
 test('CUSTOMER-PREDEPLOY desktop listing card opens from non-interactive card surface', async ({ page }) => {
