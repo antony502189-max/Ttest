@@ -201,6 +201,14 @@ export function PublishLocationEnhancer() {
     const municipalityTimers = new Set<number>()
     const areaTimers = new Map<HTMLInputElement, number>()
 
+    const cancelPendingLocationFocus = () => {
+      locationGate.next()
+      municipalityTimers.forEach((timer) => window.clearTimeout(timer))
+      municipalityTimers.clear()
+      areaTimers.forEach((timer) => window.clearTimeout(timer))
+      areaTimers.clear()
+    }
+
     const restorePreviousLocationCopy = () => {
       const selector = document.querySelector<HTMLElement>('.approximate-location-selector')
       const legend = selector?.querySelector<HTMLElement>(':scope > legend')
@@ -209,7 +217,10 @@ export function PublishLocationEnhancer() {
       if (help && help.textContent !== selectorHelp) help.textContent = selectorHelp
     }
 
-    const handleResolved = (event: Event) => applyAddress((event as CustomEvent<AddressDetail>).detail ?? {})
+    const handleResolved = (event: Event) => {
+      cancelPendingLocationFocus()
+      applyAddress((event as CustomEvent<AddressDetail>).detail ?? {})
+    }
     window.addEventListener('112233:map-address-resolved', handleResolved)
 
     const clearStaleAddressForMunicipality = () => {
@@ -397,6 +408,15 @@ export function PublishLocationEnhancer() {
       municipalityListeners.set(select, listener)
     }
 
+    const handleExactAddressInput = (event: Event) => {
+      if (!event.isTrusted) return
+      const target = event.target
+      if (!(target instanceof HTMLInputElement)) return
+      if (target.id !== 'publish-street' && target.id !== 'publish-postcode') return
+      cancelPendingLocationFocus()
+    }
+    document.addEventListener('input', handleExactAddressInput, true)
+
     const setup = async () => {
       restorePreviousLocationCopy()
       setupMunicipalitySync()
@@ -410,7 +430,7 @@ export function PublishLocationEnhancer() {
       try {
         await loadGoogleMaps()
         const places = await google.maps.importLibrary('places') as google.maps.PlacesLibrary
-        if (cancelled || !input.isConnected) return
+        if (cancelled || !input.isConnected || input.dataset.addressAutocomplete === 'native') return
         const autocomplete = new places.PlaceAutocompleteElement({}) as StreetFirstAutocomplete
         autocomplete.classList.add('publish-place-autocomplete')
         autocomplete.placeholder = placeholder
@@ -419,9 +439,8 @@ export function PublishLocationEnhancer() {
         autocomplete.includedPrimaryTypes = ['street_address', 'route', 'premise', 'subpremise']
         autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
+          cancelPendingLocationFocus()
           const version = locationGate.next()
-          areaTimers.forEach((timer) => window.clearTimeout(timer))
-          areaTimers.clear()
           const event = rawEvent as google.maps.places.PlacePredictionSelectEvent
           const place = event.placePrediction.toPlace()
           await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
@@ -457,16 +476,14 @@ export function PublishLocationEnhancer() {
     void setup()
     return () => {
       cancelled = true
+      cancelPendingLocationFocus()
       observer.disconnect()
       window.removeEventListener('112233:map-address-resolved', handleResolved)
+      document.removeEventListener('input', handleExactAddressInput, true)
       municipalityListeners.forEach((listener, select) => select.removeEventListener('change', listener))
       municipalityListeners.clear()
       areaListeners.forEach((listener, input) => input.removeEventListener('input', listener))
       areaListeners.clear()
-      municipalityTimers.forEach((timer) => window.clearTimeout(timer))
-      municipalityTimers.clear()
-      areaTimers.forEach((timer) => window.clearTimeout(timer))
-      areaTimers.clear()
       widgets.forEach((widget) => widget.remove())
       const input = document.querySelector<HTMLInputElement>('#publish-street')
       if (input) {
