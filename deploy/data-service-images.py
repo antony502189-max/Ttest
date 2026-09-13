@@ -8,6 +8,12 @@ import subprocess
 import sys
 
 
+OFFICIAL_REPOSITORY_ALIASES = {
+    "quay.io/minio/minio": "minio/minio",
+    "quay.io/minio/mc": "minio/mc",
+}
+
+
 def repository_name(image: str) -> str:
     reference = image.split("@", 1)[0]
     slash = reference.rfind("/")
@@ -15,11 +21,16 @@ def repository_name(image: str) -> str:
     return reference[:colon] if colon > slash else reference
 
 
+def canonical_repository_name(image: str) -> str:
+    repository = repository_name(image)
+    return OFFICIAL_REPOSITORY_ALIASES.get(repository, repository)
+
+
 def canonical_digest_reference(image: str) -> str:
     repository, separator, digest = image.partition("@")
     if separator != "@" or not digest.startswith("sha256:"):
         raise SystemExit(f"image is not an immutable digest reference: {image}")
-    return f"{repository_name(repository)}@{digest}"
+    return f"{canonical_repository_name(repository)}@{digest}"
 
 
 def resolve_local_digest(image: str) -> str:
@@ -39,16 +50,17 @@ def resolve_local_digest(image: str) -> str:
         raise SystemExit(f"Docker returned invalid repo digests for legacy image: {image}") from exc
     if not isinstance(repo_digests, list):
         raise SystemExit(f"Docker returned no repo digests for legacy image: {image}")
+    requested_repository = canonical_repository_name(image)
     candidates = {
-        digest
+        canonical_digest_reference(digest)
         for digest in repo_digests
         if isinstance(digest, str)
         and "@sha256:" in digest
-        and repository_name(digest) == repository_name(image)
+        and canonical_repository_name(digest) == requested_repository
     }
     if len(candidates) != 1:
         raise SystemExit(f"legacy image must resolve to exactly one immutable digest: {image}")
-    return canonical_digest_reference(candidates.pop())
+    return candidates.pop()
 
 
 def main() -> None:
@@ -75,10 +87,9 @@ def main() -> None:
             image = resolve_local_digest(image)
         else:
             image = canonical_digest_reference(image)
-        # This guard protects the persistent-data boundary.  Compose service
-        # settings such as networks and health checks may legitimately change
-        # while an application release is deployed; only the stateful image
-        # itself requires a separate controlled data-service migration.
+        # Persistent-data migrations are required only when the actual digest
+        # changes. Explicitly trusted official registry aliases with the same
+        # digest represent the same immutable image content.
         canonical = json.dumps({"image": image}, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
         contract_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         print(f"{name} image={image} contract_sha256={contract_hash}")
