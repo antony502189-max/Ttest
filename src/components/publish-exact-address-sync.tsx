@@ -48,6 +48,12 @@ function requestedRoute(street: string) {
   return street.replace(new RegExp(`\\s*,?\\s*${escaped}\\s*$`, 'i'), '').trim()
 }
 
+function normalizePostcodeField(value: string) {
+  const trimmed = value.trim()
+  const repeated = trimmed.match(/^(\d{5})\1$/)
+  return repeated?.[1] ?? trimmed
+}
+
 function resultCoordinates(result: google.maps.GeocoderResult): Coordinates | null {
   const location = result.geometry?.location
   if (!location) return null
@@ -68,7 +74,7 @@ function resultAreaCandidates(result: google.maps.GeocoderResult) {
 function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: string): ParsedAddressInput {
   const raw = rawStreet.trim().replace(/\s*\n+\s*/g, ', ')
   const embeddedPostcode = raw.match(/\b\d{5}\b/)?.[0] ?? ''
-  const postcode = embeddedPostcode || fieldPostcode.trim()
+  const postcode = embeddedPostcode || normalizePostcodeField(fieldPostcode)
   let withoutPostcode = raw
   if (embeddedPostcode) withoutPostcode = withoutPostcode.replace(new RegExp(`\\b${embeddedPostcode}\\b`), ' ')
   withoutPostcode = withoutPostcode.replace(/\s+/g, ' ').trim()
