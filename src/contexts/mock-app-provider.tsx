@@ -300,7 +300,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const setMapPolygon = useCallback((points: MapPolygonPoint[]) => setMapPolygonState(points), [])
   const clearMapPolygon = useCallback(() => setMapPolygonState([]), [])
 
-  const canManageListing = useCallback((listing: Listing) => Boolean(currentUser && (currentUser.role === 'admin' || (currentUser.role === 'host' && listing.ownerUserId === currentUser.id))), [currentUser])
+  const canManageListing = useCallback((listing: Listing) => Boolean(currentUser && (currentUser.role === 'admin' || listing.ownerUserId === currentUser.id)), [currentUser])
 
   const createListing = useCallback(async (listing: Listing) => {
     if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return false }
