@@ -7,6 +7,7 @@ import { useApp } from '@/contexts/app-context'
 import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
+import { buildDisplayMarkerPositions } from '@/lib/map-marker-overlap'
 import type { Listing } from '@/types'
 import '@/mobile-map-ideal.css'
 
@@ -77,6 +78,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       await loadGoogleMaps()
       if (cancelled || !mapRef.current) return
       clear()
+      const displayPositions = buildDisplayMarkerPositions(items)
 
       const markers = items.map((listing) => {
         const content = createPriceMarkerContent(listing)
@@ -84,8 +86,11 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         content.dataset.listingId = listing.id
         content.classList.add('m2-listing-marker')
         content.dataset.markerZIndex = listing.promoted ? '100' : '10'
+        const display = displayPositions.get(listing.id) ?? { position: listing.coordinates, coincidentCount: 1 }
+        content.dataset.coincidentCount = String(display.coincidentCount)
+        content.dataset.displayPosition = `${display.position.lat.toFixed(7)},${display.position.lng.toFixed(7)}`
         const marker = new google.maps.marker.AdvancedMarkerElement({
-          position: listing.coordinates,
+          position: display.position,
           content,
           title: `${listing.area}, ${priceLabel(listing)}`,
           gmpClickable: true,
@@ -95,7 +100,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         const select = () => {
           setSelectedId(listing.id)
           marker.zIndex = 4000
-          map.panTo(listing.coordinates)
+          map.panTo(display.position)
         }
         marker.addEventListener('gmp-click', select)
         content.addEventListener('click', (event) => { event.stopPropagation(); select() })

@@ -8,6 +8,7 @@ import { requestCurrentLocation } from '@/lib/geolocation'
 import { getPrimaryPrice } from '@/lib/listings'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
+import { buildDisplayMarkerPositions } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
@@ -281,12 +282,16 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     markersRef.current.clear()
     markerContentRef.current.clear()
 
+    const displayPositions = buildDisplayMarkerPositions(itemsRef.current)
     const markers = itemsRef.current.map((listing) => {
       const content = createPriceMarkerContent(listing)
       setPriceMarkerState(content, listing.id === selectedIdRef.current, listing.id === highlightedIdRef.current, Boolean(listing.promoted))
       content.dataset.markerZIndex = listing.id === selectedIdRef.current ? '3000' : listing.promoted ? '100' : '10'
+      const display = displayPositions.get(listing.id) ?? { position: listing.coordinates, coincidentCount: 1 }
+      content.dataset.coincidentCount = String(display.coincidentCount)
+      content.dataset.displayPosition = `${display.position.lat.toFixed(7)},${display.position.lng.toFixed(7)}`
       const marker = new google.maps.marker.AdvancedMarkerElement({
-        position: listing.coordinates,
+        position: display.position,
         content,
         title: `${listing.area}, ${priceLabel(listing)}`,
         gmpClickable: true,
