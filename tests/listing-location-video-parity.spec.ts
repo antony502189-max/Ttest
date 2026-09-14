@@ -169,7 +169,7 @@ test('preview keeps Android Google tile rows contiguous and outside responsive i
   })
 })
 
-test('mobile WhatsApp-only listing exposes confirmation instead of a blank fixed strip', async ({ page }) => {
+test('mobile WhatsApp-only listing keeps the floating confirmation highlighted like the lime action bar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await patchInternalListingContacts(page, {
     showPhone: false,
@@ -183,6 +183,12 @@ test('mobile WhatsApp-only listing exposes confirmation instead of a blank fixed
   const confirmation = bar.locator('.condition-confirm')
   await expect(bar).toBeVisible()
   await expect(bar).toHaveCSS('position', 'fixed')
+  const floatingColors = await page.evaluate(() => ({
+    contact: getComputedStyle(document.querySelector<HTMLElement>('.mobile-contact-bar')!).backgroundColor,
+    actionbar: getComputedStyle(document.querySelector<HTMLElement>('.listing-actionbar')!).backgroundColor,
+  }))
+  expect(floatingColors.contact).toBe(floatingColors.actionbar)
+  expect(floatingColors.contact).not.toBe('rgb(255, 255, 255)')
   await expect(confirmation).toBeVisible()
   await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveCount(0)
 
