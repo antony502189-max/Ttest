@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+﻿import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
 
@@ -40,5 +40,27 @@ test('publication entry in menu opens the same clean gate', async ({ page }) => 
   await expect(gate.locator('header')).not.toContainText('Для публикации объявления войдите в аккаунт')
   await gate.getByRole('button', { name: 'Назад' }).click()
   await expect(gate).toHaveCount(0)
-  await expect(page.getByText('Ваши объекты')).toBeVisible()
+  await expect(page.getByText('Управление объектами')).toBeVisible()
+})
+
+
+test('authenticated mobile menu separates my properties from profile editing', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem('112233:language:v1', 'ru')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+  })
+
+  await page.goto('/#/menu')
+  const properties = page.getByRole('button', { name: 'Мои объекты', exact: true })
+  const editProfile = page.getByRole('button', { name: /Редактировать профиль/ })
+  await expect(properties).toBeVisible()
+  await expect(editProfile).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Управление объектами' })).toBeVisible()
+
+  await properties.click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  await page.goto('/#/menu')
+  await editProfile.click()
+  await expect(page).toHaveURL(/#\/perfil$/)
 })
