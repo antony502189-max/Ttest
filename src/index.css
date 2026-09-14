@@ -1796,3 +1796,20 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 .notification-count { display: inline-grid; place-items: center; min-width: 1.3rem; height: 1.3rem; padding-inline: .25rem; border-radius: 999px; background: var(--destructive); color: #fff; font-size: .68rem; font-weight: 750; line-height: 1; }
 .mobile-icon-link { position: relative; }.mobile-icon-link .notification-count { position: absolute; top: -.3rem; right: -.35rem; }
 @media (max-width: 767px) { .notifications-list article { align-items: flex-start; flex-direction: column; }.notifications-list__actions { justify-content: flex-start; } }
+
+/* Customer video feedback: keep the mobile contact confirmation floating, but make it clearly visible. */
+@media (max-width: 767px) {
+  body .mobile-contact-bar {
+    background: var(--market-lime);
+    border-top-color: #a9bb2b;
+    box-shadow: 0 -.35rem 1rem rgb(37 42 43 / .14);
+  }
+  body .contact-panel--mobile {
+    background: transparent;
+    color: var(--ink);
+  }
+  body .contact-panel--mobile .condition-confirm {
+    color: var(--ink);
+    font-weight: 680;
+  }
+}
