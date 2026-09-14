@@ -33,6 +33,8 @@ for script in deploy/*.sh; do
 done
 bash -n scripts/test-production-monitor.sh
 bash scripts/test-production-monitor.sh
+bash -n scripts/test-production-monitor-alerts.sh
+bash scripts/test-production-monitor-alerts.sh
 python3 scripts/check-deploy-safety.py
 python3 scripts/check-migration-compatibility.py
 bash scripts/test-public-origin-smoke.sh
@@ -70,12 +72,49 @@ grep -Fq 'MAX_MEDIA_ASSETS_PER_USER=100' deploy/production.env.example
 grep -Fq 'MAX_MEDIA_BYTES_PER_USER=268435456' deploy/production.env.example
 grep -Fq 'MAX_LISTING_COLLECTION_ITEMS_PER_USER=500' deploy/production.env.example
 grep -Fq 'EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES=3' deploy/production.env.example
+grep -Fq 'OFFSITE_BACKUP_ENDPOINT=' deploy/production.env.example
+grep -Fq 'OFFSITE_BACKUP_REQUIRED=1' deploy/production.env.example
+grep -Fq 'OFFSITE_RESTORE_DRILL_REQUIRED=1' deploy/production.env.example
+grep -Fq 'MONITOR_ALERTS_REQUIRED=1' deploy/production.env.example
+grep -Fq 'OPS_TIMERS_REQUIRED=1' deploy/production.env.example
+grep -Fq 'OFFSITE_NETWORK_TIMEOUT_SECONDS=1800' deploy/production.env.example
 # A backup manifest must be generated outside the mirrored tree to avoid
 # including itself and making every restore verification fail.
 grep -Fq '> /tmp/backup-manifest' deploy/backup-minio.sh
 grep -Fq 'cp /tmp/backup-manifest .backup-manifest' deploy/backup-minio.sh
 grep -Fq 'verify_backup_authentication' deploy/restore-verify.sh
 grep -Fq 'verify_backup_authentication' deploy/restore-minio-verify.sh
+# Off-site transport must use the egress-only ops container and must never
+# delete remote backups. Retention is a provider-side policy.
+grep -Fq 'offsite-tools' deploy/offsite-backup-sync.sh
+grep -Fq 'offsite-tools' deploy/offsite-restore-drill.sh
+grep -Fq 'latest-backup-set.tar' deploy/offsite-backup-sync.sh
+grep -Fq 'latest-backup-set.tar' deploy/offsite-restore-drill.sh
+grep -Fq '/transfer/verify/$file' deploy/offsite-backup-sync.sh
+grep -Fq 'verify_backup_authentication "$transfer_dir/verify/$postgres_name"' deploy/offsite-backup-sync.sh
+grep -Fq 'timeout --foreground --kill-after=30s' deploy/offsite-backup-sync.sh
+grep -Fq 'timeout --foreground --kill-after=30s' deploy/offsite-restore-drill.sh
+if grep -Eq '(^|[[:space:]])mc[[:space:]]+(rm|rb)([[:space:]]|$)|mirror[[:space:]].*--remove' deploy/offsite-backup-sync.sh; then
+  echo 'off-site backup replication must never delete remote backup data' >&2
+  exit 1
+fi
+# Repository-owned schedules make runtime installation reviewable/reproducible.
+for unit in \
+  deploy/systemd/112233-monitor.service \
+  deploy/systemd/112233-monitor.timer \
+  deploy/systemd/112233-dr-cycle.service \
+  deploy/systemd/112233-dr-cycle.timer \
+  deploy/systemd/112233-offsite-restore-drill.service \
+  deploy/systemd/112233-offsite-restore-drill.timer; do
+  test -s "$unit"
+done
+grep -Fq 'OnUnitActiveSec=5min' deploy/systemd/112233-monitor.timer
+grep -Fq 'OnCalendar=*-*-* 01:30:00 UTC' deploy/systemd/112233-dr-cycle.timer
+grep -Fq 'OnCalendar=*-*-01 03:30:00 UTC' deploy/systemd/112233-offsite-restore-drill.timer
+grep -Fq 'production-monitor-run.sh' deploy/systemd/112233-monitor.service
+grep -Fq 'disaster-recovery-cycle.sh' deploy/systemd/112233-dr-cycle.service
+grep -Fq 'offsite-restore-drill.sh' deploy/systemd/112233-offsite-restore-drill.service
+grep -Fq 'systemctl enable --now' deploy/install-production-ops.sh
 
 # Exercise the exact HMAC implementation used on the VPS. A modified encrypted
 # file must fail authentication even when an attacker can replace plain hashes.
@@ -108,7 +147,7 @@ import sys
 
 config = json.load(sys.stdin)
 services = config["services"]
-required = {"postgres", "redis", "minio", "minio-init", "migrate", "backend", "mail-worker", "external-listings-worker", "frontend"}
+required = {"postgres", "redis", "minio", "minio-init", "offsite-tools", "migrate", "backend", "mail-worker", "external-listings-worker", "frontend"}
 missing = required - services.keys()
 if missing:
     raise SystemExit(f"missing production services: {sorted(missing)}")
@@ -118,6 +157,8 @@ if public_ports:
 for name in {"postgres", "redis", "minio", "backend", "mail-worker", "external-listings-worker", "frontend"}:
     if services[name].get("restart") != "unless-stopped":
         raise SystemExit(f"{name} must use restart: unless-stopped")
+if services["offsite-tools"].get("restart") != "no":
+    raise SystemExit("offsite-tools must be an ephemeral ops-only service")
 if "healthcheck" not in services["external-listings-worker"]:
     raise SystemExit("external-listings-worker must have a healthcheck")
 if "healthcheck" not in services["mail-worker"]:
@@ -161,6 +202,8 @@ if not config["networks"].get("traefik", {}).get("external"):
 for name in {"postgres", "redis", "minio", "minio-init", "migrate"}:
     if set(services[name].get("networks", [])) != {"data"}:
         raise SystemExit(f"{name} must only join the data network")
+if set(services["offsite-tools"].get("networks", [])) != {"egress"}:
+    raise SystemExit("offsite-tools must have egress only and no production data-network access")
 if set(services["backend"].get("networks", [])) != {"application", "data", "egress"}:
     raise SystemExit("backend must join application, data, and egress networks")
 for name in {"mail-worker", "external-listings-worker"}:
