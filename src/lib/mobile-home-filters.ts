@@ -9,8 +9,12 @@ export function mobileHomeSearchFilters(filters: Filters, mode: RentalMode): Fil
   let tenantRequirement: Filters['tenantRequirement'] = 'Cualquiera'
   let roomCapacity: Filters['roomCapacity'] = 'Cualquiera'
 
-  if (current.tenantRequirement === 'single-man' || current.tenantRequirement === 'single-woman' || current.tenantRequirement === 'single-person') {
+  if (current.tenantRequirement === 'single-man' || current.tenantRequirement === 'single-woman') {
     tenantRequirement = current.tenantRequirement
+    roomCapacity = '1'
+  } else if (current.tenantRequirement === 'single-person') {
+    // Home '1 person' is capacity-only. A male-only/female-only room for one
+    // person still matches this choice.
     roomCapacity = '1'
   } else if (current.tenantRequirement === 'couple' || current.roomCapacity === '2') {
     roomCapacity = '2'
