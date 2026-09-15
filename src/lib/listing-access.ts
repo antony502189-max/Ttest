@@ -94,6 +94,8 @@ export function listingAccessProfileFromFilters(filters: Filters): ListingAccess
     occupant = 'family'
   } else if (filters.roomCapacity === '2' && filters.tenantRequirement === 'Cualquiera') {
     occupant = 'two-people'
+  } else if (filters.roomCapacity === '1' && filters.tenantRequirement === 'Cualquiera') {
+    occupant = 'single-person'
   } else if (filters.tenantRequirement !== 'Cualquiera') {
     occupant = filters.tenantRequirement
   }
@@ -120,7 +122,8 @@ export function applyListingAccessProfile(filters: Filters, profile: ListingAcce
       roomCapacity = '1'
       break
     case 'single-person':
-      tenantRequirement = 'single-person'
+      // The Home chooser label means one occupant, regardless of a listing's
+      // landlord-side gender/profile restriction.
       roomCapacity = '1'
       break
     case 'couple':

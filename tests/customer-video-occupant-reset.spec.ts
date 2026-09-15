@@ -44,7 +44,7 @@ test('CUSTOMER-VIDEO pets narrows results, back preserves it, unrestricted reset
   const narrowedParams = hashParams(page.url())
   expect(narrowedParams.get('mascotas')).toBe('Sí')
   expect(narrowedParams.get('capacidad')).toBe('1')
-  expect(narrowedParams.get('requisito')).toBe('single-person')
+  expect(narrowedParams.get('requisito')).toBeNull()
 
   await petResults.getByRole('button', { name: 'Volver' }).click()
   await expect(page.getByTestId('mobile-results')).toHaveCount(0)

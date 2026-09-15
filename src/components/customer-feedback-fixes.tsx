@@ -74,7 +74,8 @@ const PRIMARY_REQUIREMENTS: Record<Exclude<OccupantKey, 'children' | 'pets' | 'u
   tenantRequirement: Filters['tenantRequirement']
   roomCapacity: '1' | '2'
 }> = {
-  one: { tenantRequirement: 'single-person', roomCapacity: '1' },
+  // '1 person' describes room capacity, not the landlord's gender/profile restriction.
+  one: { tenantRequirement: 'Cualquiera', roomCapacity: '1' },
   // This card explicitly includes friends, so it must constrain capacity
   // without imposing the advanced, couple-only tenant requirement.
   two: { tenantRequirement: 'Cualquiera', roomCapacity: '2' },

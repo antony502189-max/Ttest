@@ -69,6 +69,36 @@ test('same visible man filter gives the same non-empty result on repeated search
   expect(await page.locator('.m2-result-card').count()).toBe(firstCount)
 })
 
+
+test('one person is capacity-only and includes one-person listings with gender restrictions', async ({ page }) => {
+  await page.goto('/')
+  let sheet = await openOccupants(page)
+  await sheet.locator('[data-m2-occupant-key="man"]').click()
+  await sheet.locator('.m2-custom-occupant-done').click()
+  await page.getByTestId('open-location').click()
+  await expect(page.getByTestId('mobile-results')).toBeVisible()
+  const manCards = page.locator('.m2-result-card')
+  const manCount = await manCards.count()
+  expect(manCount).toBeGreaterThan(0)
+  const manIds = await manCards.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-listing-id')).filter(Boolean))
+
+  await backToHome(page)
+  sheet = await openOccupants(page)
+  await sheet.locator('[data-m2-occupant-key="one"]').click()
+  await expect(sheet.locator('[data-m2-occupant-key="one"]')).toHaveAttribute('aria-checked', 'true')
+  await sheet.locator('.m2-custom-occupant-done').click()
+  await page.getByTestId('open-location').click()
+  await expect(page.getByTestId('mobile-results')).toBeVisible()
+
+  const params = searchParams(page.url())
+  expect(params.get('capacidad')).toBe('1')
+  expect(params.get('requisito')).toBeNull()
+  const onePersonCards = page.locator('.m2-result-card')
+  expect(await onePersonCards.count()).toBeGreaterThan(manCount)
+  const onePersonIds = await onePersonCards.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-listing-id')).filter(Boolean))
+  expect(manIds.every((id) => onePersonIds.includes(id))).toBe(true)
+})
+
 test('home search clears hidden result-only filters instead of leaking them invisibly', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&capacidad=3&mascotas=No&fumar=No')
   await expect(page.getByTestId('mobile-results')).toBeVisible()
