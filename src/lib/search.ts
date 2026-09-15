@@ -121,6 +121,12 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
 
 export function sortListings(items: Listing[], sort: string) {
   return items.map((listing, index) => ({ listing, index })).sort((a, b) => {
+    const promotionPriority = Number(Boolean(b.listing.promoted)) - Number(Boolean(a.listing.promoted))
+    if (promotionPriority) return promotionPriority
+    // The API already orders promoted listings by newest boost. The public
+    // payload deliberately exposes only the boolean promotion flag, so keep
+    // that server order instead of accidentally replacing it with publish/price order.
+    if (a.listing.promoted && b.listing.promoted) return a.index - b.index
     if (sort === 'Más recientes') return new Date(b.listing.publishedAt).getTime() - new Date(a.listing.publishedAt).getTime() || a.index - b.index
     if (sort === 'Más antiguos') return new Date(a.listing.publishedAt).getTime() - new Date(b.listing.publishedAt).getTime() || a.index - b.index
     if (sort === 'Precio más bajo') return getPrimaryPrice(a.listing) - getPrimaryPrice(b.listing) || a.index - b.index
