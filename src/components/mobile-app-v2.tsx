@@ -32,10 +32,9 @@ import { useAdminAccess } from '@/hooks/use-admin-access'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocation'
 import { googleMapsConfig, loadGoogleMaps } from '@/lib/google-maps/loader'
-import { persistListingAccessProfile, readListingAccessProfile, type HomeOccupantChoice } from '@/lib/listing-access'
+import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
-import { filtersForRentalMode } from '@/lib/price-filter-controls'
 import type { Listing } from '@/types'
 import '@/mobile-app-v2.css'
 import '@/mobile-favorites-selection.css'
@@ -255,17 +254,6 @@ function OccupantSelector({ t }: { t: MobileCopy }) {
     document.addEventListener('keydown', closeOnEscape)
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
   }, [open])
-  useEffect(() => {
-    const specific = selected.filter((value) => !GENERAL_OCCUPANTS.has(value))
-    const occupantMap: Partial<Record<OccupantOption, HomeOccupantChoice>> = {
-      man: 'single-man',
-      woman: 'single-woman',
-      person: 'single-person',
-      couple: 'couple',
-    }
-    const occupant = specific.length === 1 ? occupantMap[specific[0]] ?? 'any' : 'any'
-    persistListingAccessProfile({ ...readListingAccessProfile(), occupant })
-  }, [selected])
   const toggle = (value: OccupantOption) => {
     if (GENERAL_OCCUPANTS.has(value)) { setSelected([value]); return }
     setSelected((current) => {
@@ -746,10 +734,13 @@ export function MobileAppV2() {
   const handleCountryContinue = () => { if (origin === 'region-location') { setStep('done'); navigate('/?panel=ubicacion'); return }; if (origin === 'region-settings') { setStep('done'); navigate('/menu'); return }; setStep('privacy') }
   const authBack = () => { if (origin === 'startup') setStep('privacy'); else returnToApp() }
   const openMap = (mode: MapMode, query = '') => {
-    const params = filtersToParams(filters)
+    const searchMode = homeMode === 'turismo' ? 'holiday' : 'long'
+    const nextFilters = mobileHomeSearchFilters(filters, searchMode)
+    setFilters(nextFilters)
+    const params = filtersToParams(nextFilters)
     params.set('q', query || 'Tenerife')
     params.set('vista', 'mapa')
-    params.set('alquiler', rentalMode)
+    params.set('alquiler', searchMode)
     if (mapPolygon.length >= 3) params.set('poligono', mapPolygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     if (mode === 'draw') params.set('dibujar', '1')
     navigate(`/buscar?${params.toString()}`)
@@ -758,14 +749,17 @@ export function MobileAppV2() {
     setNearbyStatus('loading')
     const result = await requestCurrentLocation()
     if (!result.ok) { setNearbyStatus(result.reason); return }
-    const params = filtersToParams(filters)
+    const searchMode = homeMode === 'turismo' ? 'holiday' : 'long'
+    const nextFilters = mobileHomeSearchFilters(filters, searchMode)
+    setFilters(nextFilters)
+    const params = filtersToParams(nextFilters)
     params.set('q', 'Tenerife')
     params.set('vista', 'mapa')
     params.set('cerca', '1')
     params.set('radio', '30')
     params.set('lat', String(result.coordinates.lat))
     params.set('lng', String(result.coordinates.lng))
-    params.set('alquiler', rentalMode)
+    params.set('alquiler', searchMode)
     setNearbyStatus('success')
     navigate(`/buscar?${params.toString()}`)
   }
@@ -796,7 +790,7 @@ export function MobileAppV2() {
   }
   const runHomeSearch = () => {
     const mode = homeMode === 'turismo' ? 'holiday' : 'long'
-    const nextFilters = filtersForRentalMode(filters, mode)
+    const nextFilters = mobileHomeSearchFilters(filters, mode)
     if (nextFilters !== filters) setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
     params.set('q', 'Tenerife')
