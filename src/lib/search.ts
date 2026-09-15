@@ -123,6 +123,10 @@ export function sortListings(items: Listing[], sort: string) {
   return items.map((listing, index) => ({ listing, index })).sort((a, b) => {
     const promotionPriority = Number(Boolean(b.listing.promoted)) - Number(Boolean(a.listing.promoted))
     if (promotionPriority) return promotionPriority
+    // The API already orders promoted listings by newest boost. The public
+    // payload deliberately exposes only the boolean promotion flag, so keep
+    // that server order instead of accidentally replacing it with publish/price order.
+    if (a.listing.promoted && b.listing.promoted) return a.index - b.index
     if (sort === 'Más recientes') return new Date(b.listing.publishedAt).getTime() - new Date(a.listing.publishedAt).getTime() || a.index - b.index
     if (sort === 'Más antiguos') return new Date(a.listing.publishedAt).getTime() - new Date(b.listing.publishedAt).getTime() || a.index - b.index
     if (sort === 'Precio más bajo') return getPrimaryPrice(a.listing) - getPrimaryPrice(b.listing) || a.index - b.index
@@ -148,17 +152,17 @@ export function getActiveFilterKeys(filters: Filters) {
   if (filters.deposit !== defaultFilters.deposit) keys.push('deposit')
   if (filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax) keys.push('roomSize')
   if (filters.homeSizeMin !== defaultFilters.homeSizeMin || filters.homeSizeMax !== defaultFilters.homeSizeMax) keys.push('homeSize')
-  if (filters.bathroomCountMin > 0) keys.push('bathroomCount')
+  if (filters.bathroomCountMin !== defaultFilters.bathroomCountMin) keys.push('bathroomCount')
   if (filters.rentalUnit !== defaultFilters.rentalUnit) keys.push('rentalUnit')
   if (filters.bedType !== defaultFilters.bedType) keys.push('bedType')
-  if (filters.bedCountMin > 0) keys.push('bedCount')
+  if (filters.bedCountMin !== defaultFilters.bedCountMin) keys.push('bedCount')
   if (filters.shower !== defaultFilters.shower) keys.push('shower')
   if (filters.toilet !== defaultFilters.toilet) keys.push('toilet')
   if (filters.currentResidents !== defaultFilters.currentResidents) keys.push('currentResidents')
   if (filters.roomResidents !== defaultFilters.roomResidents) keys.push('roomResidents')
   if (filters.roomCapacity !== defaultFilters.roomCapacity) keys.push('roomCapacity')
-  if (filters.availableSpotsMin > 0) keys.push('availableSpots')
-  if (filters.minimumNights > 0) keys.push('minimumNights')
+  if (filters.availableSpotsMin !== defaultFilters.availableSpotsMin) keys.push('availableSpots')
+  if (filters.minimumNights !== defaultFilters.minimumNights) keys.push('minimumNights')
   if (filters.smoking !== defaultFilters.smoking) keys.push('smoking')
   if (filters.pets !== defaultFilters.pets) keys.push('pets')
   if (filters.children !== defaultFilters.children) keys.push('children')
