@@ -1,0 +1,12 @@
+.map-price-marker__label { display: inline-flex; align-items: center; gap: .3rem; }
+.map-price-marker__promotion { display: none; align-items: center; justify-content: center; font-size: .9em; line-height: 1; }
+.map-price-marker.is-promoted .map-price-marker__promotion { display: inline-flex; }
+.map-price-marker.is-promoted:not(.is-selected) { border-color: #6e7773 !important; background: #fff !important; color: var(--ink) !important; box-shadow: 0 .35rem .8rem rgb(25 31 31 / .2) !important; }
+.map-price-marker.is-promoted:not(.is-selected) i { border-color: #6e7773 !important; }
+.map-price-marker.is-promoted.is-highlighted:not(.is-selected) { border-color: var(--market-magenta) !important; box-shadow: 0 .45rem 1rem rgb(194 24 130 / .24) !important; }
+.map-price-marker.is-promoted.is-selected { border-color: #344500 !important; background: var(--brand) !important; color: #1b2500 !important; box-shadow: 0 .5rem 1.15rem rgb(50 66 0 / .3) !important; }
+.map-price-marker.is-promoted.is-selected i { border-color: #344500 !important; }
+.m2-listing-marker .map-price-marker.is-promoted:not(.is-selected) { border-color: #252a2b !important; background: #d2ff3f !important; color: #111 !important; box-shadow: 0 3px 10px rgb(37 42 43 / .28) !important; }
+.m2-listing-marker .map-price-marker.is-promoted:not(.is-selected) i { border-color: #252a2b !important; }
+.m2-listing-marker .map-price-marker.is-promoted.is-selected { border-color: #344500 !important; background: var(--brand) !important; color: #1b2500 !important; box-shadow: 0 .5rem 1.15rem rgb(50 66 0 / .3) !important; }
+.m2-listing-marker .map-price-marker.is-promoted.is-selected i { border-color: #344500 !important; }

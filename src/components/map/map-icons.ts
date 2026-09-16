@@ -1,8 +1,9 @@
 import type { Renderer } from '@googlemaps/markerclusterer'
 import { getPrimaryPrice } from '@/lib/listings'
 import type { Listing } from '@/types'
+import '@/promoted-map-like.css'
 
-export const priceLabel = (listing: Listing) => listing.sourcePriceText ?? `${getPrimaryPrice(listing)} \u20ac`
+export const priceLabel = (listing: Listing) => listing.sourcePriceText ?? `${getPrimaryPrice(listing)} €`
 
 export function createPriceMarkerContent(listing: Listing) {
   const shell = document.createElement('div')
@@ -11,7 +12,14 @@ export function createPriceMarkerContent(listing: Listing) {
   const marker = document.createElement('span')
   marker.className = `map-price-marker price-marker${listing.promoted ? ' is-promoted' : ''}`
   const label = document.createElement('span')
-  label.textContent = priceLabel(listing)
+  label.className = 'map-price-marker__label'
+  const price = document.createElement('span')
+  price.textContent = priceLabel(listing)
+  const promotion = document.createElement('span')
+  promotion.className = 'map-price-marker__promotion'
+  promotion.setAttribute('aria-hidden', 'true')
+  promotion.textContent = '👍'
+  label.append(price, promotion)
   const tail = document.createElement('i')
   tail.setAttribute('aria-hidden', 'true')
   marker.append(label, tail)
