@@ -25,16 +25,21 @@ async function seedPromotedMapListings(page: Page) {
   }, promotedPayload)
 }
 
-test('shared map marker renders promoted listings in the TOP marker state', async ({ page }) => {
+test('shared map marker renders promoted listings with a thumbs-up beside the price', async ({ page }) => {
   await page.goto('/')
   const marker = await page.evaluate(async (item) => {
     const icons = await import('/src/components/map/map-icons.ts')
-    return icons.createPriceMarkerContent(item as never).querySelector('.map-price-marker')?.className
+    const content = icons.createPriceMarkerContent(item as never)
+    return {
+      className: content.querySelector('.map-price-marker')?.className,
+      promotion: content.querySelector('.map-price-marker__promotion')?.textContent,
+    }
   }, listing)
-  expect(marker).toContain('is-promoted')
+  expect(marker.className).toContain('is-promoted')
+  expect(marker.promotion).toBe('👍')
 })
 
-test('shared map marker leaves ordinary listings unchanged', async ({ page }) => {
+test('shared map marker leaves ordinary listings without promoted state', async ({ page }) => {
   await page.goto('/')
   const marker = await page.evaluate(async (item) => {
     const icons = await import('/src/components/map/map-icons.ts')
@@ -43,7 +48,7 @@ test('shared map marker leaves ordinary listings unchanged', async ({ page }) =>
   expect(marker).not.toContain('is-promoted')
 })
 
-test('shared marker state switches TOP styling at runtime without recreation', async ({ page }) => {
+test('shared marker state switches promotion at runtime without recreation', async ({ page }) => {
   await page.goto('/')
   const classes = await page.evaluate(async (item) => {
     const icons = await import('/src/components/map/map-icons.ts')
@@ -58,31 +63,36 @@ test('shared marker state switches TOP styling at runtime without recreation', a
   expect(classes.ordinary).not.toContain('is-promoted')
 })
 
-test('mobile marker stylesheet gives TOP markers a red override', async ({ page }) => {
+test('promotion stylesheet replaces the old red treatment with the thumbs-up treatment', async ({ page }) => {
   await page.goto('/')
-  const css = await page.evaluate(async () => (await import('/src/mobile-map-ideal.css?raw')).default)
-  expect(css).toContain('.m2-listing-marker .map-price-marker.is-promoted')
-  expect(css).toContain('background: #d92d20')
+  const css = await page.evaluate(async () => (await import('/src/promoted-map-like.css?raw')).default)
+  expect(css).toContain('.map-price-marker__promotion')
+  expect(css).toContain('background: #fff')
+  expect(css).toContain('background: #d2ff3f')
+  expect(css).not.toContain('#d92d20')
+  expect(css).not.toContain('#b42318')
 })
 
-test('desktop map mounts a red high-priority TOP marker and keeps it red when selected', async ({ page }) => {
+test('desktop map keeps promoted marker high-priority but visually neutral with thumbs-up', async ({ page }) => {
   await seedPromotedMapListings(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/?top-promotion=desktop#/buscar?q=Tenerife&vista=mapa')
 
   const topMarker = page.locator('.idealista-map-view .map-price-marker.is-promoted').first()
   const topShell = topMarker.locator('..')
+  const promotion = topMarker.locator('.map-price-marker__promotion')
   await expect(topMarker).toBeVisible()
+  await expect(promotion).toHaveText('👍')
   await expect(topShell).toHaveAttribute('data-marker-z-index', '100')
-  expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(217, 45, 32)')
+  expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(255, 255, 255)')
 
   await topMarker.click()
   await expect(topMarker).toHaveClass(/is-selected/)
   await expect(topShell).toHaveAttribute('data-marker-z-index', '3000')
-  expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(180, 35, 24)')
+  expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgb(180, 35, 24)')
 })
 
-test('mobile map mounts a red high-priority TOP marker at every supported width', async ({ page }) => {
+test('mobile map uses normal lime promoted marker with thumbs-up at every supported width', async ({ page }) => {
   await seedPromotedMapListings(page)
   for (const [width, height] of [[320, 700], [360, 800], [390, 844], [430, 932]] as const) {
     await page.setViewportSize({ width, height })
@@ -90,13 +100,15 @@ test('mobile map mounts a red high-priority TOP marker at every supported width'
 
     const topMarker = page.locator('.m2-listing-marker .map-price-marker.is-promoted').first()
     const topShell = topMarker.locator('..')
+    const promotion = topMarker.locator('.map-price-marker__promotion')
     await expect(topMarker).toBeVisible()
+    await expect(promotion).toHaveText('👍')
     await expect(topShell).toHaveAttribute('data-marker-z-index', '100')
-    expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(217, 45, 32)')
+    expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(210, 255, 63)')
 
     await topMarker.click()
     await expect(topMarker).toHaveClass(/is-selected/)
     await expect(topShell).toHaveAttribute('data-marker-z-index', '4000')
-    expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(180, 35, 24)')
+    expect(await topMarker.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe('rgb(180, 35, 24)')
   }
 })
