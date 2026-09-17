@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,10 +52,12 @@ class ListingRestriction(Base):
 
 
 class ListingPromotion(Base):
-    """Admin-controlled priority for a listing in public search/map results.
+    """Admin-controlled paid priority for a listing in public search/map results.
 
-    One row means the listing is currently promoted. Re-promoting updates
-    ``boosted_at``, which deterministically moves it above older promotions.
+    One row stores the current or next configured promotion window. Public
+    consumers only treat it as promoted while ``starts_at <= now < ends_at``.
+    Legacy rows may keep ``ends_at`` NULL, which preserves their pre-scheduling
+    indefinite behavior until an administrator reconfigures or removes them.
     """
 
     __tablename__ = "listing_promotions"
@@ -65,6 +67,10 @@ class ListingPromotion(Base):
     )
     boosted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     boosted_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    daily_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class AdminNote(Base):
