@@ -39,6 +39,7 @@ async function storedListings(page: Page) {
 
 async function advanceWizard(page: Page, count: number) {
   const stepper = page.locator('.stepper')
+  if (await stepper.count() === 0) return
   for (let index = 0; index < count; index += 1) {
     const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
     await page.getByRole('button', { name: 'Continuar' }).click()
