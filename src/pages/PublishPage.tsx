@@ -396,6 +396,20 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     const timer = window.setTimeout(() => setVerificationCooldown((seconds) => seconds - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [verificationCooldown]);
+  useEffect(() => {
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-publish-step]"));
+    if (!sections.length || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      const value = Number((visible.target as HTMLElement).dataset.publishStep);
+      if (!Number.isInteger(value)) return;
+      setStep(value);
+      setMaxVisited((current) => Math.max(current, value));
+    }, { rootMargin: "-18% 0px -65% 0px", threshold: [0, 0.05, 0.2, 0.5] });
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [published, recoveringImages]);
   if (editing && (!existing || !canManageListing(existing))) return <Navigate to="/mis-anuncios" replace />;
 
   const validate = (targetStep = step) => {
@@ -455,12 +469,13 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     const value = Math.min(steps.length - 1, step + 1);
     setStep(value);
     setMaxVisited((current) => Math.max(current, value));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() => document.getElementById(`publish-section-${value}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
   const finish = async () => {
     for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1) {
       if (!validate(targetStep)) {
         setStep(targetStep);
+        requestAnimationFrame(() => document.getElementById(`publish-section-${targetStep}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         return;
       }
     }
@@ -512,8 +527,8 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
   const setEquipment = (field: EquipmentField, value: EquipmentSelections[EquipmentField]) => set("amenities", writeEquipmentAmenity(draft.amenities, field, value));
   const toggleAcceptedTenant = (item: AcceptedTenantType) => set("acceptedTenantTypes", draft.acceptedTenantTypes.includes(item) ? draft.acceptedTenantTypes.filter((value) => value !== item) : [...draft.acceptedTenantTypes, item]);
 
-  const content = (() => {
-    switch (step) {
+  const renderStep = (targetStep: number) => {
+    switch (targetStep) {
       case 0:
         return <WizardSection title="¿Qué tipo de estancia ofreces?" description="El precio, las fechas y la duración se adaptan al tipo de alquiler.">
           {choice("rental-mode", draft.rentalMode, [
@@ -628,7 +643,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <FormField label="Normas de la vivienda" htmlFor="publish-rules" error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set("rules", e.target.value)} /></FormField>
         </WizardSection>;
       case 6:
-        return <WizardSection title="Fotografías" description="La primera será la portada. Puedes reordenarlas."><ImageUploader images={draft.images} onChange={(images) => set("images", images)} onRemove={(image) => { if (!existing?.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudo limpiar la imagen local.")); }} error={errors.images} /></WizardSection>;
+        return <WizardSection title="Fotografías" description="La primera será la portada. Puedes reordenarlas o elegir otra portada sin borrar ni volver a subir fotos."><ImageUploader images={draft.images} onChange={(images) => set("images", images)} onRemove={(image) => { if (!existing?.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudo limpiar la imagen local.")); }} error={errors.images} /></WizardSection>;
       case 7:
         return <WizardSection title="Cuenta cómo es vivir aquí" description="Responde las dudas habituales.">
           <FormField label="Título del anuncio" htmlFor="publish-title" description="Máximo 80 caracteres." error={errors.title}><Input id="publish-title" maxLength={80} value={draft.title} aria-invalid={Boolean(errors.title)} onChange={(e) => set("title", e.target.value)} /></FormField>
@@ -654,7 +669,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <Dialog><DialogTrigger asChild><Button variant="outline"><Eye data-icon="inline-start" />Vista previa completa</Button></DialogTrigger><DialogContent className="full-preview-dialog"><DialogHeader><DialogTitle>Vista previa del anuncio</DialogTitle><DialogDescription>Versión pública antes de publicar.</DialogDescription></DialogHeader><PropertyGallery listing={preview} /><div className="full-preview-summary"><div><span className="eyebrow">{preview.area}, {preview.city}</span><h2>{preview.title}</h2><p>{preview.description}</p></div><PriceBlock listing={preview} large /></div><dl className="detail-list"><div><dt>Disponibilidad</dt><dd>{preview.availableFrom}{preview.availableUntil ? ` — ${preview.availableUntil}` : " · sin fecha final"}</dd></div><div><dt>Estancia mínima</dt><dd>{preview.minimumStay}</dd></div><div><dt>Plazas libres</dt><dd>{preview.availableSpots ?? "Consultar"}</dd></div><div><dt>Gastos</dt><dd>{preview.bills}</dd></div><div><dt>Fianza</dt><dd>{preview.deposit}</dd></div></dl><div className="badge-row">{preview.restrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></DialogContent></Dialog>
         </WizardSection>;
     }
-  })();
+  };
 
   if (published) return <div className="publish-success"><CheckCircle2 /><span className="eyebrow">{editing ? "Anuncio actualizado" : "Anuncio enviado"}</span><h1>{editing ? "Cambios guardados" : "Tu anuncio se ha enviado a revisión"}</h1><p>{editing ? "Los cambios se han guardado. Consulta el estado del anuncio en Mis anuncios." : "Revisaremos el anuncio antes de publicarlo. Puedes consultar su estado en Mis anuncios."}</p><div><Button asChild><Link to="/mis-anuncios">Ver mis anuncios</Link></Button><Button asChild variant="outline"><Link to={`/habitacion/${preview.id}`}>Ver anuncio</Link></Button></div></div>;
 
@@ -669,9 +684,9 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <span className="dirty-state" aria-live="polite">{isDirty ? "Cambios sin guardar" : "Borrador guardado"}</span>
         </div>
       </div>
-      <div className="container wizard-layout"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={(value) => { if (recoveringImages && value !== 6 && value !== steps.length - 1) return; setStep(value); }} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">
-        {recoveringImages ? <Alert><Info /><AlertTitle>El anuncio ya está creado</AlertTitle><AlertDescription>Solo faltan las fotografías. Los datos del anuncio están bloqueados para que ningún cambio se pierda; revisa las fotos y reintenta la sincronización.</AlertDescription><Button type="button" variant="outline" onClick={() => setStep(6)}>Revisar fotografías</Button></Alert> : null}
-        <fieldset className="publish-recovery-fields" disabled={recoveringImages && step !== 6}>{content}</fieldset>
+      <div className="container wizard-layout publish-single-page"><aside><Stepper steps={steps} current={step} maxVisited={maxVisited} onStep={(value) => { if (recoveringImages && value !== 6 && value !== steps.length - 1) return; setStep(value); requestAnimationFrame(() => document.getElementById(`publish-section-${value}`)?.scrollIntoView({ behavior: "smooth", block: "start" })); }} /></aside><section className="wizard-content" aria-label="Formulario del anuncio">
+        {recoveringImages ? <Alert><Info /><AlertTitle>El anuncio ya está creado</AlertTitle><AlertDescription>Solo faltan las fotografías. Los datos del anuncio están bloqueados para que ningún cambio se pierda; revisa las fotos y reintenta la sincronización.</AlertDescription><Button type="button" variant="outline" onClick={() => { setStep(6); requestAnimationFrame(() => document.getElementById("publish-section-6")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>Revisar fotografías</Button></Alert> : null}
+        <div className="publish-single-page__sections">{steps.map((label, index) => <div className="publish-single-page__section" id={`publish-section-${index}`} data-publish-step={index} key={label}><fieldset className="publish-recovery-fields" disabled={recoveringImages && index !== 6}>{renderStep(index)}</fieldset></div>)}</div>
         <div className="wizard-actions"><Button variant="outline" disabled={step === 0 || publishing || recoveringImages} onClick={() => setStep((value) => value - 1)}><ArrowLeft data-icon="inline-start" />Atrás</Button>{step === steps.length - 1 ? <Button disabled={publishing} onClick={finish}>{publishing ? (editing ? "Guardando…" : "Publicando…") : recoveringImages ? "Reintentar fotografías" : editing ? "Guardar cambios" : "Publicar anuncio"} <CheckCircle2 data-icon="inline-end" /></Button> : <Button onClick={next}>Continuar <ArrowRight data-icon="inline-end" /></Button>}</div>
       </section></div>
     </div>
