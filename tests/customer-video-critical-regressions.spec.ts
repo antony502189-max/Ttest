@@ -31,7 +31,7 @@ test('customer video fix keeps owner routes behind authoritative hydration', () 
   const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
 
   expect(app).toContain('<OwnedListingsHydrationGate><MyListingsPage /></OwnedListingsHydrationGate>')
-  expect(app).toContain('<OwnedListingsHydrationGate><PublishPage key="publish-edit" editing /></OwnedListingsHydrationGate>')
+  expect(app).toContain('<OwnedListingsHydrationGate><ListingEditPage /></OwnedListingsHydrationGate>')
   expect(gate).toContain("getOwnedListings(controller.signal)")
   expect(gate).toContain("type Phase = 'checking' | 'syncing' | 'ready' | 'error'")
   expect(gate).toContain("window.dispatchEvent(new Event('catalog:updated'))")
@@ -83,15 +83,14 @@ test('customer video fix retries transient admin authorization without weakening
 })
 
 test('listing editing scopes autosaved drafts and never leaks them into a new publication', () => {
-  const publish = readFileSync('src/pages/PublishPage.tsx', 'utf8')
+  const edit = readFileSync('src/pages/ListingEditPage.tsx', 'utf8')
 
-  expect(publish).toContain('const editDraftPrefix = "112233:listing-edit-draft:v1:";')
-  expect(publish).toContain('const activeDraftKey = editing && id ? editDraftKey(id) : draftKey;')
-  expect(publish).toContain('return listingId ? record.listingId === listingId : !record.listingId;')
-  expect(publish).toContain('localStorage.setItem(editDraftKey(saved.listingId), savedRaw);')
-  expect(publish).toContain('localStorage.setItem(activeDraftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing?.id, data: draft }))')
-  expect(publish).toContain('localStorage.removeItem(activeDraftKey);')
-  expect(publish).toContain('editing ? "Guardar cambios" : "Publicar anuncio"')
+  expect(edit).toContain("const editDraftPrefix = '112233:listing-edit-draft:v1:'")
+  expect(edit).toContain('const storageKey = id ? editDraftKey(id)')
+  expect(edit).toContain('stored.listingId === existing.id')
+  expect(edit).toContain('localStorage.setItem(storageKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing.id, data: draft }))')
+  expect(edit).toContain('localStorage.removeItem(storageKey)')
+  expect(edit).toContain("'Guardar cambios'")
 })
 
 test('listing editing returns failure when image synchronization does not finish', () => {
@@ -144,12 +143,8 @@ test('unfinished edit draft survives a create detour and edit CTA says save chan
 
   await editLink.click()
   await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
-  await advanceWizard(page, 2)
-  await fillMissingEquipment(page)
-  await advanceWizard(page, 5)
-
   const uniqueTitle = `Cambio sin guardar ${Date.now()}`
-  await page.locator('#publish-title').fill(uniqueTitle)
+  await page.locator('#edit-title').fill(uniqueTitle)
   await expect.poll(() => page.evaluate((key) => {
     const draft = JSON.parse(localStorage.getItem(key) ?? 'null') as { listingId?: string; data?: { title?: string } } | null
     return draft?.listingId && draft.data?.title
@@ -165,12 +160,7 @@ test('unfinished edit draft survives a create detour and edit CTA says save chan
 
   await page.goto(href!)
   await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
-  await advanceWizard(page, 2)
-  await fillMissingEquipment(page)
-  await advanceWizard(page, 5)
-  await expect(page.locator('#publish-title')).toHaveValue(uniqueTitle)
-  await page.getByRole('button', { name: /continuar/i }).click()
-  await page.getByRole('button', { name: /continuar/i }).click()
+  await expect(page.locator('#edit-title')).toHaveValue(uniqueTitle)
   await expect(page.getByRole('button', { name: /guardar cambios/i })).toBeVisible()
 })
 
