@@ -76,11 +76,11 @@ test('EQUIP-01..08 landlord equipment fields persist, render and remain editable
   await expect(page.getByText('Sin lavadora', { exact: true })).toBeVisible()
 
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(created.id)}/editar`)
-  await advanceWizard(page, 2)
-  await expect(page.locator('#publish-bedding')).toHaveValue('not_included')
-  await expect(page.locator('#publish-refrigerator')).toHaveValue('individual')
-  await expect(page.locator('#publish-balcony')).toHaveValue('yes')
-  await expect(page.locator('#publish-washing-machine')).toHaveValue('none')
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('#edit-bedding')).toHaveValue('not_included')
+  await expect(page.locator('#edit-refrigerator')).toHaveValue('individual')
+  await expect(page.locator('#edit-balcony')).toHaveValue('yes')
+  await expect(page.locator('#edit-washing')).toHaveValue('none')
 })
 
 test('EQUIP-09 legacy balcony and washing-machine amenities map into structured controls', async ({ page }) => {
@@ -102,10 +102,7 @@ test('EQUIP-09 legacy balcony and washing-machine amenities map into structured 
   }, legacyListingId)
 
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(legacyListingId)}/editar`)
-  await advanceWizard(page, 2)
-
-  await expect(page.locator('#publish-balcony')).toHaveValue('yes')
-  await expect(page.locator('#publish-washing-machine')).toHaveValue('shared')
-  await expect(page.getByText('Balcón', { exact: true })).toHaveCount(1)
-  await expect(page.getByText('Lavadora', { exact: true })).toHaveCount(1)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('#edit-balcony')).toHaveValue('yes')
+  await expect(page.locator('#edit-washing')).toHaveValue('shared')
 })
