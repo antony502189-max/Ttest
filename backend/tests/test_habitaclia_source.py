@@ -36,7 +36,7 @@ def studio_document() -> str:
     }
     </script></head><body>
       <h1>Estudio amueblado en Puerto de la Cruz</h1>
-      <div class="description">Estudio completo con cocina y baño, disponible para larga estancia.</div>
+      <div class="description">Estudio completo con cocina y baño, disponible para alquiler de larga estancia.</div>
       <strong>650 €</strong>
     </body></html>
     """
@@ -88,6 +88,7 @@ def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> Non
         assert item.city == "La Laguna"
         assert item.price_amount == 530
         assert item.rental_mode == "long"
+        assert item.room_type == "Habitación individual"
         assert item.phone is None
         assert item.email is None
     finally:
@@ -104,6 +105,7 @@ def test_habitaclia_accepts_studio() -> None:
         assert item.external_id == "58067000000201"
         assert item.city == "Puerto de la Cruz"
         assert item.price_amount == 650
+        assert item.room_type == "Estudio"
     finally:
         asyncio.run(source.close())
 
@@ -116,11 +118,14 @@ def test_habitaclia_accepts_one_bedroom_whole_home() -> None:
         item = source.normalize_listing(data, url)
         assert item is not None
         assert item.external_id == "54975000000055"
-        assert source._is_room_card(
+        assert item.room_type == "Apartamento de 1 dormitorio"
+        card = (
             '"navigationUrl":"/i54975000000055.htm?from=list",'
             '"summary":{"title":"Piso de una habitación en alquiler por temporadas en Garachico",'
             '"description":"Apartamento completo de una habitación, salón, cocina y baño."}'
         )
+        assert source._is_room_card(card)
+        assert source._target_unit_type(card) == "Apartamento de 1 dormitorio"
     finally:
         asyncio.run(source.close())
 
@@ -140,6 +145,7 @@ def test_habitaclia_explicit_room_wins_inside_multi_bedroom_shared_flat() -> Non
     try:
         text = "Piso compartido de 4 habitaciones. Se alquila habitación individual para estudiante."
         assert source._room_text_is_explicit(text)
+        assert source._target_unit_type(text) == "Habitación individual"
     finally:
         asyncio.run(source.close())
 
