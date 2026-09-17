@@ -9,7 +9,7 @@
 .listing-edit-heading p { margin: 0 0 .3rem; color: var(--ink-muted); font-size: .78rem; font-weight: 760; text-transform: uppercase; letter-spacing: .04em; }
 .listing-edit-heading h1 { margin: 0; font-size: clamp(1.65rem, 3vw, 2.25rem); }
 .listing-edit-heading span { display: block; margin-top: .45rem; color: var(--ink-muted); line-height: 1.5; }
-.listing-edit-section { margin-bottom: 1rem; padding: 1.3rem; border: 1px solid var(--line); border-radius: 1rem; background: #fff; box-shadow: 0 .1rem .35rem rgb(31 37 35 / .05); scroll-margin-top: 5.25rem; }
+.listing-edit-section { margin-bottom: 1rem; padding: 1.3rem; border: 1px solid var(--line); border-radius: 1rem; background: #fff; box-shadow: 0 .1rem .35rem rgb(31 37 35 / .05); scroll-margin-block: 5.25rem 2rem; }
 .listing-edit-section > header { margin-bottom: 1rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
 .listing-edit-section > header h2 { margin: 0; font-size: 1.1rem; }
 .listing-edit-section > header p { margin: .3rem 0 0; color: var(--ink-muted); font-size: .84rem; line-height: 1.45; }
@@ -38,6 +38,13 @@
 .listing-edit-final span { color: var(--ink-muted); font-size: .8rem; }
 .listing-edit-section .image-uploader { margin-top: .25rem; }
 
+@media (max-width: 767px) {
+  body:has(.listing-edit-page) { padding-bottom: 0; }
+  body:has(.listing-edit-page) .mobile-header,
+  body:has(.listing-edit-page) .bottom-nav,
+  body:has(.listing-edit-page) .site-footer { display: none; }
+}
+
 @media (max-width: 760px) {
   .listing-edit-page { padding-bottom: 5rem; }
   .listing-edit-topbar__inner { width: calc(100% - 1rem); min-height: 3.8rem; grid-template-columns: auto 1fr auto; gap: .5rem; }
@@ -51,7 +58,7 @@
   .listing-edit-heading { padding: 0 .2rem; }
   .listing-edit-heading h1 { font-size: 1.55rem; }
   .listing-edit-heading span { font-size: .86rem; }
-  .listing-edit-section { padding: 1rem; border-radius: .8rem; }
+  .listing-edit-section { padding: 1rem; border-radius: .8rem; scroll-margin-block: 4.6rem 1.25rem; }
   .listing-edit-grid, .listing-edit-grid--3 { grid-template-columns: 1fr; gap: .7rem; }
   .listing-edit-choice-grid { grid-template-columns: 1fr; gap: .55rem; }
   .listing-edit-choice-grid span { min-height: 3.6rem; }
