@@ -24,7 +24,7 @@ test('mobile listing editor can jump straight to photos without paging through p
   await expect(page.getByRole('button', { name: /Sustituir foto 1/ })).toBeVisible()
 })
 
-test('editing unlocks every section while the normal publication wizard keeps future steps gated', async ({ page }) => {
+test('publication and editing expose every section directly while final validation stays centralized', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 })
   await page.goto('/#/')
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
@@ -34,5 +34,21 @@ test('editing unlocks every section while the normal publication wizard keeps fu
   await expect(page.locator('.stepper ol button:disabled')).toHaveCount(0)
 
   await page.goto('/#/publicar')
-  await expect(page.locator('.stepper ol button:disabled')).toHaveCount(9)
+  await expect(page.locator('.stepper ol button')).toHaveCount(10)
+  await expect(page.locator('.stepper ol button:disabled')).toHaveCount(0)
+})
+
+test('mobile publication can jump to a later section without repeatedly pressing continue', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/#/')
+  await page.evaluate(() => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
+  await page.goto('/#/publicar')
+
+  const jump = page.getByLabel('Ir directamente a una sección del anuncio')
+  await expect(jump).toBeVisible()
+  await jump.selectOption({ label: 'Fotografías' })
+  await expect(page.getByRole('heading', { name: 'Fotografías' })).toBeVisible()
 })
