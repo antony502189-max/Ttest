@@ -243,6 +243,11 @@ export async function getPublicListing(id: string) {
   return toListing(await api<ListingDto>(`/listings/${id}`))
 }
 
+export async function getHomepageHeroListing(signal?: AbortSignal) {
+  const dto = await api<ListingDto | null>('/listings/homepage-hero', { signal })
+  return dto ? toListing(dto) : null
+}
+
 export type ListingSearchInput = {
   rentalMode: Listing['rentalMode']
   minPrice: number

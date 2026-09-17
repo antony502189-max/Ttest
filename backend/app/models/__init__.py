@@ -396,6 +396,7 @@ class SearchHistory(Base):
 from .moderation import (  # noqa: F401
     AdminAccess,
     AdminNote,
+    HomepageHeroPromotion,
     ListingPromotion,
     ListingRestriction,
     ModerationNotice,

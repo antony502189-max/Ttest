@@ -185,3 +185,47 @@
   .market-home .market-search-panel__content { padding: .78rem; }
   .market-home .mandatory-home-search__rental .rental-switch--home button { padding-inline: .45rem; }
 }
+
+.market-home .home-hero.home-hero--promotion > img {
+  opacity: 1;
+}
+
+.home-hero-promotion__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.home-hero-promotion__card {
+  position: absolute;
+  z-index: 3;
+  left: max(2rem, calc((100vw - var(--container)) / 2 + 2rem));
+  bottom: 6.5rem;
+  display: grid;
+  gap: .35rem;
+  width: min(28rem, calc(100% - 4rem));
+  padding: 1rem 1.1rem;
+  border: 1px solid rgb(255 255 255 / .3);
+  border-radius: 1rem;
+  background: rgb(22 22 22 / .82);
+  color: #fff;
+  box-shadow: 0 1.1rem 2.5rem rgb(0 0 0 / .28);
+  backdrop-filter: blur(10px);
+}
+
+.home-hero-promotion__card > span { font-size: .75rem; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; color: #d9ff57; }
+.home-hero-promotion__card > strong { font-size: 1.15rem; line-height: 1.2; }
+.home-hero-promotion__card > small { opacity: .82; }
+.home-hero-promotion__card [data-slot="button"] { justify-self: start; margin-top: .35rem; }
+
+@media (max-width: 767px) {
+  .home-hero-promotion__card {
+    left: .75rem;
+    right: .75rem;
+    bottom: 3rem;
+    width: auto;
+  }
+}

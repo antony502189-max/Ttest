@@ -4,6 +4,14 @@ import type { DemoUser, ListingStatus } from '@/types'
 export type RestrictionType = 'full' | 'publish' | 'view_listings'
 export type PromotionState = 'scheduled' | 'active' | 'expired'
 
+export type HomepageHeroPromotion = {
+  listingId: string
+  startsAt: string
+  endsAt: string
+  state: PromotionState
+  days: number
+}
+
 export type AdminRestriction = {
   id: string
   restrictionType: RestrictionType
@@ -225,6 +233,17 @@ export const promoteAdminListing = (id: string, payload: { startsAt: string; end
 
 export const removeAdminListingPromotion = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/promotion`, { method: 'DELETE' })
+
+export const getAdminHomepageHero = () => api<HomepageHeroPromotion | null>('/admin/homepage-hero')
+
+export const setAdminHomepageHero = (id: string, payload: { startsAt: string; endsAt: string }) =>
+  api<HomepageHeroPromotion>(`/admin/homepage-hero/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ ...payload, startsAt: normalizePromotionStartsAt(payload.startsAt) }),
+  })
+
+export const removeAdminHomepageHero = () =>
+  api<void>('/admin/homepage-hero', { method: 'DELETE' })
 
 export const getAdmins = () => api<AdminAccount[]>('/admin/admins')
 export const addAdministrator = (email: string) =>
