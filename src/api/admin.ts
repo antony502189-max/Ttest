@@ -2,6 +2,7 @@ import { api, resolveApiUrl } from '@/api/client'
 import type { DemoUser, ListingStatus } from '@/types'
 
 export type RestrictionType = 'full' | 'publish' | 'view_listings'
+export type PromotionState = 'scheduled' | 'active' | 'expired'
 
 export type AdminRestriction = {
   id: string
@@ -62,6 +63,12 @@ export type AdminListing = {
   activeRestriction: AdminListingRestriction | null
   promoted: boolean
   boostedAt: string | null
+  promotionStartsAt: string | null
+  promotionEndsAt: string | null
+  promotionState: PromotionState | null
+  promotionDays: number | null
+  promotionDailyPriceCents: number | null
+  promotionTotalPriceCents: number | null
 }
 
 export type AdminNote = {
@@ -201,8 +208,20 @@ export const restrictAdminListing = (id: string, payload: { until: string | null
 export const unrestrictAdminListing = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/restrictions/active`, { method: 'DELETE' })
 
-export const promoteAdminListing = (id: string) =>
-  api<AdminListing>(`/admin/listings/${id}/promotion`, { method: 'PUT' })
+function normalizePromotionStartsAt(startsAt: string) {
+  const start = new Date(startsAt)
+  const now = new Date()
+  if (!Number.isNaN(start.getTime()) && start < now && now.getTime() - start.getTime() < 86_400_000) {
+    return now.toISOString()
+  }
+  return startsAt
+}
+
+export const promoteAdminListing = (id: string, payload: { startsAt: string; endsAt: string }) =>
+  api<AdminListing>(`/admin/listings/${id}/promotion`, {
+    method: 'PUT',
+    body: JSON.stringify({ ...payload, startsAt: normalizePromotionStartsAt(payload.startsAt) }),
+  })
 
 export const removeAdminListingPromotion = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/promotion`, { method: 'DELETE' })

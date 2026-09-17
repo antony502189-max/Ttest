@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from math import ceil
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -30,6 +31,9 @@ from .moderation import (
     viable_admin_count,
 )
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
+
+PROMOTION_DAILY_PRICE_CENTS = 100
+DEFAULT_PROMOTION_DAYS = 7
 
 
 def audit(actor_id: UUID, action: str, target_type: str, target_id: UUID | None, detail: dict) -> AuditLog:
@@ -61,6 +65,45 @@ def listing_restriction_response(row: ListingRestriction) -> ListingRestrictionR
     )
 
 
+def _promotion_metadata(promotion: ListingPromotion | None) -> dict:
+    if promotion is None:
+        return {
+            "promoted": False,
+            "boostedAt": None,
+            "promotionStartsAt": None,
+            "promotionEndsAt": None,
+            "promotionState": None,
+            "promotionDays": None,
+            "promotionDailyPriceCents": None,
+            "promotionTotalPriceCents": None,
+        }
+
+    now = datetime.now(UTC)
+    starts_at = getattr(promotion, "starts_at", None) or promotion.boosted_at
+    ends_at = getattr(promotion, "ends_at", None)
+    if starts_at > now:
+        state = "scheduled"
+    elif ends_at is not None and now >= ends_at:
+        state = "expired"
+    else:
+        state = "active"
+
+    days = None
+    if ends_at is not None:
+        days = max(1, ceil((ends_at - starts_at).total_seconds() / 86_400))
+
+    return {
+        "promoted": state == "active",
+        "boostedAt": promotion.boosted_at,
+        "promotionStartsAt": starts_at,
+        "promotionEndsAt": ends_at,
+        "promotionState": state,
+        "promotionDays": days,
+        "promotionDailyPriceCents": getattr(promotion, "daily_price_cents", None),
+        "promotionTotalPriceCents": getattr(promotion, "total_price_cents", None),
+    }
+
+
 def public_listing(
     listing: Listing,
     *,
@@ -82,8 +125,7 @@ def public_listing(
         createdAt=listing.created_at,
         deletedAt=listing.deleted_at,
         activeRestriction=listing_restriction_response(restriction) if restriction else None,
-        promoted=promotion is not None,
-        boostedAt=promotion.boosted_at if promotion else None,
+        **_promotion_metadata(promotion),
     )
 
 
@@ -242,23 +284,74 @@ async def change_listing_status(
     )
 
 
-async def promote_listing(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
+async def promote_listing(
+    listing_id: UUID,
+    actor: User,
+    session: AsyncSession,
+    *,
+    starts_at: datetime | None = None,
+    ends_at: datetime | None = None,
+) -> AdminListingResponse:
     listing, owner = await _actionable_listing(listing_id, session)
     if listing.status != "published":
         raise HTTPException(409, "Only published listings can be promoted")
     if await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session):
         raise HTTPException(409, "Only publicly eligible listings can be promoted")
+
+    now = datetime.now(UTC)
+    if starts_at is None:
+        starts_at = now
+    elif starts_at.tzinfo is None:
+        starts_at = starts_at.replace(tzinfo=UTC)
+    else:
+        starts_at = starts_at.astimezone(UTC)
+
+    if starts_at < now:
+        # A calendar selection for "today" naturally serializes midnight,
+        # which is already in the past by the time an administrator submits it.
+        # Treat that as "start now" while rejecting genuinely past schedules.
+        if starts_at.date() == now.date():
+            starts_at = now
+        else:
+            raise HTTPException(422, "Promotion start date cannot be in the past")
+
+    if ends_at is None:
+        ends_at = starts_at + timedelta(days=DEFAULT_PROMOTION_DAYS)
+    elif ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=UTC)
+    else:
+        ends_at = ends_at.astimezone(UTC)
+    if ends_at <= starts_at:
+        raise HTTPException(422, "Promotion end date must be after its start date")
+
+    promotion_days = max(1, ceil((ends_at - starts_at).total_seconds() / 86_400))
+    total_price_cents = promotion_days * PROMOTION_DAILY_PRICE_CENTS
     row = await session.scalar(
         select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()
     )
     previous_boosted_at = row.boosted_at if row else None
-    now = datetime.now(UTC)
+    previous_starts_at = getattr(row, "starts_at", None) if row else None
+    previous_ends_at = getattr(row, "ends_at", None) if row else None
+
     if row is None:
-        row = ListingPromotion(listing_id=listing.id, boosted_at=now, boosted_by=actor.id)
+        row = ListingPromotion(
+            listing_id=listing.id,
+            boosted_at=starts_at,
+            boosted_by=actor.id,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            daily_price_cents=PROMOTION_DAILY_PRICE_CENTS,
+            total_price_cents=total_price_cents,
+        )
         session.add(row)
     else:
-        row.boosted_at = now
+        row.boosted_at = starts_at
         row.boosted_by = actor.id
+        row.starts_at = starts_at
+        row.ends_at = ends_at
+        row.daily_price_cents = PROMOTION_DAILY_PRICE_CENTS
+        row.total_price_cents = total_price_cents
+
     session.add(
         audit(
             actor.id,
@@ -267,7 +360,14 @@ async def promote_listing(listing_id: UUID, actor: User, session: AsyncSession) 
             listing.id,
             {
                 "previousBoostedAt": previous_boosted_at.isoformat() if previous_boosted_at else None,
-                "boostedAt": now.isoformat(),
+                "previousStartsAt": previous_starts_at.isoformat() if previous_starts_at else None,
+                "previousEndsAt": previous_ends_at.isoformat() if previous_ends_at else None,
+                "boostedAt": starts_at.isoformat(),
+                "startsAt": starts_at.isoformat(),
+                "endsAt": ends_at.isoformat(),
+                "days": promotion_days,
+                "dailyPriceCents": PROMOTION_DAILY_PRICE_CENTS,
+                "totalPriceCents": total_price_cents,
             },
         )
     )
@@ -284,6 +384,8 @@ async def remove_listing_promotion(listing_id: UUID, actor: User, session: Async
     if row is None:
         raise HTTPException(404, "Listing is not promoted")
     previous_boosted_at = row.boosted_at
+    previous_starts_at = getattr(row, "starts_at", None)
+    previous_ends_at = getattr(row, "ends_at", None)
     await session.delete(row)
     session.add(
         audit(
@@ -291,7 +393,11 @@ async def remove_listing_promotion(listing_id: UUID, actor: User, session: Async
             "listing.unpromoted",
             "listing",
             listing.id,
-            {"previousBoostedAt": previous_boosted_at.isoformat()},
+            {
+                "previousBoostedAt": previous_boosted_at.isoformat(),
+                "previousStartsAt": previous_starts_at.isoformat() if previous_starts_at else None,
+                "previousEndsAt": previous_ends_at.isoformat() if previous_ends_at else None,
+            },
         )
     )
     await touch_catalog(session)

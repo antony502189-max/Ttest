@@ -5,10 +5,16 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 RestrictionType = Literal["full", "publish", "view_listings"]
+PromotionState = Literal["scheduled", "active", "expired"]
 
 
 class ListingStatusRequest(BaseModel):
     status: Literal["draft", "pending", "published", "hidden", "closed", "rejected"]
+
+
+class ListingPromotionRequest(BaseModel):
+    startsAt: datetime | None = None
+    endsAt: datetime | None = None
 
 
 class BlockUserRequest(BaseModel):
@@ -111,6 +117,12 @@ class AdminListingResponse(BaseModel):
     activeRestriction: ListingRestrictionResponse | None = None
     promoted: bool = False
     boostedAt: datetime | None = None
+    promotionStartsAt: datetime | None = None
+    promotionEndsAt: datetime | None = None
+    promotionState: PromotionState | None = None
+    promotionDays: int | None = None
+    promotionDailyPriceCents: int | None = None
+    promotionTotalPriceCents: int | None = None
 
 
 class AdminNoteResponse(BaseModel):

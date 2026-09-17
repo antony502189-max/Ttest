@@ -22,6 +22,7 @@ from ...schemas.admin import (
     DeleteUserRequest,
     ExternalImportRunResponse,
     ExternalWorkerStateResponse,
+    ListingPromotionRequest,
     ListingRestrictionRequest,
     ListingStatusRequest,
     UserRestrictionRequest,
@@ -227,10 +228,17 @@ async def change_listing_status_route(
 @router.put("/listings/{listing_id}/promotion", response_model=AdminListingResponse)
 async def promote_listing_route(
     listing_id: UUID,
+    payload: ListingPromotionRequest | None = None,
     user: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    return await promote_listing(listing_id, user, session)
+    return await promote_listing(
+        listing_id,
+        user,
+        session,
+        starts_at=payload.startsAt if payload else None,
+        ends_at=payload.endsAt if payload else None,
+    )
 
 
 @router.delete("/listings/{listing_id}/promotion", response_model=AdminListingResponse)

@@ -57,7 +57,15 @@ def image_asset_ids_subquery():
 
 
 def promotion_boosted_at_expression():
-    return select(ListingPromotion.boosted_at).where(ListingPromotion.listing_id == Listing.id).scalar_subquery()
+    return (
+        select(ListingPromotion.boosted_at)
+        .where(
+            ListingPromotion.listing_id == Listing.id,
+            ListingPromotion.starts_at <= func.now(),
+            or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
+        )
+        .scalar_subquery()
+    )
 
 
 def response_from(row: Any) -> ListingResponse:
@@ -407,8 +415,8 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
 def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
     price = primary_price_expression()
     # Promotion is a server-owned visibility tier, not a client presentation
-    # preference.  Keep it first for every supported sort so paging cannot
-    # surface ordinary listings ahead of an eligible TOP listing.
+    # preference. Keep it first for every supported sort while the promotion
+    # window is active so paging cannot surface ordinary listings ahead of TOP.
     promotion = promotion_boosted_at_expression().desc().nullslast()
     if payload.sort == "price_asc":
         return query.order_by(promotion, price.asc().nullslast(), Listing.id)
