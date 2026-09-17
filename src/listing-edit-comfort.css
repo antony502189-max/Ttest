@@ -11,8 +11,10 @@
 
 .upload-grid > div > .replace-image {
   top: auto;
+  left: auto !important;
   right: .4rem;
   bottom: .4rem;
+  z-index: 3;
   width: auto;
   min-width: 2rem;
   padding: 0 .45rem;
