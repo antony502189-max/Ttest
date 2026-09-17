@@ -4,6 +4,7 @@ import {
   ArrowUp,
   ArrowLeft,
   Ban,
+  CalendarDays,
   CheckCircle2,
   ClipboardList,
   FileSearch,
@@ -73,6 +74,8 @@ import { currentLocale } from '@/lib/i18n-locale'
 import type { ListingStatus } from '@/types'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
+const PROMOTION_DAILY_PRICE_CENTS = 100
+const PROMOTION_PRESETS = [1, 7, 14, 21, 30] as const
 
 type Section = 'users' | 'reports' | 'listings' | 'activity' | 'settings'
 type UserFilter = '' | 'active' | 'restricted' | 'full' | 'publish' | 'view_listings' | 'deleted'
@@ -130,6 +133,15 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
+function formatDateOnly(value: string | null | undefined) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function formatEuros(cents: number) {
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+}
+
 function restrictionEndText(value: string | null | undefined) {
   return value ? `Hasta ${formatDate(value)}` : 'Sin fecha final'
 }
@@ -138,6 +150,12 @@ function localDateTimeInput(value: Date) {
   const copy = new Date(value)
   copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset())
   return copy.toISOString().slice(0, 16)
+}
+
+function localDateInput(value: Date) {
+  const copy = new Date(value)
+  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset())
+  return copy.toISOString().slice(0, 10)
 }
 
 function dateInputDefault(days = 7) {
@@ -154,6 +172,31 @@ function addCalendarMonth(value: Date) {
   const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()
   result.setDate(Math.min(targetDay, lastDay))
   return result
+}
+
+function addCalendarDaysInput(value: string, days: number) {
+  const [year, month, day] = value.split('-').map(Number)
+  const result = new Date(year, month - 1, day)
+  result.setDate(result.getDate() + days)
+  return localDateInput(result)
+}
+
+function calendarDayOrdinal(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return Date.UTC(year, month - 1, day)
+}
+
+function promotionDayCount(start: string, end: string) {
+  if (!start || !end) return 0
+  return Math.max(0, Math.floor((calendarDayOrdinal(end) - calendarDayOrdinal(start)) / 86_400_000) + 1)
+}
+
+function promotionStartIso(value: string) {
+  return new Date(`${value}T00:00:00`).toISOString()
+}
+
+function promotionEndExclusiveIso(value: string) {
+  return new Date(`${addCalendarDaysInput(value, 1)}T00:00:00`).toISOString()
 }
 
 function restrictionUntil(duration: RestrictionDuration, customUntil: string): string | null {
@@ -330,6 +373,89 @@ function ListingRestrictionDialog({
   </Dialog>
 }
 
+function ListingPromotionDialog({
+  listing,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  listing: AdminListing
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSaved: (listing: AdminListing) => void
+}) {
+  const today = localDateInput(new Date())
+  const existingEnd = listing.promotionEndsAt ? localDateInput(new Date(new Date(listing.promotionEndsAt).getTime() - 86_400_000)) : null
+  const existingStart = listing.promotionState !== 'expired' && listing.promotionStartsAt
+    ? localDateInput(new Date(listing.promotionStartsAt))
+    : today
+  const initialStart = existingStart < today ? today : existingStart
+  const initialEnd = existingEnd && existingEnd >= initialStart ? existingEnd : addCalendarDaysInput(initialStart, 6)
+  const [startDate, setStartDate] = useState(initialStart)
+  const [endDate, setEndDate] = useState(initialEnd)
+  const [submitting, setSubmitting] = useState(false)
+  const days = promotionDayCount(startDate, endDate)
+  const totalPrice = days * PROMOTION_DAILY_PRICE_CENTS
+  const selectedPreset = PROMOTION_PRESETS.find((preset) => preset === days)
+  const invalidRange = !startDate || !endDate || startDate < today || endDate < startDate
+
+  const applyPreset = (preset: number) => {
+    const safeStart = startDate < today ? today : startDate
+    setStartDate(safeStart)
+    setEndDate(addCalendarDaysInput(safeStart, preset - 1))
+  }
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (invalidRange) return
+    setSubmitting(true)
+    try {
+      const updated = await promoteAdminListing(listing.id, {
+        startsAt: promotionStartIso(startDate),
+        endsAt: promotionEndExclusiveIso(endDate),
+      })
+      onSaved(updated)
+      onOpenChange(false)
+      toast.success(`TOP configurado durante ${days} ${days === 1 ? 'día' : 'días'}`)
+    } catch (error) {
+      toast.error(errorMessage(error))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="admin-action-dialog admin-promotion-dialog">
+      <DialogHeader>
+        <DialogTitle>Subir anuncio al TOP</DialogTitle>
+        <DialogDescription>{listing.title}. El anuncio tendrá prioridad únicamente dentro del periodo seleccionado.</DialogDescription>
+      </DialogHeader>
+      <form id="admin-listing-promotion-form" className="admin-dialog-form" onSubmit={submit}>
+        <div className="admin-promotion-presets" aria-label="Duraciones rápidas">
+          {PROMOTION_PRESETS.map((preset) => <button key={preset} type="button" className={selectedPreset === preset ? 'is-active' : ''} onClick={() => applyPreset(preset)}>{preset} {preset === 1 ? 'día' : 'días'}</button>)}
+        </div>
+        <div className="admin-promotion-dates">
+          <label><span>Desde</span><Input type="date" aria-label="TOP desde" min={today} value={startDate} onChange={(event) => {
+            const next = event.target.value
+            setStartDate(next)
+            if (endDate < next) setEndDate(next)
+          }} required /></label>
+          <label><span>Hasta</span><Input type="date" aria-label="TOP hasta" min={startDate || today} value={endDate} onChange={(event) => setEndDate(event.target.value)} required /></label>
+        </div>
+        <div className="admin-dialog-summary admin-promotion-summary">
+          <CalendarDays />
+          <p><strong>{days} {days === 1 ? 'día' : 'días'}</strong> · {formatEuros(PROMOTION_DAILY_PRICE_CENTS)}/día · total <strong>{formatEuros(totalPrice)}</strong><br /><span>{startDate || '—'} → {endDate || '—'}</span></p>
+        </div>
+        <p className="admin-promotion-note">Al terminar la fecha «Hasta», el anuncio dejará de estar en TOP automáticamente. No hace falta retirarlo manualmente.</p>
+      </form>
+      <DialogFooter>
+        <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        <Button form="admin-listing-promotion-form" type="submit" disabled={submitting || invalidRange}>{submitting ? 'Guardando…' : listing.promotionState ? 'Actualizar TOP' : 'Activar TOP'}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+}
+
 function DeleteUserDialog({ user, open, onOpenChange, onDeleted }: { user: AdminUser; open: boolean; onOpenChange: (open: boolean) => void; onDeleted: () => void }) {
   const [confirmation, setConfirmation] = useState('')
   const [reason, setReason] = useState('')
@@ -495,6 +621,7 @@ export function AdminPage() {
   const [userFilter, setUserFilter] = useState<UserFilter>('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [listingRestriction, setListingRestriction] = useState<AdminListing | null>(null)
+  const [listingPromotion, setListingPromotion] = useState<AdminListing | null>(null)
   const [newAdminEmail, setNewAdminEmail] = useState('')
   const [addingAdmin, setAddingAdmin] = useState(false)
 
@@ -572,13 +699,11 @@ export function AdminPage() {
     } catch (error) { toast.error(errorMessage(error)) }
   }
 
-  const updateListingPromotion = async (listing: AdminListing, remove = false) => {
+  const removeListingPromotion = async (listing: AdminListing) => {
     try {
-      const updated = remove
-        ? await removeAdminListingPromotion(listing.id)
-        : await promoteAdminListing(listing.id)
+      const updated = await removeAdminListingPromotion(listing.id)
       updateListingRow(updated)
-      toast.success(remove ? 'Anuncio retirado del TOP' : 'Anuncio subido al TOP')
+      toast.success('Anuncio retirado del TOP')
     } catch (error) { toast.error(errorMessage(error)) }
   }
 
@@ -629,9 +754,9 @@ export function AdminPage() {
       </> : null}
 
       {section === 'listings' ? <>
-        <SectionHeader title="Anuncios" description="Consulta el propietario y aplica moderación temporal o permanente sin alterar el estado original del anuncio." />
+        <SectionHeader title="Anuncios" description="Consulta el propietario, programa TOP por fechas y aplica moderación sin alterar el estado original del anuncio." />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, usuario o zona…" /></div></div>
-        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{listing.promoted ? <Badge variant="destructive">TOP{listing.boostedAt ? ` · ${formatDate(listing.boostedAt)}` : ''}</Badge> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => { void updateListingPromotion(listing) }}><ArrowUp />{listing.promoted ? 'Volver al TOP' : 'Subir al TOP'}</Button>{listing.promoted ? <Button variant="outline" size="sm" onClick={() => { void updateListingPromotion(listing, true) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
+        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{listing.promotionState === 'active' ? <><Badge variant="destructive">TOP activo{listing.promotionEndsAt ? ` · hasta ${formatDateOnly(listing.promotionEndsAt)}` : ''}</Badge>{listing.promotionDays ? <span>{listing.promotionDays} días{listing.promotionTotalPriceCents != null ? ` · ${formatEuros(listing.promotionTotalPriceCents)}` : ''}</span> : null}</> : null}{listing.promotionState === 'scheduled' ? <><Badge variant="outline">TOP programado</Badge><span>{formatDateOnly(listing.promotionStartsAt)} → {formatDateOnly(listing.promotionEndsAt)}{listing.promotionDays ? ` · ${listing.promotionDays} días` : ''}</span></> : null}{listing.promotionState === 'expired' ? <><Badge variant="outline">TOP finalizado</Badge><span>{listing.promotionEndsAt ? `Terminó ${formatDateOnly(listing.promotionEndsAt)}` : 'Periodo finalizado'}</span></> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => setListingPromotion(listing)}><CalendarDays />{listing.promotionState ? 'Cambiar TOP' : 'Subir al TOP'}</Button>{listing.promotionState ? <Button variant="outline" size="sm" onClick={() => { void removeListingPromotion(listing) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
       </> : null}
 
       {section === 'activity' ? <>
@@ -646,6 +771,7 @@ export function AdminPage() {
       </> : null}
     </main>
     {listingRestriction ? <ListingRestrictionDialog listing={listingRestriction} open onOpenChange={(open) => { if (!open) setListingRestriction(null) }} onSaved={(updated) => { updateListingRow(updated); setListingRestriction(null) }} /> : null}
+    {listingPromotion ? <ListingPromotionDialog listing={listingPromotion} open onOpenChange={(open) => { if (!open) setListingPromotion(null) }} onSaved={(updated) => { updateListingRow(updated); setListingPromotion(null) }} /> : null}
   </div>
 }
 
