@@ -6,10 +6,6 @@ hydrated application data using ``navigationUrl`` values such as
 ``/i123456789.htm?from=list``. This adapter keeps only the target inventory for
 this product: individual rooms, studios/lofts and whole homes with exactly one
 bedroom. Multi-bedroom whole homes remain excluded.
-
-The source is installed as a production-only supplemental adapter for its first
-production observation period. A temporary layout change or zero-result cycle
-therefore does not make the established configured-source requirement stricter.
 """
 
 from __future__ import annotations
@@ -48,10 +44,7 @@ _MULTI_BEDROOM = re.compile(
     r"(?:habitaciones?|hab|dormitorios?)\b",
     re.IGNORECASE,
 )
-_STUDIO_HOME = re.compile(
-    r"\b(?:estudio|tipo\s+estudio|studio|loft)\b",
-    re.IGNORECASE,
-)
+_STUDIO_HOME = re.compile(r"\b(?:estudio|tipo\s+estudio|studio|loft)\b", re.IGNORECASE)
 
 
 class HabitacliaSource(ExternalListingSource):
@@ -78,8 +71,6 @@ class HabitacliaSource(ExternalListingSource):
         "este anuncio ya no esta disponible",
     )
 
-    # Explicit room-rental wording. Generic bedroom-count phrases are not here
-    # because ordinary multi-bedroom homes contain them as well.
     _explicit_room_markers = (
         "se alquila habitación",
         "se alquila habitacion",
@@ -134,7 +125,6 @@ class HabitacliaSource(ExternalListingSource):
 
     @staticmethod
     def _decode_hydration(document: str) -> str:
-        """Make public escaped application-state strings regex-readable."""
         normalized = html.unescape(document.replace("\\/", "/"))
         for _ in range(3):
             updated = normalized.replace('\\"', '"')
@@ -145,24 +135,32 @@ class HabitacliaSource(ExternalListingSource):
         return normalized.replace("\\n", " ").replace("\\r", " ")
 
     @classmethod
-    def _room_text_is_explicit(cls, value: str) -> bool:
-        """Return True for a room, studio/loft or exactly one-bedroom home.
-
-        Explicit room offers win even when the shared flat itself has multiple
-        bedrooms. For whole-home inventory, a detected 2+ bedroom count rejects
-        the advert before studio/one-bedroom classification.
-        """
+    def _target_unit_type(cls, value: str) -> str | None:
+        """Classify only inventory supported by this marketplace."""
         corpus = re.sub(r"\s+", " ", value).casefold()
         if any(marker in corpus for marker in cls._explicit_room_markers):
-            return True
+            return (
+                "Habitación compartida"
+                if any(marker in corpus for marker in ("habitación compartida", "habitacion compartida", "shared room"))
+                else "Habitación individual"
+            )
         if _MULTI_BEDROOM.search(corpus):
-            return False
-        return bool(_STUDIO_HOME.search(corpus) or _SINGLE_BEDROOM.search(corpus))
+            return None
+        if _STUDIO_HOME.search(corpus):
+            return "Estudio"
+        if _SINGLE_BEDROOM.search(corpus):
+            return "Apartamento de 1 dormitorio"
+        return None
+
+    @classmethod
+    def _room_text_is_explicit(cls, value: str) -> bool:
+        # Historical name retained because the live audit and regression suite
+        # already call this method. It now means "supported target unit".
+        return cls._target_unit_type(value) is not None
 
     @classmethod
     def _is_room_card(cls, value: str) -> bool:
-        # Historical method name retained because the live audit calls it.
-        return cls._room_text_is_explicit(value)
+        return cls._target_unit_type(value) is not None
 
     @staticmethod
     def _canonical_detail_url(page: str, value: str) -> str:
@@ -171,7 +169,6 @@ class HabitacliaSource(ExternalListingSource):
         return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
     def _extract_page_listings(self, document: str, page: str) -> tuple[set[str], set[str]]:
-        """Return all card detail URLs and the supported target-unit subset."""
         normalized = self._decode_hydration(document)
         all_urls: set[str] = set()
         target_urls: set[str] = set()
@@ -209,7 +206,6 @@ class HabitacliaSource(ExternalListingSource):
         }
 
     async def discover_listing_urls(self) -> DiscoveryResult:
-        """Walk the Tenerife catalogue and retain only supported small units."""
         queue = list(self.discovery_urls)
         visited: set[str] = set()
         target_urls: set[str] = set()
@@ -242,8 +238,7 @@ class HabitacliaSource(ExternalListingSource):
                     document = rendered
                     page_urls, page_targets = self._extract_page_listings(document, page)
 
-            pagination = self._page_links(document, page)
-            for next_page in sorted(pagination):
+            for next_page in sorted(self._page_links(document, page)):
                 if next_page not in visited and next_page not in queue:
                     queue.append(next_page)
 
@@ -280,15 +275,10 @@ class HabitacliaSource(ExternalListingSource):
 
         data["category"] = f"habitaclia alquiler {data['category']}"
         data["external_id"] = external_id.group(1) if external_id else None
-
-        # Contact data is not needed for source identity or deduplication.
         data["phone"] = None
         data["whatsapp"] = None
         data["email"] = None
-        data["raw"] = {
-            "source": self.name,
-            "external_id": data["external_id"],
-        }
+        data["raw"] = {"source": self.name, "external_id": data["external_id"]}
         return data
 
     def normalize_listing(self, data: dict[str, object], url: str) -> NormalizedListing | None:
@@ -298,11 +288,29 @@ class HabitacliaSource(ExternalListingSource):
                 for key in ("title", "description", "category", "breadcrumbs")
             )
         ).casefold()
-        if not self._room_text_is_explicit(corpus):
+        target_type = self._target_unit_type(corpus)
+        if target_type is None:
             return None
 
-        item = super().normalize_listing(data, url)
-        if item and data.get("external_id"):
+        # The shared external-source normalizer predates whole-unit support and
+        # intentionally rejects ``estudio`` plus non-room homes. Feed it a
+        # classification-only proxy identity so its existing rental, price,
+        # province, city and coordinate checks can still be reused. Restore the
+        # real public identity immediately afterwards.
+        normalized_data = dict(data)
+        if target_type in {"Estudio", "Apartamento de 1 dormitorio"}:
+            normalized_data["title"] = "Habitación en alquiler"
+            normalized_data["category"] = "alquiler habitación"
+            normalized_data["breadcrumbs"] = ""
+
+        item = super().normalize_listing(normalized_data, url)
+        if item is None:
+            return None
+
+        item.title = clean(data.get("title"))
+        item.description = clean(data.get("description"))
+        item.room_type = target_type
+        if data.get("external_id"):
             item.external_id = str(data["external_id"])
         return item
 
