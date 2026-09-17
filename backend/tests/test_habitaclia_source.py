@@ -58,6 +58,31 @@ def whole_home_document() -> str:
     """
 
 
+def one_bedroom_whole_home_document() -> str:
+    return """
+    <html>
+      <head>
+        <script type="application/ld+json">
+        {
+          "@type": "Apartment",
+          "name": "Alquiler piso de un habitación en alquiler por temporadas en Garachico",
+          "description": "Apartamento completo de una habitación, salón, cocina y baño para alquiler por temporadas.",
+          "address": {
+            "addressLocality": "Garachico",
+            "addressRegion": "Santa Cruz de Tenerife"
+          }
+        }
+        </script>
+      </head>
+      <body>
+        <h1>Alquiler piso de un habitación en alquiler por temporadas en Garachico</h1>
+        <div class="description">Apartamento completo de una habitación, salón, cocina y baño.</div>
+        <strong>780 €</strong>
+      </body>
+    </html>
+    """
+
+
 def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> None:
     source = HabitacliaSource()
     try:
@@ -95,6 +120,21 @@ def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
         url = "https://www.habitaclia.com/alquiler-piso-3_habitaciones-la_laguna-i500004541315.htm"
         data = source.parse_listing(whole_home_document(), url)
         assert source.normalize_listing(data, url) is None
+    finally:
+        asyncio.run(source.close())
+
+
+def test_habitaclia_rejects_one_bedroom_whole_home_with_weak_room_phrase() -> None:
+    source = HabitacliaSource()
+    try:
+        url = "https://www.habitaclia.com/i54975000000055.htm"
+        data = source.parse_listing(one_bedroom_whole_home_document(), url)
+        assert source.normalize_listing(data, url) is None
+        assert not source._is_room_card(
+            '"navigationUrl":"/i54975000000055.htm?from=list",'
+            '"summary":{"title":"Alquiler piso de un habitación en alquiler por temporadas en Garachico",'
+            '"description":"Apartamento completo de una habitación, salón, cocina y baño."}'
+        )
     finally:
         asyncio.run(source.close())
 
