@@ -40,8 +40,8 @@ def whole_home_document() -> str:
         <script type="application/ld+json">
         {
           "@type": "Apartment",
-          "name": "Piso en alquiler en La Laguna",
-          "description": "Vivienda completa con dos habitaciones, salón, cocina y baño.",
+          "name": "Piso de 3 habitaciones en alquiler en La Laguna",
+          "description": "Vivienda completa con tres habitaciones, salón, cocina y baño.",
           "address": {
             "addressLocality": "La Laguna",
             "addressRegion": "Santa Cruz de Tenerife"
@@ -50,8 +50,8 @@ def whole_home_document() -> str:
         </script>
       </head>
       <body>
-        <h1>Piso en alquiler en La Laguna</h1>
-        <div class="description">Vivienda completa con dos habitaciones, salón, cocina y baño.</div>
+        <h1>Piso de 3 habitaciones en alquiler en La Laguna</h1>
+        <div class="description">Vivienda completa con tres habitaciones, salón, cocina y baño.</div>
         <strong>1.200 €</strong>
       </body>
     </html>
@@ -79,7 +79,7 @@ def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> Non
 def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
     source = HabitacliaSource()
     try:
-        url = "https://www.habitaclia.com/alquiler-piso-la_laguna-i500004541315.htm"
+        url = "https://www.habitaclia.com/alquiler-piso-3_habitaciones-la_laguna-i500004541315.htm"
         data = source.parse_listing(whole_home_document(), url)
         assert source.normalize_listing(data, url) is None
     finally:
@@ -89,9 +89,11 @@ def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
 def test_habitaclia_url_and_pagination_contract() -> None:
     source = HabitacliaSource()
     try:
-        assert source.is_listing_url(
-            "https://www.habitaclia.com/alquiler-piso-brezo-valdemoro-i500004551704.htm"
-        )
+        room_url = "https://www.habitaclia.com/alquiler-piso-habitacion_solo_chica-la_laguna-i500004551704.htm"
+        whole_home_url = "https://www.habitaclia.com/alquiler-piso-la_laguna-i500004551705.htm"
+        assert source.is_listing_url(room_url)
+        assert source.is_room_candidate_url(room_url)
+        assert not source.is_room_candidate_url(whole_home_url)
         assert source.is_pagination_url(
             "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s/2"
         )
