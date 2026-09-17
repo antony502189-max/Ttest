@@ -17,6 +17,7 @@ import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-stora
 import {
   normalizeEquipmentAmenities,
   readEquipmentAmenities,
+  withEquipmentDefaults,
   writeEquipmentAmenity,
   type EquipmentField,
   type EquipmentSelections,
@@ -48,9 +49,14 @@ function billsAmountFromText(value: string) {
   return match ? match[1].replace(',', '.') : ''
 }
 
+function ownerInitials(name: string) {
+  return name.trim().split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase()
+}
+
 function toDraft(listing: Listing): ListingDraft {
   const roomCapacity = Math.min(10, Math.max(1, Math.round(listing.roomCapacity ?? 1)))
   const roomSize = Math.max(1, listing.roomSizeM2 ?? 12)
+  const amenities = withEquipmentDefaults(listing.amenities.map((item) => item === 'Fibra' ? 'Wi-Fi' : item))
   return {
     publicationKey: crypto.randomUUID(),
     rentalMode: listing.rentalMode,
@@ -79,7 +85,7 @@ function toDraft(listing: Listing): ListingDraft {
     accessible: listing.accessible ?? false,
     floor: listing.floor ?? '1',
     furnished: listing.furnished ?? true,
-    amenities: listing.amenities.map((item) => item === 'Fibra' ? 'Wi-Fi' : item),
+    amenities,
     monthlyPrice: listing.monthlyPrice ?? (listing.rentalMode === 'long' ? listing.price : 0),
     nightlyPrice: listing.nightlyPrice ?? (listing.rentalMode === 'holiday' ? listing.price : 0),
     weeklyPrice: listing.weeklyPrice,
@@ -118,6 +124,7 @@ function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string)
   const price = draft.rentalMode === 'holiday' ? draft.nightlyPrice : draft.monthlyPrice
   const availableSpots = Math.max(0, draft.roomCapacity - draft.currentRoomResidents)
   const exactCoordinates = draft.coordinates
+  const contactName = draft.contactName.trim()
   const listing: Listing = {
     ...previous,
     title: draft.title.trim(),
@@ -178,6 +185,7 @@ function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string)
     homeDescription: draft.rules,
     images: draft.images,
     expiresAt: draft.expiresAt,
+    owner: { ...previous.owner, name: contactName, initials: ownerInitials(contactName) },
     ownerUserId: previous.ownerUserId ?? ownerUserId,
     contactPhone: draft.contactPhone,
     contactWhatsapp: draft.contactWhatsapp,
@@ -209,7 +217,11 @@ export function ListingEditPage() {
     } catch { /* use server values */ }
     return defaults
   })
-  const [baseline, setBaseline] = useState(() => draft ? JSON.stringify(draft) : '')
+  const [baseline, setBaseline] = useState(() => {
+    if (!existing || !draft) return ''
+    const serverDraft = toDraft(existing)
+    return JSON.stringify({ ...serverDraft, publicationKey: draft.publicationKey })
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
@@ -328,6 +340,7 @@ export function ListingEditPage() {
           <FormField label="Código postal" htmlFor="edit-postcode" error={errors.postcode}><Input id="edit-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(e) => set('postcode', e.target.value)} /></FormField>
         </div>
         <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => current ? { ...current, coordinates, locationManuallyMoved: true } : current)} onAddressResolved={applyResolvedAddress} />
+        <output className="listing-edit-coordinates" aria-live="polite">Coordenadas exactas: {draft.coordinates.lat.toFixed(4)}, {draft.coordinates.lng.toFixed(4)}</output>
       </Section>
 
       <Section id="edit-room" title="Habitación y vivienda">
@@ -358,7 +371,7 @@ export function ListingEditPage() {
           <FormField label="Calefacción" htmlFor="edit-heating"><select id="edit-heating" value={draft.heatingType} onChange={(e) => set('heatingType', e.target.value as ListingDraft['heatingType'])}><option value="none">Sin calefacción</option><option value="individual">Individual</option><option value="central">Central</option><option value="unknown">No especificado</option></select></FormField>
           <FormField label="Ropa de cama" htmlFor="edit-bedding" error={errors.bedding}><select id="edit-bedding" value={equipment.bedding} aria-invalid={Boolean(errors.bedding)} onChange={(e) => setEquipment('bedding', e.target.value as EquipmentSelections['bedding'])}><option value="">Selecciona</option><option value="included">Incluida</option><option value="not_included">No incluida</option></select></FormField>
           <FormField label="Frigorífico" htmlFor="edit-refrigerator" error={errors.refrigerator}><select id="edit-refrigerator" value={equipment.refrigerator} aria-invalid={Boolean(errors.refrigerator)} onChange={(e) => setEquipment('refrigerator', e.target.value as EquipmentSelections['refrigerator'])}><option value="">Selecciona</option><option value="individual">Individual</option><option value="shared">Compartido</option><option value="none">No disponible</option></select></FormField>
-          <FormField label="Balcón" htmlFor="edit-balcony" error={errors.balcony}><select id="edit-balcony" value={equipment.balcony} aria-invalid={Boolean(errors.balcony)} onChange={(e) => setEquipment('balcony', e.target.value as EquipmentSelections['balcony'])}><option value="">Selecciona</option><option value="private">Privado</option><option value="shared">Compartido</option><option value="no">No</option></select></FormField>
+          <FormField label="Balcón" htmlFor="edit-balcony" error={errors.balcony}><select id="edit-balcony" value={equipment.balcony} aria-invalid={Boolean(errors.balcony)} onChange={(e) => setEquipment('balcony', e.target.value as EquipmentSelections['balcony'])}><option value="">Selecciona</option><option value="yes">Sí</option><option value="no">No</option></select></FormField>
           <FormField label="Lavadora" htmlFor="edit-washing" error={errors.washingMachine}><select id="edit-washing" value={equipment.washingMachine} aria-invalid={Boolean(errors.washingMachine)} onChange={(e) => setEquipment('washingMachine', e.target.value as EquipmentSelections['washingMachine'])}><option value="">Selecciona</option><option value="individual">Individual</option><option value="shared">Compartida</option><option value="none">No disponible</option></select></FormField>
         </div>
         <div className="listing-edit-checks"><label><Checkbox checked={draft.furnished} onCheckedChange={(value) => set('furnished', value === true)} />Amueblada</label><label><Checkbox checked={draft.accessible} onCheckedChange={(value) => set('accessible', value === true)} />Accesible</label></div>
@@ -404,12 +417,13 @@ export function ListingEditPage() {
 
       <Section id="edit-contact" title="Contacto">
         <div className="listing-edit-grid">
-          <FormField label="Nombre" htmlFor="edit-contact-name"><Input id="edit-contact-name" value={draft.contactName} onChange={(e) => set('contactName', e.target.value)} /></FormField>
-          <FormField label="Email" htmlFor="edit-contact-email" error={errors.contactEmail}><Input id="edit-contact-email" type="email" value={currentUser?.email ?? draft.contactEmail} disabled /></FormField>
+          <FormField label="Nombre" htmlFor="edit-contact-name" error={errors.contactName}><Input id="edit-contact-name" value={draft.contactName} aria-invalid={Boolean(errors.contactName)} onChange={(e) => set('contactName', e.target.value)} /></FormField>
+          <FormField label="Email" htmlFor="edit-contact-email"><Input id="edit-contact-email" type="email" value={currentUser?.email ?? draft.contactEmail} disabled /></FormField>
           <FormField label="Teléfono" htmlFor="edit-contact-phone" error={errors.contactPhone}><Input id="edit-contact-phone" value={draft.contactPhone} aria-invalid={Boolean(errors.contactPhone)} onChange={(e) => set('contactPhone', e.target.value)} /></FormField>
           <FormField label="WhatsApp" htmlFor="edit-contact-whatsapp" error={errors.contactWhatsapp}><Input id="edit-contact-whatsapp" value={draft.contactWhatsapp} aria-invalid={Boolean(errors.contactWhatsapp)} onChange={(e) => set('contactWhatsapp', e.target.value)} /></FormField>
         </div>
         <div className="listing-edit-checks"><label><Checkbox checked={draft.showPhone} onCheckedChange={(value) => set('showPhone', value === true)} />Mostrar teléfono</label><label><Checkbox checked={draft.showWhatsApp} onCheckedChange={(value) => set('showWhatsApp', value === true)} />Mostrar WhatsApp</label></div>
+        {errors.contactMethods ? <p className="field-error" role="alert">{errors.contactMethods}</p> : null}
       </Section>
 
       <div className="listing-edit-final"><div><strong>{isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>Revisamos todos los campos al guardar.</span></div><Button size="lg" onClick={save} disabled={saving || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : 'Guardar cambios'}</Button></div>
