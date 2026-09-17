@@ -21,11 +21,17 @@ test('admin TOP scheduler exposes quick durations, calendar range and live day/p
 
 test('admin sends a dated promotion window and backend stores a fixed daily price snapshot', () => {
   expect(adminApi).toContain("payload: { startsAt: string; endsAt: string }")
-  expect(adminApi).toContain("body: JSON.stringify(payload)")
+  expect(adminApi).toContain("body: JSON.stringify({ ...payload, startsAt: normalizePromotionStartsAt(payload.startsAt) })")
   expect(backendAdmin).toContain('PROMOTION_DAILY_PRICE_CENTS = 100')
   expect(backendAdmin).toContain('daily_price_cents=PROMOTION_DAILY_PRICE_CENTS')
   expect(backendAdmin).toContain('total_price_cents=total_price_cents')
   expect(backendAdmin).toContain('"days": promotion_days')
+})
+
+test('same-day calendar start is clamped to now when timezone conversion moves midnight into the past', () => {
+  expect(adminApi).toContain('function normalizePromotionStartsAt(startsAt: string)')
+  expect(adminApi).toContain('start < now && now.getTime() - start.getTime() < 86_400_000')
+  expect(adminApi).toContain('return now.toISOString()')
 })
 
 test('scheduled and expired promotions cannot retain public TOP priority', () => {
