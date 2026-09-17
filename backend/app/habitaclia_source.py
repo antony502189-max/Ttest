@@ -1,13 +1,14 @@
-"""Staged Habitaclia room-rental source.
+"""Staged Habitaclia source for small Tenerife rental units.
 
-Habitaclia mixes room adverts into its ordinary rental catalogue. Current result
-pages expose card destinations and summaries in hydrated application data using
-``navigationUrl`` values such as ``/i123456789.htm?from=list``. This adapter
-shortlists only cards whose own public summary explicitly describes a room
-rental, then performs the stricter detail normalization before import.
+Habitaclia mixes room adverts, studios and ordinary homes into the same rental
+catalogue. Current result pages expose card destinations and summaries in
+hydrated application data using ``navigationUrl`` values such as
+``/i123456789.htm?from=list``. This adapter keeps only the target inventory for
+this product: individual rooms, studios/lofts and whole homes with exactly one
+bedroom. Multi-bedroom whole homes remain excluded.
 
 The source is installed as a production-only supplemental adapter for its first
-production observation period. A temporary layout change or zero-room cycle
+production observation period. A temporary layout change or zero-result cycle
 therefore does not make the established configured-source requirement stricter.
 """
 
@@ -38,8 +39,17 @@ _NAVIGATION_VALUE = re.compile(
     re.IGNORECASE,
 )
 _UNICODE_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
-_WHOLE_HOME_SINGLE_BEDROOM = re.compile(
-    r"\b(?:piso|apartamento|casa|chalet|ático|atico|estudio)\s+(?:de|con)\s+(?:un|una|1)\s+habitaci[oó]n\b",
+_SINGLE_BEDROOM = re.compile(
+    r"\b(?:1|un|una)\s+(?:habitaci[oó]n|hab|dormitorio)\b",
+    re.IGNORECASE,
+)
+_MULTI_BEDROOM = re.compile(
+    r"\b(?:[2-9]|1\d|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+"
+    r"(?:habitaciones?|hab|dormitorios?)\b",
+    re.IGNORECASE,
+)
+_STUDIO_HOME = re.compile(
+    r"\b(?:estudio|tipo\s+estudio|studio|loft)\b",
     re.IGNORECASE,
 )
 
@@ -68,9 +78,8 @@ class HabitacliaSource(ExternalListingSource):
         "este anuncio ya no esta disponible",
     )
 
-    # These phrases describe the advertised unit as a room. Generic phrases
-    # such as "3 habitaciones" or "habitaciones en alquiler" are deliberately
-    # excluded because they also occur on whole-home adverts.
+    # Explicit room-rental wording. Generic bedroom-count phrases are not here
+    # because ordinary multi-bedroom homes contain them as well.
     _explicit_room_markers = (
         "se alquila habitación",
         "se alquila habitacion",
@@ -97,39 +106,19 @@ class HabitacliaSource(ExternalListingSource):
         "room for rent",
         "private room for rent",
     )
-    # A one-bedroom flat can legitimately contain the weak phrase
-    # "habitación en alquiler". If the copy explicitly describes a whole
-    # one-bedroom home, require one of these stronger room-rental signals.
-    _strong_room_markers = (
-        "se alquila habitación",
-        "se alquila habitacion",
-        "se alquilan habitaciones",
-        "alquilo habitación",
-        "alquilo habitacion",
-        "alquiler de habitación",
-        "alquiler de habitacion",
-        "alquiler habitación",
-        "alquiler habitacion",
-        "habitación para alquilar",
-        "habitacion para alquilar",
-        "habitación en piso compartido",
-        "habitacion en piso compartido",
-        "habitación para estudiante",
-        "habitacion para estudiante",
-        "habitación solo chica",
-        "habitacion solo chica",
-        "habitación solo chico",
-        "habitacion solo chico",
-        "rooms for rent",
-        "room for rent",
-        "private room for rent",
-    )
-    _room_slug_markers = (
+    _target_slug_markers = (
         "habitacion",
         "habitaciones",
         "room",
         "compartir",
         "compartido",
+        "estudio",
+        "studio",
+        "loft",
+        "1-habitacion",
+        "una-habitacion",
+        "1-dormitorio",
+        "un-dormitorio",
     )
 
     def is_pagination_url(self, url: str) -> bool:
@@ -139,18 +128,13 @@ class HabitacliaSource(ExternalListingSource):
 
     @classmethod
     def is_room_candidate_url(cls, url: str) -> bool:
-        """Legacy slug hint; modern ``/i<ID>`` routes have no semantic slug."""
+        """Legacy semantic-slug hint for any supported target unit."""
         path = unquote(urlparse(url).path).replace("_", "-").casefold()
-        return any(marker in path for marker in cls._room_slug_markers)
+        return any(marker in path for marker in cls._target_slug_markers)
 
     @staticmethod
     def _decode_hydration(document: str) -> str:
-        """Make public escaped application-state strings regex-readable.
-
-        Habitaclia serializes result cards inside framework hydration strings.
-        Decode only the escaping needed for route/text classification rather
-        than executing or interpreting the embedded JavaScript.
-        """
+        """Make public escaped application-state strings regex-readable."""
         normalized = html.unescape(document.replace("\\/", "/"))
         for _ in range(3):
             updated = normalized.replace('\\"', '"')
@@ -162,16 +146,22 @@ class HabitacliaSource(ExternalListingSource):
 
     @classmethod
     def _room_text_is_explicit(cls, value: str) -> bool:
+        """Return True for a room, studio/loft or exactly one-bedroom home.
+
+        Explicit room offers win even when the shared flat itself has multiple
+        bedrooms. For whole-home inventory, a detected 2+ bedroom count rejects
+        the advert before studio/one-bedroom classification.
+        """
         corpus = re.sub(r"\s+", " ", value).casefold()
-        if not any(marker in corpus for marker in cls._explicit_room_markers):
+        if any(marker in corpus for marker in cls._explicit_room_markers):
+            return True
+        if _MULTI_BEDROOM.search(corpus):
             return False
-        return not (
-            _WHOLE_HOME_SINGLE_BEDROOM.search(corpus)
-            and not any(marker in corpus for marker in cls._strong_room_markers)
-        )
+        return bool(_STUDIO_HOME.search(corpus) or _SINGLE_BEDROOM.search(corpus))
 
     @classmethod
     def _is_room_card(cls, value: str) -> bool:
+        # Historical method name retained because the live audit calls it.
         return cls._room_text_is_explicit(value)
 
     @staticmethod
@@ -181,16 +171,10 @@ class HabitacliaSource(ExternalListingSource):
         return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
     def _extract_page_listings(self, document: str, page: str) -> tuple[set[str], set[str]]:
-        """Return all card detail URLs and the explicit-room subset.
-
-        Modern cards are paired by ``navigationUrl`` boundaries, so the room
-        decision is based on that card's own serialized summary instead of
-        nearby text from an adjacent result. Legacy semantic slugs remain a
-        fallback for older server-rendered pages.
-        """
+        """Return all card detail URLs and the supported target-unit subset."""
         normalized = self._decode_hydration(document)
         all_urls: set[str] = set()
-        room_urls: set[str] = set()
+        target_urls: set[str] = set()
 
         navigation_matches = list(_NAVIGATION_VALUE.finditer(normalized))
         for index, match in enumerate(navigation_matches):
@@ -205,7 +189,7 @@ class HabitacliaSource(ExternalListingSource):
             )
             card_state = normalized[match.end() : min(next_start, match.end() + 20000)]
             if self._is_room_card(card_state):
-                room_urls.add(canonical)
+                target_urls.add(canonical)
 
         for match in _LEGACY_LISTING_VALUE.finditer(normalized):
             canonical = self._canonical_detail_url(page, match.group("url"))
@@ -213,9 +197,9 @@ class HabitacliaSource(ExternalListingSource):
                 continue
             all_urls.add(canonical)
             if self.is_room_candidate_url(canonical):
-                room_urls.add(canonical)
+                target_urls.add(canonical)
 
-        return all_urls, room_urls
+        return all_urls, target_urls
 
     def _page_links(self, document: str, page: str) -> set[str]:
         return {
@@ -225,10 +209,10 @@ class HabitacliaSource(ExternalListingSource):
         }
 
     async def discover_listing_urls(self) -> DiscoveryResult:
-        """Walk the Tenerife catalogue and retain only explicit room cards."""
+        """Walk the Tenerife catalogue and retain only supported small units."""
         queue = list(self.discovery_urls)
         visited: set[str] = set()
-        room_urls: set[str] = set()
+        target_urls: set[str] = set()
         failed_pages: list[str] = []
         blocked = False
 
@@ -251,12 +235,12 @@ class HabitacliaSource(ExternalListingSource):
                 failed_pages.append(page)
                 continue
 
-            page_urls, page_rooms = self._extract_page_listings(document, page)
+            page_urls, page_targets = self._extract_page_listings(document, page)
             if not page_urls:
                 rendered = await self.render_public_page(page)
                 if rendered:
                     document = rendered
-                    page_urls, page_rooms = self._extract_page_listings(document, page)
+                    page_urls, page_targets = self._extract_page_listings(document, page)
 
             pagination = self._page_links(document, page)
             for next_page in sorted(pagination):
@@ -266,14 +250,14 @@ class HabitacliaSource(ExternalListingSource):
             if not page_urls:
                 failed_pages.append(page)
                 continue
-            room_urls.update(page_rooms)
+            target_urls.update(page_targets)
 
         complete = not blocked and not failed_pages and not queue
         return DiscoveryResult(
-            urls=room_urls,
+            urls=target_urls,
             complete=complete,
             visited_pages=len(visited),
-            expected_total=len(room_urls) if complete else None,
+            expected_total=len(target_urls) if complete else None,
             failed_pages=failed_pages,
             reached_last_page=complete,
             blocked=blocked,
@@ -294,14 +278,10 @@ class HabitacliaSource(ExternalListingSource):
         if description:
             data["description"] = clean(description.group(1)) or data["description"]
 
-        # Do not inject the word "habitación" here. Habitaclia's catalogue
-        # contains whole homes with a bedroom count; only the listing copy may
-        # prove that the advertised object is actually a room.
         data["category"] = f"habitaclia alquiler {data['category']}"
         data["external_id"] = external_id.group(1) if external_id else None
 
-        # Contact details can appear in page chrome. They are not needed for
-        # source identity or matching, so keep them out of the imported payload.
+        # Contact data is not needed for source identity or deduplication.
         data["phone"] = None
         data["whatsapp"] = None
         data["email"] = None
@@ -331,15 +311,7 @@ _installed = False
 
 
 def install_habitaclia_source() -> None:
-    """Append Habitaclia to production crawls without raising the configured threshold.
-
-    This is deliberately production-only. Tests and development continue to
-    see the versioned configured source set exactly as before, while the
-    production worker gets one supplemental source. Once production evidence
-    shows stable positive room imports, the adapter can move into the normal
-    configured source registry and monitoring contract.
-    """
-
+    """Append Habitaclia to production crawls without raising the health gate."""
     global _installed
     if _installed or os.getenv("APP_ENV", "development").casefold() != "production":
         return
