@@ -1,0 +1,95 @@
+.publish-page .publish-single-page {
+  align-items: start;
+  padding-top: 1.5rem;
+}
+
+.publish-page .publish-single-page__sections {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.publish-page .publish-single-page__section {
+  min-width: 0;
+  scroll-margin-top: 5.25rem;
+}
+
+.publish-page .publish-single-page__section + .publish-single-page__section {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.publish-page .publish-single-page__section > .publish-recovery-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.publish-page .publish-single-page .wizard-content {
+  padding-bottom: 1.25rem;
+}
+
+.publish-page .publish-single-page .wizard-actions {
+  position: sticky;
+  z-index: 20;
+  bottom: 0;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  background: rgb(255 255 255 / .96);
+  backdrop-filter: blur(10px);
+}
+
+.publish-page .image-uploader .make-cover {
+  z-index: 5;
+  right: .45rem;
+  bottom: .45rem;
+  left: .45rem;
+  width: auto;
+  min-height: 2.25rem;
+  padding: .4rem .55rem;
+  border: 1px solid rgb(255 255 255 / .84);
+  border-radius: .45rem;
+  background: rgb(255 255 255 / .94);
+  color: var(--ink);
+  box-shadow: 0 .2rem .7rem rgb(25 31 31 / .24);
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.publish-page .image-uploader .cover-label {
+  z-index: 5;
+  padding: .28rem .48rem;
+  border-radius: .4rem;
+  background: var(--brand);
+  color: #1b2500;
+  font-weight: 850;
+}
+
+@media (max-width: 767px) {
+  .publish-page .publish-single-page {
+    display: block;
+    padding-top: .75rem;
+  }
+
+  .publish-page .publish-single-page > aside {
+    display: none;
+  }
+
+  .publish-page .publish-single-page__sections {
+    gap: 1.1rem;
+  }
+
+  .publish-page .publish-single-page__section + .publish-single-page__section {
+    padding-top: 1.1rem;
+  }
+
+  .publish-page .publish-single-page .wizard-actions {
+    margin-top: 1rem;
+    padding-bottom: calc(.6rem + env(safe-area-inset-bottom));
+  }
+
+  .publish-page .image-uploader .make-cover {
+    font-size: .68rem;
+  }
+}
