@@ -1,0 +1,77 @@
+.stepper--editing .stepper__edit-jump {
+  display: none;
+}
+
+.image-uploader__edit-help {
+  margin: -.25rem 0 .1rem;
+  color: var(--ink-muted);
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
+.upload-grid > div > .replace-image {
+  top: auto;
+  right: .4rem;
+  bottom: .4rem;
+  width: auto;
+  min-width: 2rem;
+  padding: 0 .45rem;
+  gap: .25rem;
+  border-radius: .4rem;
+  background: rgb(255 255 255 / .94);
+  color: var(--ink);
+  box-shadow: 0 .15rem .45rem rgb(25 31 31 / .18);
+}
+
+.upload-grid > div > .replace-image span {
+  font-size: .68rem;
+  font-weight: 760;
+}
+
+@media (max-width: 900px) {
+  .stepper--editing .stepper__summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .stepper--editing .stepper__summary > strong {
+    text-align: right;
+  }
+
+  .stepper--editing .stepper__edit-jump {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: .5rem;
+    margin-top: .35rem;
+  }
+
+  .stepper--editing .stepper__edit-jump > span {
+    color: var(--ink-muted);
+    font-size: .72rem;
+    font-weight: 720;
+  }
+
+  .stepper--editing .stepper__edit-jump select {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: .45rem .65rem;
+    border: 1px solid var(--line-strong);
+    border-radius: .5rem;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 720;
+  }
+
+  .upload-grid > div > .replace-image {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .upload-grid > div > .replace-image span {
+    display: none;
+  }
+}
