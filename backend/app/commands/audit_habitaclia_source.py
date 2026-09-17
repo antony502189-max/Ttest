@@ -10,7 +10,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 from typing import Any
+from urllib.parse import urljoin
 
 import httpx
 
@@ -36,6 +38,54 @@ def _diagnostics(source: HabitacliaSource) -> list[dict[str, Any]]:
     return diagnostics
 
 
+def _plain_context(document: str, start: int, end: int) -> str:
+    fragment = document[max(0, start - 420) : min(len(document), end + 420)]
+    fragment = re.sub(r"<script\b.*?</script>", " ", fragment, flags=re.IGNORECASE | re.DOTALL)
+    fragment = re.sub(r"<style\b.*?</style>", " ", fragment, flags=re.IGNORECASE | re.DOTALL)
+    fragment = re.sub(r"<[^>]+>", " ", fragment)
+    return re.sub(r"\s+", " ", fragment).strip()[:700]
+
+
+def _catalog_probe(source: HabitacliaSource, document: str, base_url: str) -> dict[str, Any]:
+    """Expose bounded route/card evidence when the catalogue contract changes."""
+    attribute_values = re.findall(
+        r'(?:href|data-url|data-href|data-link|content)\s*=\s*["\']([^"\']+)["\']',
+        document,
+        re.IGNORECASE,
+    )
+    route_pattern = re.compile(
+        r"(?:https?://(?:www\.)?habitaclia\.com)?/(?:[^\"'<>\s]*-i\d{8,}\.htm|i\d{8,})(?:[?#][^\"'<>\s]*)?",
+        re.IGNORECASE,
+    )
+    route_values = list(dict.fromkeys(route_pattern.findall(document)))
+    attribute_routes = [
+        value
+        for value in attribute_values
+        if re.search(r"(?:-i\d{8,}\.htm|(?:^|/)i\d{8,}(?:$|[?#]))", value, re.IGNORECASE)
+    ]
+    routes = list(dict.fromkeys([*route_values, *attribute_routes]))
+    absolute_routes = [urljoin(base_url, value.replace("&amp;", "&")) for value in routes]
+    recognized = [url for url in absolute_routes if source.is_listing_url(url)]
+
+    room_contexts: list[str] = []
+    for match in re.finditer(r"habitaci(?:ó|o)n(?:es)?", document, re.IGNORECASE):
+        context = _plain_context(document, match.start(), match.end())
+        if context and context not in room_contexts:
+            room_contexts.append(context)
+        if len(room_contexts) >= 8:
+            break
+
+    id_tokens = list(dict.fromkeys(re.findall(r"\bi\d{8,}\b", document, re.IGNORECASE)))
+    return {
+        "document_length": len(document),
+        "attribute_count": len(attribute_values),
+        "route_samples": absolute_routes[:20],
+        "recognized_route_samples": recognized[:20],
+        "id_token_samples": id_tokens[:20],
+        "room_context_samples": room_contexts,
+    }
+
+
 async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tuple[dict[str, Any], int]:
     source = HabitacliaSource()
     source.max_discovery_pages = max_pages
@@ -52,9 +102,23 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
         "accepted": [],
         "rejected": [],
         "errors": [],
+        "catalog_probe": {},
         "discovery_diagnostics": [],
     }
     try:
+        probe_url = source.discovery_urls[0]
+        probe_document = await source.request(probe_url)
+        if probe_document:
+            report["catalog_probe"] = _catalog_probe(source, probe_document, probe_url)
+            visible_count = source.visible_result_count(probe_document)
+            recognized = report["catalog_probe"].get("recognized_route_samples", [])
+            if visible_count and not recognized:
+                report["errors"].append(
+                    "Visible Habitaclia results exist but the current detail-route contract recognizes no card route"
+                )
+                report["discovery_diagnostics"] = _diagnostics(source)
+                return report, 6
+
         discovery = await source.discover_listing_urls()
         candidates = sorted(discovery.urls)
         report.update(
