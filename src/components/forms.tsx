@@ -226,7 +226,7 @@ export function ImageUploader({
     }
   };
   const replaceFile = async (file: File | undefined) => {
-    const index = replaceIndex;
+    const index = replaceIndex ?? (images.length ? 0 : null);
     setReplaceIndex(null);
     if (replaceInputRef.current) replaceInputRef.current.value = "";
     if (index === null || !file) return;
