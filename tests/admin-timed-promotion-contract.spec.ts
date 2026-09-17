@@ -42,3 +42,11 @@ test('scheduled and expired promotions cannot retain public TOP priority', () =>
   expect(migration).toContain('sa.Column("daily_price_cents"')
   expect(migration).toContain('sa.Column("total_price_cents"')
 })
+
+test('exclusive TOP end boundary is rendered as the selected inclusive Hasta calendar date', () => {
+  expect(adminPage).toContain('function promotionInclusiveEnd(value: string)')
+  expect(adminPage).toContain('result.setDate(result.getDate() - 1)')
+  expect(adminPage).toContain('localDateInput(promotionInclusiveEnd(listing.promotionEndsAt))')
+  expect(adminPage).toContain('formatPromotionEndDate(listing.promotionEndsAt)')
+})
+
