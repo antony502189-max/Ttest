@@ -18,17 +18,22 @@ from ..habitaclia_source import HabitacliaSource
 
 
 def _diagnostics(source: HabitacliaSource) -> list[dict[str, Any]]:
-    return [
-        {
-            "url": url,
-            "method": diagnostic.get("method"),
-            "status": diagnostic.get("status"),
-            "final_url": diagnostic.get("final_url"),
-            "title": diagnostic.get("title"),
-            "anchor_count": diagnostic.get("anchor_count"),
-        }
-        for url, diagnostic in list(source.discovery_diagnostics.items())[:12]
-    ]
+    diagnostics: list[dict[str, Any]] = []
+    for url, diagnostic in list(source.discovery_diagnostics.items())[:12]:
+        hrefs = [str(href) for href in diagnostic.get("hrefs", [])]
+        diagnostics.append(
+            {
+                "url": url,
+                "method": diagnostic.get("method"),
+                "status": diagnostic.get("status"),
+                "final_url": diagnostic.get("final_url"),
+                "title": diagnostic.get("title"),
+                "anchor_count": diagnostic.get("anchor_count"),
+                "href_samples": hrefs[:12],
+                "alquiler_href_samples": [href for href in hrefs if "alquiler" in href.casefold()][:12],
+            }
+        )
+    return diagnostics
 
 
 async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tuple[dict[str, Any], int]:
