@@ -165,11 +165,10 @@ class HabitacliaSource(ExternalListingSource):
         corpus = re.sub(r"\s+", " ", value).casefold()
         if not any(marker in corpus for marker in cls._explicit_room_markers):
             return False
-        if _WHOLE_HOME_SINGLE_BEDROOM.search(corpus) and not any(
-            marker in corpus for marker in cls._strong_room_markers
-        ):
-            return False
-        return True
+        return not (
+            _WHOLE_HOME_SINGLE_BEDROOM.search(corpus)
+            and not any(marker in corpus for marker in cls._strong_room_markers)
+        )
 
     @classmethod
     def _is_room_card(cls, value: str) -> bool:
