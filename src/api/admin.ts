@@ -208,10 +208,19 @@ export const restrictAdminListing = (id: string, payload: { until: string | null
 export const unrestrictAdminListing = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/restrictions/active`, { method: 'DELETE' })
 
+function normalizePromotionStartsAt(startsAt: string) {
+  const start = new Date(startsAt)
+  const now = new Date()
+  if (!Number.isNaN(start.getTime()) && start < now && now.getTime() - start.getTime() < 86_400_000) {
+    return now.toISOString()
+  }
+  return startsAt
+}
+
 export const promoteAdminListing = (id: string, payload: { startsAt: string; endsAt: string }) =>
   api<AdminListing>(`/admin/listings/${id}/promotion`, {
     method: 'PUT',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, startsAt: normalizePromotionStartsAt(payload.startsAt) }),
   })
 
 export const removeAdminListingPromotion = (id: string) =>
