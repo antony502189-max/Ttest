@@ -9,77 +9,70 @@ from app.habitaclia_source import HabitacliaSource, install_habitaclia_source
 
 def room_document() -> str:
     return """
-    <html>
-      <head>
-        <script type="application/ld+json">
-        {
-          "@type": "Apartment",
-          "name": "Alquiler piso. Se alquila habitación en La Laguna",
-          "description": "Se alquila habitación amueblada para una persona, disponible para larga estancia.",
-          "address": {
-            "addressLocality": "La Laguna",
-            "addressRegion": "Santa Cruz de Tenerife"
-          },
-          "image": ["https://images.habimg.com/example-room.jpg"]
-        }
-        </script>
-      </head>
-      <body>
-        <h1>Alquiler piso. Se alquila habitación en La Laguna</h1>
-        <div class="description">Se alquila habitación amueblada para una persona, disponible para larga estancia.</div>
-        <strong>530 €</strong>
-      </body>
-    </html>
+    <html><head><script type="application/ld+json">
+    {
+      "@type": "Apartment",
+      "name": "Alquiler piso. Se alquila habitación en La Laguna",
+      "description": "Se alquila habitación amueblada para una persona, disponible para larga estancia.",
+      "address": {"addressLocality": "La Laguna", "addressRegion": "Santa Cruz de Tenerife"},
+      "image": ["https://images.habimg.com/example-room.jpg"]
+    }
+    </script></head><body>
+      <h1>Alquiler piso. Se alquila habitación en La Laguna</h1>
+      <div class="description">Se alquila habitación amueblada para una persona, disponible para larga estancia.</div>
+      <strong>530 €</strong>
+    </body></html>
     """
 
 
-def whole_home_document() -> str:
+def studio_document() -> str:
     return """
-    <html>
-      <head>
-        <script type="application/ld+json">
-        {
-          "@type": "Apartment",
-          "name": "Piso de 3 habitaciones en alquiler en La Laguna",
-          "description": "Vivienda completa con tres habitaciones, salón, cocina y baño.",
-          "address": {
-            "addressLocality": "La Laguna",
-            "addressRegion": "Santa Cruz de Tenerife"
-          }
-        }
-        </script>
-      </head>
-      <body>
-        <h1>Piso de 3 habitaciones en alquiler en La Laguna</h1>
-        <div class="description">Vivienda completa con tres habitaciones, salón, cocina y baño.</div>
-        <strong>1.200 €</strong>
-      </body>
-    </html>
+    <html><head><script type="application/ld+json">
+    {
+      "@type": "Apartment",
+      "name": "Estudio amueblado en Puerto de la Cruz",
+      "description": "Estudio completo con cocina y baño, disponible para alquiler de larga estancia.",
+      "address": {"addressLocality": "Puerto de la Cruz", "addressRegion": "Santa Cruz de Tenerife"}
+    }
+    </script></head><body>
+      <h1>Estudio amueblado en Puerto de la Cruz</h1>
+      <div class="description">Estudio completo con cocina y baño, disponible para larga estancia.</div>
+      <strong>650 €</strong>
+    </body></html>
     """
 
 
 def one_bedroom_whole_home_document() -> str:
     return """
-    <html>
-      <head>
-        <script type="application/ld+json">
-        {
-          "@type": "Apartment",
-          "name": "Alquiler piso de un habitación en alquiler por temporadas en Garachico",
-          "description": "Apartamento completo de una habitación, salón, cocina y baño para alquiler por temporadas.",
-          "address": {
-            "addressLocality": "Garachico",
-            "addressRegion": "Santa Cruz de Tenerife"
-          }
-        }
-        </script>
-      </head>
-      <body>
-        <h1>Alquiler piso de un habitación en alquiler por temporadas en Garachico</h1>
-        <div class="description">Apartamento completo de una habitación, salón, cocina y baño.</div>
-        <strong>780 €</strong>
-      </body>
-    </html>
+    <html><head><script type="application/ld+json">
+    {
+      "@type": "Apartment",
+      "name": "Piso de una habitación en alquiler por temporadas en Garachico",
+      "description": "Apartamento completo de una habitación, salón, cocina y baño para alquiler por temporadas.",
+      "address": {"addressLocality": "Garachico", "addressRegion": "Santa Cruz de Tenerife"}
+    }
+    </script></head><body>
+      <h1>Piso de una habitación en alquiler por temporadas en Garachico</h1>
+      <div class="description">Apartamento completo de una habitación, salón, cocina y baño.</div>
+      <strong>780 €</strong>
+    </body></html>
+    """
+
+
+def whole_home_document() -> str:
+    return """
+    <html><head><script type="application/ld+json">
+    {
+      "@type": "Apartment",
+      "name": "Piso de 3 habitaciones en alquiler en La Laguna",
+      "description": "Vivienda completa con tres habitaciones, salón, cocina y baño.",
+      "address": {"addressLocality": "La Laguna", "addressRegion": "Santa Cruz de Tenerife"}
+    }
+    </script></head><body>
+      <h1>Piso de 3 habitaciones en alquiler en La Laguna</h1>
+      <div class="description">Vivienda completa con tres habitaciones, salón, cocina y baño.</div>
+      <strong>1.200 €</strong>
+    </body></html>
     """
 
 
@@ -101,20 +94,38 @@ def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> Non
         asyncio.run(source.close())
 
 
-def test_habitaclia_modern_id_route_preserves_source_id() -> None:
+def test_habitaclia_accepts_studio() -> None:
     source = HabitacliaSource()
     try:
-        url = "https://www.habitaclia.com/i28898000001041.htm"
-        assert source.is_listing_url(url)
-        data = source.parse_listing(room_document(), url)
+        url = "https://www.habitaclia.com/i58067000000201.htm"
+        data = source.parse_listing(studio_document(), url)
         item = source.normalize_listing(data, url)
         assert item is not None
-        assert item.external_id == "28898000001041"
+        assert item.external_id == "58067000000201"
+        assert item.city == "Puerto de la Cruz"
+        assert item.price_amount == 650
     finally:
         asyncio.run(source.close())
 
 
-def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
+def test_habitaclia_accepts_one_bedroom_whole_home() -> None:
+    source = HabitacliaSource()
+    try:
+        url = "https://www.habitaclia.com/i54975000000055.htm"
+        data = source.parse_listing(one_bedroom_whole_home_document(), url)
+        item = source.normalize_listing(data, url)
+        assert item is not None
+        assert item.external_id == "54975000000055"
+        assert source._is_room_card(
+            '"navigationUrl":"/i54975000000055.htm?from=list",'
+            '"summary":{"title":"Piso de una habitación en alquiler por temporadas en Garachico",'
+            '"description":"Apartamento completo de una habitación, salón, cocina y baño."}'
+        )
+    finally:
+        asyncio.run(source.close())
+
+
+def test_habitaclia_rejects_multi_bedroom_whole_home() -> None:
     source = HabitacliaSource()
     try:
         url = "https://www.habitaclia.com/alquiler-piso-3_habitaciones-la_laguna-i500004541315.htm"
@@ -124,17 +135,11 @@ def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
         asyncio.run(source.close())
 
 
-def test_habitaclia_rejects_one_bedroom_whole_home_with_weak_room_phrase() -> None:
+def test_habitaclia_explicit_room_wins_inside_multi_bedroom_shared_flat() -> None:
     source = HabitacliaSource()
     try:
-        url = "https://www.habitaclia.com/i54975000000055.htm"
-        data = source.parse_listing(one_bedroom_whole_home_document(), url)
-        assert source.normalize_listing(data, url) is None
-        assert not source._is_room_card(
-            '"navigationUrl":"/i54975000000055.htm?from=list",'
-            '"summary":{"title":"Alquiler piso de un habitación en alquiler por temporadas en Garachico",'
-            '"description":"Apartamento completo de una habitación, salón, cocina y baño."}'
-        )
+        text = "Piso compartido de 4 habitaciones. Se alquila habitación individual para estudiante."
+        assert source._room_text_is_explicit(text)
     finally:
         asyncio.run(source.close())
 
@@ -145,14 +150,16 @@ def test_habitaclia_extracts_modern_hydration_cards_without_cross_card_leakage()
         page = source.discovery_urls[0]
         document = r'''
         <script>
-        self.__next_f.push([1,"{\"legacyNumericId\":\"500004551704\",\"kind\":\"secondHand\",\"navigationUrl\":\"/i500004551704.htm?from=list\",\"summary\":{\"title\":\"ALQUILER HABITACIÓN SOLO CHICA\",\"description\":\"Se alquila habitaci\u00F3n amueblada para estudiante.\"}},{\"legacyNumericId\":\"500004551705\",\"kind\":\"secondHand\",\"navigationUrl\":\"/i500004551705.htm?from=list\",\"summary\":{\"title\":\"Piso de 3 habitaciones en alquiler\",\"description\":\"Vivienda completa con tres habitaciones, sal\u00F3n, cocina y ba\u00F1o.\"}}"])
+        self.__next_f.push([1,"{\"legacyNumericId\":\"500004551704\",\"navigationUrl\":\"/i500004551704.htm?from=list\",\"summary\":{\"title\":\"ALQUILER HABITACIÓN SOLO CHICA\",\"description\":\"Se alquila habitaci\u00F3n amueblada para estudiante.\"}},{\"legacyNumericId\":\"500004551705\",\"navigationUrl\":\"/i500004551705.htm?from=list\",\"summary\":{\"title\":\"Estudio amueblado en Puerto de la Cruz\",\"description\":\"Estudio completo con cocina y ba\u00F1o.\"}},{\"legacyNumericId\":\"500004551706\",\"navigationUrl\":\"/i500004551706.htm?from=list\",\"summary\":{\"title\":\"Piso de 1 dormitorio en Garachico\",\"description\":\"Apartamento completo con un dormitorio, sal\u00F3n, cocina y ba\u00F1o.\"}},{\"legacyNumericId\":\"500004551707\",\"navigationUrl\":\"/i500004551707.htm?from=list\",\"summary\":{\"title\":\"Piso de 3 habitaciones en alquiler\",\"description\":\"Vivienda completa con tres habitaciones, sal\u00F3n, cocina y ba\u00F1o.\"}}"])
         </script>
         '''
-        all_urls, room_urls = source._extract_page_listings(document, page)
+        all_urls, target_urls = source._extract_page_listings(document, page)
         room_url = "https://www.habitaclia.com/i500004551704.htm"
-        whole_home_url = "https://www.habitaclia.com/i500004551705.htm"
-        assert all_urls == {room_url, whole_home_url}
-        assert room_urls == {room_url}
+        studio_url = "https://www.habitaclia.com/i500004551705.htm"
+        one_bed_url = "https://www.habitaclia.com/i500004551706.htm"
+        whole_home_url = "https://www.habitaclia.com/i500004551707.htm"
+        assert all_urls == {room_url, studio_url, one_bed_url, whole_home_url}
+        assert target_urls == {room_url, studio_url, one_bed_url}
     finally:
         asyncio.run(source.close())
 
@@ -162,15 +169,21 @@ def test_habitaclia_keeps_legacy_semantic_slug_fallback() -> None:
     try:
         page = source.discovery_urls[0]
         room_url = "/alquiler-piso-se_alquila_habitacion-la_laguna-i500004551704.htm"
-        whole_home_url = "/alquiler-piso-con_terraza-la_laguna-i500004551705.htm"
+        studio_url = "/alquiler-estudio-puerto_de_la_cruz-i500004551705.htm"
+        one_bed_url = "/alquiler-piso-1_dormitorio-garachico-i500004551706.htm"
+        whole_home_url = "/alquiler-piso-con_terraza-la_laguna-i500004551707.htm"
         document = f"""
         <div data-url="{room_url}">Se alquila habitación amueblada para estudiante.</div>
+        <div data-url="{studio_url}">Estudio completo.</div>
+        <div data-url="{one_bed_url}">Piso de un dormitorio.</div>
         <script>window.card = {{"url":"{whole_home_url}"}}</script>
         """
-        all_urls, room_urls = source._extract_page_listings(document, page)
-        assert len(all_urls) == 2
-        assert f"https://www.habitaclia.com{room_url}" in room_urls
-        assert f"https://www.habitaclia.com{whole_home_url}" not in room_urls
+        all_urls, target_urls = source._extract_page_listings(document, page)
+        assert len(all_urls) == 4
+        assert f"https://www.habitaclia.com{room_url}" in target_urls
+        assert f"https://www.habitaclia.com{studio_url}" in target_urls
+        assert f"https://www.habitaclia.com{one_bed_url}" in target_urls
+        assert f"https://www.habitaclia.com{whole_home_url}" not in target_urls
     finally:
         asyncio.run(source.close())
 
@@ -179,11 +192,15 @@ def test_habitaclia_url_and_pagination_contract() -> None:
     source = HabitacliaSource()
     try:
         room_url = "https://www.habitaclia.com/alquiler-piso-habitacion_solo_chica-la_laguna-i500004551704.htm"
-        whole_home_url = "https://www.habitaclia.com/alquiler-piso-la_laguna-i500004551705.htm"
+        studio_url = "https://www.habitaclia.com/alquiler-estudio-puerto_de_la_cruz-i500004551705.htm"
+        one_bed_url = "https://www.habitaclia.com/alquiler-piso-1_dormitorio-garachico-i500004551706.htm"
+        whole_home_url = "https://www.habitaclia.com/alquiler-piso-la_laguna-i500004551707.htm"
         modern_url = "https://www.habitaclia.com/i500004551704.htm?from=list"
         assert source.is_listing_url(room_url)
         assert source.is_listing_url(modern_url)
         assert source.is_room_candidate_url(room_url)
+        assert source.is_room_candidate_url(studio_url)
+        assert source.is_room_candidate_url(one_bed_url)
         assert not source.is_room_candidate_url(whole_home_url)
         assert source.is_pagination_url(
             "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s/2"
