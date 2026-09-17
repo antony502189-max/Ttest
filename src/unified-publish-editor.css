@@ -41,11 +41,16 @@
 
 .publish-page .image-uploader .make-cover {
   z-index: 5;
+  top: auto;
   right: .45rem;
   bottom: .45rem;
   left: .45rem;
   width: auto;
+  height: auto;
   min-height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: .4rem .55rem;
   border: 1px solid rgb(255 255 255 / .84);
   border-radius: .45rem;
