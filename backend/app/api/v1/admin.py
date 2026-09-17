@@ -41,7 +41,6 @@ from ...services.admin import (
     revoke_admin,
     unrestrict_listing,
 )
-from ...services.homepage_hero import configure_homepage_hero, get_admin_homepage_hero, remove_homepage_hero
 from ...services.admin_audit import list_audit_logs
 from ...services.admin_listings import list_listings
 from ...services.admin_users import (
@@ -51,6 +50,7 @@ from ...services.admin_users import (
     soft_delete_user,
     unrestrict_user,
 )
+from ...services.homepage_hero import configure_homepage_hero, get_admin_homepage_hero, remove_homepage_hero
 from ...services.moderation import enforce_full_access, is_admin, normalize_email
 from ...workers.external_listings import run_once
 from ..dependencies import authenticated_user, require_admin
