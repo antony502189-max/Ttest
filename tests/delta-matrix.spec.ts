@@ -30,9 +30,16 @@ async function resultCount(page: Page) {
 }
 
 async function continueWizard(page: Page, count: number) {
+  if (!page.url().includes('/publicar')) return
+  const stepper = page.locator('.stepper')
+  await expect(stepper).toBeVisible()
   const continueButton = page.getByRole('button', { name: 'Continuar' })
-  if (await continueButton.count() === 0) return
-  for (let index = 0; index < count; index += 1) await continueButton.click()
+  for (let index = 0; index < count; index += 1) {
+    const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
+    await expect(continueButton).toBeVisible()
+    await continueButton.click()
+    await expect(stepper).toHaveAttribute('aria-label', new RegExp(`Paso ${currentStep + 1} de`))
+  }
 }
 
 async function mediaExists(page: Page, reference: string) {
