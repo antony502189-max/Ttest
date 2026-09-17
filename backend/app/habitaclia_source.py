@@ -6,9 +6,8 @@ room-related are fetched, and normalization still requires explicit room-rental
 wording in the listing copy.
 
 The source is installed as a production-only supplemental adapter for its first
-production observation period. It intentionally does not participate in the
-configured-source health gate yet, so a temporary layout change or a zero-room
-cycle cannot make the five established providers unhealthy.
+production observation period. A temporary layout change or zero-room cycle
+therefore does not make the established configured-source requirement stricter.
 """
 
 from __future__ import annotations
@@ -74,10 +73,9 @@ class HabitacliaSource(ExternalListingSource):
     )
 
     def is_pagination_url(self, url: str) -> bool:
-        path = unquote(urlparse(url).path).casefold()
-        return path.startswith(
-            "/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s"
-        ) and super().is_pagination_url(url)
+        path = unquote(urlparse(url).path).rstrip("/").casefold()
+        base = "/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s"
+        return bool(re.fullmatch(rf"{re.escape(base)}/\d+", path)) and super().is_pagination_url(url)
 
     @classmethod
     def is_room_candidate_url(cls, url: str) -> bool:
@@ -150,13 +148,13 @@ _installed = False
 
 
 def install_habitaclia_source() -> None:
-    """Append Habitaclia to production crawls without changing the health gate.
+    """Append Habitaclia to production crawls without raising the configured threshold.
 
     This is deliberately production-only. Tests and development continue to
     see the versioned configured source set exactly as before, while the
     production worker gets one supplemental source. Once production evidence
     shows stable positive room imports, the adapter can move into the normal
-    configured source registry and monitoring threshold.
+    configured source registry and monitoring contract.
     """
 
     global _installed
