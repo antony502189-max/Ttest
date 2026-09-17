@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 
+import app.habitaclia_source as habitaclia_module
 from app import external_sources
 from app.habitaclia_source import HabitacliaSource, install_habitaclia_source
-import app.habitaclia_source as habitaclia_module
 
 
 def room_document() -> str:
@@ -98,6 +98,9 @@ def test_habitaclia_url_and_pagination_contract() -> None:
             "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s/2"
         )
         assert not source.is_pagination_url(
+            "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/sm/2"
+        )
+        assert not source.is_pagination_url(
             "https://www.habitaclia.com/alquiler/viviendas/madrid-provincia/s/2"
         )
     finally:
@@ -105,7 +108,7 @@ def test_habitaclia_url_and_pagination_contract() -> None:
 
 
 def test_habitaclia_canary_install_is_production_only(monkeypatch) -> None:
-    monkeypatch.setattr(external_sources, "configured_sources", lambda: [])
+    monkeypatch.setattr(external_sources, "configured_sources", list)
     monkeypatch.setattr(habitaclia_module, "_installed", False)
     monkeypatch.setenv("APP_ENV", "test")
     install_habitaclia_source()
