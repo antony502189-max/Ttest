@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { GripVertical, ImagePlus, Trash2, UploadCloud } from "lucide-react";
+import { GripVertical, ImagePlus, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { acceptedImageTypes, MediaStorageError, removeMediaReferences, saveMediaFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
+import "@/listing-edit-comfort.css";
 
 export function FormField({
   label,
@@ -184,6 +185,8 @@ export function ImageUploader({
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState("");
   const readFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -206,6 +209,31 @@ export function ImageUploader({
       onChange([...images, ...references]);
     } catch (uploadError) {
       setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar una de las imágenes.");
+    }
+  };
+  const replaceFile = async (file: File | undefined) => {
+    const index = replaceIndex ?? (images.length ? 0 : null);
+    setReplaceIndex(null);
+    if (replaceInputRef.current) replaceInputRef.current.value = "";
+    if (index === null || !file) return;
+    if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number]) || file.size > 12_000_000) {
+      setLocalError("Usa una imagen JPEG, PNG o WebP de hasta 12 MB.");
+      return;
+    }
+    try {
+      const reference = await saveMediaFile(file);
+      const previous = images[index];
+      if (!previous) {
+        await removeMediaReferences([reference]).catch(() => undefined);
+        return;
+      }
+      const next = [...images];
+      next[index] = reference;
+      onChange(next);
+      onRemove?.(previous);
+      setLocalError("");
+    } catch (uploadError) {
+      setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo sustituir la imagen.");
     }
   };
   const move = (index: number, direction: -1 | 1) => {
@@ -247,6 +275,14 @@ export function ImageUploader({
         multiple
         onChange={(event) => void readFiles(event.target.files)}
       />
+      <input
+        ref={replaceInputRef}
+        className="sr-only"
+        type="file"
+        aria-label="Sustituir foto del anuncio"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(event) => void replaceFile(event.target.files?.[0])}
+      />
       {error ? (
         <p id="publish-images-error" className="field-error" role="alert">
           {error}
@@ -257,6 +293,7 @@ export function ImageUploader({
           {localError}
         </p>
       ) : null}
+      <p className="image-uploader__edit-help">Puedes sustituir una foto, cambiar la portada y reordenar las imágenes sin volver a subir las demás.</p>
       <div className="upload-grid">
         {images.map((image, index) => (
           <div key={`${image}-${index}`}>
@@ -272,6 +309,18 @@ export function ImageUploader({
                 Usar como portada
               </button>
             )}
+            <button
+              type="button"
+              className="replace-image"
+              aria-label={`Sustituir foto ${index + 1}`}
+              onClick={() => {
+                setReplaceIndex(index);
+                replaceInputRef.current?.click();
+              }}
+            >
+              <RefreshCw />
+              <span>Cambiar</span>
+            </button>
             <span className="upload-reorder">
               <button
                 type="button"
