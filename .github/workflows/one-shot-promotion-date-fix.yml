@@ -1,0 +1,87 @@
+name: One-shot promotion date fix
+
+on:
+  push:
+    branches: [feature/admin-timed-promotions]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.event.head_commit.message == 'Add one-shot promotion date fix helper'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feature/admin-timed-promotions
+      - name: Apply inclusive end-date presentation fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('src/pages/AdminPage.tsx')
+          page = page_path.read_text()
+
+          anchor = """function formatDateOnly(value: string | null | undefined) {
+            if (!value) return '—'
+            return new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium' }).format(new Date(value))
+          }
+          """
+          helper = anchor + """
+          function promotionInclusiveEnd(value: string) {
+            const result = new Date(value)
+            result.setDate(result.getDate() - 1)
+            return result
+          }
+
+          function formatPromotionEndDate(value: string | null | undefined) {
+            if (!value) return '—'
+            return new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium' }).format(promotionInclusiveEnd(value))
+          }
+          """
+          if anchor not in page:
+              raise SystemExit('formatDateOnly anchor not found')
+          page = page.replace(anchor, helper, 1)
+
+          old_existing = "const existingEnd = listing.promotionEndsAt ? localDateInput(new Date(new Date(listing.promotionEndsAt).getTime() - 86_400_000)) : null"
+          new_existing = "const existingEnd = listing.promotionEndsAt ? localDateInput(promotionInclusiveEnd(listing.promotionEndsAt)) : null"
+          if old_existing not in page:
+              raise SystemExit('existingEnd anchor not found')
+          page = page.replace(old_existing, new_existing, 1)
+
+          replacements = {
+              "` · hasta ${formatDateOnly(listing.promotionEndsAt)}`": "` · hasta ${formatPromotionEndDate(listing.promotionEndsAt)}`",
+              "{formatDateOnly(listing.promotionStartsAt)} → {formatDateOnly(listing.promotionEndsAt)}": "{formatDateOnly(listing.promotionStartsAt)} → {formatPromotionEndDate(listing.promotionEndsAt)}",
+              "`Terminó ${formatDateOnly(listing.promotionEndsAt)}`": "`Terminó ${formatPromotionEndDate(listing.promotionEndsAt)}`",
+          }
+          for old, new in replacements.items():
+              if old not in page:
+                  raise SystemExit(f'display anchor not found: {old}')
+              page = page.replace(old, new, 1)
+          page_path.write_text(page)
+
+          test_path = Path('tests/admin-timed-promotion-contract.spec.ts')
+          test = test_path.read_text()
+          regression = """
+
+          test('exclusive TOP end boundary is rendered as the selected inclusive Hasta calendar date', () => {
+            expect(adminPage).toContain('function promotionInclusiveEnd(value: string)')
+            expect(adminPage).toContain('result.setDate(result.getDate() - 1)')
+            expect(adminPage).toContain('localDateInput(promotionInclusiveEnd(listing.promotionEndsAt))')
+            expect(adminPage).toContain('formatPromotionEndDate(listing.promotionEndsAt)')
+          })
+          """
+          if 'exclusive TOP end boundary is rendered as the selected inclusive Hasta calendar date' in test:
+              raise SystemExit('regression test already present')
+          test_path.write_text(test.rstrip() + regression + '\n')
+          PY
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/AdminPage.tsx tests/admin-timed-promotion-contract.spec.ts
+          git commit -m "Fix inclusive TOP end date display"
+          git push origin HEAD:feature/admin-timed-promotions
