@@ -1,0 +1,81 @@
+name: Repair homepage hero patch v2
+
+on:
+  push:
+    branches:
+      - feature/homepage-hero-promotion
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feature/homepage-hero-promotion
+          fetch-depth: 0
+
+      - name: Apply normalized feature patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          mobile = Path('src/components/mobile-app-v2.tsx')
+          text = mobile.read_text()
+          spanish = "    home: 'Inicio', searches: 'Búsquedas', favorites: 'Favoritos', mainNavigation: 'Navegación principal', heroAlt: 'Interior de una vivienda',\n"
+          spanish_split = "    home: 'Inicio', searches: 'Búsquedas', favorites: 'Favoritos',\n    mainNavigation: 'Navegación principal', heroAlt: 'Interior de una vivienda',\n"
+          english = "    mainNavigation: 'Main navigation', heroAlt: 'Home interior', locationTitle: 'Where are you looking?', regionSearch: 'Searching in Tenerife', change: 'Change',\n"
+          english_split = "    mainNavigation: 'Main navigation', heroAlt: 'Home interior', locationTitle: 'Where are you looking?',\n    regionSearch: 'Searching in Tenerife', change: 'Change',\n"
+          if spanish not in text:
+              raise SystemExit('Spanish mobile copy normalization anchor missing')
+          if english not in text:
+              raise SystemExit('English mobile copy normalization anchor missing')
+          mobile.write_text(text.replace(spanish, spanish_split, 1).replace(english, english_split, 1))
+
+          workflow = Path('.github/workflows/one-shot-homepage-hero.yml').read_text()
+          start_marker = "          python - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index(end_marker, start)
+          source = textwrap.dedent(workflow[start:end])
+          namespace = {'__name__': '__main__'}
+          exec(compile(source, '<homepage-hero-patch>', 'exec'), namespace, namespace)
+
+          service = Path('backend/app/services/homepage_hero.py')
+          text = service.read_text()
+          old = '    row = (await session.execute(visible_query().where(Listing.id == promotion.listing_id))).one_or_none()\n    return response_from(row) if row else None\n'
+          new = '    row = (await session.execute(visible_query().where(Listing.id == promotion.listing_id))).one_or_none()\n    if row is None:\n        return None\n    response = response_from(row)\n    return response if response.imageUrls else None\n'
+          if old not in text:
+              raise SystemExit('public hero response hardening anchor missing')
+          service.write_text(text.replace(old, new, 1))
+
+          hook = Path('src/hooks/use-homepage-hero-listing.ts')
+          text = hook.read_text()
+          old = "    void load()\n    window.addEventListener('catalog:refresh', refresh)\n    return () => {\n      cancelled = true\n      window.removeEventListener('catalog:refresh', refresh)\n    }"
+          new = "    void load()\n    const expiryPoll = window.setInterval(load, 60_000)\n    window.addEventListener('catalog:refresh', refresh)\n    return () => {\n      cancelled = true\n      window.clearInterval(expiryPoll)\n      window.removeEventListener('catalog:refresh', refresh)\n    }"
+          if old not in text:
+              raise SystemExit('hero hook polling anchor missing')
+          hook.write_text(text.replace(old, new, 1))
+
+          css = Path('src/home.css')
+          text = css.read_text()
+          css.write_text(text.replace('.home-hero--promotion > img {', '.market-home .home-hero.home-hero--promotion > img {', 1))
+
+          for temporary in Path('.github/workflows').glob('one-shot-homepage-hero*.yml'):
+              temporary.unlink()
+          PY
+
+      - name: Commit feature
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: add timed homepage hero advertising"
+          git push origin HEAD:feature/homepage-hero-promotion
