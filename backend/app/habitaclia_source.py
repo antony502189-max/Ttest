@@ -38,6 +38,10 @@ _NAVIGATION_VALUE = re.compile(
     re.IGNORECASE,
 )
 _UNICODE_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
+_WHOLE_HOME_SINGLE_BEDROOM = re.compile(
+    r"\b(?:piso|apartamento|casa|chalet|ático|atico|estudio)\s+(?:de|con)\s+(?:un|una|1)\s+habitaci[oó]n\b",
+    re.IGNORECASE,
+)
 
 
 class HabitacliaSource(ExternalListingSource):
@@ -93,6 +97,33 @@ class HabitacliaSource(ExternalListingSource):
         "room for rent",
         "private room for rent",
     )
+    # A one-bedroom flat can legitimately contain the weak phrase
+    # "habitación en alquiler". If the copy explicitly describes a whole
+    # one-bedroom home, require one of these stronger room-rental signals.
+    _strong_room_markers = (
+        "se alquila habitación",
+        "se alquila habitacion",
+        "se alquilan habitaciones",
+        "alquilo habitación",
+        "alquilo habitacion",
+        "alquiler de habitación",
+        "alquiler de habitacion",
+        "alquiler habitación",
+        "alquiler habitacion",
+        "habitación para alquilar",
+        "habitacion para alquilar",
+        "habitación en piso compartido",
+        "habitacion en piso compartido",
+        "habitación para estudiante",
+        "habitacion para estudiante",
+        "habitación solo chica",
+        "habitacion solo chica",
+        "habitación solo chico",
+        "habitacion solo chico",
+        "rooms for rent",
+        "room for rent",
+        "private room for rent",
+    )
     _room_slug_markers = (
         "habitacion",
         "habitaciones",
@@ -130,9 +161,19 @@ class HabitacliaSource(ExternalListingSource):
         return normalized.replace("\\n", " ").replace("\\r", " ")
 
     @classmethod
-    def _is_room_card(cls, value: str) -> bool:
+    def _room_text_is_explicit(cls, value: str) -> bool:
         corpus = re.sub(r"\s+", " ", value).casefold()
-        return any(marker in corpus for marker in cls._explicit_room_markers)
+        if not any(marker in corpus for marker in cls._explicit_room_markers):
+            return False
+        if _WHOLE_HOME_SINGLE_BEDROOM.search(corpus) and not any(
+            marker in corpus for marker in cls._strong_room_markers
+        ):
+            return False
+        return True
+
+    @classmethod
+    def _is_room_card(cls, value: str) -> bool:
+        return cls._room_text_is_explicit(value)
 
     @staticmethod
     def _canonical_detail_url(page: str, value: str) -> str:
@@ -278,7 +319,7 @@ class HabitacliaSource(ExternalListingSource):
                 for key in ("title", "description", "category", "breadcrumbs")
             )
         ).casefold()
-        if not any(marker in corpus for marker in self._explicit_room_markers):
+        if not self._room_text_is_explicit(corpus):
             return None
 
         item = super().normalize_listing(data, url)
