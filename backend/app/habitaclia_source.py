@@ -2,9 +2,8 @@
 
 Habitaclia mixes room adverts into its ordinary rental catalogue. This adapter
 keeps discovery conservative: result pages are read in the browser when the
-plain response is only a shell, room-like cards are selected before detail
-fetching, and normalization still requires explicit room-rental wording in the
-listing copy.
+plain response is only a shell, only room-like detail slugs are fetched, and
+normalization still requires explicit room-rental wording in the listing copy.
 
 The source is installed as a production-only supplemental adapter for its first
 production observation period. A temporary layout change or zero-room cycle
@@ -99,11 +98,14 @@ class HabitacliaSource(ExternalListingSource):
         return any(marker in path for marker in cls._room_slug_markers)
 
     def _extract_page_listings(self, document: str, page: str) -> tuple[set[str], set[str]]:
-        """Return all detail URLs and the room-like subset from a rendered result page.
+        """Return all detail URLs and the room-slug subset from a result page.
 
         Habitaclia can expose card destinations through hydrated attributes or
         embedded application data rather than only conventional anchors, so the
         scan intentionally works across the complete public HTML document.
+        Room classification is intentionally based only on the URL slug here:
+        using nearby page text can leak wording from an adjacent card. Detail
+        normalization performs the stricter explicit room-rental text check.
         """
         normalized = html.unescape(document.replace("\\/", "/"))
         all_urls: set[str] = set()
@@ -115,12 +117,7 @@ class HabitacliaSource(ExternalListingSource):
             if not self.is_listing_url(canonical):
                 continue
             all_urls.add(canonical)
-            start = max(0, match.start() - 2500)
-            end = min(len(normalized), match.end() + 3500)
-            card_context = clean(normalized[start:end]).casefold()
-            if self.is_room_candidate_url(canonical) or any(
-                marker in card_context for marker in self._explicit_room_markers
-            ):
+            if self.is_room_candidate_url(canonical):
                 room_urls.add(canonical)
         return all_urls, room_urls
 
@@ -132,7 +129,7 @@ class HabitacliaSource(ExternalListingSource):
         }
 
     async def discover_listing_urls(self) -> DiscoveryResult:
-        """Walk Habitaclia result pages and keep only cards that can be rooms."""
+        """Walk Habitaclia result pages and keep only room-like detail slugs."""
         queue = list(self.discovery_urls)
         visited: set[str] = set()
         room_urls: set[str] = set()
