@@ -38,11 +38,14 @@ async function storedListings(page: Page) {
 }
 
 async function advanceWizard(page: Page, count: number) {
+  if (!page.url().includes('/publicar')) return
   const stepper = page.locator('.stepper')
-  if (await stepper.count() === 0) return
+  await expect(stepper).toBeVisible()
+  const continueButton = page.getByRole('button', { name: 'Continuar' })
   for (let index = 0; index < count; index += 1) {
     const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
-    await page.getByRole('button', { name: 'Continuar' }).click()
+    await expect(continueButton).toBeVisible()
+    await continueButton.click()
     await expect(stepper).toHaveAttribute('aria-label', new RegExp(`Paso ${currentStep + 1} de`))
   }
 }
