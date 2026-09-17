@@ -12,7 +12,23 @@ import asyncio
 import json
 from typing import Any
 
+import httpx
+
 from ..habitaclia_source import HabitacliaSource
+
+
+def _diagnostics(source: HabitacliaSource) -> list[dict[str, Any]]:
+    return [
+        {
+            "url": url,
+            "method": diagnostic.get("method"),
+            "status": diagnostic.get("status"),
+            "final_url": diagnostic.get("final_url"),
+            "title": diagnostic.get("title"),
+            "anchor_count": diagnostic.get("anchor_count"),
+        }
+        for url, diagnostic in list(source.discovery_diagnostics.items())[:12]
+    ]
 
 
 async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tuple[dict[str, Any], int]:
@@ -31,6 +47,7 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
         "accepted": [],
         "rejected": [],
         "errors": [],
+        "discovery_diagnostics": [],
     }
     try:
         discovery = await source.discover_listing_urls()
@@ -42,6 +59,7 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                 "visited_pages": discovery.visited_pages,
                 "failed_pages": discovery.failed_pages,
                 "candidate_urls": len(candidates),
+                "discovery_diagnostics": _diagnostics(source),
             }
         )
 
@@ -78,9 +96,10 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                         "price_period": item.price_period,
                     }
                 )
-            except Exception as exc:  # diagnostic command: retain per-URL failure and continue
+            except (TimeoutError, httpx.HTTPError, RuntimeError, TypeError, ValueError) as exc:
                 report["errors"].append(f"{url}: {type(exc).__name__}: {exc}")
 
+        report["discovery_diagnostics"] = _diagnostics(source)
         if not report["accepted_rooms"]:
             report["errors"].append("No checked Habitaclia candidate normalized as a current room rental")
             return report, 5
