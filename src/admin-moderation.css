@@ -203,6 +203,36 @@
 .admin-dialog-summary svg { width: 1rem; flex: none; margin-top: .15rem; }
 .admin-dialog-summary p { color: var(--ink-soft); font-size: .78rem; }
 
+.admin-promotion-dialog { max-width: 38rem !important; }
+.admin-promotion-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .45rem;
+}
+.admin-promotion-presets button {
+  min-height: 2.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--ink-soft);
+  font-size: .78rem;
+  font-weight: 750;
+}
+.admin-promotion-presets button:hover { border-color: var(--ink-muted); }
+.admin-promotion-presets button.is-active {
+  border-color: var(--market-link);
+  background: var(--surface-muted);
+  color: var(--market-link);
+}
+.admin-promotion-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+.admin-promotion-summary p { line-height: 1.55; }
+.admin-promotion-summary p > span { color: var(--ink-muted); }
+.admin-promotion-note { margin: -.2rem 0 0; color: var(--ink-muted); font-size: .76rem; line-height: 1.45; }
+
 .admin-report-card,
 .admin-listing-row,
 .admin-audit-list article {
@@ -299,4 +329,6 @@
   .admin-admin-list > div { align-items: stretch; flex-direction: column; }
   .admin-admin-list button { width: 100%; }
   .admin-action-dialog { max-height: calc(100dvh - 1rem); overflow-y: auto; }
+  .admin-promotion-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-promotion-dates { grid-template-columns: 1fr; }
 }
