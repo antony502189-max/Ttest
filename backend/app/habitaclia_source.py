@@ -71,7 +71,10 @@ class HabitacliaSource(ExternalListingSource):
         "este anuncio ya no esta disponible",
     )
 
-    _explicit_room_markers = (
+    # Strong room wording proves that the advertised object itself is a room.
+    # Keep the weak "habitación en alquiler" wording separate: it also occurs
+    # naturally in a whole "piso de una habitación en alquiler" advert.
+    _strong_room_markers = (
         "se alquila habitación",
         "se alquila habitacion",
         "se alquilan habitaciones",
@@ -83,8 +86,6 @@ class HabitacliaSource(ExternalListingSource):
         "alquiler habitacion",
         "habitación para alquilar",
         "habitacion para alquilar",
-        "habitación en alquiler",
-        "habitacion en alquiler",
         "habitación en piso compartido",
         "habitacion en piso compartido",
         "habitación para estudiante",
@@ -96,6 +97,10 @@ class HabitacliaSource(ExternalListingSource):
         "rooms for rent",
         "room for rent",
         "private room for rent",
+    )
+    _weak_room_markers = (
+        "habitación en alquiler",
+        "habitacion en alquiler",
     )
     _target_slug_markers = (
         "habitacion",
@@ -136,20 +141,32 @@ class HabitacliaSource(ExternalListingSource):
 
     @classmethod
     def _target_unit_type(cls, value: str) -> str | None:
-        """Classify only inventory supported by this marketplace."""
+        """Classify rooms, studios and exactly-one-bedroom whole homes."""
         corpus = re.sub(r"\s+", " ", value).casefold()
-        if any(marker in corpus for marker in cls._explicit_room_markers):
+
+        # A strong room phrase may describe one available room inside a larger
+        # shared apartment, so it intentionally wins over the home's bedroom
+        # count (for example: "4 habitaciones; se alquila habitación").
+        if any(marker in corpus for marker in cls._strong_room_markers):
             return (
                 "Habitación compartida"
                 if any(marker in corpus for marker in ("habitación compartida", "habitacion compartida", "shared room"))
                 else "Habitación individual"
             )
+
+        # Without a strong room offer, 2+ bedrooms means the advertised object
+        # is outside this marketplace's target whole-unit scope.
         if _MULTI_BEDROOM.search(corpus):
             return None
         if _STUDIO_HOME.search(corpus):
             return "Estudio"
         if _SINGLE_BEDROOM.search(corpus):
             return "Apartamento de 1 dormitorio"
+
+        # Weak room wording is safe only after whole-home bedroom counts have
+        # been classified above.
+        if any(marker in corpus for marker in cls._weak_room_markers):
+            return "Habitación individual"
         return None
 
     @classmethod
