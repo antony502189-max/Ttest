@@ -12,6 +12,7 @@ import { OwnedListingsHydrationGate } from '@/components/owned-listings-hydratio
 import { PublishOccupancySync } from '@/components/publish-occupancy-sync'
 import { AppProvider, useApp } from '@/contexts/app-context'
 import { I18nProvider, useI18n } from '@/contexts/i18n-context'
+import { PublishPage } from '@/pages/PublishPage'
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
@@ -26,7 +27,6 @@ const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then((m
 const SavedSearchesPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.SavedSearchesPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
 const MyListingsPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.MyListingsPage })))
-const PublishPage = lazy(() => import('@/pages/PublishPage').then((module) => ({ default: module.PublishPage })))
 const ListingEditPage = lazy(() => import('@/pages/ListingEditPage').then((module) => ({ default: module.ListingEditPage })))
 const InfoPage = lazy(() => import('@/pages/InfoPages').then((module) => ({ default: module.InfoPage })))
 const AdminPage = lazy(() => import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
