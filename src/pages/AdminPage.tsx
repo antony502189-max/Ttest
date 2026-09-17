@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
-  ArrowUp,
   ArrowLeft,
   Ban,
   CalendarDays,
