@@ -40,7 +40,7 @@ test('photo can be replaced in place without deleting the rest', async ({ page }
 
   const replace = page.getByRole('button', { name: /Sustituir foto 1/ })
   await expect(replace).toBeAttached()
-  await page.locator('input[aria-label="Sustituir fotografía seleccionada"]').setInputFiles({
+  await page.locator('input[aria-label="Sustituir foto del anuncio"]').setInputFiles({
     name: 'replacement.png',
     mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
