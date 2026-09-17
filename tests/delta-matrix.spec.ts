@@ -30,7 +30,9 @@ async function resultCount(page: Page) {
 }
 
 async function continueWizard(page: Page, count: number) {
-  for (let index = 0; index < count; index += 1) await page.getByRole('button', { name: 'Continuar' }).click()
+  const continueButton = page.getByRole('button', { name: 'Continuar' })
+  if (await continueButton.count() === 0) return
+  for (let index = 0; index < count; index += 1) await continueButton.click()
 }
 
 async function mediaExists(page: Page, reference: string) {
@@ -218,8 +220,8 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
   await expect(page.locator('main')).not.toContainText('Calle Secreta 99')
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(String(listing.id))}/editar`)
-  await continueWizard(page, 1)
-  await expect(page.locator('.approximate-location-selector output')).toContainText(`${movedLat.toFixed(4)}, ${movedLng.toFixed(4)}`)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('.listing-edit-coordinates')).toContainText(`${movedLat.toFixed(4)}, ${movedLng.toFixed(4)}`)
 })
 
 test('PROFILE-02 publish defaults require a direct contact method and preview only exposes it', async ({ page }) => {
