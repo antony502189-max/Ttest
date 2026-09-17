@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Listing, ListingImage, User
 from ..models.moderation import HomepageHeroPromotion
 from ..repositories.listings import response_from, visible_query
-from ..schemas.admin import HomepageHeroPromotionResponse
+from ..schemas.admin import HomepageHeroPromotionResponse, PromotionState
 from ..schemas.listings import ListingResponse
 from .admin import _actionable_listing, audit
 from .catalog import touch_catalog
@@ -29,6 +29,7 @@ def _as_utc(value: datetime) -> datetime:
 
 def homepage_hero_response(row: HomepageHeroPromotion) -> HomepageHeroPromotionResponse:
     now = datetime.now(UTC)
+    state: PromotionState
     if row.starts_at > now:
         state = "scheduled"
     elif now >= row.ends_at:
