@@ -17,6 +17,14 @@ class ListingPromotionRequest(BaseModel):
     endsAt: datetime | None = None
 
 
+class HomepageHeroPromotionResponse(BaseModel):
+    listingId: UUID
+    startsAt: datetime
+    endsAt: datetime
+    state: PromotionState
+    days: int
+
+
 class BlockUserRequest(BaseModel):
     """Legacy compatibility payload. New UI uses dated restrictions."""
 

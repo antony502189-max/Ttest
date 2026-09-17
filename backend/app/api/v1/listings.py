@@ -32,6 +32,7 @@ from ...schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
+from ...services.homepage_hero import get_active_homepage_hero_listing
 from ...services.listing_limits import enforce_listing_creation_limits, lock_listing_creation
 from ...services.listing_views import anonymous_viewer_key, register_view
 from ...services.listings import create_listing as create_listing_service
@@ -138,6 +139,15 @@ async def search_listings(
 ):
     await enforce_listing_view_access(user, session)
     return await search_public(session, payload)
+
+
+@router.get("/homepage-hero", response_model=ListingResponse | None)
+async def homepage_hero_listing(
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await enforce_listing_view_access(user, session)
+    return await get_active_homepage_hero_listing(session)
 
 
 @router.get("/mine", response_model=list[OwnedListingResponse])

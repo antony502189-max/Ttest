@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Heart, MessageCircle, PawPrint, Plus, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -6,23 +7,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { HomeMandatorySearch } from '@/components/home-mandatory-search'
 import { MediaImage } from '@/components/media-image'
+import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import '@/home.css'
 
 const homeHeroImage = 'https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=1920&q=88'
 
 export function HomePage() {
+  const heroListing = useHomepageHeroListing()
+  const [promotionOpen, setPromotionOpen] = useState(false)
+  useEffect(() => { setPromotionOpen(false) }, [heroListing?.id])
+  const promotedImage = heroListing?.images[0]
+
   return (
     <div className="home-page market-home">
-      <section className="home-hero" aria-labelledby="home-title">
-        <MediaImage src={homeHeroImage} alt="Habitación luminosa con cama, escritorio y ventana" width="1920" height="1080" />
+      <section
+        className={heroListing ? 'home-hero home-hero--promotion' : 'home-hero'}
+        aria-labelledby={heroListing ? undefined : 'home-title'}
+        aria-label={heroListing ? `Anuncio destacado: ${heroListing.title}` : undefined}
+      >
+        <MediaImage
+          src={promotedImage ?? homeHeroImage}
+          alt={heroListing ? heroListing.title : 'Habitación luminosa con cama, escritorio y ventana'}
+          width="1920"
+          height="1080"
+        />
         <div className="home-hero__overlay" />
-        <div className="home-hero__content">
+        {heroListing ? <>
+          <button
+            type="button"
+            className="home-hero-promotion__hit"
+            aria-label={`Mostrar anuncio destacado: ${heroListing.title}`}
+            aria-expanded={promotionOpen}
+            onClick={() => setPromotionOpen(true)}
+          />
+          {promotionOpen ? <div className="home-hero-promotion__card">
+            <span>Publicidad destacada</span>
+            <strong>{heroListing.title}</strong>
+            <small>{heroListing.area}, {heroListing.city} · {heroListing.price} € / {heroListing.cadence}</small>
+            <Button asChild size="sm"><Link to={`/habitacion/${heroListing.id}`}>Ver anuncio</Link></Button>
+          </div> : null}
+        </> : <div className="home-hero__content">
           <h1 id="home-title">Solo habitaciones</h1>
           <p>Encuentra una habitación según quién vivirá y sus condiciones.</p>
           <div className="home-hero__chips" aria-label="Condiciones habituales">
             <Badge variant="secondary" className="hero-condition-chip"><PawPrint aria-hidden="true" />Elige tus condiciones</Badge>
           </div>
-        </div>
+        </div>}
       </section>
 
       <section className="home-search-stage" aria-label="Configurar búsqueda de habitaciones">

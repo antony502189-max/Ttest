@@ -22,6 +22,7 @@ from ...schemas.admin import (
     DeleteUserRequest,
     ExternalImportRunResponse,
     ExternalWorkerStateResponse,
+    HomepageHeroPromotionResponse,
     ListingPromotionRequest,
     ListingRestrictionRequest,
     ListingStatusRequest,
@@ -49,6 +50,7 @@ from ...services.admin_users import (
     soft_delete_user,
     unrestrict_user,
 )
+from ...services.homepage_hero import configure_homepage_hero, get_admin_homepage_hero, remove_homepage_hero
 from ...services.moderation import enforce_full_access, is_admin, normalize_email
 from ...workers.external_listings import run_once
 from ..dependencies import authenticated_user, require_admin
@@ -248,6 +250,38 @@ async def remove_listing_promotion_route(
     session: AsyncSession = Depends(get_session),
 ):
     return await remove_listing_promotion(listing_id, user, session)
+
+
+@router.get("/homepage-hero", response_model=HomepageHeroPromotionResponse | None)
+async def homepage_hero_admin_route(
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_admin_homepage_hero(session)
+
+
+@router.put("/homepage-hero/{listing_id}", response_model=HomepageHeroPromotionResponse)
+async def configure_homepage_hero_route(
+    listing_id: UUID,
+    payload: ListingPromotionRequest | None = None,
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    return await configure_homepage_hero(
+        listing_id,
+        user,
+        session,
+        starts_at=payload.startsAt if payload else None,
+        ends_at=payload.endsAt if payload else None,
+    )
+
+
+@router.delete("/homepage-hero", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_homepage_hero_route(
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await remove_homepage_hero(user, session)
 
 
 @router.post("/listings/{listing_id}/restrictions", response_model=AdminListingResponse)

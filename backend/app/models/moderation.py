@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -71,6 +71,22 @@ class ListingPromotion(Base):
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     daily_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class HomepageHeroPromotion(Base):
+    """The single listing scheduled into the homepage hero advertising slot."""
+
+    __tablename__ = "homepage_hero_promotions"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_homepage_hero_promotions_singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    listing_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    configured_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    configured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AdminNote(Base):

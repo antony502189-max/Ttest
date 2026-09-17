@@ -33,6 +33,7 @@ import { useI18n, type Language } from '@/contexts/i18n-context'
 import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocation'
 import { googleMapsConfig, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
+import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
 import type { Listing } from '@/types'
@@ -84,7 +85,8 @@ const copy = {
     login: 'Iniciar sesión', menu: 'Menú', loginDescription: 'Sincroniza tus favoritos y búsquedas en el ordenador, la tableta y el teléfono móvil.',
     yourProperties: 'Mis propiedades', editProfile: 'Editar perfil', propertyManagement: 'Gestión de propiedades', findAgencies: 'Buscar agencias para vender', publishYourAd: 'Publica tu anuncio', settings: 'Ajustes', searchRegion: 'Región de búsqueda',
     language: 'Idioma', appearance: 'Apariencia', appearanceDefault: 'Predeterminada (clara)', about: 'Acerca de la aplicación', version: 'Versión 14.5.0', adminPanel: 'Abrir panel de administración',
-    home: 'Inicio', searches: 'Búsquedas', favorites: 'Favoritos', mainNavigation: 'Navegación principal', heroAlt: 'Interior de una vivienda',
+    home: 'Inicio', searches: 'Búsquedas', favorites: 'Favoritos',
+    mainNavigation: 'Navegación principal', heroAlt: 'Interior de una vivienda', heroAdView: 'Ver anuncio',
     locationTitle: '¿Dónde buscas?', regionSearch: 'Búsqueda en Tenerife', change: 'Cambiar', locationPlaceholder: 'Municipio, zona o dirección', alsoYouCan: 'También puedes',
     drawZone: 'Dibujar tu zona', redrawZone: 'Volver a dibujar', cancelDrawing: 'Cancelar dibujo', clearZone: 'Eliminar zona', drawInstruction: 'Mantén pulsado y dibuja el contorno',
     drawingInstruction: 'Rodea la zona y suelta el dedo', drawTooShort: 'Dibuja una zona más grande con un solo movimiento', areaReady: 'Zona seleccionada',
@@ -109,7 +111,8 @@ const copy = {
     login: 'Sign in', menu: 'Menu', loginDescription: 'Sync your favorites and searches across your computer, tablet, and mobile phone.', yourProperties: 'My properties', editProfile: 'Edit profile', propertyManagement: 'Property management',
     findAgencies: 'Find agencies to sell', publishYourAd: 'Publish your ad', settings: 'Settings', searchRegion: 'Search region', language: 'Language', appearance: 'Appearance',
     appearanceDefault: 'Default (light)', about: 'About the app', version: 'Version 14.5.0', adminPanel: 'Open administration panel', home: 'Home', searches: 'Searches', favorites: 'Favorites',
-    mainNavigation: 'Main navigation', heroAlt: 'Home interior', locationTitle: 'Where are you looking?', regionSearch: 'Searching in Tenerife', change: 'Change',
+    mainNavigation: 'Main navigation', heroAlt: 'Home interior', heroAdView: 'View listing', locationTitle: 'Where are you looking?',
+    regionSearch: 'Searching in Tenerife', change: 'Change',
     locationPlaceholder: 'Town, area or address', alsoYouCan: 'You can also', drawZone: 'Draw your own area', redrawZone: 'Draw again', cancelDrawing: 'Cancel drawing',
     clearZone: 'Delete area', drawInstruction: 'Press and draw the area outline', drawingInstruction: 'Draw around the area and release',
     drawTooShort: 'Draw a larger area in one continuous movement', areaReady: 'Area selected', searchOnMap: 'Search on the map', searchNearby: 'Search around you', searchByPhone: 'Search by phone', mapDrawTitle: 'Your own area',
@@ -134,7 +137,7 @@ const copy = {
     login: 'Войти в аккаунт', menu: 'Меню', loginDescription: 'Синхронизируйте избранное и поиски на компьютере, планшете и мобильном телефоне.',
     yourProperties: 'Мои объекты', editProfile: 'Редактировать профиль', propertyManagement: 'Управление объектами', findAgencies: 'Искать агентства для продажи', publishYourAd: 'Опубликовать своё объявление', settings: 'Настройки', searchRegion: 'Регион поиска',
     language: 'Язык', appearance: 'Внешний вид', appearanceDefault: 'По умолчанию (светлый)', about: 'О приложении', version: 'Версия 14.5.0', adminPanel: 'Перейти в админ-панель', home: 'Главная',
-    searches: 'Поиски', favorites: 'Избранное', mainNavigation: 'Основная навигация', heroAlt: 'Интерьер жилого помещения', locationTitle: 'Где вы ищете?',
+    searches: 'Поиски', favorites: 'Избранное', mainNavigation: 'Основная навигация', heroAlt: 'Интерьер жилого помещения', heroAdView: 'Открыть объявление', locationTitle: 'Где вы ищете?',
     regionSearch: 'Поиск на Тенерифе', change: 'Изменить', locationPlaceholder: 'Город, район или адрес', alsoYouCan: 'Также вы можете', drawZone: 'Нарисовать свою зону',
     redrawZone: 'Нарисовать заново', cancelDrawing: 'Отменить рисование', clearZone: 'Удалить зону', drawInstruction: 'Зажмите и нарисуйте контур зоны',
     drawingInstruction: 'Обведите нужную территорию и отпустите', drawTooShort: 'Нарисуйте область побольше одним непрерывным движением', areaReady: 'Зона выбрана',
@@ -268,7 +271,11 @@ function OccupantSelector({ t }: { t: MobileCopy }) {
 }
 
 function HomeScreen({ t, mode, onMode, onLocation, onSearch, onPublish }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onSearch: () => void; onPublish: () => void }) {
-  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className="m2-hero" role="img" aria-label={t.heroAlt} /><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
+  const heroListing = useHomepageHeroListing()
+  const navigate = useNavigate()
+  const [heroAdOpen, setHeroAdOpen] = useState(false)
+  useEffect(() => { setHeroAdOpen(false) }, [heroListing?.id])
+  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><img className="m2-hero__promotion-image" src={heroListing.images[0]} alt="" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
 }
 
 function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
