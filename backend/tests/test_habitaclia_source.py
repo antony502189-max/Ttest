@@ -86,6 +86,24 @@ def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
         asyncio.run(source.close())
 
 
+def test_habitaclia_extracts_hydrated_card_destinations() -> None:
+    source = HabitacliaSource()
+    try:
+        page = source.discovery_urls[0]
+        room_url = "/alquiler-piso-se_alquila_habitacion-la_laguna-i500004551704.htm"
+        whole_home_url = "/alquiler-piso-con_terraza-la_laguna-i500004551705.htm"
+        document = f"""
+        <div data-url="{room_url}">Se alquila habitación amueblada para estudiante.</div>
+        <script>window.card = {{"url":"{whole_home_url}"}}</script>
+        """
+        all_urls, room_urls = source._extract_page_listings(document, page)
+        assert len(all_urls) == 2
+        assert f"https://www.habitaclia.com{room_url}" in room_urls
+        assert f"https://www.habitaclia.com{whole_home_url}" not in room_urls
+    finally:
+        asyncio.run(source.close())
+
+
 def test_habitaclia_url_and_pagination_contract() -> None:
     source = HabitacliaSource()
     try:
