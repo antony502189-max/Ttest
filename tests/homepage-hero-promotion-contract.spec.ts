@@ -20,7 +20,7 @@ test('homepage falls back unless an active promoted listing is returned', () => 
   const mobile = read('src/components/mobile-app-v2.tsx')
   const hook = read('src/hooks/use-homepage-hero-listing.ts')
   expect(desktop).toContain('promotedImage ?? homeHeroImage')
-  expect(desktop).toContain(`/habitacion/${heroListing.id}`)
+  expect(desktop).toContain('/habitacion/${heroListing.id}')
   expect(mobile).toContain('m2-hero__promotion-image')
   expect(mobile).toContain('m2-hero-ad__reveal')
   expect(hook).toContain('getHomepageHeroListing')
