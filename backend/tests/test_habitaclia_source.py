@@ -76,6 +76,19 @@ def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> Non
         asyncio.run(source.close())
 
 
+def test_habitaclia_modern_id_route_preserves_source_id() -> None:
+    source = HabitacliaSource()
+    try:
+        url = "https://www.habitaclia.com/i28898000001041.htm"
+        assert source.is_listing_url(url)
+        data = source.parse_listing(room_document(), url)
+        item = source.normalize_listing(data, url)
+        assert item is not None
+        assert item.external_id == "28898000001041"
+    finally:
+        asyncio.run(source.close())
+
+
 def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
     source = HabitacliaSource()
     try:
@@ -86,7 +99,25 @@ def test_habitaclia_rejects_whole_home_bedroom_count() -> None:
         asyncio.run(source.close())
 
 
-def test_habitaclia_extracts_hydrated_card_destinations() -> None:
+def test_habitaclia_extracts_modern_hydration_cards_without_cross_card_leakage() -> None:
+    source = HabitacliaSource()
+    try:
+        page = source.discovery_urls[0]
+        document = r'''
+        <script>
+        self.__next_f.push([1,"{\"legacyNumericId\":\"500004551704\",\"kind\":\"secondHand\",\"navigationUrl\":\"/i500004551704.htm?from=list\",\"summary\":{\"title\":\"ALQUILER HABITACIÓN SOLO CHICA\",\"description\":\"Se alquila habitaci\u00F3n amueblada para estudiante.\"}},{\"legacyNumericId\":\"500004551705\",\"kind\":\"secondHand\",\"navigationUrl\":\"/i500004551705.htm?from=list\",\"summary\":{\"title\":\"Piso de 3 habitaciones en alquiler\",\"description\":\"Vivienda completa con tres habitaciones, sal\u00F3n, cocina y ba\u00F1o.\"}}"])
+        </script>
+        '''
+        all_urls, room_urls = source._extract_page_listings(document, page)
+        room_url = "https://www.habitaclia.com/i500004551704.htm"
+        whole_home_url = "https://www.habitaclia.com/i500004551705.htm"
+        assert all_urls == {room_url, whole_home_url}
+        assert room_urls == {room_url}
+    finally:
+        asyncio.run(source.close())
+
+
+def test_habitaclia_keeps_legacy_semantic_slug_fallback() -> None:
     source = HabitacliaSource()
     try:
         page = source.discovery_urls[0]
@@ -109,7 +140,9 @@ def test_habitaclia_url_and_pagination_contract() -> None:
     try:
         room_url = "https://www.habitaclia.com/alquiler-piso-habitacion_solo_chica-la_laguna-i500004551704.htm"
         whole_home_url = "https://www.habitaclia.com/alquiler-piso-la_laguna-i500004551705.htm"
+        modern_url = "https://www.habitaclia.com/i500004551704.htm?from=list"
         assert source.is_listing_url(room_url)
+        assert source.is_listing_url(modern_url)
         assert source.is_room_candidate_url(room_url)
         assert not source.is_room_candidate_url(whole_home_url)
         assert source.is_pagination_url(
