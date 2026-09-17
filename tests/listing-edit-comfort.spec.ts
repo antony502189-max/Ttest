@@ -9,6 +9,7 @@ async function openEditAsHost(page: Page) {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
   })
+  await page.reload()
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(listingId)}/editar`)
 }
 
@@ -52,7 +53,11 @@ test('photo can be replaced in place without deleting the rest', async ({ page }
 test('normal publication remains the existing step-by-step wizard', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/')
-  await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.evaluate(() => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
+  await page.reload()
   await page.goto('/#/publicar')
 
   await expect(page.locator('.stepper')).toBeVisible()
