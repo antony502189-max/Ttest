@@ -32,6 +32,7 @@
 .listing-edit-amenities { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .listing-edit-amenities > strong { display: block; margin-bottom: .7rem; }
 .listing-edit-amenities > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .55rem .75rem; }
+.listing-edit-coordinates { display: block; margin-top: .65rem; color: var(--ink-muted); font-size: .75rem; }
 .listing-edit-final { position: sticky; bottom: .75rem; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding: .85rem 1rem; border: 1px solid var(--line-strong); border-radius: .85rem; background: rgb(255 255 255 / .97); box-shadow: 0 .4rem 1.4rem rgb(25 31 31 / .12); backdrop-filter: blur(10px); }
 .listing-edit-final > div { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
 .listing-edit-final span { color: var(--ink-muted); font-size: .8rem; }
