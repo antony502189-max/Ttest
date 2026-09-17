@@ -133,12 +133,11 @@ export function Stepper({
   maxVisited?: number;
   onStep?: (step: number) => void;
 }) {
-  const route = typeof window === "undefined" ? "" : `${window.location.pathname}${window.location.hash}`;
-  const editingListing = /\/mis-anuncios\/[^/]+\/editar(?:$|[/?#])/.test(route);
-  const stepLimit = editingListing ? steps.length - 1 : maxVisited;
+  const quickNavigation = Boolean(onStep);
+  const stepLimit = quickNavigation ? steps.length - 1 : maxVisited;
   return (
     <div
-      className={cn("stepper", editingListing && "stepper--editing")}
+      className={cn("stepper", quickNavigation && "stepper--quick-nav")}
       aria-label={`Paso ${current + 1} de ${steps.length}: ${steps[current]}`}
     >
       <div className="stepper__summary">
@@ -146,7 +145,7 @@ export function Stepper({
           Paso {current + 1} de {steps.length}
         </span>
         <strong>{steps[current]}</strong>
-        {editingListing && onStep ? (
+        {onStep ? (
           <label className="stepper__edit-jump">
             <span>Ir a</span>
             <select
