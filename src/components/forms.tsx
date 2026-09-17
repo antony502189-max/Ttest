@@ -133,11 +133,9 @@ export function Stepper({
   maxVisited?: number;
   onStep?: (step: number) => void;
 }) {
-  const quickNavigation = Boolean(onStep);
-  const stepLimit = quickNavigation ? steps.length - 1 : maxVisited;
   return (
     <div
-      className={cn("stepper", quickNavigation && "stepper--quick-nav")}
+      className="stepper"
       aria-label={`Paso ${current + 1} de ${steps.length}: ${steps[current]}`}
     >
       <div className="stepper__summary">
@@ -145,18 +143,6 @@ export function Stepper({
           Paso {current + 1} de {steps.length}
         </span>
         <strong>{steps[current]}</strong>
-        {onStep ? (
-          <label className="stepper__edit-jump">
-            <span>Ir a</span>
-            <select
-              aria-label="Ir directamente a una sección del anuncio"
-              value={current}
-              onChange={(event) => onStep(Number(event.target.value))}
-            >
-              {steps.map((step, index) => <option key={step} value={index}>{step}</option>)}
-            </select>
-          </label>
-        ) : null}
       </div>
       <Progress
         value={((current + 1) / steps.length) * 100}
@@ -174,7 +160,7 @@ export function Stepper({
           >
             <button
               type="button"
-              disabled={!onStep || index > stepLimit}
+              disabled={!onStep || index > maxVisited}
               onClick={() => onStep?.(index)}
             >
               <span>{index + 1}</span>
