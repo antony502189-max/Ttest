@@ -178,3 +178,4 @@ class ExternalWorkerStateResponse(BaseModel):
     nextRunAt: datetime | None
     heartbeatAt: datetime | None
     lastError: str | None
+    lastRunId: str | None
