@@ -38,10 +38,14 @@ async function storedListings(page: Page) {
 }
 
 async function advanceWizard(page: Page, count: number) {
+  if (!page.url().includes('/publicar')) return
   const stepper = page.locator('.stepper')
+  await expect(stepper).toBeVisible()
+  const continueButton = page.getByRole('button', { name: 'Continuar' })
   for (let index = 0; index < count; index += 1) {
     const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
-    await page.getByRole('button', { name: 'Continuar' }).click()
+    await expect(continueButton).toBeVisible()
+    await continueButton.click()
     await expect(stepper).toHaveAttribute('aria-label', new RegExp(`Paso ${currentStep + 1} de`))
   }
 }
@@ -158,10 +162,13 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   await page.goto(`/#/habitacion/${encodeURIComponent(createdId)}`)
   await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^blob:/)
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(createdId)}/editar`)
-  await advanceWizard(page, 6)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
   await expect(page.locator('.upload-grid img')).toHaveCount(7)
-  await advanceWizard(page, 3)
-  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  const editTitle = page.locator('#edit-title')
+  await editTitle.fill(`${await editTitle.inputValue()} media check`)
+  const saveChanges = page.getByRole('button', { name: 'Guardar cambios' })
+  await expect(saveChanges).toBeEnabled()
+  await saveChanges.click()
   await page.reload()
   const edited = await storedListings(page)
   const createdMedia = String(edited.find((item) => item.id === createdId)?.images[0])

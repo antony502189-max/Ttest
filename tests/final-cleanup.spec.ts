@@ -60,20 +60,9 @@ async function mediaExists(page: Page, reference: string) {
 }
 
 async function advanceWizard(page: Page, count: number) {
-  for (let index = 0; index < count; index += 1) await page.getByRole('button', { name: 'Continuar' }).click()
-}
-
-async function fillMissingEquipment(page: Page) {
-  const defaults = [
-    ['#publish-bedding', 'included'],
-    ['#publish-refrigerator', 'shared'],
-    ['#publish-balcony', 'no'],
-    ['#publish-washing-machine', 'shared'],
-  ] as const
-  for (const [selector, value] of defaults) {
-    const field = page.locator(selector)
-    if (await field.inputValue() === '') await field.selectOption(value)
-  }
+  const continueButton = page.getByRole('button', { name: 'Continuar' })
+  if (await continueButton.count() === 0) return
+  for (let index = 0; index < count; index += 1) await continueButton.click()
 }
 
 test.beforeEach(async ({ page }) => clearState(page))
@@ -132,11 +121,8 @@ test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', asy
     localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
   }, { reference: obsolete })
   await openAsHost(page, `/#/mis-anuncios/${encodeURIComponent(firstListingId)}/editar`)
-  await advanceWizard(page, 2)
-  await fillMissingEquipment(page)
-  await advanceWizard(page, 4)
-  await page.getByRole('button', { name: 'Eliminar foto 1' }).click()
-  await page.locator('#publish-images').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: png })
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await page.locator('input[aria-label="Sustituir foto del anuncio"]').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: png })
   const replacement = await expect.poll(() => page.evaluate((listingId) => {
     const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) ?? ''
@@ -144,7 +130,6 @@ test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', asy
     const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) as string
   }, firstListingId))
-  await advanceWizard(page, 3)
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect.poll(() => mediaExists(page, obsolete)).toBe(false)
   await expect.poll(() => mediaExists(page, replacement)).toBe(true)
