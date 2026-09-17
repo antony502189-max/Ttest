@@ -1,9 +1,10 @@
 """Staged Habitaclia room-rental source.
 
-Habitaclia mixes room adverts into its ordinary rental catalogue. This adapter
-keeps discovery conservative: result pages are read in the browser when the
-plain response is only a shell, only room-like detail slugs are fetched, and
-normalization still requires explicit room-rental wording in the listing copy.
+Habitaclia mixes room adverts into its ordinary rental catalogue. Current result
+pages expose card destinations and summaries in hydrated application data using
+``navigationUrl`` values such as ``/i123456789.htm?from=list``. This adapter
+shortlists only cards whose own public summary explicitly describes a room
+rental, then performs the stricter detail normalization before import.
 
 The source is installed as a production-only supplemental adapter for its first
 production observation period. A temporary layout change or zero-room cycle
@@ -28,18 +29,31 @@ from .external_sources import (
 )
 
 _HREF = re.compile(r"""href=["']([^"']+)["']""", re.IGNORECASE)
-_LISTING_VALUE = re.compile(
+_LEGACY_LISTING_VALUE = re.compile(
     r"(?P<url>(?:https?://(?:www\.)?habitaclia\.com)?/alquiler-[^\"'< >\\]+-i\d+\.htm(?:\?[^\"'< >\\]*)?)",
     re.IGNORECASE,
 )
+_NAVIGATION_VALUE = re.compile(
+    r'"navigationUrl"\s*:\s*"(?P<url>/i\d+(?:\.htm)?(?:\?[^"< >]*)?)"',
+    re.IGNORECASE,
+)
+_UNICODE_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
 
 class HabitacliaSource(ExternalListingSource):
     name = "Habitaclia"
     domain = "habitaclia.com"
-    url_tokens = ("/alquiler-",)
-    listing_url_pattern = re.compile(r"^/alquiler-[^/?#]+-i\d+\.htm$", re.IGNORECASE)
-    discovery_selectors = ('a[href*="-i"][href$=".htm"]', '[data-href*="-i"]', '[data-url*="-i"]')
+    url_tokens = ("/i", "/alquiler-")
+    listing_url_pattern = re.compile(
+        r"^/(?:i\d+(?:\.htm)?|alquiler-[^/?#]+-i\d+\.htm)$",
+        re.IGNORECASE,
+    )
+    discovery_selectors = (
+        'a[href^="/i"]',
+        '[data-href^="/i"]',
+        '[data-url^="/i"]',
+        'a[href*="-i"][href$=".htm"]',
+    )
     discovery_urls = (
         "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s",
     )
@@ -94,31 +108,73 @@ class HabitacliaSource(ExternalListingSource):
 
     @classmethod
     def is_room_candidate_url(cls, url: str) -> bool:
+        """Legacy slug hint; modern ``/i<ID>`` routes have no semantic slug."""
         path = unquote(urlparse(url).path).replace("_", "-").casefold()
         return any(marker in path for marker in cls._room_slug_markers)
 
-    def _extract_page_listings(self, document: str, page: str) -> tuple[set[str], set[str]]:
-        """Return all detail URLs and the room-slug subset from a result page.
+    @staticmethod
+    def _decode_hydration(document: str) -> str:
+        """Make public escaped application-state strings regex-readable.
 
-        Habitaclia can expose card destinations through hydrated attributes or
-        embedded application data rather than only conventional anchors, so the
-        scan intentionally works across the complete public HTML document.
-        Room classification is intentionally based only on the URL slug here:
-        using nearby page text can leak wording from an adjacent card. Detail
-        normalization performs the stricter explicit room-rental text check.
+        Habitaclia serializes result cards inside framework hydration strings.
+        Decode only the escaping needed for route/text classification rather
+        than executing or interpreting the embedded JavaScript.
         """
         normalized = html.unescape(document.replace("\\/", "/"))
+        for _ in range(3):
+            updated = normalized.replace('\\"', '"')
+            if updated == normalized:
+                break
+            normalized = updated
+        normalized = _UNICODE_ESCAPE.sub(lambda match: chr(int(match.group(1), 16)), normalized)
+        return normalized.replace("\\n", " ").replace("\\r", " ")
+
+    @classmethod
+    def _is_room_card(cls, value: str) -> bool:
+        corpus = re.sub(r"\s+", " ", value).casefold()
+        return any(marker in corpus for marker in cls._explicit_room_markers)
+
+    @staticmethod
+    def _canonical_detail_url(page: str, value: str) -> str:
+        absolute = urljoin(page, value)
+        parsed = urlparse(absolute)
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+    def _extract_page_listings(self, document: str, page: str) -> tuple[set[str], set[str]]:
+        """Return all card detail URLs and the explicit-room subset.
+
+        Modern cards are paired by ``navigationUrl`` boundaries, so the room
+        decision is based on that card's own serialized summary instead of
+        nearby text from an adjacent result. Legacy semantic slugs remain a
+        fallback for older server-rendered pages.
+        """
+        normalized = self._decode_hydration(document)
         all_urls: set[str] = set()
         room_urls: set[str] = set()
-        for match in _LISTING_VALUE.finditer(normalized):
-            absolute = urljoin(page, match.group("url"))
-            parsed = urlparse(absolute)
-            canonical = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+        navigation_matches = list(_NAVIGATION_VALUE.finditer(normalized))
+        for index, match in enumerate(navigation_matches):
+            canonical = self._canonical_detail_url(page, match.group("url"))
+            if not self.is_listing_url(canonical):
+                continue
+            all_urls.add(canonical)
+            next_start = (
+                navigation_matches[index + 1].start()
+                if index + 1 < len(navigation_matches)
+                else len(normalized)
+            )
+            card_state = normalized[match.end() : min(next_start, match.end() + 20000)]
+            if self._is_room_card(card_state):
+                room_urls.add(canonical)
+
+        for match in _LEGACY_LISTING_VALUE.finditer(normalized):
+            canonical = self._canonical_detail_url(page, match.group("url"))
             if not self.is_listing_url(canonical):
                 continue
             all_urls.add(canonical)
             if self.is_room_candidate_url(canonical):
                 room_urls.add(canonical)
+
         return all_urls, room_urls
 
     def _page_links(self, document: str, page: str) -> set[str]:
@@ -129,7 +185,7 @@ class HabitacliaSource(ExternalListingSource):
         }
 
     async def discover_listing_urls(self) -> DiscoveryResult:
-        """Walk Habitaclia result pages and keep only room-like detail slugs."""
+        """Walk the Tenerife catalogue and retain only explicit room cards."""
         queue = list(self.discovery_urls)
         visited: set[str] = set()
         room_urls: set[str] = set()
@@ -191,7 +247,7 @@ class HabitacliaSource(ExternalListingSource):
             document,
             re.IGNORECASE | re.DOTALL,
         )
-        external_id = re.search(r"-i(\d+)\.htm(?:$|[?#])", url, re.IGNORECASE)
+        external_id = re.search(r"(?:-i|/i)(\d+)(?:\.htm)?(?:$|[?#])", url, re.IGNORECASE)
 
         if heading:
             data["title"] = clean(heading.group(1)) or data["title"]
