@@ -33,7 +33,7 @@ import { validatePublicationContact } from '@/lib/publication-contact'
 import { bedTypeOptionLabel } from '@/lib/bed-type-label'
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from '@/api/auth'
 import { useI18n } from '@/contexts/i18n-context'
-import type { AcceptedTenantType, DemoUser, ListingDraft, TenantRequirement } from '@/types'
+import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from '@/types'
 import '@/listing-edit-long-form.css'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
