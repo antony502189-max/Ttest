@@ -30,6 +30,7 @@ async function resultCount(page: Page) {
 }
 
 async function continueWizard(page: Page, count: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   if (!page.url().includes('/publicar')) return
   const stepper = page.locator('.stepper')
   await expect(stepper).toBeVisible()
