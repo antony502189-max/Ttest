@@ -14,7 +14,6 @@ async function openPublishLocation(page: Page) {
   })
   await page.reload()
   await page.goto('/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.locator('#publish-street[data-address-autocomplete="native"]')).toBeVisible()
 }
 
