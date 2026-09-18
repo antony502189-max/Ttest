@@ -37,7 +37,7 @@ test('known barrio input recenters the publication map inside the selected munic
   await openPublishLocation(page)
   await page.getByLabel('Municipio').selectOption('Arona')
   await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
-  await page.getByLabel('Calle').fill('Calle vieja 9')
+  await page.locator('#publish-street').fill('Calle vieja 9')
   await page.getByLabel('Código postal').fill('38640')
 
   await page.getByLabel('Zona o barrio').fill('Los Cristianos')
@@ -45,7 +45,7 @@ test('known barrio input recenters the publication map inside the selected munic
   await expect.poll(() => currentMapCenter(page), { timeout: 5_000 }).toEqual({ lat: 28.0509, lng: -16.7172 })
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(13)
   await expect(page.locator('.approximate-location-selector output')).toContainText('28.0509, -16.7172')
-  await expect(page.getByLabel('Calle')).toHaveValue('')
+  await expect(page.locator('#publish-street')).toHaveValue('')
   await expect(page.getByLabel('Código postal')).toHaveValue('')
 })
 
