@@ -73,3 +73,9 @@
 @media (max-width: 420px) {
   .listing-edit-amenities > div { grid-template-columns: 1fr; }
 }
+
+
+.listing-edit-section__fields { min-width: 0; margin: 0; padding: 0; border: 0; display: contents; }
+.listing-edit-recovery { display: grid; gap: .35rem; margin-bottom: 1rem; padding: 1rem 1.1rem; border: 1px solid var(--line-strong); border-radius: 1rem; background: var(--surface); }
+.listing-edit-recovery strong { color: var(--ink); }
+.listing-edit-recovery span { color: var(--ink-muted); font-size: .92rem; line-height: 1.45; }
