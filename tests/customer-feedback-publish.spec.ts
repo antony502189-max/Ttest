@@ -24,20 +24,15 @@ test.beforeEach(async ({ page }) => clearLocalState(page))
 
 test('CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and monthly extra costs survive publication', async ({ page }) => {
   await openAsHost(page)
-  await continueWizard(page, 2)
-
   await expect(page.getByText('Wi-Fi', { exact: true })).toBeVisible()
   await expect(page.getByText('Fibra', { exact: true })).toHaveCount(0)
 
-  await continueWizard(page, 1)
-  await page.getByLabel('Gastos de suministros').selectOption('extra')
-  await page.getByLabel('Gastos adicionales aproximados (€/mes)').fill('45')
-  await continueWizard(page, 1)
+  await page.getByLabel('Gastos incluidos en el precio').uncheck()
+  await page.getByLabel('Gastos aproximados al mes (€)').fill('45')
 
-  const availableUntil = page.getByLabel('Disponible hasta (opcional)')
+  const availableUntil = page.getByLabel('Disponible hasta')
   await expect(availableUntil).toHaveValue('')
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByRole('heading', { name: 'Convivencia' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Convivencia y requisitos' })).toBeVisible()
   await expect(page.getByText('Selecciona una fecha final.')).toHaveCount(0)
 
   const draft = await page.evaluate(() => {
@@ -58,9 +53,8 @@ test('CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and monthly extra costs s
   expect(draft?.amenities).toContain('Wi-Fi')
   expect(draft?.amenities).not.toContain('Fibra')
 
-  await continueWizard(page, 4)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/i)).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   const listing = await page.evaluate(() => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as {
