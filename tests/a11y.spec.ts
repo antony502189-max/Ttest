@@ -144,7 +144,7 @@ test("delta image uploader has no serious or critical axe issues", async ({ page
 test("delta approximate location map and controls have no serious or critical axe issues", async ({ page }) => {
   await openRoute(page, { name: "publicar", path: "/#/publicar", session: "host-demo" });
   await expect(page.locator(".approximate-location-map")).toBeVisible();
-  const results = await new AxeBuilder({ page }).include(".approximate-location-selector").analyze();
+  const results = await new AxeBuilder({ page }).include("#publish-location").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
 });
 

@@ -77,7 +77,7 @@ test('typing street, building number and postcode moves the owner marker to the 
     return center ? { lat: Number(center.lat().toFixed(5)), lng: Number(center.lng().toFixed(5)) } : null
   })).toEqual(exact)
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
-  await expect(page.locator('.approximate-location-selector output')).toContainText('28.0912, -16.7356')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0912, -16.7356')
 })
 
 test('customer address Calle José Espronceda 20 in Armeñime resolves without stale municipality context and recenters to the matched rooftop', async ({ page }) => {
@@ -252,7 +252,7 @@ test('manual marker controls cancel an in-flight exact-address lookup', async ({
   await typeExactAddress(page)
   await expect.poll(() => page.evaluate(() => Boolean((window as Window & { __addressGeocodeStarted?: boolean }).__addressGeocodeStarted))).toBe(true)
 
-  await page.locator('.approximate-location-selector__grid button').first().dispatchEvent('click')
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates: { lat: 28.08, lng: -16.70 }, zoom: 13, clearDetectedAddress: true } })))
   const manualCenter = await page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: Number(center.lat().toFixed(5)), lng: Number(center.lng().toFixed(5)) } : null

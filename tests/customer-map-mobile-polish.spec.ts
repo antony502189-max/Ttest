@@ -17,10 +17,9 @@ test.describe('customer publish-map polish', () => {
   test('map is the only visible location control and touch double-tap places the marker', async ({ page }) => {
     await openPublishAsHost(page)
 
-    await expect(page.getByRole('heading', { name: 'Sitúa la habitación' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Centrar de nuevo en la zona', hidden: true })).toBeHidden()
-    await expect(page.locator('.approximate-location-selector__grid')).toBeHidden()
-    await expect(page.locator('.approximate-location-selector > output')).toBeHidden()
+    await expect(page.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
+    await expect(page.locator('.approximate-location-selector')).toHaveCount(0)
+    await expect(page.locator('.listing-edit-coordinates')).toBeVisible()
     await expect(page.getByText('Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.')).toBeVisible()
 
     const mapShell = page.locator('.approximate-location-map-shell')
@@ -30,7 +29,7 @@ test.describe('customer publish-map polish', () => {
     await expect(map.locator('.gm-style')).toHaveCount(1)
     await expect(map.locator('.gm-test-pin')).toHaveCount(1)
 
-    const output = page.locator('.approximate-location-selector output')
+    const output = page.locator('.listing-edit-coordinates')
     const before = await output.textContent()
     const box = await map.boundingBox()
     expect(box).not.toBeNull()

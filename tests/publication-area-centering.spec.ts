@@ -30,7 +30,7 @@ test('municipality selection uses the municipality geometry center instead of th
   expect(center!.lat).toBeLessThan(28.7)
   expect(center!.lng).toBeGreaterThan(-17.1)
   expect(center!.lng).toBeLessThan(-16.0)
-  await expect(page.locator('.approximate-location-selector output')).toContainText(`${center!.lat.toFixed(4)}, ${center!.lng.toFixed(4)}`)
+  await expect(page.locator('.listing-edit-coordinates')).toContainText(`${center!.lat.toFixed(4)}, ${center!.lng.toFixed(4)}`)
 })
 
 test('known barrio input recenters the publication map inside the selected municipality', async ({ page }) => {
@@ -44,7 +44,7 @@ test('known barrio input recenters the publication map inside the selected munic
 
   await expect.poll(() => currentMapCenter(page), { timeout: 5_000 }).toEqual({ lat: 28.0509, lng: -16.7172 })
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(13)
-  await expect(page.locator('.approximate-location-selector output')).toContainText('28.0509, -16.7172')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0509, -16.7172')
   await expect(page.locator('#publish-street')).toHaveValue('')
   await expect(page.getByLabel('Código postal')).toHaveValue('')
 })
