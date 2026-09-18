@@ -14,6 +14,7 @@ async function openAsHost(page: Page) {
 }
 
 async function continueWizard(page: Page, count: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   for (let index = 0; index < count; index += 1) {
     await page.getByRole('button', { name: 'Continuar' }).click()
   }
