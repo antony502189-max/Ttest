@@ -18,6 +18,7 @@ test('creation and editing use the same nine-section long-form shell', async ({ 
   await expect(page.locator('.stepper')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /continuar/i })).toHaveCount(0)
   const createSections = await page.locator('.listing-create-page .listing-edit-section h2').allTextContents()
+  await expect(page.getByText('No se permiten enlaces ni dominios externos.', { exact: true })).toHaveCount(2)
   expect(createSections).toEqual([
     'Tipo de alquiler',
     'Ubicación',
@@ -40,6 +41,7 @@ test('creation and editing use the same nine-section long-form shell', async ({ 
   await expect(page.locator('.stepper')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /continuar/i })).toHaveCount(0)
   const editSections = await page.locator('.listing-edit-section h2').allTextContents()
+  await expect(page.getByText('No se permiten enlaces ni dominios externos.', { exact: true })).toHaveCount(2)
   expect(editSections).toEqual(createSections)
 })
 

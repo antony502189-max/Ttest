@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 
 import app.habitaclia_source as habitaclia_module
 from app import external_sources
@@ -133,6 +134,7 @@ def test_habitaclia_extracts_images_from_detail_hydration() -> None:
         assert item is not None
         assert item.photos == data["images"]
         assert item.room_type == "Apartamento de 1 dormitorio"
+        assert item.fingerprint != replace(item, photos=[]).fingerprint
     finally:
         asyncio.run(source.close())
 

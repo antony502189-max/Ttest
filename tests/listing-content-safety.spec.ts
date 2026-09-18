@@ -56,10 +56,10 @@ test('listing link detector leaves normal property prose alone', () => {
 })
 
 test('create and edit forms enforce the same link-free public text policy', () => {
-  const publish = readFileSync('src/pages/PublishPage.tsx', 'utf8')
+  const create = readFileSync('src/pages/ListingCreatePage.tsx', 'utf8')
   const edit = readFileSync('src/pages/ListingEditPage.tsx', 'utf8')
 
-  for (const source of [publish, edit]) {
+  for (const source of [create, edit]) {
     expect(source).toContain('containsBlockedListingLink(draft.area)')
     expect(source).toContain('containsBlockedListingLink(draft.rules)')
     expect(source).toContain('containsBlockedListingLink(draft.title)')
