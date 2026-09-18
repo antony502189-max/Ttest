@@ -155,7 +155,7 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   await expect(page.locator('.upload-grid img')).toHaveCount(7)
   await advanceWizard(page, 3)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
   const listings = await storedListings(page)
   const createdId = String(listings[0].id)
   expect(listings[0].images[0]).toMatch(/^idb-media:/)
@@ -350,9 +350,9 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
       const navigation = await page.locator('.bottom-nav').boundingBox()
       expect(contact && navigation && contact.y + contact.height <= navigation.y + 1).toBeTruthy()
       await page.goto('/#/publicar')
-      const actions = await page.locator('.wizard-actions').boundingBox()
+      const actions = await page.locator('.listing-edit-topbar__inner > .button').boundingBox()
       await expect(page.locator('.bottom-nav:visible')).toHaveCount(0)
-      expect(actions && actions.y + actions.height <= height + 1).toBeTruthy()
+      expect(actions && actions.y >= 0 && actions.y + actions.height <= height + 1).toBeTruthy()
     }
   }
 })
