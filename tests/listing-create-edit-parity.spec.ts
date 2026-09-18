@@ -53,6 +53,8 @@ test('create and edit keep separate persistence and mutation paths', () => {
   expect(app).toContain('<OwnedListingsHydrationGate><ListingEditPage /></OwnedListingsHydrationGate>')
 
   expect(create).toContain("const draftKey = '112233:listing-draft:v3'")
+  expect(create).toContain("const legacyDraftKey = '112233:listing-draft:v2'")
+  expect(create).toContain("const editDraftPrefix = '112233:listing-edit-draft:v1:'")
   expect(create).toContain('createListing')
   expect(create).not.toContain('updateListing(')
   expect(create).toContain('getEmailVerificationStatus')
@@ -84,10 +86,15 @@ test('create and edit keep separate persistence and mutation paths', () => {
   expect(updateFlow).toContain('return false')
 })
 
-test('edit draft cannot be consumed as a new-listing draft', () => {
+test('legacy or global edit drafts are migrated without leaking into a new listing', () => {
   const create = readFileSync('src/pages/ListingCreatePage.tsx', 'utf8')
   const edit = readFileSync('src/pages/ListingEditPage.tsx', 'utf8')
 
+  expect(create).toContain('if (raw && stored?.listingId)')
+  expect(create).toContain('const scopedKey = editDraftKey(stored.listingId)')
+  expect(create).toContain('if (!localStorage.getItem(scopedKey)) localStorage.setItem(scopedKey, raw)')
+  expect(create).toContain('localStorage.removeItem(draftKey)')
+  expect(create).toContain('const legacy = localStorage.getItem(legacyDraftKey)')
   expect(create).toContain('!stored.listingId')
   expect(create).toContain('stored.ownerUserId === currentUser?.id')
   expect(edit).toContain('stored.listingId === existing.id')
