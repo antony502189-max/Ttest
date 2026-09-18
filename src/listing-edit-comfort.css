@@ -36,3 +36,88 @@
     display: none;
   }
 }
+
+
+@media (max-width: 600px) {
+  .listing-edit-page .upload-dropzone {
+    min-height: 8rem;
+    padding: 1rem .8rem;
+  }
+
+  .listing-edit-page .upload-dropzone svg {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .listing-edit-page .upload-dropzone strong {
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .listing-edit-page .upload-dropzone span {
+    max-width: 18rem;
+    text-align: center;
+    line-height: 1.35;
+  }
+
+  .listing-edit-page .upload-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .listing-edit-page .upload-grid > div {
+    width: 100%;
+    min-height: 14rem;
+    border-radius: .8rem;
+  }
+
+  .listing-edit-page .upload-grid > div > button,
+  .listing-edit-page .upload-reorder button {
+    width: 3rem;
+    min-width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
+  }
+
+  .listing-edit-page .upload-grid svg {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .listing-edit-page .upload-grid > div > .make-cover {
+    width: auto;
+    min-width: 3rem;
+    padding-inline: .7rem;
+    font-size: .72rem;
+  }
+
+  .listing-edit-page .upload-grid > div > .replace-image {
+    right: .55rem;
+    bottom: .55rem;
+  }
+
+  .listing-edit-page .upload-reorder {
+    left: .55rem;
+    bottom: .55rem;
+    overflow: hidden;
+    border-radius: .55rem;
+  }
+
+  .listing-edit-page .cover-label {
+    top: .55rem;
+    bottom: auto;
+    left: .55rem;
+    padding: .35rem .55rem;
+    font-size: .75rem;
+  }
+
+  .listing-edit-page .upload-grid > button {
+    width: 100%;
+    min-height: 4.25rem;
+  }
+
+  .listing-edit-page .image-uploader__edit-help {
+    font-size: .8rem;
+    line-height: 1.45;
+  }
+}

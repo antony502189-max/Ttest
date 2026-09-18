@@ -76,9 +76,33 @@ test('photo can be replaced in place without deleting the rest', async ({ page }
   const beforeSrc = await photos.first().getAttribute('src')
   expect(before).toBeGreaterThan(0)
 
+  const firstCard = page.locator('.upload-grid > div').first()
+  const dropzone = page.locator('.upload-dropzone')
+  const addPhoto = page.locator('.upload-grid > button').first()
   const replace = page.getByRole('button', { name: /Sustituir foto 1/ })
-  await replace.scrollIntoViewIfNeeded()
+
+  await firstCard.scrollIntoViewIfNeeded()
   await expect(replace).toBeVisible()
+
+  const [cardBox, dropzoneBox, replaceBox, addBox] = await Promise.all([
+    firstCard.boundingBox(),
+    dropzone.boundingBox(),
+    replace.boundingBox(),
+    addPhoto.count().then(async (count) => count ? addPhoto.boundingBox() : null),
+  ])
+
+  expect(cardBox).not.toBeNull()
+  expect(cardBox?.width ?? 0).toBeGreaterThanOrEqual(300)
+  expect(cardBox?.height ?? 0).toBeGreaterThanOrEqual(220)
+  expect(dropzoneBox).not.toBeNull()
+  expect(dropzoneBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(160)
+  expect(replaceBox?.width ?? 0).toBeGreaterThanOrEqual(46)
+  expect(replaceBox?.height ?? 0).toBeGreaterThanOrEqual(46)
+  if (addBox) expect(addBox.width).toBeGreaterThanOrEqual(300)
+
+  const pageWidth = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }))
+  expect(pageWidth.document).toBeLessThanOrEqual(pageWidth.viewport)
+
   await replace.click()
   await page.locator('input[aria-label="Sustituir foto del anuncio"]').setInputFiles({
     name: 'replacement.png',
