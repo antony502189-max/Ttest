@@ -168,3 +168,55 @@ async def test_logout_revokes_only_the_presented_session_and_keeps_parallel_devi
             )
         )
         assert active == 1
+
+
+async def test_logout_with_a_rotated_token_revokes_only_its_replacement_chain(
+    client: AsyncClient, register_user
+):
+    _, user = await register_user(client, email="logout-race@example.com")
+    user_id = UUID(user["id"])
+    original_refresh = client.cookies.get("refresh_token")
+    assert original_refresh
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+    ) as other_device:
+        logged_in = await other_device.post(
+            "/api/v1/auth/login",
+            json={"email": "logout-race@example.com", "password": "Correct-Horse-1234"},
+        )
+        assert logged_in.status_code == 200, logged_in.text
+        other_refresh = other_device.cookies.get("refresh_token")
+        assert other_refresh and other_refresh != original_refresh
+
+        rotated = await client.post("/api/v1/auth/refresh")
+        assert rotated.status_code == 200, rotated.text
+        replacement_refresh = client.cookies.get("refresh_token")
+        assert replacement_refresh and replacement_refresh != original_refresh
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={"Origin": "http://testserver"},
+            cookies={"refresh_token": original_refresh},
+        ) as stale_logout:
+            response = await stale_logout.post("/api/v1/auth/logout")
+            assert response.status_code == 204
+
+        assert (await client.post("/api/v1/auth/refresh")).status_code == 401
+        still_active = await other_device.post("/api/v1/auth/refresh")
+        assert still_active.status_code == 200, still_active.text
+
+    async with SessionLocal() as session:
+        active = await session.scalar(
+            select(func.count())
+            .select_from(AuthSession)
+            .where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > datetime.now(UTC),
+            )
+        )
+        assert active == 1
