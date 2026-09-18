@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..content_safety import contains_listing_link
+
 ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
 ALLOWED_RENTAL_UNITS = {"room", "bed"}
@@ -17,6 +19,36 @@ ALLOWED_TENANT_TYPES = {"man", "woman", "couple", "family"}
 ALLOWED_TENANT_REQUIREMENTS = {"single-man", "single-woman", "single-person", "couple", "any"}
 ALLOWED_ADVERTISER_TYPES = {"Particular", "Profesional"}
 PHONE_PATTERN = re.compile(r"^\+?[\d\s-]{7,64}$")
+
+LINK_BLOCKED_TEXT_FIELDS = (
+    "title",
+    "city",
+    "area",
+    "approximateAddress",
+    "billsText",
+    "bathroom",
+    "kitchen",
+    "shower",
+    "description",
+    "homeDescription",
+)
+LINK_BLOCKED_LIST_FIELDS = ("restrictions", "amenities")
+
+
+def _validate_link_free_listing_fields(model: BaseModel, only_fields: set[str] | None = None) -> None:
+    for field_name in LINK_BLOCKED_TEXT_FIELDS:
+        if only_fields is not None and field_name not in only_fields:
+            continue
+        value = getattr(model, field_name, None)
+        if isinstance(value, str) and contains_listing_link(value):
+            raise ValueError(f"{field_name} must not contain links or URL-like text")
+
+    for field_name in LINK_BLOCKED_LIST_FIELDS:
+        if only_fields is not None and field_name not in only_fields:
+            continue
+        values = getattr(model, field_name, None)
+        if values and any(isinstance(value, str) and contains_listing_link(value) for value in values):
+            raise ValueError(f"{field_name} must not contain links or URL-like text")
 
 
 class CatalogVersionResponse(BaseModel):
@@ -149,6 +181,7 @@ class ListingWrite(BaseModel):
             raise ValueError("contactPhone is required when showPhone is enabled")
         if self.showWhatsApp is True and not self.contactWhatsapp:
             raise ValueError("contactWhatsapp is required when showWhatsApp is enabled")
+        _validate_link_free_listing_fields(self)
         return self
 
 
@@ -286,6 +319,7 @@ class ListingPatch(BaseModel):
                 raise ValueError("exactLatitude and exactLongitude must be changed together")
             if (self.exactLatitude is None) != (self.exactLongitude is None):
                 raise ValueError("exactLatitude and exactLongitude must both be values or both be null")
+        _validate_link_free_listing_fields(self, self.model_fields_set)
         return self
 
 
