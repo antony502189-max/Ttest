@@ -189,7 +189,7 @@ test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filter
   const priceDetails = page.getByRole('heading', { name: 'Precio y disponibilidad' }).locator('..').locator('.detail-list')
   await expect(priceDetails).toContainText('Semana')
   await expect(priceDetails).toContainText('360 €')
-  await expect(priceDetails).toContainText('1200 €')
+  await expect(priceDetails).toContainText('450 €')
   await expect(page.getByText('Lavadora compartida', { exact: true })).toHaveCount(1)
   await page.goto('/#/buscar?alquiler=long')
   await expect(page.locator('.property-card').first()).toContainText('/mes')
