@@ -67,9 +67,6 @@ test('room-first translation dictionary covers dynamic facts', () => {
 for (const language of ['ru', 'en'] as const) {
   test(`publish room details stay localized in ${language}`, async ({ page }) => {
     await openAsHost(page, language)
-    const continueLabel = language === 'ru' ? 'Продолжить' : 'Continue'
-    await page.getByRole('button', { name: continueLabel }).click()
-    await page.getByRole('button', { name: continueLabel }).click()
     const expected = language === 'ru'
       ? ['Отопление', 'Оснащение и доступность', 'Тип кровати', 'Количество кроватей', 'Туалет / WC', 'Душ']
       : ['Heating', 'Equipment and accessibility', 'Bed type', 'Number of beds', 'Toilet / WC', 'Shower']
@@ -135,7 +132,6 @@ test('English search does not leak known Spanish room-first labels', async ({ pa
 
 test('publish requirement post-processing follows English instead of restoring Spanish', async ({ page }) => {
   await openAsHost(page, 'en')
-  for (let step = 0; step < 5; step += 1) await page.getByRole('button', { name: 'Continue' }).click()
   const options = await page.locator('#publish-tenant-requirement option').allTextContents()
   expect(options).toEqual(['Man only', 'Woman only', '1 person', '2 people (couple/friends)', 'No restrictions'])
 })
