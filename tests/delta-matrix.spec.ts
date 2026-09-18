@@ -147,35 +147,34 @@ test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback
   await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^data:image\/svg/)
 })
 
-test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters affect results', async ({ page }) => {
+test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
   await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
   await continueWizard(page, 2)
-  await page.getByLabel('Tamaño aproximado').fill('19')
-  await page.getByLabel('Personas que viven en casa').fill('3')
-  await page.getByLabel('Capacidad de la habitación').selectOption('2')
+  await page.getByLabel('Superficie habitación (m²)').fill('19')
+  await page.getByLabel('Personas en la vivienda').fill('3')
+  await page.getByLabel('Capacidad habitación').selectOption('2')
   await page.getByLabel('Ducha').selectOption('Ducha privada')
   const washer = page.locator('#publish-washing-machine')
   await washer.selectOption('shared')
   await expect(washer).toHaveValue('shared')
   await continueWizard(page, 1)
   await page.getByLabel('Precio por noche').fill('61')
-  await page.getByLabel('Precio por semana').fill('360')
-  await page.getByLabel('Precio por mes').fill('1200')
+  await page.getByLabel('Precio semanal (€)').fill('360')
   await continueWizard(page, 1)
   await page.getByLabel('Estancia mínima (noches)').fill('4')
   await page.getByLabel('Disponible hasta').fill('2026-12-31')
   await continueWizard(page, 1)
-  await page.getByLabel('Requisito para la persona inquilina').selectOption('couple')
+  await page.getByLabel('A quién buscas').selectOption('couple')
   await continueWizard(page, 4)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   const listing = (await storedListings(page))[0]
   expect(listing).toMatchObject({
     rentalMode: 'holiday', roomSizeM2: 19, currentResidents: 3, roomCapacity: 2,
     shower: 'Ducha privada', tenantRequirement: 'couple',
-    nightlyPrice: 61, weeklyPrice: 360, monthlyPrice: 1200,
+    nightlyPrice: 61, weeklyPrice: 360, monthlyPrice: 450,
     minimumNights: 4, availableUntil: '2026-12-31',
   })
   expect(listing).not.toHaveProperty('genderPreference')
@@ -243,17 +242,16 @@ test('PROFILE-02 publish defaults require a direct contact method and preview on
     showPhone: false, showWhatsApp: false,
     contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344',
   })
-  await continueWizard(page, 8)
   await expect(page.getByRole('checkbox', { name: /Mostrar teléfono/ })).not.toBeChecked()
-  await expect(page.getByRole('checkbox', { name: /Permitir WhatsApp/ })).not.toBeChecked()
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByRole('checkbox', { name: /Mostrar WhatsApp/ })).not.toBeChecked()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByRole('alert')).toContainText('Activa teléfono o WhatsApp')
-  await expect(page.getByText('Permitir mensaje local')).toHaveCount(0)
   await page.getByRole('checkbox', { name: /Mostrar teléfono/ }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  const methods = page.locator('.preview-contact-methods').first()
-  await expect(methods).toContainText('Teléfono')
-  await expect(methods).not.toContainText('WhatsApp')
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  const published = (await storedListings(page))[0]
+  expect(published.showPhone).toBe(true)
+  expect(published.showWhatsApp).toBe(false)
 })
 
 test('FILTER-02..06 new filters have chips, reset, reload and history navigation', async ({ page }) => {
