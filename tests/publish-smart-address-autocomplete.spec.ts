@@ -73,7 +73,7 @@ test('Calle José Espronceda 20 shows a suggestion inline and selecting it fixes
 
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => page.evaluate(() => {
