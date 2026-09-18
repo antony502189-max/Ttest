@@ -11,6 +11,7 @@ from ...models.moderation import ModerationNotice
 from ...schemas.auth import AvatarUpdateRequest, UserResponse, UserUpdateRequest
 from ...schemas.moderation import ModerationNoticeResponse, MyRestrictionResponse
 from ...services.moderation import SUPPORT_EMAIL, active_user_restriction
+from ...services.user_locks import lock_user_for_mutation
 from ...services.users import delete_account, update_avatar, update_profile
 from ..dependencies import authenticated_user, current_user
 from .auth import public_user
@@ -72,7 +73,15 @@ async def mark_moderation_notice_read(
     user: User = Depends(authenticated_user),
     session: AsyncSession = Depends(get_session),
 ):
-    notice = await session.get(ModerationNotice, notice_id)
+    locked_user = await lock_user_for_mutation(user.id, session)
+    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+        raise HTTPException(403, "Account is not active")
+    notice = await session.scalar(
+        select(ModerationNotice)
+        .where(ModerationNotice.id == notice_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
     if not notice or notice.user_id != user.id:
         raise HTTPException(404, "Notice not found")
     if notice.read_at is None:

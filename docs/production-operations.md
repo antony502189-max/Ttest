@@ -16,10 +16,10 @@ workers -> PostgreSQL/PostGIS | Redis | private MinIO | SMTP
 - active release symlink: `/srv/112233.es/current`
 - compose file: `/srv/112233.es/current/docker-compose.production.yml`
 - secret env file: `/srv/112233.es/shared/production.env` (mode `600`)
-- dumps and checksums: `/srv/112233.es/backups` (mode `700`)
+- encrypted backup sets and authentication sidecars: `/srv/112233.es/backups` (mode `700`)
 - release-operation lock: `/srv/112233.es/shared/release.lock` (mode `600`)
 
-Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including `BACKUP_ENCRYPTION_KEY`), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. PostgreSQL dumps and MinIO object archives are AES-256-CBC/PBKDF2 encrypted on the VPS and checksummed. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
+Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including independent `BACKUP_ENCRYPTION_KEY` and `BACKUP_AUTHENTICATION_KEY` values), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. PostgreSQL dumps and MinIO object archives are AES-256-CBC/PBKDF2 encrypted on the VPS and authenticated with HMAC-SHA256. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
 
 `APP_DOMAIN` must be `app.112233.es` and resolve directly to `31.97.185.84` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://app.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
 
@@ -69,12 +69,32 @@ To add a source, first confirm that anonymous public access and the source's ter
 
 ```bash
 /srv/112233.es/current/deploy/backup-production.sh
+/srv/112233.es/current/deploy/disaster-recovery-cycle.sh
+/srv/112233.es/current/deploy/offsite-restore-drill.sh
 /srv/112233.es/current/deploy/restore-verify.sh /srv/112233.es/backups/postgres-YYYYMMDD-HHMMSS.dump.enc
 /srv/112233.es/current/deploy/restore-minio-verify.sh /srv/112233.es/backups/minio-YYYYMMDD-HHMMSS.tar.enc
 /srv/112233.es/current/deploy/rollback-release.sh
 # For a legacy installation without deploy metadata only:
 /srv/112233.es/current/deploy/rollback-release.sh <40-character-target-sha>
 ```
+
+`backup-production.sh` publishes one authenticated backup-set manifest only
+after both local encrypted artifacts exist and pass HMAC verification.
+`disaster-recovery-cycle.sh` uploads that exact set to the independent
+S3-compatible destination through the egress-only `offsite-tools` service. It
+then downloads and re-authenticates every uploaded object before recording
+success. The bucket also contains one atomically replaced
+`latest-backup-set.tar` locator: it bundles the authenticated set manifest and
+sidecar, allowing a replacement VPS to find the latest complete set without any
+file from the lost host.
+
+Off-site recovery is not active merely because these files exist in Git. Store
+the encryption/authentication keys independently of the VPS, configure an
+independent bucket and provider-side versioning/retention or object lock, set an
+external alert destination, and explicitly run
+`deploy/install-production-ops.sh` as root. The ordinary deploy path never
+installs or enables these timers. Do not claim recovery readiness until the
+first real replication and `offsite-restore-drill.sh` run both succeed.
 
 `restore-verify.sh` verifies the checksum, restores only into a timestamped temporary database, performs a minimal PostGIS/users query, and drops only that temporary database. `restore-minio-verify.sh` restores only into a timestamped temporary bucket, lists the restored objects, and deletes only that temporary bucket. Without arguments, `rollback-release.sh` uses the exact `old_sha` recorded by the current deployment instead of guessing from directory timestamps; the explicit SHA form is only for legacy recovery when metadata is absent. Rollback refuses targets whose PostgreSQL, Redis or MinIO image digests differ from the current release. For a compatible target it restores dependency definitions and application code only after bounded readiness succeeds. If the target fails readiness, the script restores current dependencies and application containers and keeps the `current` symlink unchanged. It does not run destructive database migrations and does not remove PostgreSQL, Redis, MinIO, Traefik, volumes, releases, or backups.
 

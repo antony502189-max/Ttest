@@ -35,7 +35,7 @@ async def test_listing_restriction_invalidates_catalog(monkeypatch: pytest.Monke
     owner_id = uuid4()
     actor_id = uuid4()
     listing = SimpleNamespace(id=listing_id, owner_user_id=owner_id, title="Room", status="published", deleted_at=None)
-    owner = SimpleNamespace(id=owner_id, email="owner@example.com", deleted_at=None)
+    owner = SimpleNamespace(id=owner_id, email="owner@example.com", blocked=False, deleted_at=None)
     actor = SimpleNamespace(id=actor_id)
     session = SimpleNamespace(
         # The moderation response now keeps a persisted TOP promotion visible.
@@ -273,7 +273,7 @@ async def test_admin_listing_query_excludes_deleted_owners() -> None:
 async def test_listing_admin_mutation_locks_owner_before_listing_and_rejects_deleted_owner() -> None:
     listing_id = uuid4()
     owner_id = uuid4()
-    owner = SimpleNamespace(id=owner_id, deleted_at=datetime.now(UTC))
+    owner = SimpleNamespace(id=owner_id, blocked=False, deleted_at=datetime.now(UTC))
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[owner_id, owner]))
 
     with pytest.raises(HTTPException) as exc:
@@ -324,7 +324,9 @@ async def test_saved_listing_add_and_import_check_view_policy_before_visibility_
     listing_id = uuid4()
     denied = HTTPException(403, "view restricted")
     policy = AsyncMock(side_effect=denied)
+    lock_active_user = AsyncMock(return_value=user)
     require_listing = AsyncMock()
+    monkeypatch.setattr(search_state, "lock_active_state_user", lock_active_user)
     monkeypatch.setattr(search_state, "enforce_listing_view_access", policy)
     monkeypatch.setattr(search_state, "require_listing", require_listing)
 
@@ -336,6 +338,7 @@ async def test_saved_listing_add_and_import_check_view_policy_before_visibility_
     with pytest.raises(HTTPException):
         await search_state.import_guest_state(payload, user, session)
 
+    assert lock_active_user.await_count == 2
     assert policy.await_count == 2
 
 
