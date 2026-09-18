@@ -154,7 +154,7 @@ test('resetting a draft also resets address touched constraints before the next 
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
   await page.getByLabel('Código postal').fill('38660')
 
-  await page.locator('.publish-header__actions').getByRole('button', { name: 'Restablecer' }).click()
+  await page.locator('.listing-create-draft-actions').getByRole('button', { name: 'Restablecer' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Restablecer' }).click()
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')

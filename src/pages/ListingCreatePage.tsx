@@ -363,7 +363,7 @@ export function ListingCreatePage() {
       <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Publicar anuncio</strong><Button onClick={save} disabled={saving}><Save data-icon="inline-start" />{saving ? 'Publicando…' : recoveringImages ? 'Reintentar fotos' : 'Publicar'}</Button></div></div>
       <div className="listing-edit-shell">
         <header className="listing-edit-heading"><p>Nuevo anuncio</p><h1>Publicar habitación</h1><span>Todo el anuncio está en una sola página. Baja, completa los datos y publica al final.</span></header>
-        <div className="listing-create-draft-actions publish-header__actions">
+        <div className="listing-create-draft-actions">
           <span className="dirty-state" aria-live="polite">{isDirty ? 'Cambios sin guardar' : 'Borrador guardado'}</span>
           <div>
             <ConfirmDialog trigger={<Button variant="outline" disabled={recoveringImages}><RotateCcw data-icon="inline-start" />Restablecer</Button>} title="¿Restablecer el borrador?" description="Se eliminarán los cambios del anuncio y las fotos temporales que no usa ningún anuncio guardado." confirmLabel="Restablecer" destructive onConfirm={resetDraft} />
