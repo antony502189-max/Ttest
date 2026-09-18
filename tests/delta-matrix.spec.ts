@@ -149,7 +149,7 @@ test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback
 
 test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
-  await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
+  await page.getByText('Alquiler vacacional', { exact: true }).click()
   await continueWizard(page, 2)
   await page.getByLabel('Superficie habitación (m²)').fill('19')
   await page.getByLabel('Personas en la vivienda').fill('3')
@@ -199,7 +199,7 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   await openAs(page, hostSession, '/#/publicar')
   await continueWizard(page, 1)
   await page.getByLabel('Zona o barrio').fill('El Médano')
-  await page.getByLabel('Calle').fill('Calle Secreta 99')
+  await page.locator('#publish-street').fill('Calle Secreta 99')
 
   const output = page.locator('.listing-edit-coordinates')
   await expect(output).toContainText('Coordenadas exactas: 28.0477, -16.5363')
@@ -310,7 +310,7 @@ test('MAP-05 Google Maps loader errors expose the accessible map fallback', asyn
 
 test('WIZ-04 reset clears dirty state and short-height filter drawer remains usable', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
-  await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
+  await page.getByText('Alquiler vacacional', { exact: true }).click()
   await expect(page.locator('.dirty-state')).toHaveText('Cambios sin guardar')
   await page.getByRole('button', { name: 'Restablecer' }).click()
   const resetDialog = page.getByRole('alertdialog', { name: '¿Restablecer el borrador?' })

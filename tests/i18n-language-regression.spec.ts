@@ -37,8 +37,8 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Abrir selección de ubicación. Tenerife', 'en')).toBe('Open location selection. Tenerife')
   expect(translateText('Calefacción', 'ru')).toBe('Отопление')
   expect(translateText('Calefacción', 'en')).toBe('Heating')
-  expect(translateText('Equipamiento y accesibilidad', 'ru')).toBe('Оснащение и доступность')
-  expect(translateText('Equipamiento y accesibilidad', 'en')).toBe('Equipment and accessibility')
+  expect(translateText('Equipamiento y servicios', 'ru')).toBe('Оснащение и услуги')
+  expect(translateText('Equipamiento y servicios', 'en')).toBe('Equipment and services')
   expect(translateText('Gastos aparte: aprox. 45 €/mes', 'ru')).toBe('Коммунальные расходы отдельно: примерно 45 €/мес.')
   expect(translateText('Gastos aparte: aprox. 45 €/mes', 'en')).toBe('Utilities extra: approx. €45/month')
   expect(translateText('Se alquila la habitación completa', 'ru')).toBe('Комната сдаётся целиком')
@@ -68,10 +68,10 @@ for (const language of ['ru', 'en'] as const) {
   test(`publish room details stay localized in ${language}`, async ({ page }) => {
     await openAsHost(page, language)
     const expected = language === 'ru'
-      ? ['Отопление', 'Оснащение и доступность', 'Тип кровати', 'Количество кроватей', 'Туалет / WC', 'Душ']
-      : ['Heating', 'Equipment and accessibility', 'Bed type', 'Number of beds', 'Toilet / WC', 'Shower']
+      ? ['Отопление', 'Оснащение и услуги', 'Тип кровати', 'Количество кроватей', 'Туалет / WC', 'Душ']
+      : ['Heating', 'Equipment and services', 'Bed type', 'Number of beds', 'Toilet / WC', 'Shower']
     for (const label of expected) await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
-    for (const spanish of ['Calefacción', 'Equipamiento y accesibilidad', 'Tipo de cama', 'Número de camas', 'Aseo / WC', 'Ducha']) {
+    for (const spanish of ['Calefacción', 'Equipamiento y servicios', 'Tipo de cama', 'Número de camas', 'Aseo / WC', 'Ducha']) {
       await expect(page.getByText(spanish, { exact: true })).toHaveCount(0)
     }
   })

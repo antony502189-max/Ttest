@@ -80,7 +80,7 @@ test('Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the m
     }
   }, CUSTOMER_ADDRESS_REFERENCE)
 
-  await page.getByLabel('Calle').fill('Calle José Espronceda 20')
+  await page.locator('#publish-street').fill('Calle José Espronceda 20')
   await page.getByLabel('Código postal').fill('38678')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __customerAddressQuery?: string }).__customerAddressQuery ?? '')).toBe(
@@ -90,7 +90,7 @@ test('Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the m
   await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
 })
 
@@ -118,7 +118,7 @@ test('C/ street abbreviation still matches the canonical Google Calle route', as
     } as unknown as google.maps.GeocoderResult)]
   }, CUSTOMER_ADDRESS_REFERENCE)
 
-  await page.getByLabel('Calle').fill('C/ José Espronceda 20')
+  await page.locator('#publish-street').fill('C/ José Espronceda 20')
   await page.getByLabel('Código postal').fill('38678')
 
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
@@ -155,13 +155,13 @@ test('full pasted Espronceda address resolves even when the selected municipalit
     }
   }, CUSTOMER_ADDRESS_REFERENCE)
 
-  const street = page.getByLabel('Calle')
+  const street = page.locator('#publish-street')
   await street.fill('Calle José Espronceda 20. Armeñime\nSanta Cruz de Tenerife.')
   await street.blur()
 
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)

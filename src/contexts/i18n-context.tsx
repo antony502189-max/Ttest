@@ -286,6 +286,7 @@ const translations: Record<string, Translation> = {
   'Máximo 2 personas': { ru: 'Не более 2 человек', en: 'Maximum 2 people' },
   'Mascota pequeña valorable': { ru: 'Небольшое животное обсуждается', en: 'Small pet considered' },
   'Espacios y equipamiento': { ru: 'Помещения и оснащение', en: 'Spaces and equipment' },
+  'Equipamiento y servicios': { ru: 'Оснащение и услуги', en: 'Equipment and services' },
   'Baño': { ru: 'Ванная', en: 'Bathroom' },
   'Baño compartido': { ru: 'Общая ванная', en: 'Shared bathroom' },
   'Cocina': { ru: 'Кухня', en: 'Kitchen' },
