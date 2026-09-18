@@ -45,6 +45,14 @@ _MULTI_BEDROOM = re.compile(
     re.IGNORECASE,
 )
 _STUDIO_HOME = re.compile(r"\b(?:estudio|tipo\s+estudio|studio|loft)\b", re.IGNORECASE)
+_ABSOLUTE_URL = re.compile(r"""https?://[^"'<>\s\\]+""", re.IGNORECASE)
+_LISTING_IMAGE_HOSTS = {
+    "static.fotocasa.es",
+    "images.habimg.com",
+    "img.habitaclia.com",
+    "images.habitaclia.com",
+}
+_IMAGE_SKIP_TOKENS = ("logo", "avatar", "icon", "sprite", "placeholder", "banner")
 
 
 class HabitacliaSource(ExternalListingSource):
@@ -117,6 +125,49 @@ class HabitacliaSource(ExternalListingSource):
         "un-dormitorio",
     )
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._discovered_images: dict[str, list[str]] = {}
+
+    @classmethod
+    def _is_listing_image_url(cls, value: str) -> bool:
+        normalized = html.unescape(value).replace("\\/", "/")
+        parsed = urlparse(normalized)
+        host = (parsed.hostname or "").casefold()
+        path = parsed.path.casefold()
+        return host in _LISTING_IMAGE_HOSTS and not any(token in path for token in _IMAGE_SKIP_TOKENS)
+
+    @classmethod
+    def _extract_image_urls(cls, value: str) -> list[str]:
+        normalized = cls._decode_hydration(value)
+        images: list[str] = []
+        for match in _ABSOLUTE_URL.finditer(normalized):
+            candidate = html.unescape(match.group(0)).rstrip(",;)]}")
+            if cls._is_listing_image_url(candidate) and candidate not in images:
+                images.append(candidate)
+        return images
+
+    @classmethod
+    def _extract_detail_images(cls, document: str, external_id: str | None) -> list[str]:
+        normalized = cls._decode_hydration(document)
+        segments: list[str] = []
+        if external_id:
+            for match in re.finditer(re.escape(external_id), normalized):
+                segments.append(
+                    normalized[max(0, match.start() - 20_000) : min(len(normalized), match.end() + 60_000)]
+                )
+        if not segments:
+            segments.append(normalized)
+
+        images: list[str] = []
+        for segment in segments:
+            for image_url in cls._extract_image_urls(segment):
+                if image_url not in images:
+                    images.append(image_url)
+                if len(images) >= 40:
+                    return images
+        return images
+
     def is_pagination_url(self, url: str) -> bool:
         path = unquote(urlparse(url).path).rstrip("/").casefold()
         base = "/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s"
@@ -130,13 +181,14 @@ class HabitacliaSource(ExternalListingSource):
 
     @staticmethod
     def _decode_hydration(document: str) -> str:
-        normalized = html.unescape(document.replace("\\/", "/"))
-        for _ in range(3):
-            updated = normalized.replace('\\"', '"')
+        normalized = html.unescape(document)
+        for _ in range(4):
+            updated = normalized.replace("\\/", "/").replace('\\"', '"')
             if updated == normalized:
                 break
             normalized = updated
         normalized = _UNICODE_ESCAPE.sub(lambda match: chr(int(match.group(1), 16)), normalized)
+        normalized = normalized.replace("\\/", "/")
         return normalized.replace("\\n", " ").replace("\\r", " ")
 
     @classmethod
@@ -202,6 +254,9 @@ class HabitacliaSource(ExternalListingSource):
                 else len(normalized)
             )
             card_state = normalized[match.end() : min(next_start, match.end() + 20000)]
+            card_images = self._extract_image_urls(card_state)
+            if card_images:
+                self._discovered_images[canonical] = card_images[:40]
             if self._is_room_card(card_state):
                 target_urls.add(canonical)
 
@@ -289,6 +344,16 @@ class HabitacliaSource(ExternalListingSource):
             data["title"] = clean(heading.group(1)) or data["title"]
         if description:
             data["description"] = clean(description.group(1)) or data["description"]
+
+        existing_images = [
+            value for value in data.get("images", []) if isinstance(value, str) and value.startswith("http")
+        ]
+        detail_images = self._extract_detail_images(document, external_id.group(1) if external_id else None)
+        images = list(dict.fromkeys([*existing_images, *detail_images]))
+        if not images:
+            canonical_url = self._canonical_detail_url(url, url)
+            images.extend(self._discovered_images.get(canonical_url, []))
+        data["images"] = images[:40]
 
         data["category"] = f"habitaclia alquiler {data['category']}"
         data["external_id"] = external_id.group(1) if external_id else None

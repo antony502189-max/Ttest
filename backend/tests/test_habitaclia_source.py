@@ -76,6 +76,31 @@ def whole_home_document() -> str:
     """
 
 
+def hydration_image_document() -> str:
+    return r'''
+    <html><head>
+      <script type="application/ld+json">
+      {
+        "@type": "Apartment",
+        "name": "Apartamento con ascensor en alquiler en Los Sabandeños",
+        "description": "Apartamento completo de una habitación para alquiler de larga estancia.",
+        "address": {
+          "addressLocality": "Los Cristianos",
+          "addressRegion": "Santa Cruz de Tenerife"
+        }
+      }
+      </script>
+      <script>
+      self.__next_f.push([1,"{\"legacyNumericId\":\"500004551799\",\"navigationUrl\":\"/i500004551799.htm?from=list\",\"gallery\":[{\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/sabandenos-1.webp\"},{\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/sabandenos-2.webp\"}]}"])
+      </script>
+    </head><body>
+      <h1>Apartamento con ascensor en alquiler en Los Sabandeños</h1>
+      <div class="description">Apartamento completo de una habitación para alquiler de larga estancia.</div>
+      <strong>1.250 €</strong>
+    </body></html>
+    '''
+
+
 def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> None:
     source = HabitacliaSource()
     try:
@@ -91,6 +116,23 @@ def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> Non
         assert item.room_type == "Habitación individual"
         assert item.phone is None
         assert item.email is None
+    finally:
+        asyncio.run(source.close())
+
+
+def test_habitaclia_extracts_images_from_detail_hydration() -> None:
+    source = HabitacliaSource()
+    try:
+        url = "https://www.habitaclia.com/i500004551799.htm"
+        data = source.parse_listing(hydration_image_document(), url)
+        assert data["images"] == [
+            "https://static.fotocasa.es/images/ads/sabandenos-1.webp",
+            "https://static.fotocasa.es/images/ads/sabandenos-2.webp",
+        ]
+        item = source.normalize_listing(data, url)
+        assert item is not None
+        assert item.photos == data["images"]
+        assert item.room_type == "Apartamento de 1 dormitorio"
     finally:
         asyncio.run(source.close())
 
@@ -156,7 +198,7 @@ def test_habitaclia_extracts_modern_hydration_cards_without_cross_card_leakage()
         page = source.discovery_urls[0]
         document = r'''
         <script>
-        self.__next_f.push([1,"{\"legacyNumericId\":\"500004551704\",\"navigationUrl\":\"/i500004551704.htm?from=list\",\"summary\":{\"title\":\"ALQUILER HABITACIÓN SOLO CHICA\",\"description\":\"Se alquila habitaci\u00F3n amueblada para estudiante.\"}},{\"legacyNumericId\":\"500004551705\",\"navigationUrl\":\"/i500004551705.htm?from=list\",\"summary\":{\"title\":\"Estudio amueblado en Puerto de la Cruz\",\"description\":\"Estudio completo con cocina y ba\u00F1o.\"}},{\"legacyNumericId\":\"500004551706\",\"navigationUrl\":\"/i500004551706.htm?from=list\",\"summary\":{\"title\":\"Piso de 1 dormitorio en Garachico\",\"description\":\"Apartamento completo con un dormitorio, sal\u00F3n, cocina y ba\u00F1o.\"}},{\"legacyNumericId\":\"500004551707\",\"navigationUrl\":\"/i500004551707.htm?from=list\",\"summary\":{\"title\":\"Piso de 3 habitaciones en alquiler\",\"description\":\"Vivienda completa con tres habitaciones, sal\u00F3n, cocina y ba\u00F1o.\"}}"])
+        self.__next_f.push([1,"{\"legacyNumericId\":\"500004551704\",\"navigationUrl\":\"/i500004551704.htm?from=list\",\"summary\":{\"title\":\"ALQUILER HABITACIÓN SOLO CHICA\",\"description\":\"Se alquila habitaci\u00F3n amueblada para estudiante.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/room.webp\"},{\"legacyNumericId\":\"500004551705\",\"navigationUrl\":\"/i500004551705.htm?from=list\",\"summary\":{\"title\":\"Estudio amueblado en Puerto de la Cruz\",\"description\":\"Estudio completo con cocina y ba\u00F1o.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/studio.webp\"},{\"legacyNumericId\":\"500004551706\",\"navigationUrl\":\"/i500004551706.htm?from=list\",\"summary\":{\"title\":\"Piso de 1 dormitorio en Garachico\",\"description\":\"Apartamento completo con un dormitorio, sal\u00F3n, cocina y ba\u00F1o.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/one-bed.webp\"},{\"legacyNumericId\":\"500004551707\",\"navigationUrl\":\"/i500004551707.htm?from=list\",\"summary\":{\"title\":\"Piso de 3 habitaciones en alquiler\",\"description\":\"Vivienda completa con tres habitaciones, sal\u00F3n, cocina y ba\u00F1o.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/three-bed.webp\"}}"])
         </script>
         '''
         all_urls, target_urls = source._extract_page_listings(document, page)
@@ -166,6 +208,29 @@ def test_habitaclia_extracts_modern_hydration_cards_without_cross_card_leakage()
         whole_home_url = "https://www.habitaclia.com/i500004551707.htm"
         assert all_urls == {room_url, studio_url, one_bed_url, whole_home_url}
         assert target_urls == {room_url, studio_url, one_bed_url}
+        assert source._discovered_images[room_url] == ["https://static.fotocasa.es/images/ads/room.webp"]
+        assert source._discovered_images[studio_url] == ["https://static.fotocasa.es/images/ads/studio.webp"]
+        assert source._discovered_images[one_bed_url] == ["https://static.fotocasa.es/images/ads/one-bed.webp"]
+    finally:
+        asyncio.run(source.close())
+
+
+def test_habitaclia_falls_back_to_same_card_image_when_detail_has_no_gallery() -> None:
+    source = HabitacliaSource()
+    try:
+        page = source.discovery_urls[0]
+        detail_url = "https://www.habitaclia.com/i500004551706.htm"
+        card = r'''
+        <script>
+        self.__next_f.push([1,"{\"navigationUrl\":\"/i500004551706.htm?from=list\",\"summary\":{\"title\":\"Piso de 1 dormitorio en Garachico\",\"description\":\"Apartamento completo con un dormitorio.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/one-bed-card.webp\"}"])
+        </script>
+        '''
+        source._extract_page_listings(card, page)
+        data = source.parse_listing(one_bedroom_whole_home_document(), detail_url)
+        assert data["images"] == ["https://static.fotocasa.es/images/ads/one-bed-card.webp"]
+        item = source.normalize_listing(data, detail_url)
+        assert item is not None
+        assert item.photos == data["images"]
     finally:
         asyncio.run(source.close())
 

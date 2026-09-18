@@ -99,6 +99,9 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
         "candidate_urls": 0,
         "details_checked": 0,
         "accepted_rooms": 0,
+        "accepted_with_images": 0,
+        "accepted_without_images": 0,
+        "total_images": 0,
         "accepted": [],
         "rejected": [],
         "errors": [],
@@ -155,6 +158,9 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                     report["rejected"].append(url)
                     continue
                 report["accepted_rooms"] += 1
+                photo_count = len(item.photos)
+                report["total_images"] += photo_count
+                report["accepted_with_images" if photo_count else "accepted_without_images"] += 1
                 report["accepted"].append(
                     {
                         "external_id": item.external_id,
@@ -163,6 +169,8 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                         "city": item.city,
                         "price_amount": item.price_amount,
                         "price_period": item.price_period,
+                        "photo_count": photo_count,
+                        "image_samples": item.photos[:3],
                     }
                 )
             except (TimeoutError, httpx.HTTPError, RuntimeError, TypeError, ValueError) as exc:
@@ -172,6 +180,9 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
         if not report["accepted_rooms"]:
             report["errors"].append("No checked Habitaclia candidate normalized as a current room rental")
             return report, 5
+        if not report["accepted_with_images"]:
+            report["errors"].append("Accepted Habitaclia listings contained no extractable listing images")
+            return report, 7
         return report, 0
     finally:
         await source.close()
