@@ -480,49 +480,36 @@ test("19–20 registration, login persistence, logout, recovery and reset flows"
   await expect(page.getByText(/todo listo/i)).toBeVisible();
 });
 
-test("21–24 wizard validates, restores/reset draft, previews user data, creates and edits", async ({
+test("21–24 one-page publication validates, restores draft, creates and edits", async ({
   page,
 }) => {
   await login(page, "host");
   await page.goto("/#/publicar");
-  await page.getByRole("button", { name: /continuar/i }).click();
+
+  await expect(page.locator(".listing-create-page")).toBeVisible();
+  await expect(page.locator(".stepper")).toHaveCount(0);
+  await expect(page.locator(".listing-edit-section")).toHaveCount(9);
+
   await page.getByLabel(/zona o barrio/i).fill("");
-  await page.getByRole("button", { name: /continuar/i }).click();
+  await page.getByRole("button", { name: /publicar anuncio/i }).click();
   await expect(page.getByRole("alert").filter({ hasText: /indica la zona/i })).toBeVisible();
+
   await page.getByLabel(/zona o barrio/i).fill("Zona Demo E2E");
   await page.reload();
-  await page.getByRole("button", { name: /continuar/i }).click();
   await expect(page.getByLabel(/zona o barrio/i)).toHaveValue("Zona Demo E2E");
-  await page.getByRole("button", { name: /restablecer/i }).click();
-  await page
-    .getByRole("button", { name: /^restablecer$/i })
-    .last()
-    .click();
-  await expect(
-    page.getByRole("heading", { name: /qué tipo de estancia/i }),
-  ).toBeVisible();
-  for (let index = 0; index < 7; index += 1)
-    await page.getByRole("button", { name: /continuar/i }).click();
+
   await page
     .getByLabel(/título del anuncio/i)
     .fill("Habitación creada desde el flujo E2E");
   await page
     .getByLabel(/^descripción$/i)
     .fill(
-      "Descripción completa introducida por el usuario para comprobar la vista previa dinámica del anuncio.",
+      "Descripción completa introducida por el usuario para comprobar la publicación de una sola página.",
     );
-  await page.getByRole("button", { name: /continuar/i }).click();
-  await page.getByRole("button", { name: /continuar/i }).click();
-  await expect(page.locator(".preview-card-wrap")).toContainText(
-    "Habitación creada desde el flujo E2E",
-  );
-  await page.getByRole("button", { name: /vista previa completa/i }).click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Habitación creada desde el flujo E2E",
-  );
-  await page.keyboard.press("Escape");
+
   await page.getByRole("button", { name: /publicar anuncio/i }).click();
-  await page.getByRole("link", { name: /mis anuncios/i }).click();
+  await expect(page).toHaveURL(/#\/mis-anuncios$/);
+
   const created = page
     .locator(".manage-card")
     .filter({ hasText: "Habitación creada desde el flujo E2E" });

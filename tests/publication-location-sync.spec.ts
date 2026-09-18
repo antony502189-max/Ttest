@@ -5,7 +5,6 @@ async function openPublishLocation(page: Page) {
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   await page.reload()
   await page.goto('/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.locator('.approximate-location-map')).toBeVisible()
 }
 
@@ -22,7 +21,7 @@ const resolvedAddress = (street: string, postcode: string): google.maps.Geocoder
 
 test('publication map ignores a late reverse-geocode response after a controlled coordinate update', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Calle').fill('Calle vigente 8')
+  await page.locator('#publish-street').fill('Calle vigente 8')
   await page.getByLabel('Código postal').fill('38660')
   await page.evaluate(() => {
     ;(window as Window & { resolveGeocode?: (value: { results: google.maps.GeocoderResult[] }) => void }).__googleMapsTestGeocode = () => new Promise((resolve) => {
@@ -35,33 +34,33 @@ test('publication map ignores a late reverse-geocode response after a controlled
   expect(box).not.toBeNull()
   await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.65), y: Math.round((box?.height ?? 220) * 0.45) } })
   await expect.poll(() => page.evaluate(() => Boolean((window as Window & { resolveGeocode?: unknown }).resolveGeocode))).toBe(true)
-  const beforeUpdate = await page.locator('.approximate-location-selector output').textContent()
-  await page.locator('.approximate-location-selector__grid button').first().dispatchEvent('click')
-  await expect.poll(() => page.locator('.approximate-location-selector output').textContent()).not.toBe(beforeUpdate)
+  const beforeUpdate = await page.locator('.listing-edit-coordinates').textContent()
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates: { lat: 28.11, lng: -16.72 }, zoom: 13, clearDetectedAddress: true } })))
+  await expect.poll(() => page.locator('.listing-edit-coordinates').textContent()).not.toBe(beforeUpdate)
   await page.evaluate((result) => (window as Window & { resolveGeocode?: (value: { results: google.maps.GeocoderResult[] }) => void }).resolveGeocode?.({ results: [result] }), resolvedAddress('Calle antigua 1', '99999'))
 
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle vigente 8')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle vigente 8')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
 })
 
 test('manual municipality change clears stale address data and moves the map to the municipality polygon center at a distant zoom', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('Armeñime')
-  await page.getByLabel('Calle').fill('Calle antigua 8')
+  await page.locator('#publish-street').fill('Calle antigua 8')
   await page.getByLabel('Código postal').fill('38678')
 
   await page.getByLabel('Municipio').selectOption('Arico')
 
   await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('')
-  await expect(page.getByLabel('Calle')).toHaveValue('')
+  await expect(page.locator('#publish-street')).toHaveValue('')
   await expect(page.getByLabel('Código postal')).toHaveValue('')
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
   })).toEqual({ lat: 28.1925, lng: -16.5042 })
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
-  await expect(page.locator('.approximate-location-selector output')).toContainText('28.1925, -16.5042')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.1925, -16.5042')
 })
 
 test('municipality without a hard-coded center still recenters from bundled Tenerife geometry', async ({ page }) => {
@@ -115,11 +114,11 @@ test('address selection recenters the exact publication point at exact-building 
     window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
   }, selected)
 
-  await expect(page.getByLabel('Calle')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
-  await expect(page.locator('.approximate-location-selector output')).toContainText('28.0830, -16.7300')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0830, -16.7300')
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: center.lat(), lng: center.lng() } : null
@@ -132,13 +131,13 @@ test('address selection recenters the exact publication point at exact-building 
 
 test('map pan leaves publication location and address unchanged', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Calle').fill('Calle estable 5')
+  await page.locator('#publish-street').fill('Calle estable 5')
   await page.getByLabel('Código postal').fill('38670')
-  const before = await page.locator('.approximate-location-selector output').textContent()
+  const before = await page.locator('.listing-edit-coordinates').textContent()
   await page.evaluate(() => window.__googleMapsTestLastMap?.panTo({ lat: 28.16, lng: -16.70 }))
 
-  await expect(page.locator('.approximate-location-selector output')).toHaveText(before ?? '')
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle estable 5')
+  await expect(page.locator('.listing-edit-coordinates')).toHaveText(before ?? '')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle estable 5')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
 })
 
@@ -153,25 +152,26 @@ test('resolved map address updates structured fields while retaining fields abse
   expect(box).not.toBeNull()
   await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.55), y: Math.round((box?.height ?? 220) * 0.5) } })
 
-  await expect(page.getByLabel('Calle')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Barrio manual')
 })
 
-test('publication location keeps the previous compact design copy while retaining exact sync behavior', async ({ page }) => {
+test('publication location uses the editor-style map contract while retaining exact sync behavior', async ({ page }) => {
   await openPublishLocation(page)
-  const selector = page.locator('.approximate-location-selector')
-  await expect(selector.locator('legend')).toHaveText('Selecciona un punto aproximado')
-  await expect(selector.locator(':scope > p').first()).toHaveText('El marcador se centra en la zona. Muévelo ligeramente sin publicar la calle exacta.')
-  await expect(page.getByLabel('Calle')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
+  await expect(page.getByText('La dirección exacta no se muestra públicamente.')).toBeVisible()
+  await expect(page.locator('.approximate-location-map-hint')).toHaveText('Mueve el mapa con el dedo y toca dos veces el lugar deseado para colocar el marcador.')
+  await expect(page.locator('#publish-street')).toBeVisible()
   await expect(page.locator('.approximate-location-map')).toBeVisible()
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('Coordenadas exactas:')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
 })
 
 test('reverse geocoding without a real street never overwrites a manually entered street', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Calle').fill('Calle manual 12')
+  await page.locator('#publish-street').fill('Calle manual 12')
   await page.evaluate(() => {
     window.__googleMapsTestGeocode = () => Promise.resolve({ results: [{
       formatted_address: 'Costa Adeje, 38660 Adeje, Spain',
@@ -188,7 +188,7 @@ test('reverse geocoding without a real street never overwrites a manually entere
   expect(box).not.toBeNull()
   await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.58), y: Math.round((box?.height ?? 220) * 0.52) } })
 
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle manual 12')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle manual 12')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
 })

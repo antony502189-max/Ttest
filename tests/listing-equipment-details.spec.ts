@@ -12,6 +12,7 @@ async function clearAndOpenAsHost(page: Page, path: string) {
 }
 
 async function advanceWizard(page: Page, count: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   const stepper = page.locator('.stepper')
   for (let index = 0; index < count; index += 1) {
     const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
@@ -33,8 +34,10 @@ test('EQUIP-01..08 landlord equipment fields persist, render and remain editable
   await expect(refrigerator).toHaveValue('shared')
   await expect(balcony).toHaveValue('no')
   await expect(washingMachine).toHaveValue('shared')
-  await expect(page.getByText('Balcón', { exact: true })).toHaveCount(1)
-  await expect(page.getByText('Lavadora', { exact: true })).toHaveCount(1)
+  await expect(page.locator('label[for="publish-balcony"]')).toBeVisible()
+  await expect(page.locator('label[for="publish-washing-machine"]')).toBeVisible()
+  await expect(page.locator('.listing-edit-amenities')).toContainText('Balcón')
+  await expect(page.locator('.listing-edit-amenities')).toContainText('Lavadora')
 
   await bedding.selectOption('not_included')
   await refrigerator.selectOption('individual')
@@ -43,7 +46,7 @@ test('EQUIP-01..08 landlord equipment fields persist, render and remain editable
 
   await advanceWizard(page, 7)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   const created = await page.evaluate(() => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as {

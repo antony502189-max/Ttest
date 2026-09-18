@@ -37,8 +37,8 @@ test('room-first translation dictionary covers dynamic facts', () => {
   expect(translateText('Abrir selección de ubicación. Tenerife', 'en')).toBe('Open location selection. Tenerife')
   expect(translateText('Calefacción', 'ru')).toBe('Отопление')
   expect(translateText('Calefacción', 'en')).toBe('Heating')
-  expect(translateText('Equipamiento y accesibilidad', 'ru')).toBe('Оснащение и доступность')
-  expect(translateText('Equipamiento y accesibilidad', 'en')).toBe('Equipment and accessibility')
+  expect(translateText('Equipamiento y servicios', 'ru')).toBe('Оснащение и услуги')
+  expect(translateText('Equipamiento y servicios', 'en')).toBe('Equipment and services')
   expect(translateText('Gastos aparte: aprox. 45 €/mes', 'ru')).toBe('Коммунальные расходы отдельно: примерно 45 €/мес.')
   expect(translateText('Gastos aparte: aprox. 45 €/mes', 'en')).toBe('Utilities extra: approx. €45/month')
   expect(translateText('Se alquila la habitación completa', 'ru')).toBe('Комната сдаётся целиком')
@@ -67,14 +67,11 @@ test('room-first translation dictionary covers dynamic facts', () => {
 for (const language of ['ru', 'en'] as const) {
   test(`publish room details stay localized in ${language}`, async ({ page }) => {
     await openAsHost(page, language)
-    const continueLabel = language === 'ru' ? 'Продолжить' : 'Continue'
-    await page.getByRole('button', { name: continueLabel }).click()
-    await page.getByRole('button', { name: continueLabel }).click()
     const expected = language === 'ru'
-      ? ['Отопление', 'Оснащение и доступность', 'Тип кровати', 'Количество кроватей', 'Туалет / WC', 'Душ']
-      : ['Heating', 'Equipment and accessibility', 'Bed type', 'Number of beds', 'Toilet / WC', 'Shower']
+      ? ['Отопление', 'Оснащение и услуги', 'Тип кровати', 'Количество кроватей', 'Туалет / WC', 'Душ']
+      : ['Heating', 'Equipment and services', 'Bed type', 'Number of beds', 'Toilet / WC', 'Shower']
     for (const label of expected) await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
-    for (const spanish of ['Calefacción', 'Equipamiento y accesibilidad', 'Tipo de cama', 'Número de camas', 'Aseo / WC', 'Ducha']) {
+    for (const spanish of ['Calefacción', 'Equipamiento y servicios', 'Tipo de cama', 'Número de camas', 'Aseo / WC', 'Ducha']) {
       await expect(page.getByText(spanish, { exact: true })).toHaveCount(0)
     }
   })
@@ -133,11 +130,12 @@ test('English search does not leak known Spanish room-first labels', async ({ pa
   for (const spanish of spanishSearchResidues) expect(body).not.toContain(spanish)
 })
 
-test('publish requirement post-processing follows English instead of restoring Spanish', async ({ page }) => {
+test('publish requirement options follow the one-page editor locale', async ({ page }) => {
   await openAsHost(page, 'en')
-  for (let step = 0; step < 5; step += 1) await page.getByRole('button', { name: 'Continue' }).click()
-  const options = await page.locator('#publish-tenant-requirement option').allTextContents()
-  expect(options).toEqual(['Man only', 'Woman only', '1 person', '2 people (couple/friends)', 'No restrictions'])
+  const requirement = page.locator('#publish-requirement')
+  await expect(requirement).toBeVisible()
+  const options = await requirement.locator('option').allTextContents()
+  expect(options).toEqual(['No preference', 'One person', 'Men only', 'Women only', 'Couple'])
 })
 
 test('English listing contact flow does not reuse Spanish dynamic copy', async ({ page }) => {

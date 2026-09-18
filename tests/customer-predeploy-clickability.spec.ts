@@ -27,7 +27,7 @@ test('CUSTOMER-PREDEPLOY Calle autocomplete keeps the native field visible with 
 
   await page.setViewportSize({ width: 390, height: 844 })
   await openAsHost(page, '/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  if (await page.getByRole('button', { name: 'Continuar' }).count()) await page.getByRole('button', { name: 'Continuar' }).click()
   const street = page.locator('#publish-street[data-address-autocomplete="native"]')
   await expect(street).toBeVisible()
   const borders = await street.evaluate((element) => {
