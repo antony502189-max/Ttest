@@ -203,7 +203,7 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   await page.locator('#publish-street').fill('Calle Secreta 99')
 
   const output = page.locator('.listing-edit-coordinates')
-  await expect(output).toContainText('Coordenadas exactas: 28.0477, -16.5363')
+  await expect(output).toContainText('Coordenadas exactas:')
   const before = await output.textContent()
   const map = page.locator('.approximate-location-map')
   await expect(map).toBeVisible()

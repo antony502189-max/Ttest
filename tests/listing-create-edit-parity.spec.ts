@@ -62,6 +62,9 @@ test('create and edit keep separate persistence and mutation paths', () => {
   expect(create).toContain('verifyEmail')
   expect(create).toContain('partialPublication')
   expect(create).toContain('partialPublication.publicationKey === draft.publicationKey')
+  expect(create).toContain("bedType: value === 'bed' ? 'single' : current.bedType")
+  expect(create).toContain('bedCount: Math.max(current.bedCount, Math.ceil(roomCapacity / placesPerBed))')
+  expect(create).toContain("couplesAllowed: value === 'couple' || value === 'any'")
   expect(create).toContain('localStorage.removeItem(draftKey)')
 
   expect(edit).toContain("const editDraftPrefix = '112233:listing-edit-draft:v1:'")
