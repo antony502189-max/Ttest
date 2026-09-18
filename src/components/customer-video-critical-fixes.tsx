@@ -175,10 +175,10 @@ export function CustomerVideoCriticalFixes() {
 
     const setupPublicationLocation = () => {
       if (mockMode || pathname !== '/publicar') return
-      const city = document.querySelector<HTMLSelectElement>('#publish-city')
-      const area = document.querySelector<HTMLInputElement>('#publish-area')
-      const street = document.querySelector<HTMLInputElement>('#publish-street')
-      const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')
+      const city = document.querySelector<HTMLSelectElement>('#publish-city, #edit-city')
+      const area = document.querySelector<HTMLInputElement>('#publish-area, #edit-area')
+      const street = document.querySelector<HTMLInputElement>('#publish-street, #edit-street')
+      const postcode = document.querySelector<HTMLInputElement>('#publish-postcode, #edit-postcode')
       if (!city || !area || !street || !postcode) return
 
       ensureAutoMunicipalityOption(city, copy.autoMunicipality)
@@ -241,8 +241,8 @@ export function CustomerVideoCriticalFixes() {
       if (!button) return
       const label = button.textContent?.trim().toLocaleLowerCase() ?? ''
       if (!['continuar', 'continue', 'продолжить'].includes(label)) return
-      const city = document.querySelector<HTMLSelectElement>('#publish-city')
-      const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')
+      const city = document.querySelector<HTMLSelectElement>('#publish-city, #edit-city')
+      const postcode = document.querySelector<HTMLInputElement>('#publish-postcode, #edit-postcode')
       if (!city || !postcode) return
       if (city.value === AUTO_CITY_VALUE) {
         event.preventDefault()
@@ -262,7 +262,7 @@ export function CustomerVideoCriticalFixes() {
     const onLocationInput = (event: Event) => {
       const target = event.target
       if (!(target instanceof HTMLElement)) return
-      if (!['publish-city', 'publish-area', 'publish-street', 'publish-postcode'].includes(target.id)) return
+      if (!['publish-city', 'publish-area', 'publish-street', 'publish-postcode', 'edit-city', 'edit-area', 'edit-street', 'edit-postcode'].includes(target.id)) return
       clearLocationGuard()
       queueMicrotask(setup)
     }
