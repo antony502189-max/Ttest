@@ -247,7 +247,7 @@ export function ListingCreatePage() {
     if (!Number.isInteger(draft.currentResidents) || draft.currentResidents < 0) next.currentResidents = 'Indica un número válido.'
     if (draft.roomCapacity < 1 || draft.roomCapacity > 10) next.roomCapacity = 'La capacidad debe estar entre 1 y 10.'
     if (!Number.isInteger(draft.bedCount) || draft.bedCount < 1 || draft.bedCount > 10) next.bedCount = 'Indica entre 1 y 10 camas.'
-    if (draft.currentRoomResidents < 0 || draft.currentRoomResidents >= draft.roomCapacity) next.currentRoomResidents = 'Debe quedar al menos una plaza libre.'
+    if (!Number.isInteger(draft.currentRoomResidents) || draft.currentRoomResidents < 0 || draft.currentRoomResidents >= draft.roomCapacity) next.currentRoomResidents = 'Debe quedar al menos una plaza libre.'
     if (draft.rentalUnit === 'bed' && draft.roomType !== 'Habitación compartida') next.rentalUnit = 'Las plazas individuales solo se pueden alquilar en una habitación compartida.'
     if (draft.rentalUnit === 'bed' && draft.bedType === 'double') next.bedType = 'Las plazas independientes no usan cama doble.'
     const sleepingPlaces = draft.bedCount * (draft.bedType === 'double' || draft.bedType === 'bunk' ? 2 : 1)
@@ -260,11 +260,11 @@ export function ListingCreatePage() {
     if (!Number.isInteger(price) || price < 1) next.price = 'Indica un precio válido.'
     if (draft.weeklyPrice !== undefined && (!Number.isInteger(draft.weeklyPrice) || draft.weeklyPrice < 0)) next.weeklyPrice = 'El precio semanal debe ser válido.'
     if (!Number.isInteger(draft.depositAmount) || draft.depositAmount < 0) next.depositAmount = 'La fianza no puede ser negativa.'
-    if (!draft.billsIncluded && (!draft.billsNote.trim() || Number(draft.billsNote) <= 0)) next.billsAmount = 'Indica el gasto aproximado al mes.'
+    if (!draft.billsIncluded) { const billsAmount = Number(draft.billsNote); if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = 'Indica el gasto aproximado al mes.' }
     if (!draft.availableFrom) next.availableFrom = 'Selecciona una fecha.'
     if (draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = 'La fecha final debe ser posterior.'
-    if (draft.rentalMode === 'long' && draft.minimumStayMonths < 1) next.minimumStay = 'Indica al menos 1 mes.'
-    if (draft.rentalMode === 'holiday' && draft.minimumNights < 1) next.minimumStay = 'Indica al menos 1 noche.'
+    if (draft.rentalMode === 'long' && (!Number.isInteger(draft.minimumStayMonths) || draft.minimumStayMonths < 1)) next.minimumStay = 'Indica al menos 1 mes.'
+    if (draft.rentalMode === 'holiday' && (!Number.isInteger(draft.minimumNights) || draft.minimumNights < 1)) next.minimumStay = 'Indica al menos 1 noche.'
     if (!draft.images.length) next.images = 'Añade al menos una fotografía.'
     else if (!mockMode && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = 'Vuelve a añadir las fotografías no disponibles.'
     if (draft.title.trim().length < 15) next.title = 'Escribe un título de al menos 15 caracteres.'
