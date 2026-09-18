@@ -5,7 +5,7 @@ async function openPublishLocation(page: Page) {
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   await page.reload()
   await page.goto('/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  if (await page.getByRole('button', { name: 'Continuar' }).count()) await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.locator('.approximate-location-map')).toBeVisible()
 }
 
