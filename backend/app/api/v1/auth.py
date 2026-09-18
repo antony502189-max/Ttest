@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
@@ -119,12 +120,13 @@ async def select_google_role(
     session: AsyncSession = Depends(get_session),
 ):
     require_cookie_origin(request)
-    if user.role != "pending" or not user.google_subject:
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not locked_user or locked_user.role != "pending" or not locked_user.google_subject:
         raise HTTPException(409, "Google account role is already set")
-    user.role = payload.role
+    locked_user.role = payload.role
     await session.commit()
-    await session.refresh(user)
-    return public_user(user)
+    await session.refresh(locked_user)
+    return public_user(locked_user)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
