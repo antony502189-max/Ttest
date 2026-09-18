@@ -33,6 +33,9 @@ test.describe('customer publish-map polish', () => {
     const before = await output.textContent()
     const box = await map.boundingBox()
     expect(box).not.toBeNull()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(360)
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(410)
+    expect(box?.width ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(390)
     const clientX = Math.round((box?.x ?? 0) + (box?.width ?? 300) * 0.72)
     const clientY = Math.round((box?.y ?? 0) + (box?.height ?? 240) * 0.38)
 

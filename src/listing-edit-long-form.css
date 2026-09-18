@@ -65,6 +65,13 @@
   .listing-edit-checks { flex-direction: column; gap: .7rem; }
   .listing-edit-checks--wrap { align-items: flex-start; }
   .listing-edit-amenities > div { grid-template-columns: 1fr 1fr; }
+  .listing-edit-page .approximate-location-map-shell {
+    height: clamp(20.5rem, 46dvh, 25rem);
+    min-height: clamp(20.5rem, 46dvh, 25rem);
+  }
+  .listing-edit-page .approximate-location-map {
+    min-height: 100%;
+  }
   .listing-edit-final { bottom: .45rem; padding: .7rem; border-radius: .75rem; }
   .listing-edit-final > div { display: none; }
   .listing-edit-final .button { width: 100%; min-height: 3.05rem; }
