@@ -60,6 +60,7 @@ async function mediaExists(page: Page, reference: string) {
 }
 
 async function advanceWizard(page: Page, count: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   const continueButton = page.getByRole('button', { name: 'Continuar' })
   if (await continueButton.count() === 0) return
   for (let index = 0; index < count; index += 1) await continueButton.click()
