@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+from uuid import UUID
+
 import pytest
+from google.auth.exceptions import GoogleAuthError, TransportError
 from httpx import AsyncClient
 
 from app.core.config import Settings
+from app.db.session import SessionLocal
+from app.models import User
 
 pytestmark = pytest.mark.integration
 
@@ -72,3 +78,88 @@ async def test_google_refuses_unsafe_third_party_email_auto_link(client: AsyncCl
     response = await client.post("/api/v1/auth/google", json={"credential": "credential-for-test-only"})
     assert response.status_code == 409
     assert "Confirm the existing account" in response.json()["detail"]
+
+
+async def test_google_rejects_a_different_subject_for_an_already_linked_account(
+    client: AsyncClient, register_user, monkeypatch
+):
+    _, original = await register_user(client, email="linked.user@gmail.com")
+    async with SessionLocal() as session:
+        user = await session.get(User, UUID(original["id"]))
+        assert user is not None
+        user.google_subject = "original-google-subject"
+        await session.commit()
+
+    configure_google_claims(
+        monkeypatch,
+        {
+            "iss": "accounts.google.com",
+            "sub": "different-google-subject",
+            "email": "linked.user@gmail.com",
+            "email_verified": True,
+        },
+    )
+    response = await client.post("/api/v1/auth/google", json={"credential": "credential-for-test-only"})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Google account is already linked"
+
+    async with SessionLocal() as session:
+        user = await session.get(User, UUID(original["id"]))
+        assert user is not None
+        assert user.google_subject == "original-google-subject"
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail"),
+    [
+        (GoogleAuthError("wrong issuer"), 401, "Invalid Google credential"),
+        (TransportError("google unavailable"), 503, "Google sign-in is temporarily unavailable"),
+    ],
+)
+async def test_google_verification_errors_are_mapped_without_internal_500(
+    client: AsyncClient, monkeypatch, error, expected_status, expected_detail
+):
+    monkeypatch.setattr("app.services.auth.get_settings", lambda: Settings(google_client_id="test-client-id"))
+
+    def fail_verification(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr("app.services.auth.verify_google_credential", fail_verification)
+    response = await client.post("/api/v1/auth/google", json={"credential": "credential-for-test-only"})
+    assert response.status_code == expected_status
+    assert response.json()["detail"] == expected_detail
+
+
+async def test_google_role_can_only_be_selected_once_under_concurrent_requests(
+    client: AsyncClient, monkeypatch
+):
+    configure_google_claims(
+        monkeypatch,
+        {
+            "iss": "accounts.google.com",
+            "sub": "concurrent-role-subject",
+            "email": "concurrent.role@gmail.com",
+            "email_verified": True,
+            "name": "Concurrent Role",
+        },
+    )
+    first = await google_login(client)
+    headers = {"Authorization": f"Bearer {first['accessToken']}"}
+
+    host, tenant = await asyncio.gather(
+        client.post("/api/v1/auth/google/role", headers=headers, json={"role": "host"}),
+        client.post("/api/v1/auth/google/role", headers=headers, json={"role": "tenant"}),
+    )
+    statuses = sorted((host.status_code, tenant.status_code))
+    assert statuses == [200, 409]
+
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["role"] in {"host", "tenant"}
+
+    repeat = await client.post(
+        "/api/v1/auth/google/role",
+        headers=headers,
+        json={"role": "host" if me.json()["role"] == "tenant" else "tenant"},
+    )
+    assert repeat.status_code == 409
