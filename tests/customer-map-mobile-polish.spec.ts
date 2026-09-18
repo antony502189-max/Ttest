@@ -9,8 +9,6 @@ async function openPublishAsHost(page: Page, language: 'es' | 'en' | 'ru' = 'es'
     localStorage.removeItem('112233:listing-draft:v2')
   }, { language })
   await page.goto('/#/publicar')
-  const continueLabel = language === 'ru' ? 'Продолжить' : language === 'en' ? 'Continue' : 'Continuar'
-  await page.getByRole('button', { name: continueLabel }).click()
 }
 
 test.describe('customer publish-map polish', () => {
