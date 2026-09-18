@@ -159,7 +159,7 @@ test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filter
   await washer.selectOption('shared')
   await expect(washer).toHaveValue('shared')
   await continueWizard(page, 1)
-  await page.getByLabel('Precio por noche').fill('61')
+  await page.locator('#publish-nightly-price').fill('61')
   await page.getByLabel('Precio semanal (€)').fill('360')
   await continueWizard(page, 1)
   await page.getByLabel('Estancia mínima (noches)').fill('4')
@@ -198,6 +198,7 @@ test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filter
 test('LOC-01 selected zone coordinates persist, edit restores them and exact street stays private', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
   await continueWizard(page, 1)
+  await page.getByLabel('Municipio').selectOption('Granadilla de Abona')
   await page.getByLabel('Zona o barrio').fill('El Médano')
   await page.locator('#publish-street').fill('Calle Secreta 99')
 

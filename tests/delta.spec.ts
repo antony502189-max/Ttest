@@ -188,7 +188,7 @@ test('MEDIA-04 avatar upload/remove persists and profile cancel restores values'
   await page.getByRole('button', { name: 'Editar perfil' }).click()
   const originalName = await page.getByLabel('Nombre').inputValue()
   await page.getByLabel('Nombre').fill('Nombre temporal muy largo para comprobar el ajuste del perfil')
-  await page.getByRole('button', { name: 'Cancelar' }).click()
+  await page.getByRole('button', { name: 'Seguir editando' }).click()
   await expect(page.getByLabel('Nombre')).toHaveValue(originalName)
   await page.getByRole('button', { name: 'Editar perfil' }).click()
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
@@ -350,7 +350,7 @@ test('RESP-01..05 critical routes have no horizontal overflow at the required ma
       const navigation = await page.locator('.bottom-nav').boundingBox()
       expect(contact && navigation && contact.y + contact.height <= navigation.y + 1).toBeTruthy()
       await page.goto('/#/publicar')
-      const actions = await page.locator('.listing-edit-topbar__inner > .button').boundingBox()
+      const actions = await page.locator('.listing-edit-topbar__inner').getByRole('button', { name: 'Publicar', exact: true }).boundingBox()
       await expect(page.locator('.bottom-nav:visible')).toHaveCount(0)
       expect(actions && actions.y >= 0 && actions.y + actions.height <= height + 1).toBeTruthy()
     }

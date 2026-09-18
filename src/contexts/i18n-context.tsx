@@ -616,6 +616,8 @@ const translations: Record<string, Translation> = {
   'Fecha límite del anuncio': { ru: 'Дата окончания объявления', en: 'Listing expiry date' },
   'Exprésalas de forma neutral, concreta y visible. Evita criterios que puedan resultar ilegales o discriminatorios.': { ru: 'Формулируйте условия нейтрально, конкретно и открыто. Избегайте незаконных или дискриминационных критериев.', en: 'State them neutrally, clearly and visibly. Avoid criteria that may be illegal or discriminatory.' },
   'Una persona': { ru: 'Один человек', en: 'One person' },
+  'Sin preferencia': { ru: 'Без предпочтений', en: 'No preference' },
+  'Pareja': { ru: 'Пара', en: 'Couple' },
   'Se puede fumar': { ru: 'Курение разрешено', en: 'Smoking allowed' },
   'Visitas ocasionales': { ru: 'Редкие гости', en: 'Occasional guests' },
   'Teletrabajo permitido': { ru: 'Удалённая работа разрешена', en: 'Remote work allowed' },

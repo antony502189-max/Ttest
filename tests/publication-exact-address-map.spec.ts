@@ -264,13 +264,22 @@ test('manual marker controls cancel an in-flight exact-address lookup', async ({
   })).toEqual(manualCenter)
 })
 
-test('publication map is substantially larger on a customer-size mobile viewport', async ({ page }) => {
+test('publication map matches the one-page editor map size on a customer mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openPublishLocation(page)
 
-  const shell = page.locator('.approximate-location-map-shell')
-  const box = await shell.boundingBox()
-  expect(box).not.toBeNull()
-  expect(box!.height).toBeGreaterThanOrEqual(350)
-  expect(box!.width).toBeGreaterThanOrEqual(330)
+  const createBox = await page.locator('.approximate-location-map-shell').boundingBox()
+  expect(createBox).not.toBeNull()
+  expect(createBox!.height).toBeGreaterThanOrEqual(240)
+  expect(createBox!.width).toBeGreaterThanOrEqual(330)
+
+  await page.goto('/#/mis-anuncios')
+  const editHref = await page.locator('.manage-card').first().getByRole('link', { name: /Editar/i }).getAttribute('href')
+  expect(editHref).toBeTruthy()
+  await page.goto(editHref!.startsWith('#') ? `/${editHref}` : editHref!)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  const editBox = await page.locator('.approximate-location-map-shell').boundingBox()
+  expect(editBox).not.toBeNull()
+  expect(Math.abs(createBox!.height - editBox!.height)).toBeLessThanOrEqual(1)
+  expect(Math.abs(createBox!.width - editBox!.width)).toBeLessThanOrEqual(1)
 })

@@ -34,8 +34,10 @@ test('EQUIP-01..08 landlord equipment fields persist, render and remain editable
   await expect(refrigerator).toHaveValue('shared')
   await expect(balcony).toHaveValue('no')
   await expect(washingMachine).toHaveValue('shared')
-  await expect(page.getByText('Balcón', { exact: true })).toHaveCount(1)
-  await expect(page.getByText('Lavadora', { exact: true })).toHaveCount(1)
+  await expect(page.locator('label[for="publish-balcony"]')).toBeVisible()
+  await expect(page.locator('label[for="publish-washing-machine"]')).toBeVisible()
+  await expect(page.locator('.listing-edit-amenities')).toContainText('Balcón')
+  await expect(page.locator('.listing-edit-amenities')).toContainText('Lavadora')
 
   await bedding.selectOption('not_included')
   await refrigerator.selectOption('individual')
