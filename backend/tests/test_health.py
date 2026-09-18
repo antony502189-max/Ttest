@@ -1,14 +1,16 @@
 import asyncio
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
+from botocore.exceptions import ClientError
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 import app.main as main_module
 from app.api.v1.auth import require_cookie_origin
 from app.core.config import Settings, get_settings
-from app.main import RATE_LIMITS, api_schema_enabled, app, rate_limit_client
+from app.main import RATE_LIMITS, REQUESTS, api_schema_enabled, app, rate_limit_client
 from app.services.rate_limit import MemoryRateLimiter
 
 
@@ -27,6 +29,56 @@ def test_api_health_aliases_are_available_and_not_cacheable() -> None:
     response = client.get("/api/health/live")
     assert response.json() == {"status": "ok"}
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_invalid_request_id_is_replaced_with_generated_uuid() -> None:
+    client = TestClient(app)
+    response = client.get("/health/live", headers={"X-Request-ID": "invalid request id"})
+    assert response.status_code == 200
+    UUID(response.headers["x-request-id"])
+
+
+def test_unmatched_api_404_uses_bounded_metric_route_and_no_store() -> None:
+    client = TestClient(app)
+    before = REQUESTS.labels("GET", "<unmatched>", "404")._value.get()
+
+    first = client.get("/api/definitely-missing-a")
+    second = client.get("/api/definitely-missing-b")
+
+    assert first.status_code == second.status_code == 404
+    assert first.headers["cache-control"] == "no-store"
+    assert first.headers["x-request-id"]
+    assert first.headers["x-content-type-options"] == "nosniff"
+    assert REQUESTS.labels("GET", "<unmatched>", "404")._value.get() == before + 2
+
+
+def test_unhandled_api_error_uses_common_http_finalization() -> None:
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/api/v1/test-unhandled",
+            "raw_path": b"/api/v1/test-unhandled",
+            "query_string": b"",
+            "headers": [(b"x-request-id", b"unhandled-test")],
+            "client": ("127.0.0.1", 12345),
+            "server": ("testserver", 80),
+        }
+    )
+
+    async def fail(_request):
+        raise RuntimeError("forced test failure")
+
+    before = REQUESTS.labels("GET", "<unmatched>", "500")._value.get()
+    response = asyncio.run(main_module.request_context(request, fail))
+
+    assert response.status_code == 500
+    assert response.body == b'{"code":"internal_error","message":"Internal server error","fieldErrors":{}}'
+    assert response.headers["x-request-id"] == "unhandled-test"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert REQUESTS.labels("GET", "<unmatched>", "500")._value.get() == before + 1
 
 
 def test_production_disables_interactive_api_schema(monkeypatch) -> None:
@@ -104,6 +156,7 @@ def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
     route = ("GET", "/health/live")
     RATE_LIMITS[route] = (1, 60)
     monkeypatch.setattr(main_module, "rate_limiter", MemoryRateLimiter())
+    before = REQUESTS.labels("GET", "/health/live", "429")._value.get()
     try:
         client = TestClient(app)
         assert client.get("/health/live").status_code == 200
@@ -112,8 +165,46 @@ def test_rate_limiter_returns_429_from_middleware(monkeypatch) -> None:
         assert limited.json()["code"] == "rate_limited"
         assert limited.headers["retry-after"]
         assert limited.headers["cache-control"] == "no-store"
+        assert REQUESTS.labels("GET", "/health/live", "429")._value.get() == before + 1
     finally:
         RATE_LIMITS.pop(route, None)
+
+
+def test_readiness_maps_s3_dependency_failure_to_503(monkeypatch) -> None:
+    class Connection:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def execute(self, _statement):
+            return None
+
+    class Engine:
+        def connect(self):
+            return Connection()
+
+    class Limiter:
+        async def ready(self):
+            return True
+
+    class Storage:
+        def healthcheck(self):
+            raise ClientError(
+                {"Error": {"Code": "503", "Message": "storage unavailable"}},
+                "HeadBucket",
+            )
+
+    monkeypatch.setattr(main_module, "engine", Engine())
+    monkeypatch.setattr(main_module, "rate_limiter", Limiter())
+    monkeypatch.setattr(main_module, "get_storage", lambda: Storage())
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(main_module.ready())
+
+    assert error.value.status_code == 503
+    assert error.value.detail == "A required dependency is not ready"
 
 
 def test_cookie_mutations_require_allowlisted_origin_in_production(monkeypatch) -> None:
