@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
+from google.auth.exceptions import GoogleAuthError, TransportError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy import delete, func, or_, select, text, update
@@ -249,6 +250,10 @@ async def google_login_user(
         )
     except ValueError as exc:
         raise HTTPException(401, "Invalid Google credential") from exc
+    except TransportError as exc:
+        raise HTTPException(503, "Google sign-in is temporarily unavailable") from exc
+    except GoogleAuthError as exc:
+        raise HTTPException(401, "Invalid Google credential") from exc
     if claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
         raise HTTPException(401, "Invalid Google credential")
     subject = claims.get("sub")
@@ -259,6 +264,8 @@ async def google_login_user(
     if not user:
         user = await session.scalar(select(User).where(func.lower(User.email) == email))
         if user:
+            if user.google_subject is not None and user.google_subject != subject:
+                raise HTTPException(409, "Google account is already linked")
             if not google_email_is_authoritative(claims, email):
                 raise HTTPException(409, "Confirm the existing account before linking Google")
             user.google_subject = subject
@@ -286,6 +293,8 @@ async def google_login_user(
         )
         if not user or user.blocked or user.deleted_at:
             raise HTTPException(409, "Google account could not be linked") from exc
+        if user.google_subject is not None and user.google_subject != subject:
+            raise HTTPException(409, "Google account is already linked") from exc
         if user.google_subject is None:
             if not google_email_is_authoritative(claims, email):
                 raise HTTPException(409, "Confirm the existing account before linking Google") from exc
@@ -501,13 +510,34 @@ async def refresh_user_session(
 async def revoke_session(raw_refresh: str | None, session: AsyncSession) -> None:
     if not raw_refresh:
         return
-    auth = await session.scalar(
-        select(AuthSession).where(
-            AuthSession.token_hash == token_hash(raw_refresh),
-            AuthSession.revoked_at.is_(None),
-        )
+    hashed_token = token_hash(raw_refresh)
+    auth = await session.scalar(select(AuthSession).where(AuthSession.token_hash == hashed_token))
+    if not auth:
+        return
+
+    # A logout can race with refresh rotation. Lock the account, then revoke
+    # the presented session and every replacement descended from it. This
+    # terminates that browser/device chain without logging out other devices.
+    await lock_user_sessions(auth.user_id, session)
+    now = datetime.now(UTC)
+    await session.execute(
+        text(
+            """
+            WITH RECURSIVE session_chain AS (
+                SELECT id, replaced_by
+                FROM auth_sessions
+                WHERE token_hash = :token_hash AND user_id = :user_id
+                UNION
+                SELECT replacement.id, replacement.replaced_by
+                FROM auth_sessions AS replacement
+                JOIN session_chain AS previous ON replacement.id = previous.replaced_by
+            )
+            UPDATE auth_sessions
+            SET revoked_at = :revoked_at
+            WHERE id IN (SELECT id FROM session_chain)
+              AND revoked_at IS NULL
+            """
+        ),
+        {"token_hash": hashed_token, "user_id": auth.user_id, "revoked_at": now},
     )
-    if auth:
-        await lock_user_sessions(auth.user_id, session)
-        auth.revoked_at = datetime.now(UTC)
-        await session.commit()
+    await session.commit()

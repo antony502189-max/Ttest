@@ -1,11 +1,14 @@
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
 from app.core.config import Settings
 from app.db.session import SessionLocal
+from app.main import app
 from app.models import AuthSession, User
 from app.services import auth
 
@@ -123,3 +126,97 @@ async def test_session_issuance_has_an_account_level_rate_limit(monkeypatch):
             select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user.id)
         )
         assert total == 2
+
+
+async def test_logout_revokes_only_the_presented_session_and_keeps_parallel_device_active(
+    client: AsyncClient, register_user
+):
+    _, user = await register_user(client, email="parallel-devices@example.com")
+    user_id = UUID(user["id"])
+    first_refresh = client.cookies.get("refresh_token")
+    assert first_refresh
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+    ) as second_device:
+        logged_in = await second_device.post(
+            "/api/v1/auth/login",
+            json={"email": "parallel-devices@example.com", "password": "Correct-Horse-1234"},
+        )
+        assert logged_in.status_code == 200, logged_in.text
+        second_refresh = second_device.cookies.get("refresh_token")
+        assert second_refresh and second_refresh != first_refresh
+
+        logged_out = await client.post("/api/v1/auth/logout")
+        assert logged_out.status_code == 204
+        assert client.cookies.get("refresh_token") is None
+        assert (await client.post("/api/v1/auth/refresh")).status_code == 401
+
+        still_active = await second_device.post("/api/v1/auth/refresh")
+        assert still_active.status_code == 200, still_active.text
+
+    async with SessionLocal() as session:
+        active = await session.scalar(
+            select(func.count())
+            .select_from(AuthSession)
+            .where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > datetime.now(UTC),
+            )
+        )
+        assert active == 1
+
+
+async def test_logout_with_a_rotated_token_revokes_only_its_replacement_chain(
+    client: AsyncClient, register_user
+):
+    _, user = await register_user(client, email="logout-race@example.com")
+    user_id = UUID(user["id"])
+    original_refresh = client.cookies.get("refresh_token")
+    assert original_refresh
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+    ) as other_device:
+        logged_in = await other_device.post(
+            "/api/v1/auth/login",
+            json={"email": "logout-race@example.com", "password": "Correct-Horse-1234"},
+        )
+        assert logged_in.status_code == 200, logged_in.text
+        other_refresh = other_device.cookies.get("refresh_token")
+        assert other_refresh and other_refresh != original_refresh
+
+        rotated = await client.post("/api/v1/auth/refresh")
+        assert rotated.status_code == 200, rotated.text
+        replacement_refresh = client.cookies.get("refresh_token")
+        assert replacement_refresh and replacement_refresh != original_refresh
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={"Origin": "http://testserver"},
+            cookies={"refresh_token": original_refresh},
+        ) as stale_logout:
+            response = await stale_logout.post("/api/v1/auth/logout")
+            assert response.status_code == 204
+
+        assert (await client.post("/api/v1/auth/refresh")).status_code == 401
+        still_active = await other_device.post("/api/v1/auth/refresh")
+        assert still_active.status_code == 200, still_active.text
+
+    async with SessionLocal() as session:
+        active = await session.scalar(
+            select(func.count())
+            .select_from(AuthSession)
+            .where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > datetime.now(UTC),
+            )
+        )
+        assert active == 1
