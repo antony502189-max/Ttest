@@ -44,7 +44,7 @@ test('EQUIP-01..08 landlord equipment fields persist, render and remain editable
 
   await advanceWizard(page, 7)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   const created = await page.evaluate(() => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as {
