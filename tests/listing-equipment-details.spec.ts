@@ -12,6 +12,7 @@ async function clearAndOpenAsHost(page: Page, path: string) {
 }
 
 async function advanceWizard(page: Page, count: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   const stepper = page.locator('.stepper')
   for (let index = 0; index < count; index += 1) {
     const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
