@@ -1,16 +1,28 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class RegisterRequest(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=12, max_length=256)
     role: Literal["tenant", "host"] = "tenant"
+
+    @field_validator("name", "email", "role", mode="before")
+    @classmethod
+    def strip_identity_fields(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("password")
+    @classmethod
+    def preserve_password_whitespace(cls, value: str) -> str:
+        # Passwords are opaque secrets: validate surrounding whitespace without
+        # mutating it, otherwise registration and login disagree about the secret.
+        if len(value.strip()) < 12:
+            raise ValueError("Password must be at least 12 characters excluding surrounding whitespace")
+        return value
 
 
 class LoginRequest(BaseModel):
