@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
@@ -131,7 +132,7 @@ async def test_logout_revokes_only_the_presented_session_and_keeps_parallel_devi
     client: AsyncClient, register_user
 ):
     _, user = await register_user(client, email="parallel-devices@example.com")
-    user_id = user["id"]
+    user_id = UUID(user["id"])
     first_refresh = client.cookies.get("refresh_token")
     assert first_refresh
 
