@@ -45,7 +45,7 @@ _MULTI_BEDROOM = re.compile(
     re.IGNORECASE,
 )
 _STUDIO_HOME = re.compile(r"\b(?:estudio|tipo\s+estudio|studio|loft)\b", re.IGNORECASE)
-_ABSOLUTE_URL = re.compile(r"""https?://[^"'<>\\s\\\\]+""", re.IGNORECASE)
+_ABSOLUTE_URL = re.compile(r"""https?://[^"'<>\s\\]+""", re.IGNORECASE)
 _LISTING_IMAGE_HOSTS = {
     "static.fotocasa.es",
     "images.habimg.com",
