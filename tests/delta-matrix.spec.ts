@@ -226,7 +226,7 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   expect(listing.exactCoordinates?.lng).toBeCloseTo(movedLng, 4)
   expect(Math.abs(listing.coordinates.lat - movedLat) + Math.abs(listing.coordinates.lng - movedLng)).toBeGreaterThan(0.001)
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
-  await expect(page.locator('main')).not.toContainText('Calle Secreta 99')
+  await expect(page.locator('#main-content')).not.toContainText('Calle Secreta 99')
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(String(listing.id))}/editar`)
   await expect(page.locator('.listing-edit-page')).toBeVisible()
   await expect(page.locator('.listing-edit-coordinates')).toContainText(`${movedLat.toFixed(4)}, ${movedLng.toFixed(4)}`)
