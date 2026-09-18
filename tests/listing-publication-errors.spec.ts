@@ -152,44 +152,34 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
   })
 }
 
-async function openCompletedWizard(page: Page) {
+async function openCompletedPublicationForm(page: Page) {
   await page.goto('/#/')
   await page.evaluate(() => {
     localStorage.clear()
     localStorage.setItem('112233:has-session', '1')
-    // The suite also runs against the local mock provider. Keep both auth
-    // hints so the helper is deterministic in either runtime mode.
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
   })
   await page.reload()
   await page.goto('/#/publicar')
-  await expect(page.getByRole('heading', { name: 'Publicar una habitación' })).toBeVisible()
-  for (let step = 0; step < 9; step += 1) {
-    if (step === 1) {
-      await page.locator('#publish-city').selectOption('Adeje')
-      await page.locator('#publish-area').fill('Costa Adeje')
-      await page.locator('#publish-postcode').fill('38660')
-      await expect(page.locator('#publish-city')).toHaveValue('Adeje')
-      await expect(page.locator('#publish-area')).toHaveValue('Costa Adeje')
-      await expect(page.locator('#publish-postcode')).toHaveValue('38660')
-    }
-    if (step === 6) {
-      await page.getByLabel('Añadir fotos del anuncio').setInputFiles({
-        name: 'synthetic-room.png',
-        mimeType: 'image/png',
-        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
-      })
-      await expect(page.locator('.upload-grid > div')).toHaveCount(1)
-    }
-    await page.getByRole('button', { name: 'Continuar' }).click()
-  }
+  await expect(page.getByRole('heading', { name: 'Publicar habitación' })).toBeVisible()
+  await expect(page.locator('.stepper')).toHaveCount(0)
+
+  await page.locator('#publish-city').selectOption('Adeje')
+  await page.locator('#publish-area').fill('Costa Adeje')
+  await page.locator('#publish-postcode').fill('38660')
+  await page.getByLabel('Añadir fotos del anuncio').setInputFiles({
+    name: 'synthetic-room.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+  })
+  await expect(page.locator('.upload-grid > div')).toHaveCount(1)
   await expect(page.getByRole('button', { name: 'Publicar anuncio' })).toBeVisible()
 }
 
 test('publication preserves email and FastAPI validation errors in Spanish', async ({ page }) => {
   const state = { mode: 'email' as PublicationMode, posts: 0, profilePatches: 0 }
   await mockPublicationApi(page, state)
-  await openCompletedWizard(page)
+  await openCompletedPublicationForm(page)
 
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByText('Confirma tu email antes de publicar el anuncio.')).toBeVisible()
@@ -205,11 +195,11 @@ test('publication preserves email and FastAPI validation errors in Spanish', asy
 test('double click sends one idempotent publication and then synchronizes images', async ({ page }) => {
   const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0, payload: undefined as Record<string, unknown> | undefined }
   await mockPublicationApi(page, state)
-  await openCompletedWizard(page)
+  await openCompletedPublicationForm(page)
 
   const publish = page.getByRole('button', { name: 'Publicar anuncio' })
   await publish.dblclick()
-  await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   expect(state.posts).toBe(1)
   expect(state.profilePatches).toBe(0)
@@ -228,36 +218,32 @@ test('double click sends one idempotent publication and then synchronizes images
 test('publish revalidates earlier steps after the host revisits and changes them', async ({ page }) => {
   const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0 }
   await mockPublicationApi(page, state)
-  await openCompletedWizard(page)
+  await openCompletedPublicationForm(page)
 
-  await page.locator('.stepper').getByRole('button', { name: /Habitación/ }).click()
-  await page.getByLabel('Superficie total de la vivienda (m²)').fill('5')
-  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
+  await page.locator('#publish-home-size').fill('5')
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
 
-  await expect(page.getByText('La vivienda debe tener una superficie entera, igual o mayor que la habitación.')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Describe la habitación' })).toBeVisible()
+  await expect(page.getByText(/igual o mayor que la habitación/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Habitación y vivienda' })).toBeVisible()
   expect(state.posts).toBe(0)
 })
 
 test('image failure keeps the durable draft and retries images without reposting or editing fields', async ({ page }) => {
   const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0, imageFailures: 1, imageListingIds: [] as string[] }
   await mockPublicationApi(page, state)
-  await openCompletedWizard(page)
+  await openCompletedPublicationForm(page)
 
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByText(/El anuncio se creó, pero/)).toBeVisible()
-  await expect(page.getByText(/Los datos del anuncio están bloqueados/)).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toHaveCount(0)
+  await expect(page.getByText(/Solo faltan las fotografías/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/publicar$/)
   await expect(page.getByRole('button', { name: 'Reintentar fotografías' })).toBeEnabled()
   expect(state.posts).toBe(1)
   expect(state.imageListingIds).toHaveLength(1)
   expect(await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).toBeTruthy()
 
-  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
-  await expect(page.getByRole('heading', { name: 'Revisa antes de publicar' })).toBeVisible()
   await page.getByRole('button', { name: 'Reintentar fotografías' }).click()
-  await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
   expect(state.posts).toBe(1)
   expect(state.imageListingIds).toHaveLength(2)
   expect(state.imageListingIds[1]).toBe(state.imageListingIds[0])
@@ -266,31 +252,25 @@ test('image failure keeps the durable draft and retries images without reposting
 test('publication contact validation matches the backend for hidden values and limits', async ({ page }) => {
   const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0 }
   await mockPublicationApi(page, state)
-  await openCompletedWizard(page)
+  await openCompletedPublicationForm(page)
 
-  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
   await page.locator('#publish-contact-phone').fill('not-a-phone')
-  await page.getByRole('checkbox', { name: 'Mostrar teléfono tras confirmar' }).uncheck()
-  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
+  await page.getByRole('checkbox', { name: 'Mostrar teléfono' }).uncheck()
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByText('Introduce un teléfono válido.')).toBeVisible()
   expect(state.posts).toBe(0)
 
-  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
   await page.locator('#publish-contact-phone').fill('1'.repeat(65))
-  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByText('El teléfono no puede superar 64 caracteres.')).toBeVisible()
   expect(state.posts).toBe(0)
 
-  await page.locator('.stepper').getByRole('button', { name: /Contacto/ }).click()
   await page.locator('#publish-contact-phone').fill(host.phone)
-  await page.getByRole('checkbox', { name: 'Mostrar teléfono tras confirmar' }).check()
+  await page.getByRole('checkbox', { name: 'Mostrar teléfono' }).check()
   await page.locator('#publish-contact-whatsapp').fill('')
-  await page.getByRole('checkbox', { name: 'Permitir WhatsApp tras confirmar' }).uncheck()
-  await page.locator('.stepper').getByRole('button', { name: /Vista previa/ }).click()
+  await page.getByRole('checkbox', { name: 'Mostrar WhatsApp' }).uncheck()
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByRole('heading', { name: 'Tu anuncio se ha enviado a revisión' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
   expect(state.posts).toBe(1)
 })
 
