@@ -172,7 +172,7 @@ test('23–26 registro y perfil persistente', async ({ page }) => {
 test('27–29 publicación completa, CRUD y edición', async ({ page }) => {
   await login(page, 'host')
   await page.goto('/#/publicar')
-  for (let index = 0; index < 9; index += 1) await page.getByRole('button', { name: /continuar/i }).click()
+  for (let index = 0; index < 9; index += 1) if (await page.getByRole('button', { name: /continuar/i }).count()) await page.getByRole('button', { name: /continuar/i }).click()
   await page.getByRole('button', { name: /publicar anuncio/i }).click()
   await expect(page.getByRole('heading', { name: /se ha enviado a revisión/i })).toBeVisible()
   await page.getByRole('link', { name: /mis anuncios/i }).click()
