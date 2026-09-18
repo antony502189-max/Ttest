@@ -30,10 +30,6 @@ test('localized legacy publication values hydrate back to canonical domain value
     kitchen: 'Cocina privada',
   })
 
-  const continueButton = page.getByRole('button', { name: 'Продолжить' })
-  await continueButton.click()
-  await continueButton.click()
-
   await expect(page.locator('#publish-bathroom')).toHaveValue('Baño privado')
   await expect(page.locator('#publish-toilet')).toHaveValue('Aseo privado')
   await expect(page.locator('#publish-shower')).toHaveValue('Ducha privada')

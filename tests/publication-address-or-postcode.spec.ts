@@ -5,7 +5,6 @@ async function openPublishLocation(page: Page) {
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   await page.reload()
   await page.goto('/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.locator('.approximate-location-map')).toBeVisible()
 }
 
@@ -80,8 +79,7 @@ test('postcode-only result without a distinct locality replaces the stale draft 
   await expect(page.getByLabel('Zona o barrio')).not.toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
   await expect(page.locator('.map-inline-error')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByText('Describe la habitación')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Habitación y vivienda' })).toBeVisible()
 })
 
 test('an exact typed address ignores untouched draft postcode and falls back without stale municipality or area context', async ({ page }) => {
@@ -156,9 +154,8 @@ test('resetting a draft also resets address touched constraints before the next 
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
   await page.getByLabel('Código postal').fill('38660')
 
-  await page.locator('.publish-header__actions').getByRole('button', { name: 'Restablecer' }).click()
+  await page.locator('.listing-create-draft-actions').getByRole('button', { name: 'Restablecer' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Restablecer' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
 

@@ -57,6 +57,7 @@ import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } fro
 import { useI18n } from "@/contexts/i18n-context";
 import { bedTypeOptionLabel } from "@/lib/bed-type-label";
 import { validatePublicationContact } from "@/lib/publication-contact";
+import { containsBlockedListingLink, listingLinkBlockedMessage } from "@/lib/listing-content-safety";
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from "@/types";
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === "1";
@@ -404,6 +405,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       if (!publicationMunicipalities.has(draft.city)) next.city = "Selecciona un municipio válido.";
       if (!draft.area.trim()) next.area = "Indica la zona o barrio.";
       else if (draft.area.trim().length > 120) next.area = "La zona no puede superar 120 caracteres.";
+      else if (containsBlockedListingLink(draft.area)) next.area = listingLinkBlockedMessage;
       if (draft.street.trim().length > 160) next.street = "La calle no puede superar 160 caracteres.";
       if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = "El código postal debe tener exactamente 5 dígitos.";
     }
@@ -442,9 +444,16 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
     }
     if (targetStep === 6 && !draft.images.length) next.images = "Añade al menos una fotografía.";
     else if (!mockMode && targetStep === 6 && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = "Vuelve a añadir las fotografías que ya no están disponibles.";
-    if (targetStep === 7 && draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
-    if (targetStep === 7 && (draft.description.trim().length < 40 || draft.description.length > 10_000)) next.description = "La descripción debe tener entre 40 y 10.000 caracteres.";
-    if (targetStep === 7 && draft.rules.length > 10_000) next.rules = "Las normas no pueden superar 10.000 caracteres.";
+    if (targetStep === 5) {
+      if (draft.rules.length > 10_000) next.rules = "Las normas no pueden superar 10.000 caracteres.";
+      else if (containsBlockedListingLink(draft.rules)) next.rules = listingLinkBlockedMessage;
+    }
+    if (targetStep === 7) {
+      if (draft.title.trim().length < 15) next.title = "Escribe un título de al menos 15 caracteres.";
+      else if (containsBlockedListingLink(draft.title)) next.title = listingLinkBlockedMessage;
+      if (draft.description.trim().length < 40 || draft.description.length > 10_000) next.description = "La descripción debe tener entre 40 y 10.000 caracteres.";
+      else if (containsBlockedListingLink(draft.description)) next.description = listingLinkBlockedMessage;
+    }
     if (targetStep === 8) Object.assign(next, validatePublicationContact(draft));
     setErrors(next);
     if (Object.keys(next).length) requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"], .field-error')?.focus());
@@ -625,14 +634,14 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
             <label><Checkbox checked={draft.childrenAllowed} onCheckedChange={(value) => set("childrenAllowed", value === true)} />Se aceptan menores / niños</label>
             <label><Checkbox checked={draft.empadronamientoAllowed} onCheckedChange={(value) => set("empadronamientoAllowed", value === true)} />Empadronamiento posible</label>
           </fieldset>
-          <FormField label="Normas de la vivienda" htmlFor="publish-rules" error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set("rules", e.target.value)} /></FormField>
+          <FormField label="Normas de la vivienda" htmlFor="publish-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set("rules", e.target.value)} /></FormField>
         </WizardSection>;
       case 6:
         return <WizardSection title="Fotografías" description="La primera será la portada. Puedes reordenarlas."><ImageUploader images={draft.images} onChange={(images) => set("images", images)} onRemove={(image) => { if (!existing?.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch((error) => toast.error(error instanceof Error ? error.message : "No se pudo limpiar la imagen local.")); }} error={errors.images} /></WizardSection>;
       case 7:
         return <WizardSection title="Cuenta cómo es vivir aquí" description="Responde las dudas habituales.">
           <FormField label="Título del anuncio" htmlFor="publish-title" description="Máximo 80 caracteres." error={errors.title}><Input id="publish-title" maxLength={80} value={draft.title} aria-invalid={Boolean(errors.title)} onChange={(e) => set("title", e.target.value)} /></FormField>
-          <FormField label="Descripción" htmlFor="publish-description" error={errors.description}><Textarea id="publish-description" rows={8} value={draft.description} aria-invalid={Boolean(errors.description)} onChange={(e) => set("description", e.target.value)} /></FormField>
+          <FormField label="Descripción" htmlFor="publish-description" description="No se permiten enlaces ni dominios externos." error={errors.description}><Textarea id="publish-description" rows={8} value={draft.description} aria-invalid={Boolean(errors.description)} onChange={(e) => set("description", e.target.value)} /></FormField>
         </WizardSection>;
       case 8:
         return <WizardSection title="Datos de contacto" description="Estos canales se mostrarán tras confirmar la condición principal.">

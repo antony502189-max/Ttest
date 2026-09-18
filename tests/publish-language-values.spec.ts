@@ -22,8 +22,6 @@ test('Russian publication keeps canonical room values and preserves them when sw
   await page.goto('/#/publicar')
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
 
-  await page.getByRole('button', { name: 'Продолжить' }).click()
-  await page.getByRole('button', { name: 'Продолжить' }).click()
 
   const bathroom = page.locator('#publish-bathroom')
   const toilet = page.locator('#publish-toilet')

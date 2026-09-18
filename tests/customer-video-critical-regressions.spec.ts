@@ -8,6 +8,7 @@ async function signInAsHost(page: Page) {
 }
 
 async function advanceWizard(page: Page, targetStep: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   for (let index = 0; index < targetStep; index += 1) {
     await page.getByRole('button', { name: /continuar/i }).click()
   }
@@ -43,7 +44,7 @@ test('customer video fix keeps owner routes behind authoritative hydration', () 
 
 test('customer video fix keeps fresh location unresolved safely and validates it at the wizard model boundary', () => {
   const source = readFileSync('src/components/customer-video-critical-fixes.tsx', 'utf8')
-  const publish = readFileSync('src/pages/PublishPage.tsx', 'utf8')
+  const publish = readFileSync('src/pages/ListingCreatePage.tsx', 'utf8')
 
   expect(source).toContain("const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'")
   expect(source).toContain("const AUTO_CITY_VALUE = '__112233_auto_municipality__'")
@@ -63,13 +64,13 @@ test('customer video fix keeps fresh location unresolved safely and validates it
   expect(source).toContain("setNativeInputValue(postcode, '')")
   expect(source).toContain("!/^\\d{5}$/.test(postcode.value.trim())")
   expect(source).toContain('selector.hidden = true')
-  expect(publish).toContain('if (!publicationMunicipalities.has(draft.city)) next.city = "Selecciona un municipio válido."')
+  expect(publish).toContain("if (!municipalitySet.has(draft.city)) next.city = 'Selecciona un municipio válido.'")
   expect(publish).toContain('error={errors.city}')
   expect(publish).toContain('aria-invalid={Boolean(errors.city)}')
-  expect(publish).toContain('if (draft.postcode.trim() && !/^\\d{5}$/.test(draft.postcode.trim()))')
+  expect(publish).toContain("if (draft.postcode.trim() && !/^\\d{5}$/.test(draft.postcode.trim()))")
   expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
-  expect(publish).toContain('for (let targetStep = 0; targetStep < steps.length - 1; targetStep += 1)')
-  expect(publish).toContain('if (!validate(targetStep))')
+  expect(publish).toContain('const validate = () =>')
+  expect(publish).toContain('if (savingRef.current || !validate()) return')
 })
 
 test('customer video fix retries transient admin authorization without weakening the server route guard', () => {
@@ -121,7 +122,6 @@ test('leaving a new publication does not make existing host listings disappear',
   expect(before).toBeGreaterThan(0)
 
   await page.getByRole('link', { name: /nuevo anuncio/i }).click()
-  await page.getByRole('button', { name: /continuar/i }).click()
   await expect(page.locator('#publish-city')).toBeVisible()
 
   await page.goBack()

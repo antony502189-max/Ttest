@@ -56,15 +56,13 @@ async (page) => {
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.getByText('Cambios guardados correctamente.').waitFor()
   })
-  await test('Crear anuncio y vista previa', async () => {
+  await test('Crear anuncio en una sola página', async () => {
     await page.goto('http://127.0.0.1:4173/#/publicar')
-    for (let step = 0; step < 9; step++) await page.getByRole('button', { name: /Continuar/ }).click()
-    await page.getByRole('heading', { name: 'Revisa antes de publicar' }).waitFor()
-    await page.getByRole('button', { name: 'Vista previa completa' }).click()
-    await page.getByRole('dialog').waitFor()
-    await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: /Enviar a revisión/ }).click()
-    await page.getByRole('heading', { name: 'Tu habitación está en revisión' }).waitFor()
+    await page.locator('.listing-create-page').waitFor()
+    if (await page.locator('.listing-edit-section').count() !== 9) throw new Error('La publicación no muestra las 9 secciones')
+    if (await page.locator('.stepper').count()) throw new Error('El wizard antiguo sigue visible')
+    await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+    await page.waitForURL(/\/mis-anuncios$/)
   })
   await test('Gestionar anuncio propio', async () => {
     await page.goto('http://127.0.0.1:4173/#/mis-anuncios')

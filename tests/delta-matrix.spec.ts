@@ -30,6 +30,7 @@ async function resultCount(page: Page) {
 }
 
 async function continueWizard(page: Page, count: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   if (!page.url().includes('/publicar')) return
   const stepper = page.locator('.stepper')
   await expect(stepper).toBeVisible()
@@ -146,35 +147,34 @@ test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback
   await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^data:image\/svg/)
 })
 
-test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters affect results', async ({ page }) => {
+test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
-  await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
+  await page.getByText('Alquiler vacacional', { exact: true }).click()
   await continueWizard(page, 2)
-  await page.getByLabel('Tamaño aproximado').fill('19')
-  await page.getByLabel('Personas que viven en casa').fill('3')
-  await page.getByLabel('Capacidad de la habitación').selectOption('2')
+  await page.getByLabel('Superficie habitación (m²)').fill('19')
+  await page.getByLabel('Personas en la vivienda').fill('3')
+  await page.getByLabel('Capacidad habitación').selectOption('2')
   await page.getByLabel('Ducha').selectOption('Ducha privada')
   const washer = page.locator('#publish-washing-machine')
   await washer.selectOption('shared')
   await expect(washer).toHaveValue('shared')
   await continueWizard(page, 1)
-  await page.getByLabel('Precio por noche').fill('61')
-  await page.getByLabel('Precio por semana').fill('360')
-  await page.getByLabel('Precio por mes').fill('1200')
+  await page.locator('#publish-nightly-price').fill('61')
+  await page.getByLabel('Precio semanal (€)').fill('360')
   await continueWizard(page, 1)
   await page.getByLabel('Estancia mínima (noches)').fill('4')
   await page.getByLabel('Disponible hasta').fill('2026-12-31')
   await continueWizard(page, 1)
-  await page.getByLabel('Requisito para la persona inquilina').selectOption('couple')
+  await page.getByLabel('A quién buscas').selectOption('couple')
   await continueWizard(page, 4)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/se ha enviado a revisión/)).toBeVisible()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   const listing = (await storedListings(page))[0]
   expect(listing).toMatchObject({
     rentalMode: 'holiday', roomSizeM2: 19, currentResidents: 3, roomCapacity: 2,
     shower: 'Ducha privada', tenantRequirement: 'couple',
-    nightlyPrice: 61, weeklyPrice: 360, monthlyPrice: 1200,
+    nightlyPrice: 61, weeklyPrice: 360, monthlyPrice: 450,
     minimumNights: 4, availableUntil: '2026-12-31',
   })
   expect(listing).not.toHaveProperty('genderPreference')
@@ -189,7 +189,7 @@ test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters 
   const priceDetails = page.getByRole('heading', { name: 'Precio y disponibilidad' }).locator('..').locator('.detail-list')
   await expect(priceDetails).toContainText('Semana')
   await expect(priceDetails).toContainText('360 €')
-  await expect(priceDetails).toContainText('1200 €')
+  await expect(priceDetails).toContainText('450 €')
   await expect(page.getByText('Lavadora compartida', { exact: true })).toHaveCount(1)
   await page.goto('/#/buscar?alquiler=long')
   await expect(page.locator('.property-card').first()).toContainText('/mes')
@@ -198,11 +198,12 @@ test('ROOM-01..04 MODE-01..03 holiday wizard values persist and all new filters 
 test('LOC-01 selected zone coordinates persist, edit restores them and exact street stays private', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
   await continueWizard(page, 1)
+  await page.getByLabel('Municipio').selectOption('Granadilla de Abona')
   await page.getByLabel('Zona o barrio').fill('El Médano')
-  await page.getByLabel('Calle').fill('Calle Secreta 99')
+  await page.locator('#publish-street').fill('Calle Secreta 99')
 
-  const output = page.locator('.approximate-location-selector output')
-  await expect(output).toContainText('Coordenadas aproximadas: 28.0477, -16.5363')
+  const output = page.locator('.listing-edit-coordinates')
+  await expect(output).toContainText('Coordenadas exactas:')
   const before = await output.textContent()
   const map = page.locator('.approximate-location-map')
   await expect(map).toBeVisible()
@@ -225,7 +226,7 @@ test('LOC-01 selected zone coordinates persist, edit restores them and exact str
   expect(listing.exactCoordinates?.lng).toBeCloseTo(movedLng, 4)
   expect(Math.abs(listing.coordinates.lat - movedLat) + Math.abs(listing.coordinates.lng - movedLng)).toBeGreaterThan(0.001)
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
-  await expect(page.locator('main')).not.toContainText('Calle Secreta 99')
+  await expect(page.locator('#main-content')).not.toContainText('Calle Secreta 99')
   await page.goto(`/#/mis-anuncios/${encodeURIComponent(String(listing.id))}/editar`)
   await expect(page.locator('.listing-edit-page')).toBeVisible()
   await expect(page.locator('.listing-edit-coordinates')).toContainText(`${movedLat.toFixed(4)}, ${movedLng.toFixed(4)}`)
@@ -242,17 +243,16 @@ test('PROFILE-02 publish defaults require a direct contact method and preview on
     showPhone: false, showWhatsApp: false,
     contactPhone: '+34 600 112 233', contactWhatsapp: '+34 611 223 344',
   })
-  await continueWizard(page, 8)
   await expect(page.getByRole('checkbox', { name: /Mostrar teléfono/ })).not.toBeChecked()
-  await expect(page.getByRole('checkbox', { name: /Permitir WhatsApp/ })).not.toBeChecked()
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByRole('checkbox', { name: /Mostrar WhatsApp/ })).not.toBeChecked()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page.getByRole('alert')).toContainText('Activa teléfono o WhatsApp')
-  await expect(page.getByText('Permitir mensaje local')).toHaveCount(0)
   await page.getByRole('checkbox', { name: /Mostrar teléfono/ }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  const methods = page.locator('.preview-contact-methods').first()
-  await expect(methods).toContainText('Teléfono')
-  await expect(methods).not.toContainText('WhatsApp')
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  const published = (await storedListings(page))[0]
+  expect(published.showPhone).toBe(true)
+  expect(published.showWhatsApp).toBe(false)
 })
 
 test('FILTER-02..06 new filters have chips, reset, reload and history navigation', async ({ page }) => {
@@ -311,7 +311,7 @@ test('MAP-05 Google Maps loader errors expose the accessible map fallback', asyn
 
 test('WIZ-04 reset clears dirty state and short-height filter drawer remains usable', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
-  await page.getByRole('radio', { name: 'Alquiler vacacional' }).click()
+  await page.getByText('Alquiler vacacional', { exact: true }).click()
   await expect(page.locator('.dirty-state')).toHaveText('Cambios sin guardar')
   await page.getByRole('button', { name: 'Restablecer' }).click()
   const resetDialog = page.getByRole('alertdialog', { name: '¿Restablecer el borrador?' })

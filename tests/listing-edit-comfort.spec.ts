@@ -89,7 +89,7 @@ test('photo can be replaced in place without deleting the rest', async ({ page }
   await expect.poll(() => photos.first().getAttribute('src')).not.toBe(beforeSrc)
 })
 
-test('normal publication remains the existing step-by-step wizard', async ({ page }) => {
+test('new publication uses the same one-page long form as editing', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/')
   await page.evaluate(() => {
@@ -99,13 +99,18 @@ test('normal publication remains the existing step-by-step wizard', async ({ pag
   await page.reload()
   await page.goto('/#/publicar')
 
-  const stepper = page.locator('.stepper')
-  await expect(stepper).toBeVisible()
-  await expect(page.getByRole('button', { name: /Continuar/i })).toBeVisible()
-  await expect(page.locator('.listing-edit-page')).toHaveCount(0)
-  await expect(stepper.locator('select[aria-label="Ir directamente a una sección del anuncio"]')).toHaveCount(0)
-  const stepButtons = stepper.locator('ol button')
-  await expect(stepButtons.first()).toBeEnabled()
-  await expect(stepButtons.nth(1)).toBeDisabled()
-  await expect(stepButtons.last()).toBeDisabled()
+  await expect(page.locator('.stepper')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Continuar/i })).toHaveCount(0)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('.listing-create-page .listing-edit-section')).toHaveCount(9)
+  await expect(page.getByRole('heading', { name: 'Publicar habitación' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tipo de alquiler' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Ubicación' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Habitación y vivienda' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Precio, gastos y fianza' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Disponibilidad' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Convivencia y requisitos' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fotografías' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Título y descripción' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Contacto' })).toBeVisible()
 })
