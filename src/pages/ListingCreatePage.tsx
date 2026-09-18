@@ -38,6 +38,9 @@ import '@/listing-edit-long-form.css'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const draftKey = '112233:listing-draft:v3'
+const legacyDraftKey = '112233:listing-draft:v2'
+const editDraftPrefix = '112233:listing-edit-draft:v1:'
+const editDraftKey = (listingId: string) => `${editDraftPrefix}${listingId}`
 const municipalities = [
   'Adeje','Arafo','Arico','Arona','Buenavista del Norte','Candelaria','El Rosario','El Sauzal','El Tanque','Fasnia','Garachico','Granadilla de Abona','Guía de Isora','Güímar','Icod de los Vinos','La Guancha','La Matanza de Acentejo','La Orotava','La Victoria de Acentejo','Los Realejos','Los Silos','Puerto de la Cruz','San Cristóbal de La Laguna','San Juan de la Rambla','San Miguel de Abona','Santa Cruz de Tenerife','Santa Úrsula','Santiago del Teide','Tacoronte','Tegueste','Vilaflor de Chasna',
 ] as const
@@ -167,10 +170,18 @@ export function ListingCreatePage() {
   const [draft, setDraft] = useState<ListingDraft>(() => {
     const defaults = withProfileDefaults(currentUser as DemoUser | null)
     try {
-      const stored = JSON.parse(localStorage.getItem(draftKey) ?? 'null') as { version?: number; ownerUserId?: string; listingId?: string; data?: Partial<ListingDraft> } | null
-      if (stored?.version === 3 && !stored.listingId && (!stored.ownerUserId || stored.ownerUserId === currentUser?.id) && stored.data) return { ...defaults, ...stored.data }
-    } catch { /* use defaults */ }
-    return defaults
+      const raw = localStorage.getItem(draftKey)
+      const stored = JSON.parse(raw ?? 'null') as { version?: number; ownerUserId?: string; listingId?: string; data?: Partial<ListingDraft> } | null
+      if (raw && stored?.listingId) {
+        const scopedKey = editDraftKey(stored.listingId)
+        if (!localStorage.getItem(scopedKey)) localStorage.setItem(scopedKey, raw)
+        localStorage.removeItem(draftKey)
+      } else if (stored?.version === 3 && !stored.listingId && (!stored.ownerUserId || stored.ownerUserId === currentUser?.id) && stored.data) {
+        return { ...defaults, ...stored.data }
+      }
+      const legacy = localStorage.getItem(legacyDraftKey)
+      return legacy ? { ...defaults, ...(JSON.parse(legacy) as Partial<ListingDraft>) } : defaults
+    } catch { return defaults }
   })
   const [baseline, setBaseline] = useState(() => JSON.stringify(draft))
   const [errors, setErrors] = useState<Record<string, string>>({})
