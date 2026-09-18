@@ -83,7 +83,7 @@ async def test_register_preserves_password_and_normalizes_identity_fields(client
         json={"email": "alice.mixed@example.com", "password": password.strip()},
     )
     assert trimmed_login.status_code == 401
-    assert trimmed_login.json()["message"] == "Invalid credentials"
+    assert trimmed_login.json()["detail"] == "Invalid credentials"
     assert await auth_session_count(user_id) == 2
 
 
@@ -111,7 +111,7 @@ async def test_duplicate_registration_is_case_insensitive_and_does_not_issue_ses
         },
     )
     assert duplicate.status_code == 409
-    assert duplicate.json()["message"] == "Email already registered"
+    assert duplicate.json()["detail"] == "Email already registered"
 
     async with SessionLocal() as session:
         users = await session.scalar(
@@ -163,7 +163,7 @@ async def test_wrong_password_blocked_and_deleted_accounts_never_issue_login_ses
             json={"email": email, "password": password},
         )
         assert response.status_code == 401
-        assert response.json()["message"] == "Invalid credentials"
+        assert response.json()["detail"] == "Invalid credentials"
 
     after = {email: await auth_session_count(users[email]) for email, _ in attempts}
     assert after == before
