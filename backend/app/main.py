@@ -286,11 +286,25 @@ async def request_context(request: Request, call_next):
                 response = await call_next(request)
         else:
             response = await call_next(request)
-    except Exception as exc:
-        # ServerErrorMiddleware lives outside user middleware. Handle failures
-        # here so 500 responses still pass through the same metrics/log/header
-        # finalization path as every other request.
-        response = await internal_error(request, exc)
+    except Exception:
+        # ServerErrorMiddleware owns the final 500 response and re-raises after
+        # invoking the registered handler, which keeps framework/Sentry error
+        # capture intact. Record request observability here before propagating.
+        duration = perf_counter() - started
+        route_path = metric_route_for(request, fallback=metric_fallback)
+        REQUESTS.labels(request.method, route_path, "500").inc()
+        REQUEST_DURATION.labels(request.method, route_path).observe(duration)
+        logger.info(
+            "http_request",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": 500,
+                "duration_ms": round(duration * 1000, 2),
+            },
+        )
+        raise
 
     if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
         response.headers["Cache-Control"] = "no-store"
@@ -361,10 +375,13 @@ async def internal_error(request: Request, exc: Exception):
         "unhandled_request_error",
         extra={"request_id": request_id, "method": request.method, "path": request.url.path},
     )
+    headers = {"X-Request-ID": request_id, **SECURITY_HEADERS}
+    if request.url.path.startswith("/api/"):
+        headers["Cache-Control"] = "no-store"
     return JSONResponse(
         status_code=500,
         content={"code": "internal_error", "message": "Internal server error", "fieldErrors": {}},
-        headers={"X-Request-ID": request_id, **SECURITY_HEADERS},
+        headers=headers,
     )
 
 
