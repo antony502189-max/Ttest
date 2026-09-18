@@ -2,10 +2,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
 from app.core.config import Settings
 from app.db.session import SessionLocal
+from app.main import app
 from app.models import AuthSession, User
 from app.services import auth
 
@@ -123,3 +125,45 @@ async def test_session_issuance_has_an_account_level_rate_limit(monkeypatch):
             select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user.id)
         )
         assert total == 2
+
+
+async def test_logout_revokes_only_the_presented_session_and_keeps_parallel_device_active(
+    client: AsyncClient, register_user
+):
+    _, user = await register_user(client, email="parallel-devices@example.com")
+    user_id = user["id"]
+    first_refresh = client.cookies.get("refresh_token")
+    assert first_refresh
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+    ) as second_device:
+        logged_in = await second_device.post(
+            "/api/v1/auth/login",
+            json={"email": "parallel-devices@example.com", "password": "Correct-Horse-1234"},
+        )
+        assert logged_in.status_code == 200, logged_in.text
+        second_refresh = second_device.cookies.get("refresh_token")
+        assert second_refresh and second_refresh != first_refresh
+
+        logged_out = await client.post("/api/v1/auth/logout")
+        assert logged_out.status_code == 204
+        assert client.cookies.get("refresh_token") is None
+        assert (await client.post("/api/v1/auth/refresh")).status_code == 401
+
+        still_active = await second_device.post("/api/v1/auth/refresh")
+        assert still_active.status_code == 200, still_active.text
+
+    async with SessionLocal() as session:
+        active = await session.scalar(
+            select(func.count())
+            .select_from(AuthSession)
+            .where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > datetime.now(UTC),
+            )
+        )
+        assert active == 1
