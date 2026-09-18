@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Save } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { FormField, ImageUploader } from '@/components/forms'
+import { ConfirmDialog, FormField, ImageUploader } from '@/components/forms'
 import { ApproximateLocationMap } from '@/components/map-view'
 import { useApp } from '@/contexts/app-context'
 import { amenityOptions, createDefaultDraft } from '@/data/listings'
@@ -193,6 +203,7 @@ export function ListingCreatePage() {
   const [verificationError, setVerificationError] = useState('')
   const [verificationBusy, setVerificationBusy] = useState(false)
   const [verificationCooldown, setVerificationCooldown] = useState(0)
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null)
 
   const equipment = readEquipmentAmenities(draft.amenities)
   const isDirty = JSON.stringify(draft) !== baseline
@@ -211,6 +222,20 @@ export function ListingCreatePage() {
     const warn = (event: BeforeUnloadEvent) => { if (isDirty) event.preventDefault() }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
+  }, [isDirty])
+
+  useEffect(() => {
+    if (!isDirty) return
+    const intercept = (event: MouseEvent) => {
+      const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
+      if (!anchor || anchor.target === '_blank') return
+      const url = new URL(anchor.href, location.href)
+      if (url.origin !== location.origin || url.hash === location.hash) return
+      event.preventDefault()
+      setPendingRoute(url.hash.replace(/^#/, '') || '/')
+    }
+    document.addEventListener('click', intercept, true)
+    return () => document.removeEventListener('click', intercept, true)
   }, [isDirty])
 
   useEffect(() => {
@@ -303,6 +328,34 @@ export function ListingCreatePage() {
     }
   }
 
+  const saveDraft = () => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, data: draft }))
+      setBaseline(JSON.stringify(draft))
+      toast.success('Borrador guardado')
+    } catch {
+      toast.error('No se pudo guardar el borrador. Revisa el espacio disponible.')
+    }
+  }
+
+  const resetDraft = () => {
+    const fresh = withProfileDefaults(currentUser as DemoUser | null)
+    const retained = new Set(fresh.images)
+    const transientMedia = draft.images.filter((reference) => !retained.has(reference))
+    void removeUnusedMediaReferences(transientMedia, nonDraftMedia).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
+    })
+    setDraft(fresh)
+    setErrors({})
+    setBaseline(JSON.stringify(fresh))
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, data: fresh }))
+    } catch {
+      toast.error('No se pudo guardar el borrador restablecido.')
+    }
+    toast.success('Borrador restablecido')
+  }
+
   const choice = <T extends string>(name: string, value: T, options: { value: T; title: string; text?: string }[], onChange: (value: T) => void) => <div className="listing-edit-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong>{option.text ? <small>{option.text}</small> : null}</span></label>)}</div>
 
   return <>
@@ -310,6 +363,13 @@ export function ListingCreatePage() {
       <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Publicar anuncio</strong><Button onClick={save} disabled={saving}><Save data-icon="inline-start" />{saving ? 'Publicando…' : recoveringImages ? 'Reintentar fotos' : 'Publicar'}</Button></div></div>
       <div className="listing-edit-shell">
         <header className="listing-edit-heading"><p>Nuevo anuncio</p><h1>Publicar habitación</h1><span>Todo el anuncio está en una sola página. Baja, completa los datos y publica al final.</span></header>
+        <div className="listing-create-draft-actions publish-header__actions">
+          <span className="dirty-state" aria-live="polite">{isDirty ? 'Cambios sin guardar' : 'Borrador guardado'}</span>
+          <div>
+            <ConfirmDialog trigger={<Button variant="outline" disabled={recoveringImages}><RotateCcw data-icon="inline-start" />Restablecer</Button>} title="¿Restablecer el borrador?" description="Se eliminarán los cambios del anuncio y las fotos temporales que no usa ningún anuncio guardado." confirmLabel="Restablecer" destructive onConfirm={resetDraft} />
+            <Button variant="outline" disabled={recoveringImages || !isDirty} onClick={saveDraft}><Save data-icon="inline-start" />Guardar borrador</Button>
+          </div>
+        </div>
         {recoveringImages ? <div className="listing-edit-recovery" role="status"><strong>El anuncio ya está creado.</strong><span>Solo faltan las fotografías. Los demás campos quedan bloqueados hasta terminar la sincronización para evitar perder cambios.</span></div> : null}
 
       <Section disabled={recoveringImages} id="publish-basic" title="Tipo de alquiler">
@@ -417,5 +477,6 @@ export function ListingCreatePage() {
     </div>
     </main>
     <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}><DialogContent aria-describedby="create-email-verification-description"><DialogHeader><DialogTitle>Confirma tu email para publicar</DialogTitle><DialogDescription id="create-email-verification-description">Enviaremos un código de seis dígitos a {verificationEmail || 'tu email'}. Tu borrador y tus fotos seguirán guardados.</DialogDescription></DialogHeader><div className="space-y-3"><Input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" aria-label="Código de seis dígitos" aria-invalid={Boolean(verificationError)} />{verificationError ? <p className="field-error" role="alert">{verificationError}</p> : null}<Button type="button" variant="outline" disabled={verificationBusy || verificationCooldown > 0} onClick={async () => { setVerificationBusy(true); try { const result = await requestEmailVerification(); setVerificationEmail(result.email); setVerificationCooldown(result.cooldownSeconds); setVerificationError(''); toast.success('Código enviado'); } catch (error) { setVerificationError(error instanceof Error ? error.message : 'No se pudo enviar el código.'); } finally { setVerificationBusy(false); } }}>{verificationCooldown > 0 ? `Reenviar en ${verificationCooldown}s` : 'Enviar código'}</Button><Button type="button" disabled={verificationBusy || verificationCode.length !== 6} onClick={async () => { setVerificationBusy(true); try { await verifyEmail(verificationCode); setVerificationOpen(false); setVerificationCode(''); setVerificationError(''); await save(); } catch (error) { setVerificationError(error instanceof Error ? error.message : 'Código no válido.'); } finally { setVerificationBusy(false); } }}>Confirmar y publicar</Button></div></DialogContent></Dialog>
+    <AlertDialog open={Boolean(pendingRoute)} onOpenChange={(open) => { if (!open) setPendingRoute(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Salir del editor?</AlertDialogTitle><AlertDialogDescription>Hay cambios sin guardar. El borrador automático se conserva, pero puedes guardarlo manualmente antes de salir.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Seguir editando</AlertDialogCancel><AlertDialogAction onClick={() => { const route = pendingRoute; setPendingRoute(null); if (route) navigate(route) }}>Salir y conservar borrador</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </>
 }
