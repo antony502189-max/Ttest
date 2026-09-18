@@ -181,13 +181,14 @@ class HabitacliaSource(ExternalListingSource):
 
     @staticmethod
     def _decode_hydration(document: str) -> str:
-        normalized = html.unescape(document.replace("\\/", "/"))
-        for _ in range(3):
-            updated = normalized.replace('\\"', '"')
+        normalized = html.unescape(document)
+        for _ in range(4):
+            updated = normalized.replace("\\/", "/").replace('\\"', '"')
             if updated == normalized:
                 break
             normalized = updated
         normalized = _UNICODE_ESCAPE.sub(lambda match: chr(int(match.group(1), 16)), normalized)
+        normalized = normalized.replace("\\/", "/")
         return normalized.replace("\\n", " ").replace("\\r", " ")
 
     @classmethod
@@ -345,7 +346,7 @@ class HabitacliaSource(ExternalListingSource):
             data["description"] = clean(description.group(1)) or data["description"]
 
         existing_images = [
-            value for value in data.get("images", []) if isinstance(value, str) and self._is_listing_image_url(value)
+            value for value in data.get("images", []) if isinstance(value, str) and value.startswith("http")
         ]
         detail_images = self._extract_detail_images(document, external_id.group(1) if external_id else None)
         images = list(dict.fromkeys([*existing_images, *detail_images]))
