@@ -53,32 +53,29 @@ def test_unmatched_api_404_uses_bounded_metric_route_and_no_store() -> None:
 
 
 def test_unhandled_api_error_uses_common_http_finalization() -> None:
-    request = Request(
-        {
-            "type": "http",
-            "method": "GET",
-            "scheme": "http",
-            "path": "/api/v1/test-unhandled",
-            "raw_path": b"/api/v1/test-unhandled",
-            "query_string": b"",
-            "headers": [(b"x-request-id", b"unhandled-test")],
-            "client": ("127.0.0.1", 12345),
-            "server": ("testserver", 80),
-        }
-    )
+    path = "/api/v1/test-unhandled-http-contour"
 
-    async def fail(_request):
+    async def fail():
         raise RuntimeError("forced test failure")
 
-    before = REQUESTS.labels("GET", "<unmatched>", "500")._value.get()
-    response = asyncio.run(main_module.request_context(request, fail))
+    app.add_api_route(path, fail, methods=["GET"], include_in_schema=False)
+    before = REQUESTS.labels("GET", path, "500")._value.get()
+    try:
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get(path, headers={"X-Request-ID": "unhandled-test"})
+    finally:
+        app.router.routes[:] = [route for route in app.router.routes if getattr(route, "path", None) != path]
 
     assert response.status_code == 500
-    assert response.body == b'{"code":"internal_error","message":"Internal server error","fieldErrors":{}}'
+    assert response.json() == {
+        "code": "internal_error",
+        "message": "Internal server error",
+        "fieldErrors": {},
+    }
     assert response.headers["x-request-id"] == "unhandled-test"
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["x-content-type-options"] == "nosniff"
-    assert REQUESTS.labels("GET", "<unmatched>", "500")._value.get() == before + 1
+    assert REQUESTS.labels("GET", path, "500")._value.get() == before + 1
 
 
 def test_production_disables_interactive_api_schema(monkeypatch) -> None:
