@@ -19,7 +19,7 @@ async function openPublishLocation(page: Page) {
 }
 
 async function typeExactAddress(page: Page, streetValue = 'Calle Londres 5', postcodeValue = '38660') {
-  const street = page.getByLabel('Calle')
+  const street = page.locator('#publish-street')
   await street.click()
   await page.keyboard.type(streetValue)
   const postcode = page.getByLabel('Código postal')
@@ -105,7 +105,7 @@ test('customer address Calle José Espronceda 20 in Armeñime resolves without s
     return center ? { lat: Number(center.lat().toFixed(5)), lng: Number(center.lng().toFixed(5)) } : null
   })).toEqual(mockRooftop)
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
@@ -191,7 +191,7 @@ test('street plus postcode without a building number recenters at street zoom in
 test('placing the marker with empty address fields reverse-geocodes and fills the structured address', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('')
-  await page.getByLabel('Calle').fill('')
+  await page.locator('#publish-street').fill('')
   await page.getByLabel('Código postal').fill('')
 
   await page.evaluate(() => {
@@ -218,7 +218,7 @@ test('placing the marker with empty address fields reverse-geocodes and fills th
   const map = page.locator('.approximate-location-map')
   await map.dblclick({ position: { x: 180, y: 180 } })
 
-  await expect(page.getByLabel('Calle')).toHaveValue('Calle José Espronceda 20')
+  await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
