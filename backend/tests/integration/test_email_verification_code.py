@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
@@ -106,7 +107,7 @@ async def test_resend_invalidates_old_code_and_enforces_hourly_limit(client):
         "/api/v1/auth/register",
         json={"name": "Resend Host", "email": "resend-host@example.com", "password": "Correct-Horse-1234", "role": "host"},
     )
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
     async with SessionLocal() as session:
         user = await session.get(User, user_id)
         assert user is not None
@@ -147,7 +148,7 @@ async def test_verification_code_expires_and_cannot_be_reused_after_success(clie
         },
     )
     assert registration.status_code == 201, registration.text
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
     headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
 
     requested = await client.post("/api/v1/auth/email-verification/request", headers=headers)
@@ -228,7 +229,7 @@ async def test_verification_resend_cooldown_and_already_verified_noop(client):
         },
     )
     assert registration.status_code == 201, registration.text
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
     headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
 
     first = await client.post("/api/v1/auth/email-verification/request", headers=headers)
