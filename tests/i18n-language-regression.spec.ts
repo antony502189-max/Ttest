@@ -132,8 +132,8 @@ test('English search does not leak known Spanish room-first labels', async ({ pa
 
 test('publish requirement post-processing follows English instead of restoring Spanish', async ({ page }) => {
   await openAsHost(page, 'en')
-  const options = await page.locator('#publish-tenant-requirement option').allTextContents()
-  expect(options).toEqual(['Man only', 'Woman only', '1 person', '2 people (couple/friends)', 'No restrictions'])
+  const options = await page.locator('#publish-requirement option').allTextContents()
+  expect(options).toEqual(['No preference', '1 person', 'Man only', 'Woman only', 'Couple'])
 })
 
 test('English listing contact flow does not reuse Spanish dynamic copy', async ({ page }) => {
