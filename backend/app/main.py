@@ -9,6 +9,7 @@ from time import perf_counter
 from uuid import uuid4
 
 import sentry_sdk  # type: ignore[import-not-found]
+from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -195,6 +196,13 @@ def request_id_for(request: Request) -> str:
     return candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else str(uuid4())
 
 
+def metric_route_for(request: Request, *, fallback: str = "<unmatched>") -> str:
+    """Return a bounded Prometheus route label even before routing completes."""
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    return route_path if isinstance(route_path, str) and route_path else fallback
+
+
 async def listing_lifecycle_loop() -> None:
     """Keep persisted internal listing state aligned with expiry visibility."""
     while True:
@@ -250,33 +258,58 @@ async def request_context(request: Request, call_next):
     request_id = request_id_for(request)
     request.state.request_id = request_id
     started = perf_counter()
-    rate = rate_limit_rule(request.method, request.url.path)
-    if rate:
-        bucket, limit, window_seconds = rate
-        client = rate_limit_client(request)
-        result = await rate_limiter.consume(
-            f"ttest:rate:{client}:{request.method}:{bucket}",
-            limit,
-            window_seconds,
-        )
-        if not result.allowed:
-            return JSONResponse(
-                status_code=429,
-                content={"code": "rate_limited", "message": "Too many attempts", "fieldErrors": {}},
-                headers={
-                    "Retry-After": str(result.retry_after),
-                    "X-Request-ID": request_id,
-                    "Cache-Control": "no-store",
-                    **SECURITY_HEADERS,
-                },
-            )
+    metric_fallback = "<unmatched>"
 
-    response = await call_next(request)
+    try:
+        rate = rate_limit_rule(request.method, request.url.path)
+        if rate:
+            bucket, limit, window_seconds = rate
+            metric_fallback = bucket
+            client = rate_limit_client(request)
+            result = await rate_limiter.consume(
+                f"ttest:rate:{client}:{request.method}:{bucket}",
+                limit,
+                window_seconds,
+            )
+            if not result.allowed:
+                response = JSONResponse(
+                    status_code=429,
+                    content={"code": "rate_limited", "message": "Too many attempts", "fieldErrors": {}},
+                    headers={
+                        "Retry-After": str(result.retry_after),
+                        "X-Request-ID": request_id,
+                        "Cache-Control": "no-store",
+                        **SECURITY_HEADERS,
+                    },
+                )
+            else:
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
+    except Exception:
+        # ServerErrorMiddleware owns the final 500 response and re-raises after
+        # invoking the registered handler, which keeps framework/Sentry error
+        # capture intact. Record request observability here before propagating.
+        duration = perf_counter() - started
+        route_path = metric_route_for(request, fallback=metric_fallback)
+        REQUESTS.labels(request.method, route_path, "500").inc()
+        REQUEST_DURATION.labels(request.method, route_path).observe(duration)
+        logger.info(
+            "http_request",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": 500,
+                "duration_ms": round(duration * 1000, 2),
+            },
+        )
+        raise
+
     if request.url.path.startswith("/api/") and "cache-control" not in response.headers:
         response.headers["Cache-Control"] = "no-store"
     duration = perf_counter() - started
-    route = request.scope.get("route")
-    route_path = getattr(route, "path", request.url.path)
+    route_path = metric_route_for(request, fallback=metric_fallback)
     REQUESTS.labels(request.method, route_path, str(response.status_code)).inc()
     REQUEST_DURATION.labels(request.method, route_path).observe(duration)
     response.headers["X-Request-ID"] = request_id
@@ -342,10 +375,13 @@ async def internal_error(request: Request, exc: Exception):
         "unhandled_request_error",
         extra={"request_id": request_id, "method": request.method, "path": request.url.path},
     )
+    headers = {"X-Request-ID": request_id, **SECURITY_HEADERS}
+    if request.url.path.startswith("/api/"):
+        headers["Cache-Control"] = "no-store"
     return JSONResponse(
         status_code=500,
         content={"code": "internal_error", "message": "Internal server error", "fieldErrors": {}},
-        headers={"X-Request-ID": request_id, **SECURITY_HEADERS},
+        headers=headers,
     )
 
 
@@ -364,7 +400,7 @@ async def ready():
         if not await rate_limiter.ready():
             raise RuntimeError("Redis is not ready")
         await asyncio.to_thread(get_storage().healthcheck)
-    except (SQLAlchemyError, OSError, RuntimeError) as exc:
+    except (SQLAlchemyError, OSError, RuntimeError, BotoCoreError, ClientError) as exc:
         raise HTTPException(503, "A required dependency is not ready") from exc
     return {"status": "ok"}
 
