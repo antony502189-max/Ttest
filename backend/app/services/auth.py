@@ -510,13 +510,34 @@ async def refresh_user_session(
 async def revoke_session(raw_refresh: str | None, session: AsyncSession) -> None:
     if not raw_refresh:
         return
-    auth = await session.scalar(
-        select(AuthSession).where(
-            AuthSession.token_hash == token_hash(raw_refresh),
-            AuthSession.revoked_at.is_(None),
-        )
+    hashed_token = token_hash(raw_refresh)
+    auth = await session.scalar(select(AuthSession).where(AuthSession.token_hash == hashed_token))
+    if not auth:
+        return
+
+    # A logout can race with refresh rotation. Lock the account, then revoke
+    # the presented session and every replacement descended from it. This
+    # terminates that browser/device chain without logging out other devices.
+    await lock_user_sessions(auth.user_id, session)
+    now = datetime.now(UTC)
+    await session.execute(
+        text(
+            """
+            WITH RECURSIVE session_chain AS (
+                SELECT id, replaced_by
+                FROM auth_sessions
+                WHERE token_hash = :token_hash AND user_id = :user_id
+                UNION
+                SELECT replacement.id, replacement.replaced_by
+                FROM auth_sessions AS replacement
+                JOIN session_chain AS previous ON replacement.id = previous.replaced_by
+            )
+            UPDATE auth_sessions
+            SET revoked_at = :revoked_at
+            WHERE id IN (SELECT id FROM session_chain)
+              AND revoked_at IS NULL
+            """
+        ),
+        {"token_hash": hashed_token, "user_id": auth.user_id, "revoked_at": now},
     )
-    if auth:
-        await lock_user_sessions(auth.user_id, session)
-        auth.revoked_at = datetime.now(UTC)
-        await session.commit()
+    await session.commit()
