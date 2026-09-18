@@ -137,14 +137,12 @@ test("delta avatar uploader has no serious or critical axe issues", async ({ pag
 
 test("delta image uploader has no serious or critical axe issues", async ({ page }) => {
   await openRoute(page, { name: "publicar", path: "/#/publicar", session: "host-demo" });
-  for (let step = 0; step < 6; step += 1) await page.getByRole("button", { name: "Continuar" }).click();
   const results = await new AxeBuilder({ page }).include(".image-uploader").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
 });
 
 test("delta approximate location map and controls have no serious or critical axe issues", async ({ page }) => {
   await openRoute(page, { name: "publicar", path: "/#/publicar", session: "host-demo" });
-  await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.locator(".approximate-location-map")).toBeVisible();
   const results = await new AxeBuilder({ page }).include(".approximate-location-selector").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
