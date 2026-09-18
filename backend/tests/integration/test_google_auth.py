@@ -163,3 +163,31 @@ async def test_google_role_can_only_be_selected_once_under_concurrent_requests(
         json={"role": "host" if me.json()["role"] == "tenant" else "tenant"},
     )
     assert repeat.status_code == 409
+
+
+@pytest.mark.parametrize(
+    "claims",
+    [
+        {
+            "iss": "https://evil.example",
+            "sub": "bad-issuer-subject",
+            "email": "bad.issuer@gmail.com",
+            "email_verified": True,
+        },
+        {
+            "iss": "accounts.google.com",
+            "email": "missing.subject@gmail.com",
+            "email_verified": True,
+        },
+        {
+            "iss": "accounts.google.com",
+            "sub": "unverified-subject",
+            "email": "unverified@gmail.com",
+            "email_verified": False,
+        },
+    ],
+)
+async def test_google_rejects_invalid_identity_claims(client: AsyncClient, monkeypatch, claims):
+    configure_google_claims(monkeypatch, claims)
+    response = await client.post("/api/v1/auth/google", json={"credential": "credential-for-test-only"})
+    assert response.status_code == 401
