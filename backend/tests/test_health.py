@@ -1,10 +1,10 @@
 import asyncio
 from uuid import UUID
 
-import pytest
-from fastapi import HTTPException
 from botocore.exceptions import ClientError
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+import pytest
 from starlette.requests import Request
 
 import app.main as main_module
