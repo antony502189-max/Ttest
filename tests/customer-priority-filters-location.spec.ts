@@ -60,7 +60,6 @@ test('CUSTOMER-PRIORITY bathroom profile supports private toilet with shared sho
 test('CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality and floor is in publication data', async ({ page }) => {
   await openAsHost(page)
   await page.goto('/#/publicar')
-  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByLabel('Calle')).toBeVisible()
   await page.evaluate(() => {
     window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail: {
@@ -80,7 +79,6 @@ test('CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality
   await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Los Cristianos')
 
-  await page.getByRole('button', { name: 'Continuar' }).click()
   const bedType = page.getByLabel('Tipo de cama')
   await expect(bedType.locator('option[value="bunk"]')).toHaveText('2 plazas / litera')
   await bedType.selectOption('bunk')
