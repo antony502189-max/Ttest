@@ -8,6 +8,7 @@ async function signInAsHost(page: Page) {
 }
 
 async function advanceWizard(page: Page, targetStep: number) {
+  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   for (let index = 0; index < targetStep; index += 1) {
     await page.getByRole('button', { name: /continuar/i }).click()
   }
