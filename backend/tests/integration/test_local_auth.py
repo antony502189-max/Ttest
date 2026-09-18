@@ -68,6 +68,15 @@ async def test_register_preserves_password_and_normalizes_identity_fields(client
     )
     assert exact_login.status_code == 200, exact_login.text
     assert exact_login.json()["user"]["id"] == str(user_id)
+    login_refresh_token = client.cookies.get("refresh_token")
+    assert login_refresh_token and login_refresh_token != refresh_token
+    assert await auth_session_count(user_id) == 2
+    async with SessionLocal() as session:
+        issued_login_session = await session.scalar(
+            select(AuthSession).where(AuthSession.token_hash == token_hash(login_refresh_token))
+        )
+        assert issued_login_session is not None
+        assert issued_login_session.user_id == user_id
 
     trimmed_login = await client.post(
         "/api/v1/auth/login",
@@ -75,6 +84,7 @@ async def test_register_preserves_password_and_normalizes_identity_fields(client
     )
     assert trimmed_login.status_code == 401
     assert trimmed_login.json()["message"] == "Invalid credentials"
+    assert await auth_session_count(user_id) == 2
 
 
 async def test_duplicate_registration_is_case_insensitive_and_does_not_issue_session(client: AsyncClient):
