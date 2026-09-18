@@ -79,7 +79,7 @@ test('postcode-only result without a distinct locality replaces the stale draft 
   await expect(page.getByLabel('Zona o barrio')).not.toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
   await expect(page.locator('.map-inline-error')).toHaveCount(0)
-  await expect(page.getByText('Describe la habitación')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Habitación y vivienda' })).toBeVisible()
 })
 
 test('an exact typed address ignores untouched draft postcode and falls back without stale municipality or area context', async ({ page }) => {
