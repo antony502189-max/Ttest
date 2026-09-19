@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
+from google.auth.exceptions import GoogleAuthError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy import delete, func, or_, select, text, update
@@ -90,6 +91,14 @@ async def lock_user_sessions(user_id: UUID, session: AsyncSession) -> None:
     await session.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
         {"lock_key": f"auth-session:{user_id}"},
+    )
+
+
+async def lock_email_verification(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize verification-code issuance and consumption for one account."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"email-verification:{user_id}"},
     )
 
 
@@ -249,6 +258,8 @@ async def google_login_user(
         )
     except ValueError as exc:
         raise HTTPException(401, "Invalid Google credential") from exc
+    except GoogleAuthError as exc:
+        raise HTTPException(503, "Google sign-in is temporarily unavailable") from exc
     if claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
         raise HTTPException(401, "Invalid Google credential")
     subject = claims.get("sub")
@@ -389,11 +400,15 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
     }
     if user.email_verified:
         return response
+    await lock_email_verification(user.id, session)
+    # The dependency may have loaded the account before another request
+    # completed verification. Re-read under the same account lock before
+    # creating a new token or email for an already-verified address.
+    await session.refresh(user)
+    if user.email_verified:
+        await session.commit()
+        return response
     now = datetime.now(UTC)
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-        {"lock_key": f"email-verification:{user.id}"},
-    )
     issued_in_hour = (
         await session.scalars(
             select(EmailVerificationToken)
@@ -429,6 +444,7 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
 
 
 async def verify_user_email(user: User, code: str, session: AsyncSession) -> None:
+    await lock_email_verification(user.id, session)
     now = datetime.now(UTC)
     verification = await session.scalar(
         select(EmailVerificationToken)

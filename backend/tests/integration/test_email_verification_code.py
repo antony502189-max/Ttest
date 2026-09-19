@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.models import EmailVerificationToken, MailOutbox, User
@@ -134,3 +135,212 @@ async def test_resend_invalidates_old_code_and_enforces_hourly_limit(client):
         with pytest.raises(HTTPException, match="Too many verification codes") as error:
             await request_verification(user, session)
         assert error.value.status_code == 429
+
+
+async def test_expired_verification_code_is_rejected_and_does_not_verify_user(client):
+    registration = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "name": "Expired Code",
+            "email": "expired-code@example.com",
+            "password": "Correct-Horse-1234",
+            "role": "host",
+        },
+    )
+    assert registration.status_code == 201, registration.text
+    user_id = UUID(registration.json()["user"]["id"])
+    headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
+
+    requested = await client.post("/api/v1/auth/email-verification/request", headers=headers)
+    assert requested.status_code == 202, requested.text
+
+    async with SessionLocal() as session:
+        message = await session.scalar(
+            select(MailOutbox)
+            .where(MailOutbox.recipient == "expired-code@example.com")
+            .order_by(MailOutbox.created_at.desc())
+        )
+        token = await session.scalar(
+            select(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+            .order_by(EmailVerificationToken.created_at.desc())
+        )
+        assert message is not None and token is not None
+        code = re.search(r"es:\s*(\d{6})\b", message.body)
+        assert code
+        token.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+        await session.commit()
+
+    expired = await client.post(
+        "/api/v1/auth/email-verification/confirm",
+        headers=headers,
+        json={"code": code.group(1)},
+    )
+    assert expired.status_code == 400
+    assert "invalid or has expired" in expired.json()["detail"]
+
+    async with SessionLocal() as session:
+        user = await session.get(User, user_id)
+        assert user is not None
+        assert user.email_verified is False
+
+
+async def test_verified_code_cannot_be_reused_and_verified_user_gets_no_new_code(client):
+    registration = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "name": "Reuse Code",
+            "email": "reuse-code@example.com",
+            "password": "Correct-Horse-1234",
+            "role": "host",
+        },
+    )
+    assert registration.status_code == 201, registration.text
+    user_id = UUID(registration.json()["user"]["id"])
+    headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
+
+    assert (await client.post("/api/v1/auth/email-verification/request", headers=headers)).status_code == 202
+    async with SessionLocal() as session:
+        message = await session.scalar(
+            select(MailOutbox)
+            .where(MailOutbox.recipient == "reuse-code@example.com")
+            .order_by(MailOutbox.created_at.desc())
+        )
+        assert message is not None
+        code = re.search(r"es:\s*(\d{6})\b", message.body)
+        assert code
+
+    first = await client.post(
+        "/api/v1/auth/email-verification/confirm",
+        headers=headers,
+        json={"code": code.group(1)},
+    )
+    assert first.status_code == 204, first.text
+
+    reused = await client.post(
+        "/api/v1/auth/email-verification/confirm",
+        headers=headers,
+        json={"code": code.group(1)},
+    )
+    assert reused.status_code == 400
+
+    async with SessionLocal() as session:
+        token_count_before = await session.scalar(
+            select(func.count())
+            .select_from(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+        )
+        mail_count_before = await session.scalar(
+            select(func.count())
+            .select_from(MailOutbox)
+            .where(MailOutbox.recipient == "reuse-code@example.com")
+        )
+
+    already_verified = await client.post("/api/v1/auth/email-verification/request", headers=headers)
+    assert already_verified.status_code == 202
+
+    async with SessionLocal() as session:
+        user = await session.get(User, user_id)
+        assert user is not None and user.email_verified is True
+        token_count_after = await session.scalar(
+            select(func.count())
+            .select_from(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+        )
+        mail_count_after = await session.scalar(
+            select(func.count())
+            .select_from(MailOutbox)
+            .where(MailOutbox.recipient == "reuse-code@example.com")
+        )
+    assert token_count_after == token_count_before
+    assert mail_count_after == mail_count_before
+
+
+async def test_verification_resend_cooldown_rejects_immediate_second_request(client):
+    registration = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "name": "Cooldown Code",
+            "email": "cooldown-code@example.com",
+            "password": "Correct-Horse-1234",
+            "role": "host",
+        },
+    )
+    assert registration.status_code == 201, registration.text
+    user_id = UUID(registration.json()["user"]["id"])
+    headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
+
+    first = await client.post("/api/v1/auth/email-verification/request", headers=headers)
+    assert first.status_code == 202, first.text
+
+    async with SessionLocal() as session:
+        token_count_before = await session.scalar(
+            select(func.count())
+            .select_from(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+        )
+        mail_count_before = await session.scalar(
+            select(func.count())
+            .select_from(MailOutbox)
+            .where(MailOutbox.recipient == "cooldown-code@example.com")
+        )
+
+    second = await client.post("/api/v1/auth/email-verification/request", headers=headers)
+    assert second.status_code == 429
+    assert "Wait before requesting another verification code" in second.json()["detail"]
+
+    async with SessionLocal() as session:
+        token_count_after = await session.scalar(
+            select(func.count())
+            .select_from(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+        )
+        mail_count_after = await session.scalar(
+            select(func.count())
+            .select_from(MailOutbox)
+            .where(MailOutbox.recipient == "cooldown-code@example.com")
+        )
+    assert token_count_after == token_count_before
+    assert mail_count_after == mail_count_before
+
+
+async def test_verification_request_rechecks_stale_user_state_before_issuing_code(client):
+    registration = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "name": "Stale Verification",
+            "email": "stale-verification@example.com",
+            "password": "Correct-Horse-1234",
+            "role": "host",
+        },
+    )
+    assert registration.status_code == 201, registration.text
+    user_id = UUID(registration.json()["user"]["id"])
+
+    async with SessionLocal() as stale_session:
+        stale_user = await stale_session.get(User, user_id)
+        assert stale_user is not None
+        assert stale_user.email_verified is False
+
+        async with SessionLocal() as confirming_session:
+            confirmed_user = await confirming_session.get(User, user_id)
+            assert confirmed_user is not None
+            confirmed_user.email_verified = True
+            await confirming_session.commit()
+
+        response = await request_verification(stale_user, stale_session)
+        assert response["email"].startswith("s*")
+
+    async with SessionLocal() as session:
+        token_count = await session.scalar(
+            select(func.count())
+            .select_from(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+        )
+        mail_count = await session.scalar(
+            select(func.count())
+            .select_from(MailOutbox)
+            .where(MailOutbox.recipient == "stale-verification@example.com")
+        )
+    assert token_count == 0
+    assert mail_count == 0

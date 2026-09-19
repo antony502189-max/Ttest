@@ -115,8 +115,13 @@ def test_sentry_uses_explicit_release_without_pii(monkeypatch) -> None:
 def test_sensitive_endpoints_have_rate_limits() -> None:
     assert ("POST", "/api/v1/uploads") in RATE_LIMITS
     assert ("POST", "/api/v1/reports") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/login") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/register") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/google") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/forgot-password") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/refresh") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/email-verification/request") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/email-verification/confirm") in RATE_LIMITS
 
 
 def test_rate_limiter_returns_retry_after() -> None:
@@ -208,6 +213,24 @@ def test_cookie_mutations_require_allowlisted_origin_in_production(monkeypatch) 
     settings = get_settings()
     monkeypatch.setattr(settings, "app_env", "production")
     request = Request({"type": "http", "headers": [(b"origin", b"https://example.invalid")]})
+    with pytest.raises(HTTPException) as error:
+        require_cookie_origin(request)
+    assert error.value.status_code == 403
+
+
+def test_cookie_mutations_allow_configured_origin_in_production(monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "frontend_origins", "https://app.example.test")
+    request = Request({"type": "http", "headers": [(b"origin", b"https://app.example.test")]})
+    require_cookie_origin(request)
+
+
+def test_cookie_mutations_reject_missing_origin_in_production(monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "frontend_origins", "https://app.example.test")
+    request = Request({"type": "http", "headers": []})
     with pytest.raises(HTTPException) as error:
         require_cookie_origin(request)
     assert error.value.status_code == 403
