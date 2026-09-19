@@ -475,7 +475,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             title=item.title,
             city=item.city,
             area=item.area,
-            approximate_address=item.area,
+            approximate_address=item.public_address or item.area,
             rental_mode=item.rental_mode,
             monthly_price=item.price_amount if item.rental_mode == "long" else None,
             nightly_price=item.price_amount if item.rental_mode == "holiday" else None,
@@ -532,7 +532,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.home_description = item.description
         listing.city = item.city
         listing.area = item.area
-        listing.approximate_address = item.area
+        listing.approximate_address = item.public_address or item.area
         listing.rental_mode = item.rental_mode
         listing.room_type = item.room_type
         listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
