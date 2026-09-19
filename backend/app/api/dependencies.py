@@ -30,6 +30,8 @@ async def token_user(
         claims = decode_access_token(credentials.credentials)
         user_id = UUID(claims["sub"])
         raw_session_id = claims.get("sid")
+        if raw_session_id is not None and not isinstance(raw_session_id, str):
+            return None
         session_id = UUID(raw_session_id) if raw_session_id is not None else None
     except (InvalidTokenError, ValueError, TypeError, KeyError):
         return None
