@@ -85,7 +85,7 @@ async def test_user_restriction_invalidates_catalog(monkeypatch: pytest.MonkeyPa
     session = SimpleNamespace(
         scalar=AsyncMock(return_value=target),
         get=AsyncMock(return_value=None),
-        scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [])),
+        scalars=AsyncMock(return_value=SimpleNamespace(all=list)),
         add=MagicMock(),
         commit=AsyncMock(),
     )
