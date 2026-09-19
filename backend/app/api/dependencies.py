@@ -29,28 +29,23 @@ async def token_user(
     try:
         claims = decode_access_token(credentials.credentials)
         user_id = UUID(claims["sub"])
-        raw_session_id = claims.get("sid")
-        if raw_session_id is not None and not isinstance(raw_session_id, str):
-            return None
-        session_id = UUID(raw_session_id) if raw_session_id is not None else None
+        session_id = UUID(claims["sid"])
     except (InvalidTokenError, ValueError, TypeError, KeyError):
         return None
 
-    # Access tokens issued after session binding carry the AuthSession id. A
-    # revoked/rotated/expired refresh session invalidates its access token
-    # immediately as well. Tokens issued by the previous release have no sid;
-    # they remain compatible only until their already-short JWT expiry.
-    if session_id is not None:
-        active_session = await session.scalar(
-            select(AuthSession.id).where(
-                AuthSession.id == session_id,
-                AuthSession.user_id == user_id,
-                AuthSession.revoked_at.is_(None),
-                AuthSession.expires_at > func.now(),
-            )
+    # Every accepted bearer token is bound to its persisted refresh session.
+    # Rotation, logout, replay-family revocation, session limits and password
+    # reset therefore revoke access and refresh capability together.
+    active_session = await session.scalar(
+        select(AuthSession.id).where(
+            AuthSession.id == session_id,
+            AuthSession.user_id == user_id,
+            AuthSession.revoked_at.is_(None),
+            AuthSession.expires_at > func.now(),
         )
-        if active_session is None:
-            return None
+    )
+    if active_session is None:
+        return None
 
     user = await session.scalar(select(User).where(User.id == user_id))
     if not user or user.blocked or user.deleted_at is not None:
