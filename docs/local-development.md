@@ -19,7 +19,7 @@ Copy `backend/.env.example` to `backend/.env` for non-Docker execution. Configur
 
 Start the production-like services with `docker compose up -d migrate backend external-listings-worker` and watch imports with `docker compose logs -f external-listings-worker`. For a single local synchronization run `cd backend; python -m app.workers.external_listings --once`.
 
-The Milanuncios production browser smoke test remains a pending deployment verification: public CAPTCHA challenges are recorded as `blocked` and are never bypassed.
+Milanuncios is enabled for rooms, studios and one-bedroom rentals on Tenerife, La Palma, La Gomera, El Hierro and Gran Canaria. Discovery uses the Canarias catalogues, while detail-level coordinates/location metadata enforce the five-island product-map scope. If the public site presents a CAPTCHA or access challenge, the worker records the source as `blocked`; it never attempts to solve or bypass the challenge.
 
 ```bash
 docker compose run --rm backend python -m app.commands.deliver_outbox
