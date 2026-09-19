@@ -16,6 +16,7 @@ from ..models import (
     ListingImage,
     MailOutbox,
     MediaAsset,
+    MessageThread,
     Notification,
     PasswordResetToken,
     SavedSearch,
@@ -135,6 +136,12 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     )
     await session.execute(delete(SavedSearch).where(SavedSearch.user_id == locked_user.id))
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == locked_user.id))
+    await session.execute(
+        delete(MessageThread).where(
+            (MessageThread.tenant_id == locked_user.id)
+            | (MessageThread.host_id == locked_user.id)
+        )
+    )
     await session.execute(delete(Notification).where(Notification.recipient_user_id == locked_user.id))
     await session.execute(delete(ModerationNotice).where(ModerationNotice.user_id == locked_user.id))
     await session.execute(delete(MailOutbox).where(MailOutbox.recipient == original_email))
