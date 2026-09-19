@@ -76,8 +76,9 @@ async def test_full_restriction_does_not_revoke_existing_identity_sessions(monke
     target = SimpleNamespace(id=uuid4(), email="restricted@example.com", deleted_at=None)
     actor = SimpleNamespace(id=uuid4())
     session = SimpleNamespace(
-        get=AsyncMock(side_effect=[target, None]),
-        scalars=AsyncMock(),
+        scalar=AsyncMock(return_value=target),
+        get=AsyncMock(return_value=None),
+        scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [])),
         add=MagicMock(),
         commit=AsyncMock(),
     )
@@ -95,7 +96,10 @@ async def test_full_restriction_does_not_revoke_existing_identity_sessions(monke
     )
 
     assert result == "detail"
-    session.scalars.assert_not_awaited()
+    lock_sql = str(session.scalar.await_args.args[0])
+    assert "FROM users" in lock_sql
+    assert "FOR UPDATE" in lock_sql
+    session.scalars.assert_awaited_once()
     session.commit.assert_awaited_once()
 
 
