@@ -31,9 +31,18 @@
 }
 
 .upload-reorder button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
   background: rgb(255 255 255 / .94);
   color: var(--ink);
   transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.upload-reorder button svg {
+  display: block;
+  margin: 0;
 }
 
 .upload-reorder button + button {
