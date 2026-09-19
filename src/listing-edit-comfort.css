@@ -26,6 +26,36 @@
   font-weight: 760;
 }
 
+.upload-reorder {
+  border-radius: .45rem;
+}
+
+.upload-reorder button {
+  background: rgb(255 255 255 / .94);
+  color: var(--ink);
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.upload-reorder button + button {
+  border-left: 1px solid var(--line);
+}
+
+.upload-reorder button:not(:disabled):hover {
+  background: var(--surface-muted);
+}
+
+.upload-reorder button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.upload-reorder button:disabled {
+  cursor: not-allowed;
+  opacity: .32;
+}
+
 @media (max-width: 900px) {
   .upload-grid > div > .replace-image {
     min-width: 2.75rem;

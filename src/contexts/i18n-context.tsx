@@ -1227,6 +1227,8 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Foto anterior de (.+)$/))) return target(`Предыдущее фото: ${translateCore(match[1], language)}`, `Previous photo: ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Foto siguiente de (.+)$/))) return target(`Следующее фото: ${translateCore(match[1], language)}`, `Next photo: ${translateCore(match[1], language)}`)
   if ((match = source.match(/^Foto del anuncio (\d+)$/))) return target(`Фото объявления ${match[1]}`, `Listing photo ${match[1]}`)
+  if ((match = source.match(/^Subir foto (\d+) en el orden$/))) return target(`Поднять фото ${match[1]} в порядке`, `Move photo ${match[1]} earlier in the order`)
+  if ((match = source.match(/^Bajar foto (\d+) en el orden$/))) return target(`Опустить фото ${match[1]} в порядке`, `Move photo ${match[1]} later in the order`)
   if ((match = source.match(/^Mover foto (\d+)$/))) return target(`Переместить фото ${match[1]}`, `Move photo ${match[1]}`)
   if ((match = source.match(/^Eliminar foto (\d+)$/))) return target(`Удалить фото ${match[1]}`, `Delete photo ${match[1]}`)
   if ((match = source.match(/^Ver (.+)$/))) return target(`Открыть: ${translateCore(match[1], language)}`, `View ${translateCore(match[1], language)}`)

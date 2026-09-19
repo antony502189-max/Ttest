@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { GripVertical, ImagePlus, RefreshCw, Trash2, UploadCloud } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -325,18 +325,20 @@ export function ImageUploader({
               <button
                 type="button"
                 disabled={index === 0}
-                aria-label={`Mover foto ${index + 1} a la izquierda`}
+                aria-label={`Subir foto ${index + 1} en el orden`}
+                title={`Subir foto ${index + 1} en el orden`}
                 onClick={() => move(index, -1)}
               >
-                <GripVertical />
+                <ArrowUp aria-hidden="true" />
               </button>
               <button
                 type="button"
                 disabled={index === images.length - 1}
-                aria-label={`Mover foto ${index + 1} a la derecha`}
+                aria-label={`Bajar foto ${index + 1} en el orden`}
+                title={`Bajar foto ${index + 1} en el orden`}
                 onClick={() => move(index, 1)}
               >
-                <GripVertical />
+                <ArrowDown aria-hidden="true" />
               </button>
             </span>
             <button
