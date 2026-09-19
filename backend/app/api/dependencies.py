@@ -3,12 +3,12 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.security import decode_access_token
 from ..db.session import get_session
-from ..models import User
+from ..models import AuthSession, User
 from ..services.moderation import enforce_full_access, is_admin
 
 bearer = HTTPBearer(auto_error=False)
@@ -29,8 +29,27 @@ async def token_user(
     try:
         claims = decode_access_token(credentials.credentials)
         user_id = UUID(claims["sub"])
+        raw_session_id = claims.get("sid")
+        session_id = UUID(raw_session_id) if raw_session_id is not None else None
     except (InvalidTokenError, ValueError, TypeError, KeyError):
         return None
+
+    # Access tokens issued after session binding carry the AuthSession id. A
+    # revoked/rotated/expired refresh session invalidates its access token
+    # immediately as well. Tokens issued by the previous release have no sid;
+    # they remain compatible only until their already-short JWT expiry.
+    if session_id is not None:
+        active_session = await session.scalar(
+            select(AuthSession.id).where(
+                AuthSession.id == session_id,
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > func.now(),
+            )
+        )
+        if active_session is None:
+            return None
+
     user = await session.scalar(select(User).where(User.id == user_id))
     if not user or user.blocked or user.deleted_at is not None:
         return None
