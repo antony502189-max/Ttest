@@ -117,3 +117,40 @@ async def test_hourly_reset_quota_is_silent_and_non_enumerating(monkeypatch):
         )
         assert token_count == auth.MAX_PASSWORD_RESETS_PER_HOUR
         assert mail_count == 0
+
+
+async def test_forgot_password_response_does_not_enumerate_unknown_blocked_or_deleted_accounts(monkeypatch):
+    settings = reset_settings()
+    monkeypatch.setattr(auth, "get_settings", lambda: settings)
+    monkeypatch.setattr(mail, "get_settings", lambda: settings)
+
+    active = await create_user("reset-active@example.test")
+    blocked = await create_user("reset-blocked@example.test")
+    deleted = await create_user("reset-deleted@example.test")
+
+    async with SessionLocal() as session:
+        blocked_row = await session.get(User, blocked.id)
+        deleted_row = await session.get(User, deleted.id)
+        assert blocked_row is not None and deleted_row is not None
+        blocked_row.blocked = True
+        deleted_row.deleted_at = datetime.now(UTC)
+        await session.commit()
+
+    active_response = await request_once(active.email)
+    unknown_response = await request_once("reset-missing@example.test")
+    blocked_response = await request_once(blocked.email)
+    deleted_response = await request_once(deleted.email)
+
+    assert active_response == unknown_response == blocked_response == deleted_response == GENERIC_RESPONSE
+
+    async with SessionLocal() as check:
+        token_users = set((await check.scalars(select(PasswordResetToken.user_id))).all())
+        mail_recipients = set(
+            (
+                await check.scalars(
+                    select(MailOutbox.recipient).where(MailOutbox.kind == "password_reset")
+                )
+            ).all()
+        )
+    assert token_users == {active.id}
+    assert mail_recipients == {active.email}
