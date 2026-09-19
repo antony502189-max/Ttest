@@ -94,6 +94,14 @@ async def lock_user_sessions(user_id: UUID, session: AsyncSession) -> None:
     )
 
 
+async def lock_email_verification(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize verification-code issuance and consumption for one account."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"email-verification:{user_id}"},
+    )
+
+
 async def prepare_session_issuance(
     user_id: UUID,
     session: AsyncSession,
@@ -392,11 +400,15 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
     }
     if user.email_verified:
         return response
+    await lock_email_verification(user.id, session)
+    # The dependency may have loaded the account before another request
+    # completed verification. Re-read under the same account lock before
+    # creating a new token or email for an already-verified address.
+    await session.refresh(user)
+    if user.email_verified:
+        await session.commit()
+        return response
     now = datetime.now(UTC)
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-        {"lock_key": f"email-verification:{user.id}"},
-    )
     issued_in_hour = (
         await session.scalars(
             select(EmailVerificationToken)
@@ -432,6 +444,7 @@ async def request_verification(user: User, session: AsyncSession) -> dict[str, s
 
 
 async def verify_user_email(user: User, code: str, session: AsyncSession) -> None:
+    await lock_email_verification(user.id, session)
     now = datetime.now(UTC)
     verification = await session.scalar(
         select(EmailVerificationToken)
