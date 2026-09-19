@@ -339,10 +339,10 @@ export function ListingEditPage() {
 
       <Section id="edit-location" title="Ubicación" hint="La dirección exacta no se muestra públicamente.">
         <div className="listing-edit-grid">
-          <FormField label="Municipio" htmlFor="edit-city" error={errors.city}><select id="edit-city" value={draft.city} aria-invalid={Boolean(errors.city)} onChange={(e) => set('city', e.target.value)}>{municipalities.map((city) => <option key={city}>{city}</option>)}</select></FormField>
-          <FormField label="Zona o barrio" htmlFor="edit-area" error={errors.area}><Input id="edit-area" value={draft.area} aria-invalid={Boolean(errors.area)} onChange={(e) => set('area', e.target.value)} /></FormField>
-          <FormField label="Calle" htmlFor="edit-street"><Input id="edit-street" value={draft.street} onChange={(e) => set('street', e.target.value)} /></FormField>
-          <FormField label="Código postal" htmlFor="edit-postcode" error={errors.postcode}><Input id="edit-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(e) => set('postcode', e.target.value)} /></FormField>
+          <FormField label="Municipio" htmlFor="publish-city" error={errors.city}><select id="publish-city" value={draft.city} aria-invalid={Boolean(errors.city)} onChange={(e) => set('city', e.target.value)}>{municipalities.map((city) => <option key={city}>{city}</option>)}</select></FormField>
+          <FormField label="Zona o barrio" htmlFor="publish-area" error={errors.area}><Input id="publish-area" value={draft.area} aria-invalid={Boolean(errors.area)} onChange={(e) => set('area', e.target.value)} /></FormField>
+          <FormField label="Calle" htmlFor="publish-street"><Input id="publish-street" value={draft.street} onChange={(e) => set('street', e.target.value)} /></FormField>
+          <FormField label="Código postal" htmlFor="publish-postcode" error={errors.postcode}><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(e) => set('postcode', e.target.value)} /></FormField>
         </div>
         <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => current ? { ...current, coordinates, locationManuallyMoved: true } : current)} onAddressResolved={applyResolvedAddress} />
         <output className="listing-edit-coordinates" aria-live="polite">Coordenadas exactas: {draft.coordinates.lat.toFixed(4)}, {draft.coordinates.lng.toFixed(4)}</output>
