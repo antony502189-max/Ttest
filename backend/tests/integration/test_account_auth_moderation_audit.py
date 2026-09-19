@@ -553,7 +553,8 @@ async def test_moderation_full_publish_unrestrict_expiry_and_notices(
             .order_by(UserRestriction.starts_at.desc())
         )
         assert active is not None
-        active.ends_at = datetime.now(UTC) - timedelta(seconds=1)
+        active.starts_at = datetime.now(UTC) - timedelta(hours=2)
+        active.ends_at = datetime.now(UTC) - timedelta(hours=1)
         await session.commit()
 
     # Enforcement uses the time window directly; access is restored even before
