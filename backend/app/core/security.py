@@ -41,13 +41,14 @@ async def verify_password_async(password: str, password_hash: str | None) -> boo
     return bool(password_hash) and verified
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: str, *, session_id: str) -> str:
     settings = get_settings()
     now = datetime.now(UTC)
     payload = {
         "sub": user_id,
         "role": role,
         "type": "access",
+        "sid": session_id,
         "iat": now,
         "jti": str(uuid4()),
         "exp": now + timedelta(minutes=settings.access_token_minutes),
