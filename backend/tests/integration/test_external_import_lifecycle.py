@@ -23,15 +23,27 @@ from app.services.external_import import (
 pytestmark = pytest.mark.integration
 
 
-def external_item(*, source: str, external_id: str, url: str, price: int = 710, room_capacity: int | None = None) -> NormalizedListing:
+def external_item(
+    *,
+    source: str,
+    external_id: str,
+    url: str,
+    price: int = 710,
+    room_capacity: int | None = None,
+    city: str = "Adeje",
+    area: str = "Adeje",
+    public_address: str | None = None,
+    latitude: float = 28.1227,
+    longitude: float = -16.7244,
+) -> NormalizedListing:
     return NormalizedListing(
         source_name=source,
         external_id=external_id,
         source_url=url,
         title="Habitación exterior cerca de la playa",
         description="Habitación individual amueblada en piso compartido en Adeje.",
-        city="Adeje",
-        area="Adeje",
+        city=city,
+        area=area,
         rental_mode="long",
         source_price_text=f"{price} €/mes",
         price_amount=price,
@@ -39,12 +51,13 @@ def external_item(*, source: str, external_id: str, url: str, price: int = 710, 
         price_period="month",
         price_is_from=False,
         room_capacity=room_capacity,
-        latitude=28.1227,
-        longitude=-16.7244,
+        latitude=latitude,
+        longitude=longitude,
         phone="+34 612 345 678",
         whatsapp="+34 612 345 678",
         email="owner@example.test",
         raw_payload={"fixture": source},
+        public_address=public_address,
     )
 
 
@@ -150,6 +163,44 @@ class DirectlyRemovedDetailSource(MissingDetailSource):
 
     async def fetch_listing(self, url: str) -> None:
         self.removed_urls.add(url)
+
+
+async def test_external_upsert_preserves_source_public_location(client: AsyncClient):
+    async with SessionLocal() as session:
+        item = external_item(
+            source="Habitaclia",
+            external_id="habitaclia-location-34692000000210",
+            url="https://www.habitaclia.com/i34692000000210.htm",
+            city="Granadilla de Abona",
+            area="El Médano",
+            public_address="El Médano",
+            latitude=28.0438656770,
+            longitude=-16.5351811288,
+        )
+        assert await upsert(session, item) == "imported"
+        await session.commit()
+
+        listing = await session.scalar(
+            select(Listing).where(
+                Listing.primary_source == "Habitaclia",
+                Listing.primary_source_url == item.source_url,
+            )
+        )
+        assert listing is not None
+        assert listing.city == "Granadilla de Abona"
+        assert listing.area == "El Médano"
+        assert listing.approximate_address == "El Médano"
+
+        response = await client.post(
+            "/api/v1/listings/search",
+            json={"city": "Granadilla de Abona", "limit": 20},
+        )
+        assert response.status_code == 200, response.text
+        imported = next(row for row in response.json()["items"] if row["id"] == str(listing.id))
+        assert imported["area"] == "El Médano"
+        assert imported["approximateAddress"] == "El Médano"
+        assert imported["latitude"] == pytest.approx(28.0438656770)
+        assert imported["longitude"] == pytest.approx(-16.5351811288)
 
 
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):

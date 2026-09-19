@@ -13,7 +13,7 @@ from __future__ import annotations
 import html
 import os
 import re
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 import httpx
 
@@ -53,6 +53,14 @@ _LISTING_IMAGE_HOSTS = {
     "images.habitaclia.com",
 }
 _IMAGE_SKIP_TOKENS = ("logo", "avatar", "icon", "sprite", "placeholder", "banner")
+_STATIC_MAP_URL = re.compile(
+    r"""https?://web\.gw\.habitaclia\.com/v2/staticmap\?[^"'<>\s\\]+""",
+    re.IGNORECASE,
+)
+_ROAD_START = re.compile(
+    r"\b(?:avenida|avda\.?|av\.?|calle|carretera|camino|paseo|plaza|rambla|pasaje|urbanizaci[oó]n)\b",
+    re.IGNORECASE,
+)
 
 
 class HabitacliaSource(ExternalListingSource):
@@ -128,6 +136,84 @@ class HabitacliaSource(ExternalListingSource):
     def __init__(self) -> None:
         super().__init__()
         self._discovered_images: dict[str, list[str]] = {}
+
+    @staticmethod
+    def _center_coordinates(value: str) -> tuple[float, float] | None:
+        """Parse Habitaclia's public map center, including Spanish decimal commas."""
+        decoded = unquote(html.unescape(value)).strip()
+        decimal_comma = re.fullmatch(
+            r"\s*(-?\d+),(\d+),(-?\d+),(\d+)\s*",
+            decoded,
+        )
+        if decimal_comma:
+            latitude = float(f"{decimal_comma.group(1)}.{decimal_comma.group(2)}")
+            longitude = float(f"{decimal_comma.group(3)}.{decimal_comma.group(4)}")
+        else:
+            decimal_point = re.fullmatch(
+                r"\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*",
+                decoded,
+            )
+            if not decimal_point:
+                return None
+            latitude, longitude = map(float, decimal_point.groups())
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            return None
+        return latitude, longitude
+
+    @classmethod
+    def _extract_public_map_center(cls, document: str) -> tuple[float, float] | None:
+        """Use the same public map center that Habitaclia shows on the detail page."""
+        normalized = html.unescape(document).replace("\\/", "/")
+        for raw_url in _STATIC_MAP_URL.findall(normalized):
+            query = parse_qs(urlparse(html.unescape(raw_url)).query)
+            center = next(iter(query.get("center", [])), "")
+            coordinates = cls._center_coordinates(center)
+            if coordinates is not None:
+                return coordinates
+        return None
+
+    @classmethod
+    def _extract_public_location(
+        cls,
+        document: str,
+        *,
+        street: str,
+    ) -> tuple[str, str | None]:
+        """Extract the visible Habitaclia locality/address instead of guessing it."""
+        body = clean(document)
+        location = re.search(
+            r"\bUbicaci[oó]n\s+(.{2,240}?)(?=\s+(?:Navega por el mapa|Ver más anuncios de la zona|habitaclia\.com no se responsabiliza|Comparaci[oó]n|Precio del anuncio))",
+            body,
+            re.IGNORECASE,
+        )
+        label = clean(location.group(1)) if location else ""
+
+        area = ""
+        normalized_street = clean(street)
+        if label and normalized_street and label.casefold().endswith(normalized_street.casefold()):
+            area = label[: len(label) - len(normalized_street)].strip(" ,-·")
+        elif label:
+            road = _ROAD_START.search(label)
+            if road and road.start() > 0:
+                area = label[: road.start()].strip(" ,-·")
+                if not normalized_street:
+                    normalized_street = label[road.start() :].strip(" ,-·")
+            elif len(label) <= 100:
+                area = label
+
+        if not area:
+            zone = re.search(
+                r"\bZona\s+(.{2,100}?)(?=\s+(?:Publica tu anuncio|Los filtros|Precio|Superf[ií]cie|Habitaciones|Baños|Tipos de inmuebles|Más características))",
+                body,
+                re.IGNORECASE,
+            )
+            area = clean(zone.group(1)) if zone else ""
+
+        # Public listing location must remain coarse. The source may publish
+        # a street/house number, but 112233's privacy contract exposes only the
+        # locality/area; the public source map center is handled separately.
+        public_address = area or None
+        return area, public_address
 
     @classmethod
     def _is_listing_image_url(cls, value: str) -> bool:
@@ -355,12 +441,31 @@ class HabitacliaSource(ExternalListingSource):
             images.extend(self._discovered_images.get(canonical_url, []))
         data["images"] = images[:40]
 
+        map_center = self._extract_public_map_center(document)
+        if map_center is not None:
+            data["latitude"], data["longitude"] = map_center
+        area, public_address = self._extract_public_location(
+            document,
+            street=clean(data.get("address")),
+        )
+        if area:
+            data["area"] = area
+        if public_address:
+            data["public_address"] = public_address
+
         data["category"] = f"habitaclia alquiler {data['category']}"
         data["external_id"] = external_id.group(1) if external_id else None
         data["phone"] = None
         data["whatsapp"] = None
         data["email"] = None
-        data["raw"] = {"source": self.name, "external_id": data["external_id"]}
+        data["raw"] = {
+            "source": self.name,
+            "external_id": data["external_id"],
+            "source_area": data.get("area"),
+            "public_address": data.get("public_address"),
+            "latitude": data.get("latitude"),
+            "longitude": data.get("longitude"),
+        }
         return data
 
     def normalize_listing(self, data: dict[str, object], url: str) -> NormalizedListing | None:
@@ -392,6 +497,12 @@ class HabitacliaSource(ExternalListingSource):
         item.title = clean(data.get("title"))
         item.description = clean(data.get("description"))
         item.room_type = target_type
+        source_area = clean(data.get("area"))
+        if source_area:
+            item.area = source_area
+        source_public_address = clean(data.get("public_address"))
+        if source_public_address:
+            item.public_address = source_public_address
         if data.get("external_id"):
             item.external_id = str(data["external_id"])
         return item

@@ -584,6 +584,7 @@ class NormalizedListing:
     advertiser_type: str | None = None
     available_from: date | None = None
     published_at: datetime | None = None
+    public_address: str | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -594,6 +595,9 @@ class NormalizedListing:
                     self.external_id,
                     self.title,
                     self.description,
+                    self.city,
+                    self.area,
+                    self.public_address or "",
                     self.source_price_text,
                     self.room_type,
                     str(self.latitude or ""),
