@@ -77,6 +77,15 @@ async def _active_admin_emails(session: AsyncSession) -> set[str]:
     return set((await session.scalars(select(AdminAccess.email).where(AdminAccess.active.is_(True)))).all())
 
 
+def _active_restriction_conditions_at(now: datetime):
+    """Evaluate moderation state against wall-clock time captured after row locking."""
+    return (
+        UserRestriction.revoked_at.is_(None),
+        UserRestriction.starts_at <= now,
+        or_(UserRestriction.ends_at.is_(None), UserRestriction.ends_at > now),
+    )
+
+
 def _active_restriction_exists(*, restriction_type: str | None = None):
     query = select(UserRestriction.id).where(
         UserRestriction.user_id == User.id,
@@ -256,7 +265,7 @@ async def restrict_user(
             await session.scalars(
                 select(UserRestriction).where(
                     UserRestriction.user_id == target.id,
-                    *active_window(UserRestriction),
+                    *_active_restriction_conditions_at(now),
                 )
             )
         ).all()
@@ -321,19 +330,19 @@ async def unrestrict_user(user_id: UUID, actor: User, session: AsyncSession) -> 
     )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
+    now = datetime.now(UTC)
     current_rows = list(
         (
             await session.scalars(
                 select(UserRestriction).where(
                     UserRestriction.user_id == target.id,
-                    *active_window(UserRestriction),
+                    *_active_restriction_conditions_at(now),
                 )
             )
         ).all()
     )
     if not current_rows:
         raise HTTPException(409, "User has no active restriction")
-    now = datetime.now(UTC)
     for current in current_rows:
         current.revoked_at = now
         current.revoked_by = actor.id
