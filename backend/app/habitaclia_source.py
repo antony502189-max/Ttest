@@ -209,15 +209,10 @@ class HabitacliaSource(ExternalListingSource):
             )
             area = clean(zone.group(1)) if zone else ""
 
-        public_address = None
-        if area and normalized_street:
-            public_address = f"{area} · {normalized_street}"
-        elif normalized_street:
-            public_address = normalized_street
-        elif label:
-            public_address = label
-        elif area:
-            public_address = area
+        # Public listing location must remain coarse. The source may publish
+        # a street/house number, but 112233's privacy contract exposes only the
+        # locality/area; the public source map center is handled separately.
+        public_address = area or None
         return area, public_address
 
     @classmethod
