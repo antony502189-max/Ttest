@@ -94,6 +94,7 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
 
     rotated = await client.post("/api/v1/auth/refresh")
     assert rotated.status_code == 200
+    rotated_access = rotated.json()["accessToken"]
     current_refresh = client.cookies.get("refresh_token")
     assert current_refresh and current_refresh != old_refresh
 
@@ -108,6 +109,9 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
 
     family_revoked = await client.post("/api/v1/auth/refresh")
     assert family_revoked.status_code == 401
+
+    stale_bearer = await client.get("/api/v1/users/me", headers=auth(rotated_access))
+    assert stale_bearer.status_code == 401
 
 
 async def test_availability_window_excludes_already_ended_listing(client: AsyncClient, register_user):
