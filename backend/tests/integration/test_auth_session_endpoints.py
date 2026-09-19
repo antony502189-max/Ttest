@@ -7,6 +7,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
+from app.core.security import token_hash
 from app.db.session import SessionLocal
 from app.main import app
 from app.models import AuthSession
@@ -64,7 +65,7 @@ async def test_parallel_sessions_survive_logout_of_another_device(client: AsyncC
 
         async with SessionLocal() as session:
             revoked = await session.scalar(
-                select(AuthSession).where(AuthSession.token_hash == __import__("hashlib").sha256(first_refresh.encode()).hexdigest())
+                select(AuthSession).where(AuthSession.token_hash == token_hash(first_refresh))
             )
             assert revoked is not None
             assert revoked.revoked_at is not None
