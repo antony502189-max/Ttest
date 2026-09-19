@@ -28,6 +28,7 @@ from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets, lock_media_owner
 from .moderation import lock_active_admin_access, normalize_email, viable_admin_count
+from .search_state import lock_collection, lock_saved_searches, lock_search_history
 from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
 
 
@@ -100,7 +101,16 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
 
 
 async def delete_account(user: User, session: AsyncSession) -> None:
+    # Acquire the same per-account mutation locks used by media and search-state
+    # writers before locking the User row. Writers take these locks before their
+    # FK inserts, so matching that order prevents both post-delete resurrection
+    # and User-row/advisory-lock deadlocks.
     await lock_media_owner(session, user.id)
+    await lock_collection(Favorite, user.id, session)
+    await lock_collection(DiscardedListing, user.id, session)
+    await lock_saved_searches(user.id, session)
+    await lock_search_history(user.id, session)
+
     locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
