@@ -278,6 +278,7 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
             body="Private conversation content must be erased with the account.",
         )
         session.add(message)
+        await session.flush()
         thread_id = thread.id
         message_id = message.id
         peer_id = peer.id
