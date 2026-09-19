@@ -34,6 +34,54 @@ test('listing editing is one long scroll form instead of a paged wizard', async 
   await expect(page.getByRole('heading', { name: 'Contacto' })).toBeVisible()
 })
 
+test('photo reorder arrows move photos earlier and later in the order on mobile', async ({ page }) => {
+  await openEditAsHost(page)
+
+  const photos = page.locator('.upload-grid img')
+  await expect(photos).toHaveCount(6)
+
+  const firstUp = page.getByRole('button', { name: 'Subir foto 1 en el orden' })
+  const firstDown = page.getByRole('button', { name: 'Bajar foto 1 en el orden' })
+  const lastDown = page.getByRole('button', { name: 'Bajar foto 6 en el orden' })
+
+  await expect(firstUp).toBeDisabled()
+  await expect(firstDown).toBeEnabled()
+  await expect(lastDown).toBeDisabled()
+
+  const firstSrc = await photos.nth(0).getAttribute('src')
+  const secondSrc = await photos.nth(1).getAttribute('src')
+  expect(firstSrc).toBeTruthy()
+  expect(secondSrc).toBeTruthy()
+
+  await firstDown.click()
+  await expect(photos.nth(0)).toHaveAttribute('src', secondSrc!)
+  await expect(photos.nth(1)).toHaveAttribute('src', firstSrc!)
+
+  const secondUp = page.getByRole('button', { name: 'Subir foto 2 en el orden' })
+  await secondUp.click()
+  await expect(photos.nth(0)).toHaveAttribute('src', firstSrc!)
+  await expect(photos.nth(1)).toHaveAttribute('src', secondSrc!)
+})
+
+test('photo reorder arrows keep ordering semantics in the desktop grid', async ({ page }) => {
+  await openEditAsHost(page)
+  await page.setViewportSize({ width: 1100, height: 900 })
+
+  const photos = page.locator('.upload-grid img')
+  await expect(photos).toHaveCount(6)
+  const firstSrc = await photos.nth(0).getAttribute('src')
+  const secondSrc = await photos.nth(1).getAttribute('src')
+  expect(firstSrc).toBeTruthy()
+  expect(secondSrc).toBeTruthy()
+
+  const lowerOrder = page.getByRole('button', { name: 'Bajar foto 1 en el orden' })
+  await expect(lowerOrder).toHaveAttribute('title', 'Bajar foto 1 en el orden')
+  await lowerOrder.click()
+
+  await expect(photos.nth(0)).toHaveAttribute('src', secondSrc!)
+  await expect(photos.nth(1)).toHaveAttribute('src', firstSrc!)
+})
+
 test('owner can scroll down, edit distant sections and save without wizard navigation', async ({ page }) => {
   await openEditAsHost(page)
 
