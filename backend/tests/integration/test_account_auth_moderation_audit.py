@@ -441,6 +441,69 @@ async def test_profile_write_cannot_resurrect_fields_after_concurrent_deletion(
         assert stored.phone == ""
 
 
+async def test_concurrent_user_restrictions_leave_one_active_row(
+    client: AsyncClient,
+    register_user,
+):
+    first_token, first_admin = await register_user(
+        client,
+        email="restriction-admin-one@example.com",
+        role="host",
+    )
+    second_token, second_admin = await register_user(
+        client,
+        email="restriction-admin-two@example.com",
+        role="host",
+    )
+    _, target = await register_user(
+        client,
+        email="restriction-race-target@example.com",
+        role="host",
+    )
+    await make_admin(first_admin["id"], first_admin["email"])
+    await make_admin(second_admin["id"], second_admin["email"])
+
+    target_id = UUID(target["id"])
+    first_response, second_response = await asyncio.gather(
+        client.post(
+            f"/api/v1/admin/users/{target['id']}/restrictions",
+            headers=auth(first_token),
+            json={
+                "restrictionType": "publish",
+                "until": (datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+                "reason": "Concurrent publishing restriction",
+            },
+        ),
+        client.post(
+            f"/api/v1/admin/users/{target['id']}/restrictions",
+            headers=auth(second_token),
+            json={
+                "restrictionType": "full",
+                "until": (datetime.now(UTC) + timedelta(hours=3)).isoformat(),
+                "reason": "Concurrent full restriction",
+            },
+        ),
+    )
+    assert first_response.status_code == 200, first_response.text
+    assert second_response.status_code == 200, second_response.text
+
+    async with SessionLocal() as session:
+        rows = list(
+            (
+                await session.scalars(
+                    select(UserRestriction)
+                    .where(UserRestriction.user_id == target_id)
+                    .order_by(UserRestriction.starts_at, UserRestriction.id)
+                )
+            ).all()
+        )
+    assert len(rows) == 2
+    active_rows = [row for row in rows if row.revoked_at is None]
+    revoked_rows = [row for row in rows if row.revoked_at is not None]
+    assert len(active_rows) == 1
+    assert len(revoked_rows) == 1
+
+
 async def test_moderation_full_publish_unrestrict_expiry_and_notices(
     client: AsyncClient,
     register_user,
