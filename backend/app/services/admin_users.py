@@ -227,7 +227,12 @@ async def restrict_user(
     actor: User,
     session: AsyncSession,
 ) -> AdminUserDetailResponse:
-    target = await session.get(User, user_id)
+    target = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
     if target.id == actor.id:
@@ -299,7 +304,12 @@ async def restrict_user(
 
 
 async def unrestrict_user(user_id: UUID, actor: User, session: AsyncSession) -> AdminUserDetailResponse:
-    target = await session.get(User, user_id)
+    target = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
     current = await active_user_restriction(target.id, session)
@@ -336,7 +346,12 @@ async def soft_delete_user(
     actor: User,
     session: AsyncSession,
 ) -> None:
-    target = await session.get(User, user_id)
+    target = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
     if target.id == actor.id:
