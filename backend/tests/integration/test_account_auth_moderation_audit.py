@@ -5,14 +5,17 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
 from app.core.security import token_hash
 from app.db.session import SessionLocal
 from app.main import app
-from app.models import AuthSession, Listing, Notification, PasswordResetToken, User
+from app.models import AuthSession, Listing, MediaAsset, Notification, PasswordResetToken, User
 from app.models.moderation import AdminAccess, ModerationNotice, UserRestriction
+from app.schemas.auth import UserUpdateRequest
+from app.services import users as users_service
 from app.services.moderation_expiry import process_expired_moderation
 
 pytestmark = pytest.mark.integration
@@ -235,12 +238,53 @@ async def test_profile_patch_is_partial_and_rejects_privilege_fields(
         assert stored.blocked is False
 
 
+async def test_avatar_rejects_media_owned_by_another_account(client: AsyncClient, register_user):
+    first_token, first = await register_user(client, email="avatar-owner-a@example.com")
+    _, second = await register_user(client, email="avatar-owner-b@example.com")
+    second_id = UUID(second["id"])
+
+    async with SessionLocal() as session:
+        foreign_asset = MediaAsset(
+            owner_id=second_id,
+            storage_key="media/foreign-avatar-audit.webp",
+            mime_type="image/webp",
+            size_bytes=10,
+            width=1,
+            height=1,
+            checksum="9" * 64,
+            kind="avatar",
+        )
+        session.add(foreign_asset)
+        await session.commit()
+        await session.refresh(foreign_asset)
+        foreign_asset_id = foreign_asset.id
+
+    rejected = await client.put(
+        "/api/v1/users/me/avatar",
+        headers=auth(first_token),
+        json={"assetId": str(foreign_asset_id)},
+    )
+    assert rejected.status_code == 404
+
+    extra_field = await client.put(
+        "/api/v1/users/me/avatar",
+        headers=auth(first_token),
+        json={"assetId": None, "role": "admin"},
+    )
+    assert extra_field.status_code == 422
+
+    async with SessionLocal() as session:
+        stored_first = await session.get(User, UUID(first["id"]))
+        assert stored_first is not None
+        assert stored_first.avatar_asset_id is None
+
+
 async def test_authorization_boundaries_deny_anonymous_foreign_owner_and_legacy_role_escalation(
     client: AsyncClient,
     register_user,
 ):
-    assert (await client.get("/api/v1/users/me", headers={"Authorization": ""})).status_code == 401
-    assert (await client.get("/api/v1/favorites", headers={"Authorization": ""})).status_code == 401
+    assert (await client.get("/api/v1/users/me")).status_code == 401
+    assert (await client.get("/api/v1/favorites")).status_code == 401
 
     owner_token, _ = await register_user(client, email="owner-boundary@example.com", role="host")
     other_token, other = await register_user(client, email="other-boundary@example.com", role="host")
@@ -320,6 +364,65 @@ async def test_concurrent_account_deletion_is_single_effect_and_old_identity_can
     assert session_count == 0
 
 
+async def test_profile_write_cannot_resurrect_fields_after_concurrent_deletion(
+    register_user,
+    monkeypatch,
+):
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+    ) as setup_client:
+        _, user = await register_user(setup_client, email="delete-profile-race@example.com")
+    user_id = UUID(user["id"])
+
+    delete_locked_user = asyncio.Event()
+    release_delete = asyncio.Event()
+    real_admin_lock = users_service.lock_active_admin_access
+
+    async def controlled_admin_lock(session):
+        delete_locked_user.set()
+        await release_delete.wait()
+        return await real_admin_lock(session)
+
+    monkeypatch.setattr(users_service, "lock_active_admin_access", controlled_admin_lock)
+
+    async with SessionLocal() as delete_session, SessionLocal() as profile_session:
+        delete_user = await delete_session.get(User, user_id)
+        stale_profile_user = await profile_session.get(User, user_id)
+        assert delete_user is not None and stale_profile_user is not None
+
+        delete_task = asyncio.create_task(
+            users_service.delete_account(delete_user, delete_session),
+            name="delete-account",
+        )
+        await asyncio.wait_for(delete_locked_user.wait(), timeout=5)
+
+        profile_task = asyncio.create_task(
+            users_service.update_profile(
+                UserUpdateRequest(name="Must Not Survive Delete", phone="+34 999 999 999"),
+                stale_profile_user,
+                profile_session,
+            ),
+            name="profile-write",
+        )
+        await asyncio.sleep(0.05)
+        release_delete.set()
+
+        await delete_task
+        with pytest.raises(HTTPException) as error:
+            await profile_task
+        assert error.value.status_code == 404
+        await profile_session.rollback()
+
+    async with SessionLocal() as session:
+        stored = await session.get(User, user_id)
+        assert stored is not None
+        assert stored.deleted_at is not None
+        assert stored.name == "Deleted user"
+        assert stored.phone == ""
+
+
 async def test_moderation_full_publish_unrestrict_expiry_and_notices(
     client: AsyncClient,
     register_user,
@@ -355,7 +458,26 @@ async def test_moderation_full_publish_unrestrict_expiry_and_notices(
 
     notices = await client.get("/api/v1/users/me/moderation-notices", headers=host_headers)
     assert notices.status_code == 200
-    assert any(item["kind"] == "user_restricted" for item in notices.json())
+    restriction_notice = next(item for item in notices.json() if item["kind"] == "user_restricted")
+
+    foreign_notice = await client.patch(
+        f"/api/v1/users/me/moderation-notices/{restriction_notice['id']}/read",
+        headers=admin_headers,
+    )
+    assert foreign_notice.status_code == 404
+    own_notice = await client.patch(
+        f"/api/v1/users/me/moderation-notices/{restriction_notice['id']}/read",
+        headers=host_headers,
+    )
+    assert own_notice.status_code == 204
+
+    profile_allowed = await client.patch(
+        "/api/v1/users/me",
+        headers=host_headers,
+        json={"about": "Profile remains manageable under publish restriction"},
+    )
+    assert profile_allowed.status_code == 200
+    assert profile_allowed.json()["about"] == "Profile remains manageable under publish restriction"
 
     denied_publish = await client.post(
         "/api/v1/listings",
