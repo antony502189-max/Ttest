@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
@@ -147,7 +148,7 @@ async def test_expired_verification_code_is_rejected_and_does_not_verify_user(cl
         },
     )
     assert registration.status_code == 201, registration.text
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
     headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
 
     requested = await client.post("/api/v1/auth/email-verification/request", headers=headers)
@@ -195,7 +196,7 @@ async def test_verified_code_cannot_be_reused_and_verified_user_gets_no_new_code
         },
     )
     assert registration.status_code == 201, registration.text
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
     headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
 
     assert (await client.post("/api/v1/auth/email-verification/request", headers=headers)).status_code == 202
@@ -266,7 +267,7 @@ async def test_verification_resend_cooldown_rejects_immediate_second_request(cli
         },
     )
     assert registration.status_code == 201, registration.text
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
     headers = {"Authorization": f"Bearer {registration.json()['accessToken']}"}
 
     first = await client.post("/api/v1/auth/email-verification/request", headers=headers)
@@ -314,7 +315,7 @@ async def test_verification_request_rechecks_stale_user_state_before_issuing_cod
         },
     )
     assert registration.status_code == 201, registration.text
-    user_id = registration.json()["user"]["id"]
+    user_id = UUID(registration.json()["user"]["id"])
 
     async with SessionLocal() as stale_session:
         stale_user = await stale_session.get(User, user_id)
