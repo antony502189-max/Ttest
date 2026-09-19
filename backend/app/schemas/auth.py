@@ -46,6 +46,13 @@ class ResetPasswordRequest(BaseModel):
     token: str = Field(min_length=32, max_length=512)
     password: str = Field(min_length=12, max_length=256)
 
+    @field_validator("password")
+    @classmethod
+    def preserve_password_whitespace(cls, value: str) -> str:
+        if len(value.strip()) < 12:
+            raise ValueError("Password must be at least 12 characters excluding surrounding whitespace")
+        return value
+
 
 class VerifyEmailRequest(BaseModel):
     code: str = Field(pattern=r"^\d{6}$")
@@ -68,7 +75,7 @@ class UserResponse(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: str | None = Field(default=None, min_length=2, max_length=120)
     phone: str | None = Field(default=None, max_length=64)
@@ -87,4 +94,6 @@ class UserUpdateRequest(BaseModel):
 
 
 class AvatarUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     assetId: UUID | None = None
