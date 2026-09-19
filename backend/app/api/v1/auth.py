@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
@@ -119,9 +120,18 @@ async def select_google_role(
     session: AsyncSession = Depends(get_session),
 ):
     require_cookie_origin(request)
-    if user.role != "pending" or not user.google_subject:
+    updated_user_id = await session.scalar(
+        update(User)
+        .where(
+            User.id == user.id,
+            User.role == "pending",
+            User.google_subject.is_not(None),
+        )
+        .values(role=payload.role)
+        .returning(User.id)
+    )
+    if updated_user_id is None:
         raise HTTPException(409, "Google account role is already set")
-    user.role = payload.role
     await session.commit()
     await session.refresh(user)
     return public_user(user)
