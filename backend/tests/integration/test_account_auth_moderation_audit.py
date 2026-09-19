@@ -52,7 +52,7 @@ async def test_password_reset_is_single_use_preserves_exact_secret_and_revokes_a
     client: AsyncClient,
     register_user,
 ):
-    _, user = await register_user(client, email="reset-lifecycle@example.com")
+    first_access, user = await register_user(client, email="reset-lifecycle@example.com")
     user_id = UUID(user["id"])
     first_refresh = client.cookies.get("refresh_token")
     assert first_refresh
@@ -67,6 +67,7 @@ async def test_password_reset_is_single_use_preserves_exact_secret_and_revokes_a
             json={"email": "reset-lifecycle@example.com", "password": "Correct-Horse-1234"},
         )
         assert login.status_code == 200, login.text
+        second_access = login.json()["accessToken"]
         second_refresh = second_client.cookies.get("refresh_token")
         assert second_refresh and second_refresh != first_refresh
 
@@ -116,6 +117,10 @@ async def test_password_reset_is_single_use_preserves_exact_secret_and_revokes_a
                 rejected = await replay.post("/api/v1/auth/refresh")
             assert rejected.status_code == 401
 
+        for stale_access in (first_access, second_access):
+            denied = await client.get("/api/v1/users/me", headers=auth(stale_access))
+            assert denied.status_code == 401
+
         reused = await client.post(
             "/api/v1/auth/reset-password",
             json={"token": reset_token, "password": "Another-Correct-Horse-9012"},
@@ -133,12 +138,25 @@ async def test_password_reset_is_single_use_preserves_exact_secret_and_revokes_a
             json={"email": "reset-lifecycle@example.com", "password": new_password},
         )
         assert exact_login.status_code == 200, exact_login.text
+        fresh_access = exact_login.json()["accessToken"]
+        assert (await client.get("/api/v1/users/me", headers=auth(fresh_access))).status_code == 200
 
         trimmed_login = await client.post(
             "/api/v1/auth/login",
             json={"email": "reset-lifecycle@example.com", "password": new_password.strip()},
         )
         assert trimmed_login.status_code == 401
+
+
+async def test_logout_revokes_bound_access_token(client: AsyncClient, register_user):
+    access_token, _ = await register_user(client, email="logout-access@example.com")
+    assert (await client.get("/api/v1/users/me", headers=auth(access_token))).status_code == 200
+
+    logout = await client.post("/api/v1/auth/logout")
+    assert logout.status_code == 204, logout.text
+
+    revoked_access = await client.get("/api/v1/users/me", headers=auth(access_token))
+    assert revoked_access.status_code == 401
 
 
 async def test_password_reset_rejects_whitespace_policy_bypass_and_expired_token(
