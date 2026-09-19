@@ -324,12 +324,12 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
     if not user or user.blocked or user.deleted_at:
         return response
 
-    now = datetime.now(UTC)
     settings = get_settings()
     # Serialize by account so distributed callers cannot race the cooldown and
     # create multiple valid tokens or outbox rows. Suppression remains silent:
     # callers receive the same generic response as for an unknown account.
     await lock_password_reset(user.id, session)
+    now = datetime.now(UTC)
     issued_at = list(
         (
             await session.scalars(
@@ -387,6 +387,7 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
     # This prevents issuance/reset races and keeps a successful reset as the
     # terminal state for every outstanding token on the account.
     await lock_password_reset(candidate.user_id, session)
+    now = datetime.now(UTC)
     reset = await session.scalar(
         select(PasswordResetToken)
         .where(
