@@ -49,7 +49,7 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
     if not fields:
         return user
 
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))
     if not locked_user or locked_user.deleted_at is not None or locked_user.blocked:
         raise HTTPException(404, "User not found")
     apply_profile_fields(locked_user, fields)
@@ -63,7 +63,7 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
 
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
     previous_id = locked_user.avatar_asset_id
@@ -111,7 +111,7 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     await lock_saved_searches(user.id, session)
     await lock_search_history(user.id, session)
 
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
 
