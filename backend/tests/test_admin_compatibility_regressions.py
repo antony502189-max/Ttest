@@ -78,7 +78,7 @@ async def test_full_restriction_does_not_revoke_existing_identity_sessions(monke
     session = SimpleNamespace(
         scalar=AsyncMock(return_value=target),
         get=AsyncMock(return_value=None),
-        scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [])),
+        scalars=AsyncMock(return_value=SimpleNamespace(all=list)),
         add=MagicMock(),
         commit=AsyncMock(),
     )
