@@ -173,7 +173,7 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
             url="https://www.habitaclia.com/i34692000000210.htm",
             city="Granadilla de Abona",
             area="El Médano",
-            public_address="El Médano · Avenida JOSE MIGUEL GALVAN BELLO",
+            public_address="El Médano",
             latitude=28.0438656770,
             longitude=-16.5351811288,
         )
@@ -189,7 +189,7 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert listing is not None
         assert listing.city == "Granadilla de Abona"
         assert listing.area == "El Médano"
-        assert listing.approximate_address == "El Médano · Avenida JOSE MIGUEL GALVAN BELLO"
+        assert listing.approximate_address == "El Médano"
 
         response = await client.post(
             "/api/v1/listings/search",
@@ -198,7 +198,7 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert response.status_code == 200, response.text
         imported = next(row for row in response.json()["items"] if row["id"] == str(listing.id))
         assert imported["area"] == "El Médano"
-        assert imported["approximateAddress"] == "El Médano · Avenida JOSE MIGUEL GALVAN BELLO"
+        assert imported["approximateAddress"] == "El Médano"
         assert imported["latitude"] == pytest.approx(28.0438656770)
         assert imported["longitude"] == pytest.approx(-16.5351811288)
 
