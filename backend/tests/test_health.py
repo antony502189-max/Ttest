@@ -119,6 +119,7 @@ def test_sensitive_endpoints_have_rate_limits() -> None:
     assert ("POST", "/api/v1/auth/register") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/google") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/forgot-password") in RATE_LIMITS
+    assert ("POST", "/api/v1/auth/reset-password") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/refresh") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/email-verification/request") in RATE_LIMITS
     assert ("POST", "/api/v1/auth/email-verification/confirm") in RATE_LIMITS
