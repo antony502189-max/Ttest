@@ -61,9 +61,13 @@ def decode_access_token(token: str) -> dict:
         token,
         get_settings().jwt_secret,
         algorithms=["HS256"],
-        options={"require": ["exp", "sub", "type"]},
+        options={"require": ["exp", "sub", "type", "sid"]},
     )
-    if claims.get("type") != "access" or not isinstance(claims.get("sub"), str):
+    if (
+        claims.get("type") != "access"
+        or not isinstance(claims.get("sub"), str)
+        or not isinstance(claims.get("sid"), str)
+    ):
         raise InvalidTokenError("Invalid access token claims")
     return claims
 
