@@ -15,6 +15,10 @@ from app.models import AuthSession
 pytestmark = pytest.mark.integration
 
 
+def auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
 async def active_session_count(user_id: UUID) -> int:
     async with SessionLocal() as session:
         count = await session.scalar(
@@ -30,7 +34,7 @@ async def active_session_count(user_id: UUID) -> int:
 
 
 async def test_parallel_sessions_survive_logout_of_another_device(client: AsyncClient, register_user):
-    _, user = await register_user(client, email="parallel-sessions@example.com")
+    first_access, user = await register_user(client, email="parallel-sessions@example.com")
     user_id = UUID(user["id"])
     first_refresh = client.cookies.get("refresh_token")
     assert first_refresh
@@ -75,7 +79,11 @@ async def test_parallel_sessions_survive_logout_of_another_device(client: AsyncC
         rotated_second = second_client.cookies.get("refresh_token")
         assert rotated_second and rotated_second != second_refresh
         assert surviving.json()["user"]["id"] == str(user_id)
+        rotated_access = surviving.json()["accessToken"]
         assert await active_session_count(user_id) == 1
+
+        assert (await client.get("/api/v1/users/me", headers=auth(first_access))).status_code == 401
+        assert (await second_client.get("/api/v1/users/me", headers=auth(rotated_access))).status_code == 200
 
 
 async def test_refresh_requires_cookie(client: AsyncClient):
