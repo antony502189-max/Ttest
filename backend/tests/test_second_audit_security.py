@@ -83,7 +83,24 @@ def test_access_token_decoder_requires_access_type(monkeypatch):
     token = jwt.encode(
         {
             "sub": "00000000-0000-4000-8000-000000000001",
+            "sid": "00000000-0000-4000-8000-000000000002",
             "type": "refresh",
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+    with pytest.raises(InvalidTokenError):
+        decode_access_token(token)
+
+
+def test_access_token_decoder_requires_session_identity(monkeypatch):
+    settings = Settings(jwt_secret="test-secret-with-at-least-32-characters")
+    monkeypatch.setattr("app.core.security.get_settings", lambda: settings)
+    token = jwt.encode(
+        {
+            "sub": "00000000-0000-4000-8000-000000000001",
+            "type": "access",
             "exp": datetime.now(UTC) + timedelta(minutes=5),
         },
         settings.jwt_secret,

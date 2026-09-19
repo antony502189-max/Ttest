@@ -3,12 +3,12 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.security import decode_access_token
 from ..db.session import get_session
-from ..models import User
+from ..models import AuthSession, User
 from ..services.moderation import enforce_full_access, is_admin
 
 bearer = HTTPBearer(auto_error=False)
@@ -29,8 +29,24 @@ async def token_user(
     try:
         claims = decode_access_token(credentials.credentials)
         user_id = UUID(claims["sub"])
+        session_id = UUID(claims["sid"])
     except (InvalidTokenError, ValueError, TypeError, KeyError):
         return None
+
+    # Every accepted bearer token is bound to its persisted refresh session.
+    # Rotation, logout, replay-family revocation, session limits and password
+    # reset therefore revoke access and refresh capability together.
+    active_session = await session.scalar(
+        select(AuthSession.id).where(
+            AuthSession.id == session_id,
+            AuthSession.user_id == user_id,
+            AuthSession.revoked_at.is_(None),
+            AuthSession.expires_at > func.now(),
+        )
+    )
+    if active_session is None:
+        return None
+
     user = await session.scalar(select(User).where(User.id == user_id))
     if not user or user.blocked or user.deleted_at is not None:
         return None

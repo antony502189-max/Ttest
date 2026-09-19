@@ -102,6 +102,14 @@ async def lock_email_verification(user_id: UUID, session: AsyncSession) -> None:
     )
 
 
+async def lock_password_reset(user_id: UUID, session: AsyncSession) -> None:
+    """Serialize reset-token issuance and consumption for one account."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"password-reset:{user_id}"},
+    )
+
+
 async def prepare_session_issuance(
     user_id: UUID,
     session: AsyncSession,
@@ -187,7 +195,11 @@ async def issue_session(
 
     await session.commit()
     return AuthResult(
-        access_token=create_access_token(str(user.id), user.role),
+        access_token=create_access_token(
+            str(user.id),
+            user.role,
+            session_id=str(auth_session.id),
+        ),
         refresh_token=raw_refresh,
         refresh_expires_at=expires,
         user=user,
@@ -316,15 +328,12 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
     if not user or user.blocked or user.deleted_at:
         return response
 
-    now = datetime.now(UTC)
     settings = get_settings()
     # Serialize by account so distributed callers cannot race the cooldown and
     # create multiple valid tokens or outbox rows. Suppression remains silent:
     # callers receive the same generic response as for an unknown account.
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-        {"lock_key": f"password-reset:{user.id}"},
-    )
+    await lock_password_reset(user.id, session)
+    now = datetime.now(UTC)
     issued_at = list(
         (
             await session.scalars(
@@ -367,10 +376,26 @@ async def request_password_reset(email: str, session: AsyncSession) -> dict[str,
 
 async def reset_user_password(raw_token: str, password: str, session: AsyncSession) -> None:
     now = datetime.now(UTC)
+    hashed_token = token_hash(raw_token)
+    candidate = await session.scalar(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == hashed_token,
+            PasswordResetToken.consumed_at.is_(None),
+            PasswordResetToken.expires_at > now,
+        )
+    )
+    if not candidate:
+        raise HTTPException(400, "The password reset link is invalid or has expired")
+
+    # Match forgot-password's account lock before taking the token row lock.
+    # This prevents issuance/reset races and keeps a successful reset as the
+    # terminal state for every outstanding token on the account.
+    await lock_password_reset(candidate.user_id, session)
+    now = datetime.now(UTC)
     reset = await session.scalar(
         select(PasswordResetToken)
         .where(
-            PasswordResetToken.token_hash == token_hash(raw_token),
+            PasswordResetToken.token_hash == hashed_token,
             PasswordResetToken.consumed_at.is_(None),
             PasswordResetToken.expires_at > now,
         )
@@ -381,8 +406,16 @@ async def reset_user_password(raw_token: str, password: str, session: AsyncSessi
     user = await session.get(User, reset.user_id)
     if not user or user.blocked or user.deleted_at:
         raise HTTPException(400, "The password reset link is invalid or has expired")
+
     user.password_hash = await hash_password_async(password)
-    reset.consumed_at = now
+    await session.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.consumed_at.is_(None),
+        )
+        .values(consumed_at=now)
+    )
     await lock_user_sessions(user.id, session)
     await session.execute(
         update(AuthSession)

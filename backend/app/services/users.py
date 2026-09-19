@@ -16,15 +16,19 @@ from ..models import (
     ListingImage,
     MailOutbox,
     MediaAsset,
+    MessageThread,
+    Notification,
     PasswordResetToken,
     SavedSearch,
     SearchHistory,
     User,
 )
+from ..models.moderation import ModerationNotice
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets, lock_media_owner
 from .moderation import lock_active_admin_access, normalize_email, viable_admin_count
+from .search_state import lock_collection, lock_saved_searches, lock_search_history
 from .storage_deletions import enqueue_storage_deletion, enqueue_storage_deletions
 
 
@@ -42,18 +46,34 @@ def apply_profile_fields(user: User, fields: Mapping[str, object]) -> None:
 
 async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
     fields = payload.model_dump(exclude_unset=True)
-    apply_profile_fields(user, fields)
+    if not fields:
+        return user
+
+    locked_user = await session.scalar(
+        select(User)
+        .where(User.id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if not locked_user or locked_user.deleted_at is not None or locked_user.blocked:
+        raise HTTPException(404, "User not found")
+    apply_profile_fields(locked_user, fields)
     # Public listing responses project the owner's name and visible contact
     # fields. Invalidate the catalog in the same transaction so already-open
     # search pages refresh those details instead of retaining stale contact data.
     await touch_catalog(session)
     await session.commit()
-    await session.refresh(user)
-    return user
+    await session.refresh(locked_user)
+    return locked_user
 
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    locked_user = await session.scalar(
+        select(User)
+        .where(User.id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
     previous_id = locked_user.avatar_asset_id
@@ -91,8 +111,22 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
 
 
 async def delete_account(user: User, session: AsyncSession) -> None:
+    # Acquire the same per-account mutation locks used by media and search-state
+    # writers before locking the User row. Writers take these locks before their
+    # FK inserts, so matching that order prevents both post-delete resurrection
+    # and User-row/advisory-lock deadlocks.
     await lock_media_owner(session, user.id)
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    await lock_collection(Favorite, user.id, session)
+    await lock_collection(DiscardedListing, user.id, session)
+    await lock_saved_searches(user.id, session)
+    await lock_search_history(user.id, session)
+
+    locked_user = await session.scalar(
+        select(User)
+        .where(User.id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not locked_user or locked_user.deleted_at is not None:
         raise HTTPException(404, "User not found")
 
@@ -131,6 +165,14 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     )
     await session.execute(delete(SavedSearch).where(SavedSearch.user_id == locked_user.id))
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == locked_user.id))
+    await session.execute(
+        delete(MessageThread).where(
+            (MessageThread.tenant_id == locked_user.id)
+            | (MessageThread.host_id == locked_user.id)
+        )
+    )
+    await session.execute(delete(Notification).where(Notification.recipient_user_id == locked_user.id))
+    await session.execute(delete(ModerationNotice).where(ModerationNotice.user_id == locked_user.id))
     await session.execute(delete(MailOutbox).where(MailOutbox.recipient == original_email))
     if media_ids:
         await session.execute(delete(ListingImage).where(ListingImage.media_asset_id.in_(media_ids)))

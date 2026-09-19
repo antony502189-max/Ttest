@@ -82,12 +82,13 @@ async def test_user_restriction_invalidates_catalog(monkeypatch: pytest.MonkeyPa
     actor = SimpleNamespace(id=uuid4())
     target = SimpleNamespace(id=user_id, deleted_at=None, email="user@example.com")
 
-    async def get(model, object_id):
-        if model is User:
-            return target
-        return None
-
-    session = SimpleNamespace(get=AsyncMock(side_effect=get), add=MagicMock(), commit=AsyncMock())
+    session = SimpleNamespace(
+        scalar=AsyncMock(return_value=target),
+        get=AsyncMock(return_value=None),
+        scalars=AsyncMock(return_value=SimpleNamespace(all=list)),
+        add=MagicMock(),
+        commit=AsyncMock(),
+    )
     monkeypatch.setattr(admin_users, "active_user_restriction", AsyncMock(return_value=None))
     monkeypatch.setattr(admin_users, "get_user_detail", AsyncMock(return_value="detail"))
     catalog_touch = AsyncMock()
@@ -103,6 +104,9 @@ async def test_user_restriction_invalidates_catalog(monkeypatch: pytest.MonkeyPa
     )
 
     assert result == "detail"
+    lock_sql = str(session.scalar.await_args.args[0])
+    assert "FROM users" in lock_sql
+    assert "FOR UPDATE" in lock_sql
     catalog_touch.assert_awaited_once_with(session)
     session.commit.assert_awaited_once()
 

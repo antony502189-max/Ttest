@@ -13,13 +13,20 @@ from app.db.session import SessionLocal
 from app.main import app
 from app.models import (
     AuthSession,
+    EmailVerificationToken,
     Favorite,
+    Listing,
     MailOutbox,
     MediaAsset,
+    Message,
+    MessageThread,
+    Notification,
+    PasswordResetToken,
     SavedSearch,
     SearchHistory,
     User,
 )
+from app.models.moderation import ModerationNotice
 
 pytestmark = pytest.mark.integration
 
@@ -87,6 +94,7 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
 
     rotated = await client.post("/api/v1/auth/refresh")
     assert rotated.status_code == 200
+    rotated_access = rotated.json()["accessToken"]
     current_refresh = client.cookies.get("refresh_token")
     assert current_refresh and current_refresh != old_refresh
 
@@ -101,6 +109,9 @@ async def test_old_refresh_token_cannot_be_reused(client: AsyncClient, register_
 
     family_revoked = await client.post("/api/v1/auth/refresh")
     assert family_revoked.status_code == 401
+
+    stale_bearer = await client.get("/api/v1/users/me", headers=auth(rotated_access))
+    assert stale_bearer.status_code == 401
 
 
 async def test_availability_window_excludes_already_ended_listing(client: AsyncClient, register_user):
@@ -244,11 +255,71 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
     )
     assert upload.status_code == 201
 
+    user_id = UUID(user["id"])
+    listing_uuid = UUID(listing_id)
+    now = datetime.now(UTC)
+    async with SessionLocal() as session:
+        peer = User(
+            email="erase-peer@example.com",
+            password_hash="unused",
+            name="Erase Peer",
+            role="tenant",
+            initials="EP",
+            email_verified=True,
+        )
+        session.add(peer)
+        await session.flush()
+        thread = MessageThread(
+            listing_id=listing_uuid,
+            tenant_id=peer.id,
+            host_id=user_id,
+        )
+        session.add(thread)
+        await session.flush()
+        message = Message(
+            thread_id=thread.id,
+            sender_id=user_id,
+            body="Private conversation content must be erased with the account.",
+        )
+        session.add(message)
+        await session.flush()
+        thread_id = thread.id
+        message_id = message.id
+        peer_id = peer.id
+        session.add_all(
+            [
+                PasswordResetToken(
+                    user_id=user_id,
+                    token_hash="a" * 64,
+                    expires_at=now + timedelta(minutes=30),
+                ),
+                EmailVerificationToken(
+                    user_id=user_id,
+                    token_hash="b" * 64,
+                    expires_at=now + timedelta(minutes=10),
+                ),
+                Notification(
+                    recipient_user_id=user_id,
+                    type="account_delete_regression",
+                    entity_listing_id=listing_uuid,
+                    title="Delete me",
+                    body="User-facing notification must be erased.",
+                    idempotency_key="account-delete-regression",
+                ),
+                ModerationNotice(
+                    user_id=user_id,
+                    kind="account_delete_regression",
+                    title="Delete me",
+                    body="User-facing moderation notice must be erased.",
+                ),
+            ]
+        )
+        await session.commit()
+
     deleted = await client.delete("/api/v1/users/me", headers=auth(token))
     assert deleted.status_code == 204
 
     async with SessionLocal() as session:
-        user_id = UUID(user["id"])
         assert (
             await session.scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user_id))
             == 0
@@ -266,6 +337,43 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
         )
         assert (
             await session.scalar(
+                select(func.count())
+                .select_from(PasswordResetToken)
+                .where(PasswordResetToken.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(EmailVerificationToken)
+                .where(EmailVerificationToken.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(Notification)
+                .where(Notification.recipient_user_id == user_id)
+            )
+            == 0
+        )
+        assert await session.get(MessageThread, thread_id) is None
+        assert await session.get(Message, message_id) is None
+        peer = await session.get(User, peer_id)
+        assert peer is not None
+        assert peer.deleted_at is None
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(ModerationNotice)
+                .where(ModerationNotice.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
                 select(func.count()).select_from(MailOutbox).where(MailOutbox.recipient == "erase-me@example.com")
             )
             == 0
@@ -278,6 +386,13 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
             )
             == 0
         )
+        stored_listing = await session.get(Listing, listing_uuid)
+        assert stored_listing is not None
+        assert stored_listing.deleted_at is not None
+        assert stored_listing.status == "closed"
+        assert stored_listing.closed_reason == "account_deleted"
         stored_user = await session.scalar(select(User).where(User.id == user_id))
         assert stored_user is not None
         assert stored_user.email.endswith("@deleted.invalid")
+        assert stored_user.password_hash is None
+        assert stored_user.google_subject is None

@@ -77,6 +77,15 @@ async def _active_admin_emails(session: AsyncSession) -> set[str]:
     return set((await session.scalars(select(AdminAccess.email).where(AdminAccess.active.is_(True)))).all())
 
 
+def _active_restriction_conditions_at(now: datetime):
+    """Evaluate moderation state against wall-clock time captured after row locking."""
+    return (
+        UserRestriction.revoked_at.is_(None),
+        UserRestriction.starts_at <= now,
+        or_(UserRestriction.ends_at.is_(None), UserRestriction.ends_at > now),
+    )
+
+
 def _active_restriction_exists(*, restriction_type: str | None = None):
     query = select(UserRestriction.id).where(
         UserRestriction.user_id == User.id,
@@ -227,7 +236,12 @@ async def restrict_user(
     actor: User,
     session: AsyncSession,
 ) -> AdminUserDetailResponse:
-    target = await session.get(User, user_id)
+    target = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
     if target.id == actor.id:
@@ -246,8 +260,17 @@ async def restrict_user(
         if until <= now:
             raise HTTPException(422, "Restriction end date must be in the future")
 
-    current = await active_user_restriction(target.id, session)
-    if current:
+    current_rows = list(
+        (
+            await session.scalars(
+                select(UserRestriction).where(
+                    UserRestriction.user_id == target.id,
+                    *_active_restriction_conditions_at(now),
+                )
+            )
+        ).all()
+    )
+    for current in current_rows:
         current.revoked_at = now
         current.revoked_by = actor.id
     row = UserRestriction(
@@ -299,14 +322,31 @@ async def restrict_user(
 
 
 async def unrestrict_user(user_id: UUID, actor: User, session: AsyncSession) -> AdminUserDetailResponse:
-    target = await session.get(User, user_id)
+    target = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
-    current = await active_user_restriction(target.id, session)
-    if not current:
+    now = datetime.now(UTC)
+    current_rows = list(
+        (
+            await session.scalars(
+                select(UserRestriction).where(
+                    UserRestriction.user_id == target.id,
+                    *_active_restriction_conditions_at(now),
+                )
+            )
+        ).all()
+    )
+    if not current_rows:
         raise HTTPException(409, "User has no active restriction")
-    current.revoked_at = datetime.now(UTC)
-    current.revoked_by = actor.id
+    for current in current_rows:
+        current.revoked_at = now
+        current.revoked_by = actor.id
+    current = current_rows[0]
     add_notice(
         session,
         target.id,
@@ -336,7 +376,12 @@ async def soft_delete_user(
     actor: User,
     session: AsyncSession,
 ) -> None:
-    target = await session.get(User, user_id)
+    target = await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
     if target.id == actor.id:

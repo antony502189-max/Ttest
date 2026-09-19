@@ -1,3 +1,4 @@
+import asyncio
 from uuid import uuid4
 
 import pytest
@@ -174,3 +175,60 @@ async def test_account_deletion_removes_rows_that_reference_owned_listings(monke
 
     async with SessionLocal() as check:
         assert await check.scalar(select(Favorite).where(Favorite.listing_id == listing.id)) is None
+
+
+async def test_account_deletion_serializes_with_concurrent_favorite_write(monkeypatch):
+    monkeypatch.setattr(search_state, "get_settings", lambda: limited_settings(10))
+    _, tenant, listings = await create_users_and_listings(count=1)
+    listing = listings[0]
+
+    writer_holds_lock = asyncio.Event()
+    release_writer = asyncio.Event()
+    real_collection_count = search_state.collection_count
+
+    async def controlled_collection_count(model, user_id, session):
+        if asyncio.current_task() and asyncio.current_task().get_name() == "favorite-writer":
+            writer_holds_lock.set()
+            await release_writer.wait()
+        return await real_collection_count(model, user_id, session)
+
+    monkeypatch.setattr(search_state, "collection_count", controlled_collection_count)
+
+    async with SessionLocal() as writer_session, SessionLocal() as delete_session:
+        writer_user = await writer_session.get(User, tenant.id)
+        delete_user = await delete_session.get(User, tenant.id)
+        assert writer_user is not None and delete_user is not None
+
+        writer_task = asyncio.create_task(
+            search_state.add_collection_item(
+                Favorite,
+                "uq_favorites_user_listing",
+                listing.id,
+                writer_user,
+                writer_session,
+            ),
+            name="favorite-writer",
+        )
+        await asyncio.wait_for(writer_holds_lock.wait(), timeout=5)
+
+        delete_task = asyncio.create_task(
+            delete_account(delete_user, delete_session),
+            name="delete-account",
+        )
+        await asyncio.sleep(0.05)
+        assert not delete_task.done()
+
+        release_writer.set()
+        await writer_task
+        await delete_task
+
+    async with SessionLocal() as check:
+        favorite = await check.scalar(
+            select(Favorite).where(
+                Favorite.user_id == tenant.id,
+                Favorite.listing_id == listing.id,
+            )
+        )
+        deleted_user = await check.get(User, tenant.id)
+    assert favorite is None
+    assert deleted_user is not None and deleted_user.deleted_at is not None

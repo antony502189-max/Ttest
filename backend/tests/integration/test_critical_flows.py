@@ -79,6 +79,7 @@ async def test_complete_auth_geo_media_message_and_delete_flow(client: AsyncClie
     refresh = await client.post("/api/v1/auth/refresh")
     assert refresh.status_code == 200, refresh.text
     assert refresh.json()["user"]["id"] == host["id"]
+    host_token = refresh.json()["accessToken"]
 
     inside = await client.post(
         "/api/v1/listings",
