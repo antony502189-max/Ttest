@@ -262,7 +262,7 @@ html.mobile-v2-active #main-content > :not(.m2-app) { display: none !important; 
 .m2-menu-login > svg { width: 1.35rem; }
 .m2-menu-login h2 { margin: 0; font-size: .95rem; }
 .m2-menu-login p { margin: .3rem 0 0; color: #aaa; font-size: .67rem; line-height: 1.45; }
-.m2-menu > .m2-primary { margin-top: .7rem; }
+.m2-menu > .m2-primary { min-height: 4rem; margin-top: .7rem; padding: .85rem 1.1rem; line-height: 1.25; text-align: center; white-space: normal; }
 .m2-menu h3 { margin: 1.4rem 0 .35rem; font-size: .78rem; font-weight: 500; }
 .m2-menu-row { width: 100%; min-height: 3.1rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem 0; border: 0; border-bottom: 1px solid #303030; background: transparent; color: #ddd; text-align: left; font-size: .68rem; }
 .m2-menu-row span { min-width: 0; display: flex; align-items: center; gap: .5rem; }
