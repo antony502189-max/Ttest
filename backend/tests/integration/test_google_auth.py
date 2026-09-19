@@ -68,7 +68,15 @@ async def test_google_workspace_links_an_existing_password_account_only_when_aut
     linked = await google_login(client)
     assert linked["user"]["id"] == original["id"]
     assert linked["user"]["role"] == "tenant"
+    assert linked["user"]["emailVerified"] is True
     assert token
+
+    password_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "member@example.edu", "password": "Correct-Horse-1234"},
+    )
+    assert password_login.status_code == 200, password_login.text
+    assert password_login.json()["user"]["id"] == original["id"]
 
 
 async def test_google_refuses_unsafe_third_party_email_auto_link(client: AsyncClient, register_user, monkeypatch):
