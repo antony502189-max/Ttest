@@ -538,6 +538,10 @@ async def test_moderation_full_publish_unrestrict_expiry_and_notices(
     assert blocked_action.status_code == 403
     assert blocked_action.json()["code"] == "ACCOUNT_RESTRICTED"
 
+    blocked_delete = await client.delete("/api/v1/users/me", headers=host_headers)
+    assert blocked_delete.status_code == 403
+    assert blocked_delete.json()["code"] == "ACCOUNT_RESTRICTED"
+
     async with SessionLocal() as session:
         active = await session.scalar(
             select(UserRestriction)
