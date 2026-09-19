@@ -301,3 +301,45 @@ async def test_verification_resend_cooldown_rejects_immediate_second_request(cli
         )
     assert token_count_after == token_count_before
     assert mail_count_after == mail_count_before
+
+
+async def test_verification_request_rechecks_stale_user_state_before_issuing_code(client):
+    registration = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "name": "Stale Verification",
+            "email": "stale-verification@example.com",
+            "password": "Correct-Horse-1234",
+            "role": "host",
+        },
+    )
+    assert registration.status_code == 201, registration.text
+    user_id = registration.json()["user"]["id"]
+
+    async with SessionLocal() as stale_session:
+        stale_user = await stale_session.get(User, user_id)
+        assert stale_user is not None
+        assert stale_user.email_verified is False
+
+        async with SessionLocal() as confirming_session:
+            confirmed_user = await confirming_session.get(User, user_id)
+            assert confirmed_user is not None
+            confirmed_user.email_verified = True
+            await confirming_session.commit()
+
+        response = await request_verification(stale_user, stale_session)
+        assert response["email"].startswith("s*")
+
+    async with SessionLocal() as session:
+        token_count = await session.scalar(
+            select(func.count())
+            .select_from(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+        )
+        mail_count = await session.scalar(
+            select(func.count())
+            .select_from(MailOutbox)
+            .where(MailOutbox.recipient == "stale-verification@example.com")
+        )
+    assert token_count == 0
+    assert mail_count == 0
