@@ -441,6 +441,66 @@ async def test_profile_write_cannot_resurrect_fields_after_concurrent_deletion(
         assert stored.phone == ""
 
 
+async def test_manual_unrestrict_heals_historical_duplicate_active_rows(
+    client: AsyncClient,
+    register_user,
+):
+    admin_token, admin = await register_user(
+        client,
+        email="restriction-heal-admin@example.com",
+        role="host",
+    )
+    _, target = await register_user(
+        client,
+        email="restriction-heal-target@example.com",
+        role="host",
+    )
+    await make_admin(admin["id"], admin["email"])
+    target_id = UUID(target["id"])
+    now = datetime.now(UTC)
+
+    async with SessionLocal() as session:
+        session.add_all(
+            [
+                UserRestriction(
+                    user_id=target_id,
+                    restriction_type="publish",
+                    reason="Legacy duplicate one",
+                    starts_at=now - timedelta(hours=2),
+                    ends_at=now + timedelta(hours=2),
+                ),
+                UserRestriction(
+                    user_id=target_id,
+                    restriction_type="full",
+                    reason="Legacy duplicate two",
+                    starts_at=now - timedelta(hours=1),
+                    ends_at=now + timedelta(hours=3),
+                ),
+            ]
+        )
+        await session.commit()
+
+    response = await client.delete(
+        f"/api/v1/admin/users/{target['id']}/restrictions/active",
+        headers=auth(admin_token),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["activeRestriction"] is None
+
+    async with SessionLocal() as session:
+        rows = list(
+            (
+                await session.scalars(
+                    select(UserRestriction)
+                    .where(UserRestriction.user_id == target_id)
+                    .order_by(UserRestriction.starts_at, UserRestriction.id)
+                )
+            ).all()
+        )
+    assert len(rows) == 2
+    assert all(row.revoked_at is not None for row in rows)
+
+
 async def test_concurrent_user_restrictions_leave_one_active_row(
     client: AsyncClient,
     register_user,
