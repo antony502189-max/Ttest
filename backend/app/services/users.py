@@ -16,11 +16,13 @@ from ..models import (
     ListingImage,
     MailOutbox,
     MediaAsset,
+    Notification,
     PasswordResetToken,
     SavedSearch,
     SearchHistory,
     User,
 )
+from ..models.moderation import ModerationNotice
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets, lock_media_owner
@@ -42,6 +44,8 @@ def apply_profile_fields(user: User, fields: Mapping[str, object]) -> None:
 
 async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncSession) -> User:
     fields = payload.model_dump(exclude_unset=True)
+    if not fields:
+        return user
     apply_profile_fields(user, fields)
     # Public listing responses project the owner's name and visible contact
     # fields. Invalidate the catalog in the same transaction so already-open
@@ -131,6 +135,8 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     )
     await session.execute(delete(SavedSearch).where(SavedSearch.user_id == locked_user.id))
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == locked_user.id))
+    await session.execute(delete(Notification).where(Notification.recipient_user_id == locked_user.id))
+    await session.execute(delete(ModerationNotice).where(ModerationNotice.user_id == locked_user.id))
     await session.execute(delete(MailOutbox).where(MailOutbox.recipient == original_email))
     if media_ids:
         await session.execute(delete(ListingImage).where(ListingImage.media_asset_id.in_(media_ids)))
