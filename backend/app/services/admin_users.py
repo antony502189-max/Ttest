@@ -251,8 +251,17 @@ async def restrict_user(
         if until <= now:
             raise HTTPException(422, "Restriction end date must be in the future")
 
-    current = await active_user_restriction(target.id, session)
-    if current:
+    current_rows = list(
+        (
+            await session.scalars(
+                select(UserRestriction).where(
+                    UserRestriction.user_id == target.id,
+                    *active_window(UserRestriction),
+                )
+            )
+        ).all()
+    )
+    for current in current_rows:
         current.revoked_at = now
         current.revoked_by = actor.id
     row = UserRestriction(
@@ -312,11 +321,23 @@ async def unrestrict_user(user_id: UUID, actor: User, session: AsyncSession) -> 
     )
     if not target or target.deleted_at is not None:
         raise HTTPException(404, "User not found")
-    current = await active_user_restriction(target.id, session)
-    if not current:
+    current_rows = list(
+        (
+            await session.scalars(
+                select(UserRestriction).where(
+                    UserRestriction.user_id == target.id,
+                    *active_window(UserRestriction),
+                )
+            )
+        ).all()
+    )
+    if not current_rows:
         raise HTTPException(409, "User has no active restriction")
-    current.revoked_at = datetime.now(UTC)
-    current.revoked_by = actor.id
+    now = datetime.now(UTC)
+    for current in current_rows:
+        current.revoked_at = now
+        current.revoked_by = actor.id
+    current = current_rows[0]
     add_notice(
         session,
         target.id,
