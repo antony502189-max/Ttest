@@ -13,13 +13,18 @@ from app.db.session import SessionLocal
 from app.main import app
 from app.models import (
     AuthSession,
+    EmailVerificationToken,
     Favorite,
+    Listing,
     MailOutbox,
     MediaAsset,
+    Notification,
+    PasswordResetToken,
     SavedSearch,
     SearchHistory,
     User,
 )
+from app.models.moderation import ModerationNotice
 
 pytestmark = pytest.mark.integration
 
@@ -244,11 +249,44 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
     )
     assert upload.status_code == 201
 
+    user_id = UUID(user["id"])
+    listing_uuid = UUID(listing_id)
+    now = datetime.now(UTC)
+    async with SessionLocal() as session:
+        session.add_all(
+            [
+                PasswordResetToken(
+                    user_id=user_id,
+                    token_hash="a" * 64,
+                    expires_at=now + timedelta(minutes=30),
+                ),
+                EmailVerificationToken(
+                    user_id=user_id,
+                    token_hash="b" * 64,
+                    expires_at=now + timedelta(minutes=10),
+                ),
+                Notification(
+                    recipient_user_id=user_id,
+                    type="account_delete_regression",
+                    entity_listing_id=listing_uuid,
+                    title="Delete me",
+                    body="User-facing notification must be erased.",
+                    idempotency_key="account-delete-regression",
+                ),
+                ModerationNotice(
+                    user_id=user_id,
+                    kind="account_delete_regression",
+                    title="Delete me",
+                    body="User-facing moderation notice must be erased.",
+                ),
+            ]
+        )
+        await session.commit()
+
     deleted = await client.delete("/api/v1/users/me", headers=auth(token))
     assert deleted.status_code == 204
 
     async with SessionLocal() as session:
-        user_id = UUID(user["id"])
         assert (
             await session.scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == user_id))
             == 0
@@ -266,6 +304,38 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
         )
         assert (
             await session.scalar(
+                select(func.count())
+                .select_from(PasswordResetToken)
+                .where(PasswordResetToken.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(EmailVerificationToken)
+                .where(EmailVerificationToken.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(Notification)
+                .where(Notification.recipient_user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(ModerationNotice)
+                .where(ModerationNotice.user_id == user_id)
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
                 select(func.count()).select_from(MailOutbox).where(MailOutbox.recipient == "erase-me@example.com")
             )
             == 0
@@ -278,6 +348,13 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
             )
             == 0
         )
+        stored_listing = await session.get(Listing, listing_uuid)
+        assert stored_listing is not None
+        assert stored_listing.deleted_at is not None
+        assert stored_listing.status == "closed"
+        assert stored_listing.closed_reason == "account_deleted"
         stored_user = await session.scalar(select(User).where(User.id == user_id))
         assert stored_user is not None
         assert stored_user.email.endswith("@deleted.invalid")
+        assert stored_user.password_hash is None
+        assert stored_user.google_subject is None
