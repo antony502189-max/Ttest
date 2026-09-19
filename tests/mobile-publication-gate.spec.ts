@@ -44,7 +44,27 @@ test('publication entry in menu opens the same clean gate', async ({ page }) => 
 })
 
 
-test('authenticated mobile menu separates my properties from profile editing', async ({ page }) => {
+test('mobile listings action is translated in Spanish, English and Russian', async ({ page }) => {
+  const cases = [
+    ['es', 'Ver y crear anuncios'],
+    ['en', 'View and create listings'],
+    ['ru', 'Просмотр и создание объявлений'],
+  ] as const
+
+  for (const [language, label] of cases) {
+    await page.goto('/#/')
+    await page.evaluate(({ language }) => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+      localStorage.setItem('112233:language:v1', language)
+      localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    }, { language })
+    await page.reload()
+    await page.goto('/#/menu')
+    await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible()
+  }
+})
+
+test('authenticated mobile menu separates listing management from profile editing', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
     localStorage.setItem('112233:language:v1', 'ru')
@@ -52,7 +72,7 @@ test('authenticated mobile menu separates my properties from profile editing', a
   })
 
   await page.goto('/#/menu')
-  const properties = page.getByRole('button', { name: 'Мои объекты', exact: true })
+  const properties = page.getByRole('button', { name: 'Просмотр и создание объявлений', exact: true })
   const editProfile = page.getByRole('button', { name: /Редактировать профиль/ })
   await expect(properties).toBeVisible()
   await expect(editProfile).toBeVisible()

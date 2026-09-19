@@ -48,6 +48,27 @@ test('photo reorder arrows move photos earlier and later in the order on mobile'
   await expect(firstDown).toBeEnabled()
   await expect(lastDown).toBeDisabled()
 
+  const [upBox, upIconBox, downBox, downIconBox] = await Promise.all([
+    firstUp.boundingBox(),
+    firstUp.locator('svg').boundingBox(),
+    firstDown.boundingBox(),
+    firstDown.locator('svg').boundingBox(),
+  ])
+  expect(upBox).not.toBeNull()
+  expect(upIconBox).not.toBeNull()
+  expect(downBox).not.toBeNull()
+  expect(downIconBox).not.toBeNull()
+  const centered = (button: NonNullable<typeof upBox>, icon: NonNullable<typeof upIconBox>) => ({
+    x: Math.abs((icon.x + icon.width / 2) - (button.x + button.width / 2)),
+    y: Math.abs((icon.y + icon.height / 2) - (button.y + button.height / 2)),
+  })
+  const upOffset = centered(upBox!, upIconBox!)
+  const downOffset = centered(downBox!, downIconBox!)
+  expect(upOffset.x).toBeLessThanOrEqual(1)
+  expect(upOffset.y).toBeLessThanOrEqual(1)
+  expect(downOffset.x).toBeLessThanOrEqual(1)
+  expect(downOffset.y).toBeLessThanOrEqual(1)
+
   const firstSrc = await photos.nth(0).getAttribute('src')
   const secondSrc = await photos.nth(1).getAttribute('src')
   expect(firstSrc).toBeTruthy()
