@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
+from google.auth.exceptions import GoogleAuthError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy import delete, func, or_, select, text, update
@@ -249,6 +250,8 @@ async def google_login_user(
         )
     except ValueError as exc:
         raise HTTPException(401, "Invalid Google credential") from exc
+    except GoogleAuthError as exc:
+        raise HTTPException(503, "Google sign-in is temporarily unavailable") from exc
     if claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
         raise HTTPException(401, "Invalid Google credential")
     subject = claims.get("sub")
