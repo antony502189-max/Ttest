@@ -195,7 +195,11 @@ async def issue_session(
 
     await session.commit()
     return AuthResult(
-        access_token=create_access_token(str(user.id), user.role),
+        access_token=create_access_token(
+            str(user.id),
+            user.role,
+            session_id=str(auth_session.id),
+        ),
         refresh_token=raw_refresh,
         refresh_expires_at=expires,
         user=user,
