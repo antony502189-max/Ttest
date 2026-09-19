@@ -18,6 +18,8 @@ from app.models import (
     Listing,
     MailOutbox,
     MediaAsset,
+    Message,
+    MessageThread,
     Notification,
     PasswordResetToken,
     SavedSearch,
@@ -253,6 +255,32 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
     listing_uuid = UUID(listing_id)
     now = datetime.now(UTC)
     async with SessionLocal() as session:
+        peer = User(
+            email="erase-peer@example.com",
+            password_hash="unused",
+            name="Erase Peer",
+            role="tenant",
+            initials="EP",
+            email_verified=True,
+        )
+        session.add(peer)
+        await session.flush()
+        thread = MessageThread(
+            listing_id=listing_uuid,
+            tenant_id=peer.id,
+            host_id=user_id,
+        )
+        session.add(thread)
+        await session.flush()
+        message = Message(
+            thread_id=thread.id,
+            sender_id=user_id,
+            body="Private conversation content must be erased with the account.",
+        )
+        session.add(message)
+        thread_id = thread.id
+        message_id = message.id
+        peer_id = peer.id
         session.add_all(
             [
                 PasswordResetToken(
@@ -326,6 +354,11 @@ async def test_account_deletion_erases_owned_state(client: AsyncClient, register
             )
             == 0
         )
+        assert await session.get(MessageThread, thread_id) is None
+        assert await session.get(Message, message_id) is None
+        peer = await session.get(User, peer_id)
+        assert peer is not None
+        assert peer.deleted_at is None
         assert (
             await session.scalar(
                 select(func.count())
