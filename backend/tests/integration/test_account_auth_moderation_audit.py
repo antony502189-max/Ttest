@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from app.core.security import token_hash
 from app.db.session import SessionLocal
 from app.main import app
-from app.models import AuthSession, Listing, MediaAsset, Notification, PasswordResetToken, User
+from app.models import AuthSession, MediaAsset, Notification, PasswordResetToken, User
 from app.models.moderation import AdminAccess, ModerationNotice, UserRestriction
 from app.schemas.auth import UserUpdateRequest
 from app.services import users as users_service
