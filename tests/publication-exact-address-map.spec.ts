@@ -264,6 +264,57 @@ test('manual marker controls cancel an in-flight exact-address lookup', async ({
   })).toEqual(manualCenter)
 })
 
+test('customer video regression: editing only the street re-geocodes stale saved coordinates and refreshes address fields', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+
+  const edit = page.locator('.manage-card').first().getByRole('link', { name: /Editar/i })
+  const href = await edit.getAttribute('href')
+  expect(href).toBeTruthy()
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('#publish-street')).toBeVisible()
+
+  const exact = { lat: 28.0674, lng: -16.7268 }
+  await installGeocoderResult(page, {
+    route: 'Avenida V Centenario',
+    number: '1',
+    postcode: '38670',
+    area: 'Costa Adeje',
+    municipality: 'Adeje',
+    coordinates: exact,
+  }, true)
+
+  // Reproduce the customer video: only the street is corrected while the
+  // previously saved postcode/coordinates are still stale.
+  await page.locator('#publish-street').fill('Avenida V Centenario 1')
+
+  await expect.poll(() => page.evaluate(() => (window as Window & { __lastExactAddressQuery?: string }).__lastExactAddressQuery ?? '')).toBe(
+    'Avenida V Centenario 1, Tenerife, Spain',
+  )
+  await expect.poll(() => page.evaluate(() => {
+    const center = window.__googleMapsTestLastMap?.getCenter()
+    return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
+  })).toEqual(exact)
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38670')
+  await expect(page.locator('#publish-area')).toHaveValue('Costa Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
+
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38670')
+  await expect(page.locator('#publish-area')).toHaveValue('Costa Adeje')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
+})
+
 test('publication map matches the one-page editor map size on a customer mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openPublishLocation(page)
