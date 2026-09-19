@@ -83,6 +83,7 @@ def test_access_token_decoder_requires_access_type(monkeypatch):
     token = jwt.encode(
         {
             "sub": "00000000-0000-4000-8000-000000000001",
+            "sid": "00000000-0000-4000-8000-000000000002",
             "type": "refresh",
             "exp": datetime.now(UTC) + timedelta(minutes=5),
         },
