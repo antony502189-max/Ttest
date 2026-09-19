@@ -47,14 +47,18 @@ async def update_profile(payload: UserUpdateRequest, user: User, session: AsyncS
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         return user
-    apply_profile_fields(user, fields)
+
+    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+    if not locked_user or locked_user.deleted_at is not None or locked_user.blocked:
+        raise HTTPException(404, "User not found")
+    apply_profile_fields(locked_user, fields)
     # Public listing responses project the owner's name and visible contact
     # fields. Invalidate the catalog in the same transaction so already-open
     # search pages refresh those details instead of retaining stale contact data.
     await touch_catalog(session)
     await session.commit()
-    await session.refresh(user)
-    return user
+    await session.refresh(locked_user)
+    return locked_user
 
 
 async def update_avatar(payload: AvatarUpdateRequest, user: User, session: AsyncSession) -> User:
