@@ -1183,18 +1183,443 @@ class FotocasaSource(ExternalListingSource):
 
 
 class MilanunciosSource(ExternalListingSource):
+    """Small rental inventory on the five Canary islands shown in the product map.
+
+    Scope: Tenerife, La Palma, La Gomera, El Hierro and Gran Canaria.
+    """
+
     name = "Milanuncios"
     domain = "milanuncios.com"
-    url_tokens = ("/pisos-compartidos-",)
-    listing_url_pattern = re.compile(r"/pisos-compartidos-[^?#]+\.htm$", re.IGNORECASE)
-    discovery_selectors = ('a[href*="/pisos-compartidos-"][href$=".htm"]',)
-    discovery_urls = ("https://www.milanuncios.com/pisos-compartidos-en-santa-cruz-de-tenerife-tenerife/habitacion.htm",)
+    url_tokens = (
+        "/pisos-compartidos-",
+        "/alquiler-de-estudios-",
+        "/alquiler-de-pisos-",
+        "/alquiler-de-apartamentos-",
+    )
+    listing_url_pattern = re.compile(
+        r"^/(?:pisos-compartidos|alquiler-de-estudios|alquiler-de-pisos|alquiler-de-apartamentos)-"
+        r"[^?#]+-\d+\.htm$",
+        re.IGNORECASE,
+    )
+    discovery_selectors = (
+        'a[href*="/pisos-compartidos-"][href*=".htm"]',
+        'a[href*="/alquiler-de-estudios-"][href*=".htm"]',
+        'a[href*="/alquiler-de-pisos-"][href*=".htm"]',
+        'a[href*="/alquiler-de-apartamentos-"][href*=".htm"]',
+    )
+    discovery_urls = (
+        "https://www.milanuncios.com/pisos-compartidos-en-canarias/",
+        "https://www.milanuncios.com/alquiler-de-estudios-en-canarias/",
+        "https://www.milanuncios.com/alquiler-de-pisos-en-canarias/",
+        "https://www.milanuncios.com/alquiler-de-apartamentos-en-canarias/",
+    )
+    # Four Canarias-wide catalogues share the pagination budget. The detail
+    # classifier below narrows the resulting inventory to the five target
+    # islands, so small-island adverts are not lost merely because their
+    # municipality has too few results for a dedicated discovery route.
+    max_discovery_pages = 120
     removed_markers = ExternalListingSource.removed_markers + ("este anuncio ha caducado", "anuncio retirado")
+
+    _single_bedroom = re.compile(
+        r"\b(?:1|un|una)\s+(?:habitaci[oó]n|hab\.?|dormitorio)\b",
+        re.IGNORECASE,
+    )
+    _multi_bedroom = re.compile(
+        r"\b(?:[2-9]|1\d|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+"
+        r"(?:habitaciones?|hab\.?|dormitorios?)\b",
+        re.IGNORECASE,
+    )
+    _studio = re.compile(r"\b(?:estudio|tipo\s+estudio|studio|loft)\b", re.IGNORECASE)
+    _strong_room_markers = (
+        "se alquila habitación",
+        "se alquila habitacion",
+        "se alquilan habitaciones",
+        "alquilo habitación",
+        "alquilo habitacion",
+        "alquiler de habitación",
+        "alquiler de habitacion",
+        "alquiler habitación",
+        "alquiler habitacion",
+        "habitación en piso compartido",
+        "habitacion en piso compartido",
+        "habitación disponible",
+        "habitacion disponible",
+        "habitación libre",
+        "habitacion libre",
+        "room for rent",
+        "private room for rent",
+    )
+    _weak_room_markers = (
+        "habitación individual",
+        "habitacion individual",
+        "habitación privada",
+        "habitacion privada",
+        "habitación en alquiler",
+        "habitacion en alquiler",
+        "habitación amueblada",
+        "habitacion amueblada",
+    )
+    _wanted_markers = (
+        "busco habitación",
+        "busco habitacion",
+        "busco estudio",
+        "busco apartamento",
+        "busco piso",
+        "buscamos habitación",
+        "buscamos habitacion",
+        "buscamos estudio",
+        "buscamos apartamento",
+        "buscamos piso",
+        "necesito habitación",
+        "necesito habitacion",
+        "necesito estudio",
+        "necesito apartamento",
+        "necesito piso",
+        "se busca habitación",
+        "se busca habitacion",
+        "se busca estudio",
+        "se busca apartamento",
+        "se busca piso",
+    )
+    _offer_markers = (
+        "se alquila",
+        "se alquilan",
+        "alquilo",
+        "en alquiler",
+        "disponible",
+        "ofrecemos",
+        "se ofrece",
+    )
+    _target_places = (
+        # Tenerife
+        "tenerife",
+        "adeje",
+        "arafo",
+        "arico",
+        "arona",
+        "buenavista del norte",
+        "candelaria",
+        "el rosario",
+        "el sauzal",
+        "el tanque",
+        "fasnia",
+        "garachico",
+        "granadilla de abona",
+        "guía de isora",
+        "guia de isora",
+        "güímar",
+        "guimar",
+        "icod de los vinos",
+        "la guancha",
+        "la matanza de acentejo",
+        "la orotava",
+        "la victoria de acentejo",
+        "los realejos",
+        "los silos",
+        "puerto de la cruz",
+        "san cristóbal de la laguna",
+        "san cristobal de la laguna",
+        "la laguna",
+        "san juan de la rambla",
+        "san miguel de abona",
+        "santa cruz de tenerife",
+        "santa úrsula",
+        "santa ursula",
+        "santiago del teide",
+        "tacoronte",
+        "tegueste",
+        "vilaflor de chasna",
+        # La Palma
+        "la palma",
+        "santa cruz de la palma",
+        "los llanos de aridane",
+        "barlovento",
+        "breña alta",
+        "brena alta",
+        "breña baja",
+        "brena baja",
+        "el paso",
+        "fuencaliente de la palma",
+        "garafía",
+        "garafia",
+        "mazo",
+        "puntagorda",
+        "puntallana",
+        "san andrés y sauces",
+        "san andres y sauces",
+        "tazacorte",
+        "tijarafe",
+        # La Gomera
+        "la gomera",
+        "san sebastián de la gomera",
+        "san sebastian de la gomera",
+        "agulo",
+        "alajeró",
+        "alajero",
+        "hermigua",
+        "valle gran rey",
+        "vallehermoso",
+        # El Hierro
+        "el hierro",
+        "valverde",
+        "la frontera",
+        "frontera",
+        "el pinar de el hierro",
+        # Gran Canaria
+        "gran canaria",
+        "las palmas de gran canaria",
+        "agaete",
+        "agüimes",
+        "aguimes",
+        "artenara",
+        "arucas",
+        "firgas",
+        "gáldar",
+        "galdar",
+        "ingenio",
+        "mogán",
+        "mogan",
+        "moya",
+        "san bartolomé de tirajana",
+        "san bartolome de tirajana",
+        "san mateo",
+        "santa brígida",
+        "santa brigida",
+        "santa lucía de tirajana",
+        "santa lucia de tirajana",
+        "santa maría de guía",
+        "santa maria de guia",
+        "tejeda",
+        "telde",
+        "teror",
+        "valleseco",
+        "valsequillo",
+        "vega de san mateo",
+    )
+    _target_island_bounds = (
+        # Tenerife
+        (27.90, 28.62, -16.98, -16.02),
+        # La Palma
+        (28.38, 28.92, -18.12, -17.60),
+        # La Gomera
+        (27.94, 28.28, -17.42, -16.94),
+        # El Hierro
+        (27.58, 28.02, -18.22, -17.78),
+        # Gran Canaria
+        (27.70, 28.22, -15.85, -15.30),
+    )
+
+    _excluded_islands = (
+        "lanzarote",
+        "fuerteventura",
+        "la graciosa",
+    )
+
+    @classmethod
+    def _target_unit_type(cls, data: dict[str, Any]) -> str | None:
+        title = clean(data.get("title")).casefold()
+        description = clean(data.get("description")).casefold()
+        corpus = clean(
+            " ".join(
+                str(data.get(key, ""))
+                for key in ("title", "description", "category", "breadcrumbs", "url")
+            )
+        ).casefold()
+
+        opening = clean(f"{title} {description[:500]}").casefold()
+        if (
+            any(marker in title for marker in cls._wanted_markers)
+            or (
+                any(marker in opening for marker in cls._wanted_markers)
+                and not any(marker in opening for marker in cls._offer_markers)
+            )
+        ):
+            return None
+
+        # An offered room inside a multi-bedroom shared flat is valid, so room
+        # wording intentionally wins over the containing home's bedroom count.
+        if any(marker in corpus for marker in cls._strong_room_markers):
+            return (
+                "Habitación compartida"
+                if any(
+                    marker in corpus
+                    for marker in ("habitación compartida", "habitacion compartida", "shared room")
+                )
+                else "Habitación individual"
+            )
+
+        if cls._multi_bedroom.search(corpus):
+            return None
+        if cls._studio.search(corpus):
+            return "Estudio"
+        if cls._single_bedroom.search(corpus):
+            return "Apartamento de 1 dormitorio"
+
+        # Keep generic room wording behind whole-home classification so
+        # "piso de una habitación en alquiler" stays a one-bedroom home.
+        if any(marker in corpus for marker in cls._weak_room_markers):
+            return (
+                "Habitación compartida"
+                if any(
+                    marker in corpus
+                    for marker in ("habitación compartida", "habitacion compartida", "shared room")
+                )
+                else "Habitación individual"
+            )
+        return None
+
+    @classmethod
+    def _is_target_island_listing(cls, data: dict[str, Any]) -> bool:
+        latitude, longitude = data.get("latitude"), data.get("longitude")
+        lat: float | None
+        lng: float | None
+        try:
+            lat, lng = float(str(latitude)), float(str(longitude))
+        except (TypeError, ValueError):
+            lat = lng = None
+        if lat is not None and lng is not None:
+            return any(
+                min_lat <= lat <= max_lat and min_lng <= lng <= max_lng
+                for min_lat, max_lat, min_lng, max_lng in cls._target_island_bounds
+            )
+
+        explicit = clean(
+            " ".join(
+                str(data.get(key, ""))
+                for key in ("province", "city", "municipality", "address", "breadcrumbs", "postcode", "url")
+            )
+        ).casefold()
+        if any(island in explicit for island in cls._excluded_islands):
+            return False
+        if any(place in explicit for place in cls._target_places):
+            return True
+
+        listing_copy = clean(f"{data.get('title', '')} {data.get('description', '')}").casefold()
+        return (
+            not any(island in listing_copy for island in cls._excluded_islands)
+            and any(place in listing_copy for place in cls._target_places)
+        )
+
+    def is_pagination_url(self, url: str) -> bool:
+        path = unquote(urlparse(url).path).casefold()
+        if not any(
+            path.startswith(prefix)
+            for prefix in (
+                "/pisos-compartidos-en-canarias",
+                "/alquiler-de-estudios-en-canarias",
+                "/alquiler-de-pisos-en-canarias",
+                "/alquiler-de-apartamentos-en-canarias",
+            )
+        ):
+            return False
+        return super().is_pagination_url(url)
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)
-        data["category"] = f"pisos compartidos alquiler habitación {data['category']}"
+        path = unquote(urlparse(url).path).casefold()
+        if path.startswith("/pisos-compartidos-"):
+            source_category = "pisos compartidos alquiler habitación"
+        elif path.startswith("/alquiler-de-estudios-"):
+            source_category = "alquiler estudio"
+        elif path.startswith("/alquiler-de-apartamentos-"):
+            source_category = "alquiler apartamento"
+        else:
+            source_category = "alquiler piso"
+        data["category"] = f"{source_category} {data['category']}"
         return data
+
+    def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
+        if data.get("deleted") or clean(data.get("status")).casefold() in {"deleted", "removed", "not found"}:
+            return None
+
+        title = clean(data.get("title"))
+        if not title or not self._is_target_island_listing(data) or not is_rental(data):
+            return None
+
+        target_type = self._target_unit_type(data)
+        if target_type is None:
+            return None
+
+        amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
+        corpus = clean(
+            " ".join(
+                str(data.get(key, ""))
+                for key in ("title", "description", "category", "breadcrumbs", "url")
+            )
+        ).casefold()
+        long_hint = any(
+            marker in corpus
+            for marker in ("alquiler", "se alquila", "mensual", "al mes", "larga temporada")
+        )
+        mode = "holiday" if period in {"night", "week"} else "long" if period == "month" or long_hint else None
+        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
+            return None
+
+        supplied_city = clean(data.get("city") or data.get("municipality"))
+        city = supplied_city or next(
+            (
+                place.title()
+                for place in sorted(self._target_places, key=len, reverse=True)
+                if place in corpus and place not in {"tenerife", "la palma", "la gomera", "el hierro", "gran canaria"}
+            ),
+            "",
+        )
+        if not city:
+            return None
+
+        found = (
+            re.search(r"(?:inmueble|anuncio|ad|id)[=/_-](\d+)", url, re.IGNORECASE)
+            or re.search(r"(\d{5,})", url)
+        )
+        external_id = found.group(1) if found else hashlib.sha256(url.encode()).hexdigest()[:24]
+        photos = [
+            str(value)
+            for value in data.get("images", [])
+            if isinstance(value, str) and value.startswith("http")
+        ]
+
+        latitude_value, longitude_value = data.get("latitude"), data.get("longitude")
+        latitude: float | None
+        longitude: float | None
+        try:
+            latitude = float(str(latitude_value))
+            longitude = float(str(longitude_value))
+            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                latitude = longitude = None
+        except (TypeError, ValueError):
+            latitude = longitude = None
+
+        if latitude is not None and longitude is not None and not any(
+            min_lat <= latitude <= max_lat and min_lng <= longitude <= max_lng
+            for min_lat, max_lat, min_lng, max_lng in self._target_island_bounds
+        ):
+            return None
+
+        details = public_detail_fields(data)
+        return NormalizedListing(
+            self.name,
+            external_id,
+            url,
+            title[:240],
+            clean(data.get("description")),
+            city,
+            city,
+            mode,
+            clean(data.get("price_text")),
+            amount,
+            currency,
+            period,
+            price_is_from,
+            target_type,
+            latitude,
+            longitude,
+            photos,
+            data.get("phone"),
+            data.get("whatsapp"),
+            data.get("email"),
+            data.get("raw", data),
+            **details,
+        )
 
 
 class PisoCompartidoSource(ExternalListingSource):

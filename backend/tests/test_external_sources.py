@@ -148,6 +148,143 @@ def test_each_source_has_its_own_public_discovery_adapter():
     assert FlatioSource().name == "Flatio"
 
 
+def milanuncios_offer(**overrides):
+    value = {
+        "title": "Habitación individual en alquiler",
+        "description": "Se alquila habitación amueblada en piso compartido.",
+        "category": "pisos compartidos alquiler habitación",
+        "breadcrumbs": "Arona, Tenerife",
+        "url": "https://www.milanuncios.com/pisos-compartidos-en-arona-tenerife/habitacion-individual-599522658.htm",
+        "price_text": "710 €/mes",
+        "city": "Arona",
+        "municipality": "Arona",
+        "province": "Santa Cruz de Tenerife",
+        "images": [],
+    }
+    value.update(overrides)
+    return value
+
+
+def test_milanuncios_accepts_supported_canary_detail_routes():
+    source = MilanunciosSource()
+    assert source.is_listing_url(
+        "https://www.milanuncios.com/pisos-compartidos-en-los-erales-tenerife/habitacion-individual-599522658.htm"
+    )
+    assert source.is_listing_url(
+        "https://www.milanuncios.com/alquiler-de-estudios-en-el-chaparral-tenerife/estudio-costa-del-silencio-597460843.htm"
+    )
+    assert source.is_listing_url(
+        "https://www.milanuncios.com/alquiler-de-pisos-en-arona-tenerife/piso-1-dormitorio-598000001.htm"
+    )
+    assert source.is_listing_url(
+        "https://www.milanuncios.com/alquiler-de-apartamentos-en-adeje-tenerife/apartamento-1-dormitorio-598000002.htm"
+    )
+    assert not source.is_listing_url("https://www.milanuncios.com/alquiler-de-pisos-en-tenerife/")
+    assert not source.is_listing_url("https://www.milanuncios.com/venta-de-pisos-en-tenerife/piso-598000003.htm")
+
+
+@pytest.mark.parametrize(
+    ("payload", "url", "expected_type"),
+    [
+        (
+            milanuncios_offer(
+                description="Piso de 3 habitaciones. Se alquila habitación individual amueblada.",
+            ),
+            "https://www.milanuncios.com/pisos-compartidos-en-arona-tenerife/habitacion-individual-599522658.htm",
+            "Habitación individual",
+        ),
+        (
+            milanuncios_offer(
+                title="Estudio en alquiler en Costa del Silencio",
+                description="Estudio amueblado disponible para larga temporada.",
+                category="alquiler estudio",
+                url="https://www.milanuncios.com/alquiler-de-estudios-en-el-chaparral-tenerife/estudio-costa-del-silencio-597460843.htm",
+            ),
+            "https://www.milanuncios.com/alquiler-de-estudios-en-el-chaparral-tenerife/estudio-costa-del-silencio-597460843.htm",
+            "Estudio",
+        ),
+        (
+            milanuncios_offer(
+                title="Piso de 1 dormitorio en alquiler",
+                description="Vivienda completa de un dormitorio para larga temporada.",
+                category="alquiler piso",
+                url="https://www.milanuncios.com/alquiler-de-pisos-en-arona-tenerife/piso-1-dormitorio-598000001.htm",
+            ),
+            "https://www.milanuncios.com/alquiler-de-pisos-en-arona-tenerife/piso-1-dormitorio-598000001.htm",
+            "Apartamento de 1 dormitorio",
+        ),
+    ],
+)
+def test_milanuncios_normalizes_rooms_studios_and_one_bedroom_homes(payload, url, expected_type):
+    item = MilanunciosSource().normalize_listing(payload, url)
+    assert item is not None
+    assert item.room_type == expected_type
+    assert item.city == "Arona"
+    assert item.price_amount == 710
+    assert item.price_period == "month"
+
+
+@pytest.mark.parametrize(
+    ("payload", "url"),
+    [
+        (milanuncios_offer(title="Piso de 2 dormitorios en alquiler", description="Vivienda completa con dos dormitorios.", category="alquiler piso"),
+         "https://www.milanuncios.com/alquiler-de-pisos-en-arona-tenerife/piso-2-dormitorios-598000004.htm"),
+        (milanuncios_offer(title="Busco estudio en Tenerife", description="Busco estudio económico para vivir.", category="alquiler estudio"),
+         "https://www.milanuncios.com/alquiler-de-estudios-en-arona-tenerife/busco-estudio-598000005.htm"),
+        (milanuncios_offer(title="Piso de 1 dormitorio en venta", description="Se vende apartamento de un dormitorio.", category="venta piso"),
+         "https://www.milanuncios.com/alquiler-de-pisos-en-arona-tenerife/piso-en-venta-598000006.htm"),
+        (milanuncios_offer(title="Estudio en alquiler", description="Estudio disponible en Arrecife.", category="alquiler estudio",
+                           breadcrumbs="Arrecife, Lanzarote", city="Arrecife", municipality="Arrecife", province="Las Palmas"),
+         "https://www.milanuncios.com/alquiler-de-estudios-en-arrecife-lanzarote/estudio-598000007.htm"),
+        (milanuncios_offer(title="Apartamento de 1 dormitorio en alquiler", description="Apartamento disponible en Puerto del Rosario.",
+                           category="alquiler apartamento", breadcrumbs="Puerto del Rosario, Fuerteventura",
+                           city="Puerto del Rosario", municipality="Puerto del Rosario", province="Las Palmas"),
+         "https://www.milanuncios.com/alquiler-de-apartamentos-en-puerto-del-rosario-fuerteventura/apartamento-598000010.htm"),
+    ],
+)
+def test_milanuncios_rejects_non_target_inventory_and_islands_outside_map(payload, url):
+    assert MilanunciosSource().normalize_listing(payload, url) is None
+
+
+@pytest.mark.parametrize(
+    ("city", "breadcrumbs", "latitude", "longitude"),
+    [
+        ("Arona", "Arona, Tenerife", 28.0509, -16.7172),
+        ("Santa Cruz de La Palma", "Santa Cruz de La Palma, La Palma", 28.6835, -17.7642),
+        ("Valle Gran Rey", "Valle Gran Rey, La Gomera", 28.0964, -17.3336),
+        ("Valverde", "Valverde, El Hierro", 27.8063, -17.9158),
+        ("Las Palmas de Gran Canaria", "Las Palmas de Gran Canaria, Gran Canaria", 28.1235, -15.4363),
+    ],
+)
+def test_milanuncios_accepts_all_five_islands_shown_on_map(city, breadcrumbs, latitude, longitude):
+    payload = milanuncios_offer(city=city, municipality=city, breadcrumbs=breadcrumbs, latitude=latitude, longitude=longitude)
+    item = MilanunciosSource().normalize_listing(
+        payload,
+        "https://www.milanuncios.com/pisos-compartidos-en-canarias/habitacion-598000012.htm",
+    )
+    assert item is not None
+    assert item.room_type == "Habitación individual"
+
+
+def test_milanuncios_coordinates_override_misleading_location_text():
+    source = MilanunciosSource()
+    lanzarote_with_tenerife_text = milanuncios_offer(
+        latitude=28.9630, longitude=-13.5477, breadcrumbs="Arona, Tenerife", city="Arona", municipality="Arona"
+    )
+    assert source.normalize_listing(
+        lanzarote_with_tenerife_text,
+        "https://www.milanuncios.com/pisos-compartidos-en-canarias/habitacion-598000011.htm",
+    ) is None
+
+
+def test_milanuncios_canarias_catalogues_are_the_only_discovery_pagination_scope():
+    source = MilanunciosSource()
+    assert source.is_pagination_url("https://www.milanuncios.com/pisos-compartidos-en-canarias/?pagina=2")
+    assert source.is_pagination_url("https://www.milanuncios.com/alquiler-de-estudios-en-canarias/?pagina=3")
+    assert source.is_pagination_url("https://www.milanuncios.com/alquiler-de-pisos-en-canarias/?pagina=4")
+    assert source.is_pagination_url("https://www.milanuncios.com/alquiler-de-apartamentos-en-canarias/?pagina=5")
+    assert not source.is_pagination_url("https://www.milanuncios.com/alquiler-de-pisos-en-madrid/?pagina=2")
+
 def test_flatio_accepts_only_in_stock_target_room_from_public_structured_data():
     source = FlatioSource()
     url = "https://www.flatio.com/rent/room/119561-santa_cruz_de_tenerife"

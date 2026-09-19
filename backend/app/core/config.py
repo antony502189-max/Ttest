@@ -112,7 +112,7 @@ class Settings(BaseSettings):
     # Keep only public room routes that pass the production access and useful
     # import contracts.  Legacy source records remain attributable in the DB;
     # this controls future crawling, not historical data.
-    external_import_sources: str = "fotocasa,pisocompartido,pisos,alquilerdocentecanarias,flatio"
+    external_import_sources: str = "fotocasa,milanuncios,pisocompartido,pisos,alquilerdocentecanarias,flatio"
     external_import_min_healthy_sources: int = 1
     external_import_request_timeout_seconds: int = 25
     external_import_max_concurrency_per_source: int = 3
