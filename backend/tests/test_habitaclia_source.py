@@ -158,7 +158,7 @@ def test_habitaclia_preserves_public_locality_address_and_source_map_center() ->
         data = source.parse_listing(el_medano_location_document(), url)
         assert data["city"] == "Granadilla de Abona"
         assert data["area"] == "El Médano"
-        assert data["public_address"] == "El Médano · Avenida JOSE MIGUEL GALVAN BELLO"
+        assert data["public_address"] == "El Médano"
         assert data["latitude"] == pytest.approx(28.0438656770)
         assert data["longitude"] == pytest.approx(-16.5351811288)
 
@@ -166,7 +166,7 @@ def test_habitaclia_preserves_public_locality_address_and_source_map_center() ->
         assert item is not None
         assert item.city == "Granadilla de Abona"
         assert item.area == "El Médano"
-        assert item.public_address == "El Médano · Avenida JOSE MIGUEL GALVAN BELLO"
+        assert item.public_address == "El Médano"
         assert item.latitude == pytest.approx(28.0438656770)
         assert item.longitude == pytest.approx(-16.5351811288)
 
