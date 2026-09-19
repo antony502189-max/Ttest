@@ -52,6 +52,23 @@ async def test_parallel_sessions_survive_logout_of_another_device(client: AsyncC
         assert logout.status_code == 204, logout.text
         assert (await client.post("/api/v1/auth/refresh")).status_code == 401
 
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={"Origin": "http://testserver"},
+            cookies={"refresh_token": first_refresh},
+        ) as replay_client:
+            replay = await replay_client.post("/api/v1/auth/refresh")
+        assert replay.status_code == 401
+        assert replay.json()["detail"] == "Invalid refresh token"
+
+        async with SessionLocal() as session:
+            revoked = await session.scalar(
+                select(AuthSession).where(AuthSession.token_hash == __import__("hashlib").sha256(first_refresh.encode()).hexdigest())
+            )
+            assert revoked is not None
+            assert revoked.revoked_at is not None
+
         surviving = await second_client.post("/api/v1/auth/refresh")
         assert surviving.status_code == 200, surviving.text
         rotated_second = second_client.cookies.get("refresh_token")
