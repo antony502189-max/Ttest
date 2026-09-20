@@ -90,7 +90,9 @@ def el_medano_location_document() -> str:
         "streetAddress": "Avenida JOSE MIGUEL GALVAN BELLO"
       }
     }
-    </script></head><body>
+    </script>
+    <script>window.mapState = {"lat": 28.0438656770, "long": -16.5351811288};</script>
+    </head><body>
       <div>Zona El Médano</div>
       <h1>Apartamento de una habitación en alquiler en El Médano</h1>
       <div class="description">Apartamento completo de una habitación para alquiler de larga estancia.</div>
