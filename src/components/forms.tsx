@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, RefreshCw, Trash2, UploadCloud } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, RotateCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { acceptedImageTypes, MediaStorageError, removeMediaReferences, saveMediaFile } from "@/lib/media-storage";
+import { acceptedImageTypes, getMediaBlob, isMediaReference, MediaStorageError, removeMediaReferences, saveMediaFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 import "@/listing-edit-comfort.css";
@@ -173,6 +173,58 @@ export function Stepper({
   );
 }
 
+async function imageBlob(reference: string) {
+  if (isMediaReference(reference)) {
+    const blob = await getMediaBlob(reference);
+    if (!blob) throw new MediaStorageError("read", "No se pudo leer la imagen.");
+    return blob;
+  }
+
+  const response = await fetch(reference, { credentials: "include" });
+  if (!response.ok) throw new MediaStorageError("read", "No se pudo leer la imagen.");
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) throw new MediaStorageError("type", "El archivo no es una imagen válida.");
+  return blob;
+}
+
+async function rotateImageFile(reference: string) {
+  const blob = await imageBlob(reference);
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new MediaStorageError("read", "No se pudo abrir la imagen."));
+      element.src = objectUrl;
+    });
+    if (!image.naturalWidth || !image.naturalHeight) {
+      throw new MediaStorageError("read", "No se pudo abrir la imagen.");
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalHeight;
+    canvas.height = image.naturalWidth;
+    const context = canvas.getContext("2d");
+    if (!context) throw new MediaStorageError("unavailable", "No se pudo girar la imagen.");
+
+    context.translate(canvas.width / 2, canvas.height / 2);
+    context.rotate(Math.PI / 2);
+    context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+
+    const rotated = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) => result ? resolve(result) : reject(new MediaStorageError("read", "No se pudo guardar la imagen girada.")),
+        "image/webp",
+        0.92,
+      );
+    });
+    const extension = rotated.type === "image/png" ? "png" : rotated.type === "image/jpeg" ? "jpg" : "webp";
+    return new File([rotated], `listing-image-rotated.${extension}`, { type: rotated.type || "image/webp" });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export function ImageUploader({
   images,
   onChange,
@@ -185,8 +237,7 @@ export function ImageUploader({
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const replaceInputRef = useRef<HTMLInputElement>(null);
-  const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
+  const [rotatingIndex, setRotatingIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState("");
   const readFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -211,29 +262,24 @@ export function ImageUploader({
       setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar una de las imágenes.");
     }
   };
-  const replaceFile = async (file: File | undefined) => {
-    const index = replaceIndex ?? (images.length ? 0 : null);
-    setReplaceIndex(null);
-    if (replaceInputRef.current) replaceInputRef.current.value = "";
-    if (index === null || !file) return;
-    if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number]) || file.size > 12_000_000) {
-      setLocalError("Usa una imagen JPEG, PNG o WebP de hasta 12 MB.");
-      return;
-    }
+  const rotate = async (index: number) => {
+    if (rotatingIndex !== null) return;
+    const previous = images[index];
+    if (!previous) return;
+
+    setRotatingIndex(index);
     try {
+      const file = await rotateImageFile(previous);
       const reference = await saveMediaFile(file);
-      const previous = images[index];
-      if (!previous) {
-        await removeMediaReferences([reference]).catch(() => undefined);
-        return;
-      }
       const next = [...images];
       next[index] = reference;
       onChange(next);
       onRemove?.(previous);
       setLocalError("");
-    } catch (uploadError) {
-      setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo sustituir la imagen.");
+    } catch (rotateError) {
+      setLocalError(rotateError instanceof MediaStorageError ? rotateError.message : "No se pudo girar la imagen.");
+    } finally {
+      setRotatingIndex(null);
     }
   };
   const move = (index: number, direction: -1 | 1) => {
@@ -275,14 +321,6 @@ export function ImageUploader({
         multiple
         onChange={(event) => void readFiles(event.target.files)}
       />
-      <input
-        ref={replaceInputRef}
-        className="sr-only"
-        type="file"
-        aria-label="Sustituir foto del anuncio"
-        accept="image/jpeg,image/png,image/webp"
-        onChange={(event) => void replaceFile(event.target.files?.[0])}
-      />
       {error ? (
         <p id="publish-images-error" className="field-error" role="alert">
           {error}
@@ -293,7 +331,7 @@ export function ImageUploader({
           {localError}
         </p>
       ) : null}
-      <p className="image-uploader__edit-help">Puedes sustituir una foto, cambiar la portada y reordenar las imágenes sin volver a subir las demás.</p>
+      <p className="image-uploader__edit-help">Puedes girar una foto, cambiar la portada y reordenar las imágenes sin volver a subir las demás.</p>
       <div className="upload-grid">
         {images.map((image, index) => (
           <div key={`${image}-${index}`}>
@@ -311,15 +349,15 @@ export function ImageUploader({
             )}
             <button
               type="button"
-              className="replace-image"
-              aria-label={`Sustituir foto ${index + 1}`}
-              onClick={() => {
-                setReplaceIndex(index);
-                replaceInputRef.current?.click();
-              }}
+              className="rotate-image"
+              aria-label={`Girar foto ${index + 1} 90 grados`}
+              title={`Girar foto ${index + 1} 90 grados`}
+              disabled={rotatingIndex !== null}
+              aria-busy={rotatingIndex === index ? true : undefined}
+              onClick={() => void rotate(index)}
             >
-              <RefreshCw />
-              <span>Cambiar</span>
+              <RotateCw aria-hidden="true" />
+              <span>Girar</span>
             </button>
             <span className="upload-reorder">
               <button
