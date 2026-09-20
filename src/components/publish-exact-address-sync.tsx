@@ -38,7 +38,12 @@ function normalizeRoute(value: string) {
 }
 
 function requestedHouseNumber(street: string) {
-  return [...street.matchAll(/\b\d+[A-Za-z]?\b/g)].at(-1)?.[0] ?? ''
+  const matches = [...street.matchAll(/\b\d+[A-Za-z]?\b/g)]
+  const candidate = matches.at(-1)
+  if (!candidate || /^0+[A-Za-z]?$/i.test(candidate[0])) return ''
+  const index = candidate.index ?? -1
+  const prefix = index >= 0 ? street.slice(0, index).trim().replace(/[.,;:/-]+$/, '').trim() : ''
+  return /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]$/u.test(prefix) ? candidate[0] : ''
 }
 
 function requestedRoute(street: string) {
