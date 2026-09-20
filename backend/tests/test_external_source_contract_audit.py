@@ -46,6 +46,8 @@ class HealthySource:
             price_currency="EUR",
             price_period="month",
             price_is_from=False,
+            latitude=28.1227,
+            longitude=-16.7244,
         )
 
     async def close(self):
@@ -59,6 +61,16 @@ class BlockedSource(HealthySource):
         raise SourceBlocked("challenge")
 
 
+class CoordinateLessSource(HealthySource):
+    name = "CoordinateLess"
+
+    def normalize_listing(self, data, url):
+        item = super().normalize_listing(data, url)
+        item.latitude = None
+        item.longitude = None
+        return item
+
+
 def test_contract_audit_checks_discovery_detail_parse_and_normalize():
     result = asyncio.run(
         audit_source(HealthySource(), max_pages=2, max_details=2, source_timeout=15, detail_timeout=5)
@@ -67,9 +79,21 @@ def test_contract_audit_checks_discovery_detail_parse_and_normalize():
     assert result.discovered_urls == 1
     assert result.fetched_details == 1
     assert result.normalized_details == 1
+    assert result.mapped_details == 1
+    assert result.details[0].map_point is True
     assert result.details[0].room_offer is True
     assert result.details[0].rental is True
     assert result.details[0].target_province is True
+
+
+def test_contract_audit_accepts_normalized_list_only_details_without_a_public_map_point():
+    result = asyncio.run(
+        audit_source(CoordinateLessSource(), max_pages=2, max_details=2, source_timeout=15, detail_timeout=5)
+    )
+    assert result.status == "healthy"
+    assert result.normalized_details == 1
+    assert result.mapped_details == 0
+    assert result.details[0].map_point is False
 
 
 def test_contract_audit_isolates_a_blocked_source():

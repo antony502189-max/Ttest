@@ -27,8 +27,15 @@ from app.external_sources import (
     parse_optional_date,
     parse_optional_datetime,
     parse_price,
+    public_map_coordinates,
 )
-from app.services.external_import import completeness_score, external_storage_key, perceptual_hash, similarity
+from app.services.external_import import (
+    completeness_score,
+    external_storage_key,
+    perceptual_hash,
+    public_location,
+    similarity,
+)
 
 
 def room_offer(**overrides):
@@ -77,6 +84,79 @@ def test_geo_filter_covers_the_whole_santa_cruz_province_not_just_tenerife():
 def test_coordinates_outside_the_province_are_rejected_even_when_text_mentions_tenerife():
     listing = room_offer(latitude=28.128, longitude=-15.438)  # Gran Canaria
     assert IdealistaSource().normalize_listing(listing, "https://www.idealista.com/inmueble/123456/") is None
+
+
+def test_public_location_never_falls_back_to_a_municipality_centroid():
+    item = IdealistaSource().normalize_listing(
+        room_offer(city="Adeje", municipality="Adeje"),
+        "https://www.idealista.com/inmueble/123456/",
+    )
+    assert item is not None
+    assert item.latitude is None and item.longitude is None
+    assert public_location(item) is None
+
+
+def test_generic_source_preserves_public_map_point_and_coarse_locality():
+    document = """
+    <script type="application/ld+json">
+    {
+      "@type":"Residence",
+      "name":"Habitación individual en alquiler",
+      "description":"Se alquila habitación amueblada en piso compartido.",
+      "address":{
+        "addressLocality":"Granadilla de Abona",
+        "addressSubLocality":"El Médano",
+        "addressRegion":"Santa Cruz de Tenerife",
+        "streetAddress":"Avenida pública 10"
+      }
+    }
+    </script>
+    <a href="https://www.google.com/maps?q=28.0438656770,-16.5351811288">Mapa</a>
+    <p>710 €/mes alquiler habitación</p>
+    """
+    source = IdealistaSource()
+    url = "https://www.idealista.com/inmueble/123456/"
+    parsed = source.parse_listing(document, url)
+    assert parsed["area"] == "El Médano"
+    assert parsed["latitude"] == pytest.approx(28.0438656770)
+    assert parsed["longitude"] == pytest.approx(-16.5351811288)
+
+    item = source.normalize_listing(parsed, url)
+    assert item is not None
+    assert item.city == "Granadilla de Abona"
+    assert item.area == "El Médano"
+    assert item.public_address == "El Médano"
+    assert public_location(item) == pytest.approx((28.0438656770, -16.5351811288))
+
+
+def test_public_map_coordinates_support_source_static_map_decimal_commas():
+    assert public_map_coordinates(
+        '<img src="https://maps.example.test/static?center=28%2C0438656770%2C-16%2C5351811288">'
+    ) == pytest.approx((28.0438656770, -16.5351811288))
+
+
+def test_public_map_coordinates_support_real_estate_js_coordinate_keys():
+    assert public_map_coordinates(
+        '<script>window.marker = {"lat": 28.482123, "long": -16.321987};</script>'
+    ) == pytest.approx((28.482123, -16.321987))
+    assert public_map_coordinates(
+        '<script>window.property = {"property_latitude":"28.482123","property_longitude":"-16.321987"};</script>'
+    ) == pytest.approx((28.482123, -16.321987))
+
+
+def test_public_map_coordinates_support_bare_source_attributes_and_map_paths():
+    assert public_map_coordinates(
+        '<div class="map" lat="28.5022764" long="-16.3197064"></div>'
+    ) == pytest.approx((28.5022764, -16.3197064))
+    assert public_map_coordinates(
+        f'<div lat="28.5022764" data-meta="{"x" * 1400}" long="-16.3197064"></div>'
+    ) == pytest.approx((28.5022764, -16.3197064))
+    assert public_map_coordinates(
+        '<script>latitude=28.4182; longitude=-16.5001;</script>'
+    ) == pytest.approx((28.4182, -16.5001))
+    assert public_map_coordinates(
+        '<img src="https://map.imghs.net/Cache/Z/1_350_28.4182@-16.5001_1_0.gif">'
+    ) == pytest.approx((28.4182, -16.5001))
 
 
 def test_external_storage_keys_are_unique_per_asset_attempt():
@@ -222,6 +302,22 @@ def test_milanuncios_normalizes_rooms_studios_and_one_bedroom_homes(payload, url
     assert item.city == "Arona"
     assert item.price_amount == 710
     assert item.price_period == "month"
+
+
+def test_milanuncios_preserves_source_area_instead_of_collapsing_it_to_city():
+    payload = milanuncios_offer(
+        area="Los Cristianos",
+        latitude=28.0509,
+        longitude=-16.7172,
+    )
+    item = MilanunciosSource().normalize_listing(
+        payload,
+        "https://www.milanuncios.com/pisos-compartidos-en-arona-tenerife/habitacion-individual-599522658.htm",
+    )
+    assert item is not None
+    assert item.city == "Arona"
+    assert item.area == "Los Cristianos"
+    assert item.public_address == "Los Cristianos"
 
 
 @pytest.mark.parametrize(
@@ -603,6 +699,32 @@ def test_alquiler_docente_sitemap_discovery_stays_with_target_room_adverts():
     asyncio.run(verify())
 
 
+def test_alquiler_docente_reads_template_lat_long_even_when_they_are_far_apart():
+    source = AlquilerDocenteCanariasSource()
+    document = f"""
+    <html>
+      <head><title>Habitación en La Laguna</title></head>
+      <body>
+        <h1>Habitación en San Cristóbal de La Laguna, Tenerife.</h1>
+        <div class="property-description">Se alquila habitación amueblada en piso compartido.</div>
+        <p>450 € /mes + gastos</p>
+        <p>Dirección: Camino Rincón, 21, La Laguna</p>
+        <p>Ciudad: La Laguna Código postal: 38203 País: España</p>
+        <div lat=&quot;28.5022764&quot;></div>
+        <!-- {"x" * 1400} -->
+        <div long=&quot;-16.3197064&quot;></div>
+        <p>ID de Inmueble: 74795</p>
+      </body>
+    </html>
+    """
+    url = "https://alquilerdocentecanarias.com/estate_property/habitacion-test-san-cristobal-de-la-laguna-tenerife/"
+    parsed = source.parse_listing(document, url)
+    normalized = source.normalize_listing(parsed, url)
+    assert normalized is not None
+    assert normalized.latitude == pytest.approx(28.5022764)
+    assert normalized.longitude == pytest.approx(-16.3197064)
+
+
 def test_alquiler_docente_fixture_uses_public_source_id_and_omits_contact_data():
     document = (Path(__file__).parent / "fixtures" / "external_sources" / "alquiler_docente_canarias" / "room.html").read_text(
         encoding="utf-8"
@@ -616,6 +738,8 @@ def test_alquiler_docente_fixture_uses_public_source_id_and_omits_contact_data()
     assert normalized.city == "La Laguna"
     assert normalized.price_amount == 450
     assert normalized.price_period == "month"
+    assert normalized.latitude == pytest.approx(28.482123)
+    assert normalized.longitude == pytest.approx(-16.321987)
     assert normalized.phone is None and normalized.whatsapp is None and normalized.email is None
     assert normalized.photos == ["https://images.example.test/alquiler-docente-room.jpg"]
 

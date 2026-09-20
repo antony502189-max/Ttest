@@ -12,7 +12,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any, cast
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 import httpx
 
@@ -171,6 +171,150 @@ def clean(value: Any) -> str:
 def public_mapping(value: Any) -> dict[str, Any]:
     """Return structured public data only when the source actually supplies a mapping."""
     return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+
+
+def public_coordinate_pair(value: Any) -> tuple[float, float] | None:
+    """Parse a public latitude/longitude pair without inventing a location."""
+    decoded = unquote(html.unescape(str(value or ""))).strip()
+    decimal_comma = re.fullmatch(r"\s*(-?\d+),(\d+),(-?\d+),(\d+)\s*", decoded)
+    if decimal_comma:
+        latitude = float(f"{decimal_comma.group(1)}.{decimal_comma.group(2)}")
+        longitude = float(f"{decimal_comma.group(3)}.{decimal_comma.group(4)}")
+    else:
+        decimal_point = re.fullmatch(
+            r"\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*",
+            decoded,
+        )
+        if not decimal_point:
+            return None
+        latitude, longitude = map(float, decimal_point.groups())
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    return latitude, longitude
+
+
+def public_map_coordinates(document: str) -> tuple[float, float] | None:
+    """Extract coordinates explicitly published by a source detail page."""
+    normalized = html.unescape(document).replace("\\/", "/")
+
+    # Real-estate templates commonly expose map coordinates in public JS
+    # payloads as lat/lng, lat/long, or WordPress property_* meta names.
+    key_pair = re.search(
+        r"""["'](?:property_)?(?:latitude|lat)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            ["'](?:property_)?(?:longitude|lng|lon|long)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    if key_pair:
+        return public_coordinate_pair(",".join(key_pair.groups()))
+    reverse_key_pair = re.search(
+        r"""["'](?:property_)?(?:longitude|lng|lon|long)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            ["'](?:property_)?(?:latitude|lat)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    if reverse_key_pair:
+        longitude, latitude = reverse_key_pair.groups()
+        return public_coordinate_pair(f"{latitude},{longitude}")
+
+    property_latitude = re.search(
+        r"""(?:name|id)=["'](?:_)?property_latitude["'][^>]{0,500}?value=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+        normalized,
+        re.IGNORECASE,
+    )
+    property_longitude = re.search(
+        r"""(?:name|id)=["'](?:_)?property_longitude["'][^>]{0,500}?value=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+        normalized,
+        re.IGNORECASE,
+    )
+    if property_latitude and property_longitude:
+        return public_coordinate_pair(f"{property_latitude.group(1)},{property_longitude.group(1)}")
+
+    for tag in re.findall(r"<[^>]{1,12000}>", normalized):
+        tag_latitude = re.search(
+            r"""\b(?:data-)?(?:latitude|lat)\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            tag,
+            re.IGNORECASE,
+        )
+        tag_longitude = re.search(
+            r"""\b(?:data-)?(?:longitude|lng|lon|long)\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            tag,
+            re.IGNORECASE,
+        )
+        if tag_latitude and tag_longitude:
+            return public_coordinate_pair(f"{tag_latitude.group(1)},{tag_longitude.group(1)}")
+
+    bare_pair = re.search(
+        r"""\b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            \b(?:longitude|lng|lon|long)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    if bare_pair:
+        return public_coordinate_pair(",".join(bare_pair.groups()))
+    reverse_bare_pair = re.search(
+        r"""\b(?:longitude|lng|lon|long)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            \b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    if reverse_bare_pair:
+        longitude, latitude = reverse_bare_pair.groups()
+        return public_coordinate_pair(f"{latitude},{longitude}")
+
+    for raw_url in re.findall(r"""https?://[^"'<>\s\\]+""", normalized, re.IGNORECASE):
+        parsed = urlparse(raw_url.rstrip("),.;"))
+        query = parse_qs(parsed.query)
+        for key in ("center", "q", "query", "ll", "destination"):
+            for value in query.get(key, []):
+                coordinates = public_coordinate_pair(value)
+                if coordinates is not None:
+                    return coordinates
+        query_latitude = next((query.get(key, [None])[0] for key in ("latitude", "lat") if query.get(key)), None)
+        query_longitude = next(
+            (query.get(key, [None])[0] for key in ("longitude", "lng", "lon", "long") if query.get(key)),
+            None,
+        )
+        if query_latitude is not None and query_longitude is not None:
+            coordinates = public_coordinate_pair(f"{query_latitude},{query_longitude}")
+            if coordinates is not None:
+                return coordinates
+        path_coordinates = re.search(r"@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)", parsed.path)
+        if path_coordinates:
+            coordinates = public_coordinate_pair(",".join(path_coordinates.groups()))
+            if coordinates is not None:
+                return coordinates
+        reverse_path_coordinates = re.search(
+            r"(-?\d+(?:\.\d+)?)@(-?\d+(?:\.\d+)?)",
+            parsed.path,
+        )
+        if reverse_path_coordinates:
+            coordinates = public_coordinate_pair(",".join(reverse_path_coordinates.groups()))
+            if coordinates is not None:
+                return coordinates
+
+    pair = re.search(
+        r"""data-(?:latitude|lat)=["']\s*(-?\d+(?:\.\d+)?)\s*["'][^>]{0,500}
+            data-(?:longitude|lng|lon|long)=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE | re.DOTALL,
+    )
+    if pair:
+        return public_coordinate_pair(",".join(pair.groups()))
+    reverse_pair = re.search(
+        r"""data-(?:longitude|lng|lon|long)=["']\s*(-?\d+(?:\.\d+)?)\s*["'][^>]{0,500}
+            data-(?:latitude|lat)=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE | re.DOTALL,
+    )
+    if reverse_pair:
+        longitude, latitude = reverse_pair.groups()
+        return public_coordinate_pair(f"{latitude},{longitude}")
+    return None
 
 
 def strict_check(data: dict[str, Any]) -> bool:
@@ -992,6 +1136,44 @@ class ExternalListingSource(ABC):
             )
             if coordinate_match:
                 latitude, longitude = coordinate_match.groups()
+        if latitude is None or longitude is None:
+            map_coordinates = public_map_coordinates(document)
+            if map_coordinates is not None:
+                latitude, longitude = map_coordinates
+        area = first_text(
+            address,
+            "addressSubLocality",
+            "addressDistrict",
+            "neighborhood",
+            "district",
+            "suburb",
+            "area",
+        )
+        if not area:
+            area = next(
+                (
+                    first_text(
+                        structured,
+                        "addressSubLocality",
+                        "addressDistrict",
+                        "neighborhood",
+                        "district",
+                        "suburb",
+                        "area",
+                    )
+                    for structured in structured_items
+                    if first_text(
+                        structured,
+                        "addressSubLocality",
+                        "addressDistrict",
+                        "neighborhood",
+                        "district",
+                        "suburb",
+                        "area",
+                    )
+                ),
+                "",
+            )
         structured_category, structured_breadcrumbs = structured_classification(structured_items)
         breadcrumbs = " | ".join(
             value for value in (structured_breadcrumbs, html_breadcrumbs(document)) if value
@@ -1011,6 +1193,7 @@ class ExternalListingSource(ABC):
             "city": clean(address.get("addressLocality")),
             "municipality": clean(address.get("addressLocality")),
             "province": clean(address.get("addressRegion")),
+            "area": area,
             "address": clean(address.get("streetAddress")),
             "postcode": clean(address.get("postalCode")),
             "phone": next(
@@ -1065,6 +1248,13 @@ class ExternalListingSource(ABC):
         )
         if not city:
             return None
+        area = clean(
+            data.get("area")
+            or data.get("neighborhood")
+            or data.get("district")
+            or data.get("suburb")
+        ) or city
+        public_address = clean(data.get("public_address")) or area
         found = re.search(r"(?:inmueble|anuncio|ad|id)[=/_-](\d+)", url, re.IGNORECASE) or re.search(r"(\d{5,})", url)
         external_id = found.group(1) if found else hashlib.sha256(url.encode()).hexdigest()[:24]
         photos = [str(x) for x in data.get("images", []) if isinstance(x, str) and x.startswith("http")]
@@ -1085,7 +1275,7 @@ class ExternalListingSource(ABC):
             title[:240],
             clean(data.get("description")),
             city,
-            city,
+            area,
             mode,
             clean(data.get("price_text")),
             amount,
@@ -1100,6 +1290,7 @@ class ExternalListingSource(ABC):
             data.get("whatsapp"),
             data.get("email"),
             data.get("raw", data),
+            public_address=public_address,
             **details,
         )
 
@@ -1177,6 +1368,7 @@ class FotocasaSource(ExternalListingSource):
             "price_text": first_text(candidate, "priceText", "price", "displayPrice") or (f"{price.group(1)} € /mes" if price else data["price_text"]),
             "images": list(dict.fromkeys([*data["images"], *[html.unescape(value) for value in image_urls]])),
             "city": first_text(candidate, "location", "municipality", "city", "address") or data["city"],
+            "area": first_text(candidate, "neighborhood", "district", "zone", "area") or data.get("area"),
             "advertiser_name": first_text(candidate, "agencyName", "advertiserName", "contactName") or data.get("advertiser_name"),
             "advertiser_type": first_text(candidate, "advertiserType", "agencyType") or data.get("advertiser_type"),
             "available_from": candidate.get("availableFrom") or data.get("available_from"),
@@ -1570,6 +1762,13 @@ class MilanunciosSource(ExternalListingSource):
         )
         if not city:
             return None
+        area = clean(
+            data.get("area")
+            or data.get("neighborhood")
+            or data.get("district")
+            or data.get("suburb")
+        ) or city
+        public_address = clean(data.get("public_address")) or area
 
         found = (
             re.search(r"(?:inmueble|anuncio|ad|id)[=/_-](\d+)", url, re.IGNORECASE)
@@ -1607,7 +1806,7 @@ class MilanunciosSource(ExternalListingSource):
             title[:240],
             clean(data.get("description")),
             city,
-            city,
+            area,
             mode,
             clean(data.get("price_text")),
             amount,
@@ -1622,6 +1821,7 @@ class MilanunciosSource(ExternalListingSource):
             data.get("whatsapp"),
             data.get("email"),
             data.get("raw", data),
+            public_address=public_address,
             **details,
         )
 
@@ -1688,6 +1888,8 @@ class PisosSource(ExternalListingSource):
             data["city"] = municipality.title()
             data["municipality"] = municipality.title()
             data["province"] = "Santa Cruz de Tenerife"
+        if municipality and not data.get("area"):
+            data["area"] = municipality.title()
         return data
 
 
@@ -1800,6 +2002,19 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
         external_id = re.search(r"ID de Inmueble:\s*(\d+)", body, re.IGNORECASE)
         updated = re.search(r"Actualizado en:\s*([^\n]{3,80}?)(?:\s+\d+\s+Dormitorios|\s+Descripci[oó]n)", body, re.IGNORECASE)
         image = meta_content(document, "og:image")
+        map_markup = html.unescape(document).replace("\\/", "/")
+        source_latitude = re.search(
+            r"""(?<![A-Za-z0-9])(?:[A-Za-z0-9]+[_-])*(?:latitude|lat)
+                \s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            map_markup,
+            re.IGNORECASE | re.VERBOSE,
+        )
+        source_longitude = re.search(
+            r"""(?<![A-Za-z0-9])(?:[A-Za-z0-9]+[_-])*(?:longitude|lng|lon|long)
+                \s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            map_markup,
+            re.IGNORECASE | re.VERBOSE,
+        )
         data.update(
             {
                 "title": clean(heading.group(1)) if heading else data["title"],
@@ -1807,7 +2022,10 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
                 "price_text": clean(price.group(1)) if price else data["price_text"],
                 "city": clean(city.group(1)) if city else data["city"],
                 "municipality": clean(city.group(1)) if city else data.get("municipality"),
+                "area": clean(city.group(1)) if city else data.get("area"),
                 "address": clean(address.group(1)) if address else data.get("address"),
+                "latitude": source_latitude.group(1) if source_latitude else data.get("latitude"),
+                "longitude": source_longitude.group(1) if source_longitude else data.get("longitude"),
                 "category": "alquiler habitación compartido alquiler docente canarias",
                 "images": [image] if image else [],
                 # Keep stable source identity but do not persist contact data
@@ -1917,6 +2135,7 @@ class FlatioSource(ExternalListingSource):
                 "city": clean(address.get("addressLocality")) or data["city"],
                 "municipality": clean(address.get("addressLocality")) or data.get("municipality"),
                 "province": clean(address.get("addressRegion")) or data.get("province"),
+                "area": first_text(address, "addressSubLocality", "addressDistrict", "neighborhood", "district", "suburb", "area") or data.get("area"),
                 "address": clean(address.get("streetAddress")) or data.get("address"),
                 "latitude": geo.get("latitude") or data.get("latitude"),
                 "longitude": geo.get("longitude") or data.get("longitude"),

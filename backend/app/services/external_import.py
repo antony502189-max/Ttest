@@ -61,84 +61,23 @@ class SourceRunCounters(dict[str, int]):
 
 
 def completed_source_contract(counters: dict[str, int]) -> bool:
-    """Require evidence that discovery reached at least one valid room detail."""
-    return all(
+    """Require at least one valid room that can remain in the public catalog."""
+    reached_valid_detail = all(
         counters.get(key, 0) > 0
         for key in ("discovered_urls", "fetched_details", "accepted_rooms")
     )
-
-
-MUNICIPALITY_POINTS = {
-    "santa cruz de tenerife": (28.4636, -16.2518),
-    "la laguna": (28.4874, -16.3159),
-    "san cristobal de la laguna": (28.4874, -16.3159),
-    "san cristóbal de la laguna": (28.4874, -16.3159),
-    "arona": (28.0996, -16.6809),
-    "adeje": (28.1227, -16.7244),
-    "granadilla": (28.1188, -16.5760),
-    "granadilla de abona": (28.1188, -16.5760),
-    "puerto de la cruz": (28.4134, -16.5509),
-    "agulo": (28.1874, -17.1961),
-    "alajero": (28.0622, -17.2383),
-    "alajeró": (28.0622, -17.2383),
-    "arafo": (28.3404, -16.4151),
-    "arico": (28.1667, -16.4833),
-    "barlovento": (28.8283, -17.8038),
-    "brena alta": (28.6627, -17.7873),
-    "breña alta": (28.6627, -17.7873),
-    "brena baja": (28.6305, -17.7761),
-    "breña baja": (28.6305, -17.7761),
-    "buenavista del norte": (28.3727, -16.8502),
-    "candelaria": (28.3536, -16.3713),
-    "el paso": (28.6513, -17.8826),
-    "el pinar de el hierro": (27.7249, -17.9811),
-    "el rosario": (28.4477, -16.3787),
-    "el sauzal": (28.4767, -16.4364),
-    "el tanque": (28.3669, -16.8314),
-    "fasnia": (28.2368, -16.4388),
-    "fuencaliente": (28.4940, -17.8452),
-    "garachico": (28.3723, -16.7634),
-    "garafia": (28.8159, -17.9432),
-    "garafía": (28.8159, -17.9432),
-    "la frontera": (27.7541, -18.0030),
-    "la guancha": (28.3743, -16.6512),
-    "la matanza de acentejo": (28.4529, -16.4455),
-    "la orotava": (28.3907, -16.5230),
-    "la victoria de acentejo": (28.4326, -16.4630),
-    "la palma": (28.6835, -17.7642),
-    "la gomera": (28.1009, -17.1105),
-    "el hierro": (27.7464, -18.0116),
-    "los llanos de aridane": (28.6587, -17.9182),
-    "los realejos": (28.3847, -16.5825),
-    "los silos": (28.3642, -16.8156),
-    "puntagorda": (28.7743, -17.9774),
-    "puntallana": (28.7398, -17.7427),
-    "san andres y sauces": (28.8004, -17.7581),
-    "san andrés y sauces": (28.8004, -17.7581),
-    "san juan de la rambla": (28.3919, -16.6514),
-    "san miguel de abona": (28.0984, -16.6171),
-    "san sebastian de la gomera": (28.0900, -17.1101),
-    "san sebastián de la gomera": (28.0900, -17.1101),
-    "santa cruz de la palma": (28.6835, -17.7642),
-    "santa ursula": (28.4265, -16.4890),
-    "santa úrsula": (28.4265, -16.4890),
-    "santiago del teide": (28.2957, -16.8164),
-    "tacoronte": (28.4769, -16.4108),
-    "tazacorte": (28.6419, -17.9333),
-    "tegueste": (28.5184, -16.3162),
-    "tijarafe": (28.7110, -17.9552),
-    "valle gran rey": (28.1042, -17.3255),
-    "vallehermoso": (28.1805, -17.2642),
-    "valverde": (27.8064, -17.9162),
-    "vilaflor de chasna": (28.1573, -16.6380),
-}
+    publishable = any(
+        counters.get(key, 0) > 0
+        for key in ("imported", "updated", "unchanged", "restored")
+    )
+    return reached_valid_detail and publishable
 
 
 def public_location(item: NormalizedListing) -> tuple[float, float] | None:
-    if item.latitude is not None and item.longitude is not None:
-        return item.latitude, item.longitude
-    city = item.city.casefold()
-    return next((coordinates for name, coordinates in MUNICIPALITY_POINTS.items() if name in city), None)
+    """Return only a point explicitly published by the external source."""
+    if item.latitude is None or item.longitude is None:
+        return None
+    return item.latitude, item.longitude
 
 
 def similarity(left: str, right: str) -> float:
@@ -444,32 +383,65 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         require_no_active_transaction(session, "external image deduplication")
         image_hashes = await public_image_hashes(item.photos)
         listing = await canonical_for(session, item, image_hashes)
+
+    coordinates = public_location(item)
+    source_location_verified = coordinates is not None
+    previous_fingerprint = source.fingerprint if source else None
+
+    # Persist the source's latest location state before considering failover.
+    # A source without a public point is still a valid catalog source; it just
+    # cannot own a map marker. If a verified duplicate exists, prefer it as the
+    # primary so the canonical card can keep a trustworthy marker.
+    if source:
+        source.raw_payload = item.raw_payload
+        source.normalized_payload = normalized_snapshot(item)
+        source.fingerprint = item.fingerprint
+        source.source_url = item.source_url
+        source.source_price_text = item.source_price_text
+        source.last_checked_at = source.last_success_at = source.last_seen_at = now
+        source.last_discovered_at = now
+        source.content_updated_at = now
+        source.consecutive_missing_runs = 0
+        source.consecutive_unknown_state_runs = 0
+        source.current_status = "active"
+        source.last_error = None if source_location_verified else "source_location_unverified"
+        source.removed_at = None
+        source.removed_reason = None
+        if (
+            not source_location_verified
+            and listing is not None
+            and listing.primary_source == item.source_name
+            and listing.status != "closed"
+            and await promote_best_active_source(session, listing.id, require_location=True)
+        ):
+            await session.commit()
+            return "updated"
+
     # An identical payload is only a no-op while its canonical card is still
     # visible. A source may reappear after a confirmed removal; in that case
     # the canonical listing must be restored even though its fingerprint did
     # not change.
     if (
         source
-        and source.fingerprint == item.fingerprint
+        and previous_fingerprint == item.fingerprint
         and not force_primary
         and source.current_status == "active"
         and listing is not None
         and listing.status != "closed"
+        and (
+            listing.primary_source != item.source_name
+            or (coordinates is None and listing.location is None)
+            or (coordinates is not None and listing.location is not None)
+        )
     ):
         source.last_checked_at = source.last_success_at = source.last_seen_at = now
         source.consecutive_missing_runs = 0
         source.current_status = "active"
+        source.last_error = None if source_location_verified else "source_location_unverified"
         await session.commit()
         return "unchanged"
     owner = await system_user(session)
-    coordinates = public_location(item)
-    if not listing and coordinates is None:
-        # The canonical listing requires a map point; never invent one.
-        await session.commit()
-        return "filtered_wrong_location"
     if not listing:
-        if coordinates is None:
-            raise RuntimeError("unreachable: missing external listing coordinates")
         listing = Listing(
             owner_user_id=owner.id,
             title=item.title,
@@ -493,7 +465,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             room_capacity=min(room_capacity, 2) if room_capacity is not None else None,
             tenant_requirement=item.tenant_requirement,
             room_type=item.room_type,
-            location=point(coordinates[1], coordinates[0]),
+            location=point(coordinates[1], coordinates[0]) if coordinates is not None else None,
             status="published",
             is_external=True,
             imported_at=now,
@@ -518,7 +490,10 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         not listing.primary_source
         or listing.primary_source == item.source_name
         or force_primary
-        or completeness_score(item) >= listing_completeness_score(listing)
+        or (
+            coordinates is not None
+            and completeness_score(item) >= listing_completeness_score(listing)
+        )
     )
     if replace_primary:
         room_details = await session.get(ListingRoomDetails, listing.id)
@@ -573,10 +548,11 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.external_contact_email = item.email
         listing.last_synced_at = now
         listing.status = "published"
-        if coordinates is not None:
-            listing.location = point(coordinates[1], coordinates[0])
+        listing.closed_reason = None
+        listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
     elif restored:
         listing.status = "published"
+        listing.closed_reason = None
         listing.last_synced_at = now
     if not source:
         source = SourceRecord(
@@ -599,7 +575,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     source.consecutive_missing_runs = 0
     source.consecutive_unknown_state_runs = 0
     source.current_status = "active"
-    source.last_error = None
+    source.last_error = None if source_location_verified else "source_location_unverified"
     source.removed_at = None
     source.removed_reason = None
     if action != "unchanged" or restored:
@@ -620,7 +596,12 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     return result
 
 
-async def promote_best_active_source(session: AsyncSession, canonical_listing_id) -> bool:
+async def promote_best_active_source(
+    session: AsyncSession,
+    canonical_listing_id,
+    *,
+    require_location: bool = False,
+) -> bool:
     rows = (
         await session.scalars(
             select(SourceRecord).where(
@@ -629,12 +610,22 @@ async def promote_best_active_source(session: AsyncSession, canonical_listing_id
             )
         )
     ).all()
-    snapshots = [row for row in rows if row.normalized_payload]
-    if not snapshots:
+    candidates: list[NormalizedListing] = []
+    for row in rows:
+        if not row.normalized_payload:
+            continue
+        candidate = listing_from_snapshot(row.normalized_payload)
+        if require_location and public_location(candidate) is None:
+            continue
+        candidates.append(candidate)
+    if not candidates:
         return False
-    best = max(snapshots, key=lambda row: completeness_score(listing_from_snapshot(row.normalized_payload)))
-    await upsert(session, listing_from_snapshot(best.normalized_payload), force_primary=True)
-    return True
+    best = max(
+        candidates,
+        key=lambda candidate: (public_location(candidate) is not None, completeness_score(candidate)),
+    )
+    outcome = await upsert(session, best, force_primary=True)
+    return outcome in {"imported", "updated", "unchanged", "restored"}
 
 
 async def deactivate_source_record(session: AsyncSession, row: SourceRecord, reason: str) -> int:
@@ -801,6 +792,55 @@ async def deactivate_rejected_source(session: AsyncSession, source_name: str, so
     await deactivate_source_record(session, row, "rejected")
 
 
+async def reconcile_unverified_source_locations(session: AsyncSession, source_name: str) -> int:
+    """Remove legacy invented markers while keeping valid cards in the catalog."""
+    rows = (
+        await session.scalars(
+            select(SourceRecord).where(
+                SourceRecord.source_name == source_name,
+                SourceRecord.current_status == "active",
+            )
+        )
+    ).all()
+    changed = 0
+    for row in rows:
+        payload = row.normalized_payload or {}
+        if "latitude" not in payload or "longitude" not in payload:
+            continue
+        if payload.get("latitude") is not None and payload.get("longitude") is not None:
+            if row.last_error == "source_location_unverified":
+                row.last_error = None
+            continue
+
+        row.last_error = "source_location_unverified"
+        listing = await session.get(Listing, row.canonical_listing_id)
+        if listing is None or listing.primary_source != row.source_name:
+            continue
+        if listing.status == "closed" and listing.closed_reason != "source_location_unverified":
+            continue
+
+        if await promote_best_active_source(session, listing.id, require_location=True):
+            changed += 1
+            continue
+
+        needs_catalog_touch = (
+            listing.location is not None
+            or listing.status == "closed"
+            or listing.closed_reason == "source_location_unverified"
+        )
+        listing.location = None
+        listing.last_synced_at = datetime.now(UTC)
+        if listing.closed_reason == "source_location_unverified":
+            listing.status = "published"
+            listing.closed_reason = None
+        if needs_catalog_touch:
+            await touch_catalog(session)
+            changed += 1
+
+    await session.commit()
+    return changed
+
+
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> dict[str, int]:
     started = perf_counter()
     counters = SourceRunCounters({
@@ -830,6 +870,12 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     run = ExternalImportRun(run_id=run_id, source_name=source.name)
     session.add(run)
     await session.commit()
+    reconciled_locations = await reconcile_unverified_source_locations(session, source.name)
+    if reconciled_locations:
+        logger.info(
+            "external_import_reconciled_unverified_locations",
+            extra={"source": source.name, "updated_or_promoted": reconciled_locations},
+        )
     started_at = datetime.now(UTC)
     previous_block = await session.scalar(
         select(ExternalImportRun)

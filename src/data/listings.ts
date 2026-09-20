@@ -232,7 +232,7 @@ export const defaultFilters: Filters = {
 
 export const createDefaultDraft = (): ListingDraft => ({
   publicationKey: crypto.randomUUID(),
-  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime'], locationManuallyMoved: false,
+  rentalMode: 'long', city: 'Adeje', area: 'Armeñime', street: '', postcode: '38678', coordinates: areaCenters['Armeñime']!, locationManuallyMoved: false,
   roomType: 'Habitación individual', roomSizeM2: 14, homeSizeM2: 85, bedroomCount: 5, bathroomCount: 2, currentResidents: 4, roomCapacity: 1,
   rentalUnit: 'room', bedType: 'single', bedCount: 1, currentRoomResidents: 0,
   bathroom: 'Baño compartido', toilet: 'Aseo privado', shower: 'Ducha compartida', kitchen: 'Cocina privada', heatingType: 'none', accessible: false, floor: '1',

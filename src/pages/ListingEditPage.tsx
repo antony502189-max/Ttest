@@ -65,7 +65,7 @@ function toDraft(listing: Listing): ListingDraft {
     area: listing.area,
     street: listing.street ?? '',
     postcode: listing.postcode ?? '',
-    coordinates: listing.exactCoordinates ?? listing.coordinates,
+    coordinates: (listing.exactCoordinates ?? listing.coordinates)!,
     locationManuallyMoved: true,
     roomType: listing.roomType,
     roomSizeM2: roomSize,

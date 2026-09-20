@@ -1,10 +1,10 @@
-import type { Coordinates, Listing } from '@/types'
+import type { Coordinates, MappedListing } from '@/types'
 
 const EARTH_RADIUS_METERS = 6_371_000
 const RING_CAPACITY = 8
 const RING_SPACING_METERS = 60
 
-type MarkerListing = Pick<Listing, 'id' | 'coordinates'>
+type MarkerListing = Pick<MappedListing, 'id' | 'coordinates'>
 
 export type DisplayMarkerPosition = {
   position: Coordinates

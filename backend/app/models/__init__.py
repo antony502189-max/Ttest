@@ -152,7 +152,7 @@ class Listing(Timestamped, Base):
     )
     # `location` is deliberately the public, approximate point.  Never use it
     # to store the exact address coordinate returned by a host.
-    location: Mapped[str] = mapped_column(Geography("POINT", srid=4326), index=True)
+    location: Mapped[str | None] = mapped_column(Geography("POINT", srid=4326), index=True)
     exact_location: Mapped[str | None] = mapped_column(Geography("POINT", srid=4326))
     description: Mapped[str] = mapped_column(Text, default="")
     home_description: Mapped[str] = mapped_column(Text, default="")

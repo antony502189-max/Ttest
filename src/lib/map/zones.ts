@@ -1,5 +1,6 @@
 import type { Listing } from '@/types'
 import { normalizeTenerifeText } from '@/lib/tenerife'
+import { hasListingCoordinates } from '@/lib/listings'
 
 export type ZoneKind = 'municipality' | 'district' | 'neighbourhood'
 
@@ -123,7 +124,10 @@ export function listingMatchesSelectedAreas(listing: Listing, areas: string[], c
     const canonical = canonicalizeZoneId(area)
     if (canonical.startsWith('municipality:')) return canonical === municipalityId
     const feature = getZoneFeature(canonical, collection)
-    if (feature) return pointInGeometry(listing.coordinates, feature.geometry)
+    if (feature) {
+      if (hasListingCoordinates(listing)) return pointInGeometry(listing.coordinates, feature.geometry)
+      return slugifyZone(feature.properties.label) === slugifyZone(listing.area)
+    }
     if (canonical.startsWith('district:') || canonical.startsWith('neighbourhood:')) {
       return canonical.includes(`:${slugifyZone(listing.city)}:`)
     }

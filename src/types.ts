@@ -76,7 +76,7 @@ export interface Listing {
   floor?: FloorLevel | null
   couplesAllowed?: boolean | null
   acceptedTenantTypes?: AcceptedTenantType[]
-  coordinates: Coordinates
+  coordinates?: Coordinates
   tenantRequirement: TenantRequirement | null
   smokingAllowed: boolean | null
   petsAllowed: boolean | null
@@ -111,6 +111,8 @@ export interface Listing {
   closedReason?: 'expired' | 'owner' | 'deleted' | 'account_deleted'
   promoted?: boolean
 }
+
+export type MappedListing = Listing & { coordinates: Coordinates }
 
 export interface Filters {
   minPrice: number
