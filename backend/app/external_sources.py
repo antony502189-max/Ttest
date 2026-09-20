@@ -232,6 +232,19 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
     if property_latitude and property_longitude:
         return public_coordinate_pair(f"{property_latitude.group(1)},{property_longitude.group(1)}")
 
+    bare_latitude = re.search(
+        r"""\b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE,
+    )
+    bare_longitude = re.search(
+        r"""\b(?:longitude|lng|lon|long)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE,
+    )
+    if bare_latitude and bare_longitude:
+        return public_coordinate_pair(f"{bare_latitude.group(1)},{bare_longitude.group(1)}")
+
     for raw_url in re.findall(r"""https?://[^"'<>\s\\]+""", normalized, re.IGNORECASE):
         parsed = urlparse(raw_url.rstrip("),.;"))
         query = parse_qs(parsed.query)
@@ -240,9 +253,26 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
                 coordinates = public_coordinate_pair(value)
                 if coordinates is not None:
                     return coordinates
+        query_latitude = next((query.get(key, [None])[0] for key in ("latitude", "lat") if query.get(key)), None)
+        query_longitude = next(
+            (query.get(key, [None])[0] for key in ("longitude", "lng", "lon", "long") if query.get(key)),
+            None,
+        )
+        if query_latitude is not None and query_longitude is not None:
+            coordinates = public_coordinate_pair(f"{query_latitude},{query_longitude}")
+            if coordinates is not None:
+                return coordinates
         path_coordinates = re.search(r"@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)", parsed.path)
         if path_coordinates:
             coordinates = public_coordinate_pair(",".join(path_coordinates.groups()))
+            if coordinates is not None:
+                return coordinates
+        reverse_path_coordinates = re.search(
+            r"(-?\d+(?:\.\d+)?)@(-?\d+(?:\.\d+)?)",
+            parsed.path,
+        )
+        if reverse_path_coordinates:
+            coordinates = public_coordinate_pair(",".join(reverse_path_coordinates.groups()))
             if coordinates is not None:
                 return coordinates
 
