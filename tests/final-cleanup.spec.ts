@@ -59,6 +59,19 @@ async function mediaExists(page: Page, reference: string) {
   }), reference)
 }
 
+async function mediaReferences(page: Page) {
+  return page.evaluate(() => new Promise<string[]>((resolve, reject) => {
+    const open = indexedDB.open('112233-media', 1)
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const database = open.result
+      const request = database.transaction('media', 'readonly').objectStore('media').getAllKeys()
+      request.onsuccess = () => { database.close(); resolve(request.result.map((key) => `idb-media:${String(key)}`)) }
+      request.onerror = () => { database.close(); reject(request.error) }
+    }
+  }))
+}
+
 async function advanceWizard(page: Page, count: number) {
   if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
   const continueButton = page.getByRole('button', { name: 'Continuar' })
@@ -118,29 +131,30 @@ test('MEDIA-11 rotating a newly added listing photo removes the obsolete local b
   await openAsHost(page, `/#/mis-anuncios/${encodeURIComponent(firstListingId)}/editar`)
   await expect(page.locator('.listing-edit-page')).toBeVisible()
 
-  const before = await page.locator('.upload-grid img').count()
+  const beforeCount = await page.locator('.upload-grid img').count()
+  const mediaBefore = new Set(await mediaReferences(page))
   await page.locator('#publish-images').setInputFiles({ name: 'rotate.png', mimeType: 'image/png', buffer: png })
-  await expect(page.locator('.upload-grid img')).toHaveCount(before + 1)
+  await expect(page.locator('.upload-grid img')).toHaveCount(beforeCount + 1)
 
-  const original = await expect.poll(() => page.evaluate((listingId) => {
-    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
-    return draft.data.images.find((image: string) => image.startsWith('idb-media:')) ?? ''
-  }, firstListingId)).toMatch(/^idb-media:/).then(async () => page.evaluate((listingId) => {
-    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
-    return draft.data.images.find((image: string) => image.startsWith('idb-media:')) as string
-  }, firstListingId))
+  const original = await expect.poll(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference)) ?? ''
+  }).toMatch(/^idb-media:/).then(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference)) as string
+  })
 
-  await page.getByRole('button', { name: `Girar foto ${before + 1} 90 grados` }).click()
-
-  const rotated = await expect.poll(() => page.evaluate(({ listingId, previous }) => {
-    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
-    return draft.data.images.find((image: string) => image.startsWith('idb-media:') && image !== previous) ?? ''
-  }, { listingId: firstListingId, previous: original })).toMatch(/^idb-media:/).then(async () => page.evaluate(({ listingId, previous }) => {
-    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
-    return draft.data.images.find((image: string) => image.startsWith('idb-media:') && image !== previous) as string
-  }, { listingId: firstListingId, previous: original }))
+  await page.getByRole('button', { name: `Girar foto ${beforeCount + 1} 90 grados` }).click()
 
   await expect.poll(() => mediaExists(page, original)).toBe(false)
+  const rotated = await expect.poll(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference) && reference !== original) ?? ''
+  }).toMatch(/^idb-media:/).then(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference) && reference !== original) as string
+  })
+
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect.poll(() => mediaExists(page, rotated)).toBe(true)
 })
