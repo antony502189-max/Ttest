@@ -785,6 +785,8 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
     changed = 0
     for row in rows:
         payload = row.normalized_payload or {}
+        if "latitude" not in payload or "longitude" not in payload:
+            continue
         if payload.get("latitude") is not None and payload.get("longitude") is not None:
             if row.last_error == "source_location_unverified":
                 row.last_error = None
