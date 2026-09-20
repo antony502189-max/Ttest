@@ -129,6 +129,7 @@ def test_worker_fails_when_only_two_of_three_required_sources_are_useful(monkeyp
                 "discovered_urls": 1 if useful else 0,
                 "fetched_details": 1 if useful else 0,
                 "accepted_rooms": 1 if useful else 0,
+                "imported": 1 if useful else 0,
             }
             return type(
                 "Counters",
