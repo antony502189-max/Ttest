@@ -232,6 +232,20 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
     if property_latitude and property_longitude:
         return public_coordinate_pair(f"{property_latitude.group(1)},{property_longitude.group(1)}")
 
+    for tag in re.findall(r"<[^>]{1,12000}>", normalized):
+        tag_latitude = re.search(
+            r"""\b(?:data-)?(?:latitude|lat)\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            tag,
+            re.IGNORECASE,
+        )
+        tag_longitude = re.search(
+            r"""\b(?:data-)?(?:longitude|lng|lon|long)\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            tag,
+            re.IGNORECASE,
+        )
+        if tag_latitude and tag_longitude:
+            return public_coordinate_pair(f"{tag_latitude.group(1)},{tag_longitude.group(1)}")
+
     bare_pair = re.search(
         r"""\b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
             [\s\S]{0,1000}?
