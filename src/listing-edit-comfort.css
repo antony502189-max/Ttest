@@ -5,7 +5,7 @@
   line-height: 1.35;
 }
 
-.upload-grid > div > .replace-image {
+.upload-grid > div > .rotate-image {
   top: auto;
   left: auto !important;
   right: .4rem;
@@ -21,7 +21,7 @@
   box-shadow: 0 .15rem .45rem rgb(25 31 31 / .18);
 }
 
-.upload-grid > div > .replace-image span {
+.upload-grid > div > .rotate-image span {
   font-size: .68rem;
   font-weight: 760;
 }
@@ -66,12 +66,12 @@
 }
 
 @media (max-width: 900px) {
-  .upload-grid > div > .replace-image {
+  .upload-grid > div > .rotate-image {
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
 
-  .upload-grid > div > .replace-image span {
+  .upload-grid > div > .rotate-image span {
     display: none;
   }
 }
@@ -130,7 +130,7 @@
     font-size: .72rem;
   }
 
-  .listing-edit-page .upload-grid > div > .replace-image {
+  .listing-edit-page .upload-grid > div > .rotate-image {
     right: .55rem;
     bottom: .55rem;
   }
