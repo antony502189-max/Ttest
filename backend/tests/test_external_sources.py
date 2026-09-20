@@ -29,7 +29,13 @@ from app.external_sources import (
     parse_price,
     public_map_coordinates,
 )
-from app.services.external_import import completeness_score, external_storage_key, perceptual_hash, public_location, similarity
+from app.services.external_import import (
+    completeness_score,
+    external_storage_key,
+    perceptual_hash,
+    public_location,
+    similarity,
+)
 
 
 def room_offer(**overrides):
