@@ -179,7 +179,6 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
     || component(components, 'neighborhood')
     || (postalTown && normalizeTenerifeText(postalTown) !== normalizeTenerifeText(city) ? postalTown : '')
     || (locality && normalizeTenerifeText(locality) !== normalizeTenerifeText(city) ? locality : '')
-    || city
   const street = [route, number].filter(Boolean).join(' ').trim()
 
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
