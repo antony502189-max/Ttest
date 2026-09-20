@@ -2004,14 +2004,16 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
         image = meta_content(document, "og:image")
         map_markup = html.unescape(document).replace("\\/", "/")
         source_latitude = re.search(
-            r"""\blat\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            r"""(?<![A-Za-z0-9])(?:[A-Za-z0-9]+[_-])*(?:latitude|lat)
+                \s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
             map_markup,
-            re.IGNORECASE,
+            re.IGNORECASE | re.VERBOSE,
         )
         source_longitude = re.search(
-            r"""\blong\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            r"""(?<![A-Za-z0-9])(?:[A-Za-z0-9]+[_-])*(?:longitude|lng|lon|long)
+                \s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
             map_markup,
-            re.IGNORECASE,
+            re.IGNORECASE | re.VERBOSE,
         )
         data.update(
             {
