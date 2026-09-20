@@ -2002,14 +2002,15 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
         external_id = re.search(r"ID de Inmueble:\s*(\d+)", body, re.IGNORECASE)
         updated = re.search(r"Actualizado en:\s*([^\n]{3,80}?)(?:\s+\d+\s+Dormitorios|\s+Descripci[oó]n)", body, re.IGNORECASE)
         image = meta_content(document, "og:image")
+        map_markup = html.unescape(document).replace("\\/", "/")
         source_latitude = re.search(
             r"""\blat\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
-            document,
+            map_markup,
             re.IGNORECASE,
         )
         source_longitude = re.search(
             r"""\blong\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
-            document,
+            map_markup,
             re.IGNORECASE,
         )
         data.update(
