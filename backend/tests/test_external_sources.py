@@ -27,8 +27,9 @@ from app.external_sources import (
     parse_optional_date,
     parse_optional_datetime,
     parse_price,
+    public_map_coordinates,
 )
-from app.services.external_import import completeness_score, external_storage_key, perceptual_hash, similarity
+from app.services.external_import import completeness_score, external_storage_key, perceptual_hash, public_location, similarity
 
 
 def room_offer(**overrides):
@@ -77,6 +78,55 @@ def test_geo_filter_covers_the_whole_santa_cruz_province_not_just_tenerife():
 def test_coordinates_outside_the_province_are_rejected_even_when_text_mentions_tenerife():
     listing = room_offer(latitude=28.128, longitude=-15.438)  # Gran Canaria
     assert IdealistaSource().normalize_listing(listing, "https://www.idealista.com/inmueble/123456/") is None
+
+
+def test_public_location_never_falls_back_to_a_municipality_centroid():
+    item = IdealistaSource().normalize_listing(
+        room_offer(city="Adeje", municipality="Adeje"),
+        "https://www.idealista.com/inmueble/123456/",
+    )
+    assert item is not None
+    assert item.latitude is None and item.longitude is None
+    assert public_location(item) is None
+
+
+def test_generic_source_preserves_public_map_point_and_coarse_locality():
+    document = """
+    <script type="application/ld+json">
+    {
+      "@type":"Residence",
+      "name":"Habitación individual en alquiler",
+      "description":"Se alquila habitación amueblada en piso compartido.",
+      "address":{
+        "addressLocality":"Granadilla de Abona",
+        "addressSubLocality":"El Médano",
+        "addressRegion":"Santa Cruz de Tenerife",
+        "streetAddress":"Avenida pública 10"
+      }
+    }
+    </script>
+    <a href="https://www.google.com/maps?q=28.0438656770,-16.5351811288">Mapa</a>
+    <p>710 €/mes alquiler habitación</p>
+    """
+    source = IdealistaSource()
+    url = "https://www.idealista.com/inmueble/123456/"
+    parsed = source.parse_listing(document, url)
+    assert parsed["area"] == "El Médano"
+    assert parsed["latitude"] == pytest.approx(28.0438656770)
+    assert parsed["longitude"] == pytest.approx(-16.5351811288)
+
+    item = source.normalize_listing(parsed, url)
+    assert item is not None
+    assert item.city == "Granadilla de Abona"
+    assert item.area == "El Médano"
+    assert item.public_address == "El Médano"
+    assert public_location(item) == pytest.approx((28.0438656770, -16.5351811288))
+
+
+def test_public_map_coordinates_support_source_static_map_decimal_commas():
+    assert public_map_coordinates(
+        '<img src="https://maps.example.test/static?center=28%2C0438656770%2C-16%2C5351811288">'
+    ) == pytest.approx((28.0438656770, -16.5351811288))
 
 
 def test_external_storage_keys_are_unique_per_asset_attempt():
@@ -222,6 +272,22 @@ def test_milanuncios_normalizes_rooms_studios_and_one_bedroom_homes(payload, url
     assert item.city == "Arona"
     assert item.price_amount == 710
     assert item.price_period == "month"
+
+
+def test_milanuncios_preserves_source_area_instead_of_collapsing_it_to_city():
+    payload = milanuncios_offer(
+        area="Los Cristianos",
+        latitude=28.0509,
+        longitude=-16.7172,
+    )
+    item = MilanunciosSource().normalize_listing(
+        payload,
+        "https://www.milanuncios.com/pisos-compartidos-en-arona-tenerife/habitacion-individual-599522658.htm",
+    )
+    assert item is not None
+    assert item.city == "Arona"
+    assert item.area == "Los Cristianos"
+    assert item.public_address == "Los Cristianos"
 
 
 @pytest.mark.parametrize(
