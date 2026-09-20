@@ -94,7 +94,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         const marker = new google.maps.marker.AdvancedMarkerElement({
           position: display.position,
           content,
-          title: `${listing.area}, ${priceLabel(listing)}`,
+          title: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}, ${priceLabel(listing)}`,
           gmpClickable: true,
           collisionBehavior: google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
           zIndex: listing.promoted ? 100 : 10,
@@ -184,7 +184,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       : <div className="m2-map-listing-preview__media"><MediaImage src={selected.images[0]} alt={selected.title} /></div>}
     <div className="m2-map-listing-preview__body">
       <button type="button" className="m2-map-listing-preview__close" onClick={() => setSelectedId('')} aria-label={t.close}><X /></button>
-      <p><MapPin />{selected.area}, {selected.city}</p>
+      <p><MapPin />{selected.approximateAddress ? `${selected.approximateAddress}, ${selected.city}` : `${selected.area}, ${selected.city}`}</p>
       <h2>{translatedTitle}</h2>
       <strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
       <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>

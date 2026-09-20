@@ -166,7 +166,7 @@ class DirectlyRemovedDetailSource(MissingDetailSource):
         self.removed_urls.add(url)
 
 
-async def test_external_upsert_preserves_source_public_location(client: AsyncClient):
+async def test_external_upsert_preserves_source_public_address_without_map_point(client: AsyncClient):
     async with SessionLocal() as session:
         item = external_item(
             source="Habitaclia",
@@ -174,9 +174,9 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
             url="https://www.habitaclia.com/i34692000000210.htm",
             city="Granadilla de Abona",
             area="El Médano",
-            public_address="El Médano",
-            latitude=28.0438656770,
-            longitude=-16.5351811288,
+            public_address="El Médano Avenida JOSE MIGUEL GALVAN BELLO",
+            latitude=None,
+            longitude=None,
         )
         assert await upsert(session, item) == "imported"
         await session.commit()
@@ -190,7 +190,8 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert listing is not None
         assert listing.city == "Granadilla de Abona"
         assert listing.area == "El Médano"
-        assert listing.approximate_address == "El Médano"
+        assert listing.approximate_address == "El Médano Avenida JOSE MIGUEL GALVAN BELLO"
+        assert listing.location is None
 
         response = await client.post(
             "/api/v1/listings/search",
@@ -199,9 +200,9 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert response.status_code == 200, response.text
         imported = next(row for row in response.json()["items"] if row["id"] == str(listing.id))
         assert imported["area"] == "El Médano"
-        assert imported["approximateAddress"] == "El Médano"
-        assert imported["latitude"] == pytest.approx(28.0438656770)
-        assert imported["longitude"] == pytest.approx(-16.5351811288)
+        assert imported["approximateAddress"] == "El Médano Avenida JOSE MIGUEL GALVAN BELLO"
+        assert imported["latitude"] is None
+        assert imported["longitude"] is None
 
 
 async def test_coordinate_less_external_listing_is_public_in_list_but_not_spatial_search(client: AsyncClient):

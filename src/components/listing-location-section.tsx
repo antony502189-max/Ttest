@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Camera, Expand, Navigation } from 'lucide-react'
+import { ArrowLeft, Camera, Expand, MapPin, Navigation } from 'lucide-react'
 import { useI18n } from '@/contexts/i18n-context'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { TENERIFE_BOUNDS } from '@/lib/tenerife'
@@ -168,6 +168,7 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
   if (!coordinates) {
     return <section className="listing-section listing-location-section">
       <h2>{t.heading}</h2>
+      <p className="listing-location-address" data-i18n-exempt><MapPin aria-hidden="true" />{listing.approximateAddress}</p>
       <p className="map-intro">{t.unavailable}</p>
     </section>
   }
@@ -195,6 +196,7 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
   return <>
     <section className="listing-section listing-location-section">
       <h2>{t.heading}</h2>
+      <p className="listing-location-address" data-i18n-exempt><MapPin aria-hidden="true" />{listing.approximateAddress}</p>
       <p className="map-intro">{t.intro}</p>
       {actions}
       <div className="listing-location-preview">

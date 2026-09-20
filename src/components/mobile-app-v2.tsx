@@ -684,7 +684,7 @@ export function MobileAppV2() {
     query: mapQuery || query,
     params: new URLSearchParams(location.search),
   }), [allListings, discarded, filters, location.search, mapPolygon, mapQuery, query, rentalMode])
-  const favoriteItems = useMemo<MobileCollectionItem[]>(() => allListings.filter((listing) => favorites.has(listing.id)).map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.area}, ${listing.city} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [allListings, favorites, navigate])
+  const favoriteItems = useMemo<MobileCollectionItem[]>(() => allListings.filter((listing) => favorites.has(listing.id)).map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [allListings, favorites, navigate])
   const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)

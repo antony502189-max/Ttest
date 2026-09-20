@@ -13,7 +13,7 @@ from __future__ import annotations
 import html
 import os
 import re
-from urllib.parse import parse_qs, unquote, urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 
@@ -53,10 +53,6 @@ _LISTING_IMAGE_HOSTS = {
     "images.habitaclia.com",
 }
 _IMAGE_SKIP_TOKENS = ("logo", "avatar", "icon", "sprite", "placeholder", "banner")
-_STATIC_MAP_URL = re.compile(
-    r"""https?://web\.gw\.habitaclia\.com/v2/staticmap\?[^"'<>\s\\]+""",
-    re.IGNORECASE,
-)
 _ROAD_START = re.compile(
     r"\b(?:avenida|avda\.?|av\.?|calle|carretera|camino|paseo|plaza|rambla|pasaje|urbanizaci[oó]n)\b",
     re.IGNORECASE,
@@ -137,41 +133,6 @@ class HabitacliaSource(ExternalListingSource):
         super().__init__()
         self._discovered_images: dict[str, list[str]] = {}
 
-    @staticmethod
-    def _center_coordinates(value: str) -> tuple[float, float] | None:
-        """Parse Habitaclia's public map center, including Spanish decimal commas."""
-        decoded = unquote(html.unescape(value)).strip()
-        decimal_comma = re.fullmatch(
-            r"\s*(-?\d+),(\d+),(-?\d+),(\d+)\s*",
-            decoded,
-        )
-        if decimal_comma:
-            latitude = float(f"{decimal_comma.group(1)}.{decimal_comma.group(2)}")
-            longitude = float(f"{decimal_comma.group(3)}.{decimal_comma.group(4)}")
-        else:
-            decimal_point = re.fullmatch(
-                r"\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*",
-                decoded,
-            )
-            if not decimal_point:
-                return None
-            latitude, longitude = map(float, decimal_point.groups())
-        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-            return None
-        return latitude, longitude
-
-    @classmethod
-    def _extract_public_map_center(cls, document: str) -> tuple[float, float] | None:
-        """Use the same public map center that Habitaclia shows on the detail page."""
-        normalized = html.unescape(document).replace("\\/", "/")
-        for raw_url in _STATIC_MAP_URL.findall(normalized):
-            query = parse_qs(urlparse(html.unescape(raw_url)).query)
-            center = next(iter(query.get("center", [])), "")
-            coordinates = cls._center_coordinates(center)
-            if coordinates is not None:
-                return coordinates
-        return None
-
     @classmethod
     def _extract_public_location(
         cls,
@@ -209,11 +170,16 @@ class HabitacliaSource(ExternalListingSource):
             )
             area = clean(zone.group(1)) if zone else ""
 
-        # Public listing location must remain coarse. The source may publish
-        # a street/house number, but 112233's privacy contract exposes only the
-        # locality/area; the public source map center is handled separately.
-        public_address = area or None
-        return area, public_address
+        # External adverts are already public at the source. Preserve the
+        # address text Habitaclia itself publishes instead of degrading it to
+        # the neighbourhood name. This is display data only; it must not be
+        # geocoded into a marker.
+        public_address = label
+        if not public_address and normalized_street:
+            public_address = " · ".join(value for value in (area, normalized_street) if value)
+        if not public_address:
+            public_address = area
+        return area, public_address or None
 
     @classmethod
     def _is_listing_image_url(cls, value: str) -> bool:
@@ -441,9 +407,6 @@ class HabitacliaSource(ExternalListingSource):
             images.extend(self._discovered_images.get(canonical_url, []))
         data["images"] = images[:40]
 
-        map_center = self._extract_public_map_center(document)
-        if map_center is not None:
-            data["latitude"], data["longitude"] = map_center
         area, public_address = self._extract_public_location(
             document,
             street=clean(data.get("address")),
@@ -452,6 +415,13 @@ class HabitacliaSource(ExternalListingSource):
             data["area"] = area
         if public_address:
             data["public_address"] = public_address
+
+        # Habitaclia's page-level map/JS coordinates are not documented as
+        # dwelling coordinates and can represent an approximate viewport.
+        # Keep the public address text, but suppress map placement until this
+        # adapter has a separately verified property-coordinate signal.
+        data["latitude"] = None
+        data["longitude"] = None
 
         data["category"] = f"habitaclia alquiler {data['category']}"
         data["external_id"] = external_id.group(1) if external_id else None

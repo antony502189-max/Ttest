@@ -4,7 +4,7 @@ test.use({ viewport: { width: 390, height: 844 } })
 
 const externalListing = {
   id: 'external-idealista-123456', title: 'Habitación exterior en Adeje', city: 'Adeje', area: 'Adeje',
-  approximateAddress: 'Adeje · ubicación aproximada', price: 710, monthlyPrice: 710, rentalMode: 'long',
+  approximateAddress: 'Avenida José Miguel Galván Bello · El Médano', price: 710, monthlyPrice: 710, rentalMode: 'long',
   images: ['https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=800&q=80'],
   publishedAt: '2026-07-30T12:00:00.000Z', expiresAt: '2099-12-31', coordinates: { lat: 28.1227, lng: -16.7244 },
   isExternal: true, primarySource: 'Idealista', sourceUrl: 'https://www.idealista.com/inmueble/123456/', status: 'Publicado',
@@ -36,6 +36,7 @@ test('external mobile result uses the same lime source CTA treatment as requirem
 
   const card = page.locator('.m2-result-card').first()
   await expect(card).toHaveAttribute('data-listing-id', externalListing.id)
+  await expect(card.locator('.m2-result-card__location')).toContainText('Avenida José Miguel Galván Bello · El Médano')
 
   const resultSourceCta = card.locator('.m2-external-source-cta')
   await expect(resultSourceCta).toBeVisible()
@@ -67,6 +68,7 @@ test('external mobile result uses the same lime source CTA treatment as requirem
   await page.locator('.m2-listing-marker').first().click()
   const preview = page.getByTestId('mobile-map-listing-preview')
   await expect(preview).toBeVisible()
+  await expect(preview.locator('p').first()).toContainText('Avenida José Miguel Galván Bello · El Médano')
 
   const sourceImage = preview.locator('.m2-map-listing-preview__media')
   const sourceCta = preview.locator('.m2-map-listing-preview__open')

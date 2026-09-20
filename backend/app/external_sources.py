@@ -269,11 +269,11 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
     for raw_url in re.findall(r"""https?://[^"'<>\s\\]+""", normalized, re.IGNORECASE):
         parsed = urlparse(raw_url.rstrip("),.;"))
         query = parse_qs(parsed.query)
-        for key in ("center", "q", "query", "ll", "destination"):
-            for value in query.get(key, []):
-                coordinates = public_coordinate_pair(value)
-                if coordinates is not None:
-                    return coordinates
+        # A map viewport/route URL (for example center=..., q=..., ll=... or
+        # Google Maps @lat,lng) is not proof that the advertised dwelling is
+        # located at that point. Only explicit latitude/longitude parameters
+        # are accepted here; source-specific adapters may opt in to stronger
+        # coordinate signals when their public contract proves those signals.
         query_latitude = next((query.get(key, [None])[0] for key in ("latitude", "lat") if query.get(key)), None)
         query_longitude = next(
             (query.get(key, [None])[0] for key in ("longitude", "lng", "lon", "long") if query.get(key)),
@@ -281,19 +281,6 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
         )
         if query_latitude is not None and query_longitude is not None:
             coordinates = public_coordinate_pair(f"{query_latitude},{query_longitude}")
-            if coordinates is not None:
-                return coordinates
-        path_coordinates = re.search(r"@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)", parsed.path)
-        if path_coordinates:
-            coordinates = public_coordinate_pair(",".join(path_coordinates.groups()))
-            if coordinates is not None:
-                return coordinates
-        reverse_path_coordinates = re.search(
-            r"(-?\d+(?:\.\d+)?)@(-?\d+(?:\.\d+)?)",
-            parsed.path,
-        )
-        if reverse_path_coordinates:
-            coordinates = public_coordinate_pair(",".join(reverse_path_coordinates.groups()))
             if coordinates is not None:
                 return coordinates
 
@@ -1254,7 +1241,7 @@ class ExternalListingSource(ABC):
             or data.get("district")
             or data.get("suburb")
         ) or city
-        public_address = clean(data.get("public_address")) or area
+        public_address = clean(data.get("public_address") or data.get("address")) or area
         found = re.search(r"(?:inmueble|anuncio|ad|id)[=/_-](\d+)", url, re.IGNORECASE) or re.search(r"(\d{5,})", url)
         external_id = found.group(1) if found else hashlib.sha256(url.encode()).hexdigest()[:24]
         photos = [str(x) for x in data.get("images", []) if isinstance(x, str) and x.startswith("http")]
