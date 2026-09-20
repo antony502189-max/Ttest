@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, RotateCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiBlob } from "@/api/client";
 import {
   Field,
   FieldDescription,
@@ -180,9 +181,14 @@ async function imageBlob(reference: string) {
     return blob;
   }
 
-  const response = await fetch(reference, { credentials: "include" });
-  if (!response.ok) throw new MediaStorageError("read", "No se pudo leer la imagen.");
-  const blob = await response.blob();
+  const pathname = new URL(reference, window.location.origin).pathname;
+  const apiMediaPath = pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+  const blob = apiMediaPath
+    ? await apiBlob(apiMediaPath)
+    : await fetch(reference, { credentials: "include" }).then((response) => {
+        if (!response.ok) throw new MediaStorageError("read", "No se pudo leer la imagen.");
+        return response.blob();
+      });
   if (!blob.type.startsWith("image/")) throw new MediaStorageError("type", "El archivo no es una imagen válida.");
   return blob;
 }
@@ -237,6 +243,8 @@ export function ImageUploader({
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
   const [rotatingIndex, setRotatingIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState("");
   const readFiles = async (files: FileList | null) => {
@@ -271,8 +279,14 @@ export function ImageUploader({
     try {
       const file = await rotateImageFile(previous);
       const reference = await saveMediaFile(file);
-      const next = [...images];
-      next[index] = reference;
+      const current = imagesRef.current;
+      const currentIndex = current[index] === previous ? index : current.indexOf(previous);
+      if (currentIndex < 0) {
+        await removeMediaReferences([reference]).catch(() => undefined);
+        return;
+      }
+      const next = [...current];
+      next[currentIndex] = reference;
       onChange(next);
       onRemove?.(previous);
       setLocalError("");
