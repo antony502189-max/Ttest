@@ -196,6 +196,42 @@ def public_coordinate_pair(value: Any) -> tuple[float, float] | None:
 def public_map_coordinates(document: str) -> tuple[float, float] | None:
     """Extract coordinates explicitly published by a source detail page."""
     normalized = html.unescape(document).replace("\\/", "/")
+
+    # Real-estate templates commonly expose map coordinates in public JS
+    # payloads as lat/lng, lat/long, or WordPress property_* meta names.
+    key_pair = re.search(
+        r"""["'](?:property_)?(?:latitude|lat)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            ["'](?:property_)?(?:longitude|lng|lon|long)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    if key_pair:
+        return public_coordinate_pair(",".join(key_pair.groups()))
+    reverse_key_pair = re.search(
+        r"""["'](?:property_)?(?:longitude|lng|lon|long)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            ["'](?:property_)?(?:latitude|lat)["']\s*[:=]\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+        normalized,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    if reverse_key_pair:
+        longitude, latitude = reverse_key_pair.groups()
+        return public_coordinate_pair(f"{latitude},{longitude}")
+
+    property_latitude = re.search(
+        r"""(?:name|id)=["'](?:_)?property_latitude["'][^>]{0,500}?value=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+        normalized,
+        re.IGNORECASE,
+    )
+    property_longitude = re.search(
+        r"""(?:name|id)=["'](?:_)?property_longitude["'][^>]{0,500}?value=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+        normalized,
+        re.IGNORECASE,
+    )
+    if property_latitude and property_longitude:
+        return public_coordinate_pair(f"{property_latitude.group(1)},{property_longitude.group(1)}")
+
     for raw_url in re.findall(r"""https?://[^"'<>\s\\]+""", normalized, re.IGNORECASE):
         parsed = urlparse(raw_url.rstrip("),.;"))
         query = parse_qs(parsed.query)
@@ -212,14 +248,14 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
 
     pair = re.search(
         r"""data-(?:latitude|lat)=["']\s*(-?\d+(?:\.\d+)?)\s*["'][^>]{0,500}
-            data-(?:longitude|lng|lon)=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            data-(?:longitude|lng|lon|long)=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
         normalized,
         re.IGNORECASE | re.VERBOSE | re.DOTALL,
     )
     if pair:
         return public_coordinate_pair(",".join(pair.groups()))
     reverse_pair = re.search(
-        r"""data-(?:longitude|lng|lon)=["']\s*(-?\d+(?:\.\d+)?)\s*["'][^>]{0,500}
+        r"""data-(?:longitude|lng|lon|long)=["']\s*(-?\d+(?:\.\d+)?)\s*["'][^>]{0,500}
             data-(?:latitude|lat)=["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
         normalized,
         re.IGNORECASE | re.VERBOSE | re.DOTALL,
