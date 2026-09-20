@@ -92,8 +92,15 @@ function normalizeHouseNumber(value: string) {
 
 function requestedHouseNumber(value: string) {
   const withoutPostcode = value.replace(/\b\d{5}\b/g, ' ')
-  const head = withoutPostcode.match(/^(.+?\b\d+[A-Za-z]?)\s*(?:[.,;]\s*|$)/)?.[1] ?? withoutPostcode
-  return [...head.matchAll(/\b\d+[A-Za-z]?\b/g)].at(-1)?.[0] ?? ''
+  const matches = [...withoutPostcode.matchAll(/\b\d+[A-Za-z]?\b/g)]
+  const candidate = matches.at(-1)
+  if (!candidate || /^0+[A-Za-z]?$/i.test(candidate[0])) return ''
+  const index = candidate.index ?? -1
+  const prefix = index >= 0 ? withoutPostcode.slice(0, index).trim().replace(/[.,;:/-]+$/, '').trim() : ''
+  // A house number must follow an actual street/name fragment. This prevents
+  // pasted list prefixes such as "0 Playa de las Américas..." from being
+  // treated as a requested building number.
+  return /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]$/u.test(prefix) ? candidate[0] : ''
 }
 
 function coordinatesFromResult(result: google.maps.GeocoderResult): Coordinates | null {
@@ -123,13 +130,6 @@ function dedupePredictions(predictions: Prediction[]) {
     seen.add(key)
     return true
   }).slice(0, MAX_PREDICTIONS)
-}
-
-function setNativeInputValue(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-  setter?.call(input, value)
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  input.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
 function detailFromGeocoderResult(result: google.maps.GeocoderResult): AddressDetail | null {
@@ -189,6 +189,31 @@ export function PublishSmartAddressAutocomplete() {
     const cache = new Map<string, Prediction[]>()
 
     const ui = () => activeInput ? ensureUi(activeInput) : null
+
+    const seedPreferredOriginFromMap = () => {
+      if (preferredOrigin) return
+      const shell = document.querySelector<HTMLElement>('.approximate-location-map-shell[data-location-lat][data-location-lng]')
+      if (!shell) return
+      const coordinates = {
+        lat: Number(shell.dataset.locationLat),
+        lng: Number(shell.dataset.locationLng),
+      }
+      if (Number.isFinite(coordinates.lat) && Number.isFinite(coordinates.lng) && isInsideTenerife(coordinates)) {
+        preferredOrigin = coordinates
+      }
+    }
+
+    const contextualQuery = (query: string) => {
+      const trimmed = query.trim()
+      if (!trimmed || trimmed.includes(',') || /\b\d{5}\b/.test(trimmed)) return trimmed
+      const area = document.querySelector<HTMLInputElement>('#publish-area')?.value.trim() ?? ''
+      const city = document.querySelector<HTMLSelectElement>('#publish-city')?.value.trim() ?? ''
+      const normalized = trimmed.toLocaleLowerCase()
+      const parts = [trimmed]
+      if (area && !normalized.includes(area.toLocaleLowerCase())) parts.push(area)
+      if (city && city !== '__112233_auto_municipality__' && !normalized.includes(city.toLocaleLowerCase())) parts.push(city)
+      return parts.join(', ')
+    }
 
     const setStatus = (message: string, mode: 'island' | 'nearby' | 'fallback' | 'error' = 'island') => {
       const current = ui()
@@ -390,11 +415,13 @@ export function PublishSmartAddressAutocomplete() {
       const requestedValue = input.value.trim()
       cancelPendingQuery()
       const selectionId = requestId
-      setNativeInputValue(input, prediction.label)
       closeList()
       try {
         const detail = await resolvePrediction(prediction)
         if (cancelled || activeInput !== input || selectionId !== requestId) return
+        // Do not mutate the visible field until the resolved Google result has
+        // passed all address/house-number checks. The map-address-resolved
+        // listeners update street, postcode, municipality and area together.
         if (!detail || !dispatchResolved(detail, requestedValue)) setStatus(copy.selectedError, 'error')
       } catch {
         if (!cancelled && activeInput === input && selectionId === requestId) setStatus(copy.selectedError, 'error')
@@ -439,7 +466,9 @@ export function PublishSmartAddressAutocomplete() {
     }
 
     const runQuery = async (query: string, id: number) => {
-      const cacheKey = `${language}:${query.toLocaleLowerCase()}`
+      seedPreferredOriginFromMap()
+      const contextual = contextualQuery(query)
+      const cacheKey = `${language}:${preferredOrigin?.lat ?? ""}:${preferredOrigin?.lng ?? ""}:${contextual.toLocaleLowerCase()}`
       const cached = cache.get(cacheKey)
       if (cached) {
         if (!cancelled && id === requestId) renderPredictions(cached)
@@ -447,7 +476,8 @@ export function PublishSmartAddressAutocomplete() {
       }
       setStatus(copy.loading, preferredOrigin ? 'nearby' : 'island')
       try {
-        const result = await fetchPredictions(query)
+        let result = await fetchPredictions(contextual)
+        if (!result.length && contextual !== query) result = await fetchPredictions(query)
         if (cancelled || id !== requestId) return
         cache.set(cacheKey, result)
         renderPredictions(result)
@@ -491,6 +521,7 @@ export function PublishSmartAddressAutocomplete() {
       input.setAttribute('aria-controls', 'publish-address-predictions')
       input.setAttribute('aria-expanded', 'false')
       activeInput = input
+      seedPreferredOriginFromMap()
 
       const current = ensureUi(input)
       const status = current.assist.querySelector<HTMLElement>('.publish-address-assist__status')
