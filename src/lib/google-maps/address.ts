@@ -55,6 +55,7 @@ export function parseGoogleAddress(
     componentValue(values, ['sublocality_level_1']),
     componentValue(values, ['sublocality']),
     componentValue(values, ['postal_town']),
+    componentValue(values, ['locality']),
   ].find((value) => {
     if (!value) return false
     const normalized = value.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
