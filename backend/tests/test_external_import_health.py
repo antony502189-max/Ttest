@@ -8,12 +8,14 @@ def counters(
     discovered: int = 1,
     fetched: int = 1,
     accepted: int = 1,
+    publishable: int = 1,
 ) -> SourceRunCounters:
     value = SourceRunCounters(
         {
             "discovered_urls": discovered,
             "fetched_details": fetched,
             "accepted_rooms": accepted,
+            "imported": publishable,
         }
     )
     value.result = result
@@ -25,6 +27,7 @@ def test_completed_source_contract_requires_a_valid_room_detail() -> None:
     assert not completed_source_contract(counters(discovered=0))
     assert not completed_source_contract(counters(fetched=0))
     assert not completed_source_contract(counters(accepted=0))
+    assert not completed_source_contract(counters(publishable=0))
 
 
 def test_worker_counts_only_useful_successful_sources() -> None:
