@@ -608,7 +608,7 @@ export function PropertyCard({
             <PriceBlock listing={listing} />
             <span>{listing.bills}</span>
           </div>
-          <p className="property-location" data-i18n-exempt><MapPin aria-hidden="true" />{listing.approximateAddress || `${listing.area}, ${listing.city}`}</p>
+          <p className="property-location" data-i18n-exempt><MapPin aria-hidden="true" />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p>
           <div className="property-facts">
             <span><BedDouble aria-hidden="true" />{listing.roomType}</span>
             <span>{t(`${listing.currentResidents} ${listing.currentResidents === 1 ? "residente" : "residentes"} · ${listing.roomSizeM2 == null ? unknownListingFact : `${listing.roomSizeM2} m²`}`)}</span>
