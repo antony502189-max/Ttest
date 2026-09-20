@@ -416,6 +416,13 @@ class HabitacliaSource(ExternalListingSource):
         if public_address:
             data["public_address"] = public_address
 
+        # Habitaclia's page-level map/JS coordinates are not documented as
+        # dwelling coordinates and can represent an approximate viewport.
+        # Keep the public address text, but suppress map placement until this
+        # adapter has a separately verified property-coordinate signal.
+        data["latitude"] = None
+        data["longitude"] = None
+
         data["category"] = f"habitaclia alquiler {data['category']}"
         data["external_id"] = external_id.group(1) if external_id else None
         data["phone"] = None
