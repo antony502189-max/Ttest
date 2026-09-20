@@ -20,6 +20,29 @@ test('Google address parsing retains only reliable structured fields', async ({ 
   })
 })
 
+
+test('Google postal_town is preserved as area when municipality is separate', async ({ page }) => {
+  await page.goto('/')
+  const parsed = await page.evaluate(async () => {
+    const { parseGoogleAddress } = await import('/src/lib/google-maps/address.ts')
+    return parseGoogleAddress([
+      { long_name: 'Avenida V Centenario', short_name: 'Av. V Centenario', types: ['route'] },
+      { long_name: '1', short_name: '1', types: ['street_number'] },
+      { long_name: '38660', short_name: '38660', types: ['postal_code'] },
+      { long_name: 'Playa de las Américas', short_name: 'Playa de las Américas', types: ['postal_town'] },
+      { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+    ], 'Avenida V Centenario 1, 38660 Playa de las Américas, Spain', { lat: 28.0679, lng: -16.7270 })
+  })
+
+  expect(parsed).toMatchObject({
+    street: 'Avenida V Centenario 1',
+    postcode: '38660',
+    city: 'Adeje',
+    area: 'Playa de las Américas',
+    coordinates: { lat: 28.0679, lng: -16.7270 },
+  })
+})
+
 test('partial Google results and stale request versions cannot erase newer state', async ({ page }) => {
   await page.goto('/')
   const result = await page.evaluate(async () => {
