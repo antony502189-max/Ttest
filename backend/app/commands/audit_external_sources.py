@@ -60,6 +60,9 @@ class DetailAudit:
     title: str = ""
     city: str = ""
     source_price_text: str = ""
+    map_point: bool | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     document_bytes: int = 0
     fetch_method: str = ""
     http_status: int | None = None
@@ -83,6 +86,7 @@ class SourceAudit:
     blocked: bool = False
     fetched_details: int = 0
     normalized_details: int = 0
+    mapped_details: int = 0
     details: list[DetailAudit] = field(default_factory=list)
     page_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
@@ -174,14 +178,21 @@ async def audit_source(
                     detail.title = normalized.title[:160]
                     detail.city = normalized.city[:100]
                     detail.source_price_text = normalized.source_price_text[:80]
+                    detail.latitude = normalized.latitude
+                    detail.longitude = normalized.longitude
+                    detail.map_point = normalized.latitude is not None and normalized.longitude is not None
+                    if detail.map_point:
+                        result.mapped_details += 1
             except SourceBlocked as exc:
                 result.blocked = True
                 detail.error = _safe_error(exc)
             except (httpx.HTTPError, RuntimeError, ValueError, OSError, TimeoutError) as exc:
                 detail.error = _safe_error(exc)
 
-        if result.normalized_details:
+        if result.mapped_details:
             result.status = "healthy"
+        elif result.normalized_details:
+            result.status = "location_failed"
         elif result.blocked:
             result.status = "blocked"
         elif not result.discovered_urls:
