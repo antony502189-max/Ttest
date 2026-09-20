@@ -96,7 +96,7 @@ def test_public_location_never_falls_back_to_a_municipality_centroid():
     assert public_location(item) is None
 
 
-def test_generic_source_preserves_public_map_point_and_coarse_locality():
+def test_generic_source_preserves_source_street_but_rejects_map_viewport_coordinates():
     document = """
     <script type="application/ld+json">
     {
@@ -118,21 +118,22 @@ def test_generic_source_preserves_public_map_point_and_coarse_locality():
     url = "https://www.idealista.com/inmueble/123456/"
     parsed = source.parse_listing(document, url)
     assert parsed["area"] == "El Médano"
-    assert parsed["latitude"] == pytest.approx(28.0438656770)
-    assert parsed["longitude"] == pytest.approx(-16.5351811288)
+    assert parsed["address"] == "Avenida pública 10"
+    assert parsed["latitude"] is None
+    assert parsed["longitude"] is None
 
     item = source.normalize_listing(parsed, url)
     assert item is not None
     assert item.city == "Granadilla de Abona"
     assert item.area == "El Médano"
-    assert item.public_address == "El Médano"
-    assert public_location(item) == pytest.approx((28.0438656770, -16.5351811288))
+    assert item.public_address == "Avenida pública 10"
+    assert public_location(item) is None
 
 
-def test_public_map_coordinates_support_source_static_map_decimal_commas():
+def test_public_map_coordinates_rejects_static_map_viewport_center():
     assert public_map_coordinates(
         '<img src="https://maps.example.test/static?center=28%2C0438656770%2C-16%2C5351811288">'
-    ) == pytest.approx((28.0438656770, -16.5351811288))
+    ) is None
 
 
 def test_public_map_coordinates_support_real_estate_js_coordinate_keys():
@@ -156,7 +157,7 @@ def test_public_map_coordinates_support_bare_source_attributes_and_map_paths():
     ) == pytest.approx((28.4182, -16.5001))
     assert public_map_coordinates(
         '<img src="https://map.imghs.net/Cache/Z/1_350_28.4182@-16.5001_1_0.gif">'
-    ) == pytest.approx((28.4182, -16.5001))
+    ) is None
 
 
 def test_external_storage_keys_are_unique_per_asset_attempt():
