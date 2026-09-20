@@ -74,6 +74,7 @@ def public_location(item: NormalizedListing) -> tuple[float, float] | None:
         return None
     return item.latitude, item.longitude
 
+
 def similarity(left: str, right: str) -> float:
     def tokens(value: str) -> set[str]:
         decomposed = unicodedata.normalize("NFKD", value.casefold())
@@ -425,8 +426,6 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         return "unchanged"
     owner = await system_user(session)
     if not listing:
-        if coordinates is None:
-            raise RuntimeError("unreachable: missing external listing coordinates")
         listing = Listing(
             owner_user_id=owner.id,
             title=item.title,
