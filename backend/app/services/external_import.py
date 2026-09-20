@@ -404,6 +404,9 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             source.current_status = "active"
             source.last_error = "source_location_unverified"
             if listing is not None and listing.primary_source == item.source_name and listing.status != "closed":
+                if await promote_best_active_source(session, listing.id):
+                    await session.commit()
+                    return "filtered_wrong_location"
                 listing.status = "closed"
                 listing.closed_reason = "source_location_unverified"
                 listing.last_synced_at = now
@@ -591,12 +594,18 @@ async def promote_best_active_source(session: AsyncSession, canonical_listing_id
             )
         )
     ).all()
-    snapshots = [row for row in rows if row.normalized_payload]
-    if not snapshots:
+    candidates: list[NormalizedListing] = []
+    for row in rows:
+        if not row.normalized_payload:
+            continue
+        candidate = listing_from_snapshot(row.normalized_payload)
+        if public_location(candidate) is not None:
+            candidates.append(candidate)
+    if not candidates:
         return False
-    best = max(snapshots, key=lambda row: completeness_score(listing_from_snapshot(row.normalized_payload)))
-    await upsert(session, listing_from_snapshot(best.normalized_payload), force_primary=True)
-    return True
+    best = max(candidates, key=completeness_score)
+    outcome = await upsert(session, best, force_primary=True)
+    return outcome != "filtered_wrong_location"
 
 
 async def deactivate_source_record(session: AsyncSession, row: SourceRecord, reason: str) -> int:
