@@ -48,15 +48,28 @@ export function parseGoogleAddress(
   const route = componentValue(values, ['route'])
   const streetNumber = componentValue(values, ['street_number'])
   const street = [route, streetNumber].filter(Boolean).join(' ') || undefined
+  const city = componentValueByPriority(values, ['administrative_area_level_3', 'administrative_area_level_4', 'locality', 'postal_town'])
+  const normalizedCity = city?.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const area = [
+    componentValue(values, ['neighborhood']),
+    componentValue(values, ['sublocality_level_1']),
+    componentValue(values, ['sublocality']),
+    componentValue(values, ['postal_town']),
+    componentValue(values, ['locality']),
+  ].find((value) => {
+    if (!value) return false
+    const normalized = value.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    return !normalizedCity || normalized !== normalizedCity
+  })
 
   return {
     formattedAddress,
     coordinates,
     street,
     postcode: componentValue(values, ['postal_code']),
-    // Google often lists a locality (such as Costa Adeje) before the municipality.
-    // The publication municipality must prefer its administrative component.
-    city: componentValueByPriority(values, ['administrative_area_level_3', 'administrative_area_level_4', 'locality', 'postal_town']),
-    area: componentValue(values, ['neighborhood', 'sublocality_level_1', 'sublocality']),
+    // Google often lists the tourist/local place in postal_town/locality while
+    // the municipality is carried by administrative_area_level_3/4.
+    city,
+    area,
   }
 }
