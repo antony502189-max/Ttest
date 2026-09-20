@@ -43,8 +43,14 @@ function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, va
 
 function matchingSelectValue(element: HTMLSelectElement | null, candidates: string[]) {
   if (!element) return ''
-  const available = new Set(Array.from(element.options, (option) => option.value))
-  return candidates.find((candidate) => candidate && available.has(candidate)) ?? ''
+  const options = Array.from(element.options)
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const normalized = normalizeTenerifeText(candidate)
+    const match = options.find((option) => normalizeTenerifeText(option.value) === normalized)
+    if (match) return match.value
+  }
+  return ''
 }
 
 function pointInRing(point: Coordinates, ring: number[][]) {
@@ -173,6 +179,7 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
     || component(components, 'neighborhood')
     || (postalTown && normalizeTenerifeText(postalTown) !== normalizeTenerifeText(city) ? postalTown : '')
     || (locality && normalizeTenerifeText(locality) !== normalizeTenerifeText(city) ? locality : '')
+    || city
   const street = [route, number].filter(Boolean).join(' ').trim()
 
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)
