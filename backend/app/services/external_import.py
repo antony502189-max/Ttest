@@ -386,6 +386,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
 
     coordinates = public_location(item)
     source_location_verified = coordinates is not None
+    previous_fingerprint = source.fingerprint if source else None
 
     # Persist the source's latest location state before considering failover.
     # A source without a public point is still a valid catalog source; it just
@@ -422,7 +423,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     # not change.
     if (
         source
-        and source.fingerprint == item.fingerprint
+        and previous_fingerprint == item.fingerprint
         and not force_primary
         and source.current_status == "active"
         and listing is not None
