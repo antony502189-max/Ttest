@@ -94,7 +94,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         const marker = new google.maps.marker.AdvancedMarkerElement({
           position: display.position,
           content,
-          title: `${listing.approximateAddress || listing.area}, ${priceLabel(listing)}`,
+          title: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}, ${priceLabel(listing)}`,
           gmpClickable: true,
           collisionBehavior: google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
           zIndex: listing.promoted ? 100 : 10,
