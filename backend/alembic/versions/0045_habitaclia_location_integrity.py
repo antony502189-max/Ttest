@@ -1,12 +1,12 @@
 """remove unverified Habitaclia viewport markers
 
-Revision ID: 0045_habitaclia_location_integrity
+Revision ID: 0045_habitaclia_location_fix
 Revises: 0044_nullable_listing_location
 """
 
 from alembic import op
 
-revision = "0045_habitaclia_location_integrity"
+revision = "0045_habitaclia_location_fix"
 down_revision = "0044_nullable_listing_location"
 branch_labels = None
 depends_on = None
