@@ -14,6 +14,7 @@ from app.models.room_details import ListingRoomDetails
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
+    reconcile_unverified_source_locations,
     retire_source_records,
     run_removal_check,
     run_source,
@@ -201,6 +202,48 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert imported["approximateAddress"] == "El Médano"
         assert imported["latitude"] == pytest.approx(28.0438656770)
         assert imported["longitude"] == pytest.approx(-16.5351811288)
+
+
+async def test_reconcile_closes_legacy_published_listing_whose_snapshot_has_no_source_coordinates():
+    async with SessionLocal() as session:
+        item = external_item(
+            source="LegacyCentroid",
+            external_id="legacy-centroid-1",
+            url="https://example.test/legacy-centroid-1",
+            city="Adeje",
+            area="Adeje",
+            latitude=28.1227,
+            longitude=-16.7244,
+        )
+        assert await upsert(session, item) == "imported"
+
+        record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert record is not None
+        listing = await session.get(Listing, record.canonical_listing_id)
+        assert listing is not None and listing.status == "published"
+
+        # Model a record imported by the legacy centroid fallback: the
+        # canonical card has a point, but the persisted source snapshot never
+        # contained one.
+        record.normalized_payload = {
+            **record.normalized_payload,
+            "latitude": None,
+            "longitude": None,
+        }
+        await session.commit()
+
+        assert await reconcile_unverified_source_locations(session, item.source_name) == 1
+        await session.refresh(record)
+        await session.refresh(listing)
+        assert record.current_status == "active"
+        assert record.last_error == "source_location_unverified"
+        assert listing.status == "closed"
+        assert listing.closed_reason == "source_location_unverified"
 
 
 async def test_external_upsert_hides_stale_centroid_when_source_point_disappears_and_restores_it():
