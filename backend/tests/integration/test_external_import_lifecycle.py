@@ -263,6 +263,63 @@ async def test_external_upsert_hides_stale_centroid_when_source_point_disappears
         assert restored.closed_reason is None
 
 
+async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates():
+    async with SessionLocal() as session:
+        primary = external_item(
+            source="Idealista",
+            external_id="location-primary",
+            url="https://example.test/location-primary",
+            latitude=28.0871,
+            longitude=-16.7324,
+        )
+        primary.photos = []
+        assert await upsert(session, primary) == "imported"
+
+        alternative = external_item(
+            source="Fotocasa",
+            external_id="location-alternative",
+            url="https://example.test/location-alternative",
+            latitude=28.0882,
+            longitude=-16.7311,
+        )
+        alternative.description = ""
+        alternative.photos = []
+        alternative.email = primary.email
+        alternative.phone = primary.phone
+        assert await upsert(session, alternative) == "updated"
+
+        primary_record = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == primary.external_id)
+        )
+        alternative_record = await session.scalar(
+            select(ExternalListingSource).where(ExternalListingSource.external_id == alternative.external_id)
+        )
+        assert primary_record is not None and alternative_record is not None
+        listing = await session.get(Listing, primary_record.canonical_listing_id)
+        assert listing is not None
+        assert listing.primary_source == primary.source_name
+
+        missing_primary = external_item(
+            source=primary.source_name,
+            external_id=primary.external_id,
+            url=primary.source_url,
+            latitude=None,
+            longitude=None,
+        )
+        assert await upsert(session, missing_primary) == "filtered_wrong_location"
+        await session.refresh(listing)
+        assert listing.status == "published"
+        assert listing.primary_source == alternative.source_name
+        assert listing.primary_source_url == alternative.source_url
+
+        # Once the only verified-location source disappears, the remaining
+        # coordinate-less source must not be promoted as if it were usable.
+        assert await deactivate_source_record(session, alternative_record, "removed") == 1
+        await session.commit()
+        await session.refresh(listing)
+        assert listing.status == "closed"
+
+
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
     before_catalog = await client.get("/api/v1/listings/catalog-version")
     assert before_catalog.status_code == 200, before_catalog.text
