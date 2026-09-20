@@ -149,6 +149,9 @@ def test_public_map_coordinates_support_bare_source_attributes_and_map_paths():
         '<div class="map" lat="28.5022764" long="-16.3197064"></div>'
     ) == pytest.approx((28.5022764, -16.3197064))
     assert public_map_coordinates(
+        f'<div lat="28.5022764" data-meta="{"x" * 1400}" long="-16.3197064"></div>'
+    ) == pytest.approx((28.5022764, -16.3197064))
+    assert public_map_coordinates(
         '<script>latitude=28.4182; longitude=-16.5001;</script>'
     ) == pytest.approx((28.4182, -16.5001))
     assert public_map_coordinates(
