@@ -144,6 +144,18 @@ def test_public_map_coordinates_support_real_estate_js_coordinate_keys():
     ) == pytest.approx((28.482123, -16.321987))
 
 
+def test_public_map_coordinates_support_bare_source_attributes_and_map_paths():
+    assert public_map_coordinates(
+        '<div class="map" lat="28.5022764" long="-16.3197064"></div>'
+    ) == pytest.approx((28.5022764, -16.3197064))
+    assert public_map_coordinates(
+        '<script>latitude=28.4182; longitude=-16.5001;</script>'
+    ) == pytest.approx((28.4182, -16.5001))
+    assert public_map_coordinates(
+        '<img src="https://map.imghs.net/Cache/Z/1_350_28.4182@-16.5001_1_0.gif">'
+    ) == pytest.approx((28.4182, -16.5001))
+
+
 def test_external_storage_keys_are_unique_per_asset_attempt():
     owner_id = uuid4()
     first = external_storage_key(owner_id, uuid4())
