@@ -60,7 +60,7 @@ export function parseGoogleAddress(
     if (!value) return false
     const normalized = value.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     return !normalizedCity || normalized !== normalizedCity
-  })
+  }) ?? city
 
   return {
     formattedAddress,
