@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import html
 import json
+import re
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -63,6 +65,7 @@ class DetailAudit:
     map_point: bool | None = None
     latitude: float | None = None
     longitude: float | None = None
+    location_signals: list[str] = field(default_factory=list)
     document_bytes: int = 0
     fetch_method: str = ""
     http_status: int | None = None
@@ -183,6 +186,25 @@ async def audit_source(
                     detail.map_point = normalized.latitude is not None and normalized.longitude is not None
                     if detail.map_point:
                         result.mapped_details += 1
+                    else:
+                        signals: list[str] = []
+                        for match in re.finditer(
+                            r"""(?ix)
+                            (?:
+                                (?:property_)?(?:latitude|longitude|lat|lng|lon|long)
+                                \s*[:=]\s*["']?\s*-?\d+(?:\.\d+)?
+                                |
+                                https?://[^"'<>\s\\]*(?:maps?|staticmap)[^"'<>\s\\]*
+                            )
+                            """,
+                            html.unescape(document).replace("\\/", "/"),
+                        ):
+                            signal = clean(match.group(0))[:240]
+                            if signal and signal not in signals:
+                                signals.append(signal)
+                            if len(signals) >= 12:
+                                break
+                        detail.location_signals = signals
             except SourceBlocked as exc:
                 result.blocked = True
                 detail.error = _safe_error(exc)
