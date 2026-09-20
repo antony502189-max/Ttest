@@ -2002,6 +2002,16 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
         external_id = re.search(r"ID de Inmueble:\s*(\d+)", body, re.IGNORECASE)
         updated = re.search(r"Actualizado en:\s*([^\n]{3,80}?)(?:\s+\d+\s+Dormitorios|\s+Descripci[oó]n)", body, re.IGNORECASE)
         image = meta_content(document, "og:image")
+        source_latitude = re.search(
+            r"""\blat\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            document,
+            re.IGNORECASE,
+        )
+        source_longitude = re.search(
+            r"""\blong\s*=\s*["']\s*(-?\d+(?:\.\d+)?)\s*["']""",
+            document,
+            re.IGNORECASE,
+        )
         data.update(
             {
                 "title": clean(heading.group(1)) if heading else data["title"],
@@ -2011,6 +2021,8 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
                 "municipality": clean(city.group(1)) if city else data.get("municipality"),
                 "area": clean(city.group(1)) if city else data.get("area"),
                 "address": clean(address.group(1)) if address else data.get("address"),
+                "latitude": source_latitude.group(1) if source_latitude else data.get("latitude"),
+                "longitude": source_longitude.group(1) if source_longitude else data.get("longitude"),
                 "category": "alquiler habitación compartido alquiler docente canarias",
                 "images": [image] if image else [],
                 # Keep stable source identity but do not persist contact data
