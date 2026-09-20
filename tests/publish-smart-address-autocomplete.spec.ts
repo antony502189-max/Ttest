@@ -17,6 +17,18 @@ async function openPublishLocation(page: Page) {
   await expect(page.locator('#publish-street[data-address-autocomplete="native"]')).toBeVisible()
 }
 
+async function openFirstListingEdit(page: Page) {
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+  const edit = page.locator('.manage-card').first().getByRole('link', { name: /Editar/i })
+  const href = await edit.getAttribute('href')
+  expect(href).toBeTruthy()
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('#publish-street[data-address-autocomplete="native"]')).toBeVisible()
+}
+
 test('publish address autocomplete uses the native field and resilient Google prediction fallbacks', () => {
   expect(smartSource).toContain('AutocompleteSuggestion.fetchAutocompleteSuggestions')
   expect(smartSource).toContain('new places.AutocompleteSessionToken()')
@@ -110,3 +122,122 @@ test('keyboard can choose an address prediction without opening a fullscreen mob
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
   await expect(page.locator('.publish-address-predictions')).toBeHidden()
 })
+
+test('customer video: leading list prefix does not reject a valid Avenida V Centenario building and postal town replaces stale area', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openPublishLocation(page)
+  await page.getByLabel('Municipio').selectOption('Adeje')
+  await page.getByLabel('Zona o barrio').fill('Armeñime')
+  await page.getByLabel('Código postal').fill('38678')
+
+  const exact = { lat: 28.0679, lng: -16.7270 }
+  await page.evaluate((coordinates) => {
+    window.__112233TestAddressPredictions = async () => [{
+      label: 'Av. V Centenario, 1, 38660 Playa de las Américas, Santa Cruz de Tenerife',
+      detail: {
+        formattedAddress: 'Av. V Centenario, 1, 38660 Playa de las Américas, Santa Cruz de Tenerife',
+        addressComponents: [
+          { longText: 'Avenida V Centenario', types: ['route'] },
+          { longText: '1', types: ['street_number'] },
+          { longText: '38660', types: ['postal_code'] },
+          { longText: 'Playa de las Américas', types: ['postal_town'] },
+          { longText: 'Adeje', types: ['administrative_area_level_3'] },
+          { longText: 'Santa Cruz de Tenerife', types: ['administrative_area_level_2'] },
+        ],
+        coordinates,
+      },
+    }]
+  }, exact)
+
+  const street = page.locator('#publish-street')
+  await street.fill('0 Playa de las Américas, Santa Cruz de Tenerife')
+  const prediction = page.locator('.publish-address-prediction').first()
+  await expect(prediction).toBeVisible()
+  await prediction.click()
+
+  await expect(street).toHaveValue('Avenida V Centenario 1')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38660')
+  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Playa de las Américas')
+  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
+  await expect.poll(() => page.evaluate(() => {
+    const center = window.__googleMapsTestLastMap?.getCenter()
+    return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
+  })).toEqual(exact)
+})
+
+test('rejected address suggestion never overwrites the visible street while structured fields stay unchanged', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Municipio').selectOption('Adeje')
+  await page.getByLabel('Zona o barrio').fill('Armeñime')
+  await page.getByLabel('Código postal').fill('38678')
+
+  await page.evaluate(() => {
+    window.__112233TestAddressPredictions = async () => [{
+      label: 'Calle Londres 7, 38660 Costa Adeje, Adeje',
+      detail: {
+        formattedAddress: 'Calle Londres 7, 38660 Costa Adeje, Adeje',
+        addressComponents: [
+          { longText: 'Calle Londres', types: ['route'] },
+          { longText: '7', types: ['street_number'] },
+          { longText: '38660', types: ['postal_code'] },
+          { longText: 'Costa Adeje', types: ['sublocality_level_1'] },
+          { longText: 'Adeje', types: ['administrative_area_level_3'] },
+        ],
+        coordinates: { lat: 28.0919, lng: -16.7364 },
+      },
+    }]
+  })
+
+  const street = page.locator('#publish-street')
+  await street.fill('Calle Londres 5')
+  const prediction = page.locator('.publish-address-prediction').first()
+  await expect(prediction).toBeVisible()
+  await prediction.click()
+
+  await expect(street).toHaveValue('Calle Londres 5')
+  await expect(page.getByLabel('Código postal')).toHaveValue('38678')
+  await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
+  await expect(page.locator('.publish-address-assist')).toHaveAttribute('data-location-bias-source', 'error')
+})
+
+test('customer video: edit autocomplete searches the current area first for an ambiguous street', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openFirstListingEdit(page)
+  await page.getByLabel('Municipio').selectOption('Adeje')
+  await page.getByLabel('Zona o barrio').fill('Playa de las Américas')
+
+  await page.evaluate(() => {
+    const holder = window as Window & { __customerVideoPredictionQueries?: string[] }
+    holder.__customerVideoPredictionQueries = []
+    window.__112233TestAddressPredictions = async (query) => {
+      holder.__customerVideoPredictionQueries?.push(query)
+      if (!query.toLocaleLowerCase().includes('playa de las américas')) return []
+      return [{
+        label: 'Calle Poetas Españoles 3, Playa de las Américas, Adeje',
+        detail: {
+          formattedAddress: 'Calle Poetas Españoles 3, Playa de las Américas, Adeje',
+          addressComponents: [
+            { longText: 'Calle Poetas Españoles', types: ['route'] },
+            { longText: '3', types: ['street_number'] },
+            { longText: '38660', types: ['postal_code'] },
+            { longText: 'Playa de las Américas', types: ['postal_town'] },
+            { longText: 'Adeje', types: ['administrative_area_level_3'] },
+          ],
+          coordinates: { lat: 28.0668, lng: -16.7281 },
+        },
+      }]
+    }
+  })
+
+  const shell = page.locator('.approximate-location-map-shell')
+  await expect(shell).toHaveAttribute('data-location-lat', /.+/)
+  await expect(shell).toHaveAttribute('data-location-lng', /.+/)
+
+  await page.locator('#publish-street').fill('Calle Poetas Españoles 3')
+  await expect(page.locator('.publish-address-prediction').first()).toBeVisible()
+  await expect.poll(() => page.evaluate(() => (window as Window & { __customerVideoPredictionQueries?: string[] }).__customerVideoPredictionQueries ?? [])).toContain(
+    'Calle Poetas Españoles 3, Playa de las Américas, Adeje',
+  )
+})
+

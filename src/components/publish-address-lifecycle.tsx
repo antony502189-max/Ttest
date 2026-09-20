@@ -52,11 +52,14 @@ function PublishPostcodeAreaNormalizer() {
       const municipality = component(components, 'administrative_area_level_3')
         || component(components, 'administrative_area_level_4')
       const locality = component(components, 'locality')
+      const postalTown = component(components, 'postal_town')
       const area = component(components, 'sublocality_level_1')
         || component(components, 'sublocality')
         || component(components, 'neighborhood')
+        || (postalTown && normalize(postalTown) !== normalize(municipality) ? postalTown : '')
         || (locality && normalize(locality) !== normalize(municipality) ? locality : '')
         || municipality
+        || postalTown
         || locality
 
       setAddressSyncedValue(document.querySelector<HTMLInputElement>('#publish-area'), area)

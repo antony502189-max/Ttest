@@ -43,8 +43,14 @@ function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, va
 
 function matchingSelectValue(element: HTMLSelectElement | null, candidates: string[]) {
   if (!element) return ''
-  const available = new Set(Array.from(element.options, (option) => option.value))
-  return candidates.find((candidate) => candidate && available.has(candidate)) ?? ''
+  const options = Array.from(element.options)
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const normalized = normalizeTenerifeText(candidate)
+    const match = options.find((option) => normalizeTenerifeText(option.value) === normalized)
+    if (match) return match.value
+  }
+  return ''
 }
 
 function pointInRing(point: Coordinates, ring: number[][]) {
@@ -163,14 +169,16 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
   const number = component(components, 'street_number')
   const postcode = component(components, 'postal_code')
   const locality = component(components, 'locality')
+  const postalTown = component(components, 'postal_town')
   const municipality = component(components, 'administrative_area_level_3')
   const municipalFallback = component(components, 'administrative_area_level_4')
   const citySelect = document.querySelector<HTMLSelectElement>('#publish-city')
-  const city = matchingSelectValue(citySelect, [municipality, municipalFallback, locality])
+  const city = matchingSelectValue(citySelect, [municipality, municipalFallback, locality, postalTown])
   const area = component(components, 'sublocality_level_1')
     || component(components, 'sublocality')
     || component(components, 'neighborhood')
-    || (locality && locality !== city ? locality : '')
+    || (postalTown && normalizeTenerifeText(postalTown) !== normalizeTenerifeText(city) ? postalTown : '')
+    || (locality && normalizeTenerifeText(locality) !== normalizeTenerifeText(city) ? locality : '')
   const street = [route, number].filter(Boolean).join(' ').trim()
 
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-street'), street)

@@ -229,7 +229,12 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
     mapRef.current?.panTo(coordinates)
   }, [coordinates.lat, coordinates.lng, coordinates])
 
-  return <div className="approximate-location-map-shell google-map-shell" data-provider="google-maps">
+  return <div
+    className="approximate-location-map-shell google-map-shell"
+    data-provider="google-maps"
+    data-location-lat={coordinates.lat}
+    data-location-lng={coordinates.lng}
+  >
     <div ref={containerRef} className="approximate-location-map google-map-canvas" role="application" aria-label={mapLabel} />
     <p className="approximate-location-map-hint">{guidance}</p>
     {detectedAddress ? <p className="approximate-location-map-address" aria-live="polite"><strong>{detectedLabel}:</strong> {detectedAddress}</p> : null}
