@@ -33,8 +33,8 @@ def external_item(
     city: str = "Adeje",
     area: str = "Adeje",
     public_address: str | None = None,
-    latitude: float = 28.1227,
-    longitude: float = -16.7244,
+    latitude: float | None = 28.1227,
+    longitude: float | None = -16.7244,
 ) -> NormalizedListing:
     return NormalizedListing(
         source_name=source,
@@ -201,6 +201,66 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert imported["approximateAddress"] == "El Médano"
         assert imported["latitude"] == pytest.approx(28.0438656770)
         assert imported["longitude"] == pytest.approx(-16.5351811288)
+
+
+async def test_external_upsert_hides_stale_centroid_when_source_point_disappears_and_restores_it():
+    async with SessionLocal() as session:
+        exact = external_item(
+            source="LocationIntegrity",
+            external_id="location-integrity-1",
+            url="https://example.test/location-integrity-1",
+            city="Adeje",
+            area="Costa Adeje",
+            public_address="Costa Adeje",
+            latitude=28.0871,
+            longitude=-16.7324,
+        )
+        assert await upsert(session, exact) == "imported"
+
+        listing = await session.scalar(
+            select(Listing).where(
+                Listing.primary_source == exact.source_name,
+                Listing.primary_source_url == exact.source_url,
+            )
+        )
+        assert listing is not None
+        listing_id = listing.id
+        assert listing.status == "published"
+
+        missing_point = external_item(
+            source=exact.source_name,
+            external_id=exact.external_id,
+            url=exact.source_url,
+            city="Adeje",
+            area="Costa Adeje",
+            public_address="Costa Adeje",
+            latitude=None,
+            longitude=None,
+        )
+        assert await upsert(session, missing_point) == "filtered_wrong_location"
+
+        hidden = await session.get(Listing, listing_id)
+        assert hidden is not None
+        assert hidden.status == "closed"
+        assert hidden.closed_reason == "source_location_unverified"
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == exact.source_name,
+                ExternalListingSource.external_id == exact.external_id,
+            )
+        )
+        assert source_record is not None
+        assert source_record.current_status == "active"
+        assert source_record.last_error == "source_location_unverified"
+        assert source_record.normalized_payload["latitude"] is None
+        assert source_record.normalized_payload["longitude"] is None
+
+        assert await upsert(session, exact) == "restored"
+        restored = await session.get(Listing, listing_id)
+        assert restored is not None
+        assert restored.status == "published"
+        assert restored.closed_reason is None
 
 
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
