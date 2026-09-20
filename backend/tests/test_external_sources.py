@@ -682,6 +682,8 @@ def test_alquiler_docente_fixture_uses_public_source_id_and_omits_contact_data()
     assert normalized.city == "La Laguna"
     assert normalized.price_amount == 450
     assert normalized.price_period == "month"
+    assert normalized.latitude == pytest.approx(28.482123)
+    assert normalized.longitude == pytest.approx(-16.321987)
     assert normalized.phone is None and normalized.whatsapp is None and normalized.email is None
     assert normalized.photos == ["https://images.example.test/alquiler-docente-room.jpg"]
 
