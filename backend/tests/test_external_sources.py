@@ -710,9 +710,9 @@ def test_alquiler_docente_reads_template_lat_long_even_when_they_are_far_apart()
         <p>450 € /mes + gastos</p>
         <p>Dirección: Camino Rincón, 21, La Laguna</p>
         <p>Ciudad: La Laguna Código postal: 38203 País: España</p>
-        <div marker_lat=&quot;28.5022764&quot;></div>
+        <div lat="28.5022764"></div>
         <!-- {"x" * 1400} -->
-        <div property_long=&quot;-16.3197064&quot;></div>
+        <div long="-16.3197064"></div>
         <p>ID de Inmueble: 74795</p>
       </body>
     </html>
