@@ -135,6 +135,15 @@ def test_public_map_coordinates_support_source_static_map_decimal_commas():
     ) == pytest.approx((28.0438656770, -16.5351811288))
 
 
+def test_public_map_coordinates_support_real_estate_js_coordinate_keys():
+    assert public_map_coordinates(
+        '<script>window.marker = {"lat": 28.482123, "long": -16.321987};</script>'
+    ) == pytest.approx((28.482123, -16.321987))
+    assert public_map_coordinates(
+        '<script>window.property = {"property_latitude":"28.482123","property_longitude":"-16.321987"};</script>'
+    ) == pytest.approx((28.482123, -16.321987))
+
+
 def test_external_storage_keys_are_unique_per_asset_attempt():
     owner_id = uuid4()
     first = external_storage_key(owner_id, uuid4())
