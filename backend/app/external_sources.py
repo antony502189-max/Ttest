@@ -232,18 +232,25 @@ def public_map_coordinates(document: str) -> tuple[float, float] | None:
     if property_latitude and property_longitude:
         return public_coordinate_pair(f"{property_latitude.group(1)},{property_longitude.group(1)}")
 
-    bare_latitude = re.search(
-        r"""\b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+    bare_pair = re.search(
+        r"""\b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            \b(?:longitude|lng|lon|long)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
         normalized,
-        re.IGNORECASE,
+        re.IGNORECASE | re.VERBOSE,
     )
-    bare_longitude = re.search(
-        r"""\b(?:longitude|lng|lon|long)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
+    if bare_pair:
+        return public_coordinate_pair(",".join(bare_pair.groups()))
+    reverse_bare_pair = re.search(
+        r"""\b(?:longitude|lng|lon|long)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?
+            [\s\S]{0,1000}?
+            \b(?:latitude|lat)\s*=\s*["']?\s*(-?\d+(?:\.\d+)?)\s*["']?""",
         normalized,
-        re.IGNORECASE,
+        re.IGNORECASE | re.VERBOSE,
     )
-    if bare_latitude and bare_longitude:
-        return public_coordinate_pair(f"{bare_latitude.group(1)},{bare_longitude.group(1)}")
+    if reverse_bare_pair:
+        longitude, latitude = reverse_bare_pair.groups()
+        return public_coordinate_pair(f"{latitude},{longitude}")
 
     for raw_url in re.findall(r"""https?://[^"'<>\s\\]+""", normalized, re.IGNORECASE):
         parsed = urlparse(raw_url.rstrip("),.;"))
