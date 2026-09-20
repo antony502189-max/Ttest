@@ -61,11 +61,16 @@ class SourceRunCounters(dict[str, int]):
 
 
 def completed_source_contract(counters: dict[str, int]) -> bool:
-    """Require evidence that discovery reached at least one valid room detail."""
-    return all(
+    """Require at least one valid room that can actually remain on the public map."""
+    reached_valid_detail = all(
         counters.get(key, 0) > 0
         for key in ("discovered_urls", "fetched_details", "accepted_rooms")
     )
+    publishable = any(
+        counters.get(key, 0) > 0
+        for key in ("imported", "updated", "unchanged", "restored")
+    )
+    return reached_valid_detail and publishable
 
 
 def public_location(item: NormalizedListing) -> tuple[float, float] | None:
