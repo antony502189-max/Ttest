@@ -397,6 +397,7 @@ async def test_external_upsert_keeps_card_visible_when_source_point_disappears_a
         assert await upsert(session, exact) == "updated"
         restored = await session.get(Listing, listing_id)
         assert restored is not None
+        await session.refresh(restored)
         assert restored.status == "published"
         assert restored.closed_reason is None
         assert restored.location is not None
