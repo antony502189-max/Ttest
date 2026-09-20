@@ -699,6 +699,32 @@ def test_alquiler_docente_sitemap_discovery_stays_with_target_room_adverts():
     asyncio.run(verify())
 
 
+def test_alquiler_docente_reads_template_lat_long_even_when_they_are_far_apart():
+    source = AlquilerDocenteCanariasSource()
+    document = f"""
+    <html>
+      <head><title>Habitación en La Laguna</title></head>
+      <body>
+        <h1>Habitación en San Cristóbal de La Laguna, Tenerife.</h1>
+        <div class="property-description">Se alquila habitación amueblada en piso compartido.</div>
+        <p>450 € /mes + gastos</p>
+        <p>Dirección: Camino Rincón, 21, La Laguna</p>
+        <p>Ciudad: La Laguna Código postal: 38203 País: España</p>
+        <div lat="28.5022764"></div>
+        <!-- {"x" * 1400} -->
+        <div long="-16.3197064"></div>
+        <p>ID de Inmueble: 74795</p>
+      </body>
+    </html>
+    """
+    url = "https://alquilerdocentecanarias.com/estate_property/habitacion-test-san-cristobal-de-la-laguna-tenerife/"
+    parsed = source.parse_listing(document, url)
+    normalized = source.normalize_listing(parsed, url)
+    assert normalized is not None
+    assert normalized.latitude == pytest.approx(28.5022764)
+    assert normalized.longitude == pytest.approx(-16.3197064)
+
+
 def test_alquiler_docente_fixture_uses_public_source_id_and_omits_contact_data():
     document = (Path(__file__).parent / "fixtures" / "external_sources" / "alquiler_docente_canarias" / "room.html").read_text(
         encoding="utf-8"
