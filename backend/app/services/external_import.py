@@ -772,6 +772,48 @@ async def deactivate_rejected_source(session: AsyncSession, source_name: str, so
     await deactivate_source_record(session, row, "rejected")
 
 
+async def reconcile_unverified_source_locations(session: AsyncSession, source_name: str) -> int:
+    """Remove legacy centroid markers before any network access to a source."""
+    rows = (
+        await session.scalars(
+            select(SourceRecord).where(
+                SourceRecord.source_name == source_name,
+                SourceRecord.current_status == "active",
+            )
+        )
+    ).all()
+    changed = 0
+    for row in rows:
+        payload = row.normalized_payload or {}
+        if payload.get("latitude") is not None and payload.get("longitude") is not None:
+            if row.last_error == "source_location_unverified":
+                row.last_error = None
+            continue
+
+        row.last_error = "source_location_unverified"
+        listing = await session.get(Listing, row.canonical_listing_id)
+        if listing is None or listing.primary_source != row.source_name or listing.status == "closed":
+            continue
+
+        if await promote_best_active_source(session, listing.id):
+            changed += 1
+            continue
+
+        listing.status = "closed"
+        listing.closed_reason = "source_location_unverified"
+        listing.last_synced_at = datetime.now(UTC)
+        await notify_favorited_listing_unavailable(
+            session,
+            listing,
+            event_key=f"external:{row.id}:source_location_unverified",
+        )
+        await touch_catalog(session)
+        changed += 1
+
+    await session.commit()
+    return changed
+
+
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> dict[str, int]:
     started = perf_counter()
     counters = SourceRunCounters({
@@ -801,6 +843,12 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     run = ExternalImportRun(run_id=run_id, source_name=source.name)
     session.add(run)
     await session.commit()
+    reconciled_locations = await reconcile_unverified_source_locations(session, source.name)
+    if reconciled_locations:
+        logger.info(
+            "external_import_reconciled_unverified_locations",
+            extra={"source": source.name, "closed_or_promoted": reconciled_locations},
+        )
     started_at = datetime.now(UTC)
     previous_block = await session.scalar(
         select(ExternalImportRun)
