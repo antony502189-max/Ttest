@@ -114,26 +114,35 @@ test('MEDIA-10 shared listing photo survives until its final reference is delete
   }
 })
 
-test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', async ({ page }) => {
-  const obsolete = await putMedia(page, 'obsolete-edit-photo')
-  await page.evaluate(({ reference }) => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
-    payload.data[0].images = [reference, ...payload.data[0].images.slice(1)]
-    localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
-  }, { reference: obsolete })
+test('MEDIA-11 rotating a newly added listing photo removes the obsolete local blob', async ({ page }) => {
   await openAsHost(page, `/#/mis-anuncios/${encodeURIComponent(firstListingId)}/editar`)
   await expect(page.locator('.listing-edit-page')).toBeVisible()
-  await page.locator('input[aria-label="Sustituir foto del anuncio"]').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: png })
-  const replacement = await expect.poll(() => page.evaluate((listingId) => {
+
+  const before = await page.locator('.upload-grid img').count()
+  await page.locator('#publish-images').setInputFiles({ name: 'rotate.png', mimeType: 'image/png', buffer: png })
+  await expect(page.locator('.upload-grid img')).toHaveCount(before + 1)
+
+  const original = await expect.poll(() => page.evaluate((listingId) => {
     const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) ?? ''
   }, firstListingId)).toMatch(/^idb-media:/).then(async () => page.evaluate((listingId) => {
     const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
     return draft.data.images.find((image: string) => image.startsWith('idb-media:')) as string
   }, firstListingId))
+
+  await page.getByRole('button', { name: `Girar foto ${before + 1} 90 grados` }).click()
+
+  const rotated = await expect.poll(() => page.evaluate(({ listingId, previous }) => {
+    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
+    return draft.data.images.find((image: string) => image.startsWith('idb-media:') && image !== previous) ?? ''
+  }, { listingId: firstListingId, previous: original })).toMatch(/^idb-media:/).then(async () => page.evaluate(({ listingId, previous }) => {
+    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
+    return draft.data.images.find((image: string) => image.startsWith('idb-media:') && image !== previous) as string
+  }, { listingId: firstListingId, previous: original }))
+
+  await expect.poll(() => mediaExists(page, original)).toBe(false)
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect.poll(() => mediaExists(page, obsolete)).toBe(false)
-  await expect.poll(() => mediaExists(page, replacement)).toBe(true)
+  await expect.poll(() => mediaExists(page, rotated)).toBe(true)
 })
 
 test('DRAFT-05 reset removes only draft media and preserves listing media', async ({ page }) => {
