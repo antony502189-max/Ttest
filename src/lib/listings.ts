@@ -1,5 +1,4 @@
-import type { AcceptedTenantType, BedType, HeatingType, HouseholdGender, Listing, RentalUnit, TenantRequirement, ToiletType } from '@/types'
-import { TENERIFE_CENTER } from '@/lib/tenerife'
+import type { AcceptedTenantType, BedType, Coordinates, HeatingType, HouseholdGender, Listing, MappedListing, RentalUnit, TenantRequirement, ToiletType } from '@/types'
 
 export const tenantRequirementLabels: Record<TenantRequirement, string> = {
   'single-man': 'Solo hombre',
@@ -10,6 +9,15 @@ export const tenantRequirementLabels: Record<TenantRequirement, string> = {
 }
 
 export const unknownListingFact = 'Consultar con el anunciante'
+
+export function hasListingCoordinates(listing: Listing): listing is MappedListing {
+  const coordinates = listing.coordinates
+  return Boolean(
+    coordinates
+    && Number.isFinite(coordinates.lat)
+    && Number.isFinite(coordinates.lng),
+  )
+}
 
 export function getPrimaryPrice(listing: Listing) {
   return listing.rentalMode === 'holiday'
@@ -90,7 +98,13 @@ function acceptedTenantTypes(value: unknown): AcceptedTenantType[] {
 export function isListingLike(value: unknown): value is Partial<Listing> & Pick<Listing, 'id' | 'title' | 'rentalMode' | 'images' | 'publishedAt'> {
   if (!value || typeof value !== 'object') return false
   const listing = value as Record<string, unknown>
-  const coordinates = listing.coordinates as Record<string, unknown> | undefined
+  const coordinates = listing.coordinates as Record<string, unknown> | null | undefined
+  const coordinatesValid = coordinates == null || (
+    typeof coordinates.lat === 'number'
+    && Number.isFinite(coordinates.lat)
+    && typeof coordinates.lng === 'number'
+    && Number.isFinite(coordinates.lng)
+  )
   return typeof listing.id === 'string'
     && typeof listing.title === 'string'
     && typeof listing.city === 'string'
@@ -102,11 +116,7 @@ export function isListingLike(value: unknown): value is Partial<Listing> & Pick<
     && listing.images.every((image) => typeof image === 'string')
     && typeof listing.publishedAt === 'string'
     && typeof listing.expiresAt === 'string'
-    && Boolean(coordinates)
-    && typeof coordinates?.lat === 'number'
-    && Number.isFinite(coordinates.lat)
-    && typeof coordinates?.lng === 'number'
-    && Number.isFinite(coordinates.lng)
+    && coordinatesValid
 }
 
 export function normalizeListing(value: unknown): Listing | null {
@@ -182,9 +192,13 @@ export function normalizeListing(value: unknown): Listing | null {
     accessible: typeof legacy.accessible === 'boolean' ? legacy.accessible : null,
     couplesAllowed: typeof legacy.couplesAllowed === 'boolean' ? legacy.couplesAllowed : null,
     acceptedTenantTypes: acceptedTenantTypes(legacy.acceptedTenantTypes),
-    coordinates: legacy.coordinates && typeof legacy.coordinates.lat === 'number' && typeof legacy.coordinates.lng === 'number'
-      ? legacy.coordinates
-      : { ...TENERIFE_CENTER },
+    ...(legacy.coordinates
+      && typeof legacy.coordinates.lat === 'number'
+      && Number.isFinite(legacy.coordinates.lat)
+      && typeof legacy.coordinates.lng === 'number'
+      && Number.isFinite(legacy.coordinates.lng)
+      ? { coordinates: legacy.coordinates as Coordinates }
+      : {}),
     tenantRequirement,
     smokingAllowed: typeof legacy.smokingAllowed === 'boolean' ? legacy.smokingAllowed : null,
     petsAllowed: typeof legacy.petsAllowed === 'boolean' ? legacy.petsAllowed : null,

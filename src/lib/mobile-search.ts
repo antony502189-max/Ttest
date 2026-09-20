@@ -1,6 +1,7 @@
 import { defaultFilters } from '@/data/listings'
 import { distanceKm } from '@/lib/geolocation'
 import { filterListings, filtersFromParams, pointInPolygon, sortListings } from '@/lib/search'
+import { hasListingCoordinates } from '@/lib/listings'
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from '@/lib/tenerife'
 import type { Filters, Listing, MapPolygonPoint, RentalMode } from '@/types'
 
@@ -76,8 +77,12 @@ export function selectMobileSearchListings({
   ).filter((listing) => {
     if (!location || !listingMatchesTenerifeLocation(listing, location)) return false
     if (roomTypes.length && !roomTypes.includes(listing.roomType)) return false
-    if (polygonApplied && polygon.length >= 3 && !pointInPolygon(listing.coordinates, polygon)) return false
-    if (nearbyCenter && distanceKm(listing.coordinates, nearbyCenter) > radiusKm) return false
+    if (polygonApplied && polygon.length >= 3) {
+      if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, polygon)) return false
+    }
+    if (nearbyCenter) {
+      if (!hasListingCoordinates(listing) || distanceKm(listing.coordinates, nearbyCenter) > radiusKm) return false
+    }
     return true
   }).map((listing) => originalById.get(listing.id) ?? listing)
 

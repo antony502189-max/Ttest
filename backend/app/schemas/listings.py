@@ -384,8 +384,8 @@ class ListingResponse(BaseModel):
     restrictions: list[str]
     amenities: list[str]
     status: str
-    latitude: float
-    longitude: float
+    latitude: float | None
+    longitude: float | None
     description: str
     homeDescription: str
     advertiserName: str | None = None

@@ -86,11 +86,11 @@ def test_contract_audit_checks_discovery_detail_parse_and_normalize():
     assert result.details[0].target_province is True
 
 
-def test_contract_audit_rejects_normalized_details_without_a_public_map_point():
+def test_contract_audit_accepts_normalized_list_only_details_without_a_public_map_point():
     result = asyncio.run(
         audit_source(CoordinateLessSource(), max_pages=2, max_details=2, source_timeout=15, detail_timeout=5)
     )
-    assert result.status == "location_failed"
+    assert result.status == "healthy"
     assert result.normalized_details == 1
     assert result.mapped_details == 0
     assert result.details[0].map_point is False

@@ -8,6 +8,7 @@ import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { buildDisplayMarkerPositions } from '@/lib/map-marker-overlap'
+import { hasListingCoordinates } from '@/lib/listings'
 import type { Listing } from '@/types'
 import '@/mobile-map-ideal.css'
 
@@ -32,10 +33,11 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
   const t = labels[language]
+  const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items])
   // Keep camera-fitting tied to actual marker geometry rather than TOP state.
-  const signature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [items])
-  const promotionSignature = useMemo(() => items.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
-  const selected = items.find((item) => item.id === selectedId)
+  const signature = useMemo(() => mappedItems.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [mappedItems])
+  const promotionSignature = useMemo(() => mappedItems.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [mappedItems])
+  const selected = mappedItems.find((item) => item.id === selectedId)
 
   useEffect(() => {
     const map = mapRef.current
@@ -78,9 +80,9 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       await loadGoogleMaps()
       if (cancelled || !mapRef.current) return
       clear()
-      const displayPositions = buildDisplayMarkerPositions(items)
+      const displayPositions = buildDisplayMarkerPositions(mappedItems)
 
-      const markers = items.map((listing) => {
+      const markers = mappedItems.map((listing) => {
         const content = createPriceMarkerContent(listing)
         content.dataset.testid = `mobile-map-marker-${listing.id}`
         content.dataset.listingId = listing.id
@@ -118,10 +120,10 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         })
       }
 
-      if (items.length && fittedSignatureRef.current !== signature) {
+      if (mappedItems.length && fittedSignatureRef.current !== signature) {
         fittedSignatureRef.current = signature
         const bounds = new google.maps.LatLngBounds()
-        items.forEach((listing) => bounds.extend(listing.coordinates))
+        mappedItems.forEach((listing) => bounds.extend(listing.coordinates))
         map.fitBounds(bounds, { top: 96, right: 34, bottom: 150, left: 34 })
         google.maps.event.addListenerOnce(map, 'idle', () => {
           const zoom = map.getZoom() ?? 0
@@ -136,23 +138,23 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
 
     void createMarkers()
     return () => { cancelled = true; clear() }
-  }, [items, mapReady, mapRef, signature])
+  }, [mappedItems, mapReady, mapRef, signature])
 
   useEffect(() => {
-    if (!selectedId || items.some((item) => item.id === selectedId)) return
+    if (!selectedId || mappedItems.some((item) => item.id === selectedId)) return
     setSelectedId('')
-  }, [items, selectedId])
+  }, [mappedItems, selectedId])
 
   useEffect(() => {
     markersRef.current.forEach((marker, id) => {
-      const listing = items.find((item) => item.id === id)
+      const listing = mappedItems.find((item) => item.id === id)
       if (!listing || !(marker.content instanceof HTMLElement)) return
       const selectedMarker = id === selectedId
       setPriceMarkerState(marker.content, selectedMarker, false, Boolean(listing.promoted))
       marker.zIndex = selectedMarker ? 4000 : listing.promoted ? 100 : 10
       marker.content.dataset.markerZIndex = String(marker.zIndex)
     })
-  }, [items, promotionSignature, selectedId])
+  }, [mappedItems, promotionSignature, selectedId])
 
   useEffect(() => {
     const map = mapRef.current

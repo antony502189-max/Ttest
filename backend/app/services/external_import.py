@@ -61,7 +61,7 @@ class SourceRunCounters(dict[str, int]):
 
 
 def completed_source_contract(counters: dict[str, int]) -> bool:
-    """Require at least one valid room that can actually remain on the public map."""
+    """Require at least one valid room that can remain in the public catalog."""
     reached_valid_detail = all(
         counters.get(key, 0) > 0
         for key in ("discovered_urls", "fetched_details", "accepted_rooms")
@@ -385,34 +385,36 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing = await canonical_for(session, item, image_hashes)
 
     coordinates = public_location(item)
-    if coordinates is None:
-        # Never leave a municipality-centroid marker behind when the source no
-        # longer publishes a verifiable point. Existing source records remain
-        # reconcilable so a later crawl can restore the listing if coordinates
-        # reappear.
-        if source:
-            source.raw_payload = item.raw_payload
-            source.normalized_payload = normalized_snapshot(item)
-            source.fingerprint = item.fingerprint
-            source.source_url = item.source_url
-            source.source_price_text = item.source_price_text
-            source.last_checked_at = source.last_success_at = source.last_seen_at = now
-            source.last_discovered_at = now
-            source.content_updated_at = now
-            source.consecutive_missing_runs = 0
-            source.consecutive_unknown_state_runs = 0
-            source.current_status = "active"
-            source.last_error = "source_location_unverified"
-            if listing is not None and listing.primary_source == item.source_name and listing.status != "closed":
-                if await promote_best_active_source(session, listing.id):
-                    await session.commit()
-                    return "filtered_wrong_location"
-                listing.status = "closed"
-                listing.closed_reason = "source_location_unverified"
-                listing.last_synced_at = now
-                await touch_catalog(session)
-        await session.commit()
-        return "filtered_wrong_location"
+    source_location_verified = coordinates is not None
+
+    # Persist the source's latest location state before considering failover.
+    # A source without a public point is still a valid catalog source; it just
+    # cannot own a map marker. If a verified duplicate exists, prefer it as the
+    # primary so the canonical card can keep a trustworthy marker.
+    if source:
+        source.raw_payload = item.raw_payload
+        source.normalized_payload = normalized_snapshot(item)
+        source.fingerprint = item.fingerprint
+        source.source_url = item.source_url
+        source.source_price_text = item.source_price_text
+        source.last_checked_at = source.last_success_at = source.last_seen_at = now
+        source.last_discovered_at = now
+        source.content_updated_at = now
+        source.consecutive_missing_runs = 0
+        source.consecutive_unknown_state_runs = 0
+        source.current_status = "active"
+        source.last_error = None if source_location_verified else "source_location_unverified"
+        source.removed_at = None
+        source.removed_reason = None
+        if (
+            not source_location_verified
+            and listing is not None
+            and listing.primary_source == item.source_name
+            and listing.status != "closed"
+            and await promote_best_active_source(session, listing.id, require_location=True)
+        ):
+            await session.commit()
+            return "updated"
 
     # An identical payload is only a no-op while its canonical card is still
     # visible. A source may reappear after a confirmed removal; in that case
@@ -425,11 +427,16 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         and source.current_status == "active"
         and listing is not None
         and listing.status != "closed"
+        and (
+            listing.primary_source != item.source_name
+            or (coordinates is None and listing.location is None)
+            or (coordinates is not None and listing.location is not None)
+        )
     ):
         source.last_checked_at = source.last_success_at = source.last_seen_at = now
         source.consecutive_missing_runs = 0
         source.current_status = "active"
-        source.last_error = None
+        source.last_error = None if source_location_verified else "source_location_unverified"
         await session.commit()
         return "unchanged"
     owner = await system_user(session)
@@ -457,7 +464,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             room_capacity=min(room_capacity, 2) if room_capacity is not None else None,
             tenant_requirement=item.tenant_requirement,
             room_type=item.room_type,
-            location=point(coordinates[1], coordinates[0]),
+            location=point(coordinates[1], coordinates[0]) if coordinates is not None else None,
             status="published",
             is_external=True,
             imported_at=now,
@@ -482,7 +489,10 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         not listing.primary_source
         or listing.primary_source == item.source_name
         or force_primary
-        or completeness_score(item) >= listing_completeness_score(listing)
+        or (
+            coordinates is not None
+            and completeness_score(item) >= listing_completeness_score(listing)
+        )
     )
     if replace_primary:
         room_details = await session.get(ListingRoomDetails, listing.id)
@@ -538,7 +548,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.last_synced_at = now
         listing.status = "published"
         listing.closed_reason = None
-        listing.location = point(coordinates[1], coordinates[0])
+        listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
     elif restored:
         listing.status = "published"
         listing.closed_reason = None
@@ -564,7 +574,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     source.consecutive_missing_runs = 0
     source.consecutive_unknown_state_runs = 0
     source.current_status = "active"
-    source.last_error = None
+    source.last_error = None if source_location_verified else "source_location_unverified"
     source.removed_at = None
     source.removed_reason = None
     if action != "unchanged" or restored:
@@ -585,7 +595,12 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     return result
 
 
-async def promote_best_active_source(session: AsyncSession, canonical_listing_id) -> bool:
+async def promote_best_active_source(
+    session: AsyncSession,
+    canonical_listing_id,
+    *,
+    require_location: bool = False,
+) -> bool:
     rows = (
         await session.scalars(
             select(SourceRecord).where(
@@ -599,13 +614,17 @@ async def promote_best_active_source(session: AsyncSession, canonical_listing_id
         if not row.normalized_payload:
             continue
         candidate = listing_from_snapshot(row.normalized_payload)
-        if public_location(candidate) is not None:
-            candidates.append(candidate)
+        if require_location and public_location(candidate) is None:
+            continue
+        candidates.append(candidate)
     if not candidates:
         return False
-    best = max(candidates, key=completeness_score)
+    best = max(
+        candidates,
+        key=lambda candidate: (public_location(candidate) is not None, completeness_score(candidate)),
+    )
     outcome = await upsert(session, best, force_primary=True)
-    return outcome != "filtered_wrong_location"
+    return outcome in {"imported", "updated", "unchanged", "restored"}
 
 
 async def deactivate_source_record(session: AsyncSession, row: SourceRecord, reason: str) -> int:
@@ -773,7 +792,7 @@ async def deactivate_rejected_source(session: AsyncSession, source_name: str, so
 
 
 async def reconcile_unverified_source_locations(session: AsyncSession, source_name: str) -> int:
-    """Remove legacy centroid markers before any network access to a source."""
+    """Remove legacy invented markers while keeping valid cards in the catalog."""
     rows = (
         await session.scalars(
             select(SourceRecord).where(
@@ -794,23 +813,28 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
 
         row.last_error = "source_location_unverified"
         listing = await session.get(Listing, row.canonical_listing_id)
-        if listing is None or listing.primary_source != row.source_name or listing.status == "closed":
+        if listing is None or listing.primary_source != row.source_name:
+            continue
+        if listing.status == "closed" and listing.closed_reason != "source_location_unverified":
             continue
 
-        if await promote_best_active_source(session, listing.id):
+        if await promote_best_active_source(session, listing.id, require_location=True):
             changed += 1
             continue
 
-        listing.status = "closed"
-        listing.closed_reason = "source_location_unverified"
-        listing.last_synced_at = datetime.now(UTC)
-        await notify_favorited_listing_unavailable(
-            session,
-            listing,
-            event_key=f"external:{row.id}:source_location_unverified",
+        needs_catalog_touch = (
+            listing.location is not None
+            or listing.status == "closed"
+            or listing.closed_reason == "source_location_unverified"
         )
-        await touch_catalog(session)
-        changed += 1
+        listing.location = None
+        listing.last_synced_at = datetime.now(UTC)
+        if listing.closed_reason == "source_location_unverified":
+            listing.status = "published"
+            listing.closed_reason = None
+        if needs_catalog_touch:
+            await touch_catalog(session)
+            changed += 1
 
     await session.commit()
     return changed
@@ -849,7 +873,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     if reconciled_locations:
         logger.info(
             "external_import_reconciled_unverified_locations",
-            extra={"source": source.name, "closed_or_promoted": reconciled_locations},
+            extra={"source": source.name, "updated_or_promoted": reconciled_locations},
         )
     started_at = datetime.now(UTC)
     previous_block = await session.scalar(

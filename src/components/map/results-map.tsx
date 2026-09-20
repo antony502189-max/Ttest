@@ -16,7 +16,7 @@ import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPrice
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { cn } from '@/lib/utils'
-import type { Listing, MapPolygonPoint } from '@/types'
+import type { MappedListing, MapPolygonPoint } from '@/types'
 import '@/map.css'
 import '@/current-location-marker.css'
 import '@/freehand-map-drawing.css'
@@ -29,7 +29,7 @@ export interface MapBounds {
 }
 
 export interface ResultsMapProps {
-  items: Listing[]
+  items: MappedListing[]
   selectedId?: string
   highlightedId?: string
   onSelect: (id: string) => void
@@ -72,7 +72,7 @@ function pointOnMap(map: google.maps.Map, clientX: number, clientY: number): Map
   return latLng ? { lat: latLng.lat(), lng: latLng.lng() } : null
 }
 
-function fitListings(map: google.maps.Map, listings: Listing[]) {
+function fitListings(map: google.maps.Map, listings: MappedListing[]) {
   if (!listings.length) return
   const bounds = new google.maps.LatLngBounds()
   listings.forEach((listing) => bounds.extend(listing.coordinates))

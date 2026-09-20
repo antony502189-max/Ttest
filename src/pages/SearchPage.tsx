@@ -20,7 +20,7 @@ import { useI18n } from "@/contexts/i18n-context";
 import { currentLocale } from "@/lib/i18n-locale";
 import { searchPublicListings } from "@/api/listings";
 import { defaultFilters } from "@/data/listings";
-import { tenantRequirementLabels } from "@/lib/listings";
+import { hasListingCoordinates, tenantRequirementLabels } from "@/lib/listings";
 import { loadTenerifeZoneHierarchy } from "@/lib/map/geojson";
 import { getMunicipalityLabel, getRootMunicipalityId, getZoneLabel, isDetailedZoneId, type TenerifeZoneCollection } from "@/lib/map/zones";
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
@@ -220,19 +220,20 @@ export function SearchPage() {
   const spatialItems = useMemo(
     () =>
       filteredItems.filter((listing) => {
-        if (
-          mapBounds &&
-          (listing.coordinates.lat > mapBounds.north ||
+        if (mapBounds) {
+          if (!hasListingCoordinates(listing)) return false;
+          if (
+            listing.coordinates.lat > mapBounds.north ||
             listing.coordinates.lat < mapBounds.south ||
             listing.coordinates.lng > mapBounds.east ||
-            listing.coordinates.lng < mapBounds.west)
-        )
-          return false;
-        if (
-          mapPolygon.length >= 3 &&
-          !pointInPolygon(listing.coordinates, mapPolygon)
-        )
-          return false;
+            listing.coordinates.lng < mapBounds.west
+          )
+            return false;
+        }
+        if (mapPolygon.length >= 3) {
+          if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, mapPolygon))
+            return false;
+        }
         return true;
       }),
     [filteredItems, mapBounds, mapPolygon],
@@ -241,6 +242,7 @@ export function SearchPage() {
     () => sortListings(spatialItems, filters.sort),
     [filters.sort, spatialItems],
   );
+  const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items]);
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageItems = items.slice(
@@ -485,7 +487,7 @@ export function SearchPage() {
       </div>
       <div className="mobile-map-screen__canvas">
         <MapView
-          items={items}
+          items={mappedItems}
           selectedId={selected}
           highlightedId={highlighted}
           onSelect={setSelected}
@@ -665,7 +667,7 @@ export function SearchPage() {
               </div>
               <div className="idealista-map-view">
                 <MapView
-                  items={items}
+                  items={mappedItems}
                   selectedId={selected}
                   highlightedId={highlighted}
                   onSelect={setSelected}

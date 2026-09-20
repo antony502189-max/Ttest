@@ -67,8 +67,8 @@ type ListingDto = {
   restrictions: string[]
   amenities: string[]
   status: string
-  latitude: number
-  longitude: number
+  latitude: number | null
+  longitude: number | null
   description: string
   homeDescription: string
   advertiserName: string | null
@@ -165,7 +165,9 @@ export function toListing(dto: ListingDto): Listing {
     floor: dto.floor,
     couplesAllowed: dto.couplesAllowed,
     acceptedTenantTypes: dto.acceptedTenantTypes,
-    coordinates: { lat: dto.latitude, lng: dto.longitude },
+    ...(dto.latitude != null && dto.longitude != null
+      ? { coordinates: { lat: dto.latitude, lng: dto.longitude } }
+      : {}),
     tenantRequirement: dto.tenantRequirement,
     smokingAllowed: dto.smokingAllowed,
     petsAllowed: dto.petsAllowed,
@@ -376,6 +378,8 @@ async function syncContactProfile(listing: Listing) {
 function listingPayload(listing: Listing, existing?: Listing) {
   const draft = readDraftPrivateFields(listing.id)
   const exact = listing.exactCoordinates ?? existing?.exactCoordinates
+  const coordinates = listing.coordinates
+  if (!coordinates) throw new Error('Coordinates are required for owner-created listings')
   return {
     title: listing.title, city: listing.city, area: listing.area,
     street: draft?.street?.trim() || listing.street || existing?.street || '',
@@ -396,8 +400,8 @@ function listingPayload(listing: Listing, existing?: Listing) {
     acceptedTenantTypes: listing.acceptedTenantTypes ?? [],
     tenantRequirement: listing.tenantRequirement, smokingAllowed: listing.smokingAllowed,
     petsAllowed: listing.petsAllowed, childrenAllowed: listing.childrenAllowed, empadronamientoAllowed: listing.empadronamientoAllowed,
-    restrictions: listing.restrictions, amenities: listing.amenities, latitude: listing.coordinates.lat,
-    longitude: listing.coordinates.lng, exactLatitude: exact?.lat ?? null, exactLongitude: exact?.lng ?? null,
+    restrictions: listing.restrictions, amenities: listing.amenities, latitude: coordinates.lat,
+    longitude: coordinates.lng, exactLatitude: exact?.lat ?? null, exactLongitude: exact?.lng ?? null,
     description: listing.description, homeDescription: listing.homeDescription,
     advertiserType: listing.advertiserType,
     expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null,

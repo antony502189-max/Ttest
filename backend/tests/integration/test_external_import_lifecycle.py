@@ -204,7 +204,55 @@ async def test_external_upsert_preserves_source_public_location(client: AsyncCli
         assert imported["longitude"] == pytest.approx(-16.5351811288)
 
 
-async def test_reconcile_closes_legacy_published_listing_whose_snapshot_has_no_source_coordinates():
+async def test_coordinate_less_external_listing_is_public_in_list_but_not_spatial_search(client: AsyncClient):
+    async with SessionLocal() as session:
+        item = external_item(
+            source="HiddenAddress",
+            external_id="hidden-address-1",
+            url="https://example.test/hidden-address-1",
+            city="Adeje",
+            area="Costa Adeje",
+            public_address="Costa Adeje",
+            latitude=None,
+            longitude=None,
+        )
+        assert await upsert(session, item) == "imported"
+
+        record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert record is not None
+        assert record.last_error == "source_location_unverified"
+        listing = await session.get(Listing, record.canonical_listing_id)
+        assert listing is not None
+        assert listing.status == "published"
+        assert listing.location is None
+
+        response = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
+        assert response.status_code == 200, response.text
+        row = next(value for value in response.json()["items"] if value["id"] == str(listing.id))
+        assert row["latitude"] is None
+        assert row["longitude"] is None
+
+        spatial = await client.post(
+            "/api/v1/listings/search",
+            json={
+                "city": "Adeje",
+                "minLatitude": 27.9,
+                "maxLatitude": 28.6,
+                "minLongitude": -17.0,
+                "maxLongitude": -16.0,
+                "limit": 20,
+            },
+        )
+        assert spatial.status_code == 200, spatial.text
+        assert all(value["id"] != str(listing.id) for value in spatial.json()["items"])
+
+
+async def test_reconcile_removes_legacy_centroid_but_keeps_listing_public_in_results(client: AsyncClient):
     async with SessionLocal() as session:
         item = external_item(
             source="LegacyCentroid",
@@ -227,9 +275,6 @@ async def test_reconcile_closes_legacy_published_listing_whose_snapshot_has_no_s
         listing = await session.get(Listing, record.canonical_listing_id)
         assert listing is not None and listing.status == "published"
 
-        # Model a record imported by the legacy centroid fallback: the
-        # canonical card has a point, but the persisted source snapshot never
-        # contained one.
         record.normalized_payload = {
             **record.normalized_payload,
             "latitude": None,
@@ -242,9 +287,15 @@ async def test_reconcile_closes_legacy_published_listing_whose_snapshot_has_no_s
         await session.refresh(listing)
         assert record.current_status == "active"
         assert record.last_error == "source_location_unverified"
-        assert listing.status == "closed"
-        assert listing.closed_reason == "source_location_unverified"
+        assert listing.status == "published"
+        assert listing.closed_reason is None
+        assert listing.location is None
 
+        response = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
+        assert response.status_code == 200, response.text
+        row = next(value for value in response.json()["items"] if value["id"] == str(listing.id))
+        assert row["latitude"] is None
+        assert row["longitude"] is None
 
 async def test_reconcile_leaves_unknown_legacy_snapshot_schema_untouched():
     async with SessionLocal() as session:
@@ -281,7 +332,9 @@ async def test_reconcile_leaves_unknown_legacy_snapshot_schema_untouched():
         assert listing.status == "published"
 
 
-async def test_external_upsert_hides_stale_centroid_when_source_point_disappears_and_restores_it():
+async def test_external_upsert_keeps_card_visible_when_source_point_disappears_and_restores_marker(
+    client: AsyncClient,
+):
     async with SessionLocal() as session:
         exact = external_item(
             source="LocationIntegrity",
@@ -315,12 +368,13 @@ async def test_external_upsert_hides_stale_centroid_when_source_point_disappears
             latitude=None,
             longitude=None,
         )
-        assert await upsert(session, missing_point) == "filtered_wrong_location"
+        assert await upsert(session, missing_point) == "updated"
 
-        hidden = await session.get(Listing, listing_id)
-        assert hidden is not None
-        assert hidden.status == "closed"
-        assert hidden.closed_reason == "source_location_unverified"
+        visible = await session.get(Listing, listing_id)
+        assert visible is not None
+        assert visible.status == "published"
+        assert visible.closed_reason is None
+        assert visible.location is None
 
         source_record = await session.scalar(
             select(ExternalListingSource).where(
@@ -334,12 +388,18 @@ async def test_external_upsert_hides_stale_centroid_when_source_point_disappears
         assert source_record.normalized_payload["latitude"] is None
         assert source_record.normalized_payload["longitude"] is None
 
-        assert await upsert(session, exact) == "restored"
+        search = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
+        assert search.status_code == 200, search.text
+        public_row = next(row for row in search.json()["items"] if row["id"] == str(listing_id))
+        assert public_row["latitude"] is None
+        assert public_row["longitude"] is None
+
+        assert await upsert(session, exact) == "updated"
         restored = await session.get(Listing, listing_id)
         assert restored is not None
         assert restored.status == "published"
         assert restored.closed_reason is None
-
+        assert restored.location is not None
 
 async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates():
     async with SessionLocal() as session:
@@ -384,18 +444,21 @@ async def test_location_loss_promotes_only_an_alternative_with_verified_coordina
             latitude=None,
             longitude=None,
         )
-        assert await upsert(session, missing_primary) == "filtered_wrong_location"
+        assert await upsert(session, missing_primary) == "updated"
         await session.refresh(listing)
         assert listing.status == "published"
         assert listing.primary_source == alternative.source_name
         assert listing.primary_source_url == alternative.source_url
 
         # Once the only verified-location source disappears, the remaining
-        # coordinate-less source must not be promoted as if it were usable.
-        assert await deactivate_source_record(session, alternative_record, "removed") == 1
+        # coordinate-less source becomes the list-only primary instead of
+        # removing the canonical card from search results.
+        assert await deactivate_source_record(session, alternative_record, "removed") == 0
         await session.commit()
         await session.refresh(listing)
-        assert listing.status == "closed"
+        assert listing.status == "published"
+        assert listing.primary_source == primary.source_name
+        assert listing.location is None
 
 
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):

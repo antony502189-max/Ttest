@@ -189,10 +189,11 @@ async def audit_source(
             except (httpx.HTTPError, RuntimeError, ValueError, OSError, TimeoutError) as exc:
                 detail.error = _safe_error(exc)
 
-        if result.mapped_details:
+        if result.normalized_details:
+            # A valid source may intentionally withhold a precise map point.
+            # Keep map coverage as a diagnostic while treating its list cards
+            # as healthy public catalog results.
             result.status = "healthy"
-        elif result.normalized_details:
-            result.status = "location_failed"
         elif result.blocked:
             result.status = "blocked"
         elif not result.discovered_urls:

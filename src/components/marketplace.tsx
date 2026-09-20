@@ -118,6 +118,7 @@ import { TENERIFE_LOCATIONS, resolveTenerifeLocation } from "@/lib/tenerife";
 import type {
   Filters,
   Listing,
+  MappedListing,
   MapPolygonPoint,
   RentalMode,
   YesNoAny,
@@ -1172,7 +1173,7 @@ export function FilterSidebar({
 }
 
 export function MapView(props: {
-  items: Listing[];
+  items: MappedListing[];
   selectedId?: string;
   highlightedId?: string;
   onSelect: (id: string) => void;

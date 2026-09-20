@@ -21,6 +21,7 @@ const locationCopy = {
     openMap: 'Ver mapa',
     dialogTitle: 'Ubicación',
     closeMap: 'Volver al anuncio',
+    unavailable: 'La fuente no publica una ubicación verificable. El anuncio sigue disponible sin marcador en el mapa.',
   },
   en: {
     mapAria: 'Map of the listing’s approximate location',
@@ -35,6 +36,7 @@ const locationCopy = {
     openMap: 'View map',
     dialogTitle: 'Location',
     closeMap: 'Back to listing',
+    unavailable: 'The source does not publish a verifiable location. The listing remains available without a map marker.',
   },
   ru: {
     mapAria: 'Карта примерного местоположения объявления',
@@ -49,6 +51,7 @@ const locationCopy = {
     openMap: 'Открыть карту',
     dialogTitle: 'Местоположение',
     closeMap: 'Назад к объявлению',
+    unavailable: 'Источник не публикует проверяемую геопозицию. Объявление доступно без маркера на карте.',
   },
 } as const
 
@@ -145,9 +148,6 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
   const t = locationCopy[language]
   const [open, setOpen] = useState(false)
   const backButtonRef = useRef<HTMLButtonElement>(null)
-  const destination = `${listing.coordinates.lat},${listing.coordinates.lng}`
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
-  const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeURIComponent(destination)}`
 
   useEffect(() => {
     if (!open) return
@@ -164,6 +164,18 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
     }
   }, [open])
 
+  const coordinates = listing.coordinates
+  if (!coordinates) {
+    return <section className="listing-section listing-location-section">
+      <h2>{t.heading}</h2>
+      <p className="map-intro">{t.unavailable}</p>
+    </section>
+  }
+
+  const destination = `${coordinates.lat},${coordinates.lng}`
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+  const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeURIComponent(destination)}`
+
   const actions = <div className="listing-location-actions" aria-label={t.actionsAria}>
     <a href={directionsUrl} target="_blank" rel="noopener noreferrer"><Navigation aria-hidden="true" />{t.directions}</a>
     <a href={streetViewUrl} target="_blank" rel="noopener noreferrer"><Camera aria-hidden="true" />{t.streetView}</a>
@@ -171,7 +183,7 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
 
   const fullscreenMap = open ? createPortal(
     <div className="listing-location-dialog" role="dialog" aria-modal="true" aria-label={t.dialogTitle}>
-      <div className="listing-location-dialog__map"><ListingLocationMap coordinates={listing.coordinates} interactive /></div>
+      <div className="listing-location-dialog__map"><ListingLocationMap coordinates={coordinates} interactive /></div>
       <button ref={backButtonRef} type="button" className="listing-location-dialog__back" onClick={() => setOpen(false)} aria-label={t.closeMap}>
         <ArrowLeft aria-hidden="true" />
       </button>
@@ -186,7 +198,7 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
       <p className="map-intro">{t.intro}</p>
       {actions}
       <div className="listing-location-preview">
-        <div className="listing-location-preview__map" aria-hidden="true"><ListingLocationMap coordinates={listing.coordinates} /></div>
+        <div className="listing-location-preview__map" aria-hidden="true"><ListingLocationMap coordinates={coordinates} /></div>
         <button type="button" className="listing-location-preview__open" onClick={() => setOpen(true)} aria-label={t.openMapAria}>
           <Expand aria-hidden="true" /><span>{t.openMap}</span>
         </button>
