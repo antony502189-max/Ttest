@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import replace
 
-import pytest
-
 import app.habitaclia_source as habitaclia_module
 from app import external_sources
 from app.habitaclia_source import HabitacliaSource, install_habitaclia_source
@@ -151,38 +149,29 @@ def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> Non
         asyncio.run(source.close())
 
 
-def test_habitaclia_preserves_public_locality_address_and_source_map_center() -> None:
+def test_habitaclia_preserves_public_address_without_promoting_static_map_center() -> None:
     source = HabitacliaSource()
     try:
         url = "https://www.habitaclia.com/i34692000000210.htm"
         data = source.parse_listing(el_medano_location_document(), url)
         assert data["city"] == "Granadilla de Abona"
         assert data["area"] == "El Médano"
-        assert data["public_address"] == "El Médano"
-        assert data["latitude"] == pytest.approx(28.0438656770)
-        assert data["longitude"] == pytest.approx(-16.5351811288)
+        assert data["public_address"] == "El Médano Avenida JOSE MIGUEL GALVAN BELLO"
+        assert data["latitude"] is None
+        assert data["longitude"] is None
 
         item = source.normalize_listing(data, url)
         assert item is not None
         assert item.city == "Granadilla de Abona"
         assert item.area == "El Médano"
-        assert item.public_address == "El Médano"
-        assert item.latitude == pytest.approx(28.0438656770)
-        assert item.longitude == pytest.approx(-16.5351811288)
+        assert item.public_address == "El Médano Avenida JOSE MIGUEL GALVAN BELLO"
+        assert item.latitude is None
+        assert item.longitude is None
 
         moved = replace(item, area="Granadilla de Abona", public_address="Granadilla de Abona")
         assert moved.fingerprint != item.fingerprint
     finally:
         asyncio.run(source.close())
-
-
-def test_habitaclia_map_center_parser_handles_decimal_comma_and_decimal_point() -> None:
-    assert HabitacliaSource._center_coordinates(
-        "28%2C0438656770%2C-16%2C5351811288"
-    ) == pytest.approx((28.0438656770, -16.5351811288))
-    assert HabitacliaSource._center_coordinates(
-        "28.0438656770,-16.5351811288"
-    ) == pytest.approx((28.0438656770, -16.5351811288))
 
 
 def test_habitaclia_extracts_images_from_detail_hydration() -> None:
