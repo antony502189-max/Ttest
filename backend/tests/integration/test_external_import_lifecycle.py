@@ -246,6 +246,41 @@ async def test_reconcile_closes_legacy_published_listing_whose_snapshot_has_no_s
         assert listing.closed_reason == "source_location_unverified"
 
 
+async def test_reconcile_leaves_unknown_legacy_snapshot_schema_untouched():
+    async with SessionLocal() as session:
+        item = external_item(
+            source="UnknownLegacySnapshot",
+            external_id="unknown-legacy-snapshot-1",
+            url="https://example.test/unknown-legacy-snapshot-1",
+            latitude=28.1227,
+            longitude=-16.7244,
+        )
+        assert await upsert(session, item) == "imported"
+
+        record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert record is not None
+        listing = await session.get(Listing, record.canonical_listing_id)
+        assert listing is not None
+
+        record.normalized_payload = {
+            key: value
+            for key, value in record.normalized_payload.items()
+            if key not in {"latitude", "longitude"}
+        }
+        await session.commit()
+
+        assert await reconcile_unverified_source_locations(session, item.source_name) == 0
+        await session.refresh(record)
+        await session.refresh(listing)
+        assert record.last_error is None
+        assert listing.status == "published"
+
+
 async def test_external_upsert_hides_stale_centroid_when_source_point_disappears_and_restores_it():
     async with SessionLocal() as session:
         exact = external_item(
