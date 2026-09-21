@@ -59,15 +59,18 @@ function refresh() {
   return refreshPromise
 }
 
-export async function api<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
+type ApiRequestInit = RequestInit & { timeoutMs?: number }
+
+export async function api<T>(path: string, init: ApiRequestInit = {}, retried = false): Promise<T> {
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 15_000)
+  const { timeoutMs = 15_000, ...requestInit } = init
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const headers = new Headers(init.headers)
+    const headers = new Headers(requestInit.headers)
     const requestHadAccessToken = Boolean(accessToken)
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-    if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal })
+    if (requestInit.body && !headers.has('Content-Type') && !(requestInit.body instanceof FormData)) headers.set('Content-Type', 'application/json')
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: requestInit.signal ?? controller.signal })
     // Refresh is recovery for an expired bearer token, not an authentication
     // mechanism for anonymous requests. Session hydration explicitly calls the
     // refresh endpoint on page load; requests made after logout must not revive
@@ -94,7 +97,7 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
   } catch (error) {
     if (error instanceof ApiError) throw error
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError(0, 'La solicitud tardó demasiado.', {}, init.signal ? 'REQUEST_ABORTED' : 'REQUEST_TIMEOUT')
+      throw new ApiError(0, 'La solicitud tardó demasiado.', {}, requestInit.signal ? 'REQUEST_ABORTED' : 'REQUEST_TIMEOUT')
     }
     if (error instanceof TypeError) {
       throw new ApiError(0, 'No se pudo conectar con el servidor.', {}, 'NETWORK_ERROR')
