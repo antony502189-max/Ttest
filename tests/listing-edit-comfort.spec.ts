@@ -137,49 +137,47 @@ test('owner can scroll down, edit distant sections and save without wizard navig
   expect((stored?.owner as { name?: string } | undefined)?.name).toBe('Propietario scroll')
 })
 
-test('photo can be replaced in place without deleting the rest', async ({ page }) => {
+test('photo rotate control turns a selected photo 90 degrees in place on mobile', async ({ page }) => {
   await openEditAsHost(page)
+
   const photos = page.locator('.upload-grid img')
-  await expect(photos.first()).toBeAttached()
   const before = await photos.count()
-  const beforeSrc = await photos.first().getAttribute('src')
   expect(before).toBeGreaterThan(0)
 
-  const firstCard = page.locator('.upload-grid > div').first()
-  const dropzone = page.locator('.upload-dropzone')
-  const addPhoto = page.locator('.upload-grid > button').first()
-  const replace = page.getByRole('button', { name: /Sustituir foto 1/ })
-
-  await firstCard.scrollIntoViewIfNeeded()
-  await expect(replace).toBeVisible()
-
-  const [cardBox, dropzoneBox, replaceBox, addBox] = await Promise.all([
-    firstCard.boundingBox(),
-    dropzone.boundingBox(),
-    replace.boundingBox(),
-    addPhoto.count().then(async (count) => count ? addPhoto.boundingBox() : null),
-  ])
-
-  expect(cardBox).not.toBeNull()
-  expect(cardBox?.width ?? 0).toBeGreaterThanOrEqual(300)
-  expect(cardBox?.height ?? 0).toBeGreaterThanOrEqual(220)
-  expect(dropzoneBox).not.toBeNull()
-  expect(dropzoneBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(160)
-  expect(replaceBox?.width ?? 0).toBeGreaterThanOrEqual(46)
-  expect(replaceBox?.height ?? 0).toBeGreaterThanOrEqual(46)
-  if (addBox) expect(addBox.width).toBeGreaterThanOrEqual(300)
-
-  const pageWidth = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }))
-  expect(pageWidth.document).toBeLessThanOrEqual(pageWidth.viewport)
-
-  await replace.click()
-  await page.locator('input[aria-label="Sustituir foto del anuncio"]').setInputFiles({
-    name: 'replacement.png',
+  await page.locator('#publish-images').setInputFiles({
+    name: 'rotate-me.png',
     mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64'),
   })
-  await expect(photos).toHaveCount(before)
-  await expect.poll(() => photos.first().getAttribute('src')).not.toBe(beforeSrc)
+  await expect(photos).toHaveCount(before + 1)
+
+  const index = before
+  const card = page.locator('.upload-grid > div').nth(index)
+  const image = photos.nth(index)
+  const rotate = page.getByRole('button', { name: `Girar foto ${index + 1} 90 grados` })
+
+  await card.scrollIntoViewIfNeeded()
+  await expect(rotate).toBeVisible()
+  await expect(page.locator('input[aria-label="Sustituir foto del anuncio"]')).toHaveCount(0)
+
+  const rotateBox = await rotate.boundingBox()
+  expect(rotateBox?.width ?? 0).toBeGreaterThanOrEqual(46)
+  expect(rotateBox?.height ?? 0).toBeGreaterThanOrEqual(46)
+
+  await expect.poll(() => image.evaluate((node) => ({
+    width: (node as HTMLImageElement).naturalWidth,
+    height: (node as HTMLImageElement).naturalHeight,
+  }))).toEqual({ width: 2, height: 1 })
+
+  const beforeSrc = await image.getAttribute('src')
+  expect(beforeSrc).toBeTruthy()
+  await rotate.click()
+
+  await expect.poll(() => image.getAttribute('src')).not.toBe(beforeSrc)
+  await expect.poll(() => image.evaluate((node) => ({
+    width: (node as HTMLImageElement).naturalWidth,
+    height: (node as HTMLImageElement).naturalHeight,
+  }))).toEqual({ width: 1, height: 2 })
 })
 
 test('new publication uses the same one-page long form as editing', async ({ page }) => {

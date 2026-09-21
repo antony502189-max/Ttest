@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 
 const hostSession = 'host-demo'
 const firstListingId = 'armeñime-luminosa-01'
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64')
 
 async function clearState(page: Page) {
   await page.goto('/#/')
@@ -57,6 +57,19 @@ async function mediaExists(page: Page, reference: string) {
       request.onerror = () => { database.close(); reject(request.error) }
     }
   }), reference)
+}
+
+async function mediaReferences(page: Page) {
+  return page.evaluate(() => new Promise<string[]>((resolve, reject) => {
+    const open = indexedDB.open('112233-media', 1)
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const database = open.result
+      const request = database.transaction('media', 'readonly').objectStore('media').getAllKeys()
+      request.onsuccess = () => { database.close(); resolve(request.result.map((key) => `idb-media:${String(key)}`)) }
+      request.onerror = () => { database.close(); reject(request.error) }
+    }
+  }))
 }
 
 async function advanceWizard(page: Page, count: number) {
@@ -114,26 +127,36 @@ test('MEDIA-10 shared listing photo survives until its final reference is delete
   }
 })
 
-test('MEDIA-11 replacing an edited listing photo removes the obsolete blob', async ({ page }) => {
-  const obsolete = await putMedia(page, 'obsolete-edit-photo')
-  await page.evaluate(({ reference }) => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
-    payload.data[0].images = [reference, ...payload.data[0].images.slice(1)]
-    localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
-  }, { reference: obsolete })
+test('MEDIA-11 rotating a newly added listing photo removes the obsolete local blob', async ({ page }) => {
   await openAsHost(page, `/#/mis-anuncios/${encodeURIComponent(firstListingId)}/editar`)
   await expect(page.locator('.listing-edit-page')).toBeVisible()
-  await page.locator('input[aria-label="Sustituir foto del anuncio"]').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: png })
-  const replacement = await expect.poll(() => page.evaluate((listingId) => {
-    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
-    return draft.data.images.find((image: string) => image.startsWith('idb-media:')) ?? ''
-  }, firstListingId)).toMatch(/^idb-media:/).then(async () => page.evaluate((listingId) => {
-    const draft = JSON.parse(localStorage.getItem(`112233:listing-edit-draft:v1:${listingId}`) ?? '{}')
-    return draft.data.images.find((image: string) => image.startsWith('idb-media:')) as string
-  }, firstListingId))
+
+  const beforeCount = await page.locator('.upload-grid img').count()
+  const mediaBefore = new Set(await mediaReferences(page))
+  await page.locator('#publish-images').setInputFiles({ name: 'rotate.png', mimeType: 'image/png', buffer: png })
+  await expect(page.locator('.upload-grid img')).toHaveCount(beforeCount + 1)
+
+  const original = await expect.poll(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference)) ?? ''
+  }).toMatch(/^idb-media:/).then(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference)) as string
+  })
+
+  await page.getByRole('button', { name: `Girar foto ${beforeCount + 1} 90 grados` }).click()
+
+  await expect.poll(() => mediaExists(page, original)).toBe(false)
+  const rotated = await expect.poll(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference) && reference !== original) ?? ''
+  }).toMatch(/^idb-media:/).then(async () => {
+    const current = await mediaReferences(page)
+    return current.find((reference) => !mediaBefore.has(reference) && reference !== original) as string
+  })
+
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect.poll(() => mediaExists(page, obsolete)).toBe(false)
-  await expect.poll(() => mediaExists(page, replacement)).toBe(true)
+  await expect.poll(() => mediaExists(page, rotated)).toBe(true)
 })
 
 test('DRAFT-05 reset removes only draft media and preserves listing media', async ({ page }) => {

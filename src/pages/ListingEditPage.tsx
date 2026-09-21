@@ -411,7 +411,7 @@ export function ListingEditPage() {
         <FormField label="Normas de la vivienda" htmlFor="edit-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="edit-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="edit-photos" title="Fotografías" hint="Sustituye una foto en su sitio, cambia la portada, reordena o añade nuevas.">
+      <Section id="edit-photos" title="Fotografías" hint="Gira una foto, cambia la portada, reordena o añade nuevas.">
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} error={errors.images} />
       </Section>
 

@@ -458,7 +458,7 @@ export function ListingCreatePage() {
         <FormField label="Normas de la vivienda" htmlFor="publish-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="publish-photos" title="Fotografías" hint="Sustituye una foto en su sitio, cambia la portada, reordena o añade nuevas.">
+      <Section id="publish-photos" title="Fotografías" hint="Gira una foto, cambia la portada, reordena o añade nuevas.">
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} error={errors.images} />
       </Section>
 

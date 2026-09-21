@@ -102,3 +102,33 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
     throw error
   } finally { window.clearTimeout(timeout) }
 }
+
+export async function apiBlob(path: string, init: RequestInit = {}, retried = false): Promise<Blob> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 15_000)
+  try {
+    const headers = new Headers(init.headers)
+    const requestHadAccessToken = Boolean(accessToken)
+    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal })
+    if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) {
+      return apiBlob(path, init, true)
+    }
+    if (!response.ok) {
+      throw new ApiError(response.status, response.status === 404 ? 'No se encontró la imagen.' : 'No se pudo leer la imagen.')
+    }
+    return response.blob()
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(0, 'La solicitud tardó demasiado.', {}, init.signal ? 'REQUEST_ABORTED' : 'REQUEST_TIMEOUT')
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(0, 'No se pudo conectar con el servidor.', {}, 'NETWORK_ERROR')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
