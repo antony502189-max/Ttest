@@ -17,7 +17,7 @@ export async function uploadMediaReference(reference: string) {
   if (!blob) throw new Error('No se encontró una de las imágenes locales.')
   const body = new FormData()
   body.append('file', new File([blob], 'listing-image.webp', { type: blob.type || 'image/webp' }))
-  return api<MediaAssetDto>('/uploads', { method: 'POST', body })
+  return api<MediaAssetDto>('/uploads', { method: 'POST', body, timeoutMs: 45_000 })
 }
 
 async function deleteUploadedAsset(assetId: string) {
