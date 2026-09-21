@@ -242,7 +242,16 @@ export function ListingCreatePage() {
     return () => window.clearTimeout(timer)
   }, [verificationCooldown])
 
-  const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => setDraft((current) => ({ ...current, [key]: value }))
+  const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }))
+    setErrors((current) => {
+      const next = { ...current }
+      delete next[String(key)]
+      if (key === 'city' || key === 'area') delete next.area
+      if (key === 'city' || key === 'area' || key === 'street' || key === 'postcode') delete next.location
+      return next
+    })
+  }
   const setEquipment = (field: EquipmentField, value: EquipmentSelections[EquipmentField]) => set('amenities', writeEquipmentAmenity(draft.amenities, field, value))
   const toggleAmenity = (item: string) => set('amenities', draft.amenities.includes(item) ? draft.amenities.filter((value) => value !== item) : [...draft.amenities, item])
   const toggleAccepted = (item: AcceptedTenantType) => set('acceptedTenantTypes', draft.acceptedTenantTypes.includes(item) ? draft.acceptedTenantTypes.filter((value) => value !== item) : [...draft.acceptedTenantTypes, item])
