@@ -267,7 +267,15 @@ export function ListingEditPage() {
       if (address.city && municipalitySet.has(address.city)) confirmedAddressRef.current = listingAddressFingerprint(next)
       return next
     })
-    setErrors((current) => ({ ...current, location: '' }))
+    setErrors((current) => {
+      const next = { ...current }
+      delete next.location
+      delete next.city
+      delete next.area
+      delete next.street
+      delete next.postcode
+      return next
+    })
   }
 
   const validate = () => {
