@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 
 const hostSession = 'host-demo'
 const firstListingId = 'armeñime-luminosa-01'
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64')
 
 async function clearState(page: Page) {
   await page.goto('/#/')
