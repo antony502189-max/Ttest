@@ -1,3 +1,8 @@
+.upload-grid > div > img.photo-rotation-preview {
+  transition: transform 80ms ease-out;
+  will-change: transform;
+}
+
 .image-uploader__edit-help {
   margin: -.25rem 0 .1rem;
   color: var(--ink-muted);
