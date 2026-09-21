@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, RotateCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiBlob } from "@/api/client";
@@ -193,7 +193,11 @@ async function imageBlob(reference: string) {
   return blob;
 }
 
-async function rotateImageFile(reference: string) {
+const normalizeQuarterTurns = (turns: number) => ((turns % 4) + 4) % 4;
+
+async function rotateImageFile(reference: string, quarterTurns = 1) {
+  const turns = normalizeQuarterTurns(quarterTurns);
+  if (!turns) throw new MediaStorageError("read", "La imagen ya está en su orientación original.");
   const blob = await imageBlob(reference);
   const objectUrl = URL.createObjectURL(blob);
   try {
@@ -208,13 +212,14 @@ async function rotateImageFile(reference: string) {
     }
 
     const canvas = document.createElement("canvas");
-    canvas.width = image.naturalHeight;
-    canvas.height = image.naturalWidth;
+    const swapsSides = turns % 2 === 1;
+    canvas.width = swapsSides ? image.naturalHeight : image.naturalWidth;
+    canvas.height = swapsSides ? image.naturalWidth : image.naturalHeight;
     const context = canvas.getContext("2d");
     if (!context) throw new MediaStorageError("unavailable", "No se pudo girar la imagen.");
 
     context.translate(canvas.width / 2, canvas.height / 2);
-    context.rotate(Math.PI / 2);
+    context.rotate((Math.PI / 2) * turns);
     context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
 
     const rotated = await new Promise<Blob>((resolve, reject) => {
@@ -235,23 +240,131 @@ export function ImageUploader({
   images,
   onChange,
   onRemove,
+  onProcessingChange,
   error,
 }: {
   images: string[];
   onChange: (images: string[]) => void;
   onRemove?: (image: string) => void;
+  onProcessingChange?: (processing: boolean) => void;
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const imagesRef = useRef(images);
   imagesRef.current = images;
-  const [rotatingIndex, setRotatingIndex] = useState<number | null>(null);
+  const rotationQueueRef = useRef(new Map<string, number>());
+  const rotationTimersRef = useRef(new Map<string, number>());
+  const rotatingReferencesRef = useRef(new Set<string>());
+  const busyReferencesRef = useRef(new Set<string>());
+  const [previewTurns, setPreviewTurns] = useState<Record<string, number>>({});
   const [localError, setLocalError] = useState("");
+
+  useEffect(() => () => {
+    rotationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    rotationTimersRef.current.clear();
+  }, []);
+
+  const reportBusy = (reference: string, busy: boolean) => {
+    const wasBusy = busyReferencesRef.current.size > 0;
+    if (busy) busyReferencesRef.current.add(reference);
+    else busyReferencesRef.current.delete(reference);
+    const isBusy = busyReferencesRef.current.size > 0;
+    if (wasBusy !== isBusy) onProcessingChange?.(isBusy);
+  };
+
+  const setPreview = (reference: string, turns: number) => {
+    const normalized = normalizeQuarterTurns(turns);
+    setPreviewTurns((current) => {
+      const next = { ...current };
+      if (normalized) next[reference] = normalized;
+      else delete next[reference];
+      return next;
+    });
+  };
+
+  const cancelPendingRotation = (reference: string) => {
+    const timer = rotationTimersRef.current.get(reference);
+    if (timer !== undefined) window.clearTimeout(timer);
+    rotationTimersRef.current.delete(reference);
+    rotationQueueRef.current.delete(reference);
+    setPreview(reference, 0);
+    if (!rotatingReferencesRef.current.has(reference)) reportBusy(reference, false);
+  };
+
+  function scheduleRotation(reference: string) {
+    const currentTimer = rotationTimersRef.current.get(reference);
+    if (currentTimer !== undefined) window.clearTimeout(currentTimer);
+    const timer = window.setTimeout(() => {
+      rotationTimersRef.current.delete(reference);
+      void flushRotation(reference);
+    }, 280);
+    rotationTimersRef.current.set(reference, timer);
+  }
+
+  async function flushRotation(reference: string) {
+    if (rotatingReferencesRef.current.has(reference)) return;
+    const turns = normalizeQuarterTurns(rotationQueueRef.current.get(reference) ?? 0);
+    if (!turns) {
+      rotationQueueRef.current.delete(reference);
+      setPreview(reference, 0);
+      reportBusy(reference, false);
+      return;
+    }
+
+    rotationQueueRef.current.set(reference, 0);
+    rotatingReferencesRef.current.add(reference);
+    try {
+      const file = await rotateImageFile(reference, turns);
+      const nextReference = await saveMediaFile(file);
+      const current = imagesRef.current;
+      const currentIndex = current.indexOf(reference);
+      if (currentIndex < 0) {
+        await removeMediaReferences([nextReference]).catch(() => undefined);
+        rotationQueueRef.current.delete(reference);
+        setPreview(reference, 0);
+        reportBusy(reference, false);
+        return;
+      }
+
+      const next = [...current];
+      next[currentIndex] = nextReference;
+      imagesRef.current = next;
+      onChange(next);
+      onRemove?.(reference);
+
+      const remainingTurns = normalizeQuarterTurns(rotationQueueRef.current.get(reference) ?? 0);
+      rotationQueueRef.current.delete(reference);
+      busyReferencesRef.current.delete(reference);
+      setPreviewTurns((currentPreview) => {
+        const updated = { ...currentPreview };
+        delete updated[reference];
+        if (remainingTurns) updated[nextReference] = remainingTurns;
+        return updated;
+      });
+
+      if (remainingTurns) {
+        rotationQueueRef.current.set(nextReference, remainingTurns);
+        busyReferencesRef.current.add(nextReference);
+        scheduleRotation(nextReference);
+      }
+      onProcessingChange?.(busyReferencesRef.current.size > 0);
+      setLocalError("");
+    } catch (rotateError) {
+      rotationQueueRef.current.delete(reference);
+      setPreview(reference, 0);
+      reportBusy(reference, false);
+      setLocalError(rotateError instanceof MediaStorageError ? rotateError.message : "No se pudo girar la imagen.");
+    } finally {
+      rotatingReferencesRef.current.delete(reference);
+    }
+  }
+
   const readFiles = async (files: FileList | null) => {
     if (!files) return;
+    const current = imagesRef.current;
     const accepted = [...files]
       .filter((file) => acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number]) && file.size <= 12_000_000)
-      .slice(0, Math.max(0, 8 - images.length));
+      .slice(0, Math.max(0, 8 - current.length));
     setLocalError(
       accepted.length !== files.length
         ? "Algunas fotos se omitieron: usa JPEG, PNG o WebP de hasta 12 MB (máximo 8)."
@@ -265,49 +378,58 @@ export function ImageUploader({
         await removeMediaReferences(references).catch(() => undefined);
         throw failed.reason;
       }
-      onChange([...images, ...references]);
+      const next = [...imagesRef.current, ...references];
+      imagesRef.current = next;
+      onChange(next);
     } catch (uploadError) {
       setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar una de las imágenes.");
     }
   };
-  const rotate = async (index: number) => {
-    if (rotatingIndex !== null) return;
-    const previous = images[index];
-    if (!previous) return;
 
-    setRotatingIndex(index);
-    try {
-      const file = await rotateImageFile(previous);
-      const reference = await saveMediaFile(file);
-      const current = imagesRef.current;
-      const currentIndex = current[index] === previous ? index : current.indexOf(previous);
-      if (currentIndex < 0) {
-        await removeMediaReferences([reference]).catch(() => undefined);
-        return;
-      }
-      const next = [...current];
-      next[currentIndex] = reference;
-      onChange(next);
-      onRemove?.(previous);
-      setLocalError("");
-    } catch (rotateError) {
-      setLocalError(rotateError instanceof MediaStorageError ? rotateError.message : "No se pudo girar la imagen.");
-    } finally {
-      setRotatingIndex(null);
+  const rotate = (index: number) => {
+    const reference = imagesRef.current[index];
+    if (!reference) return;
+
+    const queued = normalizeQuarterTurns((rotationQueueRef.current.get(reference) ?? 0) + 1);
+    rotationQueueRef.current.set(reference, queued);
+    setPreviewTurns((current) => {
+      const next = { ...current };
+      const visibleTurns = normalizeQuarterTurns((current[reference] ?? 0) + 1);
+      if (visibleTurns) next[reference] = visibleTurns;
+      else delete next[reference];
+      return next;
+    });
+    reportBusy(reference, true);
+
+    if (rotatingReferencesRef.current.has(reference)) return;
+    if (!queued) {
+      const timer = rotationTimersRef.current.get(reference);
+      if (timer !== undefined) window.clearTimeout(timer);
+      rotationTimersRef.current.delete(reference);
+      rotationQueueRef.current.delete(reference);
+      reportBusy(reference, false);
+      return;
     }
+    scheduleRotation(reference);
   };
   const move = (index: number, direction: -1 | 1) => {
+    const current = imagesRef.current;
     const target = index + direction;
-    if (target < 0 || target >= images.length) return;
-    const next = [...images];
+    if (target < 0 || target >= current.length) return;
+    const next = [...current];
     [next[index], next[target]] = [next[target], next[index]];
+    imagesRef.current = next;
     onChange(next);
   };
-  const makeCover = (index: number) =>
-    onChange([
-      images[index],
-      ...images.filter((_, imageIndex) => imageIndex !== index),
-    ]);
+  const makeCover = (index: number) => {
+    const current = imagesRef.current;
+    const next = [
+      current[index],
+      ...current.filter((_, imageIndex) => imageIndex !== index),
+    ];
+    imagesRef.current = next;
+    onChange(next);
+  };
   return (
     <div className="image-uploader">
       <button
@@ -345,11 +467,17 @@ export function ImageUploader({
           {localError}
         </p>
       ) : null}
-      <p className="image-uploader__edit-help">Puedes girar una foto, cambiar la portada y reordenar las imágenes sin volver a subir las demás.</p>
+      <p className="image-uploader__edit-help">El giro se muestra al instante; procesamos la foto en segundo plano. También puedes cambiar la portada y reordenar.</p>
       <div className="upload-grid">
         {images.map((image, index) => (
           <div key={`${image}-${index}`}>
-            <MediaImage src={image} alt={`Foto del anuncio ${index + 1}`} />
+            <MediaImage
+              src={image}
+              alt={`Foto del anuncio ${index + 1}`}
+              className={previewTurns[image] ? "photo-rotation-preview" : undefined}
+              data-preview-rotation={previewTurns[image] ? String(previewTurns[image] * 90) : undefined}
+              style={previewTurns[image] ? { transform: `rotate(${previewTurns[image] * 90}deg)` } : undefined}
+            />
             {index === 0 ? (
               <span className="cover-label">Portada</span>
             ) : (
@@ -366,9 +494,8 @@ export function ImageUploader({
               className="rotate-image"
               aria-label={`Girar foto ${index + 1} 90 grados`}
               title={`Girar foto ${index + 1} 90 grados`}
-              disabled={rotatingIndex !== null}
-              aria-busy={rotatingIndex === index ? true : undefined}
-              onClick={() => void rotate(index)}
+              aria-busy={busyReferencesRef.current.has(image) ? true : undefined}
+              onClick={() => rotate(index)}
             >
               <RotateCw aria-hidden="true" />
               <span>Girar</span>
@@ -397,7 +524,10 @@ export function ImageUploader({
               type="button"
               aria-label={`Eliminar foto ${index + 1}`}
               onClick={() => {
-                onChange(images.filter((_, itemIndex) => itemIndex !== index));
+                cancelPendingRotation(image);
+                const next = imagesRef.current.filter((_, itemIndex) => itemIndex !== index);
+                imagesRef.current = next;
+                onChange(next);
                 onRemove?.(image);
               }}
             >
