@@ -375,7 +375,7 @@ async function syncContactProfile(listing: Listing) {
   })
 }
 
-function listingPayload(listing: Listing, existing?: Listing) {
+function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[]) {
   const draft = readDraftPrivateFields(listing.id)
   const exact = listing.exactCoordinates ?? existing?.exactCoordinates
   const coordinates = listing.coordinates
@@ -412,14 +412,15 @@ function listingPayload(listing: Listing, existing?: Listing) {
       showPhone: listing.showPhone,
       showWhatsApp: listing.showWhatsApp,
     } : {}),
+    ...(assetIds ? { assetIds } : {}),
   }
 }
 
-export async function createRemoteListing(listing: Listing) {
+export async function createRemoteListing(listing: Listing, assetIds: string[] = []) {
   const request = () => api<ListingDto>('/listings', {
     method: 'POST',
     headers: { 'Idempotency-Key': listing.id },
-    body: JSON.stringify(listingPayload(listing)),
+    body: JSON.stringify(listingPayload(listing, undefined, assetIds)),
   })
   try {
     return toListing(await request())
@@ -431,12 +432,20 @@ export async function createRemoteListing(listing: Listing) {
   }
 }
 
-export async function updateRemoteListing(id: string, listing: Listing) {
+export async function updateRemoteListing(id: string, listing: Listing, assetIds: string[], existing?: Listing) {
   await syncContactProfile(listing)
-  const existing = (await getOwnedListings()).find((item) => item.id === id)
-  return toListing(await api<ListingDto>(`/listings/${id}`, {
-    method: 'PATCH', body: JSON.stringify(listingPayload(listing, existing)),
-  }))
+  const previous = existing ?? (await getOwnedListings()).find((item) => item.id === id)
+  const request = () => api<ListingDto>(`/listings/${id}`, {
+    method: 'PATCH', body: JSON.stringify(listingPayload(listing, previous, assetIds)),
+  })
+  try {
+    return toListing(await request())
+  } catch (error) {
+    // The atomic PATCH is idempotent for the same target state. Retry once if
+    // the response was lost after commit instead of reporting a false failure.
+    if (!(error instanceof ApiError) || !['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')) throw error
+    return toListing(await request())
+  }
 }
 
 export async function setRemoteListingStatus(id: string, status: ListingStatus) {

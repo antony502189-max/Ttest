@@ -308,6 +308,51 @@ def apply_publication_contact(payload: ListingWrite, user: User) -> None:
     apply_profile_fields(user, fields)
 
 
+async def _replace_listing_images_locked(
+    listing: Listing,
+    asset_ids: list[UUID],
+    user: User,
+    session: AsyncSession,
+    *,
+    admin: bool,
+) -> None:
+    previous_ids = set(
+        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
+    )
+    requested_ids = set(asset_ids)
+    locked_assets = await lock_media_assets(session, previous_ids | requested_ids)
+    assets_by_id = {asset.id: asset for asset in locked_assets}
+    requested_assets = [assets_by_id.get(asset_id) for asset_id in asset_ids]
+    if any(
+        asset is None
+        or asset.deleted_at is not None
+        or asset.kind != "listing_image"
+        or (not admin and asset.owner_id != user.id)
+        for asset in requested_assets
+    ):
+        raise HTTPException(
+            422,
+            detail={
+                "code": "LISTING_IMAGE_INVALID",
+                "message": "Every image must be an active listing asset owned by the requester.",
+                "fieldErrors": {"assetIds": "Remove unavailable images and upload them again."},
+            },
+        )
+
+    await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
+    for sort_order, asset_id in enumerate(asset_ids):
+        session.add(
+            ListingImage(
+                listing_id=listing.id,
+                media_asset_id=asset_id,
+                sort_order=sort_order,
+                is_cover=sort_order == 0,
+            )
+        )
+    await session.flush()
+    await mark_orphaned_media(session, previous_ids - requested_ids)
+
+
 async def create_listing(
     payload: ListingWrite,
     user: User,
@@ -341,6 +386,7 @@ async def create_listing(
     details = ListingRoomDetails(listing_id=listing.id)
     apply_room_detail_write(details, payload)
     session.add(details)
+    await _replace_listing_images_locked(listing, payload.assetIds, user, session, admin=False)
     history = ListingStatusHistory(
         listing_id=listing.id,
         from_status="draft",
@@ -384,6 +430,7 @@ async def update_listing(
     if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
         await enforce_publish_access(user, session)
     changes = payload.model_dump(exclude_unset=True)
+    asset_ids = changes.pop("assetIds", None)
     if "status" in changes and not admin:
         # "Show" is a publication intent. Production always returns the
         # listing to moderation; local auto-publish environments may expose it
@@ -484,6 +531,8 @@ async def update_listing(
             await notify_saved_search_matches(session, listing)
         elif listing.status in {"hidden", "closed", "rejected"}:
             await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
+    if asset_ids is not None:
+        await _replace_listing_images_locked(listing, asset_ids, user, session, admin=admin)
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -577,41 +626,7 @@ async def replace_listing_images(
     admin = await ensure_owner_or_admin(listing, user, session)
     if not admin and listing.status == "published":
         await enforce_publish_access(user, session)
-    previous_ids = set(
-        (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
-    )
-    requested_ids = set(payload.assetIds)
-    locked_assets = await lock_media_assets(session, previous_ids | requested_ids)
-    assets_by_id = {asset.id: asset for asset in locked_assets}
-    requested_assets = [assets_by_id.get(asset_id) for asset_id in payload.assetIds]
-    if any(
-        asset is None
-        or asset.deleted_at is not None
-        or asset.kind != "listing_image"
-        or (not admin and asset.owner_id != user.id)
-        for asset in requested_assets
-    ):
-        raise HTTPException(
-            422,
-            detail={
-                "code": "LISTING_IMAGE_INVALID",
-                "message": "Every image must be an active listing asset owned by the requester.",
-                "fieldErrors": {"assetIds": "Remove unavailable images and upload them again."},
-            },
-        )
-
-    await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
-    for sort_order, asset_id in enumerate(payload.assetIds):
-        session.add(
-            ListingImage(
-                listing_id=listing.id,
-                media_asset_id=asset_id,
-                sort_order=sort_order,
-                is_cover=sort_order == 0,
-            )
-        )
-    await session.flush()
-    await mark_orphaned_media(session, previous_ids - requested_ids)
+    await _replace_listing_images_locked(listing, payload.assetIds, user, session, admin=admin)
     await session.commit()
     return [
         ListingImageResponse(

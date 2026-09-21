@@ -7,7 +7,7 @@ import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSav
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getOwnedListings, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
-import { syncListingImages } from '@/api/media'
+import { cleanupPreparedListingImages, prepareListingImages, syncListingImages } from '@/api/media'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters, initialListings } from '@/data/listings'
@@ -584,39 +584,29 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       }
     }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
+    let prepared: Awaited<ReturnType<typeof prepareListingImages>>
+    try {
+      prepared = await prepareListingImages(optimistic.images)
+    } catch (error) {
+      console.error('listing_media_prepare_failed', publicationDiagnostic(error))
+      toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotografías.')
+      return false
+    }
     setOwnedListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
-      const remote = await createRemoteListing(optimistic)
-      let stored = { ...remote, userCreated: true }
-      let imagesSynced = true
-      try {
-        const images = await syncListingImages(remote.id, optimistic.images)
-        stored = { ...stored, images }
-        await removeUnusedMediaReferences(optimistic.images, images)
-      } catch (error) {
-        imagesSynced = false
-        stored = { ...stored, images: optimistic.images }
-        const recovery = {
-          listingId: remote.id,
-          publicationKey: optimistic.id,
-          ownerUserId: currentUser.id,
-        }
-        setPartialPublication(recovery)
-        try { persistPartialPublication(recovery) } catch { toast.error('No se pudo guardar el estado de recuperación; mantén esta pestaña abierta para reintentar las fotos.') }
-        console.error('listing_image_sync_failed', { listingId: remote.id, ...publicationDiagnostic(error) })
-        const reason = error instanceof ApiError
-          ? error.code === 'REQUEST_TIMEOUT' ? 'la carga agotó el tiempo de espera' : 'el servidor rechazó alguna imagen'
-          : error instanceof Error ? error.message : 'no se pudieron subir las imágenes'
-        toast.error(`El anuncio se creó, pero ${reason}. Pulsa Publicar de nuevo para reintentar las fotos; no se duplicará.`)
-      }
+      const remote = await createRemoteListing(optimistic, prepared.assetIds)
+      const stored = { ...remote, userCreated: true }
       setOwnedListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
-      if (!imagesSynced) return false
+      await removeUnusedMediaReferences(optimistic.images, stored.images).catch(() => undefined)
       await refreshListingConsumers().catch(() => toast.error('El anuncio se guardó, pero no se pudo refrescar el catálogo.'))
+      setPartialPublication(null)
       try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after a successful publication. */ }
       toast.success('Anuncio enviado a moderación y guardado en Mis anuncios')
       return true
     } catch (error) {
       setOwnedListings((current) => current.filter((item) => item.id !== optimistic.id))
+      const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
+      if (!uncertainCommit) await cleanupPreparedListingImages(prepared)
       console.error('listing_publication_failed', publicationDiagnostic(error))
       toast.error(publicationErrorMessage(error))
       return false
@@ -635,26 +625,26 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return false
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId }
+    let prepared: Awaited<ReturnType<typeof prepareListingImages>>
+    try {
+      prepared = await prepareListingImages(next.images)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotografías.')
+      return false
+    }
     setOwnedListings((current) => current.map((item) => item.id === id ? next : item))
     try {
-      const remote = await updateRemoteListing(id, next)
-      let stored = { ...remote, userCreated: true }
-      try {
-        const images = await syncListingImages(id, next.images)
-        stored = { ...stored, images }
-        await removeUnusedMediaReferences(next.images, images)
-      } catch (error) {
-        stored = { ...stored, images: next.images }
-        setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))
-        toast.error(error instanceof Error ? error.message : 'No se pudieron actualizar las imágenes del anuncio.')
-        return false
-      }
+      const remote = await updateRemoteListing(id, next, prepared.assetIds, previous)
+      const stored = { ...remote, userCreated: true }
       setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))
+      await removeUnusedMediaReferences(next.images, stored.images).catch(() => undefined)
       await refreshListingConsumers().catch(() => toast.error('Los cambios se guardaron, pero no se pudo refrescar el catálogo.'))
       return true
-    } catch {
+    } catch (error) {
       setOwnedListings((current) => current.map((item) => item.id === id ? previous : item))
-      toast.error('No se pudieron guardar los cambios del anuncio.')
+      const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
+      if (!uncertainCommit) await cleanupPreparedListingImages(prepared)
+      toast.error(error instanceof Error ? error.message : 'No se pudieron guardar los cambios del anuncio.')
       return false
     }
   }, [canManageListing, ownedListings, refreshListingConsumers])

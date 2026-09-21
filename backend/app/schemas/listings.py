@@ -120,6 +120,7 @@ class ListingWrite(BaseModel):
     contactName: str | None = Field(default=None, min_length=2, max_length=120)
     contactPhone: str | None = Field(default=None, max_length=64)
     contactWhatsapp: str | None = Field(default=None, max_length=64)
+    assetIds: list[UUID] = Field(default_factory=list, max_length=8)
     showPhone: bool | None = None
     showWhatsApp: bool | None = None
 
@@ -149,6 +150,8 @@ class ListingWrite(BaseModel):
             value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
         ):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if len(set(self.assetIds)) != len(self.assetIds):
+            raise ValueError("assetIds must be unique")
         if self.tenantRequirement not in ALLOWED_TENANT_REQUIREMENTS:
             raise ValueError("tenantRequirement contains an unsupported value")
         if self.advertiserType not in ALLOWED_ADVERTISER_TYPES:
@@ -244,6 +247,7 @@ class ListingPatch(BaseModel):
     advertiserType: str | None = Field(default=None, max_length=32)
     expiresAt: datetime | None = None
     status: str | None = None
+    assetIds: list[UUID] | None = Field(default=None, max_length=8)
 
     @model_validator(mode="after")
     def validate_patch(self):
@@ -300,6 +304,8 @@ class ListingPatch(BaseModel):
             or any(value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes)
         ):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if self.assetIds is not None and len(set(self.assetIds)) != len(self.assetIds):
+            raise ValueError("assetIds must be unique")
         if self.expiresAt is not None:
             expiry = self.expiresAt if self.expiresAt.tzinfo else self.expiresAt.replace(tzinfo=UTC)
             if expiry <= datetime.now(UTC):
