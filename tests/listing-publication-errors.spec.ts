@@ -26,6 +26,8 @@ type PublicationTestState = {
   payload?: Record<string, unknown>
   imageFailures?: number
   imageListingIds?: string[]
+  uploadFailures?: number
+  uploadCalls?: number
   mine?: ReturnType<typeof listingResponse>[]
   publicListings?: ReturnType<typeof listingResponse>[]
   publicListingsAfterFirstSearch?: ReturnType<typeof listingResponse>[]
@@ -135,7 +137,14 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       const key = request.headers()['idempotency-key']
       return json(listingResponse(state.payload, key), 201)
     }
-    if (path === '/uploads' && request.method() === 'POST') return json({ id: '22222222-2222-4222-8222-222222222222', url: '/api/v1/media/22222222-2222-4222-8222-222222222222' }, 201)
+    if (path === '/uploads' && request.method() === 'POST') {
+      state.uploadCalls = (state.uploadCalls ?? 0) + 1
+      if ((state.uploadFailures ?? 0) > 0) {
+        state.uploadFailures = (state.uploadFailures ?? 0) - 1
+        return json({ code: 'internal_error', message: 'Internal server error', fieldErrors: {} }, 500)
+      }
+      return json({ id: '22222222-2222-4222-8222-222222222222', url: '/api/v1/media/22222222-2222-4222-8222-222222222222' }, 201)
+    }
     if (/^\/listings\/[^/]+\/images$/.test(path) && request.method() === 'PUT') {
       state.imageListingIds?.push(path.split('/')[2])
       if ((state.imageFailures ?? 0) > 0) {
@@ -228,25 +237,31 @@ test('publish revalidates earlier steps after the host revisits and changes them
   expect(state.posts).toBe(0)
 })
 
-test('image failure keeps the durable draft and retries images without reposting or editing fields', async ({ page }) => {
-  const state = { mode: 'success' as PublicationMode, posts: 0, profilePatches: 0, imageFailures: 1, imageListingIds: [] as string[] }
+test('image upload failure keeps the durable draft and retries before creating the listing', async ({ page }) => {
+  const state = {
+    mode: 'success' as PublicationMode,
+    posts: 0,
+    profilePatches: 0,
+    uploadFailures: 1,
+    uploadCalls: 0,
+  }
   await mockPublicationApi(page, state)
   await openCompletedPublicationForm(page)
 
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page.getByText(/El anuncio se creó, pero/)).toBeVisible()
-  await expect(page.getByText(/Solo faltan las fotografías/)).toBeVisible()
   await expect(page).toHaveURL(/#\/publicar$/)
-  await expect(page.getByRole('button', { name: 'Reintentar fotografías' })).toBeEnabled()
-  expect(state.posts).toBe(1)
-  expect(state.imageListingIds).toHaveLength(1)
+  await expect(page.getByRole('button', { name: 'Publicar anuncio' })).toBeEnabled()
+  expect(state.uploadCalls).toBe(1)
+  expect(state.posts).toBe(0)
   expect(await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).toBeTruthy()
 
-  await page.getByRole('button', { name: 'Reintentar fotografías' }).click()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  expect(state.uploadCalls).toBe(2)
   expect(state.posts).toBe(1)
-  expect(state.imageListingIds).toHaveLength(2)
-  expect(state.imageListingIds[1]).toBe(state.imageListingIds[0])
+  expect(state.payload).toMatchObject({
+    assetIds: ['22222222-2222-4222-8222-222222222222'],
+  })
 })
 
 test('publication contact validation matches the backend for hidden values and limits', async ({ page }) => {
