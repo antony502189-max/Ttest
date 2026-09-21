@@ -52,13 +52,15 @@ export async function prepareListingImages(references: string[]): Promise<Prepar
     }
   }
 
-  try {
-    await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, references.length) }, () => worker()))
-    return { assetIds, newlyUploaded }
-  } catch (error) {
+  const workers = await Promise.allSettled(
+    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, references.length) }, () => worker()),
+  )
+  const failed = workers.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+  if (failed) {
     await Promise.allSettled(newlyUploaded.map(deleteUploadedAsset))
-    throw error
+    throw failed.reason
   }
+  return { assetIds, newlyUploaded }
 }
 
 export async function syncListingImages(listingId: string, references: string[]) {
