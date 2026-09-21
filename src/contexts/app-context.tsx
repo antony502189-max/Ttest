@@ -584,7 +584,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       }
     }
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
-    let prepared
+    let prepared: Awaited<ReturnType<typeof prepareListingImages>>
     try {
       prepared = await prepareListingImages(optimistic.images)
     } catch (error) {
@@ -625,7 +625,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return false
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId }
-    let prepared
+    let prepared: Awaited<ReturnType<typeof prepareListingImages>>
     try {
       prepared = await prepareListingImages(next.images)
     } catch (error) {
