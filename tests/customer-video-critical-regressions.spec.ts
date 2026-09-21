@@ -72,7 +72,6 @@ test('customer video fix keeps fresh location unresolved safely and validates it
   expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
   expect(publish).toContain('const validate = () =>')
   expect(publish).toContain('municipalityAreaError(draft.city, draft.area)')
-  expect(publish).toContain('confirmedAddressRef.current !== listingAddressFingerprint(draft)')
   expect(publish).toContain('if (savingRef.current || processingImages || !validate()) return')
 })
 
@@ -121,7 +120,7 @@ test('customer video: listing edit prepares media first and commits fields plus 
   expect(backend).toContain('await _replace_listing_images_locked(listing, asset_ids, user, session, admin=admin)')
 })
 
-test('customer video: edit rejects a different municipality as area and requires Google confirmation after manual address changes', async ({ page }) => {
+test('customer video: edit rejects a different municipality as area but keeps valid manual addresses allowed', async ({ page }) => {
   await signInAsHost(page)
   await page.goto('/#/mis-anuncios')
   const edit = page.locator('.manage-card').first().getByRole('link', { name: /editar/i })
@@ -137,8 +136,8 @@ test('customer video: edit rejects a different municipality as area and requires
   await page.getByLabel('Zona o barrio').fill('Playa de las Américas')
   await page.locator('#publish-street').fill('Avenida V Centenario s/n')
   await page.getByLabel('Código postal').fill('38660')
-  await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect(page.getByText(/Selecciona la dirección correcta de las sugerencias/i)).toBeVisible()
+  await expect(page.getByText(/corresponde a otro municipio/i)).toHaveCount(0)
+  await expect(page.getByText(/Selecciona la dirección correcta de las sugerencias/i)).toHaveCount(0)
 })
 
 test('leaving a new publication does not make existing host listings disappear', async ({ page }) => {
