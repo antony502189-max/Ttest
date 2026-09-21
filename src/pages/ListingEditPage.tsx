@@ -225,6 +225,7 @@ export function ListingEditPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [processingImages, setProcessingImages] = useState(false)
   const savingRef = useRef(false)
 
   const equipment = readEquipmentAmenities(draft?.amenities ?? [])
@@ -302,7 +303,7 @@ export function ListingEditPage() {
   }
 
   const save = async () => {
-    if (savingRef.current || !validate()) return
+    if (savingRef.current || processingImages || !validate()) return
     savingRef.current = true
     setSaving(true)
     try {
@@ -326,7 +327,7 @@ export function ListingEditPage() {
   const choice = <T extends string>(name: string, value: T, options: { value: T; title: string; text?: string }[], onChange: (value: T) => void) => <div className="listing-edit-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong>{option.text ? <small>{option.text}</small> : null}</span></label>)}</div>
 
   return <main className="listing-edit-page">
-    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : 'Guardar'}</Button></div></div>
+    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar'}</Button></div></div>
     <div className="listing-edit-shell">
       <header className="listing-edit-heading"><p>Ref. {existing.id.slice(-6).toUpperCase()}</p><h1>Editar habitación</h1><span>Todo el anuncio está en una sola página. Baja, cambia lo que necesites y guarda al final.</span></header>
 
@@ -412,7 +413,7 @@ export function ListingEditPage() {
       </Section>
 
       <Section id="edit-photos" title="Fotografías" hint="Gira una foto, cambia la portada, reordena o añade nuevas.">
-        <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} error={errors.images} />
+        <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
       </Section>
 
       <Section id="edit-description" title="Título y descripción">
@@ -431,7 +432,7 @@ export function ListingEditPage() {
         {errors.contactMethods ? <p className="field-error" role="alert">{errors.contactMethods}</p> : null}
       </Section>
 
-      <div className="listing-edit-final"><div><strong>{isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>Revisamos todos los campos al guardar.</span></div><Button size="lg" onClick={save} disabled={saving || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : 'Guardar cambios'}</Button></div>
+      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar cambios'}</Button></div>
     </div>
   </main>
 }

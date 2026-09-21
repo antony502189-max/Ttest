@@ -70,7 +70,7 @@ test('customer video fix keeps fresh location unresolved safely and validates it
   expect(publish).toContain("if (draft.postcode.trim() && !/^\\d{5}$/.test(draft.postcode.trim()))")
   expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
   expect(publish).toContain('const validate = () =>')
-  expect(publish).toContain('if (savingRef.current || !validate()) return')
+  expect(publish).toContain('if (savingRef.current || processingImages || !validate()) return')
 })
 
 test('customer video fix retries transient admin authorization without weakening the server route guard', () => {

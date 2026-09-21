@@ -173,11 +173,44 @@ test('photo rotate control turns a selected photo 90 degrees in place on mobile'
   expect(beforeSrc).toBeTruthy()
   await rotate.click()
 
+  await expect(image).toHaveAttribute('data-preview-rotation', '90', { timeout: 500 })
+  await expect(page.locator('.listing-edit-topbar button').filter({ hasText: 'Procesando foto' })).toBeDisabled()
   await expect.poll(() => image.getAttribute('src')).not.toBe(beforeSrc)
+  await expect(image).not.toHaveAttribute('data-preview-rotation')
   await expect.poll(() => image.evaluate((node) => ({
     width: (node as HTMLImageElement).naturalWidth,
     height: (node as HTMLImageElement).naturalHeight,
   }))).toEqual({ width: 1, height: 2 })
+})
+
+test('four rapid photo rotations collapse to 360 degrees without re-encoding', async ({ page }) => {
+  await openEditAsHost(page)
+
+  const photos = page.locator('.upload-grid img')
+  const before = await photos.count()
+  await page.locator('#publish-images').setInputFiles({
+    name: 'rotate-360.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64'),
+  })
+  await expect(photos).toHaveCount(before + 1)
+
+  const image = photos.nth(before)
+  const rotate = page.getByRole('button', { name: `Girar foto ${before + 1} 90 grados` })
+  const beforeSrc = await image.getAttribute('src')
+  expect(beforeSrc).toBeTruthy()
+
+  await rotate.evaluate((button) => {
+    button.click()
+    button.click()
+    button.click()
+    button.click()
+  })
+
+  await expect(image).not.toHaveAttribute('data-preview-rotation')
+  await page.waitForTimeout(450)
+  await expect(image).toHaveAttribute('src', beforeSrc!)
+  await expect(page.locator('.listing-edit-topbar button').filter({ hasText: 'Guardar' })).toBeEnabled()
 })
 
 test('new publication uses the same one-page long form as editing', async ({ page }) => {
