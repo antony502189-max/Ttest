@@ -150,6 +150,8 @@ class ListingWrite(BaseModel):
             value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes
         ):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if len(set(self.assetIds)) != len(self.assetIds):
+            raise ValueError("assetIds must be unique")
         if self.tenantRequirement not in ALLOWED_TENANT_REQUIREMENTS:
             raise ValueError("tenantRequirement contains an unsupported value")
         if self.advertiserType not in ALLOWED_ADVERTISER_TYPES:
@@ -302,6 +304,8 @@ class ListingPatch(BaseModel):
             or any(value not in ALLOWED_TENANT_TYPES for value in self.acceptedTenantTypes)
         ):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
+        if self.assetIds is not None and len(set(self.assetIds)) != len(self.assetIds):
+            raise ValueError("assetIds must be unique")
         if self.expiresAt is not None:
             expiry = self.expiresAt if self.expiresAt.tzinfo else self.expiresAt.replace(tzinfo=UTC)
             if expiry <= datetime.now(UTC):
