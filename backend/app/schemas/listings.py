@@ -120,6 +120,7 @@ class ListingWrite(BaseModel):
     contactName: str | None = Field(default=None, min_length=2, max_length=120)
     contactPhone: str | None = Field(default=None, max_length=64)
     contactWhatsapp: str | None = Field(default=None, max_length=64)
+    assetIds: list[UUID] = Field(default_factory=list, max_length=8)
     showPhone: bool | None = None
     showWhatsApp: bool | None = None
 
@@ -244,6 +245,7 @@ class ListingPatch(BaseModel):
     advertiserType: str | None = Field(default=None, max_length=32)
     expiresAt: datetime | None = None
     status: str | None = None
+    assetIds: list[UUID] | None = Field(default=None, max_length=8)
 
     @model_validator(mode="after")
     def validate_patch(self):
