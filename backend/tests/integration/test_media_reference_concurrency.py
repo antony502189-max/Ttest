@@ -16,7 +16,7 @@ from app.models import Listing, ListingImage, MediaAsset, User
 from app.models.storage_deletion import StorageDeletionJob
 from app.repositories.listings import point
 from app.schemas.auth import AvatarUpdateRequest
-from app.schemas.listings import ListingImagesRequest
+from app.schemas.listings import ListingImagesRequest, ListingPatch
 from app.services import listings, users
 
 pytestmark = pytest.mark.integration
@@ -309,3 +309,32 @@ async def test_account_deletion_detaches_owned_media_from_a_foreign_listing():
     assert attachment is None
     assert foreign_listing is not None and foreign_listing.deleted_at is None
     assert asset is not None and asset.deleted_at is not None
+
+
+async def test_atomic_listing_update_rolls_back_fields_when_image_assets_are_invalid():
+    fixture = await create_fixture(attached=True)
+    async with SessionLocal() as session:
+        before = await session.get(Listing, fixture.first_listing_id)
+        assert before is not None
+        original_title = before.title
+
+    async with SessionLocal() as session:
+        user = await session.get(User, fixture.user_id)
+        assert user is not None
+        with pytest.raises(HTTPException) as exc:
+            await listings.update_listing(
+                fixture.first_listing_id,
+                ListingPatch(title="This title must never commit", assetIds=[uuid4()]),
+                user,
+                session,
+            )
+        assert exc.value.status_code == 422
+        await session.rollback()
+
+    async with SessionLocal() as session:
+        listing = await session.get(Listing, fixture.first_listing_id)
+        attachment = await session.scalar(
+            select(ListingImage).where(ListingImage.listing_id == fixture.first_listing_id)
+        )
+    assert listing is not None and listing.title == original_title
+    assert attachment is not None and attachment.media_asset_id == fixture.asset_id
