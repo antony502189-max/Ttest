@@ -4,7 +4,8 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
-const PROVIDER_SYNC_TIMEOUT_MS = 8_000
+const PROVIDER_SYNC_RETRY_MS = 3_500
+const PROVIDER_SYNC_TIMEOUT_MS = 12_000
 
 type Phase = 'checking' | 'syncing' | 'ready' | 'error'
 
@@ -93,9 +94,15 @@ export function OwnedListingsHydrationGate({ children }: { children: ReactNode }
 
   useEffect(() => {
     if (phase !== 'syncing') return
+    const retry = window.setTimeout(() => {
+      if (!app.ownedListings.length) window.dispatchEvent(new Event('catalog:updated'))
+    }, PROVIDER_SYNC_RETRY_MS)
     const timeout = window.setTimeout(() => setPhase('error'), PROVIDER_SYNC_TIMEOUT_MS)
-    return () => window.clearTimeout(timeout)
-  }, [phase])
+    return () => {
+      window.clearTimeout(retry)
+      window.clearTimeout(timeout)
+    }
+  }, [app.ownedListings.length, phase])
 
   if (mockMode) return children
 

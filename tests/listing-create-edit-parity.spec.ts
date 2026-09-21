@@ -86,8 +86,11 @@ test('create and edit keep separate persistence and mutation paths', () => {
   expect(createFlow).toContain('if (partialPublication)')
   expect(createFlow).toContain('syncListingImages(partialPublication.listingId, listing.images)')
   expect(createFlow).toContain('return false')
-  expect(updateFlow).toContain('updateRemoteListing(id, next)')
-  expect(updateFlow).toContain('syncListingImages(id, next.images)')
+  expect(createFlow).toContain('prepared = await prepareListingImages(optimistic.images)')
+  expect(createFlow).toContain('createRemoteListing(optimistic, prepared.assetIds)')
+  expect(updateFlow).toContain('prepared = await prepareListingImages(next.images)')
+  expect(updateFlow).toContain('updateRemoteListing(id, next, prepared.assetIds, previous)')
+  expect(updateFlow).not.toContain('syncListingImages(id, next.images)')
   expect(updateFlow).toContain('return false')
 })
 

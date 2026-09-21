@@ -62,7 +62,12 @@ IDEMPOTENCY_CONTACT_FIELDS = {
 IDEMPOTENCY_COORDINATE_FIELDS = {"latitude", "longitude", "exactLatitude", "exactLongitude"}
 
 
-def idempotency_payload_matches(payload: ListingWrite, existing: OwnedListingResponse, user: User) -> bool:
+def idempotency_payload_matches(
+    payload: ListingWrite,
+    existing: OwnedListingResponse,
+    user: User,
+    stored_asset_ids: list[UUID],
+) -> bool:
     """Reject a reused publication key when its material input changed.
 
     Listing fields are read back through the owner response, which includes
@@ -71,10 +76,12 @@ def idempotency_payload_matches(payload: ListingWrite, existing: OwnedListingRes
     Omitted contact fields intentionally remain no-ops for backwards
     compatibility with older clients.
     """
+    if payload.assetIds != stored_asset_ids:
+        return False
     incoming = payload.model_dump(mode="json")
     stored = existing.model_dump(mode="json")
     for field, value in incoming.items():
-        if field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
+        if field == "assetIds" or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
             continue
         previous = stored[field]
         if field in IDEMPOTENCY_COORDINATE_FIELDS and value is not None and previous is not None:
@@ -261,11 +268,20 @@ async def create_listing(
                     )
                 row = (await session.execute(owned_query().where(Listing.id == existing.id))).one()
                 existing_response = owned_response_from(row)
+                stored_asset_ids = list(
+                    (
+                        await session.scalars(
+                            select(ListingImage.media_asset_id)
+                            .where(ListingImage.listing_id == existing.id)
+                            .order_by(ListingImage.sort_order)
+                        )
+                    ).all()
+                )
                 # The request-scoped user may have been loaded before a concurrent
                 # publication committed its atomic contact update. Refresh it
                 # before comparing a replay so identical payloads remain idempotent.
                 await session.refresh(user)
-                if not idempotency_payload_matches(payload, existing_response, user):
+                if not idempotency_payload_matches(payload, existing_response, user, stored_asset_ids):
                     raise HTTPException(
                         status.HTTP_409_CONFLICT,
                         detail={
