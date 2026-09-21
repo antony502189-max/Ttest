@@ -42,6 +42,7 @@ import {
 import { validatePublicationContact } from '@/lib/publication-contact'
 import { containsBlockedListingLink, listingLinkBlockedMessage } from '@/lib/listing-content-safety'
 import { bedTypeOptionLabel } from '@/lib/bed-type-label'
+import { listingAddressFingerprint, municipalityAreaError, municipalities, municipalitySet } from '@/lib/tenerife-address'
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from '@/api/auth'
 import { useI18n } from '@/contexts/i18n-context'
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from '@/types'
@@ -52,11 +53,6 @@ const draftKey = '112233:listing-draft:v3'
 const legacyDraftKey = '112233:listing-draft:v2'
 const editDraftPrefix = '112233:listing-edit-draft:v1:'
 const editDraftKey = (listingId: string) => `${editDraftPrefix}${listingId}`
-const municipalities = [
-  'Adeje','Arafo','Arico','Arona','Buenavista del Norte','Candelaria','El Rosario','El Sauzal','El Tanque','Fasnia','Garachico','Granadilla de Abona','Guía de Isora','Güímar','Icod de los Vinos','La Guancha','La Matanza de Acentejo','La Orotava','La Victoria de Acentejo','Los Realejos','Los Silos','Puerto de la Cruz','San Cristóbal de La Laguna','San Juan de la Rambla','San Miguel de Abona','Santa Cruz de Tenerife','Santa Úrsula','Santiago del Teide','Tacoronte','Tegueste','Vilaflor de Chasna',
-] as const
-const municipalitySet = new Set<string>(municipalities)
-
 function acceptedForRequirement(requirement: TenantRequirement): AcceptedTenantType[] {
   if (requirement === 'single-man') return ['man']
   if (requirement === 'single-woman') return ['woman']
@@ -199,6 +195,7 @@ export function ListingCreatePage() {
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
   const savingRef = useRef(false)
+  const confirmedAddressRef = useRef('')
   const [verificationOpen, setVerificationOpen] = useState(false)
   const [verificationEmail, setVerificationEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
@@ -250,15 +247,22 @@ export function ListingCreatePage() {
   const setEquipment = (field: EquipmentField, value: EquipmentSelections[EquipmentField]) => set('amenities', writeEquipmentAmenity(draft.amenities, field, value))
   const toggleAmenity = (item: string) => set('amenities', draft.amenities.includes(item) ? draft.amenities.filter((value) => value !== item) : [...draft.amenities, item])
   const toggleAccepted = (item: AcceptedTenantType) => set('acceptedTenantTypes', draft.acceptedTenantTypes.includes(item) ? draft.acceptedTenantTypes.filter((value) => value !== item) : [...draft.acceptedTenantTypes, item])
-  const applyResolvedAddress = (address: ResolvedGoogleAddress) => setDraft((current) => ({
-    ...current,
-    coordinates: address.coordinates,
-    locationManuallyMoved: true,
-    ...(address.street ? { street: address.street } : {}),
-    ...(address.postcode ? { postcode: address.postcode } : {}),
-    ...(address.city && municipalitySet.has(address.city) ? { city: address.city } : {}),
-    ...(address.area ? { area: address.area } : {}),
-  }))
+  const applyResolvedAddress = (address: ResolvedGoogleAddress) => {
+    setDraft((current) => {
+      const next = {
+        ...current,
+        coordinates: address.coordinates,
+        locationManuallyMoved: true,
+        ...(address.street ? { street: address.street } : {}),
+        ...(address.postcode ? { postcode: address.postcode } : {}),
+        ...(address.city && municipalitySet.has(address.city) ? { city: address.city } : {}),
+        ...(address.area ? { area: address.area } : {}),
+      }
+      if (address.city && municipalitySet.has(address.city)) confirmedAddressRef.current = listingAddressFingerprint(next)
+      return next
+    })
+    setErrors((current) => ({ ...current, location: '' }))
+  }
 
   const validate = () => {
     const next: Record<string, string> = {}
@@ -266,8 +270,15 @@ export function ListingCreatePage() {
     if (!draft.area.trim()) next.area = 'Indica la zona o barrio.'
     else if (draft.area.trim().length > 120) next.area = 'La zona no puede superar 120 caracteres.'
     else if (containsBlockedListingLink(draft.area)) next.area = listingLinkBlockedMessage
+    else {
+      const mismatch = municipalityAreaError(draft.city, draft.area)
+      if (mismatch) next.area = mismatch
+    }
     if (draft.street.trim().length > 160) next.street = 'La calle no puede superar 160 caracteres.'
     if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = 'El código postal debe tener exactamente 5 dígitos.'
+    if ((draft.street.trim() || draft.postcode.trim()) && confirmedAddressRef.current !== listingAddressFingerprint(draft)) {
+      next.location = 'Selecciona la dirección correcta de las sugerencias para confirmar Municipio, Zona, Calle y código postal.'
+    }
     if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = 'Indica entre 1 y 200 m².'
     if (!Number.isInteger(draft.homeSizeM2) || draft.homeSizeM2 < draft.roomSizeM2 || draft.homeSizeM2 > 10_000) next.homeSizeM2 = 'Debe ser igual o mayor que la habitación.'
     if (!Number.isInteger(draft.bedroomCount) || draft.bedroomCount < 1 || draft.bedroomCount > 99) next.bedroomCount = 'Indica al menos una habitación.'
@@ -392,7 +403,8 @@ export function ListingCreatePage() {
           <FormField label="Calle" htmlFor="publish-street"><Input id="publish-street" value={draft.street} onChange={(e) => set('street', e.target.value)} /></FormField>
           <FormField label="Código postal" htmlFor="publish-postcode" error={errors.postcode}><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(e) => set('postcode', e.target.value)} /></FormField>
         </div>
-        <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => current ? { ...current, coordinates, locationManuallyMoved: true } : current)} onAddressResolved={applyResolvedAddress} />
+        <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => current ? { ...current, coordinates, locationManuallyMoved: true } : current)} onAddressResolved={applyResolvedAddress} onLocationError={(message) => setErrors((current) => ({ ...current, location: message }))} />
+        {errors.location ? <p className="field-error" role="alert">{errors.location}</p> : null}
         <output className="listing-edit-coordinates" aria-live="polite">Coordenadas exactas: {draft.coordinates.lat.toFixed(4)}, {draft.coordinates.lng.toFixed(4)}</output>
       </Section>
 
