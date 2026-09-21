@@ -25,7 +25,7 @@ import {
 import { validatePublicationContact } from '@/lib/publication-contact'
 import { containsBlockedListingLink, listingLinkBlockedMessage } from '@/lib/listing-content-safety'
 import { bedTypeOptionLabel } from '@/lib/bed-type-label'
-import { listingAddressFingerprint, municipalityAreaError, municipalities, municipalitySet } from '@/lib/tenerife-address'
+import { municipalityAreaError, municipalities, municipalitySet } from '@/lib/tenerife-address'
 import { useI18n } from '@/contexts/i18n-context'
 import type { AcceptedTenantType, Listing, ListingDraft, TenantRequirement } from '@/types'
 import '@/listing-edit-long-form.css'
@@ -224,7 +224,6 @@ export function ListingEditPage() {
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
   const savingRef = useRef(false)
-  const confirmedAddressRef = useRef(existing ? listingAddressFingerprint(toDraft(existing)) : '')
 
   const equipment = readEquipmentAmenities(draft?.amenities ?? [])
   const isDirty = Boolean(draft && JSON.stringify(draft) !== baseline)
@@ -264,7 +263,6 @@ export function ListingEditPage() {
         ...(address.city && municipalitySet.has(address.city) ? { city: address.city } : {}),
         ...(address.area ? { area: address.area } : {}),
       }
-      if (address.city && municipalitySet.has(address.city)) confirmedAddressRef.current = listingAddressFingerprint(next)
       return next
     })
     setErrors((current) => {
@@ -288,9 +286,6 @@ export function ListingEditPage() {
       if (mismatch) next.area = mismatch
     }
     if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = 'El código postal debe tener 5 dígitos.'
-    if ((draft.street.trim() || draft.postcode.trim()) && confirmedAddressRef.current !== listingAddressFingerprint(draft)) {
-      next.location = 'Selecciona la dirección correcta de las sugerencias para confirmar Municipio, Zona, Calle y código postal.'
-    }
     if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = 'Indica entre 1 y 200 m².'
     if (!Number.isInteger(draft.homeSizeM2) || draft.homeSizeM2 < draft.roomSizeM2) next.homeSizeM2 = 'Debe ser igual o mayor que la habitación.'
     if (!Number.isInteger(draft.bedroomCount) || draft.bedroomCount < 1) next.bedroomCount = 'Indica al menos una habitación.'
