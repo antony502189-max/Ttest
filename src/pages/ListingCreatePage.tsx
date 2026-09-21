@@ -284,7 +284,7 @@ export function ListingCreatePage() {
     }
     if (draft.street.trim().length > 160) next.street = 'La calle no puede superar 160 caracteres.'
     if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = 'El código postal debe tener exactamente 5 dígitos.'
-    if ((draft.street.trim() || draft.postcode.trim()) && confirmedAddressRef.current !== listingAddressFingerprint(draft)) {
+    if (!mockMode && (draft.street.trim() || draft.postcode.trim()) && confirmedAddressRef.current !== listingAddressFingerprint(draft)) {
       next.location = 'Selecciona la dirección correcta de las sugerencias para confirmar Municipio, Zona, Calle y código postal.'
     }
     if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = 'Indica entre 1 y 200 m².'
