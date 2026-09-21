@@ -157,7 +157,16 @@ async def test_unverified_host_error_contract(client):
 async def test_publication_is_idempotent_and_contact_sync_is_atomic(client, register_user, monkeypatch):
     token, user_body = await register_user(client, email="publication-idempotent@example.com", role="host")
     key = uuid4()
-    payload = customer_listing(contactName="Nuevo nombre público")
+    uploaded_ids = []
+    for index in range(2):
+        uploaded = await client.post(
+            "/api/v1/uploads",
+            headers=auth(token),
+            files={"file": (f"idempotency-{index}.png", png(index + 20), "image/png")},
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        uploaded_ids.append(uploaded.json()["id"])
+    payload = customer_listing(contactName="Nuevo nombre público", assetIds=[uploaded_ids[0]])
 
     first, replay = await asyncio.gather(
         client.post("/api/v1/listings", headers=publication_headers(token, key), json=payload),
@@ -165,14 +174,23 @@ async def test_publication_is_idempotent_and_contact_sync_is_atomic(client, regi
     )
     assert first.status_code == replay.status_code == 201
     assert first.json()["id"] == replay.json()["id"] == str(key)
+    assert first.json()["imageUrls"]
+
+    changed_images = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(token, key),
+        json={**payload, "assetIds": [uploaded_ids[1]]},
+    )
+    assert changed_images.status_code == 409
+    assert changed_images.json()["code"] == "IDEMPOTENCY_PAYLOAD_MISMATCH"
 
     changed = await client.post(
         "/api/v1/listings",
         headers=publication_headers(token, key),
-        json=customer_listing(
-            contactName=payload["contactName"],
-            contactPhone="+34 600 999 999",
-        ),
+        json={
+            **payload,
+            "contactPhone": "+34 600 999 999",
+        },
     )
     assert changed.status_code == 409
     assert changed.json()["code"] == "IDEMPOTENCY_PAYLOAD_MISMATCH"
