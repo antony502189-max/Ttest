@@ -112,6 +112,8 @@ test('customer video: listing edit prepares media first and commits fields plus 
   expect(update).toContain('updateRemoteListing(id, next, prepared.assetIds, previous)')
   expect(update).not.toContain('syncListingImages(id, next.images)')
   expect(media).toContain('const UPLOAD_CONCURRENCY = 3')
+  expect(media).toContain('Promise.allSettled(')
+  expect(media).toContain('newlyUploaded.map(deleteUploadedAsset)')
   expect(media).toContain('timeoutMs: 45_000')
   expect(api).toContain('...(assetIds ? { assetIds } : {})')
   expect(schema).toContain('assetIds: list[UUID] | None = Field(default=None, max_length=8)')
