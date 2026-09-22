@@ -62,6 +62,33 @@ async function installGeocoderResult(page: Page, fixture: GeocoderFixture, captu
   }, { fixture, captureQuery })
 }
 
+
+async function dispatchResolvedAddress(page: Page, fixture: GeocoderFixture) {
+  await page.evaluate((fixture) => {
+    const {
+      route,
+      number = '',
+      postcode,
+      area = 'Costa Adeje',
+      municipality = 'Adeje',
+      coordinates,
+    } = fixture
+    const detail = {
+      formattedAddress: `${route}${number ? ` ${number}` : ''}, ${postcode} ${area}, Santa Cruz de Tenerife, Spain`,
+      coordinates,
+      addressComponents: [
+        { long_name: route, short_name: route, types: ['route'] },
+        ...(number ? [{ long_name: number, short_name: number, types: ['street_number'] }] : []),
+        { long_name: postcode, short_name: postcode, types: ['postal_code'] },
+        ...(area ? [{ long_name: area, short_name: area, types: ['sublocality_level_1'] }] : []),
+        { long_name: municipality, short_name: municipality, types: ['administrative_area_level_3'] },
+      ],
+    }
+    window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail }))
+    window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
+  }, fixture)
+}
+
 test('typing street, building number and postcode moves the owner marker to the exact building at street zoom', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
@@ -312,6 +339,120 @@ test('customer video regression: editing only the street re-geocodes stale saved
   await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
   await expect(page.locator('#publish-postcode')).toHaveValue('38670')
   await expect(page.locator('#publish-area')).toHaveValue('Costa Adeje')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
+})
+
+
+test('customer video regression: clearing a street never geocodes the stale saved postcode or overwrites the area', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+  const href = await page.locator('.manage-card').first().getByRole('link', { name: /Editar/i }).getAttribute('href')
+  expect(href).toBeTruthy()
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+
+  await dispatchResolvedAddress(page, {
+    route: 'Calle Poetas Españoles',
+    number: '3',
+    postcode: '38678',
+    area: 'Playa de las Américas',
+    municipality: 'Adeje',
+    coordinates: { lat: 28.0701, lng: -16.7318 },
+  })
+  await expect(page.locator('#publish-area')).toHaveValue('Playa de las Américas')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38678')
+
+  await page.evaluate(() => {
+    const holder = window as Window & { __stalePostcodeQueries?: string[] }
+    holder.__stalePostcodeQueries = []
+    window.__112233TestAddressGeocode = async (query) => {
+      holder.__stalePostcodeQueries!.push(query)
+      return [({
+        formatted_address: '38678 Adeje, Santa Cruz de Tenerife, Spain',
+        types: ['postal_code'],
+        address_components: [
+          { long_name: '38678', short_name: '38678', types: ['postal_code'] },
+          { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+        ],
+        geometry: {
+          location: { lat: () => 28.1227, lng: () => -16.7244 },
+          location_type: 'APPROXIMATE',
+          viewport: {},
+        },
+      } as unknown as google.maps.GeocoderResult)]
+    }
+  })
+
+  await page.locator('#publish-street').fill('')
+  await page.waitForTimeout(850)
+
+  expect(await page.evaluate(() => (window as Window & { __stalePostcodeQueries?: string[] }).__stalePostcodeQueries ?? [])).toEqual([])
+  await expect(page.locator('#publish-area')).toHaveValue('Playa de las Américas')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38678')
+})
+
+test('customer video regression: saving an already resolved address does not geocode it again on blur or move the marker', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/#/')
+  await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+  const href = await page.locator('.manage-card').first().getByRole('link', { name: /Editar/i }).getAttribute('href')
+  expect(href).toBeTruthy()
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+
+  const exact = { lat: 28.0674, lng: -16.7268 }
+  await dispatchResolvedAddress(page, {
+    route: 'Avenida V Centenario',
+    number: '1',
+    postcode: '38660',
+    area: 'Playa de las Américas',
+    municipality: 'Adeje',
+    coordinates: exact,
+  })
+  await expect.poll(() => page.evaluate(() => {
+    const center = window.__googleMapsTestLastMap?.getCenter()
+    return center ? { lat: Number(center.lat().toFixed(4)), lng: Number(center.lng().toFixed(4)) } : null
+  })).toEqual(exact)
+
+  await page.evaluate(() => {
+    const holder = window as Window & { __saveBlurGeocodeCalls?: number }
+    holder.__saveBlurGeocodeCalls = 0
+    window.__112233TestAddressGeocode = async () => {
+      holder.__saveBlurGeocodeCalls = (holder.__saveBlurGeocodeCalls ?? 0) + 1
+      return [({
+        formatted_address: 'Avenida V Centenario 1, 38660 Adeje, Santa Cruz de Tenerife, Spain',
+        types: ['street_address'],
+        address_components: [
+          { long_name: 'Avenida V Centenario', short_name: 'Av. V Centenario', types: ['route'] },
+          { long_name: '1', short_name: '1', types: ['street_number'] },
+          { long_name: '38660', short_name: '38660', types: ['postal_code'] },
+          { long_name: 'Adeje', short_name: 'Adeje', types: ['administrative_area_level_3'] },
+        ],
+        geometry: {
+          location: { lat: () => 28.0641, lng: () => -16.7162 },
+          location_type: 'ROOFTOP',
+          viewport: {},
+        },
+      } as unknown as google.maps.GeocoderResult)]
+    }
+  })
+
+  await page.locator('#publish-street').focus()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+
+  expect(await page.evaluate(() => (window as Window & { __saveBlurGeocodeCalls?: number }).__saveBlurGeocodeCalls ?? 0)).toBe(0)
+
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await expect(page.locator('.listing-edit-page')).toBeVisible()
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38660')
+  await expect(page.locator('#publish-area')).toHaveValue('Playa de las Américas')
   await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
 })
 
