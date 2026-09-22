@@ -183,8 +183,10 @@ export function PublishExactAddressSync() {
     let cancelled = false
     let timer: number | undefined
     let rawAutocompleteStreet = ''
+    let streetTouched = false
     let postcodeTouched = false
     let areaTouched = false
+    let lastResolvedFingerprint = ''
     let cityTouched = false
     let suppressErrorsUntil = 0
     const gate = createRequestVersionGate()
@@ -198,6 +200,20 @@ export function PublishExactAddressSync() {
 
     const clearLocationError = () => {
       window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
+    }
+
+    const addressFingerprint = () => {
+      const street = document.querySelector<HTMLInputElement>('#publish-street')?.value.trim().toLocaleLowerCase() ?? ''
+      const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')?.value.trim() ?? ''
+      const area = document.querySelector<HTMLInputElement>('#publish-area')?.value.trim().toLocaleLowerCase() ?? ''
+      const city = document.querySelector<HTMLSelectElement>('#publish-city')?.value.trim().toLocaleLowerCase() ?? ''
+      return [street, postcode, area, city].join('|')
+    }
+
+    const rememberResolvedAddress = () => {
+      queueMicrotask(() => {
+        if (!cancelled) lastResolvedFingerprint = addressFingerprint()
+      })
     }
 
     const dispatchAddressPoint = (coordinates: Coordinates, zoom: number, clearDetectedAddress = true) => {
@@ -228,7 +244,7 @@ export function PublishExactAddressSync() {
       const selectedCity = (citySelect?.value || '').trim()
       if (!selectedCity) return
 
-      const postcodeField = postcodeTouched || !rawStreet ? postcodeInput?.value ?? '' : ''
+      const postcodeField = postcodeTouched || (!streetTouched && !rawStreet) ? postcodeInput?.value ?? '' : ''
       const areaField = areaTouched ? areaInput?.value ?? '' : ''
       const cityConstraint = cityTouched ? selectedCity : ''
       const parsed = parseAddressInput(rawStreet, postcodeField, areaField)
@@ -311,6 +327,7 @@ export function PublishExactAddressSync() {
       }
       const onInput = (event: Event) => {
         if (!event.isTrusted) return
+        if (kind === 'street') streetTouched = true
         if (kind === 'postcode') postcodeTouched = true
         rawAutocompleteStreet = ''
         clearLocationError()
@@ -318,6 +335,10 @@ export function PublishExactAddressSync() {
       }
       const onBlur = (event: Event) => {
         if (!event.isTrusted) return
+        if (lastResolvedFingerprint && addressFingerprint() === lastResolvedFingerprint) {
+          cancelPending()
+          return
+        }
         resolveNow(kind === 'street' ? element.value : '', true)
       }
       element.addEventListener('input', onInput)
@@ -417,6 +438,7 @@ export function PublishExactAddressSync() {
       })
     }
     window.addEventListener('112233:publish-location-selected', handleLocationSelected)
+    window.addEventListener('112233:map-address-resolved', rememberResolvedAddress)
 
     const isManualLocationControl = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest(
       '.approximate-location-map, .approximate-location-selector > button, .approximate-location-selector__grid button',
@@ -436,6 +458,7 @@ export function PublishExactAddressSync() {
       cancelPending()
       observer.disconnect()
       window.removeEventListener('112233:publish-location-selected', handleLocationSelected)
+      window.removeEventListener('112233:map-address-resolved', rememberResolvedAddress)
       document.removeEventListener('pointerdown', handleManualLocationControl, true)
       document.removeEventListener('click', handleManualLocationControl, true)
       cleanups.forEach((cleanup) => cleanup())
