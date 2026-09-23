@@ -293,6 +293,7 @@ test('customer video: edit PATCH ignores stale global create draft and persists 
       longitude: -16.7322,
       imageUrls: [`/api/v1/media/${imageId}`],
       coverImageUrl: `/api/v1/media/${imageId}`,
+      description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
     }],
   }
   await mockPublicationApi(page, state)
@@ -370,6 +371,7 @@ test('customer video: edit is not reported as saved when the server echoes a dif
     longitude: -16.7322,
     imageUrls: [`/api/v1/media/${imageId}`],
     coverImageUrl: `/api/v1/media/${imageId}`,
+    description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
   }
   const state: PublicationTestState = {
     mode: 'success',
