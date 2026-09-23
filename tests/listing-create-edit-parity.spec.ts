@@ -72,7 +72,7 @@ test('create and edit keep separate persistence and mutation paths', () => {
   expect(edit).toContain("const editDraftPrefix = '112233:listing-edit-draft:v1:'")
   expect(edit).toContain('updateListing(existing.id, listing)')
   expect(edit).not.toContain('createListing(')
-  expect(edit).toContain('stored.listingId === existing.id')
+  expect(edit).toContain('stored.listingId === listing.id')
   expect(edit).toContain('localStorage.removeItem(storageKey)')
 
   const createStart = context.indexOf('const createListing = useCallback(async')
@@ -105,7 +105,7 @@ test('legacy or global edit drafts are migrated without leaking into a new listi
   expect(create).toContain('const legacy = localStorage.getItem(legacyDraftKey)')
   expect(create).toContain('!stored.listingId')
   expect(create).toContain('stored.ownerUserId === currentUser?.id')
-  expect(edit).toContain('stored.listingId === existing.id')
+  expect(edit).toContain('stored.listingId === listing.id')
   expect(edit).toContain('const editDraftKey = (id: string)')
   expect(edit).toContain('editDraftPrefix')
 })
