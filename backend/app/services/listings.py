@@ -500,8 +500,10 @@ async def update_listing(
     )
     if admin and payload.status is not None and payload.status != listing.status:
         raise HTTPException(403, "Administrators must use the moderation status endpoint")
-    if admin and sync_address_group:
-        raise HTTPException(403, "Administrators cannot synchronize an owner's address group")
+    if admin:
+        # Admins may still edit the selected listing through the owner editor,
+        # but an implicit owner-dwelling fan-out must remain an owner action.
+        sync_address_group = False
     if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
         await enforce_publish_access(user, session)
     if "status" in changes and not admin:
