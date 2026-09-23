@@ -494,7 +494,10 @@ async def update_listing(
     changes = payload.model_dump(exclude_unset=True)
     asset_ids = changes.pop("assetIds", None)
     sync_address_group = bool(changes.pop("syncAddressGroup", False))
-    previous_address_group = _private_address_group_key(listing.street, listing.postcode)
+    previous_address_group = _private_address_group_key(
+        getattr(listing, "street", None),
+        getattr(listing, "postcode", None),
+    )
     if admin and payload.status is not None and payload.status != listing.status:
         raise HTTPException(403, "Administrators must use the moderation status endpoint")
     if admin and sync_address_group:
