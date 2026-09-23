@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import unicodedata
 from typing import cast
 from uuid import UUID
 
@@ -91,7 +92,10 @@ def _legacy_bed_type(value: str | None) -> str | None:
 
 
 def _private_address_group_key(street: str | None, postcode: str | None) -> tuple[str, str] | None:
-    normalized_street = " ".join((street or "").strip().casefold().split())
+    folded_street = unicodedata.normalize("NFD", (street or "").strip().casefold())
+    normalized_street = " ".join(
+        "".join(char for char in folded_street if not unicodedata.combining(char)).split()
+    )
     normalized_postcode = "".join((postcode or "").strip().casefold().split())
     if not normalized_street or not normalized_postcode:
         return None
