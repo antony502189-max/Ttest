@@ -150,8 +150,9 @@ class Listing(Timestamped, Base):
         default="draft",
         index=True,
     )
-    # `location` is deliberately the public, approximate point.  Never use it
-    # to store the exact address coordinate returned by a host.
+    # For owner-created listings, `location` is the verified map point and is
+    # kept equal to `exact_location`. External listings may have only a public
+    # source location or no verified location at all.
     location: Mapped[str | None] = mapped_column(Geography("POINT", srid=4326), index=True)
     exact_location: Mapped[str | None] = mapped_column(Geography("POINT", srid=4326))
     description: Mapped[str] = mapped_column(Text, default="")
