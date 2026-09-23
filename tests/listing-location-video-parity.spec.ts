@@ -24,8 +24,8 @@ test('listing location follows the customer street-map interaction without expos
 
   const location = page.locator('.listing-location-section')
   await expect(location).toBeVisible()
-  await expect(location.getByRole('heading', { name: 'Ubicación aproximada' })).toBeVisible()
-  await expect(location).toContainText('calles y referencias de la zona')
+  await expect(location.getByRole('heading', { name: 'Ubicación en el mapa' })).toBeVisible()
+  await expect(location).toContainText('ubicación guardada en el anuncio')
   await expect(location.getByRole('link', { name: 'Calcular ruta' })).toHaveAttribute('href', /google\.com\/maps\/dir\/\?api=1&destination=/)
   await expect(location.getByRole('link', { name: 'Street View' })).toHaveAttribute('href', /map_action=pano&viewpoint=/)
   await expect(location.getByRole('button', { name: 'Abrir mapa de ubicación a pantalla completa' })).toBeVisible()
