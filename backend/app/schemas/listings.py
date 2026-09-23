@@ -248,6 +248,10 @@ class ListingPatch(BaseModel):
     expiresAt: datetime | None = None
     status: str | None = None
     assetIds: list[UUID] | None = Field(default=None, max_length=8)
+    # Owner UI sets this only when an existing private address actually changes.
+    # The service then applies the same location to this owner's sibling room
+    # listings that shared the previous private street + postcode.
+    syncAddressGroup: bool = False
 
     @model_validator(mode="after")
     def validate_patch(self):
@@ -325,6 +329,13 @@ class ListingPatch(BaseModel):
                 raise ValueError("exactLatitude and exactLongitude must be changed together")
             if (self.exactLatitude is None) != (self.exactLongitude is None):
                 raise ValueError("exactLatitude and exactLongitude must both be values or both be null")
+        if self.syncAddressGroup:
+            required_location_fields = {
+                "city", "area", "street", "postcode", "approximateAddress",
+                "latitude", "longitude", "exactLatitude", "exactLongitude",
+            }
+            if not required_location_fields.issubset(self.model_fields_set):
+                raise ValueError("syncAddressGroup requires the complete owner location payload")
         _validate_link_free_listing_fields(self, self.model_fields_set)
         return self
 
