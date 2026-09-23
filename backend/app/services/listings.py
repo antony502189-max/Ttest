@@ -293,7 +293,9 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.empadronamiento_allowed = payload.empadronamientoAllowed
     listing.restrictions = payload.restrictions
     listing.amenities = payload.amenities
-    listing.location = point(payload.longitude, payload.latitude)
+    canonical_latitude = payload.exactLatitude if payload.exactLatitude is not None else payload.latitude
+    canonical_longitude = payload.exactLongitude if payload.exactLongitude is not None else payload.longitude
+    listing.location = point(canonical_longitude, canonical_latitude)
     listing.exact_location = (
         point(payload.exactLongitude, payload.exactLatitude)
         if payload.exactLongitude is not None and payload.exactLatitude is not None
@@ -563,24 +565,30 @@ async def update_listing(
     longitude = changes.pop("longitude", None)
     exact_latitude = changes.pop("exactLatitude", None)
     exact_longitude = changes.pop("exactLongitude", None)
-    if latitude is not None and longitude is not None:
-        listing.location = point(longitude, latitude)
-    if "exactLatitude" in payload.model_fields_set or "exactLongitude" in payload.model_fields_set:
+    exact_location_changed = "exactLatitude" in payload.model_fields_set or "exactLongitude" in payload.model_fields_set
+    if exact_location_changed:
         listing.exact_location = (
             point(exact_longitude, exact_latitude)
             if exact_latitude is not None and exact_longitude is not None
             else None
         )
+    if exact_latitude is not None and exact_longitude is not None:
+        listing.location = point(exact_longitude, exact_latitude)
+        latitude, longitude = exact_latitude, exact_longitude
+    elif latitude is not None and longitude is not None:
+        listing.location = point(longitude, latitude)
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value)
     if sync_address_group:
+        canonical_latitude = payload.exactLatitude if payload.exactLatitude is not None else payload.latitude
+        canonical_longitude = payload.exactLongitude if payload.exactLongitude is not None else payload.longitude
         await _sync_matching_owner_listing_locations(
             listing,
             owner,
             session,
             previous_group=previous_address_group,
-            latitude=cast(float, payload.latitude),
-            longitude=cast(float, payload.longitude),
+            latitude=cast(float, canonical_latitude),
+            longitude=cast(float, canonical_longitude),
             exact_latitude=payload.exactLatitude,
             exact_longitude=payload.exactLongitude,
         )
