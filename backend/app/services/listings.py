@@ -491,16 +491,16 @@ async def update_listing(
 ) -> OwnedListingResponse:
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
+    changes = payload.model_dump(exclude_unset=True)
+    asset_ids = changes.pop("assetIds", None)
+    sync_address_group = bool(changes.pop("syncAddressGroup", False))
+    previous_address_group = _private_address_group_key(listing.street, listing.postcode)
     if admin and payload.status is not None and payload.status != listing.status:
         raise HTTPException(403, "Administrators must use the moderation status endpoint")
     if admin and sync_address_group:
         raise HTTPException(403, "Administrators cannot synchronize an owner's address group")
     if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
         await enforce_publish_access(user, session)
-    changes = payload.model_dump(exclude_unset=True)
-    asset_ids = changes.pop("assetIds", None)
-    sync_address_group = bool(changes.pop("syncAddressGroup", False))
-    previous_address_group = _private_address_group_key(listing.street, listing.postcode)
     if "status" in changes and not admin:
         # "Show" is a publication intent. Production always returns the
         # listing to moderation; local auto-publish environments may expose it
