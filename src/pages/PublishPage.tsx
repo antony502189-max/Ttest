@@ -209,7 +209,7 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     area: draft.area,
     street: draft.street.trim(),
     postcode: draft.postcode.trim(),
-    approximateAddress: `${draft.area} · ubicación aproximada`,
+    approximateAddress: `${draft.area} · ubicación en el mapa`,
     price: primaryPrice,
     cadence: draft.rentalMode === "holiday" ? "noche" : "mes",
     monthlyPrice: draft.monthlyPrice,
