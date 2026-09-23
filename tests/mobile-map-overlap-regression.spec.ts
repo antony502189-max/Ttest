@@ -9,7 +9,7 @@ async function finishOnboarding(page: Page) {
   await page.getByRole('button', { name: 'Ahora no' }).click()
 }
 
-test('mobile map does not collapse coincident listings into one marker after zooming', async ({ page }) => {
+test('mobile map keeps coincident listings at one truthful position for clustering', async ({ page }) => {
   await page.goto('/')
   await page.waitForFunction(() => Boolean(localStorage.getItem('112233:listings:v3')))
   const ids = await page.evaluate(() => {
@@ -35,5 +35,6 @@ test('mobile map does not collapse coincident listings into one marker after zoo
   const markers = ids.map((id) => page.getByTestId(`mobile-map-marker-${id}`))
   for (const marker of markers) await expect(marker).toHaveAttribute('data-coincident-count', '2')
   const positions = await Promise.all(markers.map((marker) => marker.getAttribute('data-display-position')))
-  expect(new Set(positions).size).toBe(2)
+  expect(new Set(positions).size).toBe(1)
+  for (const position of positions) expect(position).toBe('28.1299668,-16.7578612')
 })
