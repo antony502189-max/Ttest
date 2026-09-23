@@ -89,13 +89,6 @@ type ListingDto = {
 }
 
 type ListingSearchDto = { items: ListingDto[]; total: number; limit: number; offset: number }
-type DraftPrivateFields = {
-  street?: string
-  postcode?: string
-  contactName?: string
-  contactPhone?: string
-  contactWhatsapp?: string
-}
 
 const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
@@ -345,30 +338,13 @@ export function searchPublicListings(input: ListingSearchInput) {
   return fetchAllSearch(body)
 }
 
-function readDraftPrivateFields(listingId?: string): DraftPrivateFields | null {
-  for (const key of ['112233:listing-draft:v3', '112233:listing-draft:v2']) {
-    try {
-      const raw = localStorage.getItem(key)
-      if (!raw) continue
-      const parsed = JSON.parse(raw) as { listingId?: string; data?: DraftPrivateFields } | DraftPrivateFields
-      const recordListingId = 'listingId' in parsed ? parsed.listingId : undefined
-      if (recordListingId && listingId && recordListingId !== listingId) continue
-      const data = 'data' in parsed && parsed.data ? parsed.data : parsed as DraftPrivateFields
-      return data
-    } catch { /* Ignore corrupted legacy drafts. */ }
-  }
-  return null
-}
-
 async function syncContactProfile(listing: Listing) {
-  const draft = readDraftPrivateFields(listing.id)
-  const name = (draft?.contactName || listing.owner.name).trim()
   await api('/users/me', {
     method: 'PATCH',
     body: JSON.stringify({
-      name,
-      phone: draft?.contactPhone ?? listing.contactPhone ?? '',
-      whatsapp: draft?.contactWhatsapp ?? listing.contactWhatsapp ?? '',
+      name: listing.owner.name.trim(),
+      phone: listing.contactPhone ?? '',
+      whatsapp: listing.contactWhatsapp ?? '',
       showPhone: listing.showPhone,
       showWhatsApp: listing.showWhatsApp,
     }),
@@ -376,14 +352,16 @@ async function syncContactProfile(listing: Listing) {
 }
 
 function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[]) {
-  const draft = readDraftPrivateFields(listing.id)
   const exact = listing.exactCoordinates ?? existing?.exactCoordinates
   const coordinates = listing.coordinates
   if (!coordinates) throw new Error('Coordinates are required for owner-created listings')
   return {
     title: listing.title, city: listing.city, area: listing.area,
-    street: draft?.street?.trim() || listing.street || existing?.street || '',
-    postcode: draft?.postcode?.trim() || listing.postcode || existing?.postcode || '',
+    // The API boundary must serialize the state passed by the form. Reading a
+    // global browser draft here can shadow an edit-specific draft and silently
+    // persist stale private address values from a different workflow.
+    street: listing.street?.trim() ?? existing?.street ?? '',
+    postcode: listing.postcode?.trim() ?? existing?.postcode ?? '',
     approximateAddress: listing.approximateAddress,
     rentalMode: listing.rentalMode, monthlyPrice: listing.monthlyPrice ?? null, nightlyPrice: listing.nightlyPrice ?? null,
     weeklyPrice: listing.weeklyPrice ?? null, roomType: listing.roomType, availableFrom: listing.availableFrom,
@@ -406,9 +384,9 @@ function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[
     advertiserType: listing.advertiserType,
     expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null,
     ...(!existing ? {
-      contactName: (draft?.contactName || listing.owner.name).trim(),
-      contactPhone: draft?.contactPhone ?? listing.contactPhone ?? '',
-      contactWhatsapp: draft?.contactWhatsapp ?? listing.contactWhatsapp ?? '',
+      contactName: listing.owner.name.trim(),
+      contactPhone: listing.contactPhone ?? '',
+      contactWhatsapp: listing.contactWhatsapp ?? '',
       showPhone: listing.showPhone,
       showWhatsApp: listing.showWhatsApp,
     } : {}),
@@ -432,19 +410,43 @@ export async function createRemoteListing(listing: Listing, assetIds: string[] =
   }
 }
 
+function assertOwnerLocationEcho(intended: Listing, remote: Listing) {
+  const textMatches = (left: string | undefined, right: string | undefined) => (left ?? '').trim() === (right ?? '').trim()
+  const exactMatches = !intended.exactCoordinates
+    || Boolean(
+      remote.exactCoordinates
+        && Math.abs(remote.exactCoordinates.lat - intended.exactCoordinates.lat) < 1e-6
+        && Math.abs(remote.exactCoordinates.lng - intended.exactCoordinates.lng) < 1e-6,
+    )
+  if (
+    intended.city !== remote.city
+    || !textMatches(intended.area, remote.area)
+    || !textMatches(intended.street, remote.street)
+    || !textMatches(intended.postcode, remote.postcode)
+    || !exactMatches
+  ) {
+    throw new Error('El servidor no confirmó la ubicación guardada. Los cambios no se marcarán como guardados.')
+  }
+}
+
 export async function updateRemoteListing(id: string, listing: Listing, assetIds: string[], existing?: Listing) {
   await syncContactProfile(listing)
   const previous = existing ?? (await getOwnedListings()).find((item) => item.id === id)
   const request = () => api<ListingDto>(`/listings/${id}`, {
     method: 'PATCH', body: JSON.stringify(listingPayload(listing, previous, assetIds)),
   })
+  const run = async () => {
+    const remote = toListing(await request())
+    assertOwnerLocationEcho(listing, remote)
+    return remote
+  }
   try {
-    return toListing(await request())
+    return await run()
   } catch (error) {
     // The atomic PATCH is idempotent for the same target state. Retry once if
     // the response was lost after commit instead of reporting a false failure.
     if (!(error instanceof ApiError) || !['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')) throw error
-    return toListing(await request())
+    return run()
   }
 }
 

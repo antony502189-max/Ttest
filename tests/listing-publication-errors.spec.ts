@@ -35,6 +35,7 @@ type PublicationTestState = {
   catalogVersions?: string[]
   favoriteIds?: string[]
   statusPatches?: string[]
+  listingPatches?: Record<string, unknown>[]
   authUser?: typeof host
   loginUser?: typeof host
   mineWait?: Promise<void>
@@ -119,9 +120,19 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       return json(items)
     }
     if (/^\/listings\/[^/]+$/.test(path) && request.method() === 'PATCH') {
-      const next = (request.postDataJSON() as { status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected' }).status
+      const patch = request.postDataJSON() as Record<string, unknown>
+      state.listingPatches?.push(patch)
+      const listingId = path.split('/')[2]
+      const current = state.mine?.find((item) => item.id === listingId)
+      if (current) {
+        const updated = { ...current, ...patch, id: listingId }
+        state.mine = state.mine?.map((item) => item.id === listingId ? updated : item)
+        if (typeof patch.status === 'string') state.statusPatches?.push(patch.status)
+        return json(updated)
+      }
+      const next = patch.status as 'pending' | 'published' | 'hidden' | 'closed' | 'rejected'
       state.statusPatches?.push(next)
-      const updated = lifecycleListing(next, path.split('/')[2])
+      const updated = lifecycleListing(next, listingId)
       state.mine = [updated]
       return json(updated)
     }
@@ -262,6 +273,136 @@ test('image upload failure keeps the durable draft and retries before creating t
   expect(state.payload).toMatchObject({
     assetIds: ['22222222-2222-4222-8222-222222222222'],
   })
+})
+
+test('customer video: edit PATCH ignores stale global create draft and persists the current private address', async ({ page }) => {
+  const listingId = '33333333-3333-4333-8333-333333333333'
+  const imageId = '22222222-2222-4222-8222-222222222222'
+  const state: PublicationTestState = {
+    mode: 'success',
+    posts: 0,
+    profilePatches: 0,
+    listingPatches: [],
+    mine: [{
+      ...lifecycleListing('published', listingId),
+      street: 'Calle Poetas Españoles 3',
+      postcode: '38678',
+      exactLatitude: 28.0701,
+      exactLongitude: -16.7318,
+      latitude: 28.0708,
+      longitude: -16.7322,
+      imageUrls: [`/api/v1/media/${imageId}`],
+      coverImageUrl: `/api/v1/media/${imageId}`,
+      description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
+    }],
+  }
+  await mockPublicationApi(page, state)
+  await page.goto('/#/')
+  await page.evaluate(({ hostId }) => {
+    localStorage.clear()
+    localStorage.setItem('112233:has-session', '1')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:listing-draft:v3', JSON.stringify({
+      version: 3,
+      ownerUserId: hostId,
+      data: {
+        street: 'Calle Poetas Españoles 3',
+        postcode: '38678',
+        contactName: 'Anfitrión de prueba',
+        contactPhone: '+34 600 111 222',
+        contactWhatsapp: '+34 600 111 223',
+      },
+    }))
+  }, { hostId: host.id })
+  await page.reload()
+  await page.goto('/#/mis-anuncios')
+  await expect(page.locator('.manage-card')).toHaveCount(1)
+  await page.getByRole('link', { name: /editar/i }).click()
+  await expect(page.locator('#publish-street')).toHaveValue('Calle Poetas Españoles 3')
+
+  await page.locator('#publish-street').fill('Avenida V Centenario 1')
+  await page.locator('#publish-postcode').fill('38660')
+  await page.evaluate(() => {
+    const detail = {
+      formattedAddress: 'Avenida V Centenario 1, 38660 Playa de las Américas, Santa Cruz de Tenerife, Spain',
+      coordinates: { lat: 28.0674, lng: -16.7268 },
+      addressComponents: [
+        { long_name: 'Avenida V Centenario', types: ['route'] },
+        { long_name: '1', types: ['street_number'] },
+        { long_name: '38660', types: ['postal_code'] },
+        { long_name: 'Playa de las Américas', types: ['sublocality_level_1'] },
+        { long_name: 'Adeje', types: ['administrative_area_level_3'] },
+      ],
+    }
+    window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail }))
+    window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates: detail.coordinates } }))
+  })
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38660')
+
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+
+  const patch = state.listingPatches?.at(-1)
+  expect(patch).toMatchObject({
+    street: 'Avenida V Centenario 1',
+    postcode: '38660',
+    exactLatitude: 28.0674,
+    exactLongitude: -16.7268,
+  })
+  expect(patch).not.toMatchObject({ street: 'Calle Poetas Españoles 3', postcode: '38678' })
+
+  await page.goto(`/#/mis-anuncios/${listingId}/editar`)
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38660')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
+})
+
+test('customer video: edit is not reported as saved when the server echoes a different private location', async ({ page }) => {
+  const listingId = '33333333-3333-4333-8333-333333333333'
+  const imageId = '22222222-2222-4222-8222-222222222222'
+  const original = {
+    ...lifecycleListing('published', listingId),
+    street: 'Calle Poetas Españoles 3',
+    postcode: '38678',
+    exactLatitude: 28.0701,
+    exactLongitude: -16.7318,
+    latitude: 28.0708,
+    longitude: -16.7322,
+    imageUrls: [`/api/v1/media/${imageId}`],
+    coverImageUrl: `/api/v1/media/${imageId}`,
+    description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
+  }
+  const state: PublicationTestState = {
+    mode: 'success',
+    posts: 0,
+    profilePatches: 0,
+    listingPatches: [],
+    mine: [original],
+  }
+  await mockPublicationApi(page, state)
+  await page.route(`**/api/v1/listings/${listingId}`, async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback()
+    state.listingPatches?.push(route.request().postDataJSON() as Record<string, unknown>)
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(original) })
+  })
+  await page.goto('/#/')
+  await page.evaluate(() => {
+    localStorage.clear()
+    localStorage.setItem('112233:has-session', '1')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+  })
+  await page.reload()
+  await page.goto(`/#/mis-anuncios/${listingId}/editar`)
+  await expect(page.locator('#publish-street')).toBeVisible()
+  await page.locator('#publish-street').fill('Avenida V Centenario 1')
+  await page.locator('#publish-postcode').fill('38660')
+
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+
+  await expect(page).toHaveURL(new RegExp(`#\\/mis-anuncios\\/${listingId}\\/editar$`))
+  await expect(page.getByText('Cambios guardados')).toHaveCount(0)
+  await expect(page.getByText(/servidor no confirmó la ubicación guardada/i)).toBeVisible()
 })
 
 test('publication contact validation matches the backend for hidden values and limits', async ({ page }) => {
