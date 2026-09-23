@@ -90,6 +90,68 @@ def _legacy_bed_type(value: str | None) -> str | None:
     return "single" if value == "bunk" else value
 
 
+def _private_address_group_key(street: str | None, postcode: str | None) -> tuple[str, str] | None:
+    normalized_street = " ".join((street or "").strip().casefold().split())
+    normalized_postcode = "".join((postcode or "").strip().casefold().split())
+    if not normalized_street or not normalized_postcode:
+        return None
+    return normalized_street, normalized_postcode
+
+
+async def _sync_matching_owner_listing_locations(
+    listing: Listing,
+    owner: User,
+    session: AsyncSession,
+    *,
+    previous_group: tuple[str, str] | None,
+    latitude: float,
+    longitude: float,
+    exact_latitude: float | None,
+    exact_longitude: float | None,
+) -> int:
+    """Move sibling room listings from one private address to the new address.
+
+    The owner row is already locked by _lock_mutable_listing(), so concurrent
+    writes for the same owner serialize before we lock sibling listings. The
+    previous street + postcode is deliberately the grouping key: legacy room
+    rows may disagree on area/municipality or exact coordinates even when they
+    represent the same dwelling, which is the production state reproduced by
+    the customer video.
+    """
+    if previous_group is None or listing.is_external:
+        return 0
+    siblings = (
+        await session.scalars(
+            select(Listing)
+            .where(
+                Listing.owner_user_id == owner.id,
+                Listing.id != listing.id,
+                Listing.deleted_at.is_(None),
+                Listing.is_external.is_(False),
+            )
+            .order_by(Listing.id)
+            .with_for_update()
+        )
+    ).all()
+    synced = 0
+    for sibling in siblings:
+        if _private_address_group_key(sibling.street, sibling.postcode) != previous_group:
+            continue
+        sibling.city = listing.city
+        sibling.area = listing.area
+        sibling.street = listing.street
+        sibling.postcode = listing.postcode
+        sibling.approximate_address = listing.approximate_address
+        sibling.location = point(longitude, latitude)
+        sibling.exact_location = (
+            point(exact_longitude, exact_latitude)
+            if exact_latitude is not None and exact_longitude is not None
+            else None
+        )
+        synced += 1
+    return synced
+
+
 def _legacy_room_capacity(value: int | None) -> int | None:
     """Mirror the expanded 1..10 value into the old 1..2 column."""
     return min(value, 2) if value is not None else None
@@ -427,10 +489,14 @@ async def update_listing(
     admin = await ensure_owner_or_admin(listing, user, session)
     if admin and payload.status is not None and payload.status != listing.status:
         raise HTTPException(403, "Administrators must use the moderation status endpoint")
+    if admin and sync_address_group:
+        raise HTTPException(403, "Administrators cannot synchronize an owner's address group")
     if not admin and (listing.status == "published" or payload.status in {"pending", "published"}):
         await enforce_publish_access(user, session)
     changes = payload.model_dump(exclude_unset=True)
     asset_ids = changes.pop("assetIds", None)
+    sync_address_group = bool(changes.pop("syncAddressGroup", False))
+    previous_address_group = _private_address_group_key(listing.street, listing.postcode)
     if "status" in changes and not admin:
         # "Show" is a publication intent. Production always returns the
         # listing to moderation; local auto-publish environments may expose it
@@ -498,6 +564,17 @@ async def update_listing(
         )
     for key, value in changes.items():
         setattr(listing, mapping.get(key, key), value)
+    if sync_address_group:
+        await _sync_matching_owner_listing_locations(
+            listing,
+            owner,
+            session,
+            previous_group=previous_address_group,
+            latitude=cast(float, payload.latitude),
+            longitude=cast(float, payload.longitude),
+            exact_latitude=payload.exactLatitude,
+            exact_longitude=payload.exactLongitude,
+        )
     if listing.status != previous_status:
         history = ListingStatusHistory(
             listing_id=listing.id,
