@@ -1,5 +1,6 @@
 import { api, ApiError, resolveApiUrl } from '@/api/client'
 import { defaultFilters } from '@/data/listings'
+import { ownerListingLocationChanged } from '@/lib/listing-address-group'
 import type { Filters, Listing, ListingStatus, TenantRequirement } from '@/types'
 
 type ListingDto = {
@@ -390,6 +391,7 @@ function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[
       showPhone: listing.showPhone,
       showWhatsApp: listing.showWhatsApp,
     } : {}),
+    ...(existing && ownerListingLocationChanged(listing, existing) ? { syncAddressGroup: true } : {}),
     ...(assetIds ? { assetIds } : {}),
   }
 }
