@@ -10,6 +10,7 @@ import {
 import { toast } from 'sonner'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, isPublicListing, normalizeListing } from '@/lib/listings'
+import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
@@ -317,7 +318,22 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
       return false
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId, userCreated: true }
-    setAllListings((current) => current.map((item) => item.id === id ? next : item))
+    const syncAddress = ownerListingLocationChanged(next, previous)
+    const siblingIds = syncAddress
+      ? allListings
+          .filter((item) => item.id !== id
+            && item.ownerUserId === previous.ownerUserId
+            && sharesPrivateAddressGroup(item, previous))
+          .map((item) => item.id)
+      : []
+    const siblingIdSet = new Set(siblingIds)
+    setAllListings((current) => current.map((item) => {
+      if (item.id === id) return next
+      return siblingIdSet.has(item.id) ? applySharedListingLocation(item, next) : item
+    }))
+    siblingIds.forEach((siblingId) => {
+      try { localStorage.removeItem(`112233:listing-edit-draft:v1:${siblingId}`) } catch { /* mock server state is authoritative */ }
+    })
     return true
   }, [allListings, canManageListing])
 

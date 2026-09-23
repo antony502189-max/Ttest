@@ -126,7 +126,28 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       const current = state.mine?.find((item) => item.id === listingId)
       if (current) {
         const updated = { ...current, ...patch, id: listingId }
-        state.mine = state.mine?.map((item) => item.id === listingId ? updated : item)
+        const previousStreet = String(current.street ?? '').trim().toLocaleLowerCase()
+        const previousPostcode = String(current.postcode ?? '').trim()
+        state.mine = state.mine?.map((item) => {
+          if (item.id === listingId) return updated
+          const sameAddressGroup = patch.syncAddressGroup === true
+            && item.ownerUserId === current.ownerUserId
+            && String(item.street ?? '').trim().toLocaleLowerCase() === previousStreet
+            && String(item.postcode ?? '').trim() === previousPostcode
+          if (!sameAddressGroup) return item
+          return {
+            ...item,
+            city: patch.city,
+            area: patch.area,
+            street: patch.street,
+            postcode: patch.postcode,
+            approximateAddress: patch.approximateAddress,
+            latitude: patch.latitude,
+            longitude: patch.longitude,
+            exactLatitude: patch.exactLatitude,
+            exactLongitude: patch.exactLongitude,
+          }
+        })
         if (typeof patch.status === 'string') state.statusPatches?.push(patch.status)
         return json(updated)
       }
@@ -356,6 +377,88 @@ test('customer video: edit PATCH ignores stale global create draft and persists 
   await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
   await expect(page.locator('#publish-postcode')).toHaveValue('38660')
   await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
+})
+
+test('customer follow-up: changing one room address synchronizes sibling rooms from the same old dwelling', async ({ page }) => {
+  const firstId = '33333333-3333-4333-8333-333333333333'
+  const siblingId = '55555555-5555-4555-8555-555555555555'
+  const independentId = '66666666-6666-4666-8666-666666666666'
+  const imageId = '22222222-2222-4222-8222-222222222222'
+  const base = {
+    ...lifecycleListing('published', firstId),
+    street: 'Calle Poetas Españoles 3',
+    postcode: '38678',
+    exactLatitude: 28.0701,
+    exactLongitude: -16.7318,
+    latitude: 28.0708,
+    longitude: -16.7322,
+    imageUrls: [`/api/v1/media/${imageId}`],
+    coverImageUrl: `/api/v1/media/${imageId}`,
+    description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
+  }
+  const state: PublicationTestState = {
+    mode: 'success',
+    posts: 0,
+    profilePatches: 0,
+    listingPatches: [],
+    mine: [
+      base,
+      { ...base, id: siblingId, title: 'Segunda habitación del mismo domicilio', area: 'Adeje', exactLatitude: 28.1227, exactLongitude: -16.7244 },
+      { ...base, id: independentId, title: 'Habitación de otra vivienda', street: 'Calle Poetas Españoles 9' },
+    ],
+  }
+  await mockPublicationApi(page, state)
+  await page.goto('/#/')
+  await page.evaluate(({ siblingId, hostId }) => {
+    localStorage.clear()
+    localStorage.setItem('112233:has-session', '1')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem(`112233:listing-edit-draft:v1:${siblingId}`, JSON.stringify({
+      version: 3,
+      ownerUserId: hostId,
+      listingId: siblingId,
+      data: { street: 'Calle Poetas Españoles 3', postcode: '38678', area: 'Adeje' },
+    }))
+  }, { siblingId, hostId: host.id })
+  await page.reload()
+  await page.goto(`/#/mis-anuncios/${firstId}/editar`)
+  await expect(page.locator('#publish-street')).toHaveValue('Calle Poetas Españoles 3')
+
+  await page.locator('#publish-street').fill('Avenida V Centenario 1')
+  await page.locator('#publish-postcode').fill('38660')
+  await page.evaluate(() => {
+    const detail = {
+      formattedAddress: 'Avenida V Centenario 1, 38660 Playa de las Américas, Santa Cruz de Tenerife, Spain',
+      coordinates: { lat: 28.0674, lng: -16.7268 },
+      addressComponents: [
+        { long_name: 'Avenida V Centenario', types: ['route'] },
+        { long_name: '1', types: ['street_number'] },
+        { long_name: '38660', types: ['postal_code'] },
+        { long_name: 'Playa de las Américas', types: ['sublocality_level_1'] },
+        { long_name: 'Adeje', types: ['administrative_area_level_3'] },
+      ],
+    }
+    window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail }))
+    window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates: detail.coordinates } }))
+  })
+
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  expect(state.listingPatches?.at(-1)).toMatchObject({
+    street: 'Avenida V Centenario 1',
+    postcode: '38660',
+    syncAddressGroup: true,
+  })
+  expect(await page.evaluate((key) => localStorage.getItem(key), `112233:listing-edit-draft:v1:${siblingId}`)).toBeNull()
+
+  await page.goto(`/#/mis-anuncios/${siblingId}/editar`)
+  await expect(page.locator('#publish-area')).toHaveValue('Playa de las Américas')
+  await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38660')
+
+  await page.goto(`/#/mis-anuncios/${independentId}/editar`)
+  await expect(page.locator('#publish-street')).toHaveValue('Calle Poetas Españoles 9')
+  await expect(page.locator('#publish-postcode')).toHaveValue('38678')
 })
 
 test('customer video: edit is not reported as saved when the server echoes a different private location', async ({ page }) => {

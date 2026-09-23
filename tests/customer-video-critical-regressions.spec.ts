@@ -90,7 +90,7 @@ test('listing editing scopes autosaved drafts and never leaks them into a new pu
 
   expect(edit).toContain("const editDraftPrefix = '112233:listing-edit-draft:v1:'")
   expect(edit).toContain('const storageKey = id ? editDraftKey(id)')
-  expect(edit).toContain('stored.listingId === existing.id')
+  expect(edit).toContain('stored.listingId === listing.id')
   expect(edit).toContain('localStorage.setItem(storageKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing.id, data: draft }))')
   expect(edit).toContain('localStorage.removeItem(storageKey)')
   expect(edit).toContain("'Guardar cambios'")

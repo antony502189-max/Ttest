@@ -118,6 +118,24 @@ function toDraft(listing: Listing): ListingDraft {
   }
 }
 
+function readEditDraft(listing: Listing, storageKey: string, currentUserId?: string) {
+  const defaults = toDraft(listing)
+  try {
+    const stored = storageKey
+      ? JSON.parse(localStorage.getItem(storageKey) ?? 'null') as { version?: number; ownerUserId?: string; listingId?: string; data?: Partial<ListingDraft> } | null
+      : null
+    if (
+      stored?.version === 3
+      && stored.listingId === listing.id
+      && (!stored.ownerUserId || stored.ownerUserId === currentUserId)
+      && stored.data
+    ) {
+      return { ...defaults, ...stored.data }
+    }
+  } catch { /* use server values */ }
+  return defaults
+}
+
 function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string): Listing {
   const price = draft.rentalMode === 'holiday' ? draft.nightlyPrice : draft.monthlyPrice
   const availableSpots = Math.max(0, draft.roomCapacity - draft.currentRoomResidents)
@@ -206,15 +224,9 @@ export function ListingEditPage() {
   const { allListings, ownedListings, updateListing, currentUser, canManageListing } = useApp()
   const existing = ownedListings.find((listing) => listing.id === id)
   const storageKey = id ? editDraftKey(id) : ''
-  const [draft, setDraft] = useState<ListingDraft | null>(() => {
-    if (!existing) return null
-    const defaults = toDraft(existing)
-    try {
-      const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) ?? 'null') as { version?: number; ownerUserId?: string; listingId?: string; data?: Partial<ListingDraft> } | null : null
-      if (stored?.version === 3 && stored.listingId === existing.id && (!stored.ownerUserId || stored.ownerUserId === currentUser?.id) && stored.data) return { ...defaults, ...stored.data }
-    } catch { /* use server values */ }
-    return defaults
-  })
+  const [draft, setDraft] = useState<ListingDraft | null>(() =>
+    existing ? readEditDraft(existing, storageKey, currentUser?.id) : null,
+  )
   const [baseline, setBaseline] = useState(() => {
     if (!existing || !draft) return ''
     const serverDraft = toDraft(existing)
@@ -224,6 +236,7 @@ export function ListingEditPage() {
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
   const savingRef = useRef(false)
+  const draftListingIdRef = useRef(existing?.id ?? null)
 
   const equipment = readEquipmentAmenities(draft?.amenities ?? [])
   const isDirty = Boolean(draft && JSON.stringify(draft) !== baseline)
@@ -232,6 +245,18 @@ export function ListingEditPage() {
     if (currentUser?.avatarRef) refs.add(currentUser.avatarRef)
     return refs
   }, [allListings, currentUser?.avatarRef, ownedListings])
+
+  useEffect(() => {
+    if (!existing || !storageKey || draftListingIdRef.current === existing.id) return
+    const nextDraft = readEditDraft(existing, storageKey, currentUser?.id)
+    draftListingIdRef.current = existing.id
+    savingRef.current = false
+    setSaving(false)
+    setProcessingImages(false)
+    setErrors({})
+    setDraft(nextDraft)
+    setBaseline(JSON.stringify({ ...toDraft(existing), publicationKey: nextDraft.publicationKey }))
+  }, [currentUser?.id, existing, storageKey])
 
   useEffect(() => {
     if (!draft || !existing || !storageKey) return

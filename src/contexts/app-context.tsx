@@ -12,6 +12,7 @@ import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters, initialListings } from '@/data/listings'
 import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
+import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
@@ -625,6 +626,13 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       return false
     }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId }
+    const siblingLocationIds = ownerListingLocationChanged(next, previous)
+      ? ownedListings
+          .filter((item) => item.id !== id
+            && item.ownerUserId === previous.ownerUserId
+            && sharesPrivateAddressGroup(item, previous))
+          .map((item) => item.id)
+      : []
     let prepared: Awaited<ReturnType<typeof prepareListingImages>>
     try {
       prepared = await prepareListingImages(next.images)
@@ -636,9 +644,19 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     try {
       const remote = await updateRemoteListing(id, next, prepared.assetIds, previous)
       const stored = { ...remote, userCreated: true }
-      setOwnedListings((current) => current.map((item) => item.id === id ? stored : item))
+      const siblingIdSet = new Set(siblingLocationIds)
+      setOwnedListings((current) => current.map((item) => {
+        if (item.id === id) return stored
+        return siblingIdSet.has(item.id) ? applySharedListingLocation(item, stored) : item
+      }))
+      siblingLocationIds.forEach((siblingId) => {
+        try { localStorage.removeItem(`112233:listing-edit-draft:v1:${siblingId}`) } catch { /* server state stays authoritative */ }
+      })
       await removeUnusedMediaReferences(next.images, stored.images).catch(() => undefined)
       await refreshListingConsumers().catch(() => toast.error('Los cambios se guardaron, pero no se pudo refrescar el catálogo.'))
+      if (siblingLocationIds.length) {
+        toast.success(`Ubicación aplicada también a ${siblingLocationIds.length} ${siblingLocationIds.length === 1 ? 'anuncio' : 'anuncios'} del mismo domicilio.`)
+      }
       return true
     } catch (error) {
       setOwnedListings((current) => current.map((item) => item.id === id ? previous : item))
