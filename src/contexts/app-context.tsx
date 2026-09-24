@@ -694,6 +694,16 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     try { localStorage.removeItem(`112233:listing-edit-draft:v1:${id}`) } catch { /* server deletion stays authoritative */ }
     setOwnedListings(remaining)
     setAllListings((current) => current.filter((item) => item.id !== id))
+    setFavoriteScopes((current) => Object.fromEntries(
+      Object.entries(current).map(([scope, ids]) => [scope, ids.filter((item) => item !== id)]),
+    ))
+    setDiscardedScopes((current) => Object.fromEntries(
+      Object.entries(current).map(([scope, ids]) => [scope, ids.filter((item) => item !== id)]),
+    ))
+    setCommentScopes((current) => Object.fromEntries(
+      Object.entries(current).map(([scope, comments]) => [scope, comments.filter((comment) => comment.listingId !== id)]),
+    ))
+    setReports((current) => current.filter((report) => report.listingId !== id))
     try {
       await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
     } catch (error) {
