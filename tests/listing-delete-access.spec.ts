@@ -22,7 +22,7 @@ test('ordinary owner can delete their own listing without an email allowlist', a
   await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
   await page.getByRole('menuitem', { name: 'Eliminar' }).click()
   const dialog = page.getByRole('alertdialog', { name: '¿Eliminar este anuncio?' })
-  await expect(dialog).toContainText('Se quitará de la búsqueda y de Mis anuncios')
+  await expect(dialog).toContainText('se eliminarán definitivamente')
   await dialog.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
   await expect(cards).toHaveCount(before - 1)
@@ -56,5 +56,8 @@ test('production owner/admin delete surfaces use server authorization rather tha
   expect(context).toContain('await deleteRemoteListing(id)')
   expect(service).not.toContain('HARD_DELETE_EMAILS')
   expect(service).toContain('admin = await ensure_owner_or_admin(listing, user, session)')
-  expect(service).toContain('listing.deleted_at = datetime.now(UTC)')
+  expect(ownerPage).toContain('!listing.isExternal')
+  expect(adminPage).toContain('!listing.isExternal')
+  expect(service).toContain('EXTERNAL_LISTING_DELETE_FORBIDDEN')
+  expect(service).toContain('await session.execute(delete(Listing).where(Listing.id == listing.id))')
 })
