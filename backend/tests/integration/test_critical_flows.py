@@ -325,14 +325,21 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
         assert not list(
             await session.scalars(select(HomepageHeroPromotion).where(HomepageHeroPromotion.listing_id == listing_uuid))
         )
-        audit = await session.scalar(
-            select(AuditLog)
-            .where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
-            .order_by(AuditLog.created_at.desc())
-        )
-        assert audit is not None
-        assert audit.actor_id == UUID(owner["id"])
-        assert audit.detail["deletedBy"] == "owner"
+        assert await session.scalar(
+            select(AuditLog).where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
+        ) is None
+        assert await session.scalar(
+            select(Notification).where(
+                Notification.recipient_user_id == UUID(owner["id"]),
+                Notification.type == "listing_deleted",
+            )
+        ) is None
+        assert await session.scalar(
+            select(Notification).where(
+                Notification.recipient_user_id == UUID(foreign["id"]),
+                Notification.type == "favorite_unavailable",
+            )
+        ) is None
 
 
 async def test_active_admin_can_hard_delete_another_owners_local_listing(client: AsyncClient, register_user):
@@ -363,11 +370,9 @@ async def test_active_admin_can_hard_delete_another_owners_local_listing(client:
 
     async with SessionLocal() as session:
         assert await session.get(Listing, listing_uuid) is None
-        audit = await session.scalar(
-            select(AuditLog)
-            .where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
-            .order_by(AuditLog.created_at.desc())
-        )
+        assert await session.scalar(
+            select(AuditLog).where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
+        ) is None
         notification = await session.scalar(
             select(Notification)
             .where(
@@ -376,11 +381,11 @@ async def test_active_admin_can_hard_delete_another_owners_local_listing(client:
             )
             .order_by(Notification.created_at.desc())
         )
-        assert audit is not None
-        assert audit.actor_id == UUID(admin["id"])
-        assert audit.detail["deletedBy"] == "admin"
         assert notification is not None
         assert notification.entity_listing_id is None
+        assert notification.title == "Tu anuncio fue eliminado por un administrador"
+        assert notification.body == "Tu anuncio fue eliminado por un administrador."
+        assert listing_id not in notification.idempotency_key
 
 
 async def test_imported_listing_cannot_be_deleted_by_owner_or_admin(client: AsyncClient, register_user):
