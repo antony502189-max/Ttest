@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import {
   addAdminNote,
   addAdministrator,
+  deleteAdminListing,
   deleteAdminUser,
   getAdminAuditLog,
   getAdminHomepageHero,
@@ -387,6 +388,53 @@ function ListingRestrictionDialog({
   </Dialog>
 }
 
+function ListingDeleteDialog({
+  listing,
+  open,
+  onOpenChange,
+  onDeleted,
+}: {
+  listing: AdminListing
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDeleted: (listing: AdminListing) => void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+
+  const remove = async () => {
+    setSubmitting(true)
+    try {
+      await deleteAdminListing(listing.id)
+      toast.success('Anuncio eliminado')
+      onDeleted(listing)
+      onOpenChange(false)
+    } catch (error) {
+      toast.error(errorMessage(error))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return <Dialog open={open} onOpenChange={(next) => { if (!submitting) onOpenChange(next) }}>
+    <DialogContent className="admin-action-dialog">
+      <DialogHeader>
+        <DialogTitle>Eliminar anuncio</DialogTitle>
+        <DialogDescription>{listing.title}</DialogDescription>
+      </DialogHeader>
+      <div className="admin-dialog-summary">
+        <AlertTriangle />
+        <p>Se retirará inmediatamente de búsquedas, mapas, favoritos y del panel del propietario. También se limpiarán fotos y promociones activas asociadas. La operación queda registrada en el historial administrativo.</p>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" type="button" disabled={submitting} onClick={() => onOpenChange(false)}>Cancelar</Button>
+        <Button variant="destructive" type="button" disabled={submitting} onClick={() => { void remove() }}>
+          <Trash2 />{submitting ? 'Eliminando…' : 'Eliminar anuncio'}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+}
+
 function ListingPromotionDialog({
   listing,
   open,
@@ -716,6 +764,7 @@ export function AdminPage() {
   const [userFilter, setUserFilter] = useState<UserFilter>('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [listingRestriction, setListingRestriction] = useState<AdminListing | null>(null)
+  const [listingDeletion, setListingDeletion] = useState<AdminListing | null>(null)
   const [listingPromotion, setListingPromotion] = useState<AdminListing | null>(null)
   const [homepageHeroListing, setHomepageHeroListing] = useState<AdminListing | null>(null)
   const [homepageHero, setHomepageHero] = useState<HomepageHeroPromotion | null>(null)
@@ -770,6 +819,11 @@ export function AdminPage() {
   const updateUserRow = (changed: AdminUser) => setUsers((current) => current.map((user) => user.id === changed.id ? { ...user, ...changed } : user))
   const updateListingRow = (changed: AdminListing) => {
     setListings((current) => current.map((listing) => listing.id === changed.id ? changed : listing))
+    window.dispatchEvent(new Event('catalog:refresh'))
+  }
+  const removeListingRow = (removed: AdminListing) => {
+    setListings((current) => current.filter((listing) => listing.id !== removed.id))
+    if (homepageHero?.listingId === removed.id) setHomepageHero(null)
     window.dispatchEvent(new Event('catalog:refresh'))
   }
 
@@ -864,7 +918,7 @@ export function AdminPage() {
       {section === 'listings' ? <>
         <SectionHeader title="Anuncios" description="Consulta el propietario, programa TOP o publicidad en portada por fechas y aplica moderación sin alterar el estado original del anuncio." />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, usuario o zona…" /></div></div>
-        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{homepageHero?.listingId === listing.id && homepageHero.state === 'active' ? <><Badge>Portada activa · hasta {formatPromotionEndDate(homepageHero.endsAt)}</Badge><span>{homepageHero.days} días</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'scheduled' ? <><Badge variant="outline">Portada programada</Badge><span>{formatDateOnly(homepageHero.startsAt)} → {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'expired' ? <><Badge variant="outline">Portada finalizada</Badge><span>Terminó {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{listing.promotionState === 'active' ? <><Badge variant="destructive">TOP activo{listing.promotionEndsAt ? ` · hasta ${formatPromotionEndDate(listing.promotionEndsAt)}` : ''}</Badge>{listing.promotionDays ? <span>{listing.promotionDays} días{listing.promotionTotalPriceCents != null ? ` · ${formatEuros(listing.promotionTotalPriceCents)}` : ''}</span> : null}</> : null}{listing.promotionState === 'scheduled' ? <><Badge variant="outline">TOP programado</Badge><span>{formatDateOnly(listing.promotionStartsAt)} → {formatPromotionEndDate(listing.promotionEndsAt)}{listing.promotionDays ? ` · ${listing.promotionDays} días` : ''}</span></> : null}{listing.promotionState === 'expired' ? <><Badge variant="outline">TOP finalizado</Badge><span>{listing.promotionEndsAt ? `Terminó ${formatPromotionEndDate(listing.promotionEndsAt)}` : 'Periodo finalizado'}</span></> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => setHomepageHeroListing(listing)}><CalendarDays />{homepageHero?.listingId === listing.id ? 'Cambiar portada' : 'Poner en portada'}</Button>{homepageHero?.listingId === listing.id ? <Button variant="outline" size="sm" onClick={() => { void removeHomepageHero() }}>Quitar portada</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => setListingPromotion(listing)}><CalendarDays />{listing.promotionState ? 'Cambiar TOP' : 'Subir al TOP'}</Button>{listing.promotionState ? <Button variant="outline" size="sm" onClick={() => { void removeListingPromotion(listing) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
+        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{homepageHero?.listingId === listing.id && homepageHero.state === 'active' ? <><Badge>Portada activa · hasta {formatPromotionEndDate(homepageHero.endsAt)}</Badge><span>{homepageHero.days} días</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'scheduled' ? <><Badge variant="outline">Portada programada</Badge><span>{formatDateOnly(homepageHero.startsAt)} → {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'expired' ? <><Badge variant="outline">Portada finalizada</Badge><span>Terminó {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{listing.promotionState === 'active' ? <><Badge variant="destructive">TOP activo{listing.promotionEndsAt ? ` · hasta ${formatPromotionEndDate(listing.promotionEndsAt)}` : ''}</Badge>{listing.promotionDays ? <span>{listing.promotionDays} días{listing.promotionTotalPriceCents != null ? ` · ${formatEuros(listing.promotionTotalPriceCents)}` : ''}</span> : null}</> : null}{listing.promotionState === 'scheduled' ? <><Badge variant="outline">TOP programado</Badge><span>{formatDateOnly(listing.promotionStartsAt)} → {formatPromotionEndDate(listing.promotionEndsAt)}{listing.promotionDays ? ` · ${listing.promotionDays} días` : ''}</span></> : null}{listing.promotionState === 'expired' ? <><Badge variant="outline">TOP finalizado</Badge><span>{listing.promotionEndsAt ? `Terminó ${formatPromotionEndDate(listing.promotionEndsAt)}` : 'Periodo finalizado'}</span></> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => setHomepageHeroListing(listing)}><CalendarDays />{homepageHero?.listingId === listing.id ? 'Cambiar portada' : 'Poner en portada'}</Button>{homepageHero?.listingId === listing.id ? <Button variant="outline" size="sm" onClick={() => { void removeHomepageHero() }}>Quitar portada</Button> : null}<Button variant="outline" size="sm" disabled={listing.status !== 'published'} onClick={() => setListingPromotion(listing)}><CalendarDays />{listing.promotionState ? 'Cambiar TOP' : 'Subir al TOP'}</Button>{listing.promotionState ? <Button variant="outline" size="sm" onClick={() => { void removeListingPromotion(listing) }}>Quitar TOP</Button> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}<Button variant="destructive" size="sm" onClick={() => setListingDeletion(listing)}><Trash2 /> Eliminar</Button></div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
       </> : null}
 
       {section === 'activity' ? <>
@@ -879,6 +933,7 @@ export function AdminPage() {
       </> : null}
     </main>
     {listingRestriction ? <ListingRestrictionDialog listing={listingRestriction} open onOpenChange={(open) => { if (!open) setListingRestriction(null) }} onSaved={(updated) => { updateListingRow(updated); setListingRestriction(null) }} /> : null}
+    {listingDeletion ? <ListingDeleteDialog listing={listingDeletion} open onOpenChange={(open) => { if (!open) setListingDeletion(null) }} onDeleted={(removed) => { removeListingRow(removed); setListingDeletion(null) }} /> : null}
     {listingPromotion ? <ListingPromotionDialog listing={listingPromotion} open onOpenChange={(open) => { if (!open) setListingPromotion(null) }} onSaved={(updated) => { updateListingRow(updated); setListingPromotion(null) }} /> : null}
     {homepageHeroListing ? <HomepageHeroPromotionDialog listing={homepageHeroListing} current={homepageHero} open onOpenChange={(open) => { if (!open) setHomepageHeroListing(null) }} onSaved={(updated) => { setHomepageHero(updated); setHomepageHeroListing(null) }} /> : null}
   </div>
