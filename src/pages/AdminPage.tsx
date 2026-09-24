@@ -788,6 +788,7 @@ export function AdminPage() {
     try {
       await deleteAdminListing(listing.id)
       setListings((current) => current.filter((item) => item.id !== listing.id))
+      setReports((current) => current.filter((report) => report.listingId !== listing.id))
       if (homepageHero?.listingId === listing.id) setHomepageHero(null)
       setAuditLog(await getAdminAuditLog())
       window.dispatchEvent(new Event('catalog:refresh'))
