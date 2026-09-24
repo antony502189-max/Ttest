@@ -674,7 +674,6 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     await lock_media_assets(session, attached_ids)
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
-    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
     await session.execute(delete(ListingPromotion).where(ListingPromotion.listing_id == listing.id))
     await session.execute(delete(HomepageHeroPromotion).where(HomepageHeroPromotion.listing_id == listing.id))
     await session.flush()
@@ -706,6 +705,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     )
     await session.flush()
     await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
+    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
     await touch_catalog(session)
     await session.commit()
 
