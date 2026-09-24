@@ -175,6 +175,7 @@ async def list_my_listings(
     query = owned_query().where(
         Listing.deleted_at.is_(None),
         Listing.owner_user_id == user.id,
+        Listing.is_external.is_(False),
     )
     rows = (
         await session.execute(
