@@ -68,6 +68,7 @@ export type AdminListing = {
   views: number
   createdAt: string
   deletedAt: string | null
+  isExternal?: boolean
   activeRestriction: AdminListingRestriction | null
   promoted: boolean
   boostedAt: string | null
