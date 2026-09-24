@@ -49,7 +49,7 @@ A `published` row with an expired timestamp, deleted/blocked owner, or active mo
 | show / republish | owner publish intent | production returns `published`; owner and public consumers refetch immediately |
 | renew / republish | `POST /listings/{id}/renew` | production returns `published`; owner and public catalogs refetch |
 | moderate / approve / reject / restrict / unrestrict / promote | admin routes | admin row updates and emits `catalog:refresh`; public, owner, search, map, favorites, and open detail refetch |
-| restricted hard delete | `DELETE /listings/{id}` | owner/public caches remove the row and refetch |
+| owner/admin listing delete | `DELETE /listings/{id}` | listing is tombstoned; active owner/public/admin caches remove it and refetch |
 | account delete | `DELETE /users/me` | backend invalidates catalog; current session clears public/owner/account collections and media references |
 | automatic expiry | lifecycle worker plus effective query timestamp | worker touches catalog; polling/focus refreshes public and owner consumers |
 | detail view count | public detail GET, once per viewer/day | returned detail snapshot is merged into public and owner caches so My Listings does not keep the prior count |
@@ -60,10 +60,10 @@ Public hydration and forced refresh use a bounded version/list/version handshake
 
 ## Owner, admin, and delete capabilities
 
-- Owners can edit fields/media, hide, close, republish, renew, and view every non-deleted owned state. Server-side ownership is checked for edit, status, renew, image replacement, and restricted hard delete.
+- Owners can edit fields/media, hide, close, republish, renew, delete, and view every non-deleted owned state. Server-side ownership is checked for every owner mutation; deleting a foreign listing remains forbidden.
 - Production owner publication is direct. Admin moderation remains a separate post-publication safety/operations capability authorized by active Google-backed `admin_access`, not a required publication gate.
-- Administrators can inspect, approve legacy/admin-review rows, reject, hide, close, restore to review, restrict/unrestrict, and promote/unpromote. There is intentionally no admin hard-delete route or admin UI delete action.
-- Ordinary owner deletion is intentionally unsupported. Hard delete remains restricted to the two verified operational identities, and those identities must additionally own the listing or hold active server-side admin access.
+- Active administrators can inspect, moderate, restrict/unrestrict, promote/unpromote, and delete listings. The admin UI requires explicit confirmation before deletion.
+- `DELETE /listings/{id}` is a soft delete of the listing row: it sets `deleted_at`, closes the listing with `closed_reason=deleted`, removes active image/favorite/discard relations, touches the catalog, and records an audit event. The listing row remains available for historical/audit integrity.
 
 ## Publication, drafts, localization, and validation
 
@@ -84,7 +84,7 @@ Uploads belong to a server-loaded user. Listing image replacement locks the list
 
 - Desktop and API search use `visible_query`; mobile search and both map implementations consume only the refreshed public `allListings` result. Map coordinates are the privacy-jittered `location`; exact coordinates are owner-only.
 - Direct API detail, canonical HTML, sitemap, public media, favorites/discarded collections, and report creation independently enforce the same effective visibility predicates. Canonical listing HTML is no longer publicly cacheable across lifecycle mutations.
-- Favorite rows may remain while a listing is temporarily unavailable, but collection reads filter them out. Hide/close/reject/expiry/restriction creates an unavailable notification; hard/account deletion removes relevant collection relations.
+- Favorite rows may remain while a listing is temporarily unavailable, but collection reads filter them out. Hide/close/reject/expiry/restriction creates an unavailable notification; listing/account deletion removes relevant active collection relations.
 - Listing status, restriction, expiry, saved-search-match, and favorite-unavailable notifications retain a nullable listing reference. Notifications for owner-only states route to My Listings rather than a public 404 detail.
 - Reports can only be created for an effectively public listing and retain historical listing/owner context for admin review after soft deletion.
 
