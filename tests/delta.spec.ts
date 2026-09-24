@@ -17,40 +17,6 @@ async function openAs(page: Page, userId: string, path: string) {
   await page.goto(path)
 }
 
-async function openAsHardDeleteOperator(page: Page, path: string) {
-  await page.goto('/#/')
-  await page.evaluate((id) => {
-    const users = JSON.parse(localStorage.getItem('112233:users:v1') ?? '[]')
-    const host = users.find((user: { id: string }) => user.id === id)
-    if (host) Object.assign(host, { email: 'antony502189@gmail.com', emailVerified: true })
-    localStorage.setItem('112233:users:v1', JSON.stringify(users))
-    localStorage.setItem('112233:session:v1', JSON.stringify(id))
-  }, hostSession)
-  await page.reload()
-  await page.goto(path)
-}
-
-async function storedListings(page: Page) {
-  return page.evaluate(() => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as { data: Array<Record<string, unknown>> }
-    return payload.data
-  })
-}
-
-async function advanceWizard(page: Page, count: number) {
-  if (await page.getByRole('button', { name: /continuar/i }).count() === 0) return
-  if (!page.url().includes('/publicar')) return
-  const stepper = page.locator('.stepper')
-  await expect(stepper).toBeVisible()
-  const continueButton = page.getByRole('button', { name: 'Continuar' })
-  for (let index = 0; index < count; index += 1) {
-    const currentStep = Number((await stepper.getAttribute('aria-label'))?.match(/Paso (\d+)/)?.[1])
-    await expect(continueButton).toBeVisible()
-    await continueButton.click()
-    await expect(stepper).toHaveAttribute('aria-label', new RegExp(`Paso ${currentStep + 1} de`))
-  }
-}
-
 async function mediaExists(page: Page, reference: string) {
   return page.evaluate((mediaReference) => new Promise<boolean>((resolve, reject) => {
     const open = indexedDB.open('112233-media', 1)
@@ -175,11 +141,11 @@ test('MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload', asyn
   const createdMedia = String(edited.find((item) => item.id === createdId)?.images[0])
   expect(createdMedia).toMatch(/^idb-media:/)
   expect(await mediaExists(page, createdMedia)).toBe(true)
-  await openAsHardDeleteOperator(page, '/#/mis-anuncios')
+  await openAs(page, hostSession, '/#/mis-anuncios')
   const createdCard = page.locator('.manage-card').first()
   await createdCard.getByRole('button', { name: /Más acciones/ }).click()
   await page.getByRole('menuitem', { name: 'Eliminar' }).click()
-  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
+  await page.getByRole('button', { name: 'Eliminar anuncio', exact: true }).click()
   await expect.poll(() => mediaExists(page, createdMedia)).toBe(false)
 })
 
