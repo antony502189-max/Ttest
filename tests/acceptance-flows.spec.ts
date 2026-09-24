@@ -540,8 +540,7 @@ test("25–26 hide/show, renew and delete listing all change shared data", async
   await openActions();
   await page.getByRole("menuitem", { name: /renovar/i }).click();
   await expect(card.locator(".manage-metrics")).not.toHaveText(oldExpiry);
-  await openActions();
-  await page.getByRole("menuitem", { name: /eliminar/i }).click();
+  await card.getByRole("button", { name: /^eliminar /i }).click();
   await page.getByRole("button", { name: /^eliminar$/i }).click();
   await expect(page.getByText(id, { exact: false })).toHaveCount(0);
 });

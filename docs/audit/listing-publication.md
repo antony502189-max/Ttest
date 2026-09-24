@@ -95,7 +95,6 @@ The create schema forbids extra fields. `ownerUserId`, `status`, `promoted`, `is
 | active view-only restriction | publication allowed |
 | expired restriction | publication allowed |
 | active listing limit | `409 ACTIVE_LISTING_LIMIT_REACHED` |
-| daily creation limit | `429 DAILY_LISTING_LIMIT_REACHED` |
 
 ## Media and transaction decision
 

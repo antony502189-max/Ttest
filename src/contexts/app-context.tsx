@@ -119,7 +119,6 @@ function publicationErrorMessage(error: unknown) {
   if (error.code === 'EMAIL_VERIFICATION_REQUIRED') return 'Confirma tu email antes de publicar el anuncio.'
   if (error.code === 'PUBLISHING_RESTRICTED' || error.code === 'ACCOUNT_RESTRICTED') return 'Tu cuenta tiene restringida la publicación de anuncios. Revisa el aviso de moderación.'
   if (error.code === 'ACTIVE_LISTING_LIMIT_REACHED') return 'Has alcanzado el límite de anuncios activos.'
-  if (error.code === 'DAILY_LISTING_LIMIT_REACHED' || error.status === 429) return 'Has alcanzado el límite diario de publicaciones. Inténtalo más tarde.'
   if (error.code === 'HOST_ACCOUNT_REQUIRED' || error.status === 403) return 'Necesitas una cuenta de anfitrión autorizada para publicar.'
   if (error.status === 401) return 'Tu sesión ha caducado. Inicia sesión de nuevo para publicar.'
   if (error.code === 'REQUEST_TIMEOUT') return 'La publicación está tardando más de lo esperado. Comprobaremos el mismo intento para evitar duplicados.'

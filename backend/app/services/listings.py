@@ -3,14 +3,24 @@ from __future__ import annotations
 import unicodedata
 from datetime import UTC, datetime, timedelta
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import AuditLog, ExternalListingSource, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
+from ..models import (
+    AuditLog,
+    ExternalListingSource,
+    Listing,
+    ListingImage,
+    ListingStatusHistory,
+    MailOutbox,
+    MediaAsset,
+    Notification,
+    User,
+)
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -662,8 +672,9 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
 
     Imported/parser listings are managed by the ingestion lifecycle and must
     never be removed through the owner/admin product delete flow. PostgreSQL
-    cascades listing-owned relational rows; detached audit/notification records
-    intentionally remain as operational history without a live listing FK.
+    cascades listing-owned relational rows. Owner-initiated deletion leaves no
+    listing-specific audit/notification record; admin deletion leaves only the
+    required generic notification for the former owner.
     """
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
@@ -684,40 +695,20 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
     locked_assets = {asset.id: asset for asset in await lock_media_assets(session, attached_ids)}
-    previous_status = listing.status
-    deleted_by = "owner" if listing.owner_user_id == user.id else "admin"
+    notify_owner_about_admin_delete = admin and owner.id != user.id
 
-    if admin and owner.id != user.id:
-        await create_notification(
-            session,
-            recipient=owner,
-            kind="listing_deleted",
-            title="Tu anuncio ha sido eliminado",
-            body="Administración ha eliminado este anuncio de 112233.es.",
-            entity_listing_id=listing.id,
-            idempotency_key=f"listing-deleted:{listing.id}",
-            email_path=None,
-        )
-
-    await notify_favorited_listing_unavailable(session, listing, event_key=f"deleted:{listing.id}")
-    session.add(
-        AuditLog(
-            actor_id=user.id,
-            action="listing.deleted",
-            target_type="listing",
-            target_id=listing.id,
-            detail={
-                "ownerUserId": str(listing.owner_user_id),
-                "listingCreatedAt": listing.created_at.isoformat(),
-                "deletedBy": deleted_by,
-                "previousStatus": previous_status,
-            },
-        )
+    # Remove historical database records that still point at this listing.
+    # The only post-delete product record allowed by the product contract is
+    # the generic owner notification created below for an admin deletion.
+    await session.execute(delete(Notification).where(Notification.entity_listing_id == listing.id))
+    await session.execute(delete(AuditLog).where(AuditLog.target_id == listing.id))
+    await session.execute(
+        delete(MailOutbox).where(MailOutbox.body.contains(f"/habitacion/{listing.id}"))
     )
 
     # All listing-owned rows use ON DELETE CASCADE (room details, images,
     # favorites/discards, reports, views, history, restrictions, promotions,
-    # homepage hero and message threads). Notifications use SET NULL.
+    # homepage hero and message threads).
     await session.execute(delete(Listing).where(Listing.id == listing.id))
     await session.flush()
 
@@ -747,6 +738,18 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
             }
             await enqueue_storage_deletions(session, storage_keys)
             await session.execute(delete(MediaAsset).where(MediaAsset.id.in_(orphan_ids)))
+
+    if notify_owner_about_admin_delete:
+        await create_notification(
+            session,
+            recipient=owner,
+            kind="listing_deleted",
+            title="Tu anuncio fue eliminado por un administrador",
+            body="Tu anuncio fue eliminado por un administrador.",
+            entity_listing_id=None,
+            idempotency_key=f"admin-listing-deleted:{uuid4()}",
+            email_path=None,
+        )
 
     await touch_catalog(session)
     await session.commit()

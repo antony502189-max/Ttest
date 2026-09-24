@@ -120,8 +120,7 @@ test('MEDIA-10 shared listing photo survives until its final reference is delete
   await openAsHardDeleteOperator(page, '/#/mis-anuncios')
   for (let deletion = 0; deletion < 2; deletion += 1) {
     const card = page.locator('.manage-card').first()
-    await card.getByRole('button', { name: /Más acciones/ }).click()
-    await page.getByRole('menuitem', { name: 'Eliminar' }).click()
+    await card.getByRole('button', { name: /^Eliminar / }).click()
     await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
     await expect.poll(() => mediaExists(page, shared)).toBe(deletion === 0)
   }

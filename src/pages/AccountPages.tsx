@@ -554,6 +554,25 @@ export function MyListingsPage() {
                     Editar
                   </Link>
                 </Button>
+                {!listing.isExternal ? <ConfirmDialog
+                  trigger={
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      aria-label={`Eliminar ${listing.title}`}
+                      title="Eliminar"
+                    >
+                      <Trash2 />
+                    </Button>
+                  }
+                  title="¿Eliminar este anuncio?"
+                  description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es."
+                  confirmLabel="Eliminar"
+                  destructive
+                  onConfirm={async () => {
+                    if (await deleteListing(listing.id)) toast.success("Anuncio eliminado");
+                  }}
+                /> : null}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -591,24 +610,6 @@ export function MyListingsPage() {
                         Renovar
                       </DropdownMenuItem>
                       {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
-                      {!listing.isExternal ? <ConfirmDialog
-                        trigger={
-                          <DropdownMenuItem
-                            onSelect={(event) => event.preventDefault()}
-                            variant="destructive"
-                          >
-                            <Trash2 />
-                            Eliminar
-                          </DropdownMenuItem>
-                        }
-                        title="¿Eliminar este anuncio?"
-                        description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es."
-                        confirmLabel="Eliminar"
-                        destructive
-                        onConfirm={async () => {
-                          if (await deleteListing(listing.id)) toast.success("Anuncio eliminado");
-                        }}
-                      /> : null}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
