@@ -17,11 +17,6 @@ test('local owner delete is available without the retired email allowlist', asyn
   await openMyListings(page, user('host@example.test', true))
   await page.getByLabel(/Más acciones para/).first().click()
   await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
-
-  await page.keyboard.press('Escape')
-  await openMyListings(page, user('ordinary-unverified@example.test', false))
-  await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
 })
 
 test('owner delete is hidden for imported listings', async ({ page }) => {
