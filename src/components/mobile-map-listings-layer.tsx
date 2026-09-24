@@ -115,7 +115,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         clusterRef.current = new MarkerClusterer({
           map,
           markers,
-          algorithm: new SuperClusterAlgorithm({ radius: 54, maxZoom: 15 }),
+          algorithm: new SuperClusterAlgorithm({ radius: 54, maxZoom: 20 }),
           renderer: new AdvancedClusterRenderer(),
         })
       }

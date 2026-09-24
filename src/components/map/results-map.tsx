@@ -318,7 +318,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       : new MarkerClusterer({
         map,
         markers,
-        algorithm: new SuperClusterAlgorithm({ radius: 58, maxZoom: 16 }),
+        algorithm: new SuperClusterAlgorithm({ radius: 58, maxZoom: 20 }),
         renderer: new AdvancedClusterRenderer(),
       })
     if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })

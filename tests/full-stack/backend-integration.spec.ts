@@ -191,7 +191,7 @@ test('customer-priority fields persist through FastAPI, search uses them, and pr
   const search = await searchResponse.json() as { items: Array<Record<string, unknown>> }
   const publicListing = search.items.find((item) => item.id === created.listingId)
   expect(publicListing).toBeTruthy()
-  expect(publicListing).toMatchObject({ id: created.listingId, floor: 'top', latitude: 28.4636, longitude: -16.2518 })
+  expect(publicListing).toMatchObject({ id: created.listingId, floor: 'top', latitude: 28.464, longitude: -16.2514 })
   expect(publicListing).not.toHaveProperty('street')
   expect(publicListing).not.toHaveProperty('postcode')
   expect(publicListing).not.toHaveProperty('exactLatitude')

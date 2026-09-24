@@ -82,7 +82,7 @@ async def test_location_edit_syncs_only_owner_rooms_with_same_previous_private_a
         area="Playa de las Américas",
         street="Avenida V Centenario 1",
         postcode="38660",
-        approximateAddress="Playa de las Américas · ubicación aproximada",
+        approximateAddress="Playa de las Américas · ubicación en el mapa",
         latitude=28.0690,
         longitude=-16.7282,
         exactLatitude=28.0674,
@@ -106,8 +106,8 @@ async def test_location_edit_syncs_only_owner_rooms_with_same_previous_private_a
         assert sibling_after.area == "Playa de las Américas"
         assert sibling_after.street == "Avenida V Centenario 1"
         assert sibling_after.postcode == "38660"
-        assert sibling_after.latitude == pytest.approx(28.0690)
-        assert sibling_after.longitude == pytest.approx(-16.7282)
+        assert sibling_after.latitude == pytest.approx(28.0674)
+        assert sibling_after.longitude == pytest.approx(-16.7268)
         assert sibling_after.exactLatitude == pytest.approx(28.0674)
         assert sibling_after.exactLongitude == pytest.approx(-16.7268)
 

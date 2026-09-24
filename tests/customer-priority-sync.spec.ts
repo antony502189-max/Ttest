@@ -6,14 +6,13 @@ import { approximatePublicCoordinates, distanceMeters } from '@/lib/location-pri
 import { filterListings } from '@/lib/search'
 import type { Listing } from '@/types'
 
-test('CUSTOMER-SYNC exact publication coordinates stay private and public point is deterministic', () => {
+test('CUSTOMER-SYNC owner publication uses the saved coordinate everywhere', () => {
   const exact = { lat: 28.0521, lng: -16.7177 }
   const first = approximatePublicCoordinates(exact)
   const second = approximatePublicCoordinates(exact)
   expect(first).toEqual(second)
-  expect(first).not.toEqual(exact)
-  expect(distanceMeters(exact, first)).toBeGreaterThanOrEqual(150)
-  expect(distanceMeters(exact, first)).toBeLessThanOrEqual(300)
+  expect(first).toEqual(exact)
+  expect(distanceMeters(exact, first)).toBe(0)
 })
 
 test('CUSTOMER-SYNC floor ordering uses structured floor instead of listing id', () => {

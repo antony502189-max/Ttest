@@ -148,7 +148,7 @@ function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string)
     area: draft.area.trim(),
     street: draft.street.trim(),
     postcode: draft.postcode.trim(),
-    approximateAddress: `${draft.area.trim()} · ubicación aproximada`,
+    approximateAddress: `${draft.area.trim()} · ubicación en el mapa`,
     coordinates: approximatePublicCoordinates(exactCoordinates),
     exactCoordinates,
     price,

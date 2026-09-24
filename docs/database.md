@@ -4,7 +4,7 @@ The production database is PostgreSQL with PostGIS. The Docker image is `postgis
 
 Core tables include `users`, `auth_sessions`, `password_reset_tokens`, `email_verification_tokens`, `mail_outbox`, `media_assets`, `listing_images`, `listings`, `favorites`, `discarded_listings`, `saved_searches`, `search_history`, `message_threads`, `messages`, `reports`, `listing_views`, `listing_status_history` and `audit_logs`.
 
-`listings.location` is the public approximate PostGIS point; `exact_location` is private. The schema has GIST and composite/partial indexes for public listing search, owner dashboards, expiry, publication time and room counts. PostgreSQL check constraints enforce nonnegative prices/deposits, positive area, bedroom count 1–99, room capacity 1–2, ordered availability dates and the required primary price for each rental mode. Token tables contain hashes, never raw tokens.
+`listings.location` is the public PostGIS map point. For owner-created listings with a verified host coordinate it is kept equal to `exact_location`; imported listings may expose only a source-provided public point or no verified point. The schema has GIST and composite/partial indexes for public listing search, owner dashboards, expiry, publication time and room counts. PostgreSQL check constraints enforce nonnegative prices/deposits, positive area, bedroom count 1–99, room capacity 1–2, ordered availability dates and the required primary price for each rental mode. Token tables contain hashes, never raw tokens.
 
 Apply from an empty database:
 

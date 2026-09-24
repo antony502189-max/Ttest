@@ -79,6 +79,14 @@ def idempotency_payload_matches(
     if payload.assetIds != stored_asset_ids:
         return False
     incoming = payload.model_dump(mode="json")
+    # Owner exact coordinates are the canonical public map point. When they are
+    # present, latitude/longitude are legacy transport fields and may differ
+    # from the value persisted in Listing.location. Normalize the replay input
+    # before comparing it with the stored owner response so an identical
+    # idempotent publication does not become a false payload mismatch.
+    if incoming.get("exactLatitude") is not None and incoming.get("exactLongitude") is not None:
+        incoming["latitude"] = incoming["exactLatitude"]
+        incoming["longitude"] = incoming["exactLongitude"]
     stored = existing.model_dump(mode="json")
     for field, value in incoming.items():
         if field == "assetIds" or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
