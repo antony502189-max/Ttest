@@ -14,6 +14,7 @@ from app.db.session import SessionLocal
 from app.models import (
     AuditLog,
     DiscardedListing,
+    ExternalListingSource,
     Favorite,
     Listing,
     ListingImage,
@@ -422,6 +423,48 @@ async def test_imported_listing_cannot_be_deleted_by_owner_or_admin(client: Asyn
         assert listing is not None
         assert listing.is_external is True
         assert listing.deleted_at is None
+
+    source_backed = await client.post(
+        "/api/v1/listings",
+        headers=auth(owner_token),
+        json=listing_payload(title="Source marker delete protection", latitude=28.4741, longitude=-16.2641, bedrooms=2),
+    )
+    assert source_backed.status_code == 201, source_backed.text
+    source_backed_id = source_backed.json()["id"]
+    source_backed_uuid = UUID(source_backed_id)
+
+    async with SessionLocal() as session:
+        listing = await session.get(Listing, source_backed_uuid)
+        assert listing is not None
+        assert listing.is_external is False
+        session.add(
+            ExternalListingSource(
+                source_name="test-parser",
+                external_id="source-backed-delete-protection",
+                source_url="https://example.invalid/source-backed-delete-protection",
+                canonical_listing_id=source_backed_uuid,
+                raw_payload={},
+                normalized_payload={},
+                fingerprint="source-backed-delete-protection",
+            )
+        )
+        await session.commit()
+
+    source_owner_delete = await client.delete(f"/api/v1/listings/{source_backed_id}", headers=auth(owner_token))
+    assert source_owner_delete.status_code == 409, source_owner_delete.text
+    assert source_owner_delete.json()["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"
+
+    source_admin_delete = await client.delete(f"/api/v1/listings/{source_backed_id}", headers=auth(admin_token))
+    assert source_admin_delete.status_code == 409, source_admin_delete.text
+    assert source_admin_delete.json()["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"
+
+    async with SessionLocal() as session:
+        assert await session.get(Listing, source_backed_uuid) is not None
+        assert await session.scalar(
+            select(ExternalListingSource.id).where(
+                ExternalListingSource.canonical_listing_id == source_backed_uuid
+            )
+        ) is not None
 
 
 async def test_admin_renewal_notifies_the_listing_owner(client: AsyncClient, register_user):
