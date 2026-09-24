@@ -10,7 +10,17 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import AuditLog, ExternalListingSource, Listing, ListingImage, ListingStatusHistory, MailOutbox, MediaAsset, Notification, User
+from ..models import (
+    AuditLog,
+    ExternalListingSource,
+    Listing,
+    ListingImage,
+    ListingStatusHistory,
+    MailOutbox,
+    MediaAsset,
+    Notification,
+    User,
+)
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
