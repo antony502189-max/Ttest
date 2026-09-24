@@ -11,7 +11,7 @@ from PIL import Image
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
-from app.models import AuditLog, Notification, User
+from app.models import AuditLog, Listing, Notification, User
 from app.models.moderation import AdminAccess, ListingPromotion, ListingRestriction
 from app.services.moderation_expiry import process_expired_moderation
 
@@ -207,32 +207,88 @@ async def test_public_catalog_refreshes_after_create_update_hide_and_republish(c
     assert listing_id in {item["id"] for item in republished_search.json()["items"]}
 
 
-async def test_hard_delete_rejects_an_unverified_registration_using_an_allowlisted_email(client: AsyncClient, register_user):
-    owner_token, _ = await register_user(client, email="delete-target@example.com", role="host")
+async def test_listing_owner_can_soft_delete_while_foreign_user_cannot(client: AsyncClient, register_user):
+    owner_token, owner = await register_user(client, email="delete-owner@example.com", role="host")
+    foreign_token, _ = await register_user(client, email="delete-foreign@example.com", role="host")
     created = await client.post(
         "/api/v1/listings",
         headers=auth(owner_token),
-        json=listing_payload(title="Protected delete target", latitude=28.4711, longitude=-16.2611, bedrooms=2),
+        json=listing_payload(title="Owner delete target", latitude=28.4711, longitude=-16.2611, bedrooms=2),
     )
     assert created.status_code == 201, created.text
     listing_id = created.json()["id"]
+    listing_uuid = UUID(listing_id)
 
-    attacker = await client.post(
-        "/api/v1/auth/register",
-        json={
-            "name": "Unverified claimant",
-            "email": "antony502189@gmail.com",
-            "password": "Correct-Horse-1234",
-            "role": "host",
-        },
-    )
-    assert attacker.status_code == 201, attacker.text
-    denied = await client.delete(
-        f"/api/v1/listings/{listing_id}",
-        headers=auth(attacker.json()["accessToken"]),
-    )
+    denied = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(foreign_token))
     assert denied.status_code == 403, denied.text
     assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 200
+
+    deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(owner_token))
+    assert deleted.status_code == 204, deleted.text
+    assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 404
+    mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
+    assert listing_id not in {item["id"] for item in mine.json()}
+
+    async with SessionLocal() as session:
+        stored = await session.get(Listing, listing_uuid)
+        audit = await session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
+            .order_by(AuditLog.created_at.desc())
+        )
+        assert stored is not None and stored.deleted_at is not None
+        assert stored.status == "closed"
+        assert stored.closed_reason == "deleted"
+        assert audit is not None
+        assert audit.actor_id == UUID(owner["id"])
+        assert audit.detail["deletedBy"] == "owner"
+
+
+async def test_active_admin_can_soft_delete_another_owners_listing(client: AsyncClient, register_user):
+    owner_token, owner = await register_user(client, email="admin-delete-owner@example.com", role="host")
+    admin_token, admin = await register_user(client, email="admin-delete-operator@example.com", role="host")
+    async with SessionLocal() as session:
+        stored_admin = await session.get(User, UUID(admin["id"]))
+        assert stored_admin is not None
+        stored_admin.google_subject = "admin-delete-google-subject"
+        session.add(AdminAccess(email=admin["email"].lower()))
+        await session.commit()
+
+    created = await client.post(
+        "/api/v1/listings",
+        headers=auth(owner_token),
+        json=listing_payload(title="Admin delete target", latitude=28.4721, longitude=-16.2621, bedrooms=2),
+    )
+    assert created.status_code == 201, created.text
+    listing_id = created.json()["id"]
+    listing_uuid = UUID(listing_id)
+
+    deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(admin_token))
+    assert deleted.status_code == 204, deleted.text
+
+    admin_rows = await client.get("/api/v1/admin/listings", headers=auth(admin_token))
+    assert admin_rows.status_code == 200, admin_rows.text
+    assert listing_id not in {item["id"] for item in admin_rows.json()}
+
+    async with SessionLocal() as session:
+        stored = await session.get(Listing, listing_uuid)
+        audit = await session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
+            .order_by(AuditLog.created_at.desc())
+        )
+        notification = await session.scalar(
+            select(Notification).where(
+                Notification.recipient_user_id == UUID(owner["id"]),
+                Notification.entity_listing_id == listing_uuid,
+                Notification.type == "listing_deleted",
+            )
+        )
+        assert stored is not None and stored.deleted_at is not None
+        assert audit is not None
+        assert audit.actor_id == UUID(admin["id"])
+        assert audit.detail["deletedBy"] == "admin"
+        assert notification is not None
 
 
 async def test_admin_renewal_notifies_the_listing_owner(client: AsyncClient, register_user):
