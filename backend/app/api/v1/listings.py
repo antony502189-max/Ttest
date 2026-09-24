@@ -172,9 +172,10 @@ async def list_my_listings(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    query = owned_query().where(Listing.deleted_at.is_(None))
-    if not await is_admin(user, session):
-        query = query.where(Listing.owner_user_id == user.id)
+    query = owned_query().where(
+        Listing.deleted_at.is_(None),
+        Listing.owner_user_id == user.id,
+    )
     rows = (
         await session.execute(
             query.order_by(Listing.created_at.desc(), Listing.id.desc()).limit(limit).offset(offset)
