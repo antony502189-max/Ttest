@@ -268,7 +268,8 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
 
     denied = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(foreign_token))
     assert denied.status_code == 403, denied.text
-    assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 200
+    async with SessionLocal() as session:
+        assert await session.get(Listing, listing_uuid) is not None
 
     deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(owner_token))
     assert deleted.status_code == 204, deleted.text
@@ -382,11 +383,11 @@ async def test_imported_listing_cannot_be_deleted_by_owner_or_admin(client: Asyn
 
     owner_delete = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(owner_token))
     assert owner_delete.status_code == 409, owner_delete.text
-    assert owner_delete.json()["detail"]["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"
+    assert owner_delete.json()["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"
 
     admin_delete = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(admin_token))
     assert admin_delete.status_code == 409, admin_delete.text
-    assert admin_delete.json()["detail"]["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"
+    assert admin_delete.json()["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"
 
     async with SessionLocal() as session:
         listing = await session.get(Listing, listing_uuid)
