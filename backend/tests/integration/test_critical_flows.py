@@ -20,6 +20,7 @@ from app.models import (
     ListingImage,
     ListingStatusHistory,
     ListingView,
+    MailOutbox,
     MediaAsset,
     Message,
     MessageThread,
@@ -249,6 +250,25 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
     listing_uuid = UUID(listing_id)
 
     async with SessionLocal() as session:
+        creation_notification = await session.scalar(
+            select(Notification).where(Notification.entity_listing_id == listing_uuid)
+        )
+        creation_mail = await session.scalar(
+            select(MailOutbox).where(MailOutbox.body.contains(f"/habitacion/{listing_id}"))
+        )
+        assert creation_notification is not None
+        assert creation_mail is not None
+        creation_notification_id = creation_notification.id
+        creation_mail_id = creation_mail.id
+        session.add(
+            AuditLog(
+                actor_id=UUID(owner["id"]),
+                action="listing.test_history",
+                target_type="listing",
+                target_id=listing_uuid,
+                detail={"test": True},
+            )
+        )
         session.add(Favorite(user_id=UUID(foreign["id"]), listing_id=listing_uuid))
         session.add(DiscardedListing(user_id=UUID(foreign["id"]), listing_id=listing_uuid))
         session.add(ListingView(listing_id=listing_uuid, viewer_key="delete-regression", view_date=datetime.now(UTC).date()))
@@ -325,9 +345,9 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
         assert not list(
             await session.scalars(select(HomepageHeroPromotion).where(HomepageHeroPromotion.listing_id == listing_uuid))
         )
-        assert await session.scalar(
-            select(AuditLog).where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
-        ) is None
+        assert await session.scalar(select(AuditLog).where(AuditLog.target_id == listing_uuid)) is None
+        assert await session.get(Notification, creation_notification_id) is None
+        assert await session.get(MailOutbox, creation_mail_id) is None
         assert await session.scalar(
             select(Notification).where(
                 Notification.recipient_user_id == UUID(owner["id"]),
@@ -361,6 +381,18 @@ async def test_active_admin_can_hard_delete_another_owners_local_listing(client:
     listing_id = created.json()["id"]
     listing_uuid = UUID(listing_id)
 
+    owner_mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
+    assert listing_id in {item["id"] for item in owner_mine.json()}
+    admin_mine = await client.get("/api/v1/listings/mine", headers=auth(admin_token))
+    assert listing_id not in {item["id"] for item in admin_mine.json()}
+
+    async with SessionLocal() as session:
+        creation_notification = await session.scalar(
+            select(Notification).where(Notification.entity_listing_id == listing_uuid)
+        )
+        assert creation_notification is not None
+        creation_notification_id = creation_notification.id
+
     deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(admin_token))
     assert deleted.status_code == 204, deleted.text
 
@@ -370,9 +402,8 @@ async def test_active_admin_can_hard_delete_another_owners_local_listing(client:
 
     async with SessionLocal() as session:
         assert await session.get(Listing, listing_uuid) is None
-        assert await session.scalar(
-            select(AuditLog).where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_uuid)
-        ) is None
+        assert await session.scalar(select(AuditLog).where(AuditLog.target_id == listing_uuid)) is None
+        assert await session.get(Notification, creation_notification_id) is None
         notification = await session.scalar(
             select(Notification)
             .where(
