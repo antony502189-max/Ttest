@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import AuditLog, DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
+from ..models.moderation import HomepageHeroPromotion, ListingPromotion
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -20,7 +21,6 @@ from ..schemas.listings import (
     ListingWrite,
     OwnedListingResponse,
 )
-from ..models.moderation import HomepageHeroPromotion, ListingPromotion
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
