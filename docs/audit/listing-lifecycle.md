@@ -19,7 +19,7 @@ Effective public eligibility additionally requires: no listing tombstone, unexpi
 
 Deletion and expiry are overlays, not extra enum values:
 
-- restricted hard delete stores `status=closed`, `closed_reason=deleted`, and `deleted_at`; it removes favorite/discard relations and listing media relations and schedules orphan storage cleanup;
+- user-created listing deletion physically removes the `listings` row; `ON DELETE CASCADE` removes listing-owned relational data, orphaned media rows are removed and their storage objects are queued for deletion; imported/parser listings are explicitly excluded from this product delete flow;
 - account deletion stores `status=closed`, `closed_reason=account_deleted`, and `deleted_at` on all owned listings and anonymizes the account;
 - expiry is immediately excluded by public queries and the lifecycle worker deterministically persists `status=closed`, `closed_reason=expired` with history and notifications.
 
@@ -35,7 +35,7 @@ Deletion and expiry are overlays, not extra enum values:
 | `hidden` | Y: edit/republish/close/renew | N | N | N | N/404 | N (saved row may remain, but is not returned) | Y | Y: restore pending | owner/admin Y; public N | Y |
 | `closed` | Y: edit/renew | N | N | N | N/404 | N | Y | Y: restore pending | owner/admin Y; public N | Y |
 | `rejected` | Y: edit/republish/renew | N | N | N | N/404 | N | Y | Y: restore pending | owner/admin Y; public N | Y |
-| tombstoned | N | N | N | N | N/404 | N/relations removed | N | N | N/404 | Y: retained audit tombstone |
+| deleted local listing | N | N | N | N | N/404 | N | N | N | N/404 | N: row removed |
 
 A `published` row with an expired timestamp, deleted/blocked owner, or active moderation restriction follows the public `N` cells while remaining visible to its owner and administrators. Unknown API status values fail closed to the non-public frontend state `Pendiente`.
 
@@ -49,7 +49,7 @@ A `published` row with an expired timestamp, deleted/blocked owner, or active mo
 | show / republish | owner publish intent | production returns `published`; owner and public consumers refetch immediately |
 | renew / republish | `POST /listings/{id}/renew` | production returns `published`; owner and public catalogs refetch |
 | moderate / approve / reject / restrict / unrestrict / promote | admin routes | admin row updates and emits `catalog:refresh`; public, owner, search, map, favorites, and open detail refetch |
-| owner/admin listing delete | `DELETE /listings/{id}` | listing is tombstoned; active owner/public/admin caches remove it and refetch |
+| owner/admin listing delete | `DELETE /listings/{id}` | local user-created listing is physically deleted with dependent rows; imported listings are rejected; active owner/public/admin caches remove it and refetch |
 | account delete | `DELETE /users/me` | backend invalidates catalog; current session clears public/owner/account collections and media references |
 | automatic expiry | lifecycle worker plus effective query timestamp | worker touches catalog; polling/focus refreshes public and owner consumers |
 | detail view count | public detail GET, once per viewer/day | returned detail snapshot is merged into public and owner caches so My Listings does not keep the prior count |
@@ -63,7 +63,7 @@ Public hydration and forced refresh use a bounded version/list/version handshake
 - Owners can edit fields/media, hide, close, republish, renew, delete, and view every non-deleted owned state. Server-side ownership is checked for every owner mutation; deleting a foreign listing remains forbidden.
 - Production owner publication is direct. Admin moderation remains a separate post-publication safety/operations capability authorized by active Google-backed `admin_access`, not a required publication gate.
 - Active administrators can inspect, moderate, restrict/unrestrict, promote/unpromote, and delete listings. The admin UI requires explicit confirmation before deletion.
-- `DELETE /listings/{id}` is a soft delete of the listing row: it sets `deleted_at`, closes the listing with `closed_reason=deleted`, removes active image/favorite/discard relations, touches the catalog, and records an audit event. The listing row remains available for historical/audit integrity.
+- `DELETE /listings/{id}` permanently deletes only user-created listings (`is_external=false`). Imported/parser listings are rejected. Database cascades remove listing-owned relations; orphaned media rows are removed and storage deletion is queued. A detached audit event and, for admin deletion, a detached owner notification remain as operational history without a live listing reference.
 
 ## Publication, drafts, localization, and validation
 
@@ -111,8 +111,8 @@ Uploads belong to a server-loaded user. Listing image replacement locks the list
 | reports/complaints | VERIFIED AND WORKING | only effectively public targets accepted; historical admin context retained |
 | moderation restrictions and expiry | VERIFIED AND WORKING | moderation is post-publication/admin safety, not an owner publication gate; effective query predicates and expiry worker remain enforced |
 | admin listing management and promotions | BUG FOUND AND FIXED | owner patch cannot bypass admin transitions; admin mutations trigger consumer refresh |
-| admin deletion | INTENTIONAL LIMITATION | unsupported by existing API/UI; no new destructive capability was invented |
-| restricted hard delete | BUG FOUND AND FIXED | verified allowlist remains, with added owner-or-active-admin authorization |
+| admin deletion | BUG FOUND AND FIXED | active administrators can permanently delete user-created listings; imported/parser listings are protected |
+| local listing hard delete | BUG FOUND AND FIXED | client email gates removed; server owner-or-active-admin authorization plus imported-listing protection and cascade cleanup |
 | account deletion and owned listings | VERIFIED AND WORKING | listings tombstoned, public catalog invalidated, collections/media/account data cleaned |
 | listing media lifecycle | VERIFIED AND WORKING | ownership, foreign reference, concurrency, orphan cleanup, cache, and storage queue regressions |
 | expiration and renewal | BUG FOUND AND FIXED | expired writes/approval rejected; effective query and worker close; production renew returns directly to published |
@@ -130,7 +130,7 @@ No discovered listing subsystem is left unclassified.
 
 ## Known intentional limitations and NOT PROVEN
 
-- **INTENTIONAL LIMITATION:** server-side drafts, ordinary owner hard delete, admin hard delete, and in-product listing messaging/contact forms are not supported.
+- **INTENTIONAL LIMITATION:** server-side drafts and in-product listing messaging/contact forms are not supported. Permanent delete is supported only for user-created listings; imported/parser listings remain under the ingestion lifecycle.
 - **MIGRATION CONTRACT:** a clean Alembic upgrade must reach `0041_direct_publish_pending (head)`. The migration repairs legacy production `pending` rows without deleting data and preserves previous-release compatibility because `published` is already a supported state.
 - **NOT PROVEN UNTIL DEPLOY:** real production data repair is not claimed until the release is deployed and the migration runs against production. CI proves migration/build/test behavior, not the production row count.
 - **NOT PROVEN:** real S3 object deletion, email delivery, live external-source crawling, Google Maps production rendering, CDN behavior, and production data are not exercised by source-only evidence. Their existing deterministic contracts remain covered by CI.
