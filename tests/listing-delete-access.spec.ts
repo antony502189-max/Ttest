@@ -13,6 +13,7 @@ async function resetAndOpenAs(page: Page, userId: string, path: string) {
 test('ordinary owner can delete their own listing without an email allowlist', async ({ page }) => {
   await resetAndOpenAs(page, 'host-demo', '/#/mis-anuncios')
   const cards = page.locator('.manage-card')
+  await expect(cards.first()).toBeVisible()
   const before = await cards.count()
   expect(before).toBeGreaterThan(0)
 
