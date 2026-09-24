@@ -1,6 +1,8 @@
 from app.main import app
 from app.schemas.auth import UserResponse, UserUpdateRequest
 from app.schemas.listings import ListingResponse
+
+
 def test_owner_and_admin_listing_delete_routes_are_exposed() -> None:
     paths = app.openapi()["paths"]
     assert "delete" in paths["/api/v1/listings/{listing_id}"]
