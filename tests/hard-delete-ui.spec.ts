@@ -13,19 +13,19 @@ async function openMyListings(page: import('@playwright/test').Page, profile: Re
   await page.goto('/#/mis-anuncios')
 }
 
-test('hard delete is hidden for every unverified or non-allowlisted UI profile', async ({ page }) => {
+test('listing deletion is offered to an ordinary owner regardless of email allowlists', async ({ page }) => {
   await openMyListings(page, user('host@example.test', true))
   await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
 
-  await page.keyboard.press('Escape')
-  await openMyListings(page, user('antony502189@gmail.com', false))
-  await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toHaveCount(0)
+  await page.getByRole('menuitem', { name: 'Eliminar' }).click()
+  const dialog = page.getByRole('alertdialog', { name: '¿Eliminar este anuncio?' })
+  await expect(dialog).toContainText('búsquedas, mapas y Mis anuncios')
+  await expect(dialog.getByRole('button', { name: 'Eliminar anuncio' })).toBeVisible()
 })
 
-test('hard delete is offered only to a verified canonical profile', async ({ page }) => {
-  await openMyListings(page, user(' TF.SHULER@gmail.com ', true))
+test('listing deletion is also offered when email verification is not the authorization boundary', async ({ page }) => {
+  await openMyListings(page, user('another-owner@example.test', false))
   await page.getByLabel(/Más acciones para/).first().click()
   await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
 })
