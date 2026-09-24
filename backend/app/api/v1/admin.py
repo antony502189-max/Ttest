@@ -43,6 +43,7 @@ from ...services.admin import (
 )
 from ...services.admin_audit import list_audit_logs
 from ...services.admin_listings import list_listings
+from ...services.listings import delete_listing as delete_listing_service
 from ...services.admin_users import (
     get_user_detail,
     list_users,
@@ -215,6 +216,15 @@ async def list_listings_route(
         after_created_at=after_created_at,
         after_id=after_id,
     )
+
+
+@router.delete("/listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing_route(
+    listing_id: UUID,
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await delete_listing_service(listing_id, user, session)
 
 
 @router.patch("/listings/{listing_id}/status", response_model=AdminListingResponse)
