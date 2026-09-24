@@ -708,6 +708,7 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
             target_id=listing.id,
             detail={
                 "ownerUserId": str(listing.owner_user_id),
+                "listingCreatedAt": listing.created_at.isoformat(),
                 "deletedBy": deleted_by,
                 "previousStatus": previous_status,
             },
