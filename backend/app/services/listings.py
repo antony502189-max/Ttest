@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import ExternalListingSource, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
+from ..models import AuditLog, ExternalListingSource, Listing, ListingImage, ListingStatusHistory, MailOutbox, MediaAsset, Notification, User
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -685,17 +685,16 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
     locked_assets = {asset.id: asset for asset in await lock_media_assets(session, attached_ids)}
-    if admin and owner.id != user.id:
-        await create_notification(
-            session,
-            recipient=owner,
-            kind="listing_deleted",
-            title="Tu anuncio fue eliminado por un administrador",
-            body="Tu anuncio fue eliminado por un administrador.",
-            entity_listing_id=None,
-            idempotency_key=f"admin-listing-deleted:{uuid4()}",
-            email_path=None,
-        )
+    notify_owner_about_admin_delete = admin and owner.id != user.id
+
+    # Remove historical database records that still point at this listing.
+    # The only post-delete product record allowed by the product contract is
+    # the generic owner notification created below for an admin deletion.
+    await session.execute(delete(Notification).where(Notification.entity_listing_id == listing.id))
+    await session.execute(delete(AuditLog).where(AuditLog.target_id == listing.id))
+    await session.execute(
+        delete(MailOutbox).where(MailOutbox.body.contains(f"/habitacion/{listing.id}"))
+    )
 
     # All listing-owned rows use ON DELETE CASCADE (room details, images,
     # favorites/discards, reports, views, history, restrictions, promotions,
@@ -729,6 +728,18 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
             }
             await enqueue_storage_deletions(session, storage_keys)
             await session.execute(delete(MediaAsset).where(MediaAsset.id.in_(orphan_ids)))
+
+    if notify_owner_about_admin_delete:
+        await create_notification(
+            session,
+            recipient=owner,
+            kind="listing_deleted",
+            title="Tu anuncio fue eliminado por un administrador",
+            body="Tu anuncio fue eliminado por un administrador.",
+            entity_listing_id=None,
+            idempotency_key=f"admin-listing-deleted:{uuid4()}",
+            email_path=None,
+        )
 
     await touch_catalog(session)
     await session.commit()
