@@ -675,7 +675,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
     try {
       // Do not touch browser drafts or IndexedDB media until the server has
-      // accepted the owner/admin soft-delete.
+      // accepted the permanent deletion of this user-created listing.
       await deleteRemoteListing(id)
     } catch (error) {
       toast.error(error instanceof ApiError && error.status === 403
