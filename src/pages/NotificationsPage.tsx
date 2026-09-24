@@ -106,9 +106,9 @@ const productNotificationCopy: Record<string, Record<Language, { title: string; 
     ru: { title: 'Срок объявления истёк', body: 'Объявление завершено. Его можно продлить в разделе «Мои объявления».' },
   },
   listing_deleted: {
-    es: { title: 'Tu anuncio ha sido eliminado', body: 'Administración ha eliminado este anuncio de 112233.es.' },
-    en: { title: 'Your listing was removed', body: 'Administration removed this listing from 112233.es.' },
-    ru: { title: 'Объявление удалено', body: 'Администрация удалила это объявление с 112233.es.' },
+    es: { title: 'Tu anuncio fue eliminado por un administrador', body: 'Tu anuncio fue eliminado por un administrador.' },
+    en: { title: 'Your listing was deleted by an administrator', body: 'Your listing was deleted by an administrator.' },
+    ru: { title: 'Ваше объявление было удалено администратором', body: 'Ваше объявление было удалено администратором.' },
   },
   saved_search_match: {
     es: { title: 'Nueva habitación para tu búsqueda guardada', body: 'Ha aparecido una nueva habitación que coincide con tu búsqueda.' },
