@@ -15,8 +15,7 @@ async function openMyListings(page: import('@playwright/test').Page, profile: Re
 
 test('local owner delete is available without the retired email allowlist', async ({ page }) => {
   await openMyListings(page, user('host@example.test', true))
-  await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Eliminar / }).first()).toBeVisible()
 })
 
 test('owner delete is hidden for imported listings', async ({ page }) => {
@@ -29,8 +28,7 @@ test('owner delete is hidden for imported listings', async ({ page }) => {
     localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
   })
   await page.reload()
-  await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Eliminar / })).toHaveCount(0)
 })
 
 test('the authenticated notification center is reachable without adding a fifth mobile tab', async ({ page }) => {
