@@ -20,6 +20,8 @@ from app.models import (
     ListingStatusHistory,
     ListingView,
     MediaAsset,
+    Message,
+    MessageThread,
     Notification,
     Report,
     User,
@@ -260,6 +262,22 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
         )
         session.add(ListingRestriction(listing_id=listing_uuid, reason="delete regression"))
         session.add(ListingPromotion(listing_id=listing_uuid, boosted_by=UUID(owner["id"])))
+        thread = MessageThread(
+            listing_id=listing_uuid,
+            tenant_id=UUID(foreign["id"]),
+            host_id=UUID(owner["id"]),
+        )
+        session.add(thread)
+        await session.flush()
+        thread_id = thread.id
+        message = Message(
+            thread_id=thread_id,
+            sender_id=UUID(foreign["id"]),
+            body="delete cascade regression",
+        )
+        session.add(message)
+        await session.flush()
+        message_id = message.id
         session.add(
             HomepageHeroPromotion(
                 id=1,
@@ -297,6 +315,8 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
         assert not list(await session.scalars(select(DiscardedListing).where(DiscardedListing.listing_id == listing_uuid)))
         assert not list(await session.scalars(select(ListingView).where(ListingView.listing_id == listing_uuid)))
         assert not list(await session.scalars(select(Report).where(Report.listing_id == listing_uuid)))
+        assert await session.get(MessageThread, thread_id) is None
+        assert await session.get(Message, message_id) is None
         assert not list(
             await session.scalars(select(ListingRestriction).where(ListingRestriction.listing_id == listing_uuid))
         )
