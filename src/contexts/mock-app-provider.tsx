@@ -352,13 +352,20 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     const draftRecord = readDraftRecord()
     const deleteDraft = draftRecord?.value.listingId === id
     const draftMedia = deleteDraft ? collectMediaReferences(draftRecord?.value) : new Set<string>()
+    const editDraftKey = `112233:listing-edit-draft:v1:${id}`
+    let editDraftMedia = new Set<string>()
+    try {
+      const editDraft = JSON.parse(localStorage.getItem(editDraftKey) ?? 'null')
+      if (editDraft) editDraftMedia = collectMediaReferences(editDraft)
+    } catch { /* corrupted edit drafts are safe to discard */ }
     if (deleteDraft) {
       localStorage.removeItem(DRAFT_KEY)
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
+    localStorage.removeItem(editDraftKey)
     setAllListings(remaining)
     try {
-      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value))
+      await removeUnusedMediaReferences([...listing.images, ...draftMedia, ...editDraftMedia], usedMediaReferences(remaining, users, deleteDraft ? null : draftRecord?.value))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
     }
