@@ -121,7 +121,7 @@ async def test_guest_import_respects_zero_quota_without_breaking_import(monkeypa
         assert count == 0
 
 
-async def test_soft_deleted_listing_removes_collection_rows(monkeypatch):
+async def test_hard_deleted_listing_removes_collection_rows(monkeypatch):
     monkeypatch.setattr(search_state, "get_settings", lambda: limited_settings(10))
     owner, tenant, listings = await create_users_and_listings(count=1)
     listing = listings[0]
@@ -130,8 +130,8 @@ async def test_soft_deleted_listing_removes_collection_rows(monkeypatch):
         stored_tenant = await session.get(User, tenant.id)
         stored_owner = await session.get(User, owner.id)
         assert stored_tenant is not None and stored_owner is not None
-        # Owner deletion is a soft-delete of the listing row plus cleanup of
-        # active collection/media relations.
+        # Owner deletion permanently removes the local listing and its
+        # collection relations through database cascades.
         await search_state.add_collection_item(
             Favorite,
             "uq_favorites_user_listing",
@@ -149,6 +149,7 @@ async def test_soft_deleted_listing_removes_collection_rows(monkeypatch):
         await delete_listing(listing.id, stored_owner, session)
 
     async with SessionLocal() as check:
+        assert await check.get(Listing, listing.id) is None
         assert await check.scalar(select(Favorite).where(Favorite.listing_id == listing.id)) is None
         assert await check.scalar(select(DiscardedListing).where(DiscardedListing.listing_id == listing.id)) is None
 
