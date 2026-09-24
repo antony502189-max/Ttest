@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import AuditLog, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
+from ..models import AuditLog, ExternalListingSource, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -667,7 +667,10 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     """
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
-    if listing.is_external:
+    imported_source_id = await session.scalar(
+        select(ExternalListingSource.id).where(ExternalListingSource.canonical_listing_id == listing.id).limit(1)
+    )
+    if listing.is_external or imported_source_id is not None:
         raise HTTPException(
             409,
             detail={
