@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.models.moderation import AdminAccess, HomepageHeroPromotion, ListingPromotion, ListingRestriction
 from app.models.room_details import ListingRoomDetails
+from app.models.storage_deletion import StorageDeletionJob
 from app.services.moderation_expiry import process_expired_moderation
 
 pytestmark = pytest.mark.integration
@@ -232,6 +233,10 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
     assert upload.status_code == 201, upload.text
     asset_id = upload.json()["id"]
     asset_uuid = UUID(asset_id)
+    async with SessionLocal() as session:
+        uploaded_asset = await session.get(MediaAsset, asset_uuid)
+        assert uploaded_asset is not None
+        storage_key = uploaded_asset.storage_key
 
     payload = listing_payload(title="Owner delete target", latitude=28.4711, longitude=-16.2611, bedrooms=2)
     payload["assetIds"] = [asset_id]
@@ -281,6 +286,9 @@ async def test_listing_owner_can_hard_delete_local_listing_and_dependents(client
         assert await session.get(Listing, listing_uuid) is None
         assert await session.get(ListingRoomDetails, listing_uuid) is None
         assert await session.get(MediaAsset, asset_uuid) is None
+        assert await session.scalar(
+            select(StorageDeletionJob).where(StorageDeletionJob.storage_key == storage_key)
+        ) is not None
         assert not list(await session.scalars(select(ListingImage).where(ListingImage.listing_id == listing_uuid)))
         assert not list(
             await session.scalars(select(ListingStatusHistory).where(ListingStatusHistory.listing_id == listing_uuid))
