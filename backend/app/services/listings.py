@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
+from ..models import AuditLog, DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -27,11 +27,6 @@ from .notifications import create_notification, notify_favorited_listing_unavail
 from .storage_deletions import enqueue_storage_deletions
 from .users import apply_profile_fields
 
-# This is deliberately independent from the product role and AdminAccess
-# allow-list. A role carried in a token or client state must never turn an
-# ordinary lifecycle action into a destructive purge.
-HARD_DELETE_EMAILS = frozenset({"antony502189@gmail.com", "tf.shuler@gmail.com"})
-
 # Owners can only move through the lifecycle exposed by Mis anuncios.  Admin
 # moderation has its own stricter transition table and endpoint; accepting an
 # arbitrary enum value here would let either actor bypass those rules with a
@@ -44,19 +39,6 @@ OWNER_STATUS_TRANSITIONS = {
     "closed": set(),
     "rejected": {"pending", "published", "closed"},
 }
-
-
-def canonical_email(value: str) -> str:
-    return value.strip().lower()
-
-
-def require_hard_delete_authorization(user: User) -> None:
-    # Email addresses are not proof of account ownership until the verification
-    # flow (or an authoritative Google identity) has set this server-side flag.
-    # In particular, a newly registered password account must not be able to
-    # claim an allowlisted address and purge another user's listing.
-    if canonical_email(user.email) not in HARD_DELETE_EMAILS or not user.email_verified:
-        raise HTTPException(403, "Hard deletion is restricted")
 
 
 def resolve_owner_status_transition(current: str, requested: str, *, auto_publish: bool) -> str:
@@ -676,13 +658,11 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
 
 
 async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) -> None:
-    # `DELETE` also removes media relations and favorites, therefore this is a
-    # destructive operation even though the listing row retains a tombstone.
-    # Check the canonical, server-loaded account email before inspecting the
-    # target so neither ownership nor a forged client role is a bypass.
-    require_hard_delete_authorization(user)
-    listing, _owner = await _lock_mutable_listing(listing_id, session)
-    await ensure_owner_or_admin(listing, user, session)
+    # The listing row is soft-deleted (tombstoned), while active associations
+    # such as favorites and image links are removed. Authorization is based only
+    # on the server-loaded listing owner or an active server-side admin grant.
+    listing, owner = await _lock_mutable_listing(listing_id, session)
+    admin = await ensure_owner_or_admin(listing, user, session)
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
@@ -703,7 +683,31 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
         changed_by=user.id,
     )
     session.add(history)
+    session.add(
+        AuditLog(
+            actor_id=user.id,
+            action="listing.deleted",
+            target_type="listing",
+            target_id=listing.id,
+            detail={
+                "ownerUserId": str(listing.owner_user_id),
+                "deletedBy": "admin" if admin else "owner",
+                "previousStatus": previous_status,
+            },
+        )
+    )
     await session.flush()
+    if admin and owner.id != user.id:
+        await create_notification(
+            session,
+            recipient=owner,
+            kind="listing_deleted",
+            title="Tu anuncio ha sido eliminado",
+            body="Administración ha eliminado este anuncio de 112233.es.",
+            entity_listing_id=listing.id,
+            idempotency_key=f"listing-deleted:{history.id}",
+            email_path=None,
+        )
     await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
     await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
     await touch_catalog(session)
