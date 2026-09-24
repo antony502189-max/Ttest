@@ -1,6 +1,8 @@
 from app.main import app
 from app.schemas.auth import UserResponse, UserUpdateRequest
 from app.schemas.listings import ListingResponse
+
+
 def test_chat_api_is_unreachable_and_notifications_are_authenticated_routes() -> None:
     paths = app.openapi()["paths"]
     assert not any("/messages" in path for path in paths)
