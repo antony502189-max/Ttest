@@ -13,21 +13,24 @@ async function openMyListings(page: import('@playwright/test').Page, profile: Re
   await page.goto('/#/mis-anuncios')
 }
 
-test('hard delete is hidden for every unverified or non-allowlisted UI profile', async ({ page }) => {
+test('local owner delete is available without the retired email allowlist', async ({ page }) => {
   await openMyListings(page, user('host@example.test', true))
   await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toHaveCount(0)
-
-  await page.keyboard.press('Escape')
-  await openMyListings(page, user('antony502189@gmail.com', false))
-  await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
 })
 
-test('hard delete is offered only to a verified canonical profile', async ({ page }) => {
-  await openMyListings(page, user(' TF.SHULER@gmail.com ', true))
+test('owner delete is hidden for imported listings', async ({ page }) => {
+  await openMyListings(page, user('host@example.test', true))
+  await page.evaluate(() => {
+    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
+    payload.data = (payload.data ?? []).map((listing: { ownerUserId?: string }) =>
+      listing.ownerUserId === 'host-demo' ? { ...listing, isExternal: true } : listing
+    )
+    localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
+  })
+  await page.reload()
   await page.getByLabel(/Más acciones para/).first().click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toHaveCount(0)
 })
 
 test('the authenticated notification center is reachable without adding a fifth mobile tab', async ({ page }) => {

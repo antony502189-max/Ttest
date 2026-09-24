@@ -122,7 +122,7 @@ async def test_revoked_legacy_admin_role_no_longer_bypasses_listing_quotas(
         execute=AsyncMock(
             side_effect=[
                 None,
-                SimpleNamespace(one=lambda: (0, 0)),
+                SimpleNamespace(one=lambda: (0, 0, 0)),
             ]
         )
     )

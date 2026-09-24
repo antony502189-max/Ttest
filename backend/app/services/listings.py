@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
+from ..models import AuditLog, ExternalListingSource, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -27,11 +27,6 @@ from .notifications import create_notification, notify_favorited_listing_unavail
 from .storage_deletions import enqueue_storage_deletions
 from .users import apply_profile_fields
 
-# This is deliberately independent from the product role and AdminAccess
-# allow-list. A role carried in a token or client state must never turn an
-# ordinary lifecycle action into a destructive purge.
-HARD_DELETE_EMAILS = frozenset({"antony502189@gmail.com", "tf.shuler@gmail.com"})
-
 # Owners can only move through the lifecycle exposed by Mis anuncios.  Admin
 # moderation has its own stricter transition table and endpoint; accepting an
 # arbitrary enum value here would let either actor bypass those rules with a
@@ -44,19 +39,6 @@ OWNER_STATUS_TRANSITIONS = {
     "closed": set(),
     "rejected": {"pending", "published", "closed"},
 }
-
-
-def canonical_email(value: str) -> str:
-    return value.strip().lower()
-
-
-def require_hard_delete_authorization(user: User) -> None:
-    # Email addresses are not proof of account ownership until the verification
-    # flow (or an authoritative Google identity) has set this server-side flag.
-    # In particular, a newly registered password account must not be able to
-    # claim an allowlisted address and purge another user's listing.
-    if canonical_email(user.email) not in HARD_DELETE_EMAILS or not user.email_verified:
-        raise HTTPException(403, "Hard deletion is restricted")
 
 
 def resolve_owner_status_transition(current: str, requested: str, *, auto_publish: bool) -> str:
@@ -676,39 +658,98 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
 
 
 async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) -> None:
-    # `DELETE` also removes media relations and favorites, therefore this is a
-    # destructive operation even though the listing row retains a tombstone.
-    # Check the canonical, server-loaded account email before inspecting the
-    # target so neither ownership nor a forged client role is a bypass.
-    require_hard_delete_authorization(user)
-    listing, _owner = await _lock_mutable_listing(listing_id, session)
-    await ensure_owner_or_admin(listing, user, session)
+    """Permanently delete one user-created listing and its dependent data.
+
+    Imported/parser listings are managed by the ingestion lifecycle and must
+    never be removed through the owner/admin product delete flow. PostgreSQL
+    cascades listing-owned relational rows; detached audit/notification records
+    intentionally remain as operational history without a live listing FK.
+    """
+    listing, owner = await _lock_mutable_listing(listing_id, session)
+    admin = await ensure_owner_or_admin(listing, user, session)
+    imported_source_id = await session.scalar(
+        select(ExternalListingSource.id).where(ExternalListingSource.canonical_listing_id == listing.id).limit(1)
+    )
+    if listing.is_external or imported_source_id is not None:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "EXTERNAL_LISTING_DELETE_FORBIDDEN",
+                "message": "Imported listings cannot be deleted through this endpoint.",
+                "fieldErrors": {},
+            },
+        )
+
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
-    await lock_media_assets(session, attached_ids)
-    await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
-    await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
-    await session.flush()
-    await mark_orphaned_media(session, attached_ids)
-
+    locked_assets = {asset.id: asset for asset in await lock_media_assets(session, attached_ids)}
     previous_status = listing.status
-    listing.deleted_at = datetime.now(UTC)
-    listing.status = "closed"
-    listing.closed_reason = "deleted"
-    history = ListingStatusHistory(
-        listing_id=listing.id,
-        from_status=previous_status,
-        to_status="closed",
-        changed_by=user.id,
+    deleted_by = "owner" if listing.owner_user_id == user.id else "admin"
+
+    if admin and owner.id != user.id:
+        await create_notification(
+            session,
+            recipient=owner,
+            kind="listing_deleted",
+            title="Tu anuncio ha sido eliminado",
+            body="Administración ha eliminado este anuncio de 112233.es.",
+            entity_listing_id=listing.id,
+            idempotency_key=f"listing-deleted:{listing.id}",
+            email_path=None,
+        )
+
+    await notify_favorited_listing_unavailable(session, listing, event_key=f"deleted:{listing.id}")
+    session.add(
+        AuditLog(
+            actor_id=user.id,
+            action="listing.deleted",
+            target_type="listing",
+            target_id=listing.id,
+            detail={
+                "ownerUserId": str(listing.owner_user_id),
+                "listingCreatedAt": listing.created_at.isoformat(),
+                "deletedBy": deleted_by,
+                "previousStatus": previous_status,
+            },
+        )
     )
-    session.add(history)
+
+    # All listing-owned rows use ON DELETE CASCADE (room details, images,
+    # favorites/discards, reports, views, history, restrictions, promotions,
+    # homepage hero and message threads). Notifications use SET NULL.
+    await session.execute(delete(Listing).where(Listing.id == listing.id))
     await session.flush()
-    await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
-    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
+
+    # ListingImage rows have now cascaded away. Permanently remove media rows
+    # only when the asset is no longer attached to another listing or avatar.
+    if attached_ids:
+        still_attached = set(
+            (
+                await session.scalars(
+                    select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(attached_ids))
+                )
+            ).all()
+        )
+        avatars = {
+            asset_id
+            for asset_id in (
+                await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(attached_ids)))
+            ).all()
+            if asset_id is not None
+        }
+        orphan_ids = attached_ids - still_attached - avatars
+        if orphan_ids:
+            storage_keys = {
+                locked_assets[asset_id].storage_key
+                for asset_id in orphan_ids
+                if asset_id in locked_assets
+            }
+            await enqueue_storage_deletions(session, storage_keys)
+            await session.execute(delete(MediaAsset).where(MediaAsset.id.in_(orphan_ids)))
+
     await touch_catalog(session)
     await session.commit()
-
 
 async def replace_listing_images(
     listing_id: UUID,

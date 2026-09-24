@@ -348,6 +348,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     const listing = allListings.find((item) => item.id === id)
     if (!listing) return false
     if (!canManageListing(listing)) { toast.error('No puedes gestionar un anuncio de otra cuenta.'); return false }
+    if (listing.isExternal) { toast.error('Los anuncios importados no se eliminan desde esta función.'); return false }
     const remaining = allListings.filter((item) => item.id !== id)
     const draftRecord = readDraftRecord()
     const deleteDraft = draftRecord?.value.listingId === id

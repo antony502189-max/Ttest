@@ -122,6 +122,7 @@ class AdminListingResponse(BaseModel):
     views: int = 0
     createdAt: datetime
     deletedAt: datetime | None = None
+    isExternal: bool = False
     activeRestriction: ListingRestrictionResponse | None = None
     promoted: bool = False
     boostedAt: datetime | None = None

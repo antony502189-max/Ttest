@@ -124,6 +124,7 @@ def public_listing(
         views=listing.views,
         createdAt=listing.created_at,
         deletedAt=listing.deleted_at,
+        isExternal=bool(getattr(listing, "is_external", False)),
         activeRestriction=listing_restriction_response(restriction) if restriction else None,
         **_promotion_metadata(promotion),
     )

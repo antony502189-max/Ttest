@@ -9,6 +9,7 @@ from app.models import Listing, User
 from app.models.moderation import AdminAccess
 from app.repositories.listings import point
 from app.services import listing_limits
+from app.services.listings import delete_listing
 
 pytestmark = pytest.mark.integration
 
@@ -96,6 +97,31 @@ async def test_daily_quota_counts_soft_deleted_rows(monkeypatch):
         )
         await session.commit()
 
+        with pytest.raises(HTTPException, match="Daily listing creation limit reached") as error:
+            await listing_limits.enforce_listing_creation_limits(stored_user, session)
+        assert error.value.status_code == 429
+        await session.rollback()
+
+
+async def test_daily_quota_counts_hard_deleted_local_listings(monkeypatch):
+    settings = limit_settings(
+        max_active_listings_per_user=100,
+        max_listing_creations_per_day=1,
+    )
+    monkeypatch.setattr(listing_limits, "get_settings", lambda: settings)
+    user = await create_user("listing-hard-delete-daily-limit@example.test")
+
+    async with SessionLocal() as session:
+        stored_user = await session.get(User, user.id)
+        assert stored_user is not None
+        listing = listing_for(stored_user, status="published")
+        session.add(listing)
+        await session.commit()
+        await delete_listing(listing.id, stored_user, session)
+
+    async with SessionLocal() as session:
+        stored_user = await session.get(User, user.id)
+        assert stored_user is not None
         with pytest.raises(HTTPException, match="Daily listing creation limit reached") as error:
             await listing_limits.enforce_listing_creation_limits(stored_user, session)
         assert error.value.status_code == 429

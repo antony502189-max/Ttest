@@ -675,11 +675,11 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
     try {
       // Do not touch browser drafts or IndexedDB media until the server has
-      // accepted this intentionally restricted, irreversible operation.
+      // accepted the permanent deletion of this user-created listing.
       await deleteRemoteListing(id)
     } catch (error) {
       toast.error(error instanceof ApiError && error.status === 403
-        ? 'La eliminación definitiva no está autorizada para esta cuenta.'
+        ? 'No tienes permiso para eliminar este anuncio.'
         : 'No se pudo eliminar el anuncio en el servidor.')
       return false
     }
@@ -691,8 +691,19 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(DRAFT_KEY)
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
+    try { localStorage.removeItem(`112233:listing-edit-draft:v1:${id}`) } catch { /* server deletion stays authoritative */ }
     setOwnedListings(remaining)
     setAllListings((current) => current.filter((item) => item.id !== id))
+    setFavoriteScopes((current) => Object.fromEntries(
+      Object.entries(current).map(([scope, ids]) => [scope, ids.filter((item) => item !== id)]),
+    ))
+    setDiscardedScopes((current) => Object.fromEntries(
+      Object.entries(current).map(([scope, ids]) => [scope, ids.filter((item) => item !== id)]),
+    ))
+    setCommentScopes((current) => Object.fromEntries(
+      Object.entries(current).map(([scope, comments]) => [scope, comments.filter((comment) => comment.listingId !== id)]),
+    ))
+    setReports((current) => current.filter((report) => report.listingId !== id))
     try {
       await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
     } catch (error) {

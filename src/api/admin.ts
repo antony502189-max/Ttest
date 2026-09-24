@@ -68,6 +68,7 @@ export type AdminListing = {
   views: number
   createdAt: string
   deletedAt: string | null
+  isExternal?: boolean
   activeRestriction: AdminListingRestriction | null
   promoted: boolean
   boostedAt: string | null
@@ -215,6 +216,9 @@ export const restrictAdminListing = (id: string, payload: { until: string | null
 
 export const unrestrictAdminListing = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/restrictions/active`, { method: 'DELETE' })
+
+export const deleteAdminListing = (id: string) =>
+  api<void>(`/listings/${id}`, { method: 'DELETE' })
 
 function normalizePromotionStartsAt(startsAt: string) {
   const start = new Date(startsAt)

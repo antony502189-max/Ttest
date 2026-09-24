@@ -38,7 +38,6 @@ import { EmptyState, PropertyCard } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
 import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
-import { canUseHardDelete } from "@/lib/hard-delete";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
 import type { DemoUser } from "@/types";
@@ -459,7 +458,6 @@ export function ProfilePage() {
 export function MyListingsPage() {
   const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
-  const hardDeleteAllowed = canUseHardDelete(currentUser);
   const [status, setStatus] = useState("Todos");
   useEffect(() => refreshListingLifecycle(), [refreshListingLifecycle]);
   const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
@@ -593,7 +591,7 @@ export function MyListingsPage() {
                         Renovar
                       </DropdownMenuItem>
                       {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
-                      {hardDeleteAllowed ? <ConfirmDialog
+                      {!listing.isExternal ? <ConfirmDialog
                         trigger={
                           <DropdownMenuItem
                             onSelect={(event) => event.preventDefault()}
@@ -604,10 +602,12 @@ export function MyListingsPage() {
                           </DropdownMenuItem>
                         }
                         title="¿Eliminar este anuncio?"
-                        description="Se quitará de la búsqueda y de Mis anuncios."
+                        description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es."
                         confirmLabel="Eliminar"
                         destructive
-                        onConfirm={() => deleteListing(listing.id)}
+                        onConfirm={async () => {
+                          if (await deleteListing(listing.id)) toast.success("Anuncio eliminado");
+                        }}
                       /> : null}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>

@@ -5,7 +5,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import Listing, User
+from ..models import AuditLog, Listing, User
 from .moderation import is_admin
 
 ACTIVE_LISTING_STATUSES = {"draft", "pending", "published", "hidden"}
@@ -50,7 +50,8 @@ async def enforce_listing_creation_limits(
 
     settings = get_settings()
     now = datetime.now(UTC)
-    active_count, recent_count = (
+    cutoff = now - timedelta(days=1)
+    active_count, recent_count, hard_deleted_recent_count = (
         await session.execute(
             select(
                 select(func.count())
@@ -65,7 +66,15 @@ async def enforce_listing_creation_limits(
                 .select_from(Listing)
                 .where(
                     Listing.owner_user_id == user.id,
-                    Listing.created_at > now - timedelta(days=1),
+                    Listing.created_at > cutoff,
+                )
+                .scalar_subquery(),
+                select(func.count())
+                .select_from(AuditLog)
+                .where(
+                    AuditLog.action == "listing.deleted",
+                    AuditLog.detail["ownerUserId"].as_string() == str(user.id),
+                    AuditLog.detail["listingCreatedAt"].as_string() > cutoff.isoformat(),
                 )
                 .scalar_subquery(),
             )
@@ -74,5 +83,5 @@ async def enforce_listing_creation_limits(
 
     if int(active_count) >= settings.max_active_listings_per_user:
         raise limit_error(409, "ACTIVE_LISTING_LIMIT_REACHED", "Active listing limit reached")
-    if int(recent_count) >= settings.max_listing_creations_per_day:
+    if int(recent_count) + int(hard_deleted_recent_count) >= settings.max_listing_creations_per_day:
         raise limit_error(429, "DAILY_LISTING_LIMIT_REACHED", "Daily listing creation limit reached")

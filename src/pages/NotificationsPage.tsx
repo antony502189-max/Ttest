@@ -105,6 +105,11 @@ const productNotificationCopy: Record<string, Record<Language, { title: string; 
     en: { title: 'Your listing has expired', body: 'The listing expired. You can renew it from My listings.' },
     ru: { title: 'Срок объявления истёк', body: 'Объявление завершено. Его можно продлить в разделе «Мои объявления».' },
   },
+  listing_deleted: {
+    es: { title: 'Tu anuncio ha sido eliminado', body: 'Administración ha eliminado este anuncio de 112233.es.' },
+    en: { title: 'Your listing was removed', body: 'Administration removed this listing from 112233.es.' },
+    ru: { title: 'Объявление удалено', body: 'Администрация удалила это объявление с 112233.es.' },
+  },
   saved_search_match: {
     es: { title: 'Nueva habitación para tu búsqueda guardada', body: 'Ha aparecido una nueva habitación que coincide con tu búsqueda.' },
     en: { title: 'New room for your saved search', body: 'A new room matching your saved search is available.' },
@@ -143,6 +148,7 @@ const MY_LISTING_NOTIFICATION_TYPES = new Set([
   'listing_hidden',
   'listing_closed',
   'listing_expired',
+  'listing_deleted',
   'listing_restricted',
   'listing_unrestricted',
   'listing_restriction_expired',
