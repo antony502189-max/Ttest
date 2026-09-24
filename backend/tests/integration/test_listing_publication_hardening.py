@@ -123,7 +123,7 @@ async def test_publication_returns_stable_auth_validation_and_limit_errors(clien
     monkeypatch.setattr(
         listing_limits,
         "get_settings",
-        lambda: type("Limits", (), {"max_active_listings_per_user": 1, "max_listing_creations_per_day": 10})(),
+        lambda: type("Limits", (), {"max_active_listings_per_user": 1})(),
     )
     first = await client.post(
         "/api/v1/listings", headers=publication_headers(host_token), json=customer_listing(title="First bounded listing")
