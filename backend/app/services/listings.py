@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import AuditLog, DiscardedListing, Favorite, Listing, ListingImage, ListingStatusHistory, User
+from ..models import AuditLog, Listing, ListingImage, ListingStatusHistory, MediaAsset, User
 from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import owned_query, owned_response_from, point
 from ..schemas.listings import (
@@ -658,45 +658,32 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
 
 
 async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) -> None:
-    # The listing row is soft-deleted (tombstoned), while active associations
-    # such as favorites and image links are removed. Authorization is based only
-    # on the server-loaded listing owner or an active server-side admin grant.
+    """Permanently delete one user-created listing and its dependent data.
+
+    Imported/parser listings are managed by the ingestion lifecycle and must
+    never be removed through the owner/admin product delete flow. PostgreSQL
+    cascades listing-owned relational rows; detached audit/notification records
+    intentionally remain as operational history without a live listing FK.
+    """
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
+    if listing.is_external:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "EXTERNAL_LISTING_DELETE_FORBIDDEN",
+                "message": "Imported listings cannot be deleted through this endpoint.",
+                "fieldErrors": {},
+            },
+        )
+
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
-    await lock_media_assets(session, attached_ids)
-    await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
-    await session.execute(delete(DiscardedListing).where(DiscardedListing.listing_id == listing.id))
-    await session.flush()
-    await mark_orphaned_media(session, attached_ids)
-
+    locked_assets = {asset.id: asset for asset in await lock_media_assets(session, attached_ids)}
     previous_status = listing.status
-    listing.deleted_at = datetime.now(UTC)
-    listing.status = "closed"
-    listing.closed_reason = "deleted"
-    history = ListingStatusHistory(
-        listing_id=listing.id,
-        from_status=previous_status,
-        to_status="closed",
-        changed_by=user.id,
-    )
-    session.add(history)
-    session.add(
-        AuditLog(
-            actor_id=user.id,
-            action="listing.deleted",
-            target_type="listing",
-            target_id=listing.id,
-            detail={
-                "ownerUserId": str(listing.owner_user_id),
-                "deletedBy": "admin" if admin else "owner",
-                "previousStatus": previous_status,
-            },
-        )
-    )
-    await session.flush()
+    deleted_by = "owner" if listing.owner_user_id == user.id else "admin"
+
     if admin and owner.id != user.id:
         await create_notification(
             session,
@@ -705,14 +692,60 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
             title="Tu anuncio ha sido eliminado",
             body="Administración ha eliminado este anuncio de 112233.es.",
             entity_listing_id=listing.id,
-            idempotency_key=f"listing-deleted:{history.id}",
+            idempotency_key=f"listing-deleted:{listing.id}",
             email_path=None,
         )
-    await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
-    await session.execute(delete(Favorite).where(Favorite.listing_id == listing.id))
+
+    await notify_favorited_listing_unavailable(session, listing, event_key=f"deleted:{listing.id}")
+    session.add(
+        AuditLog(
+            actor_id=user.id,
+            action="listing.deleted",
+            target_type="listing",
+            target_id=listing.id,
+            detail={
+                "ownerUserId": str(listing.owner_user_id),
+                "deletedBy": deleted_by,
+                "previousStatus": previous_status,
+            },
+        )
+    )
+
+    # All listing-owned rows use ON DELETE CASCADE (room details, images,
+    # favorites/discards, reports, views, history, restrictions, promotions,
+    # homepage hero and message threads). Notifications use SET NULL.
+    await session.execute(delete(Listing).where(Listing.id == listing.id))
+    await session.flush()
+
+    # ListingImage rows have now cascaded away. Permanently remove media rows
+    # only when the asset is no longer attached to another listing or avatar.
+    if attached_ids:
+        still_attached = set(
+            (
+                await session.scalars(
+                    select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(attached_ids))
+                )
+            ).all()
+        )
+        avatars = {
+            asset_id
+            for asset_id in (
+                await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(attached_ids)))
+            ).all()
+            if asset_id is not None
+        }
+        orphan_ids = attached_ids - still_attached - avatars
+        if orphan_ids:
+            storage_keys = {
+                locked_assets[asset_id].storage_key
+                for asset_id in orphan_ids
+                if asset_id in locked_assets
+            }
+            await enqueue_storage_deletions(session, storage_keys)
+            await session.execute(delete(MediaAsset).where(MediaAsset.id.in_(orphan_ids)))
+
     await touch_catalog(session)
     await session.commit()
-
 
 async def replace_listing_images(
     listing_id: UUID,
