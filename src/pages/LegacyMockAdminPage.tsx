@@ -30,7 +30,6 @@ import { Input } from "@/components/ui/input";
 import { AdminTable, ConfirmDialog, StatusBadge } from "@/components/forms";
 import { useApp } from "@/contexts/app-context";
 import { formatPublishedAt } from "@/lib/search";
-import { canUseHardDelete } from "@/lib/hard-delete";
 import type { Listing, ListingStatus } from "@/types";
 
 const navItems = [
@@ -80,14 +79,14 @@ export function LegacyMockAdminPage() {
           <DropdownMenuItem onClick={() => moderate(listing, "Publicado")}><Check />Aprobar</DropdownMenuItem>
           <DropdownMenuItem onClick={() => moderate(listing, "Oculto")}><EyeOff />Ocultar</DropdownMenuItem>
           <DropdownMenuItem onClick={() => moderate(listing, "Rechazado")}><X />Rechazar</DropdownMenuItem>
-          {canUseHardDelete(currentUser) ? <ConfirmDialog
+          <ConfirmDialog
             trigger={<DropdownMenuItem variant="destructive" onSelect={(event) => event.preventDefault()}><Trash2 />Eliminar</DropdownMenuItem>}
             title="¿Eliminar el anuncio?"
-            description="Se borrará del repositorio local."
+            description="Se quitará del catálogo local y de la administración."
             confirmLabel="Eliminar"
             destructive
             onConfirm={() => deleteListing(listing.id)}
-          /> : null}
+          />
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
