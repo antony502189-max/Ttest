@@ -86,7 +86,7 @@ Uploads belong to a server-loaded user. Listing image replacement locks the list
 - Direct API detail, canonical HTML, sitemap, public media, favorites/discarded collections, and report creation independently enforce the same effective visibility predicates. Canonical listing HTML is no longer publicly cacheable across lifecycle mutations.
 - Favorite rows may remain while a listing is temporarily unavailable, but collection reads filter them out. Hide/close/reject/expiry/restriction creates an unavailable notification; listing/account deletion removes relevant active collection relations.
 - Listing status, restriction, expiry, saved-search-match, and favorite-unavailable notifications retain a nullable listing reference. Notifications for owner-only states route to My Listings rather than a public 404 detail.
-- Reports can only be created for an effectively public listing and retain historical listing/owner context for admin review after soft deletion.
+- Reports can only be created for an effectively public listing. Permanent deletion of a user-created listing cascades its reports; account-level soft deletion retains historical listing/owner context for administrative review.
 
 ## Repository-wide subsystem classification
 
