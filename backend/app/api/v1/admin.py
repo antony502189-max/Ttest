@@ -51,6 +51,7 @@ from ...services.admin_users import (
     unrestrict_user,
 )
 from ...services.homepage_hero import configure_homepage_hero, get_admin_homepage_hero, remove_homepage_hero
+from ...services.listings import delete_listing as delete_listing_service
 from ...services.moderation import enforce_full_access, is_admin, normalize_email
 from ...workers.external_listings import run_once
 from ..dependencies import authenticated_user, require_admin
@@ -215,6 +216,15 @@ async def list_listings_route(
         after_created_at=after_created_at,
         after_id=after_id,
     )
+
+
+@router.delete("/listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing_route(
+    listing_id: UUID,
+    user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    await delete_listing_service(listing_id, user, session)
 
 
 @router.patch("/listings/{listing_id}/status", response_model=AdminListingResponse)

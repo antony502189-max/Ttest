@@ -679,22 +679,31 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       await deleteRemoteListing(id)
     } catch (error) {
       toast.error(error instanceof ApiError && error.status === 403
-        ? 'La eliminación definitiva no está autorizada para esta cuenta.'
-        : 'No se pudo eliminar el anuncio en el servidor.')
+        ? 'No tienes permisos para eliminar este anuncio.'
+        : error instanceof ApiError && error.status === 404
+          ? 'El anuncio ya no existe o ya fue eliminado.'
+          : 'No se pudo eliminar el anuncio en el servidor.')
       return false
     }
     const remaining = ownedListings.filter((item) => item.id !== id)
     const draftRecord = readDraftRecord()
     const deleteDraft = draftRecord?.value.listingId === id
     const draftMedia = deleteDraft ? collectMediaReferences(draftRecord?.value) : new Set<string>()
+    const editDraftKey = `112233:listing-edit-draft:v1:${id}`
+    let editDraftMedia = new Set<string>()
+    try {
+      const editDraft = JSON.parse(localStorage.getItem(editDraftKey) ?? 'null')
+      if (editDraft) editDraftMedia = collectMediaReferences(editDraft)
+    } catch { /* corrupted edit drafts are safe to discard after server deletion */ }
     if (deleteDraft) {
       localStorage.removeItem(DRAFT_KEY)
       localStorage.removeItem(LEGACY_DRAFT_KEY)
     }
+    localStorage.removeItem(editDraftKey)
     setOwnedListings(remaining)
     setAllListings((current) => current.filter((item) => item.id !== id))
     try {
-      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
+      await removeUnusedMediaReferences([...listing.images, ...draftMedia, ...editDraftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
     }

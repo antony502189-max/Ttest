@@ -201,6 +201,9 @@ export async function getAdminListings(search = '', status = '', restricted?: bo
   return drainAdminPages<AdminListing>('/admin/listings', params)
 }
 
+export const deleteAdminListing = (id: string) =>
+  api<void>(`/admin/listings/${id}`, { method: 'DELETE' })
+
 export const moderateRemoteListing = (id: string, status: ListingStatus) =>
   api<AdminListing>(`/admin/listings/${id}/status`, {
     method: 'PATCH',

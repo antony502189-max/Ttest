@@ -18,19 +18,6 @@ async function openAsHost(page: Page, path: string) {
   await page.goto(path)
 }
 
-async function openAsHardDeleteOperator(page: Page, path: string) {
-  await page.goto('/#/')
-  await page.evaluate((id) => {
-    const users = JSON.parse(localStorage.getItem('112233:users:v1') ?? '[]')
-    const host = users.find((user: { id: string }) => user.id === id)
-    if (host) Object.assign(host, { email: 'antony502189@gmail.com', emailVerified: true })
-    localStorage.setItem('112233:users:v1', JSON.stringify(users))
-    localStorage.setItem('112233:session:v1', JSON.stringify(id))
-  }, hostSession)
-  await page.reload()
-  await page.goto(path)
-}
-
 async function putMedia(page: Page, id: string) {
   return page.evaluate((mediaId) => new Promise<string>((resolve, reject) => {
     const open = indexedDB.open('112233-media', 1)
@@ -117,12 +104,12 @@ test('MEDIA-10 shared listing photo survives until its final reference is delete
     payload.data[1].images = [reference]
     localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
   }, { reference: shared })
-  await openAsHardDeleteOperator(page, '/#/mis-anuncios')
+  await openAsHost(page, '/#/mis-anuncios')
   for (let deletion = 0; deletion < 2; deletion += 1) {
     const card = page.locator('.manage-card').first()
     await card.getByRole('button', { name: /Más acciones/ }).click()
     await page.getByRole('menuitem', { name: 'Eliminar' }).click()
-    await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
+    await page.getByRole('button', { name: 'Eliminar anuncio', exact: true }).click()
     await expect.poll(() => mediaExists(page, shared)).toBe(deletion === 0)
   }
 })

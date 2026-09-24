@@ -5,10 +5,11 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models import Listing, User
-from app.models.moderation import AdminAccess
+from app.models import AuditLog, Favorite, Listing, Notification, User
+from app.models.moderation import AdminAccess, HomepageHeroPromotion, ListingPromotion
 from app.models.room_details import ListingRoomDetails
 from app.services import listings as listing_service
 
@@ -209,3 +210,120 @@ async def test_admin_must_use_moderation_endpoint_for_status_changes(
         json={"status": "closed"},
     )
     assert moderated.status_code == 200
+
+
+async def test_any_owner_can_delete_own_listing_and_cleanup_active_relations(
+    client: AsyncClient,
+    register_user,
+) -> None:
+    owner_token, owner = await register_user(client, email="ordinary-delete-owner@example.com", role="host")
+    _watcher_token, watcher = await register_user(client, email="ordinary-delete-watcher@example.com", role="tenant")
+    created = await client.post(
+        "/api/v1/listings",
+        headers=auth(owner_token),
+        json=listing_payload("Ordinary owner deletion", room_capacity=2),
+    )
+    assert created.status_code == 201, created.text
+    listing_id = UUID(created.json()["id"])
+    now = datetime.now(UTC)
+
+    async with SessionLocal() as session:
+        session.add(Favorite(user_id=UUID(watcher["id"]), listing_id=listing_id))
+        session.add(
+            ListingPromotion(
+                listing_id=listing_id,
+                boosted_at=now,
+                starts_at=now,
+                ends_at=now + timedelta(days=7),
+                daily_price_cents=100,
+                total_price_cents=700,
+            )
+        )
+        session.add(
+            HomepageHeroPromotion(
+                id=1,
+                listing_id=listing_id,
+                starts_at=now,
+                ends_at=now + timedelta(days=7),
+                configured_by=UUID(owner["id"]),
+            )
+        )
+        await session.commit()
+
+    deleted = await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(owner_token))
+    assert deleted.status_code == 204, deleted.text
+
+    mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
+    assert listing_id not in {UUID(item["id"]) for item in mine.json()}
+    assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 404
+    assert (await client.delete(f"/api/v1/listings/{listing_id}", headers=auth(owner_token))).status_code == 404
+
+    async with SessionLocal() as session:
+        stored = await session.get(Listing, listing_id)
+        assert stored is not None
+        assert stored.deleted_at is not None
+        assert stored.status == "closed"
+        assert stored.closed_reason == "deleted"
+        assert await session.get(ListingPromotion, listing_id) is None
+        assert await session.get(HomepageHeroPromotion, 1) is None
+        assert await session.scalar(
+            select(Favorite).where(Favorite.listing_id == listing_id)
+        ) is None
+        notification = await session.scalar(
+            select(Notification).where(
+                Notification.recipient_user_id == UUID(watcher["id"]),
+                Notification.entity_listing_id == listing_id,
+            )
+        )
+        assert notification is not None
+        audit_row = await session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_id)
+            .order_by(AuditLog.created_at.desc())
+        )
+        assert audit_row is not None
+        assert audit_row.actor_id == UUID(owner["id"])
+        assert audit_row.detail["actorScope"] == "owner"
+
+
+async def test_admin_can_delete_foreign_listing_but_non_admin_cannot_use_admin_delete(
+    client: AsyncClient,
+    register_user,
+) -> None:
+    owner_token, _owner = await register_user(client, email="admin-delete-owner@example.com", role="host")
+    outsider_token, _outsider = await register_user(client, email="admin-delete-outsider@example.com", role="host")
+    admin_token, admin = await register_user(client, email="admin-delete-operator@example.com", role="host")
+    await grant_admin(admin["id"], admin["email"])
+
+    created = await client.post(
+        "/api/v1/listings",
+        headers=auth(owner_token),
+        json=listing_payload("Admin deletion target", room_capacity=2),
+    )
+    assert created.status_code == 201, created.text
+    listing_id = UUID(created.json()["id"])
+
+    forbidden = await client.delete(f"/api/v1/admin/listings/{listing_id}", headers=auth(outsider_token))
+    assert forbidden.status_code == 403
+
+    deleted = await client.delete(f"/api/v1/admin/listings/{listing_id}", headers=auth(admin_token))
+    assert deleted.status_code == 204, deleted.text
+
+    owner_mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
+    assert listing_id not in {UUID(item["id"]) for item in owner_mine.json()}
+    admin_rows = await client.get("/api/v1/admin/listings", headers=auth(admin_token))
+    assert admin_rows.status_code == 200, admin_rows.text
+    assert listing_id not in {UUID(item["id"]) for item in admin_rows.json()}
+    assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 404
+
+    async with SessionLocal() as session:
+        stored = await session.get(Listing, listing_id)
+        assert stored is not None and stored.deleted_at is not None
+        audit_row = await session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == "listing.deleted", AuditLog.target_id == listing_id)
+            .order_by(AuditLog.created_at.desc())
+        )
+        assert audit_row is not None
+        assert audit_row.actor_id == UUID(admin["id"])
+        assert audit_row.detail["actorScope"] == "admin"
