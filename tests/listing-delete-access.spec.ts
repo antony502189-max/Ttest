@@ -19,9 +19,9 @@ test('ordinary owner can delete their own listing without an email allowlist', a
 
   const card = cards.first()
   const title = await card.locator('h2').innerText()
-  await card.getByRole('button', { name: /Más acciones/ }).click()
-  await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible()
-  await page.getByRole('menuitem', { name: 'Eliminar' }).click()
+  const deleteButton = card.getByRole('button', { name: /^Eliminar / })
+  await expect(deleteButton).toBeVisible()
+  await deleteButton.click()
   const dialog = page.getByRole('alertdialog', { name: '¿Eliminar este anuncio?' })
   await expect(dialog).toContainText('se eliminarán definitivamente')
   await dialog.getByRole('button', { name: 'Eliminar', exact: true }).click()
