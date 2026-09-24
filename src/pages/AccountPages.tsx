@@ -591,7 +591,7 @@ export function MyListingsPage() {
                         Renovar
                       </DropdownMenuItem>
                       {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
-                      <ConfirmDialog
+                      {!listing.isExternal ? <ConfirmDialog
                         trigger={
                           <DropdownMenuItem
                             onSelect={(event) => event.preventDefault()}
@@ -602,13 +602,13 @@ export function MyListingsPage() {
                           </DropdownMenuItem>
                         }
                         title="¿Eliminar este anuncio?"
-                        description="Se quitará de la búsqueda y de Mis anuncios. Esta acción no se puede deshacer desde tu cuenta."
+                        description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es."
                         confirmLabel="Eliminar"
                         destructive
                         onConfirm={async () => {
                           if (await deleteListing(listing.id)) toast.success("Anuncio eliminado");
                         }}
-                      />
+                      /> : null}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
