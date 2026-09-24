@@ -119,18 +119,15 @@ async def test_revoked_legacy_admin_role_no_longer_bypasses_listing_quotas(
     admin_check = AsyncMock(return_value=False)
     monkeypatch.setattr(listing_limits, "is_admin", admin_check)
     session = SimpleNamespace(
-        execute=AsyncMock(
-            side_effect=[
-                None,
-                SimpleNamespace(one=lambda: (0, 0, 0)),
-            ]
-        )
+        execute=AsyncMock(return_value=None),
+        scalar=AsyncMock(return_value=0),
     )
 
     await listing_limits.enforce_listing_creation_limits(user, session)
 
     admin_check.assert_awaited_once_with(user, session)
-    assert session.execute.await_count == 2
+    session.execute.assert_awaited_once()
+    session.scalar.assert_awaited_once()
 
 
 @pytest.mark.asyncio
