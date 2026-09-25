@@ -371,7 +371,22 @@ export function ImageUploader({
         : "",
     );
     try {
-      const saved = await Promise.allSettled(accepted.map(saveMediaFile));
+      const saved = new Array<PromiseSettledResult<string>>(accepted.length);
+      let cursor = 0;
+      const worker = async () => {
+        while (true) {
+          const index = cursor++;
+          if (index >= accepted.length) return;
+          try {
+            saved[index] = { status: "fulfilled", value: await saveMediaFile(accepted[index]) };
+          } catch (reason) {
+            saved[index] = { status: "rejected", reason };
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(2, accepted.length) }, () => worker()),
+      );
       const references = saved.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
       const failed = saved.find((result) => result.status === "rejected");
       if (failed?.status === "rejected") {
@@ -473,6 +488,7 @@ export function ImageUploader({
           <div key={`${image}-${index}`}>
             <MediaImage
               src={image}
+              variant="thumb"
               alt={`Foto del anuncio ${index + 1}`}
               className={previewTurns[image] ? "photo-rotation-preview" : undefined}
               data-preview-rotation={previewTurns[image] ? String(previewTurns[image] * 90) : undefined}
