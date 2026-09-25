@@ -246,7 +246,7 @@ test('duplicate photo gallery keeps the draft and shows localized replace-photo 
   const publish = page.getByRole('button', { name: 'Publicar anuncio' })
   const startedAt = Date.now()
   await publish.click()
-  await expect(page.getByRole('button', { name: /Publicando/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Publicando…' }).first()).toBeDisabled()
   await expect(page.getByText('Такое объявление уже существует. Замените фотографии.')).toBeVisible()
   expect(Date.now() - startedAt).toBeGreaterThanOrEqual(900)
 
