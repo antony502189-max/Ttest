@@ -57,6 +57,34 @@ test('same-address cluster keeps the promoted sign when at least one grouped lis
   expect(cluster.promoted).toBe('true')
 })
 
+test('grouped marker can gain and lose TOP state without recreation', async ({ page }) => {
+  await page.goto('/')
+  const states = await page.evaluate(async () => {
+    const icons = await import('/src/components/map/map-icons.ts')
+    const content = icons.createClusterContent(3, false)
+    icons.setClusterPromotionState(content, true)
+    const promoted = {
+      className: content.querySelector('.map-cluster-marker')?.className,
+      promotion: content.querySelector('.map-cluster-marker__promotion')?.textContent,
+      data: content.dataset.promoted,
+    }
+    icons.setClusterPromotionState(content, false)
+    const ordinary = {
+      className: content.querySelector('.map-cluster-marker')?.className,
+      promotion: content.querySelector('.map-cluster-marker__promotion')?.textContent ?? null,
+      data: content.dataset.promoted,
+    }
+    return { promoted, ordinary }
+  })
+
+  expect(states.promoted.className).toContain('is-promoted')
+  expect(states.promoted.promotion).toBe('👍')
+  expect(states.promoted.data).toBe('true')
+  expect(states.ordinary.className).not.toContain('is-promoted')
+  expect(states.ordinary.promotion).toBeNull()
+  expect(states.ordinary.data).toBe('false')
+})
+
 test('shared map marker leaves ordinary listings without promoted state', async ({ page }) => {
   await page.goto('/')
   const marker = await page.evaluate(async (item) => {
