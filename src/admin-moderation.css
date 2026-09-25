@@ -332,3 +332,353 @@
   .admin-promotion-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-promotion-dates { grid-template-columns: 1fr; }
 }
+
+
+/* Admin readability + layout hardening.
+   Keep controls comfortably readable and prevent action groups from widening
+   the whole page. This file loads after the legacy admin rules in index.css. */
+.admin-page {
+  grid-template-columns: 17rem minmax(0, 1fr);
+  background: #f6f7f4;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .admin-sidebar {
+    position: sticky;
+    top: 4.5rem;
+    height: calc(100dvh - 4.5rem);
+    align-self: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.15rem .9rem;
+  }
+}
+
+.admin-brand {
+  padding: .55rem .75rem 1.35rem;
+  font-size: 1.16rem;
+  letter-spacing: -.055em;
+}
+.admin-brand span {
+  font-size: .78rem;
+  letter-spacing: .06em;
+}
+.admin-sidebar nav { gap: .35rem; }
+.admin-sidebar nav button,
+.admin-sidebar nav button:not([aria-current="page"]) {
+  min-height: 3.25rem;
+  justify-content: flex-start;
+  gap: .75rem;
+  padding: .65rem .8rem;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+.admin-sidebar nav button svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: none;
+}
+.admin-sidebar nav button > span {
+  min-width: 1.55rem;
+  height: 1.55rem;
+  font-size: .78rem;
+}
+.admin-user {
+  gap: .75rem;
+  padding: 1rem .75rem .4rem;
+}
+.admin-user > div {
+  width: 2.65rem;
+  height: 2.65rem;
+  font-size: .9rem;
+}
+.admin-user strong { font-size: 1rem; line-height: 1.25; }
+.admin-user small { font-size: .86rem; line-height: 1.35; }
+
+.admin-main {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: clamp(1.25rem, 2.6vw, 2.4rem) clamp(1rem, 3vw, 3rem) 3rem;
+  overflow-x: clip;
+}
+.admin-header,
+.admin-section-head { margin-bottom: 1.4rem; }
+.admin-header h1,
+.admin-section-head h1,
+.admin-user-hero h1 {
+  font-size: clamp(2rem, 3vw, 2.55rem);
+  line-height: 1.12;
+  letter-spacing: -.025em;
+}
+.admin-section-head p,
+.admin-user-hero p,
+.admin-card-head p,
+.admin-detail-card > p,
+.admin-panel__head p,
+.admin-empty p {
+  font-size: 1rem;
+  line-height: 1.55;
+}
+.admin-section-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.admin-section-actions button,
+.admin-toolbar button,
+.admin-page [data-slot="button"] {
+  font-size: .98rem;
+}
+.admin-page input,
+.admin-page select,
+.admin-page textarea {
+  font-size: 1rem;
+}
+.admin-toolbar .admin-search { max-width: 42rem; }
+.admin-toolbar > select,
+.admin-status-filter select,
+.admin-search input {
+  min-height: 3rem;
+}
+.admin-search svg {
+  top: 50%;
+  width: 1.15rem;
+  height: 1.15rem;
+  transform: translateY(-50%);
+}
+.admin-search input { padding-left: 2.55rem; }
+
+.stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .9rem;
+}
+.stats-grid > div {
+  min-width: 0;
+  padding: 1.25rem;
+}
+.stats-grid span,
+.stats-grid small { font-size: .9rem; line-height: 1.4; }
+.stats-grid strong { font-size: 2.2rem; line-height: 1.1; }
+
+.admin-panel,
+.admin-detail-card,
+.admin-report-card,
+.admin-listing-row,
+.admin-audit-list article,
+.admin-user-row {
+  border-radius: .75rem;
+}
+.admin-panel__head { padding: 1.25rem 1.35rem; }
+.admin-panel__head h2,
+.admin-detail-card h2 { font-size: 1.3rem; line-height: 1.25; }
+
+.admin-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+.admin-table-wrap table { min-width: 58rem; }
+.admin-table-wrap th,
+.admin-table-wrap td {
+  padding-top: .9rem;
+  padding-bottom: .9rem;
+  font-size: .95rem;
+  vertical-align: middle;
+}
+.admin-listing-cell { min-width: 19rem; }
+.admin-listing-cell span,
+.admin-user-primary span,
+.admin-user-meta span,
+.admin-report-card header span,
+.admin-report-context,
+.admin-listing-row span,
+.admin-listing-row small,
+.admin-compact-list span,
+.admin-active-restriction span,
+.admin-dialog-form label > span,
+.admin-dialog-summary p,
+.admin-promotion-note,
+.admin-audit-list p,
+.admin-audit-list small,
+.admin-admin-list small {
+  font-size: .88rem;
+  line-height: 1.45;
+}
+
+.admin-user-row {
+  grid-template-columns: auto minmax(13rem, 1.4fr) minmax(12rem, .9fr) auto auto;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+}
+.admin-user-primary strong { font-size: 1.05rem; line-height: 1.3; }
+
+.admin-listing-row {
+  grid-template-columns: minmax(0, 1.25fr) minmax(14rem, .75fr);
+  align-items: start;
+  gap: 1rem 1.25rem;
+  padding: 1.15rem 1.2rem;
+}
+.admin-listing-row > div:first-child strong {
+  font-size: 1.08rem;
+  line-height: 1.35;
+}
+.admin-listing-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .55rem;
+  min-width: 0;
+  padding-top: .9rem;
+  border-top: 1px solid var(--line);
+}
+.admin-listing-actions button {
+  min-height: 2.75rem;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.admin-report-card {
+  padding: 1.15rem 1.2rem;
+}
+.admin-report-card header strong { font-size: 1.06rem; }
+.admin-report-card footer { gap: .55rem; }
+.admin-report-card footer button { min-height: 2.7rem; }
+
+.admin-detail-card dl > div { align-items: baseline; }
+.admin-detail-card dt,
+.admin-detail-card dd { font-size: .95rem; line-height: 1.45; }
+.admin-note-form textarea,
+.admin-dialog-form textarea { font-size: 1rem; line-height: 1.5; }
+
+.admin-page [data-slot="badge"] {
+  min-height: 1.75rem;
+  padding-inline: .6rem;
+  font-size: .86rem;
+  line-height: 1.2;
+}
+
+.admin-page button:focus-visible,
+.admin-page a:focus-visible,
+.admin-page input:focus-visible,
+.admin-page select:focus-visible,
+.admin-page textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--market-link) 72%, white);
+  outline-offset: 2px;
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .admin-page { grid-template-columns: 14.5rem minmax(0, 1fr); }
+  .admin-brand span { font-size: .72rem; }
+  .admin-sidebar nav button,
+  .admin-sidebar nav button:not([aria-current="page"]) {
+    justify-content: flex-start;
+    padding-inline: .7rem;
+    font-size: .94rem;
+  }
+  .admin-sidebar nav button svg { width: 1.1rem; height: 1.1rem; }
+  .admin-user > span { display: flex; }
+  .admin-user strong { font-size: .92rem; }
+  .admin-user small { font-size: .8rem; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-header { grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-filter-bar { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (max-width: 767px) {
+  .admin-page {
+    min-height: calc(100dvh - 3.75rem);
+    display: block;
+    font-size: 16px;
+  }
+  .admin-sidebar {
+    position: sticky;
+    z-index: 32;
+    top: 3.75rem;
+    display: block;
+    padding: .45rem .5rem;
+    box-shadow: 0 1px 0 rgb(0 0 0 / .16);
+  }
+  .admin-sidebar nav {
+    gap: .35rem;
+    padding-bottom: .1rem;
+    scroll-padding-inline: .5rem;
+  }
+  .admin-sidebar nav button,
+  .admin-sidebar nav button:not([aria-current="page"]) {
+    min-height: 3rem;
+    gap: .45rem;
+    padding: .6rem .8rem;
+    font-size: .9rem;
+  }
+  .admin-sidebar nav button svg { width: 1.1rem; height: 1.1rem; }
+  .admin-main {
+    padding: 1.1rem .8rem 2rem;
+    overflow-x: clip;
+  }
+  .admin-header,
+  .admin-section-head { gap: .8rem; }
+  .admin-header h1,
+  .admin-section-head h1,
+  .admin-user-hero h1 { font-size: clamp(1.75rem, 8vw, 2.15rem); }
+  .admin-toolbar { gap: .7rem; }
+  .admin-toolbar > select,
+  .admin-search input { min-height: 3.1rem; }
+  .admin-user-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .75rem;
+    padding: .95rem;
+  }
+  .admin-user-row > [data-slot="badge"] {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .admin-detail-card,
+  .admin-report-card,
+  .admin-listing-row,
+  .admin-audit-list article { padding: 1rem; }
+  .admin-listing-row { grid-template-columns: 1fr; }
+  .admin-listing-state { grid-column: auto; grid-row: auto; }
+  .admin-listing-actions {
+    grid-column: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+  .admin-listing-actions button { width: 100%; min-height: 3rem; }
+  .admin-report-card footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-report-card footer button { min-height: 3rem; }
+  .admin-table-wrap {
+    width: 100%;
+    margin-inline: 0;
+  }
+  .admin-table-wrap table { min-width: 54rem; }
+  .admin-audit-list pre {
+    font-size: .8rem;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 520px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .admin-listing-actions,
+  .admin-report-card footer { grid-template-columns: 1fr; }
+  .admin-section-actions { display: grid; grid-template-columns: 1fr; width: 100%; }
+  .admin-section-actions > * { width: 100%; }
+  .admin-user-hero {
+    grid-template-columns: 1fr;
+  }
+  .admin-user-hero .admin-avatar { width: 3.25rem; height: 3.25rem; }
+  .admin-detail-card dl > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .25rem;
+  }
+  .admin-detail-card dd { text-align: left; }
+}

@@ -76,11 +76,12 @@ export function AppLayout() {
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
+  const hideBottomNavigation = pathname === '/admin'
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
     const update = () => setMobileViewport(media.matches)
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><PublishAddressLifecycle /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Suspense key={pathname} fallback={<div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}<BottomNavigation /><Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><PublishAddressLifecycle /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Suspense key={pathname} fallback={<div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
 }
