@@ -321,7 +321,11 @@ async def system_user(session: AsyncSession) -> User:
     return user
 
 
-async def canonical_for(session: AsyncSession, item: NormalizedListing, image_hashes: set[str]) -> Listing | None:
+async def canonical_for(
+    session: AsyncSession,
+    item: NormalizedListing,
+    image_fingerprints: list[ImageFingerprint],
+) -> Listing | None:
     """Find an existing external canonical only from the photo gallery.
 
     Contact details, address/city, title, description and price are deliberately
@@ -329,9 +333,9 @@ async def canonical_for(session: AsyncSession, item: NormalizedListing, image_ha
     different rooms/listings.
     """
     del item
-    duplicate_id = await duplicate_listing_for_hashes(
+    duplicate_id = await duplicate_listing_id(
         session,
-        list(image_hashes),
+        image_fingerprints,
         external_only=True,
     )
     return await session.get(Listing, duplicate_id) if duplicate_id is not None else None
