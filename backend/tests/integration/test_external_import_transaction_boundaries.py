@@ -115,11 +115,11 @@ async def test_source_discovery_and_detail_fetch_run_without_database_transactio
     async with SessionLocal() as session:
         source = TransactionCheckingSource(session)
 
-        async def no_image_hashes(urls: list[str]) -> set[str]:
+        async def no_image_hashes(urls: list[str]) -> list:
             assert not session.in_transaction()
-            return set()
+            return []
 
-        monkeypatch.setattr(importer, "public_image_hashes", no_image_hashes)
+        monkeypatch.setattr(importer, "public_image_fingerprints", no_image_hashes)
         counters = await importer.run_source(session, source, "transaction-boundary-run")  # type: ignore[arg-type]
 
         assert counters.result == "success"
@@ -159,9 +159,9 @@ async def test_image_download_and_storage_do_not_reuse_another_users_private_ass
         session.add(private_asset)
         await session.commit()
 
-        async def image_hashes(urls: list[str]) -> set[str]:
+        async def image_hashes(urls: list[str]) -> list:
             assert not session.in_transaction()
-            return set()
+            return []
 
         async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
             assert not session.in_transaction()
@@ -173,7 +173,7 @@ async def test_image_download_and_storage_do_not_reuse_another_users_private_ass
                 perceptual_hash="1" * 16,
             )
 
-        monkeypatch.setattr(importer, "public_image_hashes", image_hashes)
+        monkeypatch.setattr(importer, "public_image_fingerprints", image_hashes)
         monkeypatch.setattr(importer, "download_external_image", prepared_image)
         monkeypatch.setattr(importer, "get_storage", lambda: storage)
 
@@ -213,9 +213,9 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
     checksum = hashlib.sha256(normalized).hexdigest()
 
     async with SessionLocal() as session:
-        async def image_hashes(urls: list[str]) -> set[str]:
+        async def image_hashes(urls: list[str]) -> list:
             assert not session.in_transaction()
-            return set()
+            return []
 
         async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
             assert not session.in_transaction()
@@ -227,7 +227,7 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
                 perceptual_hash="2" * 16,
             )
 
-        monkeypatch.setattr(importer, "public_image_hashes", image_hashes)
+        monkeypatch.setattr(importer, "public_image_fingerprints", image_hashes)
         monkeypatch.setattr(importer, "download_external_image", prepared_image)
         monkeypatch.setattr(importer, "get_storage", FailingS3Storage)
 
@@ -270,7 +270,7 @@ async def test_reconciliation_probes_run_without_database_transaction(monkeypatc
             external_id="probe-boundary",
             url="https://www.pisocompartido.com/habitacion/probe-boundary",
         )
-        monkeypatch.setattr(importer, "public_image_hashes", lambda urls: _empty_hashes(session))
+        monkeypatch.setattr(importer, "public_image_fingerprints", lambda urls: _empty_hashes(session))
         assert await importer.upsert(session, item) == "imported"
 
         record = await session.scalar(
@@ -291,6 +291,6 @@ async def test_reconciliation_probes_run_without_database_transaction(monkeypatc
         assert not session.in_transaction()
 
 
-async def _empty_hashes(session) -> set[str]:
+async def _empty_hashes(session) -> list:
     assert not session.in_transaction()
-    return set()
+    return []
