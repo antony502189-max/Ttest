@@ -30,6 +30,13 @@ export function exactCoincidentListingIds(items: MarkerListing[], candidateIds: 
     : []
 }
 
+export function coincidentListingIdsFor(items: MarkerListing[], listingId: string) {
+  const selected = items.find((item) => item.id === listingId)
+  if (!selected) return []
+  const key = coordinateKey(selected.coordinates)
+  return items.filter((item) => coordinateKey(item.coordinates) === key).map((item) => item.id)
+}
+
 export function buildDisplayMarkerPositions(items: MarkerListing[]) {
   const counts = new Map<string, number>()
   for (const item of items) {
