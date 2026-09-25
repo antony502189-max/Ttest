@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import unicodedata
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from uuid import UUID, uuid4
@@ -147,7 +147,7 @@ class PreparedExternalImage:
     height: int
     checksum: str
     perceptual_hash: str
-    variants: dict[str, bytes]
+    variants: dict[str, bytes] = field(default_factory=dict)
 
 
 async def download_external_image(client: httpx.AsyncClient, url: str) -> PreparedExternalImage | None:
