@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
-import { Heart, MapPin, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPriceMarkerState } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
-import { buildDisplayMarkerPositions, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
+import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { hasListingCoordinates } from '@/lib/listings'
 import type { Listing } from '@/types'
 import '@/mobile-map-ideal.css'
@@ -29,7 +29,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
 }) {
   const { favorites, toggleFavorite } = useApp()
   const [selectedId, setSelectedId] = useState('')
-  const [expandedCoincidentIds, setExpandedCoincidentIds] = useState<string[]>([])
+  const [coincidentIds, setCoincidentIds] = useState<string[]>([])
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
@@ -39,7 +39,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const signature = useMemo(() => mappedItems.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [mappedItems])
   const promotionSignature = useMemo(() => mappedItems.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [mappedItems])
   const selected = mappedItems.find((item) => item.id === selectedId)
-  const expandedCoincidentListings = expandedCoincidentIds.flatMap((id) => {
+  const coincidentListings = coincidentIds.flatMap((id) => {
     const listing = mappedItems.find((item) => item.id === id)
     return listing ? [listing] : []
   })
@@ -105,6 +105,8 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
           zIndex: listing.promoted ? 100 : 10,
         })
         const select = () => {
+          const groupIds = coincidentListingIdsFor(mappedItems, listing.id)
+          setCoincidentIds(groupIds.length > 1 ? groupIds : [])
           setSelectedId(listing.id)
           marker.zIndex = 4000
           map.panTo(display.position)
@@ -131,13 +133,13 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
             })
             const coincidentIds = exactCoincidentListingIds(mappedItems, clusteredIds)
             if (coincidentIds.length > 1) {
-              setSelectedId('')
-              setExpandedCoincidentIds(coincidentIds)
+              setCoincidentIds(coincidentIds)
+              setSelectedId(coincidentIds[0])
               const first = mappedItems.find((listing) => listing.id === coincidentIds[0])
               if (first) clusterMap.panTo(first.coordinates)
               return
             }
-            setExpandedCoincidentIds([])
+            setCoincidentIds([])
             if (cluster.bounds) clusterMap.fitBounds(cluster.bounds)
           },
         })
@@ -169,11 +171,17 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [mappedItems, selectedId])
 
   useEffect(() => {
-    setExpandedCoincidentIds((current) => current.filter((id) => mappedItems.some((item) => item.id === id)))
-  }, [mappedItems])
+    if (!selectedId) {
+      setCoincidentIds((current) => current.length ? [] : current)
+      return
+    }
+    const next = coincidentListingIdsFor(mappedItems, selectedId)
+    const nextIds = next.length > 1 ? next : []
+    setCoincidentIds((current) => current.join('|') === nextIds.join('|') ? current : nextIds)
+  }, [mappedItems, selectedId])
 
   useEffect(() => {
-    if (drawing) setExpandedCoincidentIds([])
+    if (drawing) setCoincidentIds([])
   }, [drawing])
 
   useEffect(() => {
@@ -198,25 +206,6 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     return () => listener.remove()
   }, [mapReady, mapRef])
 
-  if (!selected && expandedCoincidentListings.length > 1) {
-    return <aside className="m2-map-coincident-picker" data-testid="mobile-map-coincident-picker" data-count={expandedCoincidentListings.length} aria-label={t.group(expandedCoincidentListings.length)}>
-      <header>
-        <div><strong>{t.group(expandedCoincidentListings.length)}</strong><span>{expandedCoincidentListings[0].approximateAddress ? `${expandedCoincidentListings[0].approximateAddress}, ${expandedCoincidentListings[0].city}` : `${expandedCoincidentListings[0].area}, ${expandedCoincidentListings[0].city}`}</span></div>
-        <button type="button" onClick={() => setExpandedCoincidentIds([])} aria-label={t.close}><X /></button>
-      </header>
-      <div className="m2-map-coincident-picker__options">
-        {expandedCoincidentListings.map((listing) => <button key={listing.id} type="button" data-testid={`mobile-map-coincident-option-${listing.id}`} onClick={() => {
-          setExpandedCoincidentIds([])
-          setSelectedId(listing.id)
-          mapRef.current?.panTo(listing.coordinates)
-        }}>
-          <strong>{priceLabel(listing)}</strong>
-          <span>{translateText(listing.title, language)}</span>
-        </button>)}
-      </div>
-    </aside>
-  }
-
   if (!selected) return null
   const capacity = selected.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(selected.roomCapacity)
   const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacity]))
@@ -227,13 +216,36 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: selected.id } }))
   }
   const translatedTitle = translateText(selected.title, language)
+  const carousel = coincidentListings.length > 1 ? coincidentListings : [selected]
+  const carouselIndex = Math.max(0, carousel.findIndex((listing) => listing.id === selected.id))
+  const previous = carouselIndex > 0 ? carousel[carouselIndex - 1] : null
+  const next = carouselIndex < carousel.length - 1 ? carousel[carouselIndex + 1] : null
+  const selectSibling = (id: string) => {
+    setSelectedId(id)
+    const listing = mappedItems.find((item) => item.id === id)
+    if (listing) mapRef.current?.panTo(listing.coordinates)
+  }
 
-  return <article className="m2-map-listing-preview" data-testid="mobile-map-listing-preview" data-listing-id={selected.id}>
-    {externalUrl
-      ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></a>
-      : <div className="m2-map-listing-preview__media"><MediaImage src={selected.images[0]} alt={selected.title} /></div>}
+  return <article
+    className="m2-map-listing-preview"
+    data-testid="mobile-map-listing-preview"
+    data-listing-id={selected.id}
+    data-group-size={carousel.length}
+    data-promoted={selected.promoted || undefined}
+  >
+    <div className="m2-map-listing-preview__media">
+      {externalUrl
+        ? <a className="m2-map-listing-preview__media-link" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></a>
+        : <button type="button" className="m2-map-listing-preview__media-link" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></button>}
+      {carousel.length > 1 ? <>
+        <button type="button" className="m2-map-listing-preview__carousel-arrow m2-map-listing-preview__carousel-arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} disabled={!previous} onClick={() => previous && selectSibling(previous.id)}><ChevronLeft /></button>
+        <button type="button" className="m2-map-listing-preview__carousel-arrow m2-map-listing-preview__carousel-arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'} disabled={!next} onClick={() => next && selectSibling(next.id)}><ChevronRight /></button>
+        <span className="m2-map-listing-preview__carousel-count" aria-label={`${carouselIndex + 1} / ${carousel.length}`}>${carouselIndex + 1}/${carousel.length}</span>
+      </> : null}
+      {selected.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
+    </div>
     <div className="m2-map-listing-preview__body">
-      <button type="button" className="m2-map-listing-preview__close" onClick={() => setSelectedId('')} aria-label={t.close}><X /></button>
+      <button type="button" className="m2-map-listing-preview__close" onClick={() => { setSelectedId(''); setCoincidentIds([]) }} aria-label={t.close}><X /></button>
       <p><MapPin />{selected.approximateAddress ? `${selected.approximateAddress}, ${selected.city}` : `${selected.area}, ${selected.city}`}</p>
       <h2>{translatedTitle}</h2>
       <strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
