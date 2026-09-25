@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
-import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPriceMarkerState } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
@@ -192,6 +192,21 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       setPriceMarkerState(marker.content, selectedMarker, false, Boolean(listing.promoted))
       marker.zIndex = selectedMarker ? 4000 : listing.promoted ? 100 : 10
       marker.content.dataset.markerZIndex = String(marker.zIndex)
+    })
+    const clusterer = clusterRef.current
+    if (!clusterer) return
+    const clusters = (clusterer as unknown as { clusters: Array<{ marker?: google.maps.Marker | google.maps.marker.AdvancedMarkerElement; markers: Array<google.maps.Marker | google.maps.marker.AdvancedMarkerElement> }> }).clusters
+    clusters.forEach((candidate) => {
+      if (!(candidate.marker instanceof google.maps.marker.AdvancedMarkerElement)) return
+      const clusterContent = candidate.marker.content
+      if (!(clusterContent instanceof HTMLElement)) return
+      const clusterPromoted = candidate.markers.some((child) => {
+        if (!(child instanceof google.maps.marker.AdvancedMarkerElement)) return false
+        const childContent = child.content
+        return childContent instanceof HTMLElement && Boolean(childContent.querySelector('.map-price-marker.is-promoted'))
+      })
+      setClusterPromotionState(clusterContent, clusterPromoted)
+      candidate.marker.zIndex = (clusterPromoted ? 2000 : 1000) + candidate.markers.length
     })
   }, [mappedItems, promotionSignature, selectedId])
 
