@@ -31,6 +31,7 @@ from ..schemas.listings import (
     OwnedListingResponse,
 )
 from .catalog import touch_catalog
+from .listing_deduplication import assert_gallery_is_unique
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
@@ -398,6 +399,12 @@ async def _replace_listing_images_locked(
                 "fieldErrors": {"assetIds": "Remove unavailable images and upload them again."},
             },
         )
+
+    await assert_gallery_is_unique(
+        session,
+        listing.id,
+        [cast(MediaAsset, asset) for asset in requested_assets],
+    )
 
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     for sort_order, asset_id in enumerate(asset_ids):
