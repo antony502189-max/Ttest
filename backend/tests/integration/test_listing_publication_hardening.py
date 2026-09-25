@@ -10,7 +10,7 @@ from PIL import Image
 from sqlalchemy import delete, func, select
 
 from app.db.session import SessionLocal
-from app.models import Listing, ListingImage, User
+from app.models import Listing, ListingImage, MediaAsset, User
 from app.schemas.listings import ListingWrite
 from app.services import listing_limits, listings
 from app.services.duplicate_cleanup import deduplicate_active_listings
@@ -330,6 +330,22 @@ async def upload_gallery(client, token: str, seeds: list[int]) -> list[str]:
         assert uploaded.status_code == 201, uploaded.text
         asset_ids.append(uploaded.json()["id"])
     return asset_ids
+
+
+async def test_user_upload_persists_visual_fingerprint_for_duplicate_detection(client, register_user):
+    token, _ = await register_user(client, email="upload-phash@example.com", role="host")
+    uploaded = await client.post(
+        "/api/v1/uploads",
+        headers=auth(token),
+        files={"file": ("visual-fingerprint.png", patterned_png(77), "image/png")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+
+    async with SessionLocal() as session:
+        asset = await session.get(MediaAsset, UUID(uploaded.json()["id"]))
+        assert asset is not None
+        assert asset.perceptual_hash is not None
+        assert len(asset.perceptual_hash) == 16
 
 
 async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(client, register_user):
