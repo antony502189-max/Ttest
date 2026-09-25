@@ -60,10 +60,18 @@ async def _store_prepared_image(storage: Storage, storage_key: str, prepared: Pr
         (variant_storage_key(storage_key, variant), content)
         for variant, content in prepared.variants.items()
     ]]
-    await asyncio.gather(*(
-        asyncio.to_thread(storage.put, object_key, object_content)
-        for object_key, object_content in objects
-    ))
+    results = await asyncio.gather(
+        *(
+            asyncio.to_thread(storage.put, object_key, object_content)
+            for object_key, object_content in objects
+        ),
+        return_exceptions=True,
+    )
+    # Wait for every writer before propagating an error so cleanup cannot race
+    # a sibling thread that is still creating a derivative object.
+    for result in results:
+        if isinstance(result, Exception):
+            raise result
 
 
 async def _delete_prepared_image(storage: Storage, storage_key: str) -> None:
