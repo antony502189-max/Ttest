@@ -61,10 +61,33 @@ export function useMediaUrl(source?: string, variant: MediaVariant = 'full') {
   return url
 }
 
-type MediaImageProps = ImgHTMLAttributes<HTMLImageElement> & { variant?: MediaVariant }
+type MediaImageProps = ImgHTMLAttributes<HTMLImageElement> & {
+  variant?: MediaVariant
+  responsive?: boolean
+}
 
-export function MediaImage({ src, variant = 'full', decoding = 'async', ...props }: MediaImageProps) {
+export function MediaImage({
+  src,
+  variant = 'full',
+  responsive = false,
+  decoding = 'async',
+  srcSet,
+  ...props
+}: MediaImageProps) {
   const source = typeof src === 'string' ? src : undefined
   const resolved = useMediaUrl(source, variant)
-  return <img {...props} decoding={decoding} src={resolved || (isMediaReference(source) ? missingMediaFallback : undefined)} />
+  const thumb = source ? mediaVariantUrl(source, 'thumb') : ''
+  const card = source ? mediaVariantUrl(source, 'card') : ''
+  const full = source ? mediaVariantUrl(source, 'full') : ''
+  const responsiveSet = responsive && source && !isMediaReference(source) && (thumb !== source || card !== source)
+    ? `${thumb} 480w, ${card} 960w, ${full} 2048w`
+    : srcSet
+  return (
+    <img
+      {...props}
+      decoding={decoding}
+      srcSet={responsiveSet}
+      src={resolved || (isMediaReference(source) ? missingMediaFallback : undefined)}
+    />
+  )
 }
