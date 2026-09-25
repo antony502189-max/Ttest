@@ -61,9 +61,13 @@ export class MediaStorageError extends Error {
   }
 }
 
+let databasePromise: Promise<IDBDatabase> | null = null
+
 function openDatabase() {
-  return new Promise<IDBDatabase>((resolve, reject) => {
+  if (databasePromise) return databasePromise
+  databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
     if (!('indexedDB' in window)) {
+      databasePromise = null
       reject(new MediaStorageError('unavailable', 'El almacenamiento de imágenes no está disponible.'))
       return
     }
@@ -71,9 +75,20 @@ function openDatabase() {
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
     }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new MediaStorageError('unavailable', 'No se pudo abrir el almacenamiento de imágenes.'))
+    request.onsuccess = () => {
+      const database = request.result
+      database.onversionchange = () => {
+        database.close()
+        databasePromise = null
+      }
+      resolve(database)
+    }
+    request.onerror = () => {
+      databasePromise = null
+      reject(request.error ?? new MediaStorageError('unavailable', 'No se pudo abrir el almacenamiento de imágenes.'))
+    }
   })
+  return databasePromise
 }
 
 function mediaId(reference: string) {
@@ -137,8 +152,6 @@ export async function saveMediaFile(file: File) {
       throw new MediaStorageError('quota', 'No hay espacio suficiente para guardar la imagen.')
     }
     throw new MediaStorageError('read', 'No se pudo leer o guardar la imagen.')
-  } finally {
-    database.close()
   }
 }
 
@@ -151,8 +164,6 @@ export async function getMediaBlob(reference: string) {
       request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null)
       request.onerror = () => reject(request.error)
     })
-  } finally {
-    database.close()
   }
 }
 
@@ -167,8 +178,6 @@ export async function removeMedia(reference: string) {
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error)
     })
-  } finally {
-    database.close()
   }
 }
 
@@ -187,8 +196,6 @@ export async function getAllMediaReferences() {
       request.onsuccess = () => resolve(request.result.map(mediaReference))
       request.onerror = () => reject(request.error)
     })
-  } finally {
-    database.close()
   }
 }
 
