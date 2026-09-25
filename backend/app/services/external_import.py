@@ -125,7 +125,7 @@ async def public_image_fingerprints(urls: list[str]) -> list[ImageFingerprint]:
     identity is therefore established only when every unique source image in
     the bounded 20-photo gallery can be inspected successfully.
     """
-    source_urls = list(dict.fromkeys(urls[:20]))
+    source_urls = list(dict.fromkeys(urls))[:20]
     if not source_urls:
         return []
 
@@ -238,7 +238,7 @@ async def import_images(
     detached and truly orphaned media is queued for storage deletion.
     """
     settings = get_settings()
-    source_urls = list(dict.fromkeys(urls[:20]))
+    source_urls = list(dict.fromkeys(urls))[:20]
     if not settings.external_import_download_images or not source_urls:
         return
 
@@ -332,7 +332,7 @@ async def import_images(
             )
             if storage_error is not None:
                 created_storage_keys.add(storage_key)
-                raise storage_error
+                raise OSError("External image storage write failed") from storage_error
 
             created_storage_keys.add(storage_key)
             asset = MediaAsset(
