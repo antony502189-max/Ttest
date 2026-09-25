@@ -35,6 +35,8 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
   const initialCoordinatesRef = useRef(coordinates)
   const internalChangeRef = useRef(false)
   const requestGateRef = useRef(createRequestVersionGate())
+  const pendingSelectedLocationRef = useRef<SelectedLocationDetail | null>(null)
+  const applySelectedLocationRef = useRef<((detail: SelectedLocationDetail) => void) | null>(null)
   const [error, setError] = useState('')
   const [detectedAddress, setDetectedAddress] = useState('')
   const guidance = language === 'ru'
@@ -66,8 +68,19 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
     let geocoder: google.maps.Geocoder | null = null
     const handleAuthFailure = () => setError(googleMapsAuthErrorMessage)
     const handleLocationError = (event: Event) => setError((event as CustomEvent<{ message?: string }>).detail?.message ?? 'No se pudo resolver esta dirección.')
+    const handleSelectedLocation = (event: Event) => {
+      const detail = (event as CustomEvent<SelectedLocationDetail>).detail ?? {}
+      const point = detail.coordinates
+      if (!point || !isInsideTenerife(point)) return
+      if (applySelectedLocationRef.current) {
+        applySelectedLocationRef.current(detail)
+      } else {
+        pendingSelectedLocationRef.current = detail
+      }
+    }
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
     window.addEventListener('112233:publish-location-error', handleLocationError)
+    window.addEventListener('112233:publish-location-selected', handleSelectedLocation)
 
     loadGoogleMaps().then(async ({ maps, marker }) => {
       if (cancelled || !containerRef.current) return
@@ -159,8 +172,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         if (latLng) commitPoint({ lat: latLng.lat(), lng: latLng.lng() })
       })
 
-      const handleSelectedLocation = (event: Event) => {
-        const detail = (event as CustomEvent<SelectedLocationDetail>).detail ?? {}
+      const applySelectedLocation = (detail: SelectedLocationDetail) => {
         const point = detail.coordinates
         if (!point || !isInsideTenerife(point)) return
         requestGateRef.current.next()
@@ -170,7 +182,10 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         mapInstance.setZoom(zoom)
         commitPoint(point, false)
       }
-      window.addEventListener('112233:publish-location-selected', handleSelectedLocation)
+      applySelectedLocationRef.current = applySelectedLocation
+      const pendingSelection = pendingSelectedLocationRef.current
+      pendingSelectedLocationRef.current = null
+      if (pendingSelection) applySelectedLocation(pendingSelection)
 
       const handleDoubleClick = (event: MouseEvent) => { event.preventDefault(); placeFromClientPosition(event.clientX, event.clientY) }
       const handlePointerDown = (event: PointerEvent) => { if (event.pointerType !== 'mouse') pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY } }
@@ -196,7 +211,6 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         container.removeEventListener('pointerdown', handlePointerDown, true)
         container.removeEventListener('pointerup', handlePointerUp, true)
         container.removeEventListener('pointercancel', handlePointerCancel, true)
-        window.removeEventListener('112233:publish-location-selected', handleSelectedLocation)
       }
 
       mapRef.current = mapInstance
@@ -213,6 +227,9 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       removePointerListeners?.()
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
       window.removeEventListener('112233:publish-location-error', handleLocationError)
+      window.removeEventListener('112233:publish-location-selected', handleSelectedLocation)
+      applySelectedLocationRef.current = null
+      pendingSelectedLocationRef.current = null
       if (markerRef.current) markerRef.current.map = null
       if (mapRef.current) google.maps.event.clearInstanceListeners(mapRef.current)
       mapRef.current = null
