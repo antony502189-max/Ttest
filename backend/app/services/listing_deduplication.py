@@ -317,6 +317,33 @@ async def acquire_duplicate_guard(session: AsyncSession) -> None:
     await session.execute(select(func.pg_advisory_xact_lock(DUPLICATE_GUARD_LOCK_KEY)))
 
 
+async def assert_existing_listing_gallery_is_unique(
+    session: AsyncSession,
+    listing_id: UUID,
+) -> None:
+    fingerprints = await listing_gallery(session, listing_id)
+    if not fingerprints:
+        return
+    await acquire_duplicate_guard(session)
+    duplicate_id = await duplicate_listing_id(
+        session,
+        fingerprints,
+        exclude_listing_id=listing_id,
+    )
+    if duplicate_id is None:
+        return
+    raise HTTPException(
+        409,
+        detail={
+            "code": "DUPLICATE_LISTING_IMAGES",
+            "message": "An active listing with the same photo gallery already exists.",
+            "fieldErrors": {
+                "assetIds": "Estas fotografías ya pertenecen a un anuncio activo o prácticamente idéntico."
+            },
+        },
+    )
+
+
 async def assert_gallery_is_unique(
     session: AsyncSession,
     listing_id: UUID,
