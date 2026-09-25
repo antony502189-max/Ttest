@@ -13,6 +13,7 @@ from ..models import DiscardedListing, Favorite, Listing, ListingImage, MediaAss
 from ..storage import get_storage
 from .catalog import touch_catalog
 from .listing_deduplication import (
+    acquire_duplicate_guard,
     all_active_galleries,
     galleries_are_duplicates,
     phash_band_neighbors,
@@ -130,6 +131,11 @@ async def _move_scoped_state(
 
 
 async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> dict:
+    if apply:
+        # Manual invocations may run while the application is live. Share the
+        # same transaction-level guard as create/update/import so the cleanup
+        # snapshot cannot race a newly published gallery.
+        await acquire_duplicate_guard(session)
     galleries = await all_active_galleries(session)
     groups = _duplicate_groups(galleries)
     if not groups:
