@@ -18,7 +18,7 @@ const host = {
 }
 const secondHost = { ...host, id: '44444444-4444-4444-8444-444444444444', name: 'Segunda anfitriona', email: 'second-publication-ui@example.com' }
 
-type PublicationMode = 'email' | 'validation' | 'success'
+type PublicationMode = 'email' | 'validation' | 'duplicate' | 'success'
 type PublicationTestState = {
   mode: PublicationMode
   posts: number
@@ -166,6 +166,7 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       state.payload = request.postDataJSON() as Record<string, unknown>
       if (state.mode === 'email') return json({ code: 'EMAIL_VERIFICATION_REQUIRED', message: 'Confirm email', fieldErrors: {} }, 409, { 'X-Request-ID': 'email-request' })
       if (state.mode === 'validation') return json({ detail: [{ loc: ['body', 'monthlyPrice'], msg: 'Field required' }] }, 422, { 'X-Request-ID': 'validation-request' })
+      if (state.mode === 'duplicate') return json({ code: 'DUPLICATE_LISTING_IMAGES', message: 'Duplicate gallery', fieldErrors: { assetIds: 'duplicate' } }, 409, { 'X-Request-ID': 'duplicate-request' })
       const key = request.headers()['idempotency-key']
       return json(listingResponse(state.payload, key), 201)
     }
@@ -231,6 +232,28 @@ test('publication preserves email and FastAPI validation errors in Spanish', asy
   await expect(page.getByText('No se pudo publicar el anuncio en el servidor.')).toHaveCount(0)
   expect(state.posts).toBe(2)
   expect(state.profilePatches).toBe(0)
+})
+
+test('duplicate photo gallery keeps the draft and shows localized replace-photo feedback after a visible check', async ({ page }) => {
+  const state = { mode: 'duplicate' as PublicationMode, posts: 0, profilePatches: 0, uploadCalls: 0 }
+  await mockPublicationApi(page, state)
+  await openCompletedPublicationForm(page)
+  await page.evaluate(() => {
+    localStorage.setItem('112233:language:v1', 'ru')
+    document.documentElement.lang = 'ru'
+  })
+
+  const publish = page.getByRole('button', { name: 'Publicar anuncio' })
+  const startedAt = Date.now()
+  await publish.click()
+  await expect(page.getByRole('button', { name: /Publicando/ })).toBeDisabled()
+  await expect(page.getByText('Такое объявление уже существует. Замените фотографии.')).toBeVisible()
+  expect(Date.now() - startedAt).toBeGreaterThanOrEqual(900)
+
+  expect(state.uploadCalls).toBe(1)
+  expect(state.posts).toBe(1)
+  await expect(page).toHaveURL(/#\/publicar$/)
+  expect(await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).toBeTruthy()
 })
 
 test('double click sends one idempotent publication and then synchronizes images', async ({ page }) => {
