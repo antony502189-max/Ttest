@@ -374,10 +374,27 @@ async def assert_gallery_is_unique(
     )
 
 
+def external_gallery_is_reconciled(
+    *,
+    is_external: bool,
+    external_image_urls: list[str],
+    stored_image_count: int,
+) -> bool:
+    if not is_external:
+        return True
+    expected_count = len(list(dict.fromkeys(external_image_urls))[:20])
+    return expected_count > 0 and stored_image_count == expected_count
+
+
 async def all_active_galleries(session: AsyncSession) -> dict[UUID, list[ImageFingerprint]]:
     rows = (
         await session.execute(
-            select(ListingImage.listing_id, MediaAsset)
+            select(
+                ListingImage.listing_id,
+                MediaAsset,
+                Listing.is_external,
+                Listing.external_image_urls,
+            )
             .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
             .join(Listing, Listing.id == ListingImage.listing_id)
             .where(
@@ -389,7 +406,8 @@ async def all_active_galleries(session: AsyncSession) -> dict[UUID, list[ImageFi
         )
     ).all()
     galleries: dict[UUID, list[ImageFingerprint]] = defaultdict(list)
-    for listing_id, asset in rows:
+    external_state: dict[UUID, tuple[bool, list[str]]] = {}
+    for listing_id, asset, is_external, external_image_urls in rows:
         galleries[listing_id].append(
             ImageFingerprint(
                 asset_id=asset.id,
@@ -399,4 +417,14 @@ async def all_active_galleries(session: AsyncSession) -> dict[UUID, list[ImageFi
                 height=asset.height,
             )
         )
-    return dict(galleries)
+        external_state[listing_id] = (bool(is_external), list(external_image_urls or []))
+
+    return {
+        listing_id: gallery
+        for listing_id, gallery in galleries.items()
+        if external_gallery_is_reconciled(
+            is_external=external_state[listing_id][0],
+            external_image_urls=external_state[listing_id][1],
+            stored_image_count=len(gallery),
+        )
+    }
