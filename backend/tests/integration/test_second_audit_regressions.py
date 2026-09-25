@@ -170,6 +170,11 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
     cached = await client.get(media_url, headers={"If-None-Match": etag})
     assert cached.status_code == 304
 
+    thumbnail = await client.get(f"{media_url}?variant=thumb")
+    assert thumbnail.status_code == 200
+    assert thumbnail.headers["etag"] != etag
+    assert thumbnail.headers["cache-control"] == "private, max-age=0, must-revalidate"
+
     avatar_conflict = await client.put(
         "/api/v1/users/me/avatar",
         headers=auth(token),

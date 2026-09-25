@@ -6,24 +6,20 @@ import json
 import logging
 import re
 import unicodedata
-from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
-from io import BytesIO
 from time import perf_counter
-from typing import cast
 from uuid import UUID, uuid4
 
 import httpx
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import HTTPException
-from PIL import Image
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..api.v1.uploads import validate_and_normalize
 from ..core.config import get_settings
+from ..core.media_keys import variant_storage_key
 from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
 from ..external_sources import (
     DiscoveryResult,
@@ -42,7 +38,15 @@ from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
+from .listing_deduplication import (
+    ImageFingerprint,
+    acquire_duplicate_guard,
+    duplicate_listing_id,
+    external_gallery_is_reconciled,
+)
+from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
+from .storage_deletions import enqueue_storage_deletions
 
 logger = logging.getLogger(__name__)
 SYSTEM_EMAIL = "external-import@112233.es"
@@ -118,31 +122,63 @@ def listing_completeness_score(listing: Listing) -> int:
     ) + min(len(listing.external_image_urls), 10)
 
 
-def perceptual_hash(content: bytes) -> str:
-    """A stable average hash for conservative duplicate-photo matching."""
-    with Image.open(BytesIO(content)) as image:
-        pixels = list(cast("Iterable[int]", image.convert("L").resize((8, 8)).get_flattened_data()))
-    average = sum(pixels) / len(pixels)
-    return f"{sum((1 << index) for index, value in enumerate(pixels) if value >= average):016x}"
+async def public_image_fingerprints(urls: list[str]) -> list[ImageFingerprint]:
+    """Sample the complete bounded source gallery or decline deduplication.
 
+    A partial sample is unsafe for room listings because several rooms in one
+    dwelling may share the same first kitchen/building photos. Cross-source
+    identity is therefore established only when every unique source image in
+    the bounded 20-photo gallery can be inspected successfully.
+    """
+    source_urls = list(dict.fromkeys(urls))[:20]
+    if not source_urls:
+        return []
 
-async def public_image_hashes(urls: list[str]) -> set[str]:
-    if not urls:
-        return set()
-    result: set[str] = set()
+    settings = get_settings()
+    semaphore = asyncio.Semaphore(max(1, min(settings.external_import_max_concurrency_per_source, 4)))
+
     async with httpx.AsyncClient(
-        timeout=get_settings().external_import_request_timeout_seconds, follow_redirects=True
+        timeout=settings.external_import_request_timeout_seconds,
+        follow_redirects=True,
     ) as client:
-        for url in urls[:5]:
-            try:
-                response = await client.get(url, headers={"User-Agent": get_settings().external_import_user_agent})
-                content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
-                if response.status_code != 200 or not content_type.startswith("image/"):
-                    continue
-                normalized, _, _ = await asyncio.to_thread(validate_and_normalize, response.content)
-                result.add(await asyncio.to_thread(perceptual_hash, normalized))
-            except (HTTPException, OSError, ValueError, httpx.HTTPError):
-                continue
+
+        async def sample(index: int, url: str) -> ImageFingerprint | None:
+            async with semaphore:
+                try:
+                    response = await client.get(
+                        url,
+                        headers={"User-Agent": settings.external_import_user_agent},
+                    )
+                    content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+                    if (
+                        response.status_code != 200
+                        or not content_type.startswith("image/")
+                        or len(response.content) > settings.max_upload_bytes
+                    ):
+                        return None
+                    normalized, width, height = await asyncio.to_thread(
+                        validate_and_normalize,
+                        response.content,
+                    )
+                    return ImageFingerprint(
+                        asset_id=UUID(int=index + 1),
+                        checksum=hashlib.sha256(normalized).hexdigest(),
+                        perceptual_hash=await asyncio.to_thread(perceptual_hash, normalized),
+                        width=width,
+                        height=height,
+                    )
+                except (HTTPException, OSError, ValueError, httpx.HTTPError):
+                    return None
+
+        sampled = await asyncio.gather(
+            *(sample(index, url) for index, url in enumerate(source_urls))
+        )
+
+    result: list[ImageFingerprint] = []
+    for fingerprint in sampled:
+        if fingerprint is None:
+            return []
+        result.append(fingerprint)
     return result
 
 
@@ -158,6 +194,7 @@ class PreparedExternalImage:
     height: int
     checksum: str
     perceptual_hash: str
+    variants: dict[str, bytes] = field(default_factory=dict)
 
 
 async def download_external_image(client: httpx.AsyncClient, url: str) -> PreparedExternalImage | None:
@@ -169,14 +206,26 @@ async def download_external_image(client: httpx.AsyncClient, url: str) -> Prepar
         or len(response.content) > get_settings().max_upload_bytes
     ):
         return None
-    normalized, width, height = await asyncio.to_thread(validate_and_normalize, response.content)
+    prepared = await asyncio.to_thread(prepare_image, response.content)
     return PreparedExternalImage(
-        content=normalized,
-        width=width,
-        height=height,
-        checksum=hashlib.sha256(normalized).hexdigest(),
-        perceptual_hash=await asyncio.to_thread(perceptual_hash, normalized),
+        content=prepared.content,
+        width=prepared.width,
+        height=prepared.height,
+        checksum=hashlib.sha256(prepared.content).hexdigest(),
+        perceptual_hash=prepared.perceptual_hash,
+        variants=prepared.variants,
     )
+
+
+async def _delete_external_objects(storage, storage_keys: set[str]) -> None:
+    for storage_key in storage_keys:
+        try:
+            await asyncio.to_thread(storage.delete, storage_key)
+        except (OSError, BotoCoreError, ClientError):
+            logger.exception(
+                "external_image_cleanup_failed",
+                extra={"storage_key": storage_key},
+            )
 
 
 async def import_images(
@@ -185,103 +234,218 @@ async def import_images(
     owner_id: UUID,
     urls: list[str],
 ) -> None:
-    """Persist public images without holding a database transaction during HTTP, CPU, or storage I/O."""
-    if not get_settings().external_import_download_images or not urls:
+    """Reconcile one imported listing to its current bounded source gallery.
+
+    Remote/image/object-storage I/O happens with no open DB transaction. The
+    relational gallery is replaced only after every unique source image in the
+    bounded 20-photo set downloads successfully, so a transient remote failure
+    can never erase a previously healthy gallery. Removed source images are
+    detached and truly orphaned media is queued for storage deletion.
+    """
+    settings = get_settings()
+    source_urls = list(dict.fromkeys(urls))[:20]
+    if not settings.external_import_download_images or not source_urls:
         return
-    existing_images = (
-        await session.execute(
-            select(ListingImage.media_asset_id, ListingImage.sort_order).where(ListingImage.listing_id == listing_id)
-        )
-    ).all()
-    attached = {media_asset_id for media_asset_id, _ in existing_images}
-    next_sort_order = max((sort_order for _, sort_order in existing_images), default=-1) + 1
-    # The lookup above starts an implicit transaction. Close it before the
-    # first remote request so slow or malicious hosts cannot pin a DB snapshot.
-    await session.commit()
 
     storage = get_storage()
+    semaphore = asyncio.Semaphore(max(1, min(settings.external_import_max_concurrency_per_source, 4)))
     async with httpx.AsyncClient(
-        timeout=get_settings().external_import_request_timeout_seconds, follow_redirects=True
+        timeout=settings.external_import_request_timeout_seconds,
+        follow_redirects=True,
     ) as client:
-        for image_position, url in enumerate(urls[:20]):
-            require_no_active_transaction(session, "external image download")
-            try:
-                prepared = await download_external_image(client, url)
-            except (HTTPException, OSError, ValueError, httpx.HTTPError):
-                logger.info(
-                    "external_image_skipped",
-                    extra={"listing_id": str(listing_id), "image_position": image_position},
+
+        async def fetch(index: int, url: str) -> tuple[int, PreparedExternalImage | None]:
+            async with semaphore:
+                require_no_active_transaction(session, "external image download")
+                try:
+                    return index, await download_external_image(client, url)
+                except (HTTPException, OSError, ValueError, httpx.HTTPError):
+                    logger.info(
+                        "external_image_skipped",
+                        extra={"listing_id": str(listing_id), "image_position": index},
+                    )
+                    return index, None
+
+        downloaded = await asyncio.gather(
+            *(fetch(index, url) for index, url in enumerate(source_urls))
+        )
+
+    downloaded.sort(key=lambda item: item[0])
+    if any(prepared is None for _, prepared in downloaded):
+        logger.info(
+            "external_gallery_reconciliation_deferred",
+            extra={"listing_id": str(listing_id), "requested_images": len(source_urls)},
+        )
+        return
+
+    prepared_gallery: list[tuple[str, PreparedExternalImage]] = []
+    seen_checksums: set[str] = set()
+    for index, prepared in downloaded:
+        if prepared is None or prepared.checksum in seen_checksums:
+            continue
+        seen_checksums.add(prepared.checksum)
+        prepared_gallery.append((source_urls[index], prepared))
+    if not prepared_gallery:
+        return
+
+    checksums = [prepared.checksum for _, prepared in prepared_gallery]
+    existing_assets = list(
+        (
+            await session.scalars(
+                select(MediaAsset).where(
+                    MediaAsset.owner_id == owner_id,
+                    MediaAsset.checksum.in_(checksums),
+                    MediaAsset.kind == "listing_image",
+                    MediaAsset.deleted_at.is_(None),
                 )
-                continue
-            if prepared is None:
+            )
+        ).all()
+    )
+    await session.commit()
+    by_checksum = {asset.checksum: asset for asset in existing_assets}
+
+    created_storage_keys: set[str] = set()
+    created_assets: list[MediaAsset] = []
+    desired_assets: list[MediaAsset] = []
+    try:
+        for _url, prepared in prepared_gallery:
+            asset = by_checksum.get(prepared.checksum)
+            if asset is not None:
+                desired_assets.append(asset)
                 continue
 
-            created_storage_key: str | None = None
-            try:
-                # Reuse only assets owned by the importer. Reusing another
-                # user's private listing image would make that asset public.
-                asset = await session.scalar(
-                    select(MediaAsset).where(
-                        MediaAsset.owner_id == owner_id,
-                        MediaAsset.checksum == prepared.checksum,
-                        MediaAsset.kind == "listing_image",
-                        MediaAsset.deleted_at.is_(None),
+            asset_id = uuid4()
+            storage_key = external_storage_key(owner_id, asset_id)
+            objects = [
+                (storage_key, prepared.content),
+                *[
+                    (variant_storage_key(storage_key, variant), variant_content)
+                    for variant, variant_content in prepared.variants.items()
+                ],
+            ]
+            require_no_active_transaction(session, "external image storage")
+            storage_results = await asyncio.gather(
+                *(
+                    asyncio.to_thread(storage.put, object_key, object_content)
+                    for object_key, object_content in objects
+                ),
+                return_exceptions=True,
+            )
+            storage_error = next(
+                (result for result in storage_results if isinstance(result, Exception)),
+                None,
+            )
+            if storage_error is not None:
+                created_storage_keys.add(storage_key)
+                raise OSError("External image storage write failed") from storage_error
+
+            created_storage_keys.add(storage_key)
+            asset = MediaAsset(
+                id=asset_id,
+                owner_id=owner_id,
+                storage_key=storage_key,
+                mime_type="image/webp",
+                size_bytes=len(prepared.content),
+                width=prepared.width,
+                height=prepared.height,
+                checksum=prepared.checksum,
+                perceptual_hash=prepared.perceptual_hash,
+                kind="listing_image",
+            )
+            created_assets.append(asset)
+            desired_assets.append(asset)
+            by_checksum[prepared.checksum] = asset
+
+        if created_assets:
+            session.add_all(created_assets)
+            await session.flush()
+
+        locked_listing = await session.scalar(
+            select(Listing).where(Listing.id == listing_id).with_for_update()
+        )
+        if locked_listing is None:
+            raise RuntimeError("Imported listing disappeared during image reconciliation")
+        locked_listing.external_image_urls = [url for url, _prepared in prepared_gallery]
+
+        current_ids = list(
+            (
+                await session.scalars(
+                    select(ListingImage.media_asset_id)
+                    .where(ListingImage.listing_id == listing_id)
+                    .order_by(ListingImage.sort_order)
+                    .with_for_update()
+                )
+            ).all()
+        )
+        desired_ids = [asset.id for asset in desired_assets]
+        if current_ids != desired_ids:
+            await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing_id))
+            for sort_order, asset in enumerate(desired_assets):
+                session.add(
+                    ListingImage(
+                        listing_id=listing_id,
+                        media_asset_id=asset.id,
+                        sort_order=sort_order,
+                        is_cover=sort_order == 0,
                     )
                 )
-                if not asset:
-                    # Close the checksum lookup transaction before S3/MinIO I/O.
-                    await session.commit()
-                    asset_id = uuid4()
-                    created_storage_key = external_storage_key(owner_id, asset_id)
-                    require_no_active_transaction(session, "external image storage")
-                    try:
-                        await asyncio.to_thread(storage.put, created_storage_key, prepared.content)
-                    except (OSError, BotoCoreError, ClientError):
-                        logger.exception(
-                            "external_image_storage_failed",
-                            extra={"listing_id": str(listing_id), "image_position": image_position},
+            await session.flush()
+
+            stale_ids = set(current_ids) - set(desired_ids)
+            if stale_ids:
+                stale_assets = list(
+                    (
+                        await session.scalars(
+                            select(MediaAsset)
+                            .where(
+                                MediaAsset.id.in_(stale_ids),
+                                MediaAsset.deleted_at.is_(None),
+                            )
+                            .with_for_update()
                         )
-                        continue
-                    asset = MediaAsset(
-                        id=asset_id,
-                        owner_id=owner_id,
-                        storage_key=created_storage_key,
-                        mime_type="image/webp",
-                        size_bytes=len(prepared.content),
-                        width=prepared.width,
-                        height=prepared.height,
-                        checksum=prepared.checksum,
-                        perceptual_hash=prepared.perceptual_hash,
-                        kind="listing_image",
-                    )
-                    session.add(asset)
-                    await session.flush()
-                if asset.id not in attached:
-                    session.add(
-                        ListingImage(
-                            listing_id=listing_id,
-                            media_asset_id=asset.id,
-                            sort_order=next_sort_order,
-                            is_cover=next_sort_order == 0,
-                        )
-                    )
-                    attached.add(asset.id)
-                    next_sort_order += 1
-                await session.commit()
-            except SQLAlchemyError:
-                await session.rollback()
-                if created_storage_key is not None:
-                    try:
-                        await asyncio.to_thread(storage.delete, created_storage_key)
-                    except (OSError, BotoCoreError, ClientError):
-                        logger.exception(
-                            "external_image_cleanup_failed",
-                            extra={"listing_id": str(listing_id), "image_position": image_position},
-                        )
-                logger.exception(
-                    "external_image_persistence_failed",
-                    extra={"listing_id": str(listing_id), "image_position": image_position},
+                    ).all()
                 )
+                still_attached = set(
+                    (
+                        await session.scalars(
+                            select(ListingImage.media_asset_id).where(
+                                ListingImage.media_asset_id.in_(stale_ids)
+                            )
+                        )
+                    ).all()
+                )
+                avatar_ids = {
+                    value
+                    for value in (
+                        await session.scalars(
+                            select(User.avatar_asset_id).where(User.avatar_asset_id.in_(stale_ids))
+                        )
+                    ).all()
+                    if value is not None
+                }
+                orphaned = [
+                    asset
+                    for asset in stale_assets
+                    if asset.id not in still_attached and asset.id not in avatar_ids
+                ]
+                if orphaned:
+                    now = datetime.now(UTC)
+                    for asset in orphaned:
+                        asset.deleted_at = now
+                    await enqueue_storage_deletions(
+                        session,
+                        {asset.storage_key for asset in orphaned},
+                    )
+            await touch_catalog(session)
+
+        await session.commit()
+    except (OSError, BotoCoreError, ClientError, SQLAlchemyError, RuntimeError):
+        await session.rollback()
+        await _delete_external_objects(storage, created_storage_keys)
+        logger.exception(
+            "external_gallery_reconciliation_failed",
+            extra={"listing_id": str(listing_id)},
+        )
 
 
 async def system_user(session: AsyncSession) -> User:
@@ -301,57 +465,24 @@ async def system_user(session: AsyncSession) -> User:
     return user
 
 
-async def canonical_for(session: AsyncSession, item: NormalizedListing, image_hashes: set[str]) -> Listing | None:
-    terms = [value for value in (item.phone, item.whatsapp, item.email) if value]
-    if terms:
-        contact_match = await session.scalar(
-            select(Listing).where(
-                Listing.is_external.is_(True),
-                or_(
-                    Listing.external_contact_phone.in_(terms),
-                    Listing.external_contact_whatsapp.in_(terms),
-                    Listing.external_contact_email.in_(terms),
-                ),
-            )
-        )
-        if contact_match:
-            return contact_match
-    if image_hashes:
-        image_matches = (
-            await session.scalars(
-                select(Listing)
-                .join(ListingImage, ListingImage.listing_id == Listing.id)
-                .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
-                .where(
-                    Listing.is_external.is_(True),
-                    Listing.deleted_at.is_(None),
-                    MediaAsset.perceptual_hash.in_(image_hashes),
-                )
-                .distinct()
-            )
-        ).all()
-        for candidate in image_matches:
-            if (
-                similarity(candidate.title, item.title) >= 0.78
-                and similarity(candidate.description, item.description) >= 0.78
-            ):
-                return candidate
-    price_column = Listing.monthly_price if item.rental_mode == "long" else Listing.nightly_price
-    candidates = (
-        await session.scalars(
-            select(Listing).where(
-                Listing.is_external.is_(True),
-                Listing.city.ilike(f"%{item.city}%"),
-                price_column == item.price_amount,
-            )
-        )
-    ).all()
-    for candidate in candidates:
-        title_score = similarity(candidate.title, item.title)
-        description_score = similarity(candidate.description, item.description)
-        if title_score >= 0.9 or (title_score >= 0.78 and description_score >= 0.9):
-            return candidate
-    return None
+async def canonical_for(
+    session: AsyncSession,
+    item: NormalizedListing,
+    image_fingerprints: list[ImageFingerprint],
+) -> Listing | None:
+    """Find an existing external canonical only from the photo gallery.
+
+    Contact details, address/city, title, description and price are deliberately
+    excluded: one advertiser or one building can legitimately contain several
+    different rooms/listings.
+    """
+    del item
+    duplicate_id = await duplicate_listing_id(
+        session,
+        image_fingerprints,
+        external_only=True,
+    )
+    return await session.get(Listing, duplicate_id) if duplicate_id is not None else None
 
 
 def normalized_snapshot(item: NormalizedListing) -> dict:
@@ -374,15 +505,26 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             SourceRecord.source_name == item.source_name, SourceRecord.external_id == item.external_id
         )
     )
+    suppress_new_duplicate = False
     if source:
         listing = await session.get(Listing, source.canonical_listing_id)
     else:
         # The source lookup starts a transaction. Close it before downloading
-        # image samples for conservative cross-source deduplication.
+        # image samples for photo-only cross-source deduplication.
         await session.commit()
         require_no_active_transaction(session, "external image deduplication")
-        image_hashes = await public_image_hashes(item.photos)
-        listing = await canonical_for(session, item, image_hashes)
+        image_fingerprints = await public_image_fingerprints(item.photos)
+        await acquire_duplicate_guard(session)
+        listing = await canonical_for(session, item, image_fingerprints)
+        if listing is None and image_fingerprints:
+            duplicate_id = await duplicate_listing_id(
+                session,
+                image_fingerprints,
+                external_only=None,
+            )
+            if duplicate_id is not None:
+                duplicate = await session.get(Listing, duplicate_id)
+                suppress_new_duplicate = bool(duplicate is not None and not duplicate.is_external)
 
     coordinates = public_location(item)
     source_location_verified = coordinates is not None
@@ -407,6 +549,28 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         source.last_error = None if source_location_verified else "source_location_unverified"
         source.removed_at = None
         source.removed_reason = None
+
+        # A cleanup-suppressed external duplicate must not silently reappear on
+        # the next worker cycle. Re-check the *current* remote photos rather
+        # than stale title/price/address data. If images cannot be sampled,
+        # fail closed and keep the duplicate hidden until a later successful
+        # source cycle can prove it is no longer the same gallery.
+        if listing is not None and listing.status == "closed" and listing.closed_reason == "duplicate":
+            await session.commit()
+            require_no_active_transaction(session, "suppressed duplicate recheck")
+            current_fingerprints = await public_image_fingerprints(item.photos)
+            if not current_fingerprints:
+                return "unchanged"
+            await acquire_duplicate_guard(session)
+            active_duplicate_id = await duplicate_listing_id(
+                session,
+                current_fingerprints,
+                exclude_listing_id=listing.id,
+            )
+            if active_duplicate_id is not None:
+                await session.commit()
+                return "unchanged"
+
         if (
             not source_location_verified
             and listing is not None
@@ -417,10 +581,38 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             await session.commit()
             return "updated"
 
+    # An identical source payload is only a no-op when the primary parser
+    # gallery is already reconciled. A transient image failure may leave the
+    # listing metadata current but its local media incomplete; that state must
+    # retry on the next unchanged source cycle instead of becoming permanent.
+    gallery_reconciled = True
+    if (
+        listing is not None
+        and listing.primary_source == item.source_name
+        and item.photos
+        and get_settings().external_import_download_images
+    ):
+        stored_image_count = int(
+            await session.scalar(
+                select(func.count(ListingImage.media_asset_id))
+                .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
+                .where(
+                    ListingImage.listing_id == listing.id,
+                    MediaAsset.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+        gallery_reconciled = external_gallery_is_reconciled(
+            is_external=listing.is_external,
+            external_image_urls=list(listing.external_image_urls or []),
+            stored_image_count=stored_image_count,
+        )
+
     # An identical payload is only a no-op while its canonical card is still
-    # visible. A source may reappear after a confirmed removal; in that case
-    # the canonical listing must be restored even though its fingerprint did
-    # not change.
+    # visible and its primary image gallery is complete. A source may reappear
+    # after a confirmed removal; in that case the canonical listing must be
+    # restored even though its fingerprint did not change.
     if (
         source
         and previous_fingerprint == item.fingerprint
@@ -428,6 +620,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         and source.current_status == "active"
         and listing is not None
         and listing.status != "closed"
+        and gallery_reconciled
         and (
             listing.primary_source != item.source_name
             or (coordinates is None and listing.location is None)
@@ -466,7 +659,8 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             tenant_requirement=item.tenant_requirement,
             room_type=item.room_type,
             location=point(coordinates[1], coordinates[0]) if coordinates is not None else None,
-            status="published",
+            status="closed" if suppress_new_duplicate else "published",
+            closed_reason="duplicate" if suppress_new_duplicate else None,
             is_external=True,
             imported_at=now,
             smoking_allowed=item.smoking_allowed,
@@ -485,7 +679,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         action = "imported"
     else:
         action = "updated"
-    restored = listing.status == "closed"
+    restored = action != "imported" and listing.status == "closed"
     replace_primary = (
         not listing.primary_source
         or listing.primary_source == item.source_name
@@ -547,8 +741,12 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.external_contact_whatsapp = item.whatsapp
         listing.external_contact_email = item.email
         listing.last_synced_at = now
-        listing.status = "published"
-        listing.closed_reason = None
+        if suppress_new_duplicate:
+            listing.status = "closed"
+            listing.closed_reason = "duplicate"
+        else:
+            listing.status = "published"
+            listing.closed_reason = None
         listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
     elif restored:
         listing.status = "published"
@@ -581,7 +779,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     if action != "unchanged" or restored:
         await touch_catalog(session)
 
-    if action == "imported" or restored:
+    if (action == "imported" or restored) and listing.status == "published":
         await notify_saved_search_matches(session, listing)
 
     result = "restored" if restored else action

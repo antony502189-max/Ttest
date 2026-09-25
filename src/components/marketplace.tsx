@@ -93,7 +93,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { getMunicipalityLabel } from "@/lib/map/zones";
-import { MediaImage } from "@/components/media-image";
+import { MediaImage, preloadMediaImages } from "@/components/media-image";
 import {
   amenityOptions,
   areas,
@@ -561,7 +561,13 @@ export function PropertyCard({
         <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`}>
           <MediaImage
             src={listing.images[imageIndex] || fallbackImage}
+            variant="card"
             onError={imageFallback}
+            onLoad={() => {
+              if (listing.images.length > 1) {
+                preloadMediaImages([listing.images[(imageIndex + 1) % listing.images.length]], "card");
+              }
+            }}
             alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${listing.images.length}`}
             width="720"
             height="480"
@@ -1224,9 +1230,24 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
           <MediaImage
             src={listing.images[index] || fallbackImage}
             onError={imageFallback}
+            onLoad={() => {
+              if (listing.images.length > 1) {
+                preloadMediaImages(
+                  [
+                    listing.images[(index + 1) % listing.images.length],
+                    listing.images[(index - 1 + listing.images.length) % listing.images.length],
+                  ],
+                  window.innerWidth <= 900 ? "card" : "full",
+                );
+              }
+            }}
             alt={`Habitación en ${listing.area}, foto ${index + 1} de ${listing.images.length}`}
             width="1200"
             height="800"
+            responsive
+            sizes="(max-width: 767px) 100vw, 70vw"
+            loading="eager"
+            fetchPriority="high"
           />
           {index === 0 ? <CriticalRestrictionOverlay listing={listing} /> : null}
           <button
@@ -1265,10 +1286,12 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
             >
               <MediaImage
                 src={image}
+                variant="thumb"
                 onError={imageFallback}
                 alt=""
                 width="400"
                 height="280"
+                loading="lazy"
               />
               {thumbIndex === 3 ? (
                 <span>
@@ -1309,6 +1332,7 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
               >
                 <MediaImage
                   src={image}
+                  variant="card"
                   onError={imageFallback}
                   alt={`Habitación en ${listing.area}, foto ${imageIndex + 1}`}
                   width="720"

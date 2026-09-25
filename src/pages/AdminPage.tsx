@@ -77,6 +77,7 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { currentLocale } from '@/lib/i18n-locale'
 import type { ListingStatus } from '@/types'
+import { preloadOwnerListingRoutes } from '@/lib/route-preload'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 const PROMOTION_DAILY_PRICE_CENTS = 100
@@ -706,6 +707,7 @@ function UserDetailView({
 
 export function AdminPage() {
   const { currentUser } = useApp()
+  useEffect(() => { preloadOwnerListingRoutes() }, [])
   const { t } = useI18n()
   const [section, setSection] = useState<Section>('users')
   const [users, setUsers] = useState<AdminUser[]>([])

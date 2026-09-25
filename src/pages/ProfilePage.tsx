@@ -41,7 +41,7 @@ function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
   const [loggingOut, setLoggingOut] = useState(false)
   const [uploading, setUploading] = useState(false)
   const saveMessageTimer = useRef<number | null>(null)
-  const avatarUrl = useMediaUrl(currentUser?.avatarRef)
+  const avatarUrl = useMediaUrl(currentUser?.avatarRef, 'thumb')
 
   useEffect(() => {
     document.documentElement.classList.add('mobile-v2-active')

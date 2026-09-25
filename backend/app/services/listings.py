@@ -31,6 +31,7 @@ from ..schemas.listings import (
     OwnedListingResponse,
 )
 from .catalog import touch_catalog
+from .listing_deduplication import assert_existing_listing_gallery_is_unique, assert_gallery_is_unique
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
@@ -399,6 +400,12 @@ async def _replace_listing_images_locked(
             },
         )
 
+    await assert_gallery_is_unique(
+        session,
+        listing.id,
+        [cast(MediaAsset, asset) for asset in requested_assets],
+    )
+
     await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing.id))
     for sort_order, asset_id in enumerate(asset_ids):
         session.add(
@@ -584,6 +591,12 @@ async def update_listing(
             exact_latitude=payload.exactLatitude,
             exact_longitude=payload.exactLongitude,
         )
+    if (
+        listing.status != previous_status
+        and listing.status in {"pending", "published"}
+        and asset_ids is None
+    ):
+        await assert_existing_listing_gallery_is_unique(session, listing.id)
     if listing.status != previous_status:
         history = ListingStatusHistory(
             listing_id=listing.id,
@@ -633,6 +646,7 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
     listing.expires_at = expiry_base + timedelta(days=30)
     previous_status = listing.status
     listing.status = "published" if get_settings().auto_publish_listings else "pending"
+    await assert_existing_listing_gallery_is_unique(session, listing.id)
     listing.closed_reason = None
     if listing.status == "published" and listing.published_at is None:
         listing.published_at = now

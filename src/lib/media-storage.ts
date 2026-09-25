@@ -7,6 +7,50 @@ const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
 
+
+const LOCAL_MEDIA_MAX_DIMENSION = 2048
+const LOCAL_MEDIA_WEBP_QUALITY = 0.84
+
+async function optimizeMediaFile(file: File) {
+  if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file
+
+  let bitmap: ImageBitmap | null = null
+  try {
+    bitmap = await createImageBitmap(file)
+    if (!bitmap.width || !bitmap.height) return file
+
+    const scale = Math.min(1, LOCAL_MEDIA_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { alpha: true })
+    if (!context) return file
+    context.drawImage(bitmap, 0, 0, width, height)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', LOCAL_MEDIA_WEBP_QUALITY)
+    })
+    if (!blob) return file
+
+    // Do not replace a small source with a larger derivative. Resizing always
+    // wins because it reduces upload, decode and rendered-memory costs.
+    if (scale === 1 && blob.size >= file.size) return file
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'listing-image'
+    return new File([blob], `${baseName}.webp`, {
+      type: 'image/webp',
+      lastModified: file.lastModified,
+    })
+  } catch {
+    // Browser-side optimization is best effort; backend validation and
+    // normalization remains authoritative.
+    return file
+  } finally {
+    bitmap?.close()
+  }
+}
+
 export class MediaStorageError extends Error {
   readonly code: 'type' | 'read' | 'quota' | 'unavailable'
 
@@ -17,9 +61,13 @@ export class MediaStorageError extends Error {
   }
 }
 
+let databasePromise: Promise<IDBDatabase> | null = null
+
 function openDatabase() {
-  return new Promise<IDBDatabase>((resolve, reject) => {
+  if (databasePromise) return databasePromise
+  databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
     if (!('indexedDB' in window)) {
+      databasePromise = null
       reject(new MediaStorageError('unavailable', 'El almacenamiento de imágenes no está disponible.'))
       return
     }
@@ -27,9 +75,20 @@ function openDatabase() {
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
     }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new MediaStorageError('unavailable', 'No se pudo abrir el almacenamiento de imágenes.'))
+    request.onsuccess = () => {
+      const database = request.result
+      database.onversionchange = () => {
+        database.close()
+        databasePromise = null
+      }
+      resolve(database)
+    }
+    request.onerror = () => {
+      databasePromise = null
+      reject(request.error ?? new MediaStorageError('unavailable', 'No se pudo abrir el almacenamiento de imágenes.'))
+    }
   })
+  return databasePromise
 }
 
 function mediaId(reference: string) {
@@ -38,7 +97,9 @@ function mediaId(reference: string) {
 
 const mediaReference = (id: IDBValidKey) => `${MEDIA_PREFIX}${String(id)}`
 
-export function isMediaReference(value?: string): value is string {
+export type MediaReference = `${typeof MEDIA_PREFIX}${string}`
+
+export function isMediaReference(value?: string): value is MediaReference {
   return Boolean(value?.startsWith(MEDIA_PREFIX))
 }
 
@@ -76,12 +137,13 @@ export async function saveMediaFile(file: File) {
   if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number])) {
     throw new MediaStorageError('type', 'Formato no compatible. Usa JPEG, PNG o WebP.')
   }
+  const optimized = await optimizeMediaFile(file)
   const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const database = await openDatabase()
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).put(file, id)
+      transaction.objectStore(STORE_NAME).put(optimized, id)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error)
@@ -92,39 +154,29 @@ export async function saveMediaFile(file: File) {
       throw new MediaStorageError('quota', 'No hay espacio suficiente para guardar la imagen.')
     }
     throw new MediaStorageError('read', 'No se pudo leer o guardar la imagen.')
-  } finally {
-    database.close()
   }
 }
 
 export async function getMediaBlob(reference: string) {
   if (!isMediaReference(reference)) return null
   const database = await openDatabase()
-  try {
-    return await new Promise<Blob | null>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(mediaId(reference))
-      request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null)
-      request.onerror = () => reject(request.error)
-    })
-  } finally {
-    database.close()
-  }
+  return await new Promise<Blob | null>((resolve, reject) => {
+    const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(mediaId(reference))
+    request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null)
+    request.onerror = () => reject(request.error)
+  })
 }
 
 export async function removeMedia(reference: string) {
   if (!isMediaReference(reference)) return
   const database = await openDatabase()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).delete(mediaId(reference))
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-      transaction.onabort = () => reject(transaction.error)
-    })
-  } finally {
-    database.close()
-  }
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite')
+    transaction.objectStore(STORE_NAME).delete(mediaId(reference))
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+    transaction.onabort = () => reject(transaction.error)
+  })
 }
 
 export async function removeMediaReferences(references: string[]) {
@@ -136,24 +188,20 @@ export async function removeMediaReferences(references: string[]) {
 
 export async function getAllMediaReferences() {
   const database = await openDatabase()
-  try {
-    return await new Promise<string[]>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAllKeys()
-      request.onsuccess = () => resolve(request.result.map(mediaReference))
-      request.onerror = () => reject(request.error)
-    })
-  } finally {
-    database.close()
-  }
+  return await new Promise<string[]>((resolve, reject) => {
+    const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAllKeys()
+    request.onsuccess = () => resolve(request.result.map(mediaReference))
+    request.onerror = () => reject(request.error)
+  })
 }
 
 export async function removeUnusedMediaReferences(references: string[], usedReferences: Iterable<string>) {
-  const used = new Set([...usedReferences].filter(isMediaReference))
+  const used = new Set<string>([...usedReferences].filter(isMediaReference))
   return removeMediaReferences(references.filter((reference) => isMediaReference(reference) && !used.has(reference)))
 }
 
 export async function cleanupOrphanedMedia(usedReferences: Iterable<string>) {
-  const used = new Set([...usedReferences].filter(isMediaReference))
+  const used = new Set<string>([...usedReferences].filter(isMediaReference))
   protectedDraftMediaReferences().forEach((reference) => used.add(reference))
   const stored = await getAllMediaReferences()
   await removeUnusedMediaReferences(stored, used)

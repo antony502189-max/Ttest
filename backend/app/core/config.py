@@ -88,6 +88,14 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 8 * 1024 * 1024
     max_image_dimension: int = 8_000
     max_image_pixels: int = 25_000_000
+    # Browser delivery sizes. Originals are normalized once to the full bound;
+    # card/thumb derivatives prevent multi-megapixel transfers in lists/maps.
+    media_full_max_dimension: int = 2_048
+    media_card_max_dimension: int = 960
+    media_thumb_max_dimension: int = 480
+    media_full_webp_quality: int = 84
+    media_card_webp_quality: int = 82
+    media_thumb_webp_quality: int = 80
     image_processing_concurrency: int = 2
     max_media_assets_per_user: int = 100
     max_media_bytes_per_user: int = 256 * 1024 * 1024
@@ -184,6 +192,23 @@ class Settings(BaseSettings):
             self.max_upload_bytes < 1
             or self.max_image_dimension < 1
             or self.max_image_pixels < 1
+            or self.media_full_max_dimension < 1
+            or self.media_card_max_dimension < 1
+            or self.media_thumb_max_dimension < 1
+            or not (
+                self.media_thumb_max_dimension
+                <= self.media_card_max_dimension
+                <= self.media_full_max_dimension
+                <= self.max_image_dimension
+            )
+            or any(
+                quality < 1 or quality > 100
+                for quality in (
+                    self.media_full_webp_quality,
+                    self.media_card_webp_quality,
+                    self.media_thumb_webp_quality,
+                )
+            )
             or self.image_processing_concurrency < 1
             or self.max_media_assets_per_user < 1
             or self.max_media_bytes_per_user < self.max_upload_bytes

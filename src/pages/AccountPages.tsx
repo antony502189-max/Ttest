@@ -238,7 +238,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<DemoUser | null>(currentUser);
-  const avatarUrl = useMediaUrl(draft?.avatarRef);
+  const avatarUrl = useMediaUrl(draft?.avatarRef, 'thumb');
   useEffect(() => { if (!editing) setDraft(currentUser); }, [currentUser, editing]);
   if (!currentUser) return null;
   const profileDraft = draft ?? currentUser;
@@ -523,7 +523,9 @@ export function MyListingsPage() {
             <article className="manage-card" key={listing.id}>
               <MediaImage
                 src={listing.images[0]}
+                variant="thumb"
                 alt={`Habitación en ${listing.area}`}
+                loading="lazy"
               />
               <div className="manage-card__main">
                 <div>

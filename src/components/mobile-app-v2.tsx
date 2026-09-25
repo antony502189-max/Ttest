@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-react'
 import { MobileMapListingsLayer } from '@/components/mobile-map-listings-layer'
+import { MediaImage } from '@/components/media-image'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useAdminAccess } from '@/hooks/use-admin-access'
@@ -36,6 +37,7 @@ import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
+import { preloadOwnerListingRoutes } from '@/lib/route-preload'
 import type { Listing } from '@/types'
 import '@/mobile-app-v2.css'
 import '@/mobile-favorites-selection.css'
@@ -275,7 +277,7 @@ function HomeScreen({ t, mode, onMode, onLocation, onSearch, onPublish }: { t: M
   const navigate = useNavigate()
   const [heroAdOpen, setHeroAdOpen] = useState(false)
   useEffect(() => { setHeroAdOpen(false) }, [heroListing?.id])
-  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><img className="m2-hero__promotion-image" src={heroListing.images[0]} alt="" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
+  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><MediaImage className="m2-hero__promotion-image" src={heroListing.images[0]} responsive sizes="100vw" alt="" loading="eager" fetchPriority="high" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div></section>
 }
 
 function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
@@ -690,6 +692,9 @@ export function MobileAppV2() {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
   }, [shellActive])
+  useEffect(() => {
+    if (shellActive && tab === 'menu' && currentUser) preloadOwnerListingRoutes()
+  }, [currentUser, shellActive, tab])
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)')
     const update = () => setMobileViewport(media.matches)

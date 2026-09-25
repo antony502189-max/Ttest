@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -9,8 +10,9 @@ from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.external_sources import AlquilerDocenteCanariasSource, DiscoveryResult, NormalizedListing, SourceBlocked
-from app.models import ExternalImportRun, ExternalListingSource, Listing
+from app.models import ExternalImportRun, ExternalListingSource, Listing, ListingImage, MediaAsset
 from app.models.room_details import ListingRoomDetails
+from app.services import external_import
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
@@ -20,6 +22,7 @@ from app.services.external_import import (
     run_source,
     upsert,
 )
+from app.services.listing_deduplication import ImageFingerprint
 
 pytestmark = pytest.mark.integration
 
@@ -60,6 +63,36 @@ def external_item(
         raw_payload={"fixture": source},
         public_address=public_address,
     )
+
+
+async def attach_photo_fingerprint(session, listing: Listing, *, suffix: str) -> None:
+    listing.external_image_urls = [f"https://images.example.test/{suffix}.webp"]
+    asset = MediaAsset(
+        owner_id=listing.owner_user_id,
+        storage_key=f"test/external-photo-{suffix}-{listing.id}.webp",
+        mime_type="image/webp",
+        size_bytes=16,
+        width=1200,
+        height=800,
+        checksum=("a" * 63) + "1",
+        perceptual_hash="0123456789abcdef",
+        kind="listing_image",
+    )
+    session.add(asset)
+    await session.flush()
+    session.add(
+        ListingImage(
+            listing_id=listing.id,
+            media_asset_id=asset.id,
+            sort_order=0,
+            is_cover=True,
+        )
+    )
+    await session.commit()
+
+
+async def fixed_photo_fingerprints(_urls):
+    return [ImageFingerprint(asset_id=uuid4(), checksum=("a" * 63) + "1", perceptual_hash="0123456789abcdef", width=1200, height=800)]
 
 
 class FailingSource:
@@ -403,7 +436,8 @@ async def test_external_upsert_keeps_card_visible_when_source_point_disappears_a
         assert restored.closed_reason is None
         assert restored.location is not None
 
-async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates():
+async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates(monkeypatch):
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     async with SessionLocal() as session:
         primary = external_item(
             source="Idealista",
@@ -414,6 +448,9 @@ async def test_location_loss_promotes_only_an_alternative_with_verified_coordina
         )
         primary.photos = []
         assert await upsert(session, primary) == "imported"
+        primary_listing = await session.scalar(select(Listing).where(Listing.primary_source == primary.source_name))
+        assert primary_listing is not None
+        await attach_photo_fingerprint(session, primary_listing, suffix="location")
 
         alternative = external_item(
             source="Fotocasa",
@@ -463,7 +500,13 @@ async def test_location_loss_promotes_only_an_alternative_with_verified_coordina
         assert listing.location is None
 
 
-async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
+async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(
+    client: AsyncClient, monkeypatch
+):
+    async def fixed_photo_fingerprints(_urls):
+        return [ImageFingerprint(asset_id=uuid4(), checksum=("a" * 63) + "1", perceptual_hash="0123456789abcdef", width=1200, height=800)]
+
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     before_catalog = await client.get("/api/v1/listings/catalog-version")
     assert before_catalog.status_code == 200, before_catalog.text
     before_version = int(before_catalog.json()["version"])
@@ -477,6 +520,40 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         )
         assert await upsert(session, idealista) == "imported"
         await session.commit()
+
+        # The second provider may differ in price/text; only the stored photo
+        # fingerprint is allowed to establish cross-source identity.
+        first_listing = await session.scalar(select(Listing).where(Listing.is_external.is_(True)))
+        assert first_listing is not None
+        fingerprint_asset = MediaAsset(
+            owner_id=first_listing.owner_user_id,
+            storage_key=f"test/external-dedupe-{first_listing.id}.webp",
+            mime_type="image/webp",
+            size_bytes=16,
+            width=1200,
+            height=800,
+            checksum=("a" * 63) + "1",
+            perceptual_hash="0123456789abcdef",
+            kind="listing_image",
+        )
+        session.add(fingerprint_asset)
+        await session.flush()
+        session.add(
+            ListingImage(
+                listing_id=first_listing.id,
+                media_asset_id=fingerprint_asset.id,
+                sort_order=0,
+                is_cover=True,
+            )
+        )
+        first_listing.external_image_urls = ["https://images.example.test/external-dedupe.webp"]
+        # The synthetic canonical has one reconciled image. Keep its overall
+        # completeness equal to the competing source so this fixture continues
+        # to exercise primary-source replacement rather than completeness
+        # ranking.
+        first_listing.external_contact_email = None
+        await session.commit()
+
         after_import_catalog = await client.get("/api/v1/listings/catalog-version")
         assert after_import_catalog.status_code == 200, after_import_catalog.text
         after_import_version = int(after_import_catalog.json()["version"])
@@ -583,7 +660,8 @@ async def test_retiring_a_disabled_source_preserves_attribution_and_closes_unche
         assert listing is not None and listing.status == "closed"
 
 
-async def test_retiring_a_disabled_source_promotes_an_active_duplicate():
+async def test_retiring_a_disabled_source_promotes_an_active_duplicate(monkeypatch):
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     async with SessionLocal() as session:
         old = external_item(
             source="Idealista",
@@ -597,6 +675,9 @@ async def test_retiring_a_disabled_source_promotes_an_active_duplicate():
             price=735,
         )
         assert await upsert(session, old) == "imported"
+        old_listing = await session.scalar(select(Listing).where(Listing.primary_source == old.source_name))
+        assert old_listing is not None
+        await attach_photo_fingerprint(session, old_listing, suffix="retired")
         assert await upsert(session, replacement) == "updated"
         assert await retire_source_records(session, {"Idealista"}) == 0
         listing = await session.scalar(select(Listing).where(Listing.primary_source == "Fotocasa"))
@@ -762,7 +843,8 @@ async def test_ambiguous_missing_detail_keeps_listing_published(state: str):
         assert listing is not None and listing.status == "published"
 
 
-async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source():
+async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source(monkeypatch):
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     async with SessionLocal() as session:
         primary = external_item(
             source="Idealista",
@@ -773,6 +855,9 @@ async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_r
         primary.photos = []
         assert await upsert(session, primary) == "imported"
         await session.commit()
+        primary_listing = await session.scalar(select(Listing).where(Listing.primary_source == primary.source_name))
+        assert primary_listing is not None
+        await attach_photo_fingerprint(session, primary_listing, suffix="primary-removal")
 
         alternative = external_item(
             source="Fotocasa",

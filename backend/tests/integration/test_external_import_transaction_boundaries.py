@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 
 import pytest
 from botocore.exceptions import EndpointConnectionError
-from sqlalchemy import select
+from PIL import Image
+from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.external_sources import DiscoveryResult, NormalizedListing
-from app.models import ExternalListingSource, ListingImage, MediaAsset, User
+from app.models import ExternalListingSource, Listing, ListingImage, MediaAsset, User
 from app.services import external_import as importer
 
 pytestmark = pytest.mark.integration
@@ -115,11 +117,11 @@ async def test_source_discovery_and_detail_fetch_run_without_database_transactio
     async with SessionLocal() as session:
         source = TransactionCheckingSource(session)
 
-        async def no_image_hashes(urls: list[str]) -> set[str]:
+        async def no_image_hashes(urls: list[str]) -> list:
             assert not session.in_transaction()
-            return set()
+            return []
 
-        monkeypatch.setattr(importer, "public_image_hashes", no_image_hashes)
+        monkeypatch.setattr(importer, "public_image_fingerprints", no_image_hashes)
         counters = await importer.run_source(session, source, "transaction-boundary-run")  # type: ignore[arg-type]
 
         assert counters.result == "success"
@@ -127,6 +129,43 @@ async def test_source_discovery_and_detail_fetch_run_without_database_transactio
         assert source.discovery_checked
         assert source.fetch_checked
         assert not session.in_transaction()
+
+
+async def test_public_image_fingerprints_use_full_bounded_gallery_and_fail_closed(monkeypatch):
+    calls: list[str] = []
+
+    output = BytesIO()
+    Image.new("RGB", (32, 24), (80, 120, 160)).save(output, "PNG")
+    image_bytes = output.getvalue()
+
+    class FakeResponse:
+        def __init__(self, *, ok: bool = True) -> None:
+            self.status_code = 200 if ok else 503
+            self.headers = {"content-type": "image/png"}
+            self.content = image_bytes
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url: str, headers=None):
+            calls.append(url)
+            return FakeResponse(ok=not url.endswith("broken.png"))
+
+    monkeypatch.setattr(importer.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+
+    urls = [f"https://images.example.test/sample-{index}.png" for index in range(7)]
+    fingerprints = await importer.public_image_fingerprints(urls)
+    assert sorted(calls) == sorted(urls)
+    assert len(fingerprints) == 7
+
+    calls.clear()
+    incomplete = [*urls, "https://images.example.test/broken.png"]
+    assert await importer.public_image_fingerprints(incomplete) == []
+    assert sorted(calls) == sorted(incomplete)
 
 
 async def test_image_download_and_storage_do_not_reuse_another_users_private_asset(monkeypatch):
@@ -159,9 +198,9 @@ async def test_image_download_and_storage_do_not_reuse_another_users_private_ass
         session.add(private_asset)
         await session.commit()
 
-        async def image_hashes(urls: list[str]) -> set[str]:
+        async def image_hashes(urls: list[str]) -> list:
             assert not session.in_transaction()
-            return set()
+            return []
 
         async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
             assert not session.in_transaction()
@@ -173,7 +212,7 @@ async def test_image_download_and_storage_do_not_reuse_another_users_private_ass
                 perceptual_hash="1" * 16,
             )
 
-        monkeypatch.setattr(importer, "public_image_hashes", image_hashes)
+        monkeypatch.setattr(importer, "public_image_fingerprints", image_hashes)
         monkeypatch.setattr(importer, "download_external_image", prepared_image)
         monkeypatch.setattr(importer, "get_storage", lambda: storage)
 
@@ -213,9 +252,9 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
     checksum = hashlib.sha256(normalized).hexdigest()
 
     async with SessionLocal() as session:
-        async def image_hashes(urls: list[str]) -> set[str]:
+        async def image_hashes(urls: list[str]) -> list:
             assert not session.in_transaction()
-            return set()
+            return []
 
         async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
             assert not session.in_transaction()
@@ -227,7 +266,7 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
                 perceptual_hash="2" * 16,
             )
 
-        monkeypatch.setattr(importer, "public_image_hashes", image_hashes)
+        monkeypatch.setattr(importer, "public_image_fingerprints", image_hashes)
         monkeypatch.setattr(importer, "download_external_image", prepared_image)
         monkeypatch.setattr(importer, "get_storage", FailingS3Storage)
 
@@ -263,6 +302,169 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
         assert persisted_asset is None
 
 
+async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypatch):
+    storage = RecordingStorage()
+    attempts = 0
+
+    async with SessionLocal() as session:
+        async def no_hashes(urls: list[str]) -> list:
+            assert not session.in_transaction()
+            return []
+
+        async def flaky_image(client, url: str) -> importer.PreparedExternalImage | None:
+            nonlocal attempts
+            assert not session.in_transaction()
+            attempts += 1
+            if attempts == 1:
+                return None
+            content = b"recovered-gallery-image"
+            return importer.PreparedExternalImage(
+                content=content,
+                width=64,
+                height=48,
+                checksum=hashlib.sha256(content).hexdigest(),
+                perceptual_hash="3" * 16,
+            )
+
+        monkeypatch.setattr(importer, "public_image_fingerprints", no_hashes)
+        monkeypatch.setattr(importer, "download_external_image", flaky_image)
+        monkeypatch.setattr(importer, "get_storage", lambda: storage)
+
+        item = external_item(
+            source="Idealista",
+            external_id="retry-deferred-gallery",
+            url="https://www.idealista.com/inmueble/retry-deferred-gallery/",
+            photos=["https://images.example.test/retry.webp"],
+        )
+        assert await importer.upsert(session, item) == "imported"
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert source_record is not None
+        first_count = int(
+            await session.scalar(
+                select(func.count(ListingImage.media_asset_id)).where(
+                    ListingImage.listing_id == source_record.canonical_listing_id
+                )
+            )
+            or 0
+        )
+        assert first_count == 0
+
+        assert await importer.upsert(session, item) == "updated"
+        assert not session.in_transaction()
+        second_count = int(
+            await session.scalar(
+                select(func.count(ListingImage.media_asset_id)).where(
+                    ListingImage.listing_id == source_record.canonical_listing_id
+                )
+            )
+            or 0
+        )
+        assert second_count == 1
+        assert attempts == 2
+
+
+async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(monkeypatch):
+    storage = RecordingStorage()
+    calls: list[str] = []
+
+    async with SessionLocal() as session:
+        async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
+            assert not session.in_transaction()
+            calls.append(url)
+            content = f"normalized:{url}".encode()
+            return importer.PreparedExternalImage(
+                content=content,
+                width=64,
+                height=48,
+                checksum=hashlib.sha256(content).hexdigest(),
+                perceptual_hash=hashlib.sha256(f"phash:{url}".encode()).hexdigest()[:16],
+            )
+
+        monkeypatch.setattr(importer, "download_external_image", prepared_image)
+        monkeypatch.setattr(importer, "get_storage", lambda: storage)
+
+        item = external_item(
+            source="Idealista",
+            external_id="gallery-reconcile-boundary",
+            url="https://www.idealista.com/inmueble/gallery-reconcile-boundary/",
+            photos=[],
+        )
+        assert await importer.upsert(session, item) == "imported"
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert source_record is not None
+        listing = await session.get(Listing, source_record.canonical_listing_id)
+        assert listing is not None
+        # Direct service calls must honor the same no-open-transaction boundary
+        # used by upsert() before remote image I/O.
+        await session.commit()
+
+        first_urls = [f"https://images.example.test/room-{index}.webp" for index in range(25)]
+        await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
+        assert sorted(calls) == sorted(first_urls[:20])
+
+        first_ids = list(
+            (
+                await session.scalars(
+                    select(ListingImage.media_asset_id)
+                    .where(ListingImage.listing_id == listing.id)
+                    .order_by(ListingImage.sort_order)
+                )
+            ).all()
+        )
+        assert len(first_ids) == 20
+        await session.commit()
+
+        calls.clear()
+        replacement_urls = [
+            first_urls[5],
+            first_urls[7],
+            "https://images.example.test/replacement-new.webp",
+        ]
+        await importer.import_images(session, listing.id, listing.owner_user_id, replacement_urls)
+        assert not session.in_transaction()
+        assert sorted(calls) == sorted(replacement_urls)
+
+        current_assets = list(
+            (
+                await session.scalars(
+                    select(MediaAsset)
+                    .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
+                    .where(ListingImage.listing_id == listing.id)
+                    .order_by(ListingImage.sort_order)
+                )
+            ).all()
+        )
+        expected_checksums = [
+            hashlib.sha256(f"normalized:{url}".encode()).hexdigest()
+            for url in replacement_urls
+        ]
+        assert [asset.checksum for asset in current_assets] == expected_checksums
+        assert len(current_assets) == 3
+
+        stale_ids = set(first_ids) - {asset.id for asset in current_assets}
+        stale_assets = list(
+            (
+                await session.scalars(
+                    select(MediaAsset).where(MediaAsset.id.in_(stale_ids))
+                )
+            ).all()
+        )
+        assert stale_assets
+        assert all(asset.deleted_at is not None for asset in stale_assets)
+
+
 async def test_reconciliation_probes_run_without_database_transaction(monkeypatch):
     async with SessionLocal() as session:
         item = external_item(
@@ -270,7 +472,7 @@ async def test_reconciliation_probes_run_without_database_transaction(monkeypatc
             external_id="probe-boundary",
             url="https://www.pisocompartido.com/habitacion/probe-boundary",
         )
-        monkeypatch.setattr(importer, "public_image_hashes", lambda urls: _empty_hashes(session))
+        monkeypatch.setattr(importer, "public_image_fingerprints", lambda urls: _empty_hashes(session))
         assert await importer.upsert(session, item) == "imported"
 
         record = await session.scalar(
@@ -291,6 +493,6 @@ async def test_reconciliation_probes_run_without_database_transaction(monkeypatc
         assert not session.in_transaction()
 
 
-async def _empty_hashes(session) -> set[str]:
+async def _empty_hashes(session) -> list:
     assert not session.in_transaction()
-    return set()
+    return []

@@ -19,6 +19,7 @@ from ..schemas.admin import (
     ListingRestrictionResponse,
 )
 from .catalog import touch_catalog
+from .listing_deduplication import assert_existing_listing_gallery_is_unique
 from .moderation import (
     active_listing_restriction,
     active_user_restriction,
@@ -235,6 +236,8 @@ async def change_listing_status(
                 "fieldErrors": {},
             },
         )
+    if previous != new_status and new_status in {"pending", "published"}:
+        await assert_existing_listing_gallery_is_unique(session, listing.id)
     listing.status = new_status
     if new_status == "published" and listing.published_at is None:
         listing.published_at = datetime.now(UTC)

@@ -1,29 +1,31 @@
 import asyncio
 import hashlib
-import warnings
+import logging
 from datetime import UTC, datetime
-from io import BytesIO
+from typing import Literal
 from uuid import UUID, uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
-from PIL import Image, UnidentifiedImageError
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import Settings, get_settings
+from ...core.media_keys import variant_storage_key
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
 from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
+from ...services.media_processing import PreparedImage, prepare_image, render_variant
 from ...services.moderation import active_window, enforce_listing_view_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
-from ...storage import get_storage
+from ...storage import Storage, get_storage
 from ..dependencies import current_user, optional_user
 
 router = APIRouter(tags=["uploads"])
+logger = logging.getLogger(__name__)
 SUPPORTED_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
 image_processing_slots = asyncio.Semaphore(get_settings().image_processing_concurrency)
 
@@ -53,37 +55,31 @@ def media_quota_exceeded(
     )
 
 
-def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
-    settings = get_settings()
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", Image.DecompressionBombWarning)
-            with Image.open(BytesIO(content)) as probe:
-                if probe.format not in SUPPORTED_FORMATS:
-                    raise HTTPException(415, "Only JPEG, PNG and WebP images are supported")
-                width, height = probe.size
-                if (
-                    width < 1
-                    or height < 1
-                    or width > settings.max_image_dimension
-                    or height > settings.max_image_dimension
-                    or width * height > settings.max_image_pixels
-                ):
-                    raise HTTPException(422, "Image dimensions are not allowed")
-                probe.verify()
+async def _store_prepared_image(storage: Storage, storage_key: str, prepared: PreparedImage) -> None:
+    objects = [(storage_key, prepared.content), *[
+        (variant_storage_key(storage_key, variant), content)
+        for variant, content in prepared.variants.items()
+    ]]
+    results = await asyncio.gather(
+        *(
+            asyncio.to_thread(storage.put, object_key, object_content)
+            for object_key, object_content in objects
+        ),
+        return_exceptions=True,
+    )
+    # Wait for every writer before propagating an error so cleanup cannot race
+    # a sibling thread that is still creating a derivative object.
+    for result in results:
+        if isinstance(result, Exception):
+            raise result
 
-            with Image.open(BytesIO(content)) as source:
-                source.load()
-                normalized = source.convert("RGBA" if "A" in source.getbands() else "RGB")
-                output = BytesIO()
-                normalized.save(output, format="WEBP", method=6, quality=88)
-                return output.getvalue(), width, height
-    except Image.DecompressionBombWarning as exc:
-        raise HTTPException(422, "Image dimensions are not allowed") from exc
-    except Image.DecompressionBombError as exc:
-        raise HTTPException(422, "Image dimensions are not allowed") from exc
-    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as exc:
-        raise HTTPException(415, "Invalid image file") from exc
+
+async def _delete_prepared_image(storage: Storage, storage_key: str) -> None:
+    try:
+        await asyncio.to_thread(storage.delete, storage_key)
+    except (OSError, BotoCoreError, ClientError):
+        # BufferedDeleteStorage has already persisted a best-effort retry key.
+        logger.exception("media_cleanup_failed", extra={"storage_key": storage_key})
 
 
 @router.post("/uploads", response_model=MediaAssetResponse, status_code=status.HTTP_201_CREATED)
@@ -103,59 +99,80 @@ async def upload_image(
     await file.close()
     if not content or len(content) > settings.max_upload_bytes:
         raise HTTPException(413, "Image is too large")
-    # Pillow decoding and WebP encoding are CPU-heavy synchronous operations.
-    # Keep them off the event loop and cap concurrent jobs to bound memory use.
+
+    # Decode only once and build browser-sized derivatives in one bounded CPU
+    # job. The normalized full image is also capped, so phones never upload a
+    # 4000-8000px original only for the browser to shrink it again.
     async with image_processing_slots:
-        normalized, width, height = await asyncio.to_thread(validate_and_normalize, content)
+        prepared = await asyncio.to_thread(prepare_image, content)
 
-    # Serialize quota checks with both concurrent uploads and account deletion.
-    await lock_media_owner(session, user.id)
-    locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
-    if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
-        raise HTTPException(403, "Account is not active")
-    active_assets, active_bytes = (
-        await session.execute(
-            select(
-                func.count(MediaAsset.id),
-                func.coalesce(func.sum(MediaAsset.size_bytes), 0),
-            ).where(
-                MediaAsset.owner_id == locked_user.id,
-                MediaAsset.deleted_at.is_(None),
-            )
-        )
-    ).one()
-    if media_quota_exceeded(
-        active_assets=int(active_assets),
-        active_bytes=int(active_bytes),
-        new_bytes=len(normalized),
-        settings=settings,
-    ):
-        raise HTTPException(413, "Media storage quota exceeded")
-
-    storage_key = f"{locked_user.id}/{uuid4().hex}.webp"
+    storage_key = f"{user.id}/{uuid4().hex}.webp"
     storage = get_storage()
-    await asyncio.to_thread(storage.put, storage_key, normalized)
-    asset = MediaAsset(
-        owner_id=locked_user.id,
-        storage_key=storage_key,
-        mime_type="image/webp",
-        size_bytes=len(normalized),
-        width=width,
-        height=height,
-        checksum=hashlib.sha256(normalized).hexdigest(),
-        kind="listing_image",
-    )
-    session.add(asset)
     try:
+        # Do storage I/O before taking a user/quota row lock. If the account is
+        # concurrently deleted or exceeds quota, the unique provisional object
+        # is removed after the authoritative locked check below.
+        await _store_prepared_image(storage, storage_key, prepared)
+    except (OSError, BotoCoreError, ClientError):
+        await _delete_prepared_image(storage, storage_key)
+        raise
+
+    try:
+        # Serialize quota checks with concurrent uploads and account deletion,
+        # but no longer keep this transaction open during S3/MinIO writes.
+        await lock_media_owner(session, user.id)
+        locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+        if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+            await _delete_prepared_image(storage, storage_key)
+            raise HTTPException(403, "Account is not active")
+        active_assets, active_bytes = (
+            await session.execute(
+                select(
+                    func.count(MediaAsset.id),
+                    func.coalesce(func.sum(MediaAsset.size_bytes), 0),
+                ).where(
+                    MediaAsset.owner_id == locked_user.id,
+                    MediaAsset.deleted_at.is_(None),
+                )
+            )
+        ).one()
+        if media_quota_exceeded(
+            active_assets=int(active_assets),
+            active_bytes=int(active_bytes),
+            new_bytes=len(prepared.content),
+            settings=settings,
+        ):
+            await _delete_prepared_image(storage, storage_key)
+            raise HTTPException(413, "Media storage quota exceeded")
+
+        asset = MediaAsset(
+            owner_id=locked_user.id,
+            storage_key=storage_key,
+            mime_type="image/webp",
+            size_bytes=len(prepared.content),
+            width=prepared.width,
+            height=prepared.height,
+            checksum=hashlib.sha256(prepared.content).hexdigest(),
+            perceptual_hash=prepared.perceptual_hash,
+            kind="listing_image",
+        )
+        session.add(asset)
         await session.commit()
+    except HTTPException:
+        raise
     except Exception:
         await session.rollback()
+        await _delete_prepared_image(storage, storage_key)
+        # Keep the database deletion queue as a second durable path when Redis
+        # buffering is unavailable during a storage outage.
         try:
-            await asyncio.to_thread(storage.delete, storage_key)
-        except (OSError, BotoCoreError, ClientError):
             await enqueue_storage_deletion(session, storage_key)
             await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("media_cleanup_enqueue_failed", extra={"storage_key": storage_key})
         raise
+
     await session.refresh(asset)
     return public_asset(asset)
 
@@ -166,71 +183,154 @@ async def get_media(
     request: Request,
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
+    variant: Literal["full", "card", "thumb"] = "full",
 ):
-    asset = await session.get(MediaAsset, asset_id)
-    if not asset or asset.deleted_at:
-        raise HTTPException(404, "Media not found")
-    admin = bool(user and await is_admin(user, session))
-    owner_or_admin = bool(user and (user.id == asset.owner_id or admin))
-    publicly_visible = False
-    if asset.kind == "avatar":
-        publicly_visible = bool(
-            await session.scalar(
-                select(User.id).where(
-                    User.avatar_asset_id == asset.id,
-                    User.deleted_at.is_(None),
-                    User.blocked.is_(False),
-                )
-            )
-        )
-    elif asset.kind == "listing_image":
-        # A direct media URL is part of public listing browsing. Enforce the
-        # requester's view restriction here too, but preserve owner/admin access
-        # needed to manage a listing the account is still allowed to publish.
-        if not owner_or_admin:
-            await enforce_listing_view_access(user, session)
-        active_owner_restriction = (
-            select(UserRestriction.id)
-            .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
-            .correlate(User)
-            .exists()
-        )
-        active_listing_restriction = (
-            select(ListingRestriction.id)
-            .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
-            .correlate(Listing)
-            .exists()
-        )
-        publicly_visible = bool(
-            await session.scalar(
-                select(ListingImage.listing_id)
-                .join(Listing, Listing.id == ListingImage.listing_id)
-                .join(User, User.id == Listing.owner_user_id)
-                .where(
-                    ListingImage.media_asset_id == asset.id,
-                    Listing.status == "published",
-                    Listing.deleted_at.is_(None),
-                    (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
-                    User.deleted_at.is_(None),
-                    User.blocked.is_(False),
-                    ~active_owner_restriction,
-                    ~active_listing_restriction,
-                )
-                .limit(1)
-            )
-        )
-    if not owner_or_admin and not publicly_visible:
-        raise HTTPException(404, "Media not found")
+    active_owner_restriction = (
+        select(UserRestriction.id)
+        .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
+        .correlate(User)
+        .exists()
+    )
+    active_listing_restriction = (
+        select(ListingRestriction.id)
+        .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
+        .correlate(Listing)
+        .exists()
+    )
 
-    etag = f'"{asset.checksum}"'
-    # Visibility is mutable. Permit a private browser cache, but force every
-    # reuse to revalidate through FastAPI so unpublishing/blocking takes effect.
+    if user is None:
+        # Anonymous browsing is the hottest media path. Resolve the asset and
+        # its current public visibility in one indexed database round-trip
+        # instead of loading MediaAsset and then issuing a second query.
+        public_avatar = (
+            select(User.id)
+            .where(
+                User.avatar_asset_id == MediaAsset.id,
+                User.deleted_at.is_(None),
+                User.blocked.is_(False),
+            )
+            .correlate(MediaAsset)
+            .exists()
+        )
+        public_listing = (
+            select(ListingImage.listing_id)
+            .join(Listing, Listing.id == ListingImage.listing_id)
+            .join(User, User.id == Listing.owner_user_id)
+            .where(
+                ListingImage.media_asset_id == MediaAsset.id,
+                Listing.status == "published",
+                Listing.deleted_at.is_(None),
+                (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                User.deleted_at.is_(None),
+                User.blocked.is_(False),
+                ~active_owner_restriction,
+                ~active_listing_restriction,
+            )
+            .correlate(MediaAsset)
+            .exists()
+        )
+        asset = await session.scalar(
+            select(MediaAsset)
+            .where(
+                MediaAsset.id == asset_id,
+                MediaAsset.deleted_at.is_(None),
+                or_(
+                    and_(MediaAsset.kind == "avatar", public_avatar),
+                    and_(MediaAsset.kind == "listing_image", public_listing),
+                ),
+            )
+            .limit(1)
+        )
+        if not asset:
+            raise HTTPException(404, "Media not found")
+        owner_or_admin = False
+        publicly_visible = True
+    else:
+        asset = await session.get(MediaAsset, asset_id)
+        if not asset or asset.deleted_at:
+            raise HTTPException(404, "Media not found")
+        admin = bool(await is_admin(user, session))
+        owner_or_admin = bool(user.id == asset.owner_id or admin)
+        publicly_visible = False
+        if asset.kind == "avatar":
+            publicly_visible = bool(
+                await session.scalar(
+                    select(User.id).where(
+                        User.avatar_asset_id == asset.id,
+                        User.deleted_at.is_(None),
+                        User.blocked.is_(False),
+                    )
+                )
+            )
+        elif asset.kind == "listing_image":
+            # Authenticated restricted viewers must still pass their own policy;
+            # owners/admins retain private management access.
+            if not owner_or_admin:
+                await enforce_listing_view_access(user, session)
+            publicly_visible = bool(
+                await session.scalar(
+                    select(ListingImage.listing_id)
+                    .join(Listing, Listing.id == ListingImage.listing_id)
+                    .join(User, User.id == Listing.owner_user_id)
+                    .where(
+                        ListingImage.media_asset_id == asset.id,
+                        Listing.status == "published",
+                        Listing.deleted_at.is_(None),
+                        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                        User.deleted_at.is_(None),
+                        User.blocked.is_(False),
+                        ~active_owner_restriction,
+                        ~active_listing_restriction,
+                    )
+                    .limit(1)
+                )
+            )
+        if not owner_or_admin and not publicly_visible:
+            raise HTTPException(404, "Media not found")
+
+    etag = f'"{asset.checksum}-{variant}"'
+    # Visibility is mutable. Keep immediate revocation semantics: a cached
+    # response still revalidates through FastAPI before it can be reused.
     cache_control = "private, max-age=0, must-revalidate" if publicly_visible else "private, no-store"
     headers = {"ETag": etag, "Cache-Control": cache_control, "Vary": "Authorization"}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
 
-    content = await asyncio.to_thread(get_storage().get, asset.storage_key)
+    storage = get_storage()
+    settings = get_settings()
+    legacy_full_needs_derivative = (
+        variant == "full"
+        and max(asset.width, asset.height) > settings.media_full_max_dimension
+    )
+    storage_key = (
+        variant_storage_key(asset.storage_key, "full")
+        if legacy_full_needs_derivative
+        else asset.storage_key
+        if variant == "full"
+        else variant_storage_key(asset.storage_key, variant)
+    )
+    content = await asyncio.to_thread(storage.get, storage_key)
+
+    # Assets uploaded before responsive variants existed are upgraded lazily.
+    # This includes a capped 2048px full derivative for legacy originals that
+    # are still multi-megapixel. The persistent object survives later deploys,
+    # so only its first request pays the resize cost.
+    if content is None and (variant != "full" or legacy_full_needs_derivative):
+        original = await asyncio.to_thread(storage.get, asset.storage_key)
+        if original is None:
+            raise HTTPException(404, "Media not found")
+        async with image_processing_slots:
+            generated = await asyncio.to_thread(render_variant, original, variant)
+        content = original if generated is None else generated
+        if generated is not None:
+            try:
+                await asyncio.to_thread(storage.put, storage_key, generated)
+            except (OSError, BotoCoreError, ClientError):
+                logger.exception(
+                    "media_variant_persist_failed",
+                    extra={"asset_id": str(asset.id), "variant": variant},
+                )
+
     if content is None:
         raise HTTPException(404, "Media not found")
     return Response(content, media_type=asset.mime_type, headers=headers)

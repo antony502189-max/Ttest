@@ -10,3 +10,26 @@
 .m2-listing-marker .map-price-marker.is-promoted:not(.is-selected) i { border-color: #252a2b !important; }
 .m2-listing-marker .map-price-marker.is-promoted.is-selected { border-color: #344500 !important; background: var(--brand) !important; color: #1b2500 !important; box-shadow: 0 .5rem 1.15rem rgb(50 66 0 / .3) !important; }
 .m2-listing-marker .map-price-marker.is-promoted.is-selected i { border-color: #344500 !important; }
+
+.map-cluster-marker { position: relative; }
+.map-cluster-marker__promotion {
+  position: absolute;
+  top: -.48rem;
+  right: -.48rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  border: 2px solid #252a2b;
+  border-radius: 999px;
+  background: #d2ff3f;
+  font-size: .72rem;
+  line-height: 1;
+  box-shadow: 0 2px 7px rgb(37 42 43 / .24);
+}
+.map-cluster-marker.is-promoted {
+  border-color: #252a2b !important;
+  background: #d2ff3f !important;
+  color: #111 !important;
+  box-shadow: 0 0 0 .3rem rgb(210 255 63 / .42), 0 .45rem 1rem rgb(37 42 43 / .24) !important;
+}
