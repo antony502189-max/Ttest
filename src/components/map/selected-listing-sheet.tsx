@@ -29,8 +29,8 @@ export function SelectedListingSheet({
   const carousel = useMemo(() => siblingListings.length > 1 ? siblingListings : [listing], [listing, siblingListings])
   const carouselIndex = Math.max(0, carousel.findIndex((item) => item.id === listing.id))
   const hasCarousel = carousel.length > 1
-  const previous = carouselIndex > 0 ? carousel[carouselIndex - 1] : null
-  const next = carouselIndex < carousel.length - 1 ? carousel[carouselIndex + 1] : null
+  const previous = hasCarousel ? carousel[(carouselIndex - 1 + carousel.length) % carousel.length] : null
+  const next = hasCarousel ? carousel[(carouselIndex + 1) % carousel.length] : null
 
   useEffect(() => {
     if (focusOnOpen) requestAnimationFrame(() => sheetRef.current?.focus())
