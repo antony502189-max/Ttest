@@ -305,3 +305,161 @@ async def test_listing_and_media_ownership_boundaries(client, register_user):
     )
     assert foreign_media.status_code == 422
     assert foreign_media.json()["code"] == "LISTING_IMAGE_INVALID"
+
+
+def patterned_png(seed: int) -> bytes:
+    output = BytesIO()
+    image = Image.new("RGB", (64, 48), (20 + seed % 50, 30, 40))
+    for x in range(64):
+        for y in range(48):
+            if (x * 3 + y * 5 + seed) % 17 < 5:
+                image.putpixel((x, y), ((seed * 29 + x * 7) % 255, (y * 11 + seed) % 255, (x + y * 3) % 255))
+    image.save(output, "PNG")
+    return output.getvalue()
+
+
+async def upload_gallery(client, token: str, seeds: list[int]) -> list[str]:
+    asset_ids = []
+    for seed in seeds:
+        uploaded = await client.post(
+            "/api/v1/uploads",
+            headers=auth(token),
+            files={"file": (f"gallery-{seed}.png", patterned_png(seed), "image/png")},
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        asset_ids.append(uploaded.json()["id"])
+    return asset_ids
+
+
+async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(client, register_user):
+    first_token, _ = await register_user(client, email="duplicate-first@example.com", role="host")
+    second_token, _ = await register_user(client, email="duplicate-second@example.com", role="host")
+
+    first_assets = await upload_gallery(client, first_token, [101, 102, 103])
+    second_assets = await upload_gallery(client, second_token, [101, 102, 103])
+
+    first = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(first_token),
+        json=customer_listing(assetIds=first_assets),
+    )
+    assert first.status_code == 201, first.text
+
+    duplicate = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(second_token),
+        json=customer_listing(
+            assetIds=second_assets,
+            title="Texto completamente distinto",
+            description="Otra descripción que no participa en la detección.",
+            monthlyPrice=1999,
+            street="Otra calle distinta",
+            postcode="38001",
+            approximateAddress="Otra zona",
+            latitude=28.45,
+            longitude=-16.21,
+            exactLatitude=28.451,
+            exactLongitude=-16.211,
+        ),
+    )
+    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.json()["code"] == "DUPLICATE_LISTING_IMAGES"
+    assert "assetIds" in duplicate.json()["fieldErrors"]
+
+
+async def test_same_address_and_price_with_different_gallery_is_allowed(client, register_user):
+    first_token, _ = await register_user(client, email="same-address-a@example.com", role="host")
+    second_token, _ = await register_user(client, email="same-address-b@example.com", role="host")
+
+    first_assets = await upload_gallery(client, first_token, [201, 202, 203])
+    second_assets = await upload_gallery(client, second_token, [301, 302, 303])
+
+    first = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(first_token),
+        json=customer_listing(assetIds=first_assets),
+    )
+    second = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(second_token),
+        json=customer_listing(assetIds=second_assets),
+    )
+
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+
+
+async def test_shared_home_photos_do_not_block_a_different_room_gallery(client, register_user):
+    first_token, _ = await register_user(client, email="shared-gallery-a@example.com", role="host")
+    second_token, _ = await register_user(client, email="shared-gallery-b@example.com", role="host")
+    shared = [401, 402, 403, 404]
+
+    first_assets = await upload_gallery(client, first_token, [*shared, 405])
+    second_assets = await upload_gallery(client, second_token, [*shared, 406])
+
+    first = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(first_token),
+        json=customer_listing(assetIds=first_assets, title="Habitación A"),
+    )
+    second = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(second_token),
+        json=customer_listing(assetIds=second_assets, title="Habitación B"),
+    )
+
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+
+
+async def test_replacing_images_cannot_turn_listing_into_duplicate(client, register_user):
+    first_token, _ = await register_user(client, email="replace-duplicate-a@example.com", role="host")
+    second_token, _ = await register_user(client, email="replace-duplicate-b@example.com", role="host")
+
+    canonical_assets = await upload_gallery(client, first_token, [501, 502, 503])
+    initial_assets = await upload_gallery(client, second_token, [601, 602, 603])
+    duplicate_assets = await upload_gallery(client, second_token, [501, 502, 503])
+
+    canonical = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(first_token),
+        json=customer_listing(assetIds=canonical_assets),
+    )
+    editable = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(second_token),
+        json=customer_listing(assetIds=initial_assets),
+    )
+    assert canonical.status_code == editable.status_code == 201
+
+    rejected = await client.put(
+        f"/api/v1/listings/{editable.json()['id']}/images",
+        headers=auth(second_token),
+        json={"assetIds": duplicate_assets},
+    )
+    assert rejected.status_code == 409
+    assert rejected.json()["code"] == "DUPLICATE_LISTING_IMAGES"
+
+
+async def test_concurrent_duplicate_publications_leave_one_listing(client, register_user):
+    first_token, _ = await register_user(client, email="concurrent-duplicate-a@example.com", role="host")
+    second_token, _ = await register_user(client, email="concurrent-duplicate-b@example.com", role="host")
+    first_assets = await upload_gallery(client, first_token, [701, 702, 703])
+    second_assets = await upload_gallery(client, second_token, [701, 702, 703])
+
+    responses = await asyncio.gather(
+        client.post(
+            "/api/v1/listings",
+            headers=publication_headers(first_token),
+            json=customer_listing(assetIds=first_assets),
+        ),
+        client.post(
+            "/api/v1/listings",
+            headers=publication_headers(second_token),
+            json=customer_listing(assetIds=second_assets),
+        ),
+    )
+
+    assert sorted(response.status_code for response in responses) == [201, 409]
+    rejected = next(response for response in responses if response.status_code == 409)
+    assert rejected.json()["code"] == "DUPLICATE_LISTING_IMAGES"
