@@ -1,6 +1,8 @@
 from hashlib import sha256
-from uuid import uuid4
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
+from app.services.duplicate_cleanup import _direct_duplicate_batches
 from app.services.listing_deduplication import ImageFingerprint, galleries_are_duplicates, hamming_distance
 
 
@@ -49,3 +51,38 @@ def test_single_photo_requires_exact_normalized_checksum():
 def test_perceptual_hash_hamming_distance_is_bit_based():
     assert hamming_distance("0000000000000000", "0000000000000001") == 1
     assert hamming_distance("0000000000000000", "000000000000000f") == 4
+
+
+
+def test_cleanup_does_not_collapse_transitive_similarity_chain():
+    shared_ab = [image(index) for index in range(9)]
+    only_a = image(90)
+    shared_bc_only = image(91)
+    only_c = image(92)
+
+    first_id = UUID(int=1)
+    middle_id = UUID(int=2)
+    last_id = UUID(int=3)
+    galleries = {
+        first_id: [*shared_ab, only_a],
+        middle_id: [*shared_ab, shared_bc_only],
+        last_id: [*shared_ab[:8], shared_bc_only, only_c],
+    }
+    listings = {
+        listing_id: SimpleNamespace(
+            id=listing_id,
+            is_external=False,
+            published_at=None,
+            created_at=None,
+        )
+        for listing_id in galleries
+    }
+
+    assert galleries_are_duplicates(galleries[first_id], galleries[middle_id])
+    assert galleries_are_duplicates(galleries[middle_id], galleries[last_id])
+    assert not galleries_are_duplicates(galleries[first_id], galleries[last_id])
+
+    batches = _direct_duplicate_batches(galleries.keys(), galleries, listings)  # type: ignore[arg-type]
+    assert [(batch[0].id, [item.id for item in batch[1]]) for batch in batches] == [
+        (first_id, [middle_id])
+    ]
