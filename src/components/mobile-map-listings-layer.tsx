@@ -261,9 +261,11 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
       aria-hidden={current ? undefined : true}
     >
       <div className="m2-map-listing-preview__media-shell">
-        {externalUrl
-          ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={current ? item.title : ''} /></a>
-          : <button type="button" className="m2-map-listing-preview__media" onClick={() => openInternalListing(item.id)} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={current ? item.title : ''} /></button>}
+        {current
+          ? externalUrl
+            ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={item.title} /></a>
+            : <button type="button" className="m2-map-listing-preview__media" onClick={() => openInternalListing(item.id)} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={item.title} /></button>
+          : <div className="m2-map-listing-preview__media"><MediaImage src={item.images[0]} variant="card" alt="" /></div>}
         {item.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
       </div>
       <div className="m2-map-listing-preview__body">
@@ -273,10 +275,15 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         <strong>{priceLabel(item)} {item.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
         <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
         <div className="m2-map-listing-preview__actions">
-          <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(item.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
-          {externalUrl
-            ? <a className="m2-map-listing-preview__open" href={externalUrl} target="_blank" rel="noopener noreferrer">{t.view}</a>
-            : <button type="button" className="m2-map-listing-preview__open" onClick={() => openInternalListing(item.id)}>{t.view}</button>}
+          {current ? <>
+            <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(item.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
+            {externalUrl
+              ? <a className="m2-map-listing-preview__open" href={externalUrl} target="_blank" rel="noopener noreferrer">{t.view}</a>
+              : <button type="button" className="m2-map-listing-preview__open" onClick={() => openInternalListing(item.id)}>{t.view}</button>}
+          </> : <>
+            <span className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')}><Heart fill={saved ? 'currentColor' : 'none'} /></span>
+            <span className="m2-map-listing-preview__open">{t.view}</span>
+          </>}
         </div>
       </div>
       {!current ? <button
