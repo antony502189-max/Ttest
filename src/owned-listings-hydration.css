@@ -42,13 +42,14 @@
   align-items: center;
   justify-content: center;
   gap: .65rem;
-  color: var(--ink-muted);
+  background: #ffffff;
+  color: #4c5253;
   opacity: 0;
   animation: owner-loading-reveal .14s ease-out .08s forwards;
 }
 
 .route-transition-loading > strong {
-  color: var(--ink-soft);
+  color: #4c5253 !important;
 }
 
 .route-transition-loading > span {
