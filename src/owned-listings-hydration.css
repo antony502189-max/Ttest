@@ -47,6 +47,10 @@
   animation: owner-loading-reveal .14s ease-out .08s forwards;
 }
 
+.route-transition-loading > strong {
+  color: var(--ink-soft);
+}
+
 .route-transition-loading > span {
   width: 1rem;
   height: 1rem;
