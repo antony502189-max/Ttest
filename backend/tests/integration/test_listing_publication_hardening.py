@@ -540,3 +540,10 @@ async def test_existing_duplicate_cleanup_is_dry_run_then_idempotent_apply(clien
         repeated = await deduplicate_active_listings(session, apply=True)
         assert repeated["duplicates"] == 0
         assert repeated["changed"] == 0
+
+    republish = await client.post(
+        f"/api/v1/listings/{second_id}/renew",
+        headers=auth(second_token),
+    )
+    assert republish.status_code == 409
+    assert republish.json()["code"] == "DUPLICATE_LISTING_IMAGES"
