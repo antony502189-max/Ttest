@@ -86,3 +86,18 @@ test('same-address carousel exposes neighboring listing peeks and wraps in both 
   expect(css).toContain('.m2-map-listing-preview__neighbor-peek--next')
   expect(css).toContain('width: 72%')
 })
+
+
+test('desktop same-address carousel exposes neighboring peeks and wraps in both directions', () => {
+  const sheet = readFileSync('src/components/map/selected-listing-sheet.tsx', 'utf8')
+  const css = readFileSync('src/map.css', 'utf8')
+
+  expect(sheet).toContain('selected-listing-sheet__neighbor-peek--prev')
+  expect(sheet).toContain('selected-listing-sheet__neighbor-peek--next')
+  expect(sheet).toContain('(carouselIndex - 1 + carousel.length) % carousel.length')
+  expect(sheet).toContain('(carouselIndex + 1) % carousel.length')
+  expect(css).toContain('.selected-listing-sheet__neighbor-peek--prev')
+  expect(css).toContain('.selected-listing-sheet__neighbor-peek--next')
+  expect(css).toContain('.selected-listing-sheet__media.has-neighbor-peeks .selected-listing-sheet__primary-photo')
+  expect(css).toContain('width: 72%')
+})
