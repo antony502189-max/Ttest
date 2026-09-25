@@ -230,10 +230,16 @@ async def import_images(
                             (variant_storage_key(created_storage_key, variant), variant_content)
                             for variant, variant_content in prepared.variants.items()
                         ]]
-                        await asyncio.gather(*(
-                            asyncio.to_thread(storage.put, object_key, object_content)
-                            for object_key, object_content in objects
-                        ))
+                        storage_results = await asyncio.gather(
+                            *(
+                                asyncio.to_thread(storage.put, object_key, object_content)
+                                for object_key, object_content in objects
+                            ),
+                            return_exceptions=True,
+                        )
+                        for storage_result in storage_results:
+                            if isinstance(storage_result, Exception):
+                                raise storage_result
                     except (OSError, BotoCoreError, ClientError):
                         logger.exception(
                             "external_image_storage_failed",
