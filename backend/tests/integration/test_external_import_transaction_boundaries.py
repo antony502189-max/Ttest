@@ -424,6 +424,7 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
             ).all()
         )
         assert len(first_ids) == 20
+        await session.commit()
 
         calls.clear()
         replacement_urls = [
@@ -432,6 +433,7 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
             "https://images.example.test/replacement-new.webp",
         ]
         await importer.import_images(session, listing.id, listing.owner_user_id, replacement_urls)
+        assert not session.in_transaction()
         assert sorted(calls) == sorted(replacement_urls)
 
         current_assets = list(
@@ -461,7 +463,6 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
         )
         assert stale_assets
         assert all(asset.deleted_at is not None for asset in stale_assets)
-        assert not session.in_transaction()
 
 
 async def test_reconciliation_probes_run_without_database_transaction(monkeypatch):
