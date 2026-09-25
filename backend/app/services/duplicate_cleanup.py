@@ -119,6 +119,31 @@ def _canonical_key(listing: Listing) -> tuple:
     return (listing.is_external, published, str(listing.id))
 
 
+def _direct_duplicate_batches(
+    group: set[UUID],
+    galleries: dict[UUID, list[ImageFingerprint]],
+    listings: dict[UUID, Listing],
+) -> list[tuple[Listing, list[Listing]]]:
+    """Split a transitive candidate component into direct canonical matches."""
+    remaining = [listings[listing_id] for listing_id in group if listing_id in listings]
+    batches: list[tuple[Listing, list[Listing]]] = []
+    while len(remaining) > 1:
+        canonical = min(remaining, key=_canonical_key)
+        losers = [
+            listing
+            for listing in remaining
+            if listing.id != canonical.id
+            and galleries_are_duplicates(galleries[canonical.id], galleries[listing.id])
+        ]
+        if not losers:
+            remaining = [listing for listing in remaining if listing.id != canonical.id]
+            continue
+        batches.append((canonical, losers))
+        consumed = {canonical.id, *(listing.id for listing in losers)}
+        remaining = [listing for listing in remaining if listing.id not in consumed]
+    return batches
+
+
 async def _move_scoped_state(
     session: AsyncSession,
     model,
@@ -163,22 +188,8 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
     for group in groups:
         # Union-find above is intentionally only a candidate accelerator. Its
         # connected components are not equivalence classes: A may match B and
-        # B may match C while A and C are materially different rooms. Split
-        # every connected component into direct canonical-vs-loser batches so
-        # cleanup never closes a listing solely through transitive similarity.
-        remaining = [listings[listing_id] for listing_id in group if listing_id in listings]
-        while len(remaining) > 1:
-            canonical = min(remaining, key=_canonical_key)
-            losers = [
-                listing
-                for listing in remaining
-                if listing.id != canonical.id
-                and galleries_are_duplicates(galleries[canonical.id], galleries[listing.id])
-            ]
-            if not losers:
-                remaining = [listing for listing in remaining if listing.id != canonical.id]
-                continue
-
+        # B may match C while A and C are materially different rooms.
+        for canonical, losers in _direct_duplicate_batches(group, galleries, listings):
             duplicate_count += len(losers)
             report_groups.append(
                 {
@@ -195,9 +206,6 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
                     loser.closed_reason = "duplicate"
                     loser.last_synced_at = datetime.now(UTC)
                     changed += 1
-
-            consumed = {canonical.id, *(listing.id for listing in losers)}
-            remaining = [listing for listing in remaining if listing.id not in consumed]
 
     if apply and changed:
         await touch_catalog(session)
