@@ -1,4 +1,5 @@
-﻿import { expect, test, type Page } from '@playwright/test'
+﻿import { readFileSync } from 'node:fs'
+import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
 
@@ -137,4 +138,20 @@ test('publish transition from admin never flashes the full-screen loader', async
   await expect(page.locator('.route-transition-loading')).toBeVisible()
   await expect(page.locator('.listing-create-page')).toBeVisible()
   await expect(page.locator('.route-transition-loading')).toHaveCount(0)
+})
+
+
+test('owner listing routes are idle-prefetched and the hydration gate does not issue a second owner API request', () => {
+  const layout = readFileSync('src/components/layout.tsx', 'utf8')
+  const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
+  const preload = readFileSync('src/lib/route-preload.ts', 'utf8')
+  const moderation = readFileSync('src/components/moderation-gate.tsx', 'utf8')
+
+  expect(layout).toContain('requestIdleCallback')
+  expect(layout).toContain('preloadOwnerListingRoutes()')
+  expect(preload).toContain("import('@/pages/AccountPages')")
+  expect(preload).toContain("import('@/pages/ListingCreatePage')")
+  expect(gate).not.toContain('getOwnedListings(')
+  expect(moderation).toContain('ROUTE_RECHECK_MIN_MS')
+  expect(moderation).not.toContain('Promise.all([getMyRestriction(), getModerationNotices()])')
 })

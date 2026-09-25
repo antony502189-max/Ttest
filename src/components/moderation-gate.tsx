@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, Ban, Mail, ShieldAlert } from 'lucide-react'
 import { useLocation } from 'react-router'
 import { toast } from 'sonner'
@@ -9,6 +9,7 @@ import { currentLocale } from '@/lib/i18n-locale'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MODERATION_REFRESH_MS = 60_000
+const ROUTE_RECHECK_MIN_MS = 15_000
 
 const labels = {
   full: 'Tu cuenta está restringida',
@@ -45,28 +46,53 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
   const currentUserId = currentUser?.id ?? null
   const [restriction, setRestriction] = useState<MyRestriction | null>(null)
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  const lastRestrictionCheckRef = useRef(0)
 
   useEffect(() => {
     if (!currentUserId) {
       setRestriction(null)
       setLoadedFor(null)
+      lastRestrictionCheckRef.current = 0
       return
     }
+
     let cancelled = false
-    void Promise.all([getMyRestriction(), getModerationNotices()]).then(([active, notices]) => {
+    setLoadedFor(null)
+
+    void getMyRestriction().then((active) => {
       if (cancelled) return
       setRestriction(active)
       setLoadedFor(currentUserId)
+      lastRestrictionCheckRef.current = Date.now()
+    }).catch(() => {
+      if (!cancelled) {
+        setLoadedFor(currentUserId)
+        lastRestrictionCheckRef.current = Date.now()
+      }
+    })
+
+    void getModerationNotices().then((notices) => {
+      if (cancelled) return
       const unread = notices.filter((notice) => !notice.readAt)
       for (const notice of unread.slice(0, 3)) {
         toast.info(notice.title, { description: notice.body, duration: 8_000 })
         void markModerationNoticeRead(notice.id).catch(() => undefined)
       }
-    }).catch(() => {
-      if (!cancelled) setLoadedFor(currentUserId)
-    })
+    }).catch(() => undefined)
+
     return () => { cancelled = true }
-  }, [currentUserId, location.pathname])
+  }, [currentUserId])
+
+  useEffect(() => {
+    if (!currentUserId || loadedFor !== currentUserId) return
+    const now = Date.now()
+    if (now - lastRestrictionCheckRef.current < ROUTE_RECHECK_MIN_MS) return
+    lastRestrictionCheckRef.current = now
+    void getMyRestriction().then((active) => {
+      setRestriction(active)
+      lastRestrictionCheckRef.current = Date.now()
+    }).catch(() => undefined)
+  }, [currentUserId, loadedFor, location.pathname])
 
   useEffect(() => {
     if (!currentUserId) return

@@ -13,7 +13,7 @@ import { PublishAddressLifecycle } from '@/components/publish-address-lifecycle'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
-import { preloadListingCreatePage } from '@/lib/route-preload'
+import { preloadListingCreatePage, preloadOwnerListingRoutes } from '@/lib/route-preload'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu']
@@ -84,7 +84,7 @@ export function Footer() {
 
 export function AppLayout() {
   const { pathname } = useLocation()
-  const { storageError, clearStorageError } = useApp()
+  const { storageError, clearStorageError, currentUser } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
@@ -95,5 +95,22 @@ export function AppLayout() {
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
+
+  useEffect(() => {
+    if (!currentUser || !['host', 'admin'].includes(currentUser.role)) return
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    let timer = 0
+    let idleId = 0
+    const preload = () => preloadOwnerListingRoutes()
+    if (idleWindow.requestIdleCallback) idleId = idleWindow.requestIdleCallback(preload, { timeout: 1_200 })
+    else timer = window.setTimeout(preload, 250)
+    return () => {
+      if (idleId && idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(idleId)
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [currentUser])
   return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><PublishAddressLifecycle /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
 }

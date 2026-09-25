@@ -38,6 +38,8 @@ export interface PartialPublicationRecovery {
   ownerUserId: string
 }
 
+export type OwnedListingsHydrationStatus = 'idle' | 'loading' | 'ready' | 'error'
+
 export interface AppState {
   rentalMode: RentalMode
   setRentalMode: (mode: RentalMode) => void
@@ -65,6 +67,8 @@ export interface AppState {
   clearMapPolygon: () => void
   allListings: Listing[]
   ownedListings: Listing[]
+  ownedListingsHydrationStatus: OwnedListingsHydrationStatus
+  refreshOwnedListings: () => Promise<void>
   acceptListingSnapshot: (listing: Listing) => void
   partialPublication: PartialPublicationRecovery | null
   createListing: (listing: Listing) => Promise<boolean>
@@ -267,6 +271,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
   const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
   const [ownedListings, setOwnedListings] = useState<Listing[]>([])
+  const [ownedListingsHydrationStatus, setOwnedListingsHydrationStatus] = useState<OwnedListingsHydrationStatus>('idle')
   const [partialPublication, setPartialPublication] = useState<PartialPublicationRecovery | null>(() => mockMode ? null : readPartialPublication())
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
@@ -301,6 +306,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     ownedRequest.current?.abort()
     ownedRequest.current = null
     setOwnedListings([])
+    setOwnedListingsHydrationStatus('idle')
   }, [])
 
   const refreshOwnedConsumers = useCallback(async () => {
@@ -308,17 +314,23 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     ownedRequest.current?.abort()
     if (!currentUserId) {
       setOwnedListings([])
+      setOwnedListingsHydrationStatus('ready')
       return
     }
     const request = new AbortController()
     ownedRequest.current = request
+    setOwnedListingsHydrationStatus('loading')
     try {
       const listings = await getOwnedListings(request.signal)
       if (!request.signal.aborted && ownedRequestVersion.current === requestVersion) {
         setOwnedListings(listings)
+        setOwnedListingsHydrationStatus('ready')
       }
     } catch (error) {
-      if (!request.signal.aborted) throw error
+      if (!request.signal.aborted && ownedRequestVersion.current === requestVersion) {
+        setOwnedListingsHydrationStatus('error')
+        throw error
+      }
     } finally {
       if (ownedRequest.current === request) ownedRequest.current = null
     }
@@ -889,7 +901,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, ownedListingsHydrationStatus, refreshOwnedListings: refreshOwnedConsumers, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, ownedListingsHydrationStatus, refreshOwnedConsumers, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 
