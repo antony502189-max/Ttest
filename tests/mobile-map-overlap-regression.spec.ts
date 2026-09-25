@@ -66,3 +66,10 @@ test('same-address carousel is not capped at four listings', () => {
   expect(layer).not.toMatch(/slice\(0,\s*4\)/)
   expect(layer).not.toMatch(/coincidentIds\.length\s*[><=]+\s*4/)
 })
+
+test('same-address carousel preserves the external source image-link contract', () => {
+  const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
+
+  expect(layer).toContain('<div className="m2-map-listing-preview__media-shell">')
+  expect(layer).toContain('<a className="m2-map-listing-preview__media" href={externalUrl}')
+})
