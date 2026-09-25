@@ -1,3 +1,4 @@
+from hashlib import sha256
 from uuid import uuid4
 
 from app.services.listing_deduplication import ImageFingerprint, galleries_are_duplicates, hamming_distance
@@ -7,7 +8,7 @@ def image(index: int, *, checksum: str | None = None, phash: str | None = None) 
     return ImageFingerprint(
         asset_id=uuid4(),
         checksum=checksum or f"{index:064x}",
-        perceptual_hash=phash or f"{index:016x}",
+        perceptual_hash=phash or sha256(f"fixture-{index}".encode()).hexdigest()[:16],
         width=1200,
         height=800,
     )
