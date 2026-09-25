@@ -369,13 +369,13 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         # image samples for photo-only cross-source deduplication.
         await session.commit()
         require_no_active_transaction(session, "external image deduplication")
-        image_hashes = await public_image_hashes(item.photos)
+        image_fingerprints = await public_image_fingerprints(item.photos)
         await acquire_duplicate_guard(session)
-        listing = await canonical_for(session, item, image_hashes)
-        if listing is None and image_hashes:
-            duplicate_id = await duplicate_listing_for_hashes(
+        listing = await canonical_for(session, item, image_fingerprints)
+        if listing is None and image_fingerprints:
+            duplicate_id = await duplicate_listing_id(
                 session,
-                list(image_hashes),
+                image_fingerprints,
                 external_only=None,
             )
             if duplicate_id is not None:
