@@ -13,7 +13,6 @@ from app.external_sources import AlquilerDocenteCanariasSource, DiscoveryResult,
 from app.models import ExternalImportRun, ExternalListingSource, Listing, ListingImage, MediaAsset
 from app.models.room_details import ListingRoomDetails
 from app.services import external_import
-from app.services.listing_deduplication import ImageFingerprint
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
@@ -23,6 +22,7 @@ from app.services.external_import import (
     run_source,
     upsert,
 )
+from app.services.listing_deduplication import ImageFingerprint
 
 pytestmark = pytest.mark.integration
 
