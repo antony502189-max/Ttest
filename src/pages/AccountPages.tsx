@@ -238,7 +238,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<DemoUser | null>(currentUser);
-  const avatarUrl = useMediaUrl(draft?.avatarRef);
+  const avatarUrl = useMediaUrl(draft?.avatarRef, 'thumb');
   useEffect(() => { if (!editing) setDraft(currentUser); }, [currentUser, editing]);
   if (!currentUser) return null;
   const profileDraft = draft ?? currentUser;
