@@ -273,17 +273,17 @@ async def import_images(
         )
         return
 
-    prepared_gallery: list[PreparedExternalImage] = []
+    prepared_gallery: list[tuple[str, PreparedExternalImage]] = []
     seen_checksums: set[str] = set()
-    for _, prepared in downloaded:
+    for index, prepared in downloaded:
         if prepared is None or prepared.checksum in seen_checksums:
             continue
         seen_checksums.add(prepared.checksum)
-        prepared_gallery.append(prepared)
+        prepared_gallery.append((source_urls[index], prepared))
     if not prepared_gallery:
         return
 
-    checksums = [prepared.checksum for prepared in prepared_gallery]
+    checksums = [prepared.checksum for _, prepared in prepared_gallery]
     existing_assets = list(
         (
             await session.scalars(
@@ -303,7 +303,7 @@ async def import_images(
     created_assets: list[MediaAsset] = []
     desired_assets: list[MediaAsset] = []
     try:
-        for prepared in prepared_gallery:
+        for _url, prepared in prepared_gallery:
             asset = by_checksum.get(prepared.checksum)
             if asset is not None:
                 desired_assets.append(asset)
@@ -355,11 +355,12 @@ async def import_images(
             session.add_all(created_assets)
             await session.flush()
 
-        locked_listing_id = await session.scalar(
-            select(Listing.id).where(Listing.id == listing_id).with_for_update()
+        locked_listing = await session.scalar(
+            select(Listing).where(Listing.id == listing_id).with_for_update()
         )
-        if locked_listing_id is None:
+        if locked_listing is None:
             raise RuntimeError("Imported listing disappeared during image reconciliation")
+        locked_listing.external_image_urls = [url for url, _prepared in prepared_gallery]
 
         current_ids = list(
             (
