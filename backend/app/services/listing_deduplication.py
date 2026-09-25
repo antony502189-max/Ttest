@@ -71,7 +71,7 @@ def phash_band_neighbors(value: str) -> tuple[set[str], set[str], set[str], set[
 
 
 def _phash_band_predicates(hashes: set[str]):
-    band_values = [set(), set(), set(), set()]
+    band_values: list[set[str]] = [set(), set(), set(), set()]
     for value in hashes:
         for index, neighbors in enumerate(phash_band_neighbors(value)):
             band_values[index].update(neighbors)
