@@ -289,13 +289,25 @@ async def get_media(
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
 
     storage = get_storage()
-    storage_key = asset.storage_key if variant == "full" else variant_storage_key(asset.storage_key, variant)
+    settings = get_settings()
+    legacy_full_needs_derivative = (
+        variant == "full"
+        and max(asset.width, asset.height) > settings.media_full_max_dimension
+    )
+    storage_key = (
+        variant_storage_key(asset.storage_key, "full")
+        if legacy_full_needs_derivative
+        else asset.storage_key
+        if variant == "full"
+        else variant_storage_key(asset.storage_key, variant)
+    )
     content = await asyncio.to_thread(storage.get, storage_key)
 
     # Assets uploaded before responsive variants existed are upgraded lazily.
-    # The generated object is persistent, so only the first cold request pays
-    # the resize cost. Failure to persist the derivative must not fail delivery.
-    if content is None and variant != "full":
+    # This includes a capped 2048px full derivative for legacy originals that
+    # are still multi-megapixel. The persistent object survives later deploys,
+    # so only its first request pays the resize cost.
+    if content is None and (variant != "full" or legacy_full_needs_derivative):
         original = await asyncio.to_thread(storage.get, asset.storage_key)
         if original is None:
             raise HTTPException(404, "Media not found")
