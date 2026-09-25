@@ -30,8 +30,8 @@ export function SelectedListingSheet({ listing, onClose, focusOnOpen = false, re
 
   return <article ref={sheetRef} className="selected-listing-sheet map-selected-card" aria-label={`Habitación seleccionada en ${listing.area}`} tabIndex={-1}>
     <div className="selected-listing-sheet__media map-selected-card__media">
-      <MediaImage src={listing.images[0]} alt={`Habitación en ${listing.area}`} width="576" height="360" />
-      {listing.images[1] ? <MediaImage className="selected-listing-sheet__secondary-photo" src={listing.images[1]} alt="" width="384" height="360" /> : null}
+      <MediaImage src={listing.images[0]} variant="card" alt={`Habitación en ${listing.area}`} width="576" height="360" />
+      {listing.images[1] ? <MediaImage className="selected-listing-sheet__secondary-photo" src={listing.images[1]} variant="thumb" alt="" width="384" height="360" /> : null}
       <span className="selected-listing-sheet__photo-count">1/{listing.images.length}</span>
     </div>
     <div className="selected-listing-sheet__content">
