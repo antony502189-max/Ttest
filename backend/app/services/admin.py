@@ -225,8 +225,6 @@ async def change_listing_status(
                 "fieldErrors": {},
             },
         )
-    if previous != new_status and new_status in {"pending", "published"}:
-        await assert_existing_listing_gallery_is_unique(session, listing.id)
     if previous != new_status and new_status == "published" and (
         await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session)
     ):
@@ -238,6 +236,8 @@ async def change_listing_status(
                 "fieldErrors": {},
             },
         )
+    if previous != new_status and new_status in {"pending", "published"}:
+        await assert_existing_listing_gallery_is_unique(session, listing.id)
     listing.status = new_status
     if new_status == "published" and listing.published_at is None:
         listing.published_at = datetime.now(UTC)
