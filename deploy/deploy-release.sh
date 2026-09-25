@@ -194,6 +194,8 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
+dedupe_report="$("${compose[@]}" exec -T backend python -m app.commands.deduplicate_listings --apply)"
+printf 'dedupe_report=%s\n' "$dedupe_report" >> "$metadata"
 image_ids="$("${compose[@]}" images -q backend mail-worker external-listings-worker frontend | sort -u | paste -sd, -)"
 ln -sfn "$release" "$CURRENT"
 # Internal readiness is necessary but cannot prove that Traefik/DNS serves the
