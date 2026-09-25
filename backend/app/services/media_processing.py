@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Iterable, cast
+from typing import cast
 
 from fastapi import HTTPException
 from PIL import Image, ImageOps, UnidentifiedImageError
