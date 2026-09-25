@@ -73,3 +73,16 @@ test('same-address carousel preserves the external source image-link contract', 
   expect(layer).toContain('<div className="m2-map-listing-preview__media-shell">')
   expect(layer).toContain('<a className="m2-map-listing-preview__media" href={externalUrl}')
 })
+
+test('same-address carousel exposes neighboring listing peeks and wraps in both directions', () => {
+  const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
+  const css = readFileSync('src/mobile-map-ideal.css', 'utf8')
+
+  expect(layer).toContain('mobile-map-listing-peek-prev')
+  expect(layer).toContain('mobile-map-listing-peek-next')
+  expect(layer).toContain('(carouselIndex - 1 + carousel.length) % carousel.length')
+  expect(layer).toContain('(carouselIndex + 1) % carousel.length')
+  expect(css).toContain('.m2-map-listing-preview__neighbor-peek--prev')
+  expect(css).toContain('.m2-map-listing-preview__neighbor-peek--next')
+  expect(css).toContain('width: 72%')
+})
