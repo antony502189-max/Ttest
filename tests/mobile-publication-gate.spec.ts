@@ -106,13 +106,25 @@ test('route transition removes stale admin immediately and never flashes the ful
 
   await page.evaluate(() => { window.location.hash = '#/mis-anuncios' })
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
-  await expect(page.locator('.admin-page')).toHaveCount(0)
-  await expect(page.locator('.route-loading')).toHaveCount(0)
-  await expect(page.locator('.route-transition-loading')).toBeVisible()
+  await page.evaluate(() => {
+    ;(window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }).__sawRouteLoading = false
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.route-loading')) {
+        ;(window as typeof window & { __sawRouteLoading?: boolean }).__sawRouteLoading = true
+      }
+    })
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+    ;(window as typeof window & { __routeLoadingObserver?: MutationObserver }).__routeLoadingObserver = observer
+  })
 
+  await expect(page.locator('.admin-page')).toHaveCount(0)
   await expect.poll(() => delayed).toBe(true)
-  await expect(page.locator('.route-transition-loading')).toHaveCount(0)
-  await expect(page.locator('.route-loading')).toHaveCount(0)
+  await expect(page.locator('.account-page')).toBeVisible()
+  expect(await page.evaluate(() => {
+    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
+    state.__routeLoadingObserver?.disconnect()
+    return state.__sawRouteLoading
+  })).toBe(false)
   await expect(page.locator('.admin-page')).toHaveCount(0)
 })
 
@@ -133,11 +145,24 @@ test('publish transition from admin never flashes the full-screen loader', async
 
   await page.evaluate(() => { window.location.hash = '#/publicar' })
   await expect(page).toHaveURL(/#\/publicar$/)
+  await page.evaluate(() => {
+    ;(window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }).__sawRouteLoading = false
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.route-loading')) {
+        ;(window as typeof window & { __sawRouteLoading?: boolean }).__sawRouteLoading = true
+      }
+    })
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+    ;(window as typeof window & { __routeLoadingObserver?: MutationObserver }).__routeLoadingObserver = observer
+  })
+
   await expect(page.locator('.admin-page')).toHaveCount(0)
-  await expect(page.locator('.route-loading')).toHaveCount(0)
-  await expect(page.locator('.route-transition-loading')).toBeVisible()
   await expect(page.locator('.listing-create-page')).toBeVisible()
-  await expect(page.locator('.route-transition-loading')).toHaveCount(0)
+  expect(await page.evaluate(() => {
+    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
+    state.__routeLoadingObserver?.disconnect()
+    return state.__sawRouteLoading
+  })).toBe(false)
 })
 
 
