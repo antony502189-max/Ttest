@@ -384,6 +384,42 @@ async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(
     assert "assetIds" in duplicate.json()["fieldErrors"]
 
 
+async def test_unreconciled_external_gallery_does_not_block_user_publication(client, register_user):
+    first_token, _ = await register_user(client, email="stale-external-a@example.com", role="host")
+    second_token, _ = await register_user(client, email="stale-external-b@example.com", role="host")
+
+    first_assets = await upload_gallery(client, first_token, [151, 152, 153])
+    second_assets = await upload_gallery(client, second_token, [151, 152, 153])
+
+    first = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(first_token),
+        json=customer_listing(assetIds=first_assets),
+    )
+    assert first.status_code == 201, first.text
+
+    async with SessionLocal() as session:
+        stale_external = await session.get(Listing, UUID(first.json()["id"]))
+        assert stale_external is not None
+        stale_external.is_external = True
+        stale_external.primary_source = "Idealista"
+        stale_external.external_image_urls = [
+            f"https://images.example.test/current-{index}.webp"
+            for index in range(5)
+        ]
+        await session.commit()
+
+    allowed = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(second_token),
+        json=customer_listing(
+            assetIds=second_assets,
+            title="Habitación legítima frente a snapshot parser no reconciliado",
+        ),
+    )
+    assert allowed.status_code == 201, allowed.text
+
+
 async def test_same_address_and_price_with_different_gallery_is_allowed(client, register_user):
     first_token, _ = await register_user(client, email="same-address-a@example.com", role="host")
     second_token, _ = await register_user(client, email="same-address-b@example.com", role="host")
