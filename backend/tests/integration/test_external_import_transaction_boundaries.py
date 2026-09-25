@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+from io import BytesIO
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from PIL import Image
 from botocore.exceptions import EndpointConnectionError
 from sqlalchemy import select
 
@@ -127,6 +129,43 @@ async def test_source_discovery_and_detail_fetch_run_without_database_transactio
         assert source.discovery_checked
         assert source.fetch_checked
         assert not session.in_transaction()
+
+
+async def test_public_image_fingerprints_use_full_bounded_gallery_and_fail_closed(monkeypatch):
+    calls: list[str] = []
+
+    output = BytesIO()
+    Image.new("RGB", (32, 24), (80, 120, 160)).save(output, "PNG")
+    image_bytes = output.getvalue()
+
+    class FakeResponse:
+        def __init__(self, *, ok: bool = True) -> None:
+            self.status_code = 200 if ok else 503
+            self.headers = {"content-type": "image/png"}
+            self.content = image_bytes
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url: str, headers=None):
+            calls.append(url)
+            return FakeResponse(ok=not url.endswith("broken.png"))
+
+    monkeypatch.setattr(importer.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+
+    urls = [f"https://images.example.test/sample-{index}.png" for index in range(7)]
+    fingerprints = await importer.public_image_fingerprints(urls)
+    assert calls == urls
+    assert len(fingerprints) == 7
+
+    calls.clear()
+    incomplete = [*urls, "https://images.example.test/broken.png"]
+    assert await importer.public_image_fingerprints(incomplete) == []
+    assert sorted(calls) == sorted(incomplete)
 
 
 async def test_image_download_and_storage_do_not_reuse_another_users_private_asset(monkeypatch):
