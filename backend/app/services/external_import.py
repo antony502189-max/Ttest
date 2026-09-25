@@ -38,6 +38,7 @@ from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
+from .listing_deduplication import duplicate_listing_for_hashes
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
 
@@ -306,56 +307,19 @@ async def system_user(session: AsyncSession) -> User:
 
 
 async def canonical_for(session: AsyncSession, item: NormalizedListing, image_hashes: set[str]) -> Listing | None:
-    terms = [value for value in (item.phone, item.whatsapp, item.email) if value]
-    if terms:
-        contact_match = await session.scalar(
-            select(Listing).where(
-                Listing.is_external.is_(True),
-                or_(
-                    Listing.external_contact_phone.in_(terms),
-                    Listing.external_contact_whatsapp.in_(terms),
-                    Listing.external_contact_email.in_(terms),
-                ),
-            )
-        )
-        if contact_match:
-            return contact_match
-    if image_hashes:
-        image_matches = (
-            await session.scalars(
-                select(Listing)
-                .join(ListingImage, ListingImage.listing_id == Listing.id)
-                .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
-                .where(
-                    Listing.is_external.is_(True),
-                    Listing.deleted_at.is_(None),
-                    MediaAsset.perceptual_hash.in_(image_hashes),
-                )
-                .distinct()
-            )
-        ).all()
-        for candidate in image_matches:
-            if (
-                similarity(candidate.title, item.title) >= 0.78
-                and similarity(candidate.description, item.description) >= 0.78
-            ):
-                return candidate
-    price_column = Listing.monthly_price if item.rental_mode == "long" else Listing.nightly_price
-    candidates = (
-        await session.scalars(
-            select(Listing).where(
-                Listing.is_external.is_(True),
-                Listing.city.ilike(f"%{item.city}%"),
-                price_column == item.price_amount,
-            )
-        )
-    ).all()
-    for candidate in candidates:
-        title_score = similarity(candidate.title, item.title)
-        description_score = similarity(candidate.description, item.description)
-        if title_score >= 0.9 or (title_score >= 0.78 and description_score >= 0.9):
-            return candidate
-    return None
+    """Find an existing external canonical only from the photo gallery.
+
+    Contact details, address/city, title, description and price are deliberately
+    excluded: one advertiser or one building can legitimately contain several
+    different rooms/listings.
+    """
+    del item
+    duplicate_id = await duplicate_listing_for_hashes(
+        session,
+        list(image_hashes),
+        external_only=True,
+    )
+    return await session.get(Listing, duplicate_id) if duplicate_id is not None else None
 
 
 def normalized_snapshot(item: NormalizedListing) -> dict:
@@ -378,15 +342,25 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             SourceRecord.source_name == item.source_name, SourceRecord.external_id == item.external_id
         )
     )
+    suppress_new_duplicate = False
     if source:
         listing = await session.get(Listing, source.canonical_listing_id)
     else:
         # The source lookup starts a transaction. Close it before downloading
-        # image samples for conservative cross-source deduplication.
+        # image samples for photo-only cross-source deduplication.
         await session.commit()
         require_no_active_transaction(session, "external image deduplication")
         image_hashes = await public_image_hashes(item.photos)
         listing = await canonical_for(session, item, image_hashes)
+        if listing is None and image_hashes:
+            duplicate_id = await duplicate_listing_for_hashes(
+                session,
+                list(image_hashes),
+                external_only=None,
+            )
+            if duplicate_id is not None:
+                duplicate = await session.get(Listing, duplicate_id)
+                suppress_new_duplicate = bool(duplicate is not None and not duplicate.is_external)
 
     coordinates = public_location(item)
     source_location_verified = coordinates is not None
@@ -411,6 +385,27 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         source.last_error = None if source_location_verified else "source_location_unverified"
         source.removed_at = None
         source.removed_reason = None
+
+        # A cleanup-suppressed external duplicate must not silently reappear on
+        # the next worker cycle. Re-check the *current* remote photos rather
+        # than stale title/price/address data. If images cannot be sampled,
+        # fail closed and keep the duplicate hidden until a later successful
+        # source cycle can prove it is no longer the same gallery.
+        if listing is not None and listing.status == "closed" and listing.closed_reason == "duplicate":
+            await session.commit()
+            require_no_active_transaction(session, "suppressed duplicate recheck")
+            current_hashes = await public_image_hashes(item.photos)
+            if not current_hashes:
+                return "unchanged"
+            active_duplicate_id = await duplicate_listing_for_hashes(
+                session,
+                list(current_hashes),
+                exclude_listing_id=listing.id,
+            )
+            if active_duplicate_id is not None:
+                await session.commit()
+                return "unchanged"
+
         if (
             not source_location_verified
             and listing is not None
@@ -470,7 +465,8 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             tenant_requirement=item.tenant_requirement,
             room_type=item.room_type,
             location=point(coordinates[1], coordinates[0]) if coordinates is not None else None,
-            status="published",
+            status="closed" if suppress_new_duplicate else "published",
+            closed_reason="duplicate" if suppress_new_duplicate else None,
             is_external=True,
             imported_at=now,
             smoking_allowed=item.smoking_allowed,
@@ -489,7 +485,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         action = "imported"
     else:
         action = "updated"
-    restored = listing.status == "closed"
+    restored = action != "imported" and listing.status == "closed"
     replace_primary = (
         not listing.primary_source
         or listing.primary_source == item.source_name
@@ -551,8 +547,12 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.external_contact_whatsapp = item.whatsapp
         listing.external_contact_email = item.email
         listing.last_synced_at = now
-        listing.status = "published"
-        listing.closed_reason = None
+        if suppress_new_duplicate:
+            listing.status = "closed"
+            listing.closed_reason = "duplicate"
+        else:
+            listing.status = "published"
+            listing.closed_reason = None
         listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
     elif restored:
         listing.status = "published"
@@ -585,7 +585,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     if action != "unchanged" or restored:
         await touch_catalog(session)
 
-    if action == "imported" or restored:
+    if (action == "imported" or restored) and listing.status == "published":
         await notify_saved_search_matches(session, listing)
 
     result = "restored" if restored else action
