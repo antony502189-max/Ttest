@@ -356,6 +356,7 @@ async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypa
         assert first_count == 0
 
         assert await importer.upsert(session, item) == "updated"
+        assert not session.in_transaction()
         second_count = int(
             await session.scalar(
                 select(func.count(ListingImage.media_asset_id)).where(
@@ -366,7 +367,6 @@ async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypa
         )
         assert second_count == 1
         assert attempts == 2
-        assert not session.in_transaction()
 
 
 async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(monkeypatch):
@@ -406,6 +406,9 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
         assert source_record is not None
         listing = await session.get(Listing, source_record.canonical_listing_id)
         assert listing is not None
+        # Direct service calls must honor the same no-open-transaction boundary
+        # used by upsert() before remote image I/O.
+        await session.commit()
 
         first_urls = [f"https://images.example.test/room-{index}.webp" for index in range(25)]
         await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
