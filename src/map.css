@@ -624,3 +624,30 @@
   }
 }
 
+
+.selected-listing-carousel__title-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--market-link);
+  font-size: .82rem;
+  font-weight: 730;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.selected-listing-sheet__actions .selected-listing-carousel__action-preview {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid !important;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: inherit;
+}
+
+.selected-listing-sheet__actions .selected-listing-carousel__action-preview.is-saved {
+  background: var(--brand-soft);
+  color: var(--market-magenta);
+}
