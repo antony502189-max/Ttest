@@ -8,11 +8,11 @@ import { requestCurrentLocation } from '@/lib/geolocation'
 import { getPrimaryPrice } from '@/lib/listings'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
-import { buildDisplayMarkerPositions } from '@/lib/map-marker-overlap'
+import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
-import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPriceMarkerState } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { cn } from '@/lib/utils'
@@ -130,8 +130,13 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   const [actionAnnouncement, setActionAnnouncement] = useState('')
   const [layer, setLayer] = useState<MapLayerId>('street')
   const [focusSheetOnOpen, setFocusSheetOnOpen] = useState(false)
+  const [coincidentIds, setCoincidentIds] = useState<string[]>([])
 
   const selected = items.find((item) => item.id === selectedId)
+  const coincidentListings = coincidentIds.flatMap((id) => {
+    const listing = items.find((item) => item.id === id)
+    return listing ? [listing] : []
+  })
   // Geometry drives marker recreation and fitting. TOP state is intentionally
   // separate so a remote promotion refresh cannot undo the user's pan/zoom.
   const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}`).join('|'), [items])
@@ -285,6 +290,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     const displayPositions = buildDisplayMarkerPositions(itemsRef.current)
     const markers = itemsRef.current.map((listing) => {
       const content = createPriceMarkerContent(listing)
+      content.dataset.listingId = listing.id
       setPriceMarkerState(content, listing.id === selectedIdRef.current, listing.id === highlightedIdRef.current, Boolean(listing.promoted))
       content.dataset.markerZIndex = listing.id === selectedIdRef.current ? '3000' : listing.promoted ? '100' : '10'
       const display = displayPositions.get(listing.id) ?? { position: listing.coordinates, coincidentCount: 1 }
@@ -301,6 +307,8 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       const select = (original: Event) => {
         setFocusSheetOnOpen(original instanceof KeyboardEvent || (original instanceof MouseEvent && original.detail === 0))
         returnFocusRef.current = original.target instanceof HTMLElement ? original.target : content
+        const groupIds = coincidentListingIdsFor(itemsRef.current, listing.id)
+        setCoincidentIds(groupIds.length > 1 ? groupIds : [])
         onSelectRef.current(listing.id)
       }
       marker.addEventListener('gmp-click', select)
@@ -320,6 +328,25 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
         markers,
         algorithm: new SuperClusterAlgorithm({ radius: 58, maxZoom: 20 }),
         renderer: new AdvancedClusterRenderer(),
+        onClusterClick: (_event, cluster, clusterMap) => {
+          const clusteredIds = cluster.markers.flatMap((clusterMarker) => {
+            if (!(clusterMarker instanceof google.maps.marker.AdvancedMarkerElement)) return []
+            const markerContent = clusterMarker.content
+            const listingId = markerContent instanceof HTMLElement ? markerContent.dataset.listingId : undefined
+            return listingId ? [listingId] : []
+          })
+          const exactIds = exactCoincidentListingIds(itemsRef.current, clusteredIds)
+          if (exactIds.length > 1) {
+            setFocusSheetOnOpen(false)
+            setCoincidentIds(exactIds)
+            onSelectRef.current(exactIds[0])
+            const first = itemsRef.current.find((listing) => listing.id === exactIds[0])
+            if (first) clusterMap.panTo(first.coordinates)
+            return
+          }
+          setCoincidentIds([])
+          if (cluster.bounds) clusterMap.fitBounds(cluster.bounds)
+        },
       })
     if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })
     clusterRef.current = cluster
@@ -355,6 +382,18 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     const applyClusterState = () => {
       containerRef.current?.querySelectorAll('.map-cluster-marker.is-highlighted, .map-cluster-marker.is-selected').forEach((node) => node.classList.remove('is-highlighted', 'is-selected'))
       const clusters = (clusterer as unknown as { clusters: Array<{ marker?: google.maps.Marker | google.maps.marker.AdvancedMarkerElement; markers: Array<google.maps.Marker | google.maps.marker.AdvancedMarkerElement> }> }).clusters
+      clusters.forEach((candidate) => {
+        if (!(candidate.marker instanceof google.maps.marker.AdvancedMarkerElement)) return
+        const clusterContent = candidate.marker.content
+        if (!(clusterContent instanceof HTMLElement)) return
+        const clusterPromoted = candidate.markers.some((child) => {
+          if (!(child instanceof google.maps.marker.AdvancedMarkerElement)) return false
+          const childContent = child.content
+          return childContent instanceof HTMLElement && Boolean(childContent.querySelector('.map-price-marker.is-promoted'))
+        })
+        setClusterPromotionState(clusterContent, clusterPromoted)
+        candidate.marker!.zIndex = (clusterPromoted ? 2000 : 1000) + candidate.markers.length
+      })
       ;([{ id: highlightedId, className: 'is-highlighted' }, { id: selectedId, className: 'is-selected' }] as const).forEach(({ id, className }) => {
         const listingMarker = id ? markersRef.current.get(id) : undefined
         if (!listingMarker) return
@@ -372,6 +411,16 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       clusterListener.remove()
     }
   }, [highlightedId, promotionSignature, ready, selectedId])
+
+  useEffect(() => {
+    if (!selectedId) {
+      setCoincidentIds((current) => current.length ? [] : current)
+      return
+    }
+    const next = coincidentListingIdsFor(itemsRef.current, selectedId)
+    const nextIds = next.length > 1 ? next : []
+    setCoincidentIds((current) => current.join('|') === nextIds.join('|') ? current : nextIds)
+  }, [itemSignature, selectedId])
 
   useEffect(() => {
     const previous = previousFitResultsKeyRef.current
@@ -630,7 +679,14 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     {!ready && !mapError ? <div className="map-loading" role="status" aria-live="polite"><span aria-hidden="true" /><strong>Cargando Google Maps</strong></div> : null}
     {googleMapsConfig.usesDevelopmentMapId ? <p className="map-dev-notice">Mapa de desarrollo: configura un Map ID propio antes de publicar.</p> : null}
     {mapError ? <div className="map-inline-error" role="alert"><strong>Mapa no disponible</strong><span>{mapError}</span></div> : null}
-    {selected && showPreview ? <SelectedListingSheet listing={selected} focusOnOpen={focusSheetOnOpen} returnFocus={returnFocusRef.current} onClose={() => { setFocusSheetOnOpen(false); onSelect('') }} /> : null}
+    {selected && showPreview ? <SelectedListingSheet
+      listing={selected}
+      siblingListings={coincidentListings}
+      focusOnOpen={focusSheetOnOpen}
+      returnFocus={returnFocusRef.current}
+      onSelectSibling={(id) => { setFocusSheetOnOpen(false); onSelect(id) }}
+      onClose={() => { setFocusSheetOnOpen(false); setCoincidentIds([]); onSelect('') }}
+    /> : null}
     <div className="map-list-alternative" aria-label="Alternativa textual al mapa">
       {items.map((item) => <button key={item.id} type="button" onFocus={() => onHighlight?.(item.id)} onMouseEnter={() => onHighlight?.(item.id)} onClick={() => onSelect(item.id)} aria-pressed={item.id === selectedId}><MapPin aria-hidden="true" /><span><strong>{item.area}</strong><small>{priceLabel(item)}</small></span></button>)}
     </div>
