@@ -1232,15 +1232,20 @@ export function PropertyGallery({ listing }: { listing: Listing }) {
             onError={imageFallback}
             onLoad={() => {
               if (listing.images.length > 1) {
-                preloadMediaImages([
-                  listing.images[(index + 1) % listing.images.length],
-                  listing.images[(index - 1 + listing.images.length) % listing.images.length],
-                ]);
+                preloadMediaImages(
+                  [
+                    listing.images[(index + 1) % listing.images.length],
+                    listing.images[(index - 1 + listing.images.length) % listing.images.length],
+                  ],
+                  window.innerWidth <= 900 ? "card" : "full",
+                );
               }
             }}
             alt={`Habitación en ${listing.area}, foto ${index + 1} de ${listing.images.length}`}
             width="1200"
             height="800"
+            responsive
+            sizes="(max-width: 767px) 100vw, 70vw"
             loading="eager"
             fetchPriority="high"
           />
