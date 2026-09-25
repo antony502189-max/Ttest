@@ -41,24 +41,48 @@ test('mobile map keeps coincident listings at one truthful position for clusteri
 })
 
 
-test('same-address cluster contract reveals separate clickable price choices without moving coordinates', () => {
+test('same-address cluster opens one listing carousel without moving coordinates', () => {
   const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
   const css = readFileSync('src/mobile-map-ideal.css', 'utf8')
 
   expect(layer).toContain('onClusterClick:')
   expect(layer).toContain('exactCoincidentListingIds(mappedItems, clusteredIds)')
-  expect(layer).toContain('data-testid="mobile-map-coincident-picker"')
-  expect(layer).toContain('mobile-map-coincident-option-')
-  expect(css).toContain('.m2-map-coincident-picker__options')
+  expect(layer).toContain('setCoincidentIds(coincidentIds)')
+  expect(layer).toContain('data-group-size={carousel.length}')
+  expect(layer).toContain('m2-map-listing-preview__carousel-arrow--prev')
+  expect(layer).toContain('m2-map-listing-preview__carousel-arrow--next')
+  expect(layer).not.toContain('mobile-map-coincident-option-')
+  expect(css).toContain('.m2-map-listing-preview__carousel-arrow')
+  expect(css).toContain('.m2-map-listing-preview__carousel-count')
 })
 
 
-test('four same-address choices use a stable compact 2x2 layout', () => {
+test('same-address carousel is not capped at four listings', () => {
+  const overlap = readFileSync('src/lib/map-marker-overlap.ts', 'utf8')
+  const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
+
+  expect(overlap).toContain('export function coincidentListingIdsFor')
+  expect(layer).toContain('coincidentListingIdsFor(mappedItems, selectedId)')
+  expect(layer).not.toMatch(/slice\(0,\s*4\)/)
+  expect(layer).not.toMatch(/coincidentIds\.length\s*[><=]+\s*4/)
+})
+
+test('same-address carousel preserves the external source image-link contract', () => {
+  const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
+
+  expect(layer).toContain('<div className="m2-map-listing-preview__media-shell">')
+  expect(layer).toContain('<a className="m2-map-listing-preview__media" href={externalUrl}')
+})
+
+test('same-address carousel exposes neighboring listing peeks and wraps in both directions', () => {
   const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
   const css = readFileSync('src/mobile-map-ideal.css', 'utf8')
 
-  expect(layer).toContain('data-count={expandedCoincidentListings.length}')
-  expect(css).toMatch(/\.m2-map-coincident-picker__options\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
-  expect(css).toMatch(/\.m2-map-coincident-picker\s*\{[\s\S]*?max-height:\s*min\(24rem,[\s\S]*?overflow-y:\s*auto/)
-  expect(css).not.toMatch(/@media \(max-width:\s*340px\)[\s\S]*?\.m2-map-coincident-picker__options\s*\{[\s\S]*?grid-template-columns:\s*1fr/)
+  expect(layer).toContain('mobile-map-listing-peek-prev')
+  expect(layer).toContain('mobile-map-listing-peek-next')
+  expect(layer).toContain('(carouselIndex - 1 + carousel.length) % carousel.length')
+  expect(layer).toContain('(carouselIndex + 1) % carousel.length')
+  expect(css).toContain('.m2-map-listing-preview__neighbor-peek--prev')
+  expect(css).toContain('.m2-map-listing-preview__neighbor-peek--next')
+  expect(css).toContain('width: 72%')
 })
