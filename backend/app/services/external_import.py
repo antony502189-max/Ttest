@@ -38,7 +38,7 @@ from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
-from .listing_deduplication import duplicate_listing_for_hashes
+from .listing_deduplication import acquire_duplicate_guard, duplicate_listing_for_hashes
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
 
@@ -351,6 +351,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         await session.commit()
         require_no_active_transaction(session, "external image deduplication")
         image_hashes = await public_image_hashes(item.photos)
+        await acquire_duplicate_guard(session)
         listing = await canonical_for(session, item, image_hashes)
         if listing is None and image_hashes:
             duplicate_id = await duplicate_listing_for_hashes(
@@ -397,6 +398,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             current_hashes = await public_image_hashes(item.photos)
             if not current_hashes:
                 return "unchanged"
+            await acquire_duplicate_guard(session)
             active_duplicate_id = await duplicate_listing_for_hashes(
                 session,
                 list(current_hashes),
