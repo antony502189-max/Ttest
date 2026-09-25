@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Heart, MessageSquare, Phone, X } from 'lucide-react'
+import { useEffect, useMemo, useRef } from 'react'
+import { ChevronLeft, ChevronRight, Heart, MessageSquare, Phone, X } from 'lucide-react'
 import { Link } from 'react-router'
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
@@ -8,10 +8,29 @@ import { priceLabel } from '@/components/map/map-icons'
 import { cn } from '@/lib/utils'
 import type { Listing } from '@/types'
 
-export function SelectedListingSheet({ listing, onClose, focusOnOpen = false, returnFocus }: { listing: Listing; onClose: () => void; focusOnOpen?: boolean; returnFocus?: HTMLElement | null }) {
+export function SelectedListingSheet({
+  listing,
+  siblingListings = [],
+  onSelectSibling,
+  onClose,
+  focusOnOpen = false,
+  returnFocus,
+}: {
+  listing: Listing
+  siblingListings?: Listing[]
+  onSelectSibling?: (id: string) => void
+  onClose: () => void
+  focusOnOpen?: boolean
+  returnFocus?: HTMLElement | null
+}) {
   const { favorites, toggleFavorite } = useApp()
   const sheetRef = useRef<HTMLElement>(null)
   const saved = favorites.has(listing.id)
+  const carousel = useMemo(() => siblingListings.length > 1 ? siblingListings : [listing], [listing, siblingListings])
+  const carouselIndex = Math.max(0, carousel.findIndex((item) => item.id === listing.id))
+  const hasCarousel = carousel.length > 1
+  const previous = carouselIndex > 0 ? carousel[carouselIndex - 1] : null
+  const next = carouselIndex < carousel.length - 1 ? carousel[carouselIndex + 1] : null
 
   useEffect(() => {
     if (focusOnOpen) requestAnimationFrame(() => sheetRef.current?.focus())
@@ -28,10 +47,24 @@ export function SelectedListingSheet({ listing, onClose, focusOnOpen = false, re
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose, returnFocus])
 
-  return <article ref={sheetRef} className="selected-listing-sheet map-selected-card" aria-label={`Habitación seleccionada en ${listing.area}`} tabIndex={-1}>
+  return <article
+    ref={sheetRef}
+    className="selected-listing-sheet map-selected-card"
+    aria-label={`Habitación seleccionada en ${listing.area}`}
+    tabIndex={-1}
+    data-listing-id={listing.id}
+    data-group-size={carousel.length}
+    data-promoted={listing.promoted || undefined}
+  >
     <div className="selected-listing-sheet__media map-selected-card__media">
       <MediaImage src={listing.images[0]} alt={`Habitación en ${listing.area}`} width="576" height="360" />
       {listing.images[1] ? <MediaImage className="selected-listing-sheet__secondary-photo" src={listing.images[1]} alt="" width="384" height="360" /> : null}
+      {listing.promoted ? <span className="selected-listing-sheet__promoted" aria-label="Anuncio TOP">👍</span> : null}
+      {hasCarousel ? <>
+        <button type="button" className="selected-listing-sheet__carousel-arrow selected-listing-sheet__carousel-arrow--prev" aria-label="Anuncio anterior en esta dirección" disabled={!previous} onClick={() => previous && onSelectSibling?.(previous.id)}><ChevronLeft aria-hidden="true" /></button>
+        <button type="button" className="selected-listing-sheet__carousel-arrow selected-listing-sheet__carousel-arrow--next" aria-label="Siguiente anuncio en esta dirección" disabled={!next} onClick={() => next && onSelectSibling?.(next.id)}><ChevronRight aria-hidden="true" /></button>
+        <span className="selected-listing-sheet__carousel-count" aria-label={`Anuncio ${carouselIndex + 1} de ${carousel.length} en esta dirección`}>${carouselIndex + 1}/${carousel.length}</span>
+      </> : null}
       <span className="selected-listing-sheet__photo-count">1/{listing.images.length}</span>
     </div>
     <div className="selected-listing-sheet__content">
