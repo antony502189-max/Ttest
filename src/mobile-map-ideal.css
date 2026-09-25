@@ -684,3 +684,15 @@
   }
 }
 
+
+.m2-map-listing-card:not(.is-current) .m2-map-listing-preview__actions > span {
+  min-height: 2.35rem;
+}
+
+.m2-map-listing-card:not(.is-current) .m2-map-listing-preview__open {
+  cursor: default;
+}
+
+.m2-map-listing-card:not(.is-current) .m2-map-listing-preview__favorite {
+  cursor: default;
+}
