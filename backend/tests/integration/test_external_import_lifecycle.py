@@ -66,6 +66,7 @@ def external_item(
 
 
 async def attach_photo_fingerprint(session, listing: Listing, *, suffix: str) -> None:
+    listing.external_image_urls = [f"https://images.example.test/{suffix}.webp"]
     asset = MediaAsset(
         owner_id=listing.owner_user_id,
         storage_key=f"test/external-photo-{suffix}-{listing.id}.webp",
@@ -545,6 +546,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
                 is_cover=True,
             )
         )
+        first_listing.external_image_urls = ["https://images.example.test/external-dedupe.webp"]
         await session.commit()
 
         after_import_catalog = await client.get("/api/v1/listings/catalog-version")
