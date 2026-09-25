@@ -38,3 +38,22 @@ test('only a cluster whose listings share the exact real point is expanded into 
   expect(exactCoincidentListingIds(items as never, ['room-a', 'room-b'])).toEqual(['room-a', 'room-b'])
   expect(exactCoincidentListingIds(items as never, ['room-a', 'nearby-room'])).toEqual([])
 })
+
+
+test('four listings at one address remain on one truthful point and are all selectable candidates', () => {
+  const items: MarkerItem[] = Array.from({ length: 4 }, (_, index) => ({
+    id: `room-${index + 1}`,
+    coordinates: origin,
+  }))
+
+  const positions = buildDisplayMarkerPositions(items as never)
+  expect([...positions.values()]).toHaveLength(4)
+  expect([...positions.values()].every((value) => value.coincidentCount === 4)).toBe(true)
+  expect([...positions.values()].every((value) => value.position.lat === origin.lat && value.position.lng === origin.lng)).toBe(true)
+  expect(exactCoincidentListingIds(items as never, items.map((item) => item.id))).toEqual([
+    'room-1',
+    'room-2',
+    'room-3',
+    'room-4',
+  ])
+})

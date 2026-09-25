@@ -199,7 +199,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [mapReady, mapRef])
 
   if (!selected && expandedCoincidentListings.length > 1) {
-    return <aside className="m2-map-coincident-picker" data-testid="mobile-map-coincident-picker" aria-label={t.group(expandedCoincidentListings.length)}>
+    return <aside className="m2-map-coincident-picker" data-testid="mobile-map-coincident-picker" data-count={expandedCoincidentListings.length} aria-label={t.group(expandedCoincidentListings.length)}>
       <header>
         <div><strong>{t.group(expandedCoincidentListings.length)}</strong><span>{expandedCoincidentListings[0].approximateAddress ? `${expandedCoincidentListings[0].approximateAddress}, ${expandedCoincidentListings[0].city}` : `${expandedCoincidentListings[0].area}, ${expandedCoincidentListings[0].city}`}</span></div>
         <button type="button" onClick={() => setExpandedCoincidentIds([])} aria-label={t.close}><X /></button>

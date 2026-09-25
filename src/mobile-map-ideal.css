@@ -245,8 +245,11 @@
   left: .7rem;
   z-index: 39;
   max-width: min(32rem, calc(100% - 1.4rem));
+  max-height: min(24rem, calc(100dvh - 7rem - env(safe-area-inset-bottom)));
   margin-inline: auto;
   padding: .75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid #d7d9d5;
   border-radius: .85rem;
   background: rgb(255 255 255 / .98);
@@ -356,9 +359,23 @@
     right: .45rem;
     left: .45rem;
     max-width: calc(100% - .9rem);
+    padding: .6rem;
   }
 
   .m2-map-coincident-picker__options {
-    grid-template-columns: 1fr;
+    gap: .4rem;
+  }
+
+  .m2-map-coincident-picker__options > button {
+    min-height: 3.7rem;
+    padding: .55rem .6rem;
+  }
+
+  .m2-map-coincident-picker__options > button > strong {
+    font-size: .94rem;
+  }
+
+  .m2-map-coincident-picker__options > button > span {
+    font-size: .68rem;
   }
 }
