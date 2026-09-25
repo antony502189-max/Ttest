@@ -486,6 +486,15 @@ async def test_imported_listing_cannot_be_deleted_by_owner_or_admin(client: Asyn
         )
         await session.commit()
 
+    source_owner_mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
+    assert source_owner_mine.status_code == 200, source_owner_mine.text
+    assert source_backed_id not in {item["id"] for item in source_owner_mine.json()}
+
+    source_admin_rows = await client.get("/api/v1/admin/listings", headers=auth(admin_token))
+    assert source_admin_rows.status_code == 200, source_admin_rows.text
+    source_admin_row = next(item for item in source_admin_rows.json() if item["id"] == source_backed_id)
+    assert source_admin_row["isExternal"] is True
+
     source_owner_delete = await client.delete(f"/api/v1/listings/{source_backed_id}", headers=auth(owner_token))
     assert source_owner_delete.status_code == 409, source_owner_delete.text
     assert source_owner_delete.json()["code"] == "EXTERNAL_LISTING_DELETE_FORBIDDEN"

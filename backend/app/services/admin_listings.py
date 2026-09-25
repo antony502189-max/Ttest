@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Listing, User
+from ..models import ExternalListingSource, Listing, User
 from ..models.moderation import ListingPromotion, ListingRestriction
 from ..schemas.admin import AdminListingResponse
 from .admin import public_listing
@@ -57,8 +57,14 @@ async def list_listings(
     actionable moderation target. Keep those rows out of the active moderation
     queue; report history resolves its own owner/listing context separately.
     """
+    source_backed = (
+        select(ExternalListingSource.id)
+        .where(ExternalListingSource.canonical_listing_id == Listing.id)
+        .correlate(Listing)
+        .exists()
+    )
     query = (
-        select(Listing, User, ListingPromotion)
+        select(Listing, User, ListingPromotion, source_backed)
         .join(User, User.id == Listing.owner_user_id)
         .outerjoin(ListingPromotion, ListingPromotion.listing_id == Listing.id)
         .where(
@@ -95,7 +101,7 @@ async def list_listings(
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
     restrictions = await _active_restrictions_by_listing(
         session,
-        [listing.id for listing, _, _ in rows],
+        [listing.id for listing, _, _, _ in rows],
     )
     return [
         public_listing(
@@ -103,6 +109,7 @@ async def list_listings(
             owner=owner,
             restriction=restrictions.get(listing.id),
             promotion=promotion,
+            source_backed=bool(source_backed),
         )
-        for listing, owner, promotion in rows
+        for listing, owner, promotion, source_backed in rows
     ]

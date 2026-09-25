@@ -16,6 +16,20 @@ function coordinateKey(point: MarkerListing['coordinates']) {
  * share one dwelling stay on the same real point and MarkerClusterer renders
  * them as a count cluster, including at the map's maximum user zoom.
  */
+export function exactCoincidentListingIds(items: MarkerListing[], candidateIds: string[]) {
+  if (candidateIds.length < 2) return []
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const candidates = candidateIds.flatMap((id) => {
+    const item = byId.get(id)
+    return item ? [item] : []
+  })
+  if (candidates.length !== candidateIds.length || candidates.length < 2) return []
+  const key = coordinateKey(candidates[0].coordinates)
+  return candidates.every((item) => coordinateKey(item.coordinates) === key)
+    ? candidates.map((item) => item.id)
+    : []
+}
+
 export function buildDisplayMarkerPositions(items: MarkerListing[]) {
   const counts = new Map<string, number>()
   for (const item of items) {
