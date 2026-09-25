@@ -7,12 +7,13 @@ from uuid import UUID, uuid4
 
 import pytest
 from PIL import Image
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.db.session import SessionLocal
-from app.models import Listing, User
+from app.models import Listing, ListingImage, User
 from app.schemas.listings import ListingWrite
 from app.services import listing_limits, listings
+from app.services.duplicate_cleanup import deduplicate_active_listings
 
 pytestmark = pytest.mark.integration
 
@@ -463,3 +464,63 @@ async def test_concurrent_duplicate_publications_leave_one_listing(client, regis
     assert sorted(response.status_code for response in responses) == [201, 409]
     rejected = next(response for response in responses if response.status_code == 409)
     assert rejected.json()["code"] == "DUPLICATE_LISTING_IMAGES"
+
+
+
+async def test_existing_duplicate_cleanup_is_dry_run_then_idempotent_apply(client, register_user):
+    first_token, _ = await register_user(client, email="cleanup-duplicate-a@example.com", role="host")
+    second_token, _ = await register_user(client, email="cleanup-duplicate-b@example.com", role="host")
+
+    canonical_assets = await upload_gallery(client, first_token, [801, 802, 803])
+    initial_assets = await upload_gallery(client, second_token, [901, 902, 903])
+    duplicate_assets = await upload_gallery(client, second_token, [801, 802, 803])
+
+    first = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(first_token),
+        json=customer_listing(assetIds=canonical_assets),
+    )
+    second = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(second_token),
+        json=customer_listing(assetIds=initial_assets),
+    )
+    assert first.status_code == second.status_code == 201
+
+    first_id = UUID(first.json()["id"])
+    second_id = UUID(second.json()["id"])
+    async with SessionLocal() as session:
+        await session.execute(delete(ListingImage).where(ListingImage.listing_id == second_id))
+        for order, asset_id in enumerate(duplicate_assets):
+            session.add(
+                ListingImage(
+                    listing_id=second_id,
+                    media_asset_id=UUID(asset_id),
+                    sort_order=order,
+                    is_cover=order == 0,
+                )
+            )
+        await session.commit()
+
+        dry_run = await deduplicate_active_listings(session, apply=False)
+        assert dry_run["duplicates"] == 1
+        assert dry_run["changed"] == 0
+
+        first_listing = await session.get(Listing, first_id)
+        second_listing = await session.get(Listing, second_id)
+        assert first_listing is not None and first_listing.status != "closed"
+        assert second_listing is not None and second_listing.status != "closed"
+
+        applied = await deduplicate_active_listings(session, apply=True)
+        assert applied["duplicates"] == 1
+        assert applied["changed"] == 1
+
+        await session.refresh(first_listing)
+        await session.refresh(second_listing)
+        assert first_listing.status != "closed"
+        assert second_listing.status == "closed"
+        assert second_listing.closed_reason == "duplicate"
+
+        repeated = await deduplicate_active_listings(session, apply=True)
+        assert repeated["duplicates"] == 0
+        assert repeated["changed"] == 0
