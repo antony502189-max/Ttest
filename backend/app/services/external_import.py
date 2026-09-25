@@ -38,7 +38,12 @@ from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
-from .listing_deduplication import ImageFingerprint, acquire_duplicate_guard, duplicate_listing_id
+from .listing_deduplication import (
+    ImageFingerprint,
+    acquire_duplicate_guard,
+    duplicate_listing_id,
+    external_gallery_is_reconciled,
+)
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
 from .storage_deletions import enqueue_storage_deletions
@@ -576,10 +581,38 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             await session.commit()
             return "updated"
 
+    # An identical source payload is only a no-op when the primary parser
+    # gallery is already reconciled. A transient image failure may leave the
+    # listing metadata current but its local media incomplete; that state must
+    # retry on the next unchanged source cycle instead of becoming permanent.
+    gallery_reconciled = True
+    if (
+        listing is not None
+        and listing.primary_source == item.source_name
+        and item.photos
+        and get_settings().external_import_download_images
+    ):
+        stored_image_count = int(
+            await session.scalar(
+                select(func.count(ListingImage.media_asset_id))
+                .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
+                .where(
+                    ListingImage.listing_id == listing.id,
+                    MediaAsset.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+        gallery_reconciled = external_gallery_is_reconciled(
+            is_external=listing.is_external,
+            external_image_urls=list(listing.external_image_urls or []),
+            stored_image_count=stored_image_count,
+        )
+
     # An identical payload is only a no-op while its canonical card is still
-    # visible. A source may reappear after a confirmed removal; in that case
-    # the canonical listing must be restored even though its fingerprint did
-    # not change.
+    # visible and its primary image gallery is complete. A source may reappear
+    # after a confirmed removal; in that case the canonical listing must be
+    # restored even though its fingerprint did not change.
     if (
         source
         and previous_fingerprint == item.fingerprint
@@ -587,6 +620,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         and source.current_status == "active"
         and listing is not None
         and listing.status != "closed"
+        and gallery_reconciled
         and (
             listing.primary_source != item.source_name
             or (coordinates is None and listing.location is None)
