@@ -84,3 +84,31 @@ test('authenticated mobile menu separates listing management from profile editin
   await editProfile.click()
   await expect(page).toHaveURL(/#\/perfil$/)
 })
+
+
+test('route transition replaces stale admin content with a neutral loader while the listings page chunk loads', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem('112233:language:v1', 'ru')
+    localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo'))
+  })
+
+  let delayed = false
+  await page.route(/\/src\/pages\/AccountPages\.tsx(?:\?.*)?$/, async (route) => {
+    delayed = true
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    await route.continue()
+  })
+
+  await page.goto('/#/admin')
+  await expect(page.locator('.admin-page')).toBeVisible()
+
+  await page.evaluate(() => { window.location.hash = '#/mis-anuncios' })
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  await expect(page.locator('.route-loading')).toBeVisible()
+  await expect(page.locator('.admin-page')).toHaveCount(0)
+
+  await expect.poll(() => delayed).toBe(true)
+  await expect(page.locator('.route-loading')).toHaveCount(0)
+  await expect(page.locator('.admin-page')).toHaveCount(0)
+})
