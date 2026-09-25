@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 import httpx
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
