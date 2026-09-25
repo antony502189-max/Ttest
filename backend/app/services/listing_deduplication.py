@@ -37,11 +37,7 @@ def hamming_distance(left: str, right: str) -> int:
 
 
 def phash_neighbors(value: str, *, distance: int = PHASH_ANCHOR_DISTANCE) -> set[str]:
-    """Return an index-friendly bounded neighborhood.
-
-    Distance one is intentionally used only to discover candidate listings.
-    Full gallery comparison below still uses the wider visual threshold.
-    """
+    """Return a bounded full-hash neighborhood for in-memory callers."""
     try:
         number = int(value, 16)
     except ValueError:
@@ -50,6 +46,40 @@ def phash_neighbors(value: str, *, distance: int = PHASH_ANCHOR_DISTANCE) -> set
     if distance >= 1:
         result.update(f"{number ^ (1 << bit):016x}" for bit in range(64))
     return result
+
+
+def phash_band_neighbors(value: str) -> tuple[set[str], set[str], set[str], set[str]]:
+    """Return each 16-bit band plus all one-bit neighbors.
+
+    With a 64-bit Hamming threshold of four, at least one of four 16-bit bands
+    differs by no more than one bit. Expression indexes on these bands let
+    PostgreSQL discover every visual candidate without scanning all media.
+    """
+    normalized = value.casefold().zfill(16)
+    if len(normalized) != 16:
+        return (set(), set(), set(), set())
+    bands: list[set[str]] = []
+    try:
+        for start in (0, 4, 8, 12):
+            number = int(normalized[start : start + 4], 16)
+            neighbors = {f"{number:04x}"}
+            neighbors.update(f"{number ^ (1 << bit):04x}" for bit in range(16))
+            bands.append(neighbors)
+    except ValueError:
+        return (set(), set(), set(), set())
+    return bands[0], bands[1], bands[2], bands[3]
+
+
+def _phash_band_predicates(hashes: set[str]):
+    band_values = [set(), set(), set(), set()]
+    for value in hashes:
+        for index, neighbors in enumerate(phash_band_neighbors(value)):
+            band_values[index].update(neighbors)
+    return [
+        func.substr(MediaAsset.perceptual_hash, offset, 4).in_(values)
+        for offset, values in zip((1, 5, 9, 13), band_values, strict=True)
+        if values
+    ]
 
 
 def _aspect_ratio_close(left: ImageFingerprint, right: ImageFingerprint) -> bool:
@@ -124,7 +154,11 @@ def hash_galleries_are_duplicates(left: list[str], right: list[str]) -> bool:
         return left[0] == right[0]
 
     adjacency = [
-        [right_index for right_index, right_hash in enumerate(right) if hamming_distance(left_hash, right_hash) <= PHASH_MATCH_DISTANCE]
+        [
+            right_index
+            for right_index, right_hash in enumerate(right)
+            if hamming_distance(left_hash, right_hash) <= PHASH_MATCH_DISTANCE
+        ]
         for left_hash in left
     ]
     assigned: dict[int, int] = {}
@@ -180,19 +214,15 @@ async def _candidate_listing_ids(
     external_only: bool | None = None,
 ) -> list[UUID]:
     checksums = {item.checksum for item in fingerprints if item.checksum}
-    anchor_hashes: set[str] = set()
-    for item in fingerprints:
-        if item.perceptual_hash:
-            anchor_hashes.update(phash_neighbors(item.perceptual_hash))
+    perceptual_hashes = {item.perceptual_hash for item in fingerprints if item.perceptual_hash}
 
-    if not checksums and not anchor_hashes:
+    if not checksums and not perceptual_hashes:
         return []
 
     predicates = []
     if checksums:
         predicates.append(MediaAsset.checksum.in_(checksums))
-    if anchor_hashes:
-        predicates.append(MediaAsset.perceptual_hash.in_(anchor_hashes))
+    predicates.extend(_phash_band_predicates(perceptual_hashes))
 
     query = (
         select(ListingImage.listing_id)
@@ -242,9 +272,9 @@ async def duplicate_listing_for_hashes(
     hashes = list(dict.fromkeys(value for value in hashes if value))
     if not hashes:
         return None
-    anchors: set[str] = set()
-    for value in hashes:
-        anchors.update(phash_neighbors(value))
+    band_predicates = _phash_band_predicates(set(hashes))
+    if not band_predicates:
+        return None
 
     query = (
         select(ListingImage.listing_id)
@@ -254,7 +284,7 @@ async def duplicate_listing_for_hashes(
             Listing.deleted_at.is_(None),
             Listing.status.in_(ACTIVE_DUPLICATE_STATUSES),
             MediaAsset.deleted_at.is_(None),
-            MediaAsset.perceptual_hash.in_(anchors),
+            or_(*band_predicates),
         )
         .distinct()
     )
