@@ -591,7 +591,11 @@ async def update_listing(
             exact_latitude=payload.exactLatitude,
             exact_longitude=payload.exactLongitude,
         )
-    if listing.status != previous_status and listing.status in {"pending", "published"}:
+    if (
+        listing.status != previous_status
+        and listing.status in {"pending", "published"}
+        and asset_ids is None
+    ):
         await assert_existing_listing_gallery_is_unique(session, listing.id)
     if listing.status != previous_status:
         history = ListingStatusHistory(
