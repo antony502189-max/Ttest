@@ -28,6 +28,7 @@ type PublicationTestState = {
   imageListingIds?: string[]
   uploadFailures?: number
   uploadCalls?: number
+  deletedUploadIds?: string[]
   mine?: ReturnType<typeof listingResponse>[]
   publicListings?: ReturnType<typeof listingResponse>[]
   publicListingsAfterFirstSearch?: ReturnType<typeof listingResponse>[]
@@ -170,6 +171,10 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       const key = request.headers()['idempotency-key']
       return json(listingResponse(state.payload, key), 201)
     }
+    if (/^\/uploads\/[^/]+$/.test(path) && request.method() === 'DELETE') {
+      state.deletedUploadIds?.push(path.split('/')[2])
+      return route.fulfill({ status: 204, body: '' })
+    }
     if (path === '/uploads' && request.method() === 'POST') {
       state.uploadCalls = (state.uploadCalls ?? 0) + 1
       if ((state.uploadFailures ?? 0) > 0) {
@@ -234,14 +239,22 @@ test('publication preserves email and FastAPI validation errors in Spanish', asy
   expect(state.profilePatches).toBe(0)
 })
 
-test('duplicate photo gallery keeps the draft and shows localized replace-photo feedback after a visible check', async ({ page }) => {
-  const state = { mode: 'duplicate' as PublicationMode, posts: 0, profilePatches: 0, uploadCalls: 0 }
+test('duplicate photo gallery keeps the exact draft, removes temporary uploads and shows localized replace-photo feedback', async ({ page }) => {
+  const state = {
+    mode: 'duplicate' as PublicationMode,
+    posts: 0,
+    profilePatches: 0,
+    uploadCalls: 0,
+    deletedUploadIds: [] as string[],
+  }
   await mockPublicationApi(page, state)
   await openCompletedPublicationForm(page)
   await page.evaluate(() => {
     localStorage.setItem('112233:language:v1', 'ru')
     document.documentElement.lang = 'ru'
   })
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).not.toBeNull()
+  const draftBefore = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
 
   const publish = page.getByRole('button', { name: 'Publicar anuncio' })
   const startedAt = Date.now()
@@ -252,8 +265,11 @@ test('duplicate photo gallery keeps the draft and shows localized replace-photo 
 
   expect(state.uploadCalls).toBe(1)
   expect(state.posts).toBe(1)
+  expect(state.deletedUploadIds).toEqual(['22222222-2222-4222-8222-222222222222'])
   await expect(page).toHaveURL(/#\/publicar$/)
-  expect(await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).toBeTruthy()
+  const draftAfter = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
+  expect(draftAfter).toBe(draftBefore)
+  expect(draftAfter).toBeTruthy()
 })
 
 test('double click sends one idempotent publication and then synchronizes images', async ({ page }) => {
