@@ -4,9 +4,9 @@ import pytest
 from fastapi import HTTPException
 from PIL import Image
 
-from app.api.v1.uploads import media_quota_exceeded, validate_and_normalize
+from app.api.v1.uploads import media_quota_exceeded
 from app.core.config import Settings
-from app.services.media_processing import prepare_image, render_variant
+from app.services.media_processing import prepare_image, render_variant, validate_and_normalize
 
 
 def png_bytes(width: int = 12, height: int = 8) -> bytes:
