@@ -222,69 +222,88 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [mapReady, mapRef])
 
   if (!selected) return null
-  const capacity = selected.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(selected.roomCapacity)
-  const requirements = Array.from(new Set([...selected.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacity]))
-  const cadence = selected.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
-  const saved = favorites.has(selected.id)
-  const externalUrl = selected.isExternal && selected.sourceUrl ? selected.sourceUrl : null
-  const openInternalListing = () => {
-    window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: selected.id } }))
-  }
-  const translatedTitle = translateText(selected.title, language)
+
   const carousel = coincidentListings.length > 1 ? coincidentListings : [selected]
   const carouselIndex = Math.max(0, carousel.findIndex((listing) => listing.id === selected.id))
   const previous = carousel.length > 1 ? carousel[(carouselIndex - 1 + carousel.length) % carousel.length] : null
   const next = carousel.length > 1 ? carousel[(carouselIndex + 1) % carousel.length] : null
   const selectSibling = (id: string) => {
     setSelectedId(id)
-    const listing = mappedItems.find((item) => item.id === id)
-    if (listing) mapRef.current?.panTo(listing.coordinates)
+    const sibling = mappedItems.find((item) => item.id === id)
+    if (sibling) mapRef.current?.panTo(sibling.coordinates)
+  }
+  const openInternalListing = (id: string) => {
+    window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: id } }))
   }
 
-  return <article
-    className="m2-map-listing-preview"
+  type MobileCarouselPosition = 'previous' | 'current' | 'next'
+  const carouselSlots: Array<{ item: Listing; position: MobileCarouselPosition }> = carousel.length <= 1
+    ? [{ item: selected, position: 'current' }]
+    : carousel.length === 2
+      ? [{ item: selected, position: 'current' }, { item: next!, position: 'next' }]
+      : [{ item: previous!, position: 'previous' }, { item: selected, position: 'current' }, { item: next!, position: 'next' }]
+
+  const renderCard = ({ item, position }: { item: Listing; position: MobileCarouselPosition }) => {
+    const current = position === 'current'
+    const capacity = item.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(item.roomCapacity)
+    const requirements = Array.from(new Set([...item.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacity]))
+    const cadence = item.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
+    const saved = favorites.has(item.id)
+    const externalUrl = item.isExternal && item.sourceUrl ? item.sourceUrl : null
+    const translatedTitle = translateText(item.title, language)
+
+    return <article
+      key={item.id}
+      className={cn('m2-map-listing-card', `is-${position}`)}
+      data-listing-id={item.id}
+      data-carousel-position={position}
+      data-promoted={item.promoted || undefined}
+      aria-hidden={current ? undefined : true}
+    >
+      <div className="m2-map-listing-preview__media-shell">
+        {externalUrl
+          ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={current ? item.title : ''} /></a>
+          : <button type="button" className="m2-map-listing-preview__media" onClick={() => openInternalListing(item.id)} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={current ? item.title : ''} /></button>}
+        {item.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
+      </div>
+      <div className="m2-map-listing-preview__body">
+        {current ? <button type="button" className="m2-map-listing-preview__close" onClick={() => { setSelectedId(''); setCoincidentIds([]) }} aria-label={t.close}><X /></button> : null}
+        <p><MapPin />{item.approximateAddress ? `${item.approximateAddress}, ${item.city}` : `${item.area}, ${item.city}`}</p>
+        <h2>{translatedTitle}</h2>
+        <strong>{priceLabel(item)} {item.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
+        <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
+        <div className="m2-map-listing-preview__actions">
+          <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(item.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
+          {externalUrl
+            ? <a className="m2-map-listing-preview__open" href={externalUrl} target="_blank" rel="noopener noreferrer">{t.view}</a>
+            : <button type="button" className="m2-map-listing-preview__open" onClick={() => openInternalListing(item.id)}>{t.view}</button>}
+        </div>
+      </div>
+      {!current ? <button
+        type="button"
+        className="m2-map-listing-carousel__side-hit"
+        tabIndex={-1}
+        aria-hidden="true"
+        data-testid={position === 'previous' ? 'mobile-map-listing-peek-prev' : 'mobile-map-listing-peek-next'}
+        onClick={() => selectSibling(item.id)}
+      /> : null}
+    </article>
+  }
+
+  return <section
+    className={cn('m2-map-listing-preview', 'm2-map-listing-carousel', carousel.length > 1 && 'has-multiple', carousel.length === 2 && 'has-two')}
     data-testid="mobile-map-listing-preview"
     data-listing-id={selected.id}
     data-group-size={carousel.length}
     data-promoted={selected.promoted || undefined}
   >
-    <div className={cn('m2-map-listing-preview__media-shell', carousel.length > 1 && 'has-neighbor-peeks')}>
-      {previous ? <button
-        type="button"
-        className="m2-map-listing-preview__neighbor-peek m2-map-listing-preview__neighbor-peek--prev"
-        onClick={() => selectSibling(previous.id)}
-        aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'}
-        data-testid="mobile-map-listing-peek-prev"
-      ><MediaImage src={previous.images[0]} variant="thumb" alt="" /></button> : null}
-      {next ? <button
-        type="button"
-        className="m2-map-listing-preview__neighbor-peek m2-map-listing-preview__neighbor-peek--next"
-        onClick={() => selectSibling(next.id)}
-        aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'}
-        data-testid="mobile-map-listing-peek-next"
-      ><MediaImage src={next.images[0]} variant="thumb" alt="" /></button> : null}
-      {externalUrl
-        ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} variant="card" alt={selected.title} /></a>
-        : <button type="button" className="m2-map-listing-preview__media" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} variant="card" alt={selected.title} /></button>}
-      {carousel.length > 1 ? <>
-        <button type="button" className="m2-map-listing-preview__carousel-arrow m2-map-listing-preview__carousel-arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} disabled={!previous} onClick={() => previous && selectSibling(previous.id)}><ChevronLeft /></button>
-        <button type="button" className="m2-map-listing-preview__carousel-arrow m2-map-listing-preview__carousel-arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'} disabled={!next} onClick={() => next && selectSibling(next.id)}><ChevronRight /></button>
-        <span className="m2-map-listing-preview__carousel-count" aria-label={`${carouselIndex + 1} / ${carousel.length}`}>${carouselIndex + 1}/${carousel.length}</span>
-      </> : null}
-      {selected.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
+    <div className="m2-map-listing-carousel__stage">
+      {carouselSlots.map(renderCard)}
     </div>
-    <div className="m2-map-listing-preview__body">
-      <button type="button" className="m2-map-listing-preview__close" onClick={() => { setSelectedId(''); setCoincidentIds([]) }} aria-label={t.close}><X /></button>
-      <p><MapPin />{selected.approximateAddress ? `${selected.approximateAddress}, ${selected.city}` : `${selected.area}, ${selected.city}`}</p>
-      <h2>{translatedTitle}</h2>
-      <strong>{priceLabel(selected)} {selected.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
-      <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
-      <div className="m2-map-listing-preview__actions">
-        <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(selected.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
-        {externalUrl
-          ? <a className="m2-map-listing-preview__open" href={externalUrl} target="_blank" rel="noopener noreferrer">{t.view}</a>
-          : <button type="button" className="m2-map-listing-preview__open" onClick={openInternalListing}>{t.view}</button>}
-      </div>
-    </div>
-  </article>
+    {carousel.length > 1 ? <>
+      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} onClick={() => previous && selectSibling(previous.id)}><ChevronLeft /></button>
+      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'} onClick={() => next && selectSibling(next.id)}><ChevronRight /></button>
+      <span className="m2-map-listing-carousel__count" aria-label={`${carouselIndex + 1} / ${carousel.length}`}>{carouselIndex + 1}/{carousel.length}</span>
+    </> : null}
+  </section>
 }
