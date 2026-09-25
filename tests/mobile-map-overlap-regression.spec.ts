@@ -89,6 +89,8 @@ test('mobile same-address carousel exposes whole neighboring cards and glides be
   expect(css).toContain('transform: translate(46%, -50%) scale(.94)')
   expect(css).toContain('transition:')
   expect(css).toContain('cubic-bezier(.22, .8, .2, 1)')
+  expect(css).toContain('height: 14.5rem')
+  expect(css).toContain('min-height: 12.5rem')
   expect(css).not.toContain('.m2-map-listing-carousel .m2-map-listing-preview__media-shell.has-neighbor-peeks')
 })
 
@@ -106,4 +108,5 @@ test('desktop same-address carousel also moves complete listing cards, not image
   expect(css).toContain('.selected-listing-carousel .selected-listing-sheet.is-previous')
   expect(css).toContain('.selected-listing-carousel .selected-listing-sheet.is-next')
   expect(css).toContain('cubic-bezier(.22, .8, .2, 1)')
+  expect(css).toContain('height: 12.75rem')
 })
