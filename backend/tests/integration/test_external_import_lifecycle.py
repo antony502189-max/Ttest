@@ -9,8 +9,9 @@ from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.external_sources import AlquilerDocenteCanariasSource, DiscoveryResult, NormalizedListing, SourceBlocked
-from app.models import ExternalImportRun, ExternalListingSource, Listing
+from app.models import ExternalImportRun, ExternalListingSource, Listing, ListingImage, MediaAsset
 from app.models.room_details import ListingRoomDetails
+from app.services import external_import
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
@@ -463,7 +464,13 @@ async def test_location_loss_promotes_only_an_alternative_with_verified_coordina
         assert listing.location is None
 
 
-async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(client: AsyncClient):
+async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(
+    client: AsyncClient, monkeypatch
+):
+    async def fixed_photo_hashes(_urls):
+        return {"0123456789abcdef"}
+
+    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
     before_catalog = await client.get("/api/v1/listings/catalog-version")
     assert before_catalog.status_code == 200, before_catalog.text
     before_version = int(before_catalog.json()["version"])
@@ -477,6 +484,34 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         )
         assert await upsert(session, idealista) == "imported"
         await session.commit()
+
+        # The second provider may differ in price/text; only the stored photo
+        # fingerprint is allowed to establish cross-source identity.
+        first_listing = await session.scalar(select(Listing).where(Listing.is_external.is_(True)))
+        assert first_listing is not None
+        fingerprint_asset = MediaAsset(
+            owner_id=first_listing.owner_user_id,
+            storage_key=f"test/external-dedupe-{first_listing.id}.webp",
+            mime_type="image/webp",
+            size_bytes=16,
+            width=1200,
+            height=800,
+            checksum="a" * 64,
+            perceptual_hash="0123456789abcdef",
+            kind="listing_image",
+        )
+        session.add(fingerprint_asset)
+        await session.flush()
+        session.add(
+            ListingImage(
+                listing_id=first_listing.id,
+                media_asset_id=fingerprint_asset.id,
+                sort_order=0,
+                is_cover=True,
+            )
+        )
+        await session.commit()
+
         after_import_catalog = await client.get("/api/v1/listings/catalog-version")
         assert after_import_catalog.status_code == 200, after_import_catalog.text
         after_import_version = int(after_import_catalog.json()["version"])
