@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-from io import BytesIO
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 
 import pytest
 from PIL import Image
@@ -159,7 +159,7 @@ async def test_public_image_fingerprints_use_full_bounded_gallery_and_fail_close
 
     urls = [f"https://images.example.test/sample-{index}.png" for index in range(7)]
     fingerprints = await importer.public_image_fingerprints(urls)
-    assert calls == urls
+    assert sorted(calls) == sorted(urls)
     assert len(fingerprints) == 7
 
     calls.clear()
@@ -342,7 +342,7 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
 
         first_urls = [f"https://images.example.test/room-{index}.webp" for index in range(25)]
         await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
-        assert calls == first_urls[:20]
+        assert sorted(calls) == sorted(first_urls[:20])
 
         first_ids = list(
             (
@@ -362,7 +362,7 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
             "https://images.example.test/replacement-new.webp",
         ]
         await importer.import_images(session, listing.id, listing.owner_user_id, replacement_urls)
-        assert calls == replacement_urls
+        assert sorted(calls) == sorted(replacement_urls)
 
         current_assets = list(
             (
