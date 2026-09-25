@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
 from ...db.session import get_session
-from ...models import CatalogState, Listing, ListingImage, MediaAsset, User
+from ...models import CatalogState, ExternalListingSource, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
     owned_query,
     owned_response_from,
@@ -172,10 +172,17 @@ async def list_my_listings(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    source_backed = (
+        select(ExternalListingSource.id)
+        .where(ExternalListingSource.canonical_listing_id == Listing.id)
+        .correlate(Listing)
+        .exists()
+    )
     query = owned_query().where(
         Listing.deleted_at.is_(None),
         Listing.owner_user_id == user.id,
         Listing.is_external.is_(False),
+        ~source_backed,
     )
     rows = (
         await session.execute(

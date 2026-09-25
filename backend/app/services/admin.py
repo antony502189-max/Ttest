@@ -110,6 +110,7 @@ def public_listing(
     owner: User | None = None,
     restriction: ListingRestriction | None = None,
     promotion: ListingPromotion | None = None,
+    source_backed: bool = False,
 ) -> AdminListingResponse:
     return AdminListingResponse(
         id=listing.id,
@@ -124,7 +125,7 @@ def public_listing(
         views=listing.views,
         createdAt=listing.created_at,
         deletedAt=listing.deleted_at,
-        isExternal=bool(getattr(listing, "is_external", False)),
+        isExternal=bool(getattr(listing, "is_external", False) or source_backed),
         activeRestriction=listing_restriction_response(restriction) if restriction else None,
         **_promotion_metadata(promotion),
     )
