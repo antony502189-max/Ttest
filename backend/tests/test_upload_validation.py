@@ -116,10 +116,19 @@ def test_legacy_variant_is_generated_only_when_smaller(monkeypatch):
     monkeypatch.setattr("app.services.media_processing.get_settings", lambda: settings)
     source = validate_and_normalize(png_bytes(800, 400))[0]
 
+    full = render_variant(source, "full")
+    assert full is None
+
     card = render_variant(source, "card")
     assert card is not None
     with Image.open(BytesIO(card)) as image:
         assert image.size == (600, 300)
+
+    oversized_source = png_bytes(1_200, 600)
+    optimized_full = render_variant(oversized_source, "full")
+    assert optimized_full is not None
+    with Image.open(BytesIO(optimized_full)) as image:
+        assert image.size == (1_000, 500)
 
     already_small = validate_and_normalize(png_bytes(200, 100))[0]
     assert render_variant(already_small, "thumb") is None
