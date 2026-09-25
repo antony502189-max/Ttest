@@ -188,14 +188,17 @@ printf 'backups=%s\nrevision_before=%s\nbackup_runtime_sha=%s\n' "$backups" "$re
 "${compose[@]}" build migrate
 "${compose[@]}" run --rm migrate
 revision_after="$("${compose[@]}" run --rm migrate alembic current 2>/dev/null || true)"
+# All previous application writers are still stopped here and the production
+# backup is already durable. Run the idempotent gallery cleanup in this
+# maintenance window so the external worker and user requests cannot race it.
+dedupe_report="$("${compose[@]}" run --rm migrate python -m app.commands.deduplicate_listings --apply)"
+printf 'dedupe_report=%s\n' "$dedupe_report" >> "$metadata"
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
 for _ in $(seq 1 30); do
   if "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then break; fi
   sleep 2
 done
 "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
-dedupe_report="$("${compose[@]}" exec -T backend python -m app.commands.deduplicate_listings --apply)"
-printf 'dedupe_report=%s\n' "$dedupe_report" >> "$metadata"
 image_ids="$("${compose[@]}" images -q backend mail-worker external-listings-worker frontend | sort -u | paste -sd, -)"
 ln -sfn "$release" "$CURRENT"
 # Internal readiness is necessary but cannot prove that Traefik/DNS serves the
