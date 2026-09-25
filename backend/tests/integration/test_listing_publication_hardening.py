@@ -384,6 +384,46 @@ async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(
     assert "assetIds" in duplicate.json()["fieldErrors"]
 
 
+async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_second_listing(client, register_user):
+    token, user_body = await register_user(client, email="same-owner-duplicate@example.com", role="host")
+    first_assets = await upload_gallery(client, token, [111, 112, 113])
+    duplicate_assets = await upload_gallery(client, token, [111, 112, 113])
+
+    first = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(token),
+        json=customer_listing(assetIds=first_assets, title="Первое объявление с этой галереей"),
+    )
+    assert first.status_code == 201, first.text
+
+    duplicate = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(token),
+        json=customer_listing(
+            assetIds=duplicate_assets,
+            title="Повторное объявление с другими данными",
+            monthlyPrice=1777,
+            street="Completely different street",
+            postcode="38002",
+        ),
+    )
+    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.json()["code"] == "DUPLICATE_LISTING_IMAGES"
+    assert "assetIds" in duplicate.json()["fieldErrors"]
+
+    async with SessionLocal() as session:
+        persisted = int(
+            await session.scalar(
+                select(func.count(Listing.id)).where(
+                    Listing.owner_user_id == UUID(user_body["id"]),
+                    Listing.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+    assert persisted == 1
+
+
 async def test_unreconciled_external_gallery_does_not_block_user_publication(client, register_user):
     first_token, _ = await register_user(client, email="stale-external-a@example.com", role="host")
     second_token, _ = await register_user(client, email="stale-external-b@example.com", role="host")
