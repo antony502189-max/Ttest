@@ -15,7 +15,7 @@ from .catalog import touch_catalog
 from .listing_deduplication import (
     all_active_galleries,
     galleries_are_duplicates,
-    phash_neighbors,
+    phash_band_neighbors,
 )
 from .media_processing import perceptual_hash
 
@@ -57,7 +57,7 @@ async def backfill_active_listing_hashes(session: AsyncSession) -> int:
 
 def _candidate_pairs(galleries):
     checksum_index: dict[str, set[UUID]] = defaultdict(set)
-    phash_index: dict[str, set[UUID]] = defaultdict(set)
+    phash_band_index: dict[tuple[int, str], set[UUID]] = defaultdict(set)
     pairs: set[tuple[UUID, UUID]] = set()
 
     for listing_id, gallery in galleries.items():
@@ -67,10 +67,14 @@ def _candidate_pairs(galleries):
                     pairs.add(tuple(sorted((listing_id, other), key=str)))
                 checksum_index[image.checksum].add(listing_id)
             if image.perceptual_hash:
-                for neighbor in phash_neighbors(image.perceptual_hash):
-                    for other in phash_index.get(neighbor, ()):
-                        pairs.add(tuple(sorted((listing_id, other), key=str)))
-                phash_index[image.perceptual_hash].add(listing_id)
+                bands = phash_band_neighbors(image.perceptual_hash)
+                for band_index, neighbors in enumerate(bands):
+                    for neighbor in neighbors:
+                        for other in phash_band_index.get((band_index, neighbor), ()):
+                            pairs.add(tuple(sorted((listing_id, other), key=str)))
+                normalized = image.perceptual_hash.casefold().zfill(16)
+                for band_index, start in enumerate((0, 4, 8, 12)):
+                    phash_band_index[(band_index, normalized[start : start + 4])].add(listing_id)
     return pairs
 
 
