@@ -16,6 +16,7 @@ from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
 from ..external_sources import configured_sources, retired_source_names
 from ..models import ExternalWorkerState
+from ..services.duplicate_cleanup import deduplicate_active_listings
 from ..services.external_import import completed_source_contract, retire_source_records, run_removal_check, run_source
 
 logger = logging.getLogger(__name__)
@@ -304,6 +305,18 @@ async def run_once() -> dict[str, dict[str, int]]:
             )
             await worker_state(health="failed", error=failure_summary, run_id=run_id)
             return result
+        # Every source gallery has now had a chance to reconcile to its current
+        # bounded photo set. Re-run the same conservative photo-only cleanup so
+        # legacy append-only parser galleries cannot keep historical duplicates
+        # alive forever after deployment.
+        async with SessionLocal() as session:
+            dedupe_report = await deduplicate_active_listings(session, apply=True)
+        if dedupe_report["changed"]:
+            logger.info(
+                "external_import_post_sync_deduplicated",
+                extra={"run_id": run_id, **dedupe_report},
+            )
+
         await worker_state(health="healthy", run_id=run_id)
         return result
     except Exception as exc:
