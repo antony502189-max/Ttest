@@ -13,6 +13,7 @@ from ..models import DiscardedListing, Favorite, Listing, ListingImage, MediaAss
 from ..storage import get_storage
 from .catalog import touch_catalog
 from .listing_deduplication import (
+    ImageFingerprint,
     acquire_duplicate_guard,
     all_active_galleries,
     galleries_are_duplicates,
@@ -56,7 +57,7 @@ async def backfill_active_listing_hashes(session: AsyncSession) -> int:
     return updated
 
 
-def _candidate_pairs(galleries):
+def _candidate_pairs(galleries: dict[UUID, list[ImageFingerprint]]) -> set[tuple[UUID, UUID]]:
     checksum_index: dict[str, set[UUID]] = defaultdict(set)
     phash_band_index: dict[tuple[int, str], set[UUID]] = defaultdict(set)
     pairs: set[tuple[UUID, UUID]] = set()
@@ -79,7 +80,7 @@ def _candidate_pairs(galleries):
     return pairs
 
 
-def _duplicate_groups(galleries) -> list[set[UUID]]:
+def _duplicate_groups(galleries: dict[UUID, list[ImageFingerprint]]) -> list[set[UUID]]:
     parent: dict[UUID, UUID] = {listing_id: listing_id for listing_id in galleries}
 
     def find(value: UUID) -> UUID:
@@ -139,6 +140,7 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
     galleries = await all_active_galleries(session)
     groups = _duplicate_groups(galleries)
     if not groups:
+        await session.rollback()
         return {"groups": [], "duplicates": 0, "changed": 0}
 
     listing_ids = {listing_id for group in groups for listing_id in group}
