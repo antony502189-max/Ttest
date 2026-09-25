@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.external_sources import DiscoveryResult, NormalizedListing
-from app.models import ExternalListingSource, ListingImage, MediaAsset, User
+from app.models import ExternalListingSource, Listing, ListingImage, MediaAsset, User
 from app.services import external_import as importer
 
 pytestmark = pytest.mark.integration
@@ -261,6 +261,98 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
         )
         assert attached_count == 0
         assert persisted_asset is None
+
+
+async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(monkeypatch):
+    storage = RecordingStorage()
+    calls: list[str] = []
+
+    async with SessionLocal() as session:
+        async def prepared_image(client, url: str) -> importer.PreparedExternalImage:
+            assert not session.in_transaction()
+            calls.append(url)
+            content = f"normalized:{url}".encode()
+            return importer.PreparedExternalImage(
+                content=content,
+                width=64,
+                height=48,
+                checksum=hashlib.sha256(content).hexdigest(),
+                perceptual_hash=hashlib.sha256(f"phash:{url}".encode()).hexdigest()[:16],
+            )
+
+        monkeypatch.setattr(importer, "download_external_image", prepared_image)
+        monkeypatch.setattr(importer, "get_storage", lambda: storage)
+
+        item = external_item(
+            source="Idealista",
+            external_id="gallery-reconcile-boundary",
+            url="https://www.idealista.com/inmueble/gallery-reconcile-boundary/",
+            photos=[],
+        )
+        assert await importer.upsert(session, item) == "imported"
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert source_record is not None
+        listing = await session.get(Listing, source_record.canonical_listing_id)
+        assert listing is not None
+
+        first_urls = [f"https://images.example.test/room-{index}.webp" for index in range(25)]
+        await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
+        assert calls == first_urls[:20]
+
+        first_ids = list(
+            (
+                await session.scalars(
+                    select(ListingImage.media_asset_id)
+                    .where(ListingImage.listing_id == listing.id)
+                    .order_by(ListingImage.sort_order)
+                )
+            ).all()
+        )
+        assert len(first_ids) == 20
+
+        calls.clear()
+        replacement_urls = [
+            first_urls[5],
+            first_urls[7],
+            "https://images.example.test/replacement-new.webp",
+        ]
+        await importer.import_images(session, listing.id, listing.owner_user_id, replacement_urls)
+        assert calls == replacement_urls
+
+        current_assets = list(
+            (
+                await session.scalars(
+                    select(MediaAsset)
+                    .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
+                    .where(ListingImage.listing_id == listing.id)
+                    .order_by(ListingImage.sort_order)
+                )
+            ).all()
+        )
+        expected_checksums = [
+            hashlib.sha256(f"normalized:{url}".encode()).hexdigest()
+            for url in replacement_urls
+        ]
+        assert [asset.checksum for asset in current_assets] == expected_checksums
+        assert len(current_assets) == 3
+
+        stale_ids = set(first_ids) - {asset.id for asset in current_assets}
+        stale_assets = list(
+            (
+                await session.scalars(
+                    select(MediaAsset).where(MediaAsset.id.in_(stale_ids))
+                )
+            ).all()
+        )
+        assert stale_assets
+        assert all(asset.deleted_at is not None for asset in stale_assets)
+        assert not session.in_transaction()
 
 
 async def test_reconciliation_probes_run_without_database_transaction(monkeypatch):
