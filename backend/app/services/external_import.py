@@ -38,7 +38,7 @@ from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
-from .listing_deduplication import acquire_duplicate_guard, duplicate_listing_for_hashes
+from .listing_deduplication import ImageFingerprint, acquire_duplicate_guard, duplicate_listing_id
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
 
