@@ -17,6 +17,7 @@ import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
+import { currentLocale } from '@/lib/i18n-locale'
 import type { DemoUser, Filters, Listing, ListingStatus, LocalListingComment, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
 
 export interface SavedSearch {
@@ -118,12 +119,19 @@ const publicationFieldLabels: Record<string, string> = {
   contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías',
 }
 
+function duplicateListingMessage() {
+  const locale = currentLocale()
+  if (locale === 'ru-RU') return 'Такое объявление уже существует. Замените фотографии.'
+  if (locale === 'en-GB') return 'This listing already exists. Replace the photos.'
+  return 'Este anuncio ya existe. Sustituye las fotografías.'
+}
+
 function publicationErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) return 'Se produjo un error inesperado al publicar. Inténtalo de nuevo.'
   if (error.code === 'EMAIL_VERIFICATION_REQUIRED') return 'Confirma tu email antes de publicar el anuncio.'
   if (error.code === 'PUBLISHING_RESTRICTED' || error.code === 'ACCOUNT_RESTRICTED') return 'Tu cuenta tiene restringida la publicación de anuncios. Revisa el aviso de moderación.'
   if (error.code === 'ACTIVE_LISTING_LIMIT_REACHED') return 'Has alcanzado el límite de anuncios activos.'
-  if (error.code === 'DUPLICATE_LISTING_IMAGES') return 'Ya existe un anuncio activo con estas mismas fotografías. Cambia la galería o edita el anuncio existente.'
+  if (error.code === 'DUPLICATE_LISTING_IMAGES') return duplicateListingMessage()
   if (error.code === 'HOST_ACCOUNT_REQUIRED' || error.status === 403) return 'Necesitas una cuenta de anfitrión autorizada para publicar.'
   if (error.status === 401) return 'Tu sesión ha caducado. Inicia sesión de nuevo para publicar.'
   if (error.code === 'REQUEST_TIMEOUT') return 'La publicación está tardando más de lo esperado. Comprobaremos el mismo intento para evitar duplicados.'
@@ -596,6 +604,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         return false
       }
     }
+    const publicationStartedAt = Date.now()
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
     let prepared: Awaited<ReturnType<typeof prepareListingImages>>
     try {
@@ -620,6 +629,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       setOwnedListings((current) => current.filter((item) => item.id !== optimistic.id))
       const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
       if (!uncertainCommit) await cleanupPreparedListingImages(prepared)
+      if (error instanceof ApiError && error.code === 'DUPLICATE_LISTING_IMAGES') {
+        const remainingFeedbackDelay = 1000 - (Date.now() - publicationStartedAt)
+        if (remainingFeedbackDelay > 0) await new Promise((resolve) => window.setTimeout(resolve, remainingFeedbackDelay))
+      }
       console.error('listing_publication_failed', publicationDiagnostic(error))
       toast.error(publicationErrorMessage(error))
       return false
