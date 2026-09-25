@@ -248,10 +248,10 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     data-group-size={carousel.length}
     data-promoted={selected.promoted || undefined}
   >
-    <div className="m2-map-listing-preview__media">
+    <div className="m2-map-listing-preview__media-shell">
       {externalUrl
-        ? <a className="m2-map-listing-preview__media-link" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></a>
-        : <button type="button" className="m2-map-listing-preview__media-link" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></button>}
+        ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></a>
+        : <button type="button" className="m2-map-listing-preview__media" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></button>}
       {carousel.length > 1 ? <>
         <button type="button" className="m2-map-listing-preview__carousel-arrow m2-map-listing-preview__carousel-arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} disabled={!previous} onClick={() => previous && selectSibling(previous.id)}><ChevronLeft /></button>
         <button type="button" className="m2-map-listing-preview__carousel-arrow m2-map-listing-preview__carousel-arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'} disabled={!next} onClick={() => next && selectSibling(next.id)}><ChevronRight /></button>
