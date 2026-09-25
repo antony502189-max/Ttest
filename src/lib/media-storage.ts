@@ -196,12 +196,12 @@ export async function getAllMediaReferences() {
 }
 
 export async function removeUnusedMediaReferences(references: string[], usedReferences: Iterable<string>) {
-  const used = new Set([...usedReferences].filter(isMediaReference))
+  const used = new Set<string>([...usedReferences].filter(isMediaReference))
   return removeMediaReferences(references.filter((reference) => isMediaReference(reference) && !used.has(reference)))
 }
 
 export async function cleanupOrphanedMedia(usedReferences: Iterable<string>) {
-  const used = new Set([...usedReferences].filter(isMediaReference))
+  const used = new Set<string>([...usedReferences].filter(isMediaReference))
   protectedDraftMediaReferences().forEach((reference) => used.add(reference))
   const stored = await getAllMediaReferences()
   await removeUnusedMediaReferences(stored, used)
