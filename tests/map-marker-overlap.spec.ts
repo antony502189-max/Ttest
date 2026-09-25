@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { buildDisplayMarkerPositions } from '../src/lib/map-marker-overlap'
+import { buildDisplayMarkerPositions, exactCoincidentListingIds } from '../src/lib/map-marker-overlap'
 
 type MarkerItem = { id: string; coordinates: { lat: number; lng: number } }
 
@@ -25,4 +25,16 @@ test('large coincident groups stay on one point for clustering', () => {
   const positions = buildDisplayMarkerPositions(items as never)
   expect([...positions.values()].every((value) => value.coincidentCount === 22)).toBe(true)
   expect([...positions.values()].every((value) => value.position.lat === origin.lat && value.position.lng === origin.lng)).toBe(true)
+})
+
+
+test('only a cluster whose listings share the exact real point is expanded into listing choices', () => {
+  const items: MarkerItem[] = [
+    { id: 'room-a', coordinates: origin },
+    { id: 'room-b', coordinates: origin },
+    { id: 'nearby-room', coordinates: { lat: origin.lat + 0.0001, lng: origin.lng } },
+  ]
+
+  expect(exactCoincidentListingIds(items as never, ['room-a', 'room-b'])).toEqual(['room-a', 'room-b'])
+  expect(exactCoincidentListingIds(items as never, ['room-a', 'nearby-room'])).toEqual([])
 })

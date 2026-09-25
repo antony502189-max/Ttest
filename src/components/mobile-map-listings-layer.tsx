@@ -7,7 +7,7 @@ import { useApp } from '@/contexts/app-context'
 import { translateText } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
-import { buildDisplayMarkerPositions } from '@/lib/map-marker-overlap'
+import { buildDisplayMarkerPositions, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { hasListingCoordinates } from '@/lib/listings'
 import type { Listing } from '@/types'
 import '@/mobile-map-ideal.css'
@@ -15,9 +15,9 @@ import '@/mobile-map-ideal.css'
 type MobileMapLanguage = 'es' | 'en' | 'ru'
 
 const labels = {
-  es: { close: 'Cerrar', view: 'Ver anuncio', favorite: 'Guardar', unfavorite: 'Quitar de favoritos', capacity: (count: number) => `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}` },
-  en: { close: 'Close', view: 'View listing', favorite: 'Save', unfavorite: 'Remove from favorites', capacity: (count: number) => `Room for ${count} ${count === 1 ? 'person' : 'people'}` },
-  ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}` },
+  es: { close: 'Cerrar', view: 'Ver anuncio', favorite: 'Guardar', unfavorite: 'Quitar de favoritos', capacity: (count: number) => `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`, group: (count: number) => `${count} anuncios en esta dirección` },
+  en: { close: 'Close', view: 'View listing', favorite: 'Save', unfavorite: 'Remove from favorites', capacity: (count: number) => `Room for ${count} ${count === 1 ? 'person' : 'people'}`, group: (count: number) => `${count} listings at this address` },
+  ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`, group: (count: number) => `${count} объявления по этому адресу` },
 } as const
 
 export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items }: {
@@ -29,6 +29,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
 }) {
   const { favorites, toggleFavorite } = useApp()
   const [selectedId, setSelectedId] = useState('')
+  const [expandedCoincidentIds, setExpandedCoincidentIds] = useState<string[]>([])
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
@@ -38,6 +39,10 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const signature = useMemo(() => mappedItems.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${item.price}`).join('|'), [mappedItems])
   const promotionSignature = useMemo(() => mappedItems.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [mappedItems])
   const selected = mappedItems.find((item) => item.id === selectedId)
+  const expandedCoincidentListings = expandedCoincidentIds.flatMap((id) => {
+    const listing = mappedItems.find((item) => item.id === id)
+    return listing ? [listing] : []
+  })
 
   useEffect(() => {
     const map = mapRef.current
@@ -117,6 +122,24 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
           markers,
           algorithm: new SuperClusterAlgorithm({ radius: 54, maxZoom: 20 }),
           renderer: new AdvancedClusterRenderer(),
+          onClusterClick: (_event, cluster, clusterMap) => {
+            const clusteredIds = cluster.markers.flatMap((clusterMarker) => {
+              if (!(clusterMarker instanceof google.maps.marker.AdvancedMarkerElement)) return []
+              const markerContent = clusterMarker.content
+              const listingId = markerContent instanceof HTMLElement ? markerContent.dataset.listingId : undefined
+              return listingId ? [listingId] : []
+            })
+            const coincidentIds = exactCoincidentListingIds(mappedItems, clusteredIds)
+            if (coincidentIds.length > 1) {
+              setSelectedId('')
+              setExpandedCoincidentIds(coincidentIds)
+              const first = mappedItems.find((listing) => listing.id === coincidentIds[0])
+              if (first) clusterMap.panTo(first.coordinates)
+              return
+            }
+            setExpandedCoincidentIds([])
+            if (cluster.bounds) clusterMap.fitBounds(cluster.bounds)
+          },
         })
       }
 
@@ -146,6 +169,14 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   }, [mappedItems, selectedId])
 
   useEffect(() => {
+    setExpandedCoincidentIds((current) => current.filter((id) => mappedItems.some((item) => item.id === id)))
+  }, [mappedItems])
+
+  useEffect(() => {
+    if (drawing) setExpandedCoincidentIds([])
+  }, [drawing])
+
+  useEffect(() => {
     markersRef.current.forEach((marker, id) => {
       const listing = mappedItems.find((item) => item.id === id)
       if (!listing || !(marker.content instanceof HTMLElement)) return
@@ -166,6 +197,25 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     })
     return () => listener.remove()
   }, [mapReady, mapRef])
+
+  if (!selected && expandedCoincidentListings.length > 1) {
+    return <aside className="m2-map-coincident-picker" data-testid="mobile-map-coincident-picker" aria-label={t.group(expandedCoincidentListings.length)}>
+      <header>
+        <div><strong>{t.group(expandedCoincidentListings.length)}</strong><span>{expandedCoincidentListings[0].approximateAddress ? `${expandedCoincidentListings[0].approximateAddress}, ${expandedCoincidentListings[0].city}` : `${expandedCoincidentListings[0].area}, ${expandedCoincidentListings[0].city}`}</span></div>
+        <button type="button" onClick={() => setExpandedCoincidentIds([])} aria-label={t.close}><X /></button>
+      </header>
+      <div className="m2-map-coincident-picker__options">
+        {expandedCoincidentListings.map((listing) => <button key={listing.id} type="button" data-testid={`mobile-map-coincident-option-${listing.id}`} onClick={() => {
+          setExpandedCoincidentIds([])
+          setSelectedId(listing.id)
+          mapRef.current?.panTo(listing.coordinates)
+        }}>
+          <strong>{priceLabel(listing)}</strong>
+          <span>{translateText(listing.title, language)}</span>
+        </button>)}
+      </div>
+    </aside>
+  }
 
   if (!selected) return null
   const capacity = selected.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(selected.roomCapacity)

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
@@ -37,4 +38,16 @@ test('mobile map keeps coincident listings at one truthful position for clusteri
   const positions = await Promise.all(markers.map((marker) => marker.getAttribute('data-display-position')))
   expect(new Set(positions).size).toBe(1)
   for (const position of positions) expect(position).toBe('28.1299668,-16.7578612')
+})
+
+
+test('same-address cluster contract reveals separate clickable price choices without moving coordinates', () => {
+  const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
+  const css = readFileSync('src/mobile-map-ideal.css', 'utf8')
+
+  expect(layer).toContain('onClusterClick:')
+  expect(layer).toContain('exactCoincidentListingIds(mappedItems, clusteredIds)')
+  expect(layer).toContain('data-testid="mobile-map-coincident-picker"')
+  expect(layer).toContain('mobile-map-coincident-option-')
+  expect(css).toContain('.m2-map-coincident-picker__options')
 })
