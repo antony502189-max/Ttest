@@ -159,6 +159,54 @@ def test_worker_fails_when_only_two_of_three_required_sources_are_useful(monkeyp
     asyncio.run(verify())
 
 
+def test_healthy_full_sync_runs_post_reconciliation_duplicate_cleanup(monkeypatch):
+    class Source:
+        name = "Fotocasa"
+
+    async def verify() -> None:
+        states: list[dict] = []
+        cleanup_calls: list[bool] = []
+
+        async def record_state(**kwargs):
+            states.append(kwargs)
+            return SimpleNamespace()
+
+        class EmptySession:
+            async def __aenter__(self):
+                return object()
+
+            async def __aexit__(self, *args):
+                return None
+
+        async def source_run(*args, **kwargs):
+            return type("Counters", (dict,), {"result": "success"})(
+                {
+                    "discovered_urls": 1,
+                    "fetched_details": 1,
+                    "accepted_rooms": 1,
+                    "updated": 1,
+                }
+            )
+
+        async def dedupe(_session, *, apply: bool):
+            cleanup_calls.append(apply)
+            return {"groups": [], "duplicates": 0, "changed": 0}
+
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(redis_url=""))
+        monkeypatch.setattr(worker, "configured_sources", lambda: [Source()])
+        monkeypatch.setattr(worker, "SessionLocal", EmptySession)
+        monkeypatch.setattr(worker, "run_source", source_run)
+        monkeypatch.setattr(worker, "deduplicate_active_listings", dedupe)
+        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
+        monkeypatch.setattr(worker, "worker_state", record_state)
+
+        await worker.run_once()
+        assert cleanup_calls == [True]
+        assert states[-1]["health"] == "healthy"
+
+    asyncio.run(verify())
+
+
 def test_loop_runs_full_sync_on_start_before_waiting_for_the_interval(monkeypatch):
     class StopLoop(Exception):
         pass
