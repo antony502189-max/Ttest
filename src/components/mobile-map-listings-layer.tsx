@@ -233,8 +233,8 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const translatedTitle = translateText(selected.title, language)
   const carousel = coincidentListings.length > 1 ? coincidentListings : [selected]
   const carouselIndex = Math.max(0, carousel.findIndex((listing) => listing.id === selected.id))
-  const previous = carouselIndex > 0 ? carousel[carouselIndex - 1] : null
-  const next = carouselIndex < carousel.length - 1 ? carousel[carouselIndex + 1] : null
+  const previous = carousel.length > 1 ? carousel[(carouselIndex - 1 + carousel.length) % carousel.length] : null
+  const next = carousel.length > 1 ? carousel[(carouselIndex + 1) % carousel.length] : null
   const selectSibling = (id: string) => {
     setSelectedId(id)
     const listing = mappedItems.find((item) => item.id === id)
@@ -248,7 +248,21 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     data-group-size={carousel.length}
     data-promoted={selected.promoted || undefined}
   >
-    <div className="m2-map-listing-preview__media-shell">
+    <div className={cn('m2-map-listing-preview__media-shell', carousel.length > 1 && 'has-neighbor-peeks')}>
+      {previous ? <button
+        type="button"
+        className="m2-map-listing-preview__neighbor-peek m2-map-listing-preview__neighbor-peek--prev"
+        onClick={() => selectSibling(previous.id)}
+        aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'}
+        data-testid="mobile-map-listing-peek-prev"
+      ><MediaImage src={previous.images[0]} alt="" /></button> : null}
+      {next ? <button
+        type="button"
+        className="m2-map-listing-preview__neighbor-peek m2-map-listing-preview__neighbor-peek--next"
+        onClick={() => selectSibling(next.id)}
+        aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'}
+        data-testid="mobile-map-listing-peek-next"
+      ><MediaImage src={next.images[0]} alt="" /></button> : null}
       {externalUrl
         ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></a>
         : <button type="button" className="m2-map-listing-preview__media" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></button>}
