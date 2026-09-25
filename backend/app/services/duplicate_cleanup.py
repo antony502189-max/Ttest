@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import DiscardedListing, Favorite, Listing, MediaAsset
+from ..models import DiscardedListing, Favorite, Listing, ListingImage, MediaAsset
 from ..storage import get_storage
 from .catalog import touch_catalog
 from .listing_deduplication import (
@@ -25,9 +25,8 @@ async def backfill_active_listing_hashes(session: AsyncSession) -> int:
     rows = (
         await session.execute(
             select(MediaAsset.id, MediaAsset.storage_key)
-            .join_from(MediaAsset, __import__("app.models", fromlist=["ListingImage"]).ListingImage,
-                       __import__("app.models", fromlist=["ListingImage"]).ListingImage.media_asset_id == MediaAsset.id)
-            .join(Listing, Listing.id == __import__("app.models", fromlist=["ListingImage"]).ListingImage.listing_id)
+            .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
+            .join(Listing, Listing.id == ListingImage.listing_id)
             .where(
                 Listing.deleted_at.is_(None),
                 Listing.status.in_(("published", "pending", "hidden")),
