@@ -6,24 +6,20 @@ import json
 import logging
 import re
 import unicodedata
-from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from io import BytesIO
 from time import perf_counter
-from typing import cast
 from uuid import UUID, uuid4
 
 import httpx
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import HTTPException
-from PIL import Image
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..api.v1.uploads import validate_and_normalize
 from ..core.config import get_settings
+from ..core.media_keys import variant_storage_key
 from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
 from ..external_sources import (
     DiscoveryResult,
@@ -42,6 +38,7 @@ from ..models.room_details import ListingRoomDetails
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
+from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
 
 logger = logging.getLogger(__name__)
@@ -118,14 +115,6 @@ def listing_completeness_score(listing: Listing) -> int:
     ) + min(len(listing.external_image_urls), 10)
 
 
-def perceptual_hash(content: bytes) -> str:
-    """A stable average hash for conservative duplicate-photo matching."""
-    with Image.open(BytesIO(content)) as image:
-        pixels = list(cast("Iterable[int]", image.convert("L").resize((8, 8)).get_flattened_data()))
-    average = sum(pixels) / len(pixels)
-    return f"{sum((1 << index) for index, value in enumerate(pixels) if value >= average):016x}"
-
-
 async def public_image_hashes(urls: list[str]) -> set[str]:
     if not urls:
         return set()
@@ -158,6 +147,7 @@ class PreparedExternalImage:
     height: int
     checksum: str
     perceptual_hash: str
+    variants: dict[str, bytes]
 
 
 async def download_external_image(client: httpx.AsyncClient, url: str) -> PreparedExternalImage | None:
@@ -169,13 +159,14 @@ async def download_external_image(client: httpx.AsyncClient, url: str) -> Prepar
         or len(response.content) > get_settings().max_upload_bytes
     ):
         return None
-    normalized, width, height = await asyncio.to_thread(validate_and_normalize, response.content)
+    prepared = await asyncio.to_thread(prepare_image, response.content)
     return PreparedExternalImage(
-        content=normalized,
-        width=width,
-        height=height,
-        checksum=hashlib.sha256(normalized).hexdigest(),
-        perceptual_hash=await asyncio.to_thread(perceptual_hash, normalized),
+        content=prepared.content,
+        width=prepared.width,
+        height=prepared.height,
+        checksum=hashlib.sha256(prepared.content).hexdigest(),
+        perceptual_hash=prepared.perceptual_hash,
+        variants=prepared.variants,
     )
 
 
@@ -236,6 +227,12 @@ async def import_images(
                     require_no_active_transaction(session, "external image storage")
                     try:
                         await asyncio.to_thread(storage.put, created_storage_key, prepared.content)
+                        for variant, variant_content in prepared.variants.items():
+                            await asyncio.to_thread(
+                                storage.put,
+                                variant_storage_key(created_storage_key, variant),
+                                variant_content,
+                            )
                     except (OSError, BotoCoreError, ClientError):
                         logger.exception(
                             "external_image_storage_failed",
