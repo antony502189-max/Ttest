@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import Settings, get_settings
@@ -172,60 +172,108 @@ async def get_media(
     session: AsyncSession = Depends(get_session),
     variant: Literal["full", "card", "thumb"] = "full",
 ):
-    asset = await session.get(MediaAsset, asset_id)
-    if not asset or asset.deleted_at:
-        raise HTTPException(404, "Media not found")
-    admin = bool(user and await is_admin(user, session))
-    owner_or_admin = bool(user and (user.id == asset.owner_id or admin))
-    publicly_visible = False
-    if asset.kind == "avatar":
-        publicly_visible = bool(
-            await session.scalar(
-                select(User.id).where(
-                    User.avatar_asset_id == asset.id,
-                    User.deleted_at.is_(None),
-                    User.blocked.is_(False),
-                )
+    active_owner_restriction = (
+        select(UserRestriction.id)
+        .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
+        .correlate(User)
+        .exists()
+    )
+    active_listing_restriction = (
+        select(ListingRestriction.id)
+        .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
+        .correlate(Listing)
+        .exists()
+    )
+
+    if user is None:
+        # Anonymous browsing is the hottest media path. Resolve the asset and
+        # its current public visibility in one indexed database round-trip
+        # instead of loading MediaAsset and then issuing a second query.
+        public_avatar = (
+            select(User.id)
+            .where(
+                User.avatar_asset_id == MediaAsset.id,
+                User.deleted_at.is_(None),
+                User.blocked.is_(False),
             )
-        )
-    elif asset.kind == "listing_image":
-        # A direct media URL is part of public listing browsing. Enforce the
-        # requester's view restriction here too, but preserve owner/admin access
-        # needed to manage a listing the account is still allowed to publish.
-        if not owner_or_admin:
-            await enforce_listing_view_access(user, session)
-        active_owner_restriction = (
-            select(UserRestriction.id)
-            .where(UserRestriction.user_id == User.id, *active_window(UserRestriction))
-            .correlate(User)
+            .correlate(MediaAsset)
             .exists()
         )
-        active_listing_restriction = (
-            select(ListingRestriction.id)
-            .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
-            .correlate(Listing)
+        public_listing = (
+            select(ListingImage.listing_id)
+            .join(Listing, Listing.id == ListingImage.listing_id)
+            .join(User, User.id == Listing.owner_user_id)
+            .where(
+                ListingImage.media_asset_id == MediaAsset.id,
+                Listing.status == "published",
+                Listing.deleted_at.is_(None),
+                (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                User.deleted_at.is_(None),
+                User.blocked.is_(False),
+                ~active_owner_restriction,
+                ~active_listing_restriction,
+            )
+            .correlate(MediaAsset)
             .exists()
         )
-        publicly_visible = bool(
-            await session.scalar(
-                select(ListingImage.listing_id)
-                .join(Listing, Listing.id == ListingImage.listing_id)
-                .join(User, User.id == Listing.owner_user_id)
-                .where(
-                    ListingImage.media_asset_id == asset.id,
-                    Listing.status == "published",
-                    Listing.deleted_at.is_(None),
-                    (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
-                    User.deleted_at.is_(None),
-                    User.blocked.is_(False),
-                    ~active_owner_restriction,
-                    ~active_listing_restriction,
-                )
-                .limit(1)
+        asset = await session.scalar(
+            select(MediaAsset)
+            .where(
+                MediaAsset.id == asset_id,
+                MediaAsset.deleted_at.is_(None),
+                or_(
+                    and_(MediaAsset.kind == "avatar", public_avatar),
+                    and_(MediaAsset.kind == "listing_image", public_listing),
+                ),
             )
+            .limit(1)
         )
-    if not owner_or_admin and not publicly_visible:
-        raise HTTPException(404, "Media not found")
+        if not asset:
+            raise HTTPException(404, "Media not found")
+        owner_or_admin = False
+        publicly_visible = True
+    else:
+        asset = await session.get(MediaAsset, asset_id)
+        if not asset or asset.deleted_at:
+            raise HTTPException(404, "Media not found")
+        admin = bool(await is_admin(user, session))
+        owner_or_admin = bool(user.id == asset.owner_id or admin)
+        publicly_visible = False
+        if asset.kind == "avatar":
+            publicly_visible = bool(
+                await session.scalar(
+                    select(User.id).where(
+                        User.avatar_asset_id == asset.id,
+                        User.deleted_at.is_(None),
+                        User.blocked.is_(False),
+                    )
+                )
+            )
+        elif asset.kind == "listing_image":
+            # Authenticated restricted viewers must still pass their own policy;
+            # owners/admins retain private management access.
+            if not owner_or_admin:
+                await enforce_listing_view_access(user, session)
+            publicly_visible = bool(
+                await session.scalar(
+                    select(ListingImage.listing_id)
+                    .join(Listing, Listing.id == ListingImage.listing_id)
+                    .join(User, User.id == Listing.owner_user_id)
+                    .where(
+                        ListingImage.media_asset_id == asset.id,
+                        Listing.status == "published",
+                        Listing.deleted_at.is_(None),
+                        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                        User.deleted_at.is_(None),
+                        User.blocked.is_(False),
+                        ~active_owner_restriction,
+                        ~active_listing_restriction,
+                    )
+                    .limit(1)
+                )
+            )
+        if not owner_or_admin and not publicly_visible:
+            raise HTTPException(404, "Media not found")
 
     etag = f'"{asset.checksum}-{variant}"'
     # Visibility is mutable. Keep immediate revocation semantics: a cached
