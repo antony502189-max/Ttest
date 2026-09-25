@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { buildDisplayMarkerPositions, exactCoincidentListingIds } from '../src/lib/map-marker-overlap'
+import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '../src/lib/map-marker-overlap'
 
 type MarkerItem = { id: string; coordinates: { lat: number; lng: number } }
 
@@ -56,4 +56,13 @@ test('four listings at one address remain on one truthful point and are all sele
     'room-3',
     'room-4',
   ])
+})
+
+test('twenty rooms at one address are all available to the carousel', () => {
+  const items: MarkerItem[] = Array.from({ length: 20 }, (_, index) => ({
+    id: `room-${index + 1}`,
+    coordinates: origin,
+  }))
+
+  expect(coincidentListingIdsFor(items as never, 'room-1')).toEqual(items.map((item) => item.id))
 })
