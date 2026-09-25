@@ -12,6 +12,7 @@ import { OwnedListingsHydrationGate } from '@/components/owned-listings-hydratio
 import { PublishOccupancySync } from '@/components/publish-occupancy-sync'
 import { AppProvider, useApp } from '@/contexts/app-context'
 import { I18nProvider, useI18n } from '@/contexts/i18n-context'
+import { loadAccountPages, loadListingCreatePage } from '@/lib/route-preload'
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((module) => ({ default: module.SearchPage })))
@@ -23,10 +24,10 @@ const ResetPasswordPage = lazy(() => import('@/pages/AuthPages').then((module) =
 const VerifyEmailPage = lazy(() => import('@/pages/AuthPages').then((module) => ({ default: module.VerifyEmailCodePage })))
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage').then((module) => ({ default: module.FavoritesPage })))
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })))
-const SavedSearchesPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.SavedSearchesPage })))
+const SavedSearchesPage = lazy(() => loadAccountPages().then((module) => ({ default: module.SavedSearchesPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
-const MyListingsPage = lazy(() => import('@/pages/AccountPages').then((module) => ({ default: module.MyListingsPage })))
-const ListingCreatePage = lazy(() => import('@/pages/ListingCreatePage').then((module) => ({ default: module.ListingCreatePage })))
+const MyListingsPage = lazy(() => loadAccountPages().then((module) => ({ default: module.MyListingsPage })))
+const ListingCreatePage = lazy(() => loadListingCreatePage().then((module) => ({ default: module.ListingCreatePage })))
 const ListingEditPage = lazy(() => import('@/pages/ListingEditPage').then((module) => ({ default: module.ListingEditPage })))
 const InfoPage = lazy(() => import('@/pages/InfoPages').then((module) => ({ default: module.InfoPage })))
 const AdminPage = lazy(() => import.meta.env.VITE_ENABLE_MOCK_MODE === '1'

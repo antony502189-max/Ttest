@@ -86,7 +86,7 @@ test('authenticated mobile menu separates listing management from profile editin
 })
 
 
-test('route transition replaces stale admin content with a neutral loader while the listings page chunk loads', async ({ page }) => {
+test('route transition removes stale admin immediately and never flashes the full-screen loader while listings load', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
     localStorage.setItem('112233:language:v1', 'ru')
@@ -105,10 +105,36 @@ test('route transition replaces stale admin content with a neutral loader while 
 
   await page.evaluate(() => { window.location.hash = '#/mis-anuncios' })
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
-  await expect(page.locator('.route-loading')).toBeVisible()
   await expect(page.locator('.admin-page')).toHaveCount(0)
+  await expect(page.locator('.route-loading')).toHaveCount(0)
+  await expect(page.locator('.route-transition-loading')).toBeVisible()
 
   await expect.poll(() => delayed).toBe(true)
+  await expect(page.locator('.route-transition-loading')).toHaveCount(0)
   await expect(page.locator('.route-loading')).toHaveCount(0)
   await expect(page.locator('.admin-page')).toHaveCount(0)
+})
+
+test('publish transition from admin never flashes the full-screen loader', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem('112233:language:v1', 'ru')
+    localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo'))
+  })
+
+  await page.route(/\/src\/pages\/ListingCreatePage\.tsx(?:\?.*)?$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    await route.continue()
+  })
+
+  await page.goto('/#/admin')
+  await expect(page.locator('.admin-page')).toBeVisible()
+
+  await page.evaluate(() => { window.location.hash = '#/publicar' })
+  await expect(page).toHaveURL(/#\/publicar$/)
+  await expect(page.locator('.admin-page')).toHaveCount(0)
+  await expect(page.locator('.route-loading')).toHaveCount(0)
+  await expect(page.locator('.route-transition-loading')).toBeVisible()
+  await expect(page.locator('.listing-create-page')).toBeVisible()
+  await expect(page.locator('.route-transition-loading')).toHaveCount(0)
 })

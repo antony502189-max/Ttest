@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { getOwnedListings } from '@/api/listings'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
+import '@/owned-listings-hydration.css'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const PROVIDER_SYNC_RETRY_MS = 3_500
@@ -108,7 +109,7 @@ export function OwnedListingsHydrationGate({ children }: { children: ReactNode }
 
   const checkingNewUser = Boolean(userId && checkedUser.current !== userId && !app.ownedListings.length)
   if ((phase === 'checking' || phase === 'syncing' || checkingNewUser) && !app.ownedListings.length) {
-    return <div className="route-loading customer-owned-listings-loading" role="status" aria-live="polite"><span /><strong>{text.loading}</strong><p>{text.help}</p></div>
+    return <div className="customer-owned-listings-loading" role="status" aria-live="polite"><span /><strong>{text.loading}</strong><p>{text.help}</p></div>
   }
   if (phase === 'error' && !app.ownedListings.length) {
     return <div className="route-error customer-owned-listings-error" role="alert"><h1>{text.error}</h1><p>{text.errorHelp}</p><button type="button" onClick={() => { checkedUser.current = null; setPhase('checking'); setAttempt((value) => value + 1) }}>{text.retry}</button></div>

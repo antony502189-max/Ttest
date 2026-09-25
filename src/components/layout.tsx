@@ -13,9 +13,21 @@ import { PublishAddressLifecycle } from '@/components/publish-address-lifecycle'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
+import { preloadListingCreatePage } from '@/lib/route-preload'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu']
+const ROUTE_LOADING_DELAY_MS = 180
+
+function DelayedRouteFallback() {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), ROUTE_LOADING_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [])
+  if (!visible) return null
+  return <div className="route-transition-loading" role="status" aria-live="polite"><span /><strong>Cargando…</strong></div>
+}
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return <Link to="/" className="brand-logo" aria-label="112233.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small>.es</small>}</Link>
@@ -54,7 +66,7 @@ function NotificationLink({ mobile = false }: { mobile?: boolean }) {
 
 export function Header() {
   const { currentUser } = useApp()
-  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser ? <NotificationLink /> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
+  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser ? <NotificationLink /> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar" onPointerEnter={preloadListingCreatePage} onFocus={preloadListingCreatePage} onPointerDown={preloadListingCreatePage}><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
 }
 
 export function MobileHeader() {
@@ -83,5 +95,5 @@ export function AppLayout() {
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><PublishAddressLifecycle /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Suspense key={pathname} fallback={<div className="route-loading" role="status" aria-live="polite"><span /><strong>Cargando 112233.es…</strong></div>}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><PublishAddressLifecycle /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
 }
