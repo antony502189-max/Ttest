@@ -151,7 +151,8 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
         ).all()
     }
 
-    report_groups = []
+    report_groups: list[dict[str, object]] = []
+    duplicate_count = 0
     changed = 0
     for group in groups:
         available = [listings[listing_id] for listing_id in group if listing_id in listings]
@@ -159,6 +160,7 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
             continue
         canonical = min(available, key=_canonical_key)
         losers = [listing for listing in available if listing.id != canonical.id]
+        duplicate_count += len(losers)
         report_groups.append(
             {
                 "canonical": str(canonical.id),
@@ -184,6 +186,6 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
 
     return {
         "groups": report_groups,
-        "duplicates": sum(len(group["duplicates"]) for group in report_groups),
+        "duplicates": duplicate_count,
         "changed": changed,
     }
