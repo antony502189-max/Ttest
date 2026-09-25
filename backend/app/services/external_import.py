@@ -414,13 +414,13 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         if listing is not None and listing.status == "closed" and listing.closed_reason == "duplicate":
             await session.commit()
             require_no_active_transaction(session, "suppressed duplicate recheck")
-            current_hashes = await public_image_hashes(item.photos)
-            if not current_hashes:
+            current_fingerprints = await public_image_fingerprints(item.photos)
+            if not current_fingerprints:
                 return "unchanged"
             await acquire_duplicate_guard(session)
-            active_duplicate_id = await duplicate_listing_for_hashes(
+            active_duplicate_id = await duplicate_listing_id(
                 session,
-                list(current_hashes),
+                current_fingerprints,
                 exclude_listing_id=listing.id,
             )
             if active_duplicate_id is not None:
