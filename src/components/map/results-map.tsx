@@ -12,7 +12,7 @@ import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentLi
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
-import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setPriceMarkerState } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { cn } from '@/lib/utils'
@@ -382,6 +382,18 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
     const applyClusterState = () => {
       containerRef.current?.querySelectorAll('.map-cluster-marker.is-highlighted, .map-cluster-marker.is-selected').forEach((node) => node.classList.remove('is-highlighted', 'is-selected'))
       const clusters = (clusterer as unknown as { clusters: Array<{ marker?: google.maps.Marker | google.maps.marker.AdvancedMarkerElement; markers: Array<google.maps.Marker | google.maps.marker.AdvancedMarkerElement> }> }).clusters
+      clusters.forEach((candidate) => {
+        if (!(candidate.marker instanceof google.maps.marker.AdvancedMarkerElement)) return
+        const clusterContent = candidate.marker.content
+        if (!(clusterContent instanceof HTMLElement)) return
+        const clusterPromoted = candidate.markers.some((child) => {
+          if (!(child instanceof google.maps.marker.AdvancedMarkerElement)) return false
+          const childContent = child.content
+          return childContent instanceof HTMLElement && Boolean(childContent.querySelector('.map-price-marker.is-promoted'))
+        })
+        setClusterPromotionState(clusterContent, clusterPromoted)
+        candidate.marker!.zIndex = (clusterPromoted ? 2000 : 1000) + candidate.markers.length
+      })
       ;([{ id: highlightedId, className: 'is-highlighted' }, { id: selectedId, className: 'is-selected' }] as const).forEach(({ id, className }) => {
         const listingMarker = id ? markersRef.current.get(id) : undefined
         if (!listingMarker) return
