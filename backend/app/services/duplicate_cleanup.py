@@ -161,28 +161,43 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
     duplicate_count = 0
     changed = 0
     for group in groups:
-        available = [listings[listing_id] for listing_id in group if listing_id in listings]
-        if len(available) < 2:
-            continue
-        canonical = min(available, key=_canonical_key)
-        losers = [listing for listing in available if listing.id != canonical.id]
-        duplicate_count += len(losers)
-        report_groups.append(
-            {
-                "canonical": str(canonical.id),
-                "canonicalExternal": canonical.is_external,
-                "duplicates": [str(listing.id) for listing in losers],
-            }
-        )
-        if not apply:
-            continue
-        for loser in losers:
-            await _move_scoped_state(session, Favorite, loser.id, canonical.id)
-            await _move_scoped_state(session, DiscardedListing, loser.id, canonical.id)
-            loser.status = "closed"
-            loser.closed_reason = "duplicate"
-            loser.last_synced_at = datetime.now(UTC)
-            changed += 1
+        # Union-find above is intentionally only a candidate accelerator. Its
+        # connected components are not equivalence classes: A may match B and
+        # B may match C while A and C are materially different rooms. Split
+        # every connected component into direct canonical-vs-loser batches so
+        # cleanup never closes a listing solely through transitive similarity.
+        remaining = [listings[listing_id] for listing_id in group if listing_id in listings]
+        while len(remaining) > 1:
+            canonical = min(remaining, key=_canonical_key)
+            losers = [
+                listing
+                for listing in remaining
+                if listing.id != canonical.id
+                and galleries_are_duplicates(galleries[canonical.id], galleries[listing.id])
+            ]
+            if not losers:
+                remaining = [listing for listing in remaining if listing.id != canonical.id]
+                continue
+
+            duplicate_count += len(losers)
+            report_groups.append(
+                {
+                    "canonical": str(canonical.id),
+                    "canonicalExternal": canonical.is_external,
+                    "duplicates": [str(listing.id) for listing in losers],
+                }
+            )
+            if apply:
+                for loser in losers:
+                    await _move_scoped_state(session, Favorite, loser.id, canonical.id)
+                    await _move_scoped_state(session, DiscardedListing, loser.id, canonical.id)
+                    loser.status = "closed"
+                    loser.closed_reason = "duplicate"
+                    loser.last_synced_at = datetime.now(UTC)
+                    changed += 1
+
+            consumed = {canonical.id, *(listing.id for listing in losers)}
+            remaining = [listing for listing in remaining if listing.id not in consumed]
 
     if apply and changed:
         await touch_catalog(session)
