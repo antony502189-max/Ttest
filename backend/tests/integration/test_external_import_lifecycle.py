@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -12,6 +13,7 @@ from app.external_sources import AlquilerDocenteCanariasSource, DiscoveryResult,
 from app.models import ExternalImportRun, ExternalListingSource, Listing, ListingImage, MediaAsset
 from app.models.room_details import ListingRoomDetails
 from app.services import external_import
+from app.services.listing_deduplication import ImageFingerprint
 from app.services.external_import import (
     archive_missing,
     deactivate_source_record,
@@ -88,8 +90,8 @@ async def attach_photo_fingerprint(session, listing: Listing, *, suffix: str) ->
     await session.commit()
 
 
-async def fixed_photo_hashes(_urls):
-    return {"0123456789abcdef"}
+async def fixed_photo_fingerprints(_urls):
+    return [ImageFingerprint(asset_id=uuid4(), checksum=("a" * 63) + "1", perceptual_hash="0123456789abcdef", width=1200, height=800)]
 
 
 class FailingSource:
@@ -434,7 +436,7 @@ async def test_external_upsert_keeps_card_visible_when_source_point_disappears_a
         assert restored.location is not None
 
 async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates(monkeypatch):
-    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     async with SessionLocal() as session:
         primary = external_item(
             source="Idealista",
@@ -500,10 +502,10 @@ async def test_location_loss_promotes_only_an_alternative_with_verified_coordina
 async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source(
     client: AsyncClient, monkeypatch
 ):
-    async def fixed_photo_hashes(_urls):
-        return {"0123456789abcdef"}
+    async def fixed_photo_fingerprints(_urls):
+        return [ImageFingerprint(asset_id=uuid4(), checksum=("a" * 63) + "1", perceptual_hash="0123456789abcdef", width=1200, height=800)]
 
-    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     before_catalog = await client.get("/api/v1/listings/catalog-version")
     assert before_catalog.status_code == 200, before_catalog.text
     before_version = int(before_catalog.json()["version"])
@@ -652,7 +654,7 @@ async def test_retiring_a_disabled_source_preserves_attribution_and_closes_unche
 
 
 async def test_retiring_a_disabled_source_promotes_an_active_duplicate(monkeypatch):
-    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     async with SessionLocal() as session:
         old = external_item(
             source="Idealista",
@@ -835,7 +837,7 @@ async def test_ambiguous_missing_detail_keeps_listing_published(state: str):
 
 
 async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source(monkeypatch):
-    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
+    monkeypatch.setattr(external_import, "public_image_fingerprints", fixed_photo_fingerprints)
     async with SessionLocal() as session:
         primary = external_item(
             source="Idealista",
