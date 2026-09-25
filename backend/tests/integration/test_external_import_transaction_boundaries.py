@@ -302,6 +302,73 @@ async def test_s3_failure_skips_image_without_aborting_listing_import(monkeypatc
         assert persisted_asset is None
 
 
+async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypatch):
+    storage = RecordingStorage()
+    attempts = 0
+
+    async with SessionLocal() as session:
+        async def no_hashes(urls: list[str]) -> list:
+            assert not session.in_transaction()
+            return []
+
+        async def flaky_image(client, url: str) -> importer.PreparedExternalImage | None:
+            nonlocal attempts
+            assert not session.in_transaction()
+            attempts += 1
+            if attempts == 1:
+                return None
+            content = b"recovered-gallery-image"
+            return importer.PreparedExternalImage(
+                content=content,
+                width=64,
+                height=48,
+                checksum=hashlib.sha256(content).hexdigest(),
+                perceptual_hash="3" * 16,
+            )
+
+        monkeypatch.setattr(importer, "public_image_fingerprints", no_hashes)
+        monkeypatch.setattr(importer, "download_external_image", flaky_image)
+        monkeypatch.setattr(importer, "get_storage", lambda: storage)
+
+        item = external_item(
+            source="Idealista",
+            external_id="retry-deferred-gallery",
+            url="https://www.idealista.com/inmueble/retry-deferred-gallery/",
+            photos=["https://images.example.test/retry.webp"],
+        )
+        assert await importer.upsert(session, item) == "imported"
+
+        source_record = await session.scalar(
+            select(ExternalListingSource).where(
+                ExternalListingSource.source_name == item.source_name,
+                ExternalListingSource.external_id == item.external_id,
+            )
+        )
+        assert source_record is not None
+        first_count = int(
+            await session.scalar(
+                select(importer.func.count(ListingImage.media_asset_id)).where(
+                    ListingImage.listing_id == source_record.canonical_listing_id
+                )
+            )
+            or 0
+        )
+        assert first_count == 0
+
+        assert await importer.upsert(session, item) == "updated"
+        second_count = int(
+            await session.scalar(
+                select(importer.func.count(ListingImage.media_asset_id)).where(
+                    ListingImage.listing_id == source_record.canonical_listing_id
+                )
+            )
+            or 0
+        )
+        assert second_count == 1
+        assert attempts == 2
+        assert not session.in_transaction()
+
+
 async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(monkeypatch):
     storage = RecordingStorage()
     calls: list[str] = []
