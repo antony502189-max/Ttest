@@ -7,6 +7,50 @@ const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
 
+
+const LOCAL_MEDIA_MAX_DIMENSION = 2048
+const LOCAL_MEDIA_WEBP_QUALITY = 0.84
+
+async function optimizeMediaFile(file: File) {
+  if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file
+
+  let bitmap: ImageBitmap | null = null
+  try {
+    bitmap = await createImageBitmap(file)
+    if (!bitmap.width || !bitmap.height) return file
+
+    const scale = Math.min(1, LOCAL_MEDIA_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { alpha: true })
+    if (!context) return file
+    context.drawImage(bitmap, 0, 0, width, height)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', LOCAL_MEDIA_WEBP_QUALITY)
+    })
+    if (!blob) return file
+
+    // Do not replace a small source with a larger derivative. Resizing always
+    // wins because it reduces upload, decode and rendered-memory costs.
+    if (scale === 1 && blob.size >= file.size) return file
+    const baseName = file.name.replace(/.[^.]+$/, '') || 'listing-image'
+    return new File([blob], `${baseName}.webp`, {
+      type: 'image/webp',
+      lastModified: file.lastModified,
+    })
+  } catch {
+    // Browser-side optimization is best effort; backend validation and
+    // normalization remains authoritative.
+    return file
+  } finally {
+    bitmap?.close()
+  }
+}
+
 export class MediaStorageError extends Error {
   readonly code: 'type' | 'read' | 'quota' | 'unavailable'
 
@@ -76,12 +120,13 @@ export async function saveMediaFile(file: File) {
   if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number])) {
     throw new MediaStorageError('type', 'Formato no compatible. Usa JPEG, PNG o WebP.')
   }
+  const optimized = await optimizeMediaFile(file)
   const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const database = await openDatabase()
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).put(file, id)
+      transaction.objectStore(STORE_NAME).put(optimized, id)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error)
