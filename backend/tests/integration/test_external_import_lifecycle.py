@@ -63,6 +63,35 @@ def external_item(
     )
 
 
+async def attach_photo_fingerprint(session, listing: Listing, *, suffix: str) -> None:
+    asset = MediaAsset(
+        owner_id=listing.owner_user_id,
+        storage_key=f"test/external-photo-{suffix}-{listing.id}.webp",
+        mime_type="image/webp",
+        size_bytes=16,
+        width=1200,
+        height=800,
+        checksum=("a" * 63) + "1",
+        perceptual_hash="0123456789abcdef",
+        kind="listing_image",
+    )
+    session.add(asset)
+    await session.flush()
+    session.add(
+        ListingImage(
+            listing_id=listing.id,
+            media_asset_id=asset.id,
+            sort_order=0,
+            is_cover=True,
+        )
+    )
+    await session.commit()
+
+
+async def fixed_photo_hashes(_urls):
+    return {"0123456789abcdef"}
+
+
 class FailingSource:
     name = "Idealista"
 
@@ -404,7 +433,8 @@ async def test_external_upsert_keeps_card_visible_when_source_point_disappears_a
         assert restored.closed_reason is None
         assert restored.location is not None
 
-async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates():
+async def test_location_loss_promotes_only_an_alternative_with_verified_coordinates(monkeypatch):
+    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
     async with SessionLocal() as session:
         primary = external_item(
             source="Idealista",
@@ -415,6 +445,9 @@ async def test_location_loss_promotes_only_an_alternative_with_verified_coordina
         )
         primary.photos = []
         assert await upsert(session, primary) == "imported"
+        primary_listing = await session.scalar(select(Listing).where(Listing.primary_source == primary.source_name))
+        assert primary_listing is not None
+        await attach_photo_fingerprint(session, primary_listing, suffix="location")
 
         alternative = external_item(
             source="Fotocasa",
@@ -618,7 +651,8 @@ async def test_retiring_a_disabled_source_preserves_attribution_and_closes_unche
         assert listing is not None and listing.status == "closed"
 
 
-async def test_retiring_a_disabled_source_promotes_an_active_duplicate():
+async def test_retiring_a_disabled_source_promotes_an_active_duplicate(monkeypatch):
+    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
     async with SessionLocal() as session:
         old = external_item(
             source="Idealista",
@@ -632,6 +666,9 @@ async def test_retiring_a_disabled_source_promotes_an_active_duplicate():
             price=735,
         )
         assert await upsert(session, old) == "imported"
+        old_listing = await session.scalar(select(Listing).where(Listing.primary_source == old.source_name))
+        assert old_listing is not None
+        await attach_photo_fingerprint(session, old_listing, suffix="retired")
         assert await upsert(session, replacement) == "updated"
         assert await retire_source_records(session, {"Idealista"}) == 0
         listing = await session.scalar(select(Listing).where(Listing.primary_source == "Fotocasa"))
@@ -797,7 +834,8 @@ async def test_ambiguous_missing_detail_keeps_listing_published(state: str):
         assert listing is not None and listing.status == "published"
 
 
-async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source():
+async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source(monkeypatch):
+    monkeypatch.setattr(external_import, "public_image_hashes", fixed_photo_hashes)
     async with SessionLocal() as session:
         primary = external_item(
             source="Idealista",
@@ -808,6 +846,9 @@ async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_r
         primary.photos = []
         assert await upsert(session, primary) == "imported"
         await session.commit()
+        primary_listing = await session.scalar(select(Listing).where(Listing.primary_source == primary.source_name))
+        assert primary_listing is not None
+        await attach_photo_fingerprint(session, primary_listing, suffix="primary-removal")
 
         alternative = external_item(
             source="Fotocasa",
