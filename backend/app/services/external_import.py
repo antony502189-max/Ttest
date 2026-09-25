@@ -116,21 +116,36 @@ def listing_completeness_score(listing: Listing) -> int:
     ) + min(len(listing.external_image_urls), 10)
 
 
-async def public_image_hashes(urls: list[str]) -> set[str]:
+async def public_image_fingerprints(urls: list[str]) -> list[ImageFingerprint]:
     if not urls:
-        return set()
-    result: set[str] = set()
+        return []
+    result: list[ImageFingerprint] = []
     async with httpx.AsyncClient(
-        timeout=get_settings().external_import_request_timeout_seconds, follow_redirects=True
+        timeout=get_settings().external_import_request_timeout_seconds,
+        follow_redirects=True,
     ) as client:
         for url in urls[:5]:
             try:
-                response = await client.get(url, headers={"User-Agent": get_settings().external_import_user_agent})
+                response = await client.get(
+                    url,
+                    headers={"User-Agent": get_settings().external_import_user_agent},
+                )
                 content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
                 if response.status_code != 200 or not content_type.startswith("image/"):
                     continue
-                normalized, _, _ = await asyncio.to_thread(validate_and_normalize, response.content)
-                result.add(await asyncio.to_thread(perceptual_hash, normalized))
+                normalized, width, height = await asyncio.to_thread(
+                    validate_and_normalize,
+                    response.content,
+                )
+                result.append(
+                    ImageFingerprint(
+                        asset_id=UUID(int=len(result) + 1),
+                        checksum=hashlib.sha256(normalized).hexdigest(),
+                        perceptual_hash=await asyncio.to_thread(perceptual_hash, normalized),
+                        width=width,
+                        height=height,
+                    )
+                )
             except (HTTPException, OSError, ValueError, httpx.HTTPError):
                 continue
     return result
