@@ -39,6 +39,24 @@ test('shared map marker renders promoted listings with a thumbs-up beside the pr
   expect(marker.promotion).toBe('👍')
 })
 
+test('same-address cluster keeps the promoted sign when at least one grouped listing is TOP', async ({ page }) => {
+  await page.goto('/')
+  const cluster = await page.evaluate(async () => {
+    const icons = await import('/src/components/map/map-icons.ts')
+    const content = icons.createClusterContent(20, true)
+    return {
+      className: content.querySelector('.map-cluster-marker')?.className,
+      promotion: content.querySelector('.map-cluster-marker__promotion')?.textContent,
+      aria: content.getAttribute('aria-label'),
+      promoted: content.dataset.promoted,
+    }
+  })
+  expect(cluster.className).toContain('is-promoted')
+  expect(cluster.promotion).toBe('👍')
+  expect(cluster.aria).toContain('TOP')
+  expect(cluster.promoted).toBe('true')
+})
+
 test('shared map marker leaves ordinary listings without promoted state', async ({ page }) => {
   await page.goto('/')
   const marker = await page.evaluate(async (item) => {
@@ -67,6 +85,7 @@ test('promotion stylesheet replaces the old red treatment with the thumbs-up tre
   await page.goto('/')
   const css = await page.evaluate(async () => (await import('/src/promoted-map-like.css?raw')).default)
   expect(css).toContain('.map-price-marker__promotion')
+  expect(css).toContain('.map-cluster-marker__promotion')
   expect(css).toContain('background: #fff')
   expect(css).toContain('background: #d2ff3f')
   expect(css).not.toContain('#d92d20')
