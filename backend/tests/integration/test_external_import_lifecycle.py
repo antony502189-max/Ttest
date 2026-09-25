@@ -547,6 +547,11 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
             )
         )
         first_listing.external_image_urls = ["https://images.example.test/external-dedupe.webp"]
+        # The synthetic canonical has one reconciled image. Keep its overall
+        # completeness equal to the competing source so this fixture continues
+        # to exercise primary-source replacement rather than completeness
+        # ranking.
+        first_listing.external_contact_email = None
         await session.commit()
 
         after_import_catalog = await client.get("/api/v1/listings/catalog-version")
