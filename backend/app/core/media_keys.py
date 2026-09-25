@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-MEDIA_VARIANTS = ("card", "thumb")
+MEDIA_VARIANTS = ("full", "card", "thumb")
 
 
 def variant_storage_key(storage_key: str, variant: str) -> str:
