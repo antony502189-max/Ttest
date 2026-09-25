@@ -49,6 +49,8 @@ const openRoute = async (page: Page, route: (typeof routes)[number]) => {
     .catch(() => undefined);
   if (route.name === "mapa")
     await page.locator('.google-map-canvas, [data-testid="google-map"]').waitFor({ state: "visible" });
+  if (route.name === "publicar")
+    await page.locator(".listing-create-page").waitFor({ state: "visible" });
 };
 
 const assertNoSeriousViolations = async (page: Page) => {
@@ -137,6 +139,7 @@ test("delta avatar uploader has no serious or critical axe issues", async ({ pag
 
 test("delta image uploader has no serious or critical axe issues", async ({ page }) => {
   await openRoute(page, { name: "publicar", path: "/#/publicar", session: "host-demo" });
+  await expect(page.locator(".image-uploader")).toBeVisible();
   const results = await new AxeBuilder({ page }).include(".image-uploader").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
 });
