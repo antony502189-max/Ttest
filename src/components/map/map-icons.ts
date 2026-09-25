@@ -35,6 +35,23 @@ export function setPriceMarkerState(content: HTMLElement, selected: boolean, hig
   content.setAttribute('aria-pressed', String(selected))
 }
 
+export function setClusterPromotionState(content: HTMLElement, promoted: boolean) {
+  const marker = content.querySelector('.map-cluster-marker')
+  if (!(marker instanceof HTMLElement)) return
+  marker.classList.toggle('is-promoted', promoted)
+  content.dataset.promoted = String(promoted)
+  const currentPromotion = marker.querySelector('.map-cluster-marker__promotion')
+  if (promoted && !currentPromotion) {
+    const promotion = document.createElement('span')
+    promotion.className = 'map-cluster-marker__promotion'
+    promotion.setAttribute('aria-hidden', 'true')
+    promotion.textContent = '👍'
+    marker.append(promotion)
+  } else if (!promoted) {
+    currentPromotion?.remove()
+  }
+}
+
 export function createClusterContent(count: number, promoted = false) {
   const size = count < 10 ? 42 : count < 50 ? 50 : 58
   const scale = count < 10 ? 'small' : count < 50 ? 'medium' : 'large'
@@ -49,14 +66,8 @@ export function createClusterContent(count: number, promoted = false) {
   const label = document.createElement('span')
   label.textContent = String(count)
   marker.append(label)
-  if (promoted) {
-    const promotion = document.createElement('span')
-    promotion.className = 'map-cluster-marker__promotion'
-    promotion.setAttribute('aria-hidden', 'true')
-    promotion.textContent = '👍'
-    marker.append(promotion)
-  }
   shell.append(marker)
+  setClusterPromotionState(shell, promoted)
   return shell
 }
 
