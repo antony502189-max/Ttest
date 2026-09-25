@@ -37,7 +37,7 @@ async function optimizeMediaFile(file: File) {
     // Do not replace a small source with a larger derivative. Resizing always
     // wins because it reduces upload, decode and rendered-memory costs.
     if (scale === 1 && blob.size >= file.size) return file
-    const baseName = file.name.replace(/.[^.]+$/, '') || 'listing-image'
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'listing-image'
     return new File([blob], `${baseName}.webp`, {
       type: 'image/webp',
       lastModified: file.lastModified,
@@ -158,27 +158,23 @@ export async function saveMediaFile(file: File) {
 export async function getMediaBlob(reference: string) {
   if (!isMediaReference(reference)) return null
   const database = await openDatabase()
-  try {
-    return await new Promise<Blob | null>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(mediaId(reference))
-      request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null)
-      request.onerror = () => reject(request.error)
-    })
-  }
+  return await new Promise<Blob | null>((resolve, reject) => {
+    const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(mediaId(reference))
+    request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null)
+    request.onerror = () => reject(request.error)
+  })
 }
 
 export async function removeMedia(reference: string) {
   if (!isMediaReference(reference)) return
   const database = await openDatabase()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).delete(mediaId(reference))
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-      transaction.onabort = () => reject(transaction.error)
-    })
-  }
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite')
+    transaction.objectStore(STORE_NAME).delete(mediaId(reference))
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+    transaction.onabort = () => reject(transaction.error)
+  })
 }
 
 export async function removeMediaReferences(references: string[]) {
@@ -190,13 +186,11 @@ export async function removeMediaReferences(references: string[]) {
 
 export async function getAllMediaReferences() {
   const database = await openDatabase()
-  try {
-    return await new Promise<string[]>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAllKeys()
-      request.onsuccess = () => resolve(request.result.map(mediaReference))
-      request.onerror = () => reject(request.error)
-    })
-  }
+  return await new Promise<string[]>((resolve, reject) => {
+    const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAllKeys()
+    request.onsuccess = () => resolve(request.result.map(mediaReference))
+    request.onerror = () => reject(request.error)
+  })
 }
 
 export async function removeUnusedMediaReferences(references: string[], usedReferences: Iterable<string>) {
