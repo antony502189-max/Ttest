@@ -18,7 +18,7 @@ from ...models import Listing, ListingImage, MediaAsset, User
 from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
-from ...services.media_processing import PreparedImage, prepare_image, render_variant, validate_and_normalize
+from ...services.media_processing import PreparedImage, prepare_image, render_variant
 from ...services.moderation import active_window, enforce_listing_view_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import Storage, get_storage
