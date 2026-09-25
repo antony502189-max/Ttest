@@ -56,8 +56,10 @@ export function SelectedListingSheet({
     data-group-size={carousel.length}
     data-promoted={listing.promoted || undefined}
   >
-    <div className="selected-listing-sheet__media map-selected-card__media">
-      <MediaImage src={listing.images[0]} variant="card" alt={`Habitación en ${listing.area}`} width="576" height="360" />
+    <div className={cn("selected-listing-sheet__media map-selected-card__media", hasCarousel && "has-neighbor-peeks")}>
+      {previous ? <button type="button" className="selected-listing-sheet__neighbor-peek selected-listing-sheet__neighbor-peek--prev" aria-label="Ver anuncio anterior en esta dirección" onClick={() => onSelectSibling?.(previous.id)}><MediaImage src={previous.images[0]} variant="thumb" alt="" /></button> : null}
+      {next ? <button type="button" className="selected-listing-sheet__neighbor-peek selected-listing-sheet__neighbor-peek--next" aria-label="Ver siguiente anuncio en esta dirección" onClick={() => onSelectSibling?.(next.id)}><MediaImage src={next.images[0]} variant="thumb" alt="" /></button> : null}
+      <MediaImage className="selected-listing-sheet__primary-photo" src={listing.images[0]} variant="card" alt={`Habitación en ${listing.area}`} width="576" height="360" />
       {listing.images[1] ? <MediaImage className="selected-listing-sheet__secondary-photo" src={listing.images[1]} variant="thumb" alt="" width="384" height="360" /> : null}
       {listing.promoted ? <span className="selected-listing-sheet__promoted" aria-label="Anuncio TOP">👍</span> : null}
       {hasCarousel ? <>
