@@ -35,31 +35,44 @@ export function setPriceMarkerState(content: HTMLElement, selected: boolean, hig
   content.setAttribute('aria-pressed', String(selected))
 }
 
-function createClusterContent(count: number) {
+export function createClusterContent(count: number, promoted = false) {
   const size = count < 10 ? 42 : count < 50 ? 50 : 58
   const scale = count < 10 ? 'small' : count < 50 ? 'medium' : 'large'
   const shell = document.createElement('div')
   shell.className = 'map-cluster-marker-shell room-cluster-shell'
   shell.style.width = `${size}px`
   shell.style.height = `${size}px`
-  shell.setAttribute('aria-label', `${count} habitaciones en esta zona`)
+  shell.setAttribute('aria-label', `${count} habitaciones en esta zona${promoted ? ', incluye anuncio TOP' : ''}`)
+  shell.dataset.promoted = String(promoted)
   const marker = document.createElement('span')
-  marker.className = `map-cluster-marker room-cluster map-cluster-marker--${scale}`
+  marker.className = `map-cluster-marker room-cluster map-cluster-marker--${scale}${promoted ? ' is-promoted' : ''}`
   const label = document.createElement('span')
   label.textContent = String(count)
   marker.append(label)
+  if (promoted) {
+    const promotion = document.createElement('span')
+    promotion.className = 'map-cluster-marker__promotion'
+    promotion.setAttribute('aria-hidden', 'true')
+    promotion.textContent = '👍'
+    marker.append(promotion)
+  }
   shell.append(marker)
   return shell
 }
 
 export class AdvancedClusterRenderer implements Renderer {
-  render({ count, position }: Parameters<Renderer['render']>[0]) {
+  render({ count, position, markers }: Parameters<Renderer['render']>[0]) {
+    const promoted = markers.some((candidate) => {
+      if (!(candidate instanceof google.maps.marker.AdvancedMarkerElement)) return false
+      const content = candidate.content
+      return content instanceof HTMLElement && Boolean(content.querySelector('.map-price-marker.is-promoted'))
+    })
     return new google.maps.marker.AdvancedMarkerElement({
       position,
-      content: createClusterContent(count),
-      title: `${count} habitaciones`,
+      content: createClusterContent(count, promoted),
+      title: `${count} habitaciones${promoted ? ', incluye anuncio TOP' : ''}`,
       gmpClickable: true,
-      zIndex: 1000 + count,
+      zIndex: (promoted ? 2000 : 1000) + count,
     })
   }
 }
