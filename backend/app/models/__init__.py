@@ -377,7 +377,11 @@ class ListingImage(Base):
     __tablename__ = "listing_images"
     __table_args__ = (UniqueConstraint("listing_id", "sort_order", name="uq_listing_images_sort_order"),)
     listing_id: Mapped[UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), primary_key=True)
-    media_asset_id: Mapped[UUID] = mapped_column(ForeignKey("media_assets.id", ondelete="CASCADE"), primary_key=True)
+    media_asset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
     sort_order: Mapped[int] = mapped_column(Integer)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
