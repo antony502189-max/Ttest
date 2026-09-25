@@ -226,13 +226,14 @@ async def import_images(
                     created_storage_key = external_storage_key(owner_id, asset_id)
                     require_no_active_transaction(session, "external image storage")
                     try:
-                        await asyncio.to_thread(storage.put, created_storage_key, prepared.content)
-                        for variant, variant_content in prepared.variants.items():
-                            await asyncio.to_thread(
-                                storage.put,
-                                variant_storage_key(created_storage_key, variant),
-                                variant_content,
-                            )
+                        objects = [(created_storage_key, prepared.content), *[
+                            (variant_storage_key(created_storage_key, variant), variant_content)
+                            for variant, variant_content in prepared.variants.items()
+                        ]]
+                        await asyncio.gather(*(
+                            asyncio.to_thread(storage.put, object_key, object_content)
+                            for object_key, object_content in objects
+                        ))
                     except (OSError, BotoCoreError, ClientError):
                         logger.exception(
                             "external_image_storage_failed",
