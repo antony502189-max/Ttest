@@ -87,16 +87,26 @@ export function SelectedListingSheet({
         <span className="selected-listing-sheet__photo-count">1/{item.images.length}</span>
       </div>
       <div className="selected-listing-sheet__content">
-        {item.isExternal && item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{item.title}</a> : <Link to={`/habitacion/${item.id}`}>{item.title}</Link>}
+        {current
+          ? item.isExternal && item.sourceUrl
+            ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{item.title}</a>
+            : <Link to={`/habitacion/${item.id}`}>{item.title}</Link>
+          : <span className="selected-listing-carousel__title-preview">{item.title}</span>}
         <strong>{priceLabel(item)} {item.sourcePriceText ? null : <span>/{getPrimaryCadence(item)}</span>}</strong>
         <p>{item.approximateAddress ? `${item.approximateAddress}, ${item.city}` : `${item.area}, ${item.city}`}</p>
         <p className="selected-listing-sheet__facts">{item.roomType} · {item.currentResidents} residentes · {item.roomSizeM2 == null ? unknownListingFact : `${item.roomSizeM2} m²`}</p>
         <ul>{getCriticalRestrictions(item).slice(0, 2).map((restriction) => <li key={restriction}>{restriction}</li>)}</ul>
       </div>
       <div className="selected-listing-sheet__actions">
-        {item.isExternal && item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><MessageSquare aria-hidden="true" /><span>Ver anuncio</span></a> : <Link to={`/habitacion/${item.id}#contacto`}><MessageSquare aria-hidden="true" /><span>Contactar</span></Link>}
-        {item.showPhone && item.contactPhone ? <a href={`tel:${item.contactPhone.replace(/\s+/g, '')}`}><Phone aria-hidden="true" /><span>Llamar</span></a> : null}
-        <button type="button" className={cn('selected-listing-sheet__favorite', saved && 'is-saved')} aria-label={saved ? `Quitar ${item.title} de favoritos` : `Guardar ${item.title} en favoritos`} aria-pressed={saved} onClick={() => toggleFavorite(item.id)}><Heart aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /><span>Guardar</span></button>
+        {current ? <>
+          {item.isExternal && item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><MessageSquare aria-hidden="true" /><span>Ver anuncio</span></a> : <Link to={`/habitacion/${item.id}#contacto`}><MessageSquare aria-hidden="true" /><span>Contactar</span></Link>}
+          {item.showPhone && item.contactPhone ? <a href={`tel:${item.contactPhone.replace(/\s+/g, '')}`}><Phone aria-hidden="true" /><span>Llamar</span></a> : null}
+          <button type="button" className={cn('selected-listing-sheet__favorite', saved && 'is-saved')} aria-label={saved ? `Quitar ${item.title} de favoritos` : `Guardar ${item.title} en favoritos`} aria-pressed={saved} onClick={() => toggleFavorite(item.id)}><Heart aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /><span>Guardar</span></button>
+        </> : <>
+          <span className="selected-listing-carousel__action-preview"><MessageSquare aria-hidden="true" /></span>
+          {item.showPhone && item.contactPhone ? <span className="selected-listing-carousel__action-preview"><Phone aria-hidden="true" /></span> : null}
+          <span className={cn('selected-listing-carousel__action-preview', saved && 'is-saved')}><Heart aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /></span>
+        </>}
       </div>
       {current ? <button type="button" className="selected-listing-sheet__close" aria-label="Cerrar vista previa" onClick={onClose}><X aria-hidden="true" /></button> : null}
       {!current ? <button
