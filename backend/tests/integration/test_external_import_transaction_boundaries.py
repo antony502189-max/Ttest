@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
 import pytest
-from PIL import Image
 from botocore.exceptions import EndpointConnectionError
+from PIL import Image
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
