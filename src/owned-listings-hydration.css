@@ -1,0 +1,78 @@
+.customer-owned-listings-loading {
+  width: min(100% - 2rem, 64rem);
+  min-height: clamp(14rem, 42vh, 22rem);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: .55rem;
+  margin: 1rem auto 3rem;
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink-soft);
+  text-align: center;
+  opacity: 0;
+  animation: owner-loading-reveal .14s ease-out .22s forwards;
+}
+
+.customer-owned-listings-loading > span {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--brand-active);
+  border-radius: 50%;
+  animation: owned-listings-spin .7s linear infinite;
+}
+
+.customer-owned-listings-loading > strong {
+  font-size: 1rem;
+}
+
+.customer-owned-listings-loading > p {
+  max-width: 30rem;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: .9rem;
+}
+
+@keyframes owned-listings-spin {
+  to { transform: rotate(360deg); }
+}
+
+
+.customer-owned-listings-error {
+  width: min(100% - 2rem, 64rem);
+  margin: 1rem auto 3rem;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.customer-owned-listings-error > strong {
+  display: block;
+  margin-bottom: .35rem;
+}
+
+.customer-owned-listings-error > p {
+  margin: 0 0 .85rem;
+  color: var(--ink-muted);
+}
+
+.customer-owned-listings-error > button {
+  min-height: 2.65rem;
+  padding: .55rem .9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: .55rem;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+@keyframes owner-loading-reveal {
+  to { opacity: 1; }
+}
