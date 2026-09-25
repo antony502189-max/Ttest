@@ -7,6 +7,7 @@ from typing import Protocol
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 
 from .core.config import get_settings
+from .core.media_keys import storage_keys_for_asset
 from .core.storage_failure_buffer import record_failed_storage_deletion
 
 
@@ -123,8 +124,11 @@ class BufferedDeleteStorage:
 
     def delete(self, key: str) -> None:
         try:
-            self.delegate.delete(key)
+            for storage_key in storage_keys_for_asset(key):
+                self.delegate.delete(storage_key)
         except (OSError, BotoCoreError, ClientError):
+            # Retry the root key: derived deletes are idempotent and will be
+            # attempted again with the original on the deletion worker.
             record_failed_storage_deletion(key)
             raise
 
