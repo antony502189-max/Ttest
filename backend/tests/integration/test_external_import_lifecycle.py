@@ -531,7 +531,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
             size_bytes=16,
             width=1200,
             height=800,
-            checksum="a" * 64,
+            checksum=("a" * 63) + "1",
             perceptual_hash="0123456789abcdef",
             kind="listing_image",
         )
