@@ -55,10 +55,15 @@ def media_quota_exceeded(
     )
 
 
-def _store_prepared_image(storage: Storage, storage_key: str, prepared: PreparedImage) -> None:
-    storage.put(storage_key, prepared.content)
-    for variant, content in prepared.variants.items():
-        storage.put(variant_storage_key(storage_key, variant), content)
+async def _store_prepared_image(storage: Storage, storage_key: str, prepared: PreparedImage) -> None:
+    objects = [(storage_key, prepared.content), *[
+        (variant_storage_key(storage_key, variant), content)
+        for variant, content in prepared.variants.items()
+    ]]
+    await asyncio.gather(*(
+        asyncio.to_thread(storage.put, object_key, object_content)
+        for object_key, object_content in objects
+    ))
 
 
 async def _delete_prepared_image(storage: Storage, storage_key: str) -> None:
@@ -99,7 +104,7 @@ async def upload_image(
         # Do storage I/O before taking a user/quota row lock. If the account is
         # concurrently deleted or exceeds quota, the unique provisional object
         # is removed after the authoritative locked check below.
-        await asyncio.to_thread(_store_prepared_image, storage, storage_key, prepared)
+        await _store_prepared_image(storage, storage_key, prepared)
     except (OSError, BotoCoreError, ClientError):
         await _delete_prepared_image(storage, storage_key)
         raise
