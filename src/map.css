@@ -482,7 +482,7 @@
   bottom: 1rem;
   left: 1rem;
   width: min(40rem, calc(100% - 2rem));
-  height: 10.75rem;
+  height: 12.75rem;
   overflow: hidden;
   pointer-events: none;
 }
@@ -606,7 +606,7 @@
     right: .5rem;
     left: .5rem;
     width: auto;
-    height: 11rem;
+    height: 13rem;
   }
 
   .selected-listing-carousel .selected-listing-sheet {
