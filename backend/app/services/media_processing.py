@@ -118,9 +118,11 @@ def prepare_image(content: bytes) -> PreparedImage:
 
 
 def validate_and_normalize(content: bytes) -> tuple[bytes, int, int]:
-    """Compatibility wrapper used by import deduplication and validation tests."""
-    prepared = prepare_image(content)
-    return prepared.content, prepared.width, prepared.height
+    """Validate and normalize only the full image without derivative work."""
+    settings = get_settings()
+    source = _validated_image(content)
+    full = _resize_to_fit(source, settings.media_full_max_dimension)
+    return _webp(full, quality=settings.media_full_webp_quality), *full.size
 
 
 def render_variant(content: bytes, variant: str) -> bytes | None:
