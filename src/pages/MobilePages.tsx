@@ -11,7 +11,7 @@ const MenuRow = ({ to, icon: Icon, children }: { to: string; icon: typeof Home; 
 
 export function MenuPage() {
   const { currentUser, logout } = useApp()
-  const avatarUrl = useMediaUrl(currentUser?.avatarRef)
+  const avatarUrl = useMediaUrl(currentUser?.avatarRef, 'thumb')
   return <section className="mobile-app-page menu-page" aria-labelledby="menu-title">
     <header className="mobile-app-page__header"><h1 id="menu-title">Menú</h1></header>
     <div className="menu-account-block">
