@@ -509,11 +509,12 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   }, [currentUser?.role])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
+  const refreshOwnedListings = useCallback(async () => undefined, [])
   const value = useMemo<AppState>(() => ({
     rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded,
     filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory,
     savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts,
-    mapPolygon, setMapPolygon, clearMapPolygon, allListings: publicListings, ownedListings: allListings, acceptListingSnapshot, partialPublication: null, createListing, updateListing, deleteListing,
+    mapPolygon, setMapPolygon, clearMapPolygon, allListings: publicListings, ownedListings: allListings, ownedListingsHydrationStatus: 'ready', refreshOwnedListings, acceptListingSnapshot, partialPublication: null, createListing, updateListing, deleteListing,
     setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport,
     localComments, addLocalComment, updateLocalComment, deleteLocalComment,
     users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked,
@@ -521,7 +522,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   }), [
     rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters,
     activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch,
-    restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, publicListings, acceptListingSnapshot,
+    restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, publicListings, refreshOwnedListings, acceptListingSnapshot,
     createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle,
     canManageListing, reports, addReport, localComments, addLocalComment,
     updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile,
