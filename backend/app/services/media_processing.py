@@ -87,6 +87,8 @@ def perceptual_hash(content: bytes) -> str:
 
 def _variant_target(variant: str) -> tuple[int, int]:
     settings = get_settings()
+    if variant == "full":
+        return settings.media_full_max_dimension, settings.media_full_webp_quality
     if variant == "card":
         return settings.media_card_max_dimension, settings.media_card_webp_quality
     if variant == "thumb":
