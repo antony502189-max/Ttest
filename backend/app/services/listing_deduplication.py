@@ -283,6 +283,10 @@ async def duplicate_listing_for_hashes(
     return None
 
 
+async def acquire_duplicate_guard(session: AsyncSession) -> None:
+    await session.execute(select(func.pg_advisory_xact_lock(DUPLICATE_GUARD_LOCK_KEY)))
+
+
 async def assert_gallery_is_unique(
     session: AsyncSession,
     listing_id: UUID,
@@ -292,7 +296,7 @@ async def assert_gallery_is_unique(
     if not fingerprints:
         return
 
-    await session.execute(select(func.pg_advisory_xact_lock(DUPLICATE_GUARD_LOCK_KEY)))
+    await acquire_duplicate_guard(session)
     duplicate_id = await duplicate_listing_id(
         session,
         fingerprints,
