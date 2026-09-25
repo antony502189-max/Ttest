@@ -182,7 +182,7 @@ for (const viewport of [
     await expectNoHorizontalOverflow(page)
     const occupantDialog = page.getByRole('dialog')
     await expect(occupantDialog).toBeVisible()
-    await occupantDialog.getByRole('button', { name: /Cerrar|Close/ }).click()
+    await occupantDialog.locator('button[aria-label="Cerrar"]:visible, button[aria-label="Close"]:visible').first().click()
     await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
     await expectNoHorizontalOverflow(page)
     await page.getByTestId('draw-zone').click()
