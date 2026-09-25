@@ -3,7 +3,12 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from app.services.duplicate_cleanup import _direct_duplicate_batches
-from app.services.listing_deduplication import ImageFingerprint, galleries_are_duplicates, hamming_distance
+from app.services.listing_deduplication import (
+    ImageFingerprint,
+    external_gallery_is_reconciled,
+    galleries_are_duplicates,
+    hamming_distance,
+)
 
 
 def image(index: int, *, checksum: str | None = None, phash: str | None = None) -> ImageFingerprint:
@@ -86,3 +91,27 @@ def test_cleanup_does_not_collapse_transitive_similarity_chain():
     assert [(batch[0].id, [item.id for item in batch[1]]) for batch in batches] == [
         (first_id, [middle_id])
     ]
+
+
+
+def test_external_cleanup_requires_reconciled_gallery_snapshot():
+    assert external_gallery_is_reconciled(
+        is_external=False,
+        external_image_urls=[],
+        stored_image_count=3,
+    )
+    assert external_gallery_is_reconciled(
+        is_external=True,
+        external_image_urls=["a", "b", "c"],
+        stored_image_count=3,
+    )
+    assert not external_gallery_is_reconciled(
+        is_external=True,
+        external_image_urls=["a", "b", "c"],
+        stored_image_count=5,
+    )
+    assert not external_gallery_is_reconciled(
+        is_external=True,
+        external_image_urls=[],
+        stored_image_count=3,
+    )
