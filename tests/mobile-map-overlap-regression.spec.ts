@@ -70,7 +70,7 @@ test('same-address carousel is not capped at four listings', () => {
 test('same-address carousel preserves the external source image-link contract', () => {
   const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
 
-  expect(layer).toContain('<div className="m2-map-listing-preview__media-shell">')
+  expect(layer).toContain("cn('m2-map-listing-preview__media-shell', carousel.length > 1 && 'has-neighbor-peeks')")
   expect(layer).toContain('<a className="m2-map-listing-preview__media" href={externalUrl}')
 })
 
