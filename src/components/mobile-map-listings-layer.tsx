@@ -230,8 +230,8 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
 
   return <article className="m2-map-listing-preview" data-testid="mobile-map-listing-preview" data-listing-id={selected.id}>
     {externalUrl
-      ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} alt={selected.title} /></a>
-      : <div className="m2-map-listing-preview__media"><MediaImage src={selected.images[0]} alt={selected.title} /></div>}
+      ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={selected.images[0]} variant="card" alt={selected.title} /></a>
+      : <div className="m2-map-listing-preview__media"><MediaImage src={selected.images[0]} variant="card" alt={selected.title} /></div>}
     <div className="m2-map-listing-preview__body">
       <button type="button" className="m2-map-listing-preview__close" onClick={() => setSelectedId('')} aria-label={t.close}><X /></button>
       <p><MapPin />{selected.approximateAddress ? `${selected.approximateAddress}, ${selected.city}` : `${selected.area}, ${selected.city}`}</p>
