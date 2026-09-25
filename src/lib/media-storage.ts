@@ -97,7 +97,9 @@ function mediaId(reference: string) {
 
 const mediaReference = (id: IDBValidKey) => `${MEDIA_PREFIX}${String(id)}`
 
-export function isMediaReference(value?: string): value is string {
+export type MediaReference = `${typeof MEDIA_PREFIX}${string}`
+
+export function isMediaReference(value?: string): value is MediaReference {
   return Boolean(value?.startsWith(MEDIA_PREFIX))
 }
 
