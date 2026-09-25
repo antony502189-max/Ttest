@@ -7,7 +7,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 from botocore.exceptions import EndpointConnectionError
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
 from app.external_sources import DiscoveryResult, NormalizedListing
@@ -347,7 +347,7 @@ async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypa
         assert source_record is not None
         first_count = int(
             await session.scalar(
-                select(importer.func.count(ListingImage.media_asset_id)).where(
+                select(func.count(ListingImage.media_asset_id)).where(
                     ListingImage.listing_id == source_record.canonical_listing_id
                 )
             )
@@ -358,7 +358,7 @@ async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypa
         assert await importer.upsert(session, item) == "updated"
         second_count = int(
             await session.scalar(
-                select(importer.func.count(ListingImage.media_asset_id)).where(
+                select(func.count(ListingImage.media_asset_id)).where(
                     ListingImage.listing_id == source_record.canonical_listing_id
                 )
             )
