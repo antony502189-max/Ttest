@@ -37,6 +37,7 @@ import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
+import { preloadOwnerListingRoutes } from '@/lib/route-preload'
 import type { Listing } from '@/types'
 import '@/mobile-app-v2.css'
 import '@/mobile-favorites-selection.css'
@@ -691,6 +692,9 @@ export function MobileAppV2() {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
   }, [shellActive])
+  useEffect(() => {
+    if (shellActive && tab === 'menu' && currentUser) preloadOwnerListingRoutes()
+  }, [currentUser, shellActive, tab])
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)')
     const update = () => setMobileViewport(media.matches)
