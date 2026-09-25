@@ -3,6 +3,27 @@ import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
 
+async function startRouteLoadingObserver(page: Page) {
+  await page.evaluate(() => {
+    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
+    state.__routeLoadingObserver?.disconnect()
+    state.__sawRouteLoading = Boolean(document.querySelector('.route-loading'))
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.route-loading')) state.__sawRouteLoading = true
+    })
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+    state.__routeLoadingObserver = observer
+  })
+}
+
+async function stopRouteLoadingObserver(page: Page) {
+  return page.evaluate(() => {
+    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
+    state.__routeLoadingObserver?.disconnect()
+    return Boolean(state.__sawRouteLoading)
+  })
+}
+
 async function finishRussianOnboarding(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Русский' }).click()
@@ -103,28 +124,14 @@ test('route transition removes stale admin immediately and never flashes the ful
 
   await page.goto('/#/admin')
   await expect(page.locator('.admin-page')).toBeVisible()
+  await startRouteLoadingObserver(page)
 
   await page.evaluate(() => { window.location.hash = '#/mis-anuncios' })
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
-  await page.evaluate(() => {
-    ;(window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }).__sawRouteLoading = false
-    const observer = new MutationObserver(() => {
-      if (document.querySelector('.route-loading')) {
-        ;(window as typeof window & { __sawRouteLoading?: boolean }).__sawRouteLoading = true
-      }
-    })
-    observer.observe(document.documentElement, { childList: true, subtree: true })
-    ;(window as typeof window & { __routeLoadingObserver?: MutationObserver }).__routeLoadingObserver = observer
-  })
-
   await expect(page.locator('.admin-page')).toHaveCount(0)
   await expect.poll(() => delayed).toBe(true)
   await expect(page.locator('.account-page')).toBeVisible()
-  expect(await page.evaluate(() => {
-    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
-    state.__routeLoadingObserver?.disconnect()
-    return state.__sawRouteLoading
-  })).toBe(false)
+  expect(await stopRouteLoadingObserver(page)).toBe(false)
   await expect(page.locator('.admin-page')).toHaveCount(0)
 })
 
@@ -142,27 +149,13 @@ test('publish transition from admin never flashes the full-screen loader', async
 
   await page.goto('/#/admin')
   await expect(page.locator('.admin-page')).toBeVisible()
+  await startRouteLoadingObserver(page)
 
   await page.evaluate(() => { window.location.hash = '#/publicar' })
   await expect(page).toHaveURL(/#\/publicar$/)
-  await page.evaluate(() => {
-    ;(window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }).__sawRouteLoading = false
-    const observer = new MutationObserver(() => {
-      if (document.querySelector('.route-loading')) {
-        ;(window as typeof window & { __sawRouteLoading?: boolean }).__sawRouteLoading = true
-      }
-    })
-    observer.observe(document.documentElement, { childList: true, subtree: true })
-    ;(window as typeof window & { __routeLoadingObserver?: MutationObserver }).__routeLoadingObserver = observer
-  })
-
   await expect(page.locator('.admin-page')).toHaveCount(0)
   await expect(page.locator('.listing-create-page')).toBeVisible()
-  expect(await page.evaluate(() => {
-    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
-    state.__routeLoadingObserver?.disconnect()
-    return state.__sawRouteLoading
-  })).toBe(false)
+  expect(await stopRouteLoadingObserver(page)).toBe(false)
 })
 
 
