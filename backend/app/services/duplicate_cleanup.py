@@ -57,6 +57,10 @@ async def backfill_active_listing_hashes(session: AsyncSession) -> int:
     return updated
 
 
+def _ordered_pair(left: UUID, right: UUID) -> tuple[UUID, UUID]:
+    return (left, right) if str(left) <= str(right) else (right, left)
+
+
 def _candidate_pairs(galleries: dict[UUID, list[ImageFingerprint]]) -> set[tuple[UUID, UUID]]:
     checksum_index: dict[str, set[UUID]] = defaultdict(set)
     phash_band_index: dict[tuple[int, str], set[UUID]] = defaultdict(set)
@@ -66,14 +70,14 @@ def _candidate_pairs(galleries: dict[UUID, list[ImageFingerprint]]) -> set[tuple
         for image in gallery:
             if image.checksum:
                 for other in checksum_index[image.checksum]:
-                    pairs.add(tuple(sorted((listing_id, other), key=str)))
+                    pairs.add(_ordered_pair(listing_id, other))
                 checksum_index[image.checksum].add(listing_id)
             if image.perceptual_hash:
                 bands = phash_band_neighbors(image.perceptual_hash)
                 for band_index, neighbors in enumerate(bands):
                     for neighbor in neighbors:
                         for other in phash_band_index.get((band_index, neighbor), ()):
-                            pairs.add(tuple(sorted((listing_id, other), key=str)))
+                            pairs.add(_ordered_pair(listing_id, other))
                 normalized = image.perceptual_hash.casefold().zfill(16)
                 for band_index, start in enumerate((0, 4, 8, 12)):
                     phash_band_index[(band_index, normalized[start : start + 4])].add(listing_id)
