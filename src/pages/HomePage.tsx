@@ -30,6 +30,8 @@ export function HomePage() {
           alt={heroListing ? heroListing.title : 'Habitación luminosa con cama, escritorio y ventana'}
           width="1920"
           height="1080"
+          loading="eager"
+          fetchPriority="high"
         />
         <div className="home-hero__overlay" />
         {heroListing ? <>
