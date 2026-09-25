@@ -1,6 +1,28 @@
-﻿import { expect, test, type Page } from '@playwright/test'
+﻿import { readFileSync } from 'node:fs'
+import { expect, test, type Page } from '@playwright/test'
 
 test.use({ viewport: { width: 390, height: 844 } })
+
+async function startRouteLoadingObserver(page: Page) {
+  await page.evaluate(() => {
+    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
+    state.__routeLoadingObserver?.disconnect()
+    state.__sawRouteLoading = Boolean(document.querySelector('.route-loading'))
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.route-loading')) state.__sawRouteLoading = true
+    })
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+    state.__routeLoadingObserver = observer
+  })
+}
+
+async function stopRouteLoadingObserver(page: Page) {
+  return page.evaluate(() => {
+    const state = window as typeof window & { __sawRouteLoading?: boolean; __routeLoadingObserver?: MutationObserver }
+    state.__routeLoadingObserver?.disconnect()
+    return Boolean(state.__sawRouteLoading)
+  })
+}
 
 async function finishRussianOnboarding(page: Page) {
   await page.goto('/')
@@ -86,7 +108,7 @@ test('authenticated mobile menu separates listing management from profile editin
 })
 
 
-test('route transition replaces stale admin content with a neutral loader while the listings page chunk loads', async ({ page }) => {
+test('route transition removes stale admin immediately and never flashes the full-screen loader while listings load', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
     localStorage.setItem('112233:language:v1', 'ru')
@@ -102,13 +124,52 @@ test('route transition replaces stale admin content with a neutral loader while 
 
   await page.goto('/#/admin')
   await expect(page.locator('.admin-page')).toBeVisible()
+  await startRouteLoadingObserver(page)
 
   await page.evaluate(() => { window.location.hash = '#/mis-anuncios' })
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
-  await expect(page.locator('.route-loading')).toBeVisible()
   await expect(page.locator('.admin-page')).toHaveCount(0)
-
   await expect.poll(() => delayed).toBe(true)
-  await expect(page.locator('.route-loading')).toHaveCount(0)
+  await expect(page.locator('.account-page')).toBeVisible()
+  expect(await stopRouteLoadingObserver(page)).toBe(false)
   await expect(page.locator('.admin-page')).toHaveCount(0)
+})
+
+test('publish transition from admin never flashes the full-screen loader', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem('112233:language:v1', 'ru')
+    localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo'))
+  })
+
+  await page.route(/\/src\/pages\/ListingCreatePage\.tsx(?:\?.*)?$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    await route.continue()
+  })
+
+  await page.goto('/#/admin')
+  await expect(page.locator('.admin-page')).toBeVisible()
+  await startRouteLoadingObserver(page)
+
+  await page.evaluate(() => { window.location.hash = '#/publicar' })
+  await expect(page).toHaveURL(/#\/publicar$/)
+  await expect(page.locator('.admin-page')).toHaveCount(0)
+  await expect(page.locator('.listing-create-page')).toBeVisible()
+  expect(await stopRouteLoadingObserver(page)).toBe(false)
+})
+
+
+test('owner listing routes are idle-prefetched and the hydration gate does not issue a second owner API request', () => {
+  const layout = readFileSync('src/components/layout.tsx', 'utf8')
+  const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
+  const preload = readFileSync('src/lib/route-preload.ts', 'utf8')
+  const moderation = readFileSync('src/components/moderation-gate.tsx', 'utf8')
+
+  expect(layout).toContain('requestIdleCallback')
+  expect(layout).toContain('preloadOwnerListingRoutes()')
+  expect(preload).toContain("import('@/pages/AccountPages')")
+  expect(preload).toContain("import('@/pages/ListingCreatePage')")
+  expect(gate).not.toContain('getOwnedListings(')
+  expect(moderation).toContain('ROUTE_RECHECK_MIN_MS')
+  expect(moderation).not.toContain('Promise.all([getMyRestriction(), getModerationNotices()])')
 })
