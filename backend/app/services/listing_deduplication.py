@@ -206,6 +206,27 @@ async def listing_gallery(session: AsyncSession, listing_id: UUID) -> list[Image
     return fingerprints_from_assets(list(rows))
 
 
+async def listing_gallery_is_reconciled(
+    session: AsyncSession,
+    listing_id: UUID,
+    *,
+    stored_image_count: int,
+) -> bool:
+    row = (
+        await session.execute(
+            select(Listing.is_external, Listing.external_image_urls).where(Listing.id == listing_id)
+        )
+    ).one_or_none()
+    if row is None:
+        return False
+    is_external, external_image_urls = row
+    return external_gallery_is_reconciled(
+        is_external=bool(is_external),
+        external_image_urls=list(external_image_urls or []),
+        stored_image_count=stored_image_count,
+    )
+
+
 async def _candidate_listing_ids(
     session: AsyncSession,
     fingerprints: list[ImageFingerprint],
@@ -257,6 +278,12 @@ async def duplicate_listing_id(
         external_only=external_only,
     ):
         candidate = await listing_gallery(session, candidate_id)
+        if not await listing_gallery_is_reconciled(
+            session,
+            candidate_id,
+            stored_image_count=len(candidate),
+        ):
+            continue
         if galleries_are_duplicates(fingerprints, candidate):
             return candidate_id
     return None
@@ -294,21 +321,19 @@ async def duplicate_listing_for_hashes(
         query = query.where(Listing.is_external.is_(external_only))
 
     for candidate_id in (await session.scalars(query)).all():
-        candidate_hashes = list(
-            (
-                await session.scalars(
-                    select(MediaAsset.perceptual_hash)
-                    .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
-                    .where(
-                        ListingImage.listing_id == candidate_id,
-                        MediaAsset.deleted_at.is_(None),
-                        MediaAsset.perceptual_hash.is_not(None),
-                    )
-                    .order_by(ListingImage.sort_order)
-                )
-            ).all()
-        )
-        if hash_galleries_are_duplicates(hashes, [value for value in candidate_hashes if value]):
+        candidate = await listing_gallery(session, candidate_id)
+        if not await listing_gallery_is_reconciled(
+            session,
+            candidate_id,
+            stored_image_count=len(candidate),
+        ):
+            continue
+        candidate_hashes = [
+            item.perceptual_hash
+            for item in candidate
+            if item.perceptual_hash
+        ]
+        if hash_galleries_are_duplicates(hashes, candidate_hashes):
             return candidate_id
     return None
 
