@@ -612,7 +612,7 @@
     min-height: 3rem;
     gap: .45rem;
     padding: .6rem .8rem;
-    font-size: .9rem;
+    font-size: 1rem;
   }
   .admin-sidebar nav button svg { width: 1.1rem; height: 1.1rem; }
   .admin-main {
