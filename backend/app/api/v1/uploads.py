@@ -19,6 +19,7 @@ from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ...services.media_processing import PreparedImage, prepare_image, render_variant
+from ...services.video_processing import SUPPORTED_VIDEO_MIME_TYPES, prepare_video
 from ...services.moderation import active_window, enforce_listing_view_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...storage import Storage, get_storage
@@ -28,6 +29,7 @@ router = APIRouter(tags=["uploads"])
 logger = logging.getLogger(__name__)
 SUPPORTED_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
 image_processing_slots = asyncio.Semaphore(get_settings().image_processing_concurrency)
+video_processing_slots = asyncio.Semaphore(get_settings().video_processing_concurrency)
 
 
 def public_asset(asset: MediaAsset) -> MediaAssetResponse:
@@ -177,6 +179,88 @@ async def upload_image(
     return public_asset(asset)
 
 
+@router.post("/uploads/video", response_model=MediaAssetResponse, status_code=status.HTTP_201_CREATED)
+async def upload_video(
+    file: UploadFile = File(...),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    settings = get_settings()
+    content_type = file.content_type or ""
+    if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
+        raise HTTPException(415, "Only MP4 and MOV videos are supported")
+    content = await file.read(settings.max_video_upload_bytes + 1)
+    await file.close()
+    if not content or len(content) > settings.max_video_upload_bytes:
+        raise HTTPException(413, "Video is too large")
+
+    async with video_processing_slots:
+        prepared = await asyncio.to_thread(prepare_video, content, content_type)
+
+    storage_key = f"{user.id}/{uuid4().hex}.mp4"
+    storage = get_storage()
+    try:
+        await asyncio.to_thread(storage.put, storage_key, prepared.content)
+    except (OSError, BotoCoreError, ClientError):
+        await _delete_prepared_image(storage, storage_key)
+        raise
+
+    try:
+        await lock_media_owner(session, user.id)
+        locked_user = await session.scalar(select(User).where(User.id == user.id).with_for_update())
+        if not locked_user or locked_user.blocked or locked_user.deleted_at is not None:
+            await _delete_prepared_image(storage, storage_key)
+            raise HTTPException(403, "Account is not active")
+        active_assets, active_bytes = (
+            await session.execute(
+                select(
+                    func.count(MediaAsset.id),
+                    func.coalesce(func.sum(MediaAsset.size_bytes), 0),
+                ).where(
+                    MediaAsset.owner_id == locked_user.id,
+                    MediaAsset.deleted_at.is_(None),
+                )
+            )
+        ).one()
+        if media_quota_exceeded(
+            active_assets=int(active_assets),
+            active_bytes=int(active_bytes),
+            new_bytes=len(prepared.content),
+            settings=settings,
+        ):
+            await _delete_prepared_image(storage, storage_key)
+            raise HTTPException(413, "Media storage quota exceeded")
+
+        asset = MediaAsset(
+            owner_id=locked_user.id,
+            storage_key=storage_key,
+            mime_type="video/mp4",
+            size_bytes=len(prepared.content),
+            width=prepared.width,
+            height=prepared.height,
+            checksum=hashlib.sha256(prepared.content).hexdigest(),
+            perceptual_hash=None,
+            kind="listing_video",
+        )
+        session.add(asset)
+        await session.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        await _delete_prepared_image(storage, storage_key)
+        try:
+            await enqueue_storage_deletion(session, storage_key)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("video_cleanup_enqueue_failed", extra={"storage_key": storage_key})
+        raise
+
+    await session.refresh(asset)
+    return public_asset(asset)
+
+
 @router.get("/media/{asset_id}")
 async def get_media(
     asset_id: UUID,
@@ -229,6 +313,22 @@ async def get_media(
             .correlate(MediaAsset)
             .exists()
         )
+        public_listing_video = (
+            select(Listing.id)
+            .join(User, User.id == Listing.owner_user_id)
+            .where(
+                Listing.video_asset_id == MediaAsset.id,
+                Listing.status == "published",
+                Listing.deleted_at.is_(None),
+                (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                User.deleted_at.is_(None),
+                User.blocked.is_(False),
+                ~active_owner_restriction,
+                ~active_listing_restriction,
+            )
+            .correlate(MediaAsset)
+            .exists()
+        )
         asset = await session.scalar(
             select(MediaAsset)
             .where(
@@ -237,6 +337,7 @@ async def get_media(
                 or_(
                     and_(MediaAsset.kind == "avatar", public_avatar),
                     and_(MediaAsset.kind == "listing_image", public_listing),
+                    and_(MediaAsset.kind == "listing_video", public_listing_video),
                 ),
             )
             .limit(1)
@@ -285,6 +386,26 @@ async def get_media(
                     .limit(1)
                 )
             )
+        elif asset.kind == "listing_video":
+            if not owner_or_admin:
+                await enforce_listing_view_access(user, session)
+            publicly_visible = bool(
+                await session.scalar(
+                    select(Listing.id)
+                    .join(User, User.id == Listing.owner_user_id)
+                    .where(
+                        Listing.video_asset_id == asset.id,
+                        Listing.status == "published",
+                        Listing.deleted_at.is_(None),
+                        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                        User.deleted_at.is_(None),
+                        User.blocked.is_(False),
+                        ~active_owner_restriction,
+                        ~active_listing_restriction,
+                    )
+                    .limit(1)
+                )
+            )
         if not owner_or_admin and not publicly_visible:
             raise HTTPException(404, "Media not found")
 
@@ -298,6 +419,41 @@ async def get_media(
 
     storage = get_storage()
     settings = get_settings()
+    if asset.kind == "listing_video":
+        if variant != "full":
+            raise HTTPException(400, "Video variants are not supported")
+        content = await asyncio.to_thread(storage.get, asset.storage_key)
+        if content is None:
+            raise HTTPException(404, "Media not found")
+        headers["Accept-Ranges"] = "bytes"
+        range_header = request.headers.get("range")
+        if range_header:
+            if not range_header.startswith("bytes=") or "," in range_header:
+                return Response(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE, headers={**headers, "Content-Range": f"bytes */{len(content)}"})
+            raw_start, _, raw_end = range_header[6:].partition("-")
+            try:
+                if raw_start:
+                    start = int(raw_start)
+                    end = int(raw_end) if raw_end else len(content) - 1
+                else:
+                    suffix = int(raw_end)
+                    start = max(0, len(content) - suffix)
+                    end = len(content) - 1
+            except ValueError:
+                return Response(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE, headers={**headers, "Content-Range": f"bytes */{len(content)}"})
+            if start < 0 or end < start or start >= len(content):
+                return Response(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE, headers={**headers, "Content-Range": f"bytes */{len(content)}"})
+            end = min(end, len(content) - 1)
+            part = content[start : end + 1]
+            range_headers = {
+                **headers,
+                "Content-Range": f"bytes {start}-{end}/{len(content)}",
+                "Content-Length": str(len(part)),
+            }
+            return Response(part, status_code=status.HTTP_206_PARTIAL_CONTENT, media_type=asset.mime_type, headers=range_headers)
+        headers["Content-Length"] = str(len(content))
+        return Response(content, media_type=asset.mime_type, headers=headers)
+
     legacy_full_needs_derivative = (
         variant == "full"
         and max(asset.width, asset.height) > settings.media_full_max_dimension
@@ -351,7 +507,10 @@ async def delete_upload(
     listing_attachment = await session.scalar(
         select(ListingImage.listing_id).where(ListingImage.media_asset_id == asset.id).limit(1)
     )
-    if active_avatar or listing_attachment:
+    video_attachment = await session.scalar(
+        select(Listing.id).where(Listing.video_asset_id == asset.id).limit(1)
+    )
+    if active_avatar or listing_attachment or video_attachment:
         raise HTTPException(409, "Media is still attached to an active resource")
     asset.deleted_at = datetime.now(UTC)
     await enqueue_storage_deletion(session, asset.storage_key)
