@@ -106,14 +106,15 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
   } finally { window.clearTimeout(timeout) }
 }
 
-export async function apiBlob(path: string, init: RequestInit = {}, retried = false): Promise<Blob> {
+export async function apiBlob(path: string, init: ApiRequestInit = {}, retried = false): Promise<Blob> {
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 15_000)
+  const { timeoutMs = 15_000, ...requestInit } = init
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const headers = new Headers(init.headers)
+    const headers = new Headers(requestInit.headers)
     const requestHadAccessToken = Boolean(accessToken)
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal })
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: requestInit.signal ?? controller.signal })
     if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) {
       return apiBlob(path, init, true)
     }
@@ -124,7 +125,7 @@ export async function apiBlob(path: string, init: RequestInit = {}, retried = fa
   } catch (error) {
     if (error instanceof ApiError) throw error
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError(0, 'La solicitud tardó demasiado.', {}, init.signal ? 'REQUEST_ABORTED' : 'REQUEST_TIMEOUT')
+      throw new ApiError(0, 'La solicitud tardó demasiado.', {}, requestInit.signal ? 'REQUEST_ABORTED' : 'REQUEST_TIMEOUT')
     }
     if (error instanceof TypeError) {
       throw new ApiError(0, 'No se pudo conectar con el servidor.', {}, 'NETWORK_ERROR')
