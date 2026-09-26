@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AlertTriangle, Ban, Mail, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Ban, Mail, ShieldAlert } from 'lucide-react'
 import { useLocation } from 'react-router'
 import { toast } from 'sonner'
 import { getModerationNotices, getMyRestriction, markModerationNoticeRead, type MyRestriction } from '@/api/moderation'
@@ -149,7 +149,7 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
   if (restriction && routeBlocked) {
     return <main className="restriction-screen">
       <RestrictionCard restriction={restriction} full />
-      <button type="button" className="restriction-back" onClick={() => history.back()}>Volver</button>
+      <button type="button" className="restriction-back" onClick={() => history.back()}><ArrowLeft aria-hidden="true" />Volver</button>
     </main>
   }
 
