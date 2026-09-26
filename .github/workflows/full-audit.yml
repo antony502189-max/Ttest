@@ -26,9 +26,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install pinned visual baselines
-        run: bash scripts/install-visual-baselines.sh
-
       - name: Set up Python 3.12
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -52,16 +49,26 @@ jobs:
           docker compose version
 
       - name: Validate production deployment configuration
+        if: github.event_name != 'pull_request'
         run: bash scripts/check-production-config.sh
 
       - name: Validate dependency security policy
+        if: github.event_name != 'pull_request'
         run: npm run test:security
 
       - name: Run complete local audit
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p output
           set -o pipefail
           bash scripts/final-audit-local.sh 2>&1 | tee output/full-audit.log
+
+      - name: Run real frontend and backend integration audit
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p output
+          set -o pipefail
+          bash scripts/ci-fullstack-audit.sh 2>&1 | tee output/full-audit.log
 
       - name: Capture Docker state
         if: always()

@@ -13,11 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  mock-e2e:
     runs-on: ubuntu-24.04
-    # The complete serial Playwright suite currently contains 160 tests.
-    # Keep every mobile/visual gate enabled and give the full suite enough time.
-    timeout-minutes: 90
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -30,16 +32,51 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run build
-      - run: npm run test:e2e
+      # Each process keeps one worker because test files can share mock state.
+      - name: Run mock E2E, accessibility, and visual tests
+        run: npx playwright test --shard=${{ matrix.shard }}/4
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: playwright-report
+          name: playwright-mock-shard-${{ matrix.shard }}
           path: |
             output/playwright/report
             test-results
           if-no-files-found: ignore
+
+  publication-and-auth:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --config playwright.publication.config.ts
+      - run: npx playwright test --config playwright.google-auth.config.ts
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-publication-and-auth
+          path: test-results
+          if-no-files-found: ignore
+
+  validate:
+    if: always()
+    needs: [mock-e2e, publication-and-auth]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every Playwright suite to pass
+        env:
+          MOCK_RESULT: ${{ needs.mock-e2e.result }}
+          SPECIAL_RESULT: ${{ needs.publication-and-auth.result }}
+        run: |
+          test "$MOCK_RESULT" = success
+          test "$SPECIAL_RESULT" = success

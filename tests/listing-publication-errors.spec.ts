@@ -270,6 +270,22 @@ test('duplicate photo gallery keeps the exact draft, removes temporary uploads a
   const draftAfter = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
   expect(draftAfter).toBe(draftBefore)
   expect(draftAfter).toBeTruthy()
+
+  const originalPhoto = await page.locator('.upload-photo-card').getAttribute('data-photo-reference')
+  await page.getByRole('button', { name: 'Eliminar foto 1' }).click()
+  await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
+  await page.getByLabel('Añadir fotos del anuncio').setInputFiles({
+    name: 'replacement-room.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64'),
+  })
+  await expect(page.locator('.upload-photo-card')).toHaveCount(1)
+  await expect(page.locator('.upload-photo-card')).not.toHaveAttribute('data-photo-reference', originalPhoto!)
+  state.mode = 'success'
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  expect(state.posts).toBe(2)
+  expect(state.uploadCalls).toBe(2)
 })
 
 test('double click sends one idempotent publication and then synchronizes images', async ({ page }) => {

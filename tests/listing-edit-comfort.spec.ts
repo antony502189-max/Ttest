@@ -15,6 +15,18 @@ async function openEditAsHost(page: Page) {
   await expect(page.getByRole('heading', { name: 'Editar habitación' })).toBeVisible()
 }
 
+async function openCreateAsHost(page: Page) {
+  await page.setViewportSize({ width: 1100, height: 900 })
+  await page.goto('/#/')
+  await page.evaluate(() => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+  })
+  await page.reload()
+  await page.goto('/#/publicar')
+  await expect(page.getByRole('heading', { name: 'Publicar habitación' })).toBeVisible()
+}
+
 test('listing editing is one long scroll form instead of a paged wizard', async ({ page }) => {
   await openEditAsHost(page)
 
@@ -78,6 +90,7 @@ test('photo reorder arrows move photos earlier and later in the order on mobile'
   await firstDown.click()
   await expect(photos.nth(0)).toHaveAttribute('src', secondSrc!)
   await expect(photos.nth(1)).toHaveAttribute('src', firstSrc!)
+  await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
 
   const secondUp = page.getByRole('button', { name: 'Subir foto 2 en el orden' })
   await secondUp.click()
@@ -97,6 +110,7 @@ test('press-and-drag moves a photo to a new position and updates the cover order
   const firstSrc = await photos.nth(0).getAttribute('src')
   const secondSrc = await photos.nth(1).getAttribute('src')
   const thirdSrc = await photos.nth(2).getAttribute('src')
+  await cards.nth(0).scrollIntoViewIfNeeded()
   const firstBox = await cards.nth(0).boundingBox()
   const thirdBox = await cards.nth(2).boundingBox()
   expect(firstSrc).toBeTruthy()
@@ -117,6 +131,14 @@ test('press-and-drag moves a photo to a new position and updates the cover order
   await expect(photos.nth(2)).toHaveAttribute('src', firstSrc!)
   await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
   await expect(page.locator('.upload-photo-card').nth(0).locator('.cover-label')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  const savedOrder = await page.evaluate((id) => {
+    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{"data":[]}') as { data: Array<{ id: string; images: string[] }> }
+    return payload.data.find((item) => item.id === id)?.images
+  }, listingId)
+  expect(savedOrder?.slice(0, 3)).toEqual([secondSrc, thirdSrc, firstSrc])
 })
 
 test('create and edit forms share touch-capable press-and-drag photo ordering', () => {
@@ -224,6 +246,7 @@ test('photo rotate control turns a selected photo 90 degrees in place on mobile'
   const beforeSrc = await image.getAttribute('src')
   expect(beforeSrc).toBeTruthy()
   await rotate.click()
+  await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
 
   await expect(image).toHaveAttribute('data-preview-rotation', '90', { timeout: 500 })
   await expect(page.locator('.listing-edit-topbar button').filter({ hasText: 'Procesando foto' })).toBeDisabled()
@@ -289,4 +312,90 @@ test('new publication uses the same one-page long form as editing', async ({ pag
   await expect(page.getByRole('heading', { name: 'Fotografías' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Título y descripción' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Contacto' })).toBeVisible()
+})
+
+test('create form drags a unique photo through duplicate URLs without React warnings', async ({ page }) => {
+  const reactWarnings: string[] = []
+  const runtimeErrors: string[] = []
+  page.on('console', (message) => {
+    if (['warning', 'error'].includes(message.type()) && /key|duplicate/i.test(message.text())) reactWarnings.push(message.text())
+  })
+  page.on('pageerror', (error) => runtimeErrors.push(error.message))
+  await openCreateAsHost(page)
+
+  const cards = page.locator('.upload-photo-card')
+  const photos = page.locator('.upload-grid img')
+  const initialCount = await cards.count()
+  expect(initialCount).toBeGreaterThanOrEqual(2)
+  const duplicateSrc = await photos.nth(0).getAttribute('src')
+  await expect(photos.nth(1)).toHaveAttribute('src', duplicateSrc!)
+
+  await page.locator('#publish-images').setInputFiles({
+    name: 'unique-cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64'),
+  })
+  await expect(cards).toHaveCount(initialCount + 1)
+  const uniqueRef = await cards.nth(initialCount).getAttribute('data-photo-reference')
+  expect(uniqueRef).toBeTruthy()
+  expect(uniqueRef).not.toBe(duplicateSrc)
+
+  await cards.nth(initialCount).scrollIntoViewIfNeeded()
+  const from = await cards.nth(initialCount).boundingBox()
+  const to = await cards.nth(initialCount - 1).boundingBox()
+  expect(from).not.toBeNull()
+  expect(to).not.toBeNull()
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2)
+  await page.mouse.down()
+  await expect(cards.nth(initialCount)).toHaveClass(/is-dragging/)
+  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 8 })
+  await page.mouse.up()
+  await expect(cards.nth(initialCount - 1)).toHaveAttribute('data-photo-reference', uniqueRef!)
+  await cards.nth(initialCount - 1).getByRole('button', { name: 'Usar como portada' }).click()
+  await expect(cards.nth(0)).toHaveAttribute('data-photo-reference', uniqueRef!)
+  await expect(cards.nth(0).locator('.cover-label')).toBeVisible()
+  await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
+  expect(reactWarnings).toEqual([])
+  expect(runtimeErrors).toEqual([])
+})
+
+test.describe('touch photo ordering', () => {
+  test.use({ hasTouch: true })
+
+  test('mobile scroll gesture stays available before hold, then long press reorders photos', async ({ page }) => {
+    await openEditAsHost(page)
+    const cards = page.locator('.upload-photo-card')
+    const originalFirst = await cards.nth(0).getAttribute('data-photo-reference')
+    const originalSecond = await cards.nth(1).getAttribute('data-photo-reference')
+    await cards.nth(0).scrollIntoViewIfNeeded()
+    const session = await page.context().newCDPSession(page)
+    const first = await cards.nth(0).boundingBox()
+    expect(first).not.toBeNull()
+    const start = { x: first!.x + first!.width / 2, y: first!.y + first!.height / 2 }
+
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] })
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x, y: start.y - 24 }] })
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await expect(cards.nth(0)).not.toHaveClass(/is-dragging/)
+    await expect(cards.nth(0)).toHaveAttribute('data-photo-reference', originalFirst!)
+
+    await cards.nth(0).scrollIntoViewIfNeeded()
+    const from = await cards.nth(0).boundingBox()
+    const to = await cards.nth(1).boundingBox()
+    expect(from).not.toBeNull()
+    expect(to).not.toBeNull()
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: from!.x + from!.width / 2, y: from!.y + from!.height / 2 }],
+    })
+    await expect(cards.nth(0)).toHaveClass(/is-dragging/)
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: to!.x + to!.width / 2, y: to!.y + to!.height / 2 }],
+    })
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await expect(cards.nth(0)).toHaveAttribute('data-photo-reference', originalSecond!)
+    await expect(cards.nth(1)).toHaveAttribute('data-photo-reference', originalFirst!)
+    await expect(cards.nth(0).locator('.cover-label')).toBeVisible()
+  })
 })
