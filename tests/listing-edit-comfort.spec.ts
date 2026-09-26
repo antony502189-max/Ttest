@@ -107,7 +107,7 @@ test('press-and-drag moves a photo to a new position and updates the cover order
 
   await page.mouse.move(firstBox!.x + firstBox!.width / 2, firstBox!.y + firstBox!.height / 2)
   await page.mouse.down()
-  await page.waitForTimeout(180)
+  await page.waitForTimeout(260)
   await expect(cards.nth(0)).toHaveClass(/is-dragging/)
   await page.mouse.move(thirdBox!.x + thirdBox!.width / 2, thirdBox!.y + thirdBox!.height / 2, { steps: 8 })
   await page.mouse.up()
