@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
@@ -101,7 +101,7 @@ export function MobilePublicationGate() {
   return createPortal(
     <section className="m2-publication-gate notranslate" translate="no" data-testid="publication-gate">
       <header className="m2-publication-gate__header">
-        <button type="button" onClick={close} aria-label={t.back}><ChevronLeft /></button>
+        <button type="button" onClick={close} aria-label={t.back}><ArrowLeft /></button>
         <strong>{t.title}</strong>
       </header>
 
