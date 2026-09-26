@@ -124,6 +124,9 @@ test('press-and-drag moves a photo to a new position and updates the cover order
   await page.waitForTimeout(260)
   await expect(cards.nth(0)).toHaveClass(/is-dragging/)
   await page.mouse.move(thirdBox!.x + thirdBox!.width / 2, thirdBox!.y + thirdBox!.height / 2, { steps: 8 })
+  await expect(page.locator('.upload-photo-card.is-shifting')).toHaveCount(2)
+  await expect(cards.nth(1)).toHaveCSS('transform', /matrix/)
+  await expect(cards.nth(2)).toHaveCSS('transform', /matrix/)
   await page.mouse.up()
 
   await expect(photos.nth(0)).toHaveAttribute('src', secondSrc!)
@@ -154,13 +157,16 @@ test('create and edit forms share touch-capable press-and-drag photo ordering', 
   expect(forms).toContain('onPointerUp={finishPhotoDrag}')
   expect(forms).toContain('document.addEventListener("touchmove", preventTouchMove, { passive: false, capture: true })')
   expect(forms).toContain('window.requestAnimationFrame(runPhotoAutoScroll)')
-  expect(forms).toContain('const minSpeed = 650')
-  expect(forms).toContain('const maxSpeed = 3000')
+  expect(forms).toContain('const minSpeed = 520')
+  expect(forms).toContain('const maxSpeed = 1500')
   expect(forms).toContain('const elapsedMs = Math.min(32')
+  expect(forms).toContain('document.documentElement.style.scrollBehavior = "auto"')
   expect(forms).toContain('window.scrollBy({ top: speed * (elapsedMs / 1000), left: 0, behavior: "auto" })')
+  expect(forms).toContain('photoReorderDisplacements(drag, drag.targetIndex)')
   expect(forms).toContain('window.scrollY - drag.startScrollY')
   expect(forms).toContain('movePhotoTo(sourceIndex, targetIndex)')
   expect(css).toContain('.upload-photo-card.is-dragging')
+  expect(css).toContain('.upload-photo-card.is-shifting')
   expect(css).toContain('.upload-photo-card.is-drop-target')
 })
 
@@ -182,16 +188,18 @@ test('dragging a photo near viewport edges auto-scrolls down and up', async ({ p
   await page.mouse.down()
   await page.waitForTimeout(180)
   await expect(cards.nth(1)).toHaveClass(/is-dragging/)
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.scrollBehavior)).toBe('auto')
 
   await page.mouse.move(x, 585, { steps: 4 })
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(initialScroll + 30)
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 1_000 }).toBeGreaterThan(initialScroll + 90)
   const scrolledDown = await page.evaluate(() => window.scrollY)
 
   await page.mouse.move(x, 15, { steps: 4 })
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(scrolledDown - 30)
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 1_000 }).toBeLessThan(scrolledDown - 90)
 
   await page.mouse.up()
   await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.scrollBehavior)).toBe('')
 })
 
 test('photo reorder arrows keep ordering semantics in the desktop grid', async ({ page }) => {
