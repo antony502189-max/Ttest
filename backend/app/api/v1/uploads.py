@@ -206,7 +206,7 @@ async def upload_video(
     storage_key = f"{user.id}/{uuid4().hex}.mp4"
     storage = get_storage()
     try:
-        await asyncio.to_thread(storage.put, storage_key, prepared.content)
+        await asyncio.to_thread(storage.put, storage_key, prepared.content, "video/mp4")
     except (OSError, BotoCoreError, ClientError):
         await _delete_prepared_image(storage, storage_key)
         raise
@@ -436,35 +436,76 @@ async def get_media(
     if asset.mime_type.startswith("video/"):
         if variant != "full":
             raise HTTPException(400, "Video variants are not supported")
-        content = await asyncio.to_thread(storage.get, asset.storage_key)
-        if content is None:
+        total_size = int(asset.size_bytes)
+        if total_size < 1:
             raise HTTPException(404, "Media not found")
         headers["Accept-Ranges"] = "bytes"
         range_header = request.headers.get("range")
         if range_header:
             if not range_header.startswith("bytes=") or "," in range_header:
-                return Response(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE, headers={**headers, "Content-Range": f"bytes */{len(content)}"})
-            raw_start, _, raw_end = range_header[6:].partition("-")
+                return Response(
+                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
+                )
+            raw_start, separator, raw_end = range_header[6:].partition("-")
+            if not separator or (not raw_start and not raw_end):
+                return Response(
+                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
+                )
             try:
                 if raw_start:
                     start = int(raw_start)
-                    end = int(raw_end) if raw_end else len(content) - 1
+                    end = int(raw_end) if raw_end else total_size - 1
                 else:
                     suffix = int(raw_end)
-                    start = max(0, len(content) - suffix)
-                    end = len(content) - 1
+                    if suffix <= 0:
+                        raise ValueError("suffix range must be positive")
+                    start = max(0, total_size - suffix)
+                    end = total_size - 1
             except ValueError:
-                return Response(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE, headers={**headers, "Content-Range": f"bytes */{len(content)}"})
-            if start < 0 or end < start or start >= len(content):
-                return Response(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE, headers={**headers, "Content-Range": f"bytes */{len(content)}"})
-            end = min(end, len(content) - 1)
-            part = content[start : end + 1]
+                return Response(
+                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
+                )
+            if start < 0 or end < start or start >= total_size:
+                return Response(
+                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
+                )
+            end = min(end, total_size - 1)
+            part = await asyncio.to_thread(storage.get_range, asset.storage_key, start, end)
+            if part is None:
+                raise HTTPException(404, "Media not found")
+            expected_length = end - start + 1
+            if len(part) != expected_length:
+                logger.error(
+                    "video_range_length_mismatch",
+                    extra={
+                        "asset_id": str(asset.id),
+                        "storage_key": asset.storage_key,
+                        "start": start,
+                        "end": end,
+                        "expected": expected_length,
+                        "actual": len(part),
+                    },
+                )
+                raise HTTPException(502, "Media storage returned an incomplete range")
             range_headers = {
                 **headers,
-                "Content-Range": f"bytes {start}-{end}/{len(content)}",
+                "Content-Range": f"bytes {start}-{end}/{total_size}",
                 "Content-Length": str(len(part)),
             }
-            return Response(part, status_code=status.HTTP_206_PARTIAL_CONTENT, media_type=asset.mime_type, headers=range_headers)
+            return Response(
+                part,
+                status_code=status.HTTP_206_PARTIAL_CONTENT,
+                media_type=asset.mime_type,
+                headers=range_headers,
+            )
+
+        content = await asyncio.to_thread(storage.get, asset.storage_key)
+        if content is None:
+            raise HTTPException(404, "Media not found")
         headers["Content-Length"] = str(len(content))
         return Response(content, media_type=asset.mime_type, headers=headers)
 
