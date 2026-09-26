@@ -22,7 +22,6 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { currentLocale } from "@/lib/i18n-locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -536,10 +535,15 @@ export function MyListingsPage() {
                   <span>Ref. {listing.id.slice(-5).toUpperCase()}</span>
                 </div>
                 <h2>{listing.title}</h2>
-                <Badge data-testid="owner-rental-type" variant="outline">{t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}</Badge>
                 <p>
                   {listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}
                 </p>
+                <span
+                  data-testid="owner-rental-type"
+                  className={`owner-rental-type owner-rental-type--${listing.rentalMode === "long" ? "long" : "holiday"}`}
+                >
+                  {t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}
+                </span>
                 <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
                 {listing.status === "Finalizado" ? <p className="listing-ended-reason">{listing.closedReason === "expired" ? "Finalizado automáticamente por vencimiento." : "Cerrado por el anunciante."}</p> : null}
                 <div className="manage-metrics">
