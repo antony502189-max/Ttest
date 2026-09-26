@@ -126,6 +126,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
         "password_reset_tokens": 1,
         "email_verification_tokens": 1,
         "external_import_runs": 0,
+        "unattached_media": 0,
     }
 
     async with SessionLocal() as check:

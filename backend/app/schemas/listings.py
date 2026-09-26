@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..content_safety import contains_listing_link
+from ..core.media_limits import MAX_LISTING_PHOTOS
 
 ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
@@ -120,7 +121,7 @@ class ListingWrite(BaseModel):
     contactName: str | None = Field(default=None, min_length=2, max_length=120)
     contactPhone: str | None = Field(default=None, max_length=64)
     contactWhatsapp: str | None = Field(default=None, max_length=64)
-    assetIds: list[UUID] = Field(default_factory=list, max_length=15)
+    assetIds: list[UUID] = Field(default_factory=list, max_length=MAX_LISTING_PHOTOS)
     videoAssetId: UUID | None = None
     showPhone: bool | None = None
     showWhatsApp: bool | None = None
@@ -248,7 +249,7 @@ class ListingPatch(BaseModel):
     advertiserType: str | None = Field(default=None, max_length=32)
     expiresAt: datetime | None = None
     status: str | None = None
-    assetIds: list[UUID] | None = Field(default=None, max_length=15)
+    assetIds: list[UUID] | None = Field(default=None, max_length=MAX_LISTING_PHOTOS)
     videoAssetId: UUID | None = None
     # Owner UI sets this only when an existing private address actually changes.
     # The service then applies the same location to this owner's sibling room
@@ -596,7 +597,7 @@ class ListingSearchResponse(BaseModel):
 
 
 class ListingImagesRequest(BaseModel):
-    assetIds: list[UUID] = Field(default_factory=list, max_length=15)
+    assetIds: list[UUID] = Field(default_factory=list, max_length=MAX_LISTING_PHOTOS)
 
     @model_validator(mode="after")
     def unique_assets(self):

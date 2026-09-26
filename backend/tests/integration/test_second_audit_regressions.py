@@ -133,7 +133,8 @@ async def test_availability_window_excludes_already_ended_listing(client: AsyncC
 
 
 async def test_private_media_cache_and_listing_avatar_separation(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="antony502189@gmail.com", role="host")
+    token, user = await register_user(client, email="antony502189@gmail.com", role="host")
+    additional = await client.seed_listing_assets(user["id"], 4)
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -159,7 +160,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
     attached = await client.put(
         f"/api/v1/listings/{listing_id}/images",
         headers=auth(token),
-        json={"assetIds": [asset_id]},
+        json={"assetIds": [asset_id, *additional]},
     )
     assert attached.status_code == 200, attached.text
 
@@ -189,7 +190,8 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
 
 
 async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: AsyncClient, register_user):
-    token, _ = await register_user(client, email="tf.shuler@gmail.com", role="host")
+    token, user = await register_user(client, email="tf.shuler@gmail.com", role="host")
+    additional = await client.seed_listing_assets(user["id"], 4)
     listing = await client.post(
         "/api/v1/listings",
         headers=auth(token),
@@ -213,7 +215,7 @@ async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: Asyn
     attach_first = await client.put(
         f"/api/v1/listings/{listing_id}/images",
         headers=auth(token),
-        json={"assetIds": [first.json()["id"]]},
+        json={"assetIds": [first.json()["id"], *additional]},
     )
     assert attach_first.status_code == 200
     assert (await client.get(first.json()["url"])).status_code == 200
@@ -221,7 +223,7 @@ async def test_replacing_and_deleting_listing_cleans_orphaned_media(client: Asyn
     replace = await client.put(
         f"/api/v1/listings/{listing_id}/images",
         headers=auth(token),
-        json={"assetIds": [second.json()["id"]]},
+        json={"assetIds": [second.json()["id"], *additional]},
     )
     assert replace.status_code == 200
     assert (await client.get(first.json()["url"], headers=auth(token))).status_code == 404

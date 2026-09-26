@@ -10,15 +10,38 @@ from ..models import (
     AuthSession,
     EmailVerificationToken,
     ExternalImportRun,
+    Listing,
+    ListingImage,
     MailOutbox,
+    MediaAsset,
     PasswordResetToken,
+    User,
 )
+from .listings import mark_orphaned_media
 
 MAIL_OUTBOX_RETENTION_DAYS = 30
 SECURITY_RECORD_RETENTION_DAYS = 7
 EXTERNAL_IMPORT_RUN_RETENTION_DAYS = 30
 RETENTION_BATCH_SIZE = 1_000
 RETENTION_RUN_INTERVAL = timedelta(hours=1)
+UNATTACHED_MEDIA_GRACE = timedelta(hours=24)
+
+
+async def prune_unattached_media(session: AsyncSession, *, now: datetime, batch_size: int) -> int:
+    """Reclaim uploads left behind by failed or uncertain publication attempts."""
+    candidate_ids = set((await session.scalars(
+        select(MediaAsset.id)
+        .where(
+            MediaAsset.deleted_at.is_(None),
+            MediaAsset.created_at <= now - UNATTACHED_MEDIA_GRACE,
+            ~select(ListingImage.media_asset_id).where(ListingImage.media_asset_id == MediaAsset.id).exists(),
+            ~select(Listing.id).where(Listing.video_asset_id == MediaAsset.id).exists(),
+            ~select(User.id).where(User.avatar_asset_id == MediaAsset.id).exists(),
+        )
+        .order_by(MediaAsset.created_at, MediaAsset.id)
+        .limit(batch_size)
+    )).all())
+    return await mark_orphaned_media(session, candidate_ids)
 
 
 async def _delete_selected_ids(
@@ -129,6 +152,7 @@ async def prune_expired_records(
             ExternalImportRun,
             old_external_import_run_ids(current, external_run_cutoff, batch_size),
         ),
+        "unattached_media": await prune_unattached_media(session, now=current, batch_size=batch_size),
     }
     await session.commit()
     return counts

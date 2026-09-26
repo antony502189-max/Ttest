@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     s3_max_pool_connections: int = 32
     max_upload_bytes: int = 8 * 1024 * 1024
     max_video_upload_bytes: int = 100 * 1024 * 1024
+    max_video_output_bytes: int = 24 * 1024 * 1024
     max_video_duration_seconds: int = 30
     max_video_dimension: int = 1_920
     max_image_dimension: int = 8_000
@@ -101,8 +102,10 @@ class Settings(BaseSettings):
     media_thumb_webp_quality: int = 80
     image_processing_concurrency: int = 2
     video_processing_concurrency: int = 1
-    max_media_assets_per_user: int = 100
-    max_media_bytes_per_user: int = 256 * 1024 * 1024
+    # Up to 31 listings with the full 15-photo/one-video allowance, with
+    # room for profile media and retries. Bytes remain a separate hard cap.
+    max_media_assets_per_user: int = 500
+    max_media_bytes_per_user: int = 2 * 1024 * 1024 * 1024
     max_saved_searches_per_user: int = 50
     max_saved_search_filter_bytes: int = 16 * 1024
     max_saved_search_filter_nodes: int = 500
@@ -195,6 +198,8 @@ class Settings(BaseSettings):
         if (
             self.max_upload_bytes < 1
             or self.max_video_upload_bytes < 1
+            or self.max_video_output_bytes < 1
+            or self.max_video_output_bytes > self.max_video_upload_bytes
             or self.max_video_duration_seconds < 1
             or self.max_video_dimension < 2
             or self.max_image_dimension < 1

@@ -118,7 +118,7 @@ test('customer video: listing edit prepares media first and commits fields plus 
   expect(media).toContain('newlyUploaded.map(deleteUploadedAsset)')
   expect(media).toContain('timeoutMs: 45_000')
   expect(api).toContain('...(assetIds ? { assetIds } : {})')
-  expect(schema).toContain('assetIds: list[UUID] | None = Field(default=None, max_length=15)')
+  expect(schema).toContain('assetIds: list[UUID] | None = Field(default=None, max_length=MAX_LISTING_PHOTOS)')
   expect(schema).toContain('videoAssetId: UUID | None = None')
   expect(backend).toContain('asset_ids = changes.pop("assetIds", None)')
   expect(backend).toContain('await _replace_listing_images_locked(listing, asset_ids, user, session, admin=admin)')

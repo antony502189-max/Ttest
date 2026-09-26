@@ -7,7 +7,7 @@ import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSav
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getOwnedListings, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
-import { cleanupPreparedListingMedia, prepareListingMedia, syncListingImages } from '@/api/media'
+import { cleanupPreparedListingMedia, prepareListingMedia, syncListingImages, type PreparedListingMedia } from '@/api/media'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters, initialListings } from '@/data/listings'
@@ -106,6 +106,7 @@ const LISTINGS_VERSION = 3
 const DRAFT_KEY = '112233:listing-draft:v3'
 const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
 const PARTIAL_PUBLICATION_KEY = '112233:listing-publication-recovery:v1'
+const PENDING_MEDIA_KEY = '112233:listing-pending-media:v1'
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
 const publicationFieldLabels: Record<string, string> = {
@@ -181,6 +182,36 @@ function readPartialPublication(): PartialPublicationRecovery | null {
 function persistPartialPublication(value: PartialPublicationRecovery | null) {
   if (value) localStorage.setItem(PARTIAL_PUBLICATION_KEY, JSON.stringify(value))
   else localStorage.removeItem(PARTIAL_PUBLICATION_KEY)
+}
+
+type PendingPublicationMedia = {
+  listingId: string
+  ownerUserId: string
+  images: string[]
+  video?: string
+  prepared: PreparedListingMedia
+  savedAt: number
+}
+
+function readPendingMedia(): PendingPublicationMedia | null {
+  const value = parseJson<PendingPublicationMedia>(localStorage.getItem(PENDING_MEDIA_KEY)).data
+  return value && typeof value.listingId === 'string' && typeof value.ownerUserId === 'string'
+    && Array.isArray(value.images) && value.images.every((image) => typeof image === 'string')
+    && Array.isArray(value.prepared?.images?.assetIds)
+    && value.prepared.images.assetIds.every((id) => typeof id === 'string')
+    && Array.isArray(value.prepared.images.newlyUploaded)
+    && value.prepared.images.newlyUploaded.every((id) => typeof id === 'string')
+    && (typeof value.prepared?.video?.assetId === 'string' || value.prepared?.video?.assetId === null)
+    && Array.isArray(value.prepared.video.newlyUploaded)
+    && value.prepared.video.newlyUploaded.every((id) => typeof id === 'string')
+    && typeof value.savedAt === 'number' ? value : null
+}
+
+function persistPendingMedia(value: PendingPublicationMedia | null) {
+  try {
+    if (value) localStorage.setItem(PENDING_MEDIA_KEY, JSON.stringify(value))
+    else localStorage.removeItem(PENDING_MEDIA_KEY)
+  } catch { /* In-memory retry still works when browser storage is unavailable. */ }
 }
 
 function usedMediaReferences(listings: Listing[], users: DemoUser[], draft: unknown = readDraftRecord()?.value) {
@@ -282,6 +313,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [ownedListings, setOwnedListings] = useState<Listing[]>([])
   const [ownedListingsHydrationStatus, setOwnedListingsHydrationStatus] = useState<OwnedListingsHydrationStatus>('idle')
   const [partialPublication, setPartialPublication] = useState<PartialPublicationRecovery | null>(() => mockMode ? null : readPartialPublication())
+  const pendingMedia = useRef<PendingPublicationMedia | null>(readPendingMedia())
   const [reports, setReports] = useState<ReportRecord[]>(() => readJson<ReportRecord[]>('112233:reports:v1', []).data)
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<DemoUser[]>([])
@@ -606,9 +638,27 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
     const publicationStartedAt = Date.now()
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
-    let prepared: Awaited<ReturnType<typeof prepareListingMedia>>
+    let prepared: PreparedListingMedia
     try {
-      prepared = await prepareListingMedia(optimistic.images, optimistic.video)
+      const pending = pendingMedia.current
+      const matchingPending = pending && pending.listingId === optimistic.id
+        && pending.ownerUserId === currentUser.id
+        && pending.savedAt > Date.now() - 23 * 60 * 60 * 1000
+        && JSON.stringify(pending.images) === JSON.stringify(optimistic.images)
+        && pending.video === optimistic.video
+      if (matchingPending) {
+        prepared = pending.prepared
+      } else {
+        if (pending?.ownerUserId === currentUser.id) await cleanupPreparedListingMedia(pending.prepared)
+        pendingMedia.current = null
+        persistPendingMedia(null)
+        prepared = await prepareListingMedia(optimistic.images, optimistic.video)
+        pendingMedia.current = {
+          listingId: optimistic.id, ownerUserId: currentUser.id,
+          images: optimistic.images, video: optimistic.video, prepared, savedAt: Date.now(),
+        }
+        persistPendingMedia(pendingMedia.current)
+      }
     } catch (error) {
       console.error('listing_media_prepare_failed', publicationDiagnostic(error))
       toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotos o el vídeo.')
@@ -617,6 +667,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     setOwnedListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
       const remote = await createRemoteListing(optimistic, prepared.images.assetIds, prepared.video.assetId)
+      pendingMedia.current = null
+      persistPendingMedia(null)
       const stored = { ...remote, userCreated: true }
       setOwnedListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
       await removeUnusedMediaReferences(
@@ -631,7 +683,11 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setOwnedListings((current) => current.filter((item) => item.id !== optimistic.id))
       const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
-      if (!uncertainCommit) await cleanupPreparedListingMedia(prepared)
+      if (!uncertainCommit) {
+        await cleanupPreparedListingMedia(prepared)
+        pendingMedia.current = null
+        persistPendingMedia(null)
+      }
       if (error instanceof ApiError && error.code === 'DUPLICATE_LISTING_IMAGES') {
         const remainingFeedbackDelay = 1000 - (Date.now() - publicationStartedAt)
         if (remainingFeedbackDelay > 0) await new Promise((resolve) => window.setTimeout(resolve, remainingFeedbackDelay))

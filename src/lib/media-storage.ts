@@ -8,6 +8,7 @@ const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
 export const acceptedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-m4v'] as const
 
+export const MIN_LISTING_PHOTOS = 5
 export const MAX_LISTING_PHOTOS = 15
 export const MAX_LISTING_VIDEO_SECONDS = 30
 export const MAX_LISTING_VIDEO_BYTES = 100 * 1024 * 1024

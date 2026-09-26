@@ -10,6 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
+from ..core.media_limits import MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS
 from ..models import (
     AuditLog,
     ExternalListingSource,
@@ -50,6 +51,14 @@ OWNER_STATUS_TRANSITIONS = {
     "closed": set(),
     "rejected": {"pending", "published", "closed"},
 }
+
+def validate_listing_photo_count(asset_ids: list[UUID]) -> None:
+    if not MIN_LISTING_PHOTOS <= len(asset_ids) <= MAX_LISTING_PHOTOS:
+        raise HTTPException(422, detail={
+            "code": "LISTING_PHOTO_COUNT_INVALID",
+            "message": f"A listing requires {MIN_LISTING_PHOTOS} to {MAX_LISTING_PHOTOS} photos.",
+            "fieldErrors": {"assetIds": f"Add {MIN_LISTING_PHOTOS} to {MAX_LISTING_PHOTOS} photos."},
+        })
 
 
 def resolve_owner_status_transition(current: str, requested: str, *, auto_publish: bool) -> str:
@@ -384,6 +393,7 @@ async def _replace_listing_images_locked(
     *,
     admin: bool,
 ) -> None:
+    validate_listing_photo_count(asset_ids)
     previous_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
@@ -396,7 +406,7 @@ async def _replace_listing_images_locked(
         or asset.deleted_at is not None
         or asset.kind != "listing_image"
         or not asset.mime_type.startswith("image/")
-        or (not admin and asset.owner_id != user.id)
+        or asset.owner_id != listing.owner_user_id
         for asset in requested_assets
     ):
         raise HTTPException(
@@ -447,7 +457,7 @@ async def _replace_listing_video_locked(
             or asset.deleted_at is not None
             or asset.kind != "listing_image"
             or asset.mime_type != "video/mp4"
-            or (not admin and asset.owner_id != user.id)
+            or asset.owner_id != listing.owner_user_id
         ):
             raise HTTPException(
                 422,
@@ -485,6 +495,7 @@ async def create_listing(
     *,
     listing_id: UUID | None = None,
 ) -> OwnedListingResponse:
+    validate_listing_photo_count(payload.assetIds)
     # The request dependency may have loaded this account before a concurrent
     # deletion started. Serialize with delete_account() and refresh the row
     # before changing profile/listing state so a deleted account cannot publish
@@ -553,6 +564,8 @@ async def update_listing(
     admin = await ensure_owner_or_admin(listing, user, session)
     changes = payload.model_dump(exclude_unset=True)
     asset_ids = changes.pop("assetIds", None)
+    if asset_ids is not None:
+        validate_listing_photo_count(asset_ids)
     video_asset_supplied = "videoAssetId" in changes
     video_asset_id = changes.pop("videoAssetId", None)
     sync_address_group = bool(changes.pop("syncAddressGroup", False))

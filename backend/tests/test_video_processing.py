@@ -30,6 +30,32 @@ def test_video_mime_type_is_restricted():
     assert error.value.status_code == 415
 
 
+def test_corrupt_video_is_rejected_by_probe(monkeypatch):
+    monkeypatch.setattr(
+        video_processing.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout="", stderr="invalid"),
+    )
+    with pytest.raises(HTTPException) as error:
+        video_processing.prepare_video(b"corrupt", "video/mp4")
+    assert error.value.status_code == 415
+
+
+def test_valid_video_in_unsupported_container_is_rejected(monkeypatch):
+    monkeypatch.setattr(
+        video_processing.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0,
+            stdout='{"streams":[{"width":640,"height":360,"duration":"10"}],"format":{"format_name":"matroska,webm","duration":"10"}}',
+            stderr="",
+        ),
+    )
+    with pytest.raises(HTTPException) as error:
+        video_processing.prepare_video(b"unsupported container", "video/mp4")
+    assert error.value.status_code == 415
+
+
 def test_video_is_normalized_to_browser_mp4(monkeypatch):
     probes = iter([(1080, 1920, 12.5), (720, 1280, 12.5)])
     monkeypatch.setattr(
@@ -56,3 +82,23 @@ def test_video_is_normalized_to_browser_mp4(monkeypatch):
     assert "libx264" in seen_command
     assert "yuv420p" in seen_command
     assert "+faststart" in seen_command
+    assert seen_command[seen_command.index("-maxrate") + 1] == "4M"
+    assert seen_command[seen_command.index("-threads") + 1] == "2"
+
+
+def test_normalized_video_output_is_bounded(monkeypatch):
+    monkeypatch.setattr(
+        video_processing,
+        "get_settings",
+        lambda: Settings(max_video_output_bytes=4),
+    )
+    monkeypatch.setattr(video_processing, "_probe", lambda _path: (640, 360, 10.0))
+
+    def fake_run(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"too-large")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(video_processing.subprocess, "run", fake_run)
+    with pytest.raises(HTTPException) as error:
+        video_processing.prepare_video(b"source", "video/mp4")
+    assert error.value.status_code == 422

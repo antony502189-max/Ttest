@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -31,7 +32,7 @@ def _probe(path: Path) -> tuple[int, int, float]:
                 "-select_streams",
                 "v:0",
                 "-show_entries",
-                "stream=width,height,duration:format=duration",
+                "stream=width,height,duration:format=duration,format_name",
                 "-of",
                 "json",
                 str(path),
@@ -48,6 +49,9 @@ def _probe(path: Path) -> tuple[int, int, float]:
     try:
         payload = json.loads(result.stdout)
         stream = (payload.get("streams") or [])[0]
+        format_names = set((payload.get("format") or {}).get("format_name", "").split(","))
+        if not format_names.intersection({"mov", "mp4", "m4v"}):
+            raise ValueError("unsupported video container")
         width = int(stream["width"])
         height = int(stream["height"])
         raw_duration = stream.get("duration") or (payload.get("format") or {}).get("duration")
@@ -56,7 +60,7 @@ def _probe(path: Path) -> tuple[int, int, float]:
         duration = float(raw_duration)
     except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise HTTPException(415, "Invalid video file") from exc
-    if width < 1 or height < 1 or duration <= 0:
+    if width < 1 or height < 1 or not math.isfinite(duration) or duration <= 0:
         raise HTTPException(415, "Invalid video file")
     return width, height, duration
 
@@ -101,12 +105,20 @@ def prepare_video(content: bytes, content_type: str) -> PreparedVideo:
                     "0:a:0?",
                     "-vf",
                     scale_filter,
+                    "-filter_threads",
+                    "2",
                     "-c:v",
                     "libx264",
+                    "-threads",
+                    "2",
                     "-preset",
                     "veryfast",
                     "-crf",
                     "26",
+                    "-maxrate",
+                    "4M",
+                    "-bufsize",
+                    "8M",
                     "-pix_fmt",
                     "yuv420p",
                     "-c:a",
@@ -130,6 +142,8 @@ def prepare_video(content: bytes, content_type: str) -> PreparedVideo:
             raise HTTPException(422, "Video processing failed") from exc
         if result.returncode != 0 or not target.exists():
             raise HTTPException(422, "Video processing failed")
+        if target.stat().st_size > settings.max_video_output_bytes:
+            raise HTTPException(422, "Normalized video is too large")
 
         width, height, normalized_duration = _probe(target)
         if normalized_duration > float(settings.max_video_duration_seconds):

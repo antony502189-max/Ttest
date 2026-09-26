@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +30,27 @@ logger = logging.getLogger(__name__)
 SUPPORTED_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
 image_processing_slots = asyncio.Semaphore(get_settings().image_processing_concurrency)
 video_processing_slots = asyncio.Semaphore(get_settings().video_processing_concurrency)
+VIDEO_READ_CHUNK_BYTES = 1024 * 1024
+
+
+def parse_video_range(value: str, total_size: int) -> tuple[int, int]:
+    if not value.startswith("bytes=") or "," in value:
+        raise ValueError("unsupported range")
+    raw_start, separator, raw_end = value[6:].partition("-")
+    if not separator or (not raw_start and not raw_end):
+        raise ValueError("invalid range")
+    if raw_start:
+        start = int(raw_start)
+        end = int(raw_end) if raw_end else total_size - 1
+    else:
+        suffix = int(raw_end)
+        if suffix <= 0:
+            raise ValueError("invalid suffix")
+        start = max(0, total_size - suffix)
+        end = total_size - 1
+    if start < 0 or end < start or start >= total_size:
+        raise ValueError("unsatisfiable range")
+    return start, min(end, total_size - 1, start + VIDEO_READ_CHUNK_BYTES - 1)
 
 
 def public_asset(asset: MediaAsset) -> MediaAssetResponse:
@@ -195,13 +216,13 @@ async def upload_video(
             content_type = "video/mp4"
         else:
             raise HTTPException(415, "Only MP4 and MOV videos are supported")
-    content = await file.read(settings.max_video_upload_bytes + 1)
-    await file.close()
-    if not content or len(content) > settings.max_video_upload_bytes:
-        raise HTTPException(413, "Video is too large")
-
     async with video_processing_slots:
+        content = await file.read(settings.max_video_upload_bytes + 1)
+        await file.close()
+        if not content or len(content) > settings.max_video_upload_bytes:
+            raise HTTPException(413, "Video is too large")
         prepared = await asyncio.to_thread(prepare_video, content, content_type)
+        del content
 
     storage_key = f"{user.id}/{uuid4().hex}.mp4"
     storage = get_storage()
@@ -442,38 +463,13 @@ async def get_media(
         headers["Accept-Ranges"] = "bytes"
         range_header = request.headers.get("range")
         if range_header:
-            if not range_header.startswith("bytes=") or "," in range_header:
-                return Response(
-                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
-                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
-                )
-            raw_start, separator, raw_end = range_header[6:].partition("-")
-            if not separator or (not raw_start and not raw_end):
-                return Response(
-                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
-                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
-                )
             try:
-                if raw_start:
-                    start = int(raw_start)
-                    end = int(raw_end) if raw_end else total_size - 1
-                else:
-                    suffix = int(raw_end)
-                    if suffix <= 0:
-                        raise ValueError("suffix range must be positive")
-                    start = max(0, total_size - suffix)
-                    end = total_size - 1
+                start, end = parse_video_range(range_header, total_size)
             except ValueError:
                 return Response(
                     status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
                     headers={**headers, "Content-Range": f"bytes */{total_size}"},
                 )
-            if start < 0 or end < start or start >= total_size:
-                return Response(
-                    status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
-                    headers={**headers, "Content-Range": f"bytes */{total_size}"},
-                )
-            end = min(end, total_size - 1)
             part = await asyncio.to_thread(storage.get_range, asset.storage_key, start, end)
             if part is None:
                 raise HTTPException(404, "Media not found")
@@ -503,11 +499,26 @@ async def get_media(
                 headers=range_headers,
             )
 
-        content = await asyncio.to_thread(storage.get, asset.storage_key)
-        if content is None:
+        first_end = min(total_size, VIDEO_READ_CHUNK_BYTES) - 1
+        first_part = await asyncio.to_thread(storage.get_range, asset.storage_key, 0, first_end)
+        if first_part is None:
             raise HTTPException(404, "Media not found")
-        headers["Content-Length"] = str(len(content))
-        return Response(content, media_type=asset.mime_type, headers=headers)
+        if len(first_part) != first_end + 1:
+            raise HTTPException(502, "Media storage returned an incomplete range")
+
+        def video_chunks():
+            yield first_part
+            start = first_end + 1
+            while start < total_size:
+                end = min(start + VIDEO_READ_CHUNK_BYTES, total_size) - 1
+                part = storage.get_range(asset.storage_key, start, end)
+                if part is None or len(part) != end - start + 1:
+                    raise RuntimeError("Media storage returned an incomplete range")
+                yield part
+                start = end + 1
+
+        headers["Content-Length"] = str(total_size)
+        return StreamingResponse(video_chunks(), media_type=asset.mime_type, headers=headers)
 
     legacy_full_needs_derivative = (
         variant == "full"

@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import os
+import random
 from collections.abc import AsyncIterator
+from io import BytesIO
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from PIL import Image
 from sqlalchemy import text
 
 os.environ.setdefault("APP_ENV", "test")
@@ -22,7 +28,59 @@ os.environ.setdefault("FRONTEND_ORIGINS", "http://testserver")
 
 from app.db.session import SessionLocal, engine
 from app.main import app, rate_limiter
-from app.models import User
+from app.models import MediaAsset, User
+from app.storage import get_storage
+
+
+class ListingFixtureClient(AsyncClient):
+    """Give unrelated listing-flow tests valid photos under the owner contract.
+
+    Media boundary tests use a raw client to bypass this unrelated-flow helper.
+    Replays with the same publication key reuse their seeded asset IDs.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._listing_assets: dict[tuple[str, str], list[str]] = {}
+        self._seed_lock = asyncio.Lock()
+
+    async def seed_listing_assets(self, owner_id: str, count: int) -> list[str]:
+        asset_ids: list[str] = []
+        async with SessionLocal() as session:
+            for _ in range(count):
+                storage_key = f"{owner_id}/fixture-{uuid4().hex}.webp"
+                output = BytesIO()
+                image = Image.new("RGB", (16, 16))
+                pixels = random.Random(uuid4().int)
+                image.putdata([(pixels.randrange(256), pixels.randrange(256), pixels.randrange(256)) for _ in range(256)])
+                image.save(output, format="WEBP")
+                content = output.getvalue()
+                get_storage().put(storage_key, content)
+                asset = MediaAsset(
+                    owner_id=UUID(owner_id), storage_key=storage_key, mime_type="image/webp",
+                    size_bytes=len(content), width=16, height=16,
+                    checksum=hashlib.sha256(content).hexdigest(), kind="listing_image",
+                )
+                session.add(asset)
+                await session.flush()
+                asset_ids.append(str(asset.id))
+            await session.commit()
+        return asset_ids
+
+    async def request(self, method: str, url, **kwargs):
+        payload = kwargs.get("json")
+        if method.upper() == "POST" and str(url) == "/api/v1/listings" and isinstance(payload, dict) and len(payload.get("assetIds", [])) < 5:
+            me = await super().request("GET", "/api/v1/auth/me", headers=kwargs.get("headers"))
+            if me.status_code == 200:
+                owner_id = me.json()["id"]
+                key = (owner_id, (kwargs.get("headers") or {}).get("Idempotency-Key", repr(payload.get("assetIds", uuid4()))))
+                async with self._seed_lock:
+                    supplemental = self._listing_assets.get(key)
+                    if supplemental is None:
+                        supplemental = await self.seed_listing_assets(owner_id, 5 - len(payload.get("assetIds", [])))
+                        self._listing_assets[key] = supplemental
+                kwargs["json"] = {**payload, "assetIds": [*payload.get("assetIds", []), *supplemental]}
+        return await super().request(method, url, **kwargs)
 
 
 @pytest.fixture(scope="session")
@@ -61,7 +119,7 @@ async def clean_database() -> AsyncIterator[None]:
 
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(
+    async with ListingFixtureClient(
         transport=ASGITransport(app=app),
         base_url="http://testserver",
         headers={"Origin": "http://testserver"},

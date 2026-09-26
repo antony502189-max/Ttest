@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -155,7 +155,7 @@ async def test_create_revalidates_preloaded_user_after_concurrent_deletion(
         role="host",
     )
     user_id = UUID(user_body["id"])
-    payload = ListingWrite.model_validate(listing_payload("Create vs account deletion"))
+    payload = ListingWrite.model_validate(listing_payload("Create vs account deletion") | {"assetIds": [uuid4() for _ in range(5)]})
 
     async with SessionLocal() as create_session, SessionLocal() as delete_session:
         stale_user = await create_session.get(User, user_id)

@@ -30,7 +30,7 @@ import { amenityOptions, createDefaultDraft } from '@/data/listings'
 import { getCriticalRestrictions } from '@/lib/listings'
 import { approximatePublicCoordinates } from '@/lib/location-privacy'
 import type { ResolvedGoogleAddress } from '@/lib/google-maps/address'
-import { isMediaReference, MAX_LISTING_PHOTOS, removeUnusedMediaReferences } from '@/lib/media-storage'
+import { isMediaReference, MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS, removeUnusedMediaReferences } from '@/lib/media-storage'
 import {
   normalizeEquipmentAmenities,
   readEquipmentAmenities,
@@ -321,7 +321,7 @@ export function ListingCreatePage() {
     if (draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = 'La fecha final debe ser posterior.'
     if (draft.rentalMode === 'long' && (!Number.isInteger(draft.minimumStayMonths) || draft.minimumStayMonths < 1)) next.minimumStay = 'Indica al menos 1 mes.'
     if (draft.rentalMode === 'holiday' && (!Number.isInteger(draft.minimumNights) || draft.minimumNights < 1)) next.minimumStay = 'Indica al menos 1 noche.'
-    if (!draft.images.length) next.images = 'Añade al menos una fotografía.'
+    if (draft.images.length < MIN_LISTING_PHOTOS) next.images = `Añade al menos ${MIN_LISTING_PHOTOS} fotografías.`
     else if (draft.images.length > MAX_LISTING_PHOTOS) next.images = `Puedes añadir como máximo ${MAX_LISTING_PHOTOS} fotografías.`
     else if (!mockMode && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = 'Vuelve a añadir las fotografías no disponibles.'
     if (!mockMode && draft.video && !isMediaReference(draft.video) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(draft.video)) next.video = 'Vuelve a añadir el vídeo no disponible.'
@@ -496,7 +496,7 @@ export function ListingCreatePage() {
         <FormField label="Normas de la vivienda" htmlFor="publish-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="publish-photos" title="Fotografías" hint="Hasta 15 fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.">
+      <Section id="publish-photos" title="Fotografías" hint={`Entre ${MIN_LISTING_PHOTOS} y ${MAX_LISTING_PHOTOS} fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.`}>
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
         <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>

@@ -114,11 +114,15 @@ class S3Storage:
 
     def get_range(self, key: str, start: int, end: int) -> bytes | None:
         try:
-            return self.client.get_object(
+            body = self.client.get_object(
                 Bucket=self.bucket,
                 Key=key,
                 Range=f"bytes={start}-{end}",
-            )["Body"].read()
+            )["Body"]
+            try:
+                return body.read(end - start + 1)
+            finally:
+                body.close()
         except self.client_error as error:
             if error.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
                 return None
