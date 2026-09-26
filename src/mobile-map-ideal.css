@@ -540,9 +540,10 @@
   top: 50%;
   left: 50%;
   width: calc(100% - 3.5rem);
-  min-height: 12.5rem;
+  height: 13rem;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
+  grid-template-columns: 6rem minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid #d7d9d5;
   border-radius: 1rem;
@@ -661,6 +662,81 @@
   box-shadow: none;
 }
 
+
+/* Keep the carousel card footprint compact while fitting all primary content.
+   Wider text space prevents Russian requirements/title copy from pushing the
+   CTA below the clipped stage. */
+.m2-map-listing-card .m2-map-listing-preview__body {
+  min-height: 0;
+  padding: .48rem .5rem .44rem;
+  overflow: hidden;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__requirements {
+  gap: .18rem;
+  margin-bottom: .24rem;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__requirements span {
+  min-height: 1.28rem;
+  padding: .16rem .3rem;
+  font-size: .56rem;
+  line-height: 1.08;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__body > strong {
+  margin-bottom: .2rem;
+  font-size: .9rem;
+  line-height: 1.05;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__body > strong small {
+  font-size: .56rem;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__body > p {
+  margin: 0 1.45rem .18rem 0;
+  font-size: .58rem;
+  line-height: 1.18;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__body > h2 {
+  margin: 0 1.35rem .22rem 0;
+  font-size: .72rem;
+  line-height: 1.16;
+  -webkit-line-clamp: 3;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__actions {
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: .3rem;
+  margin-top: auto;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__actions button,
+.m2-map-listing-card .m2-map-listing-preview__actions a,
+.m2-map-listing-card:not(.is-current) .m2-map-listing-preview__actions > span {
+  min-height: 1.85rem;
+  font-size: .68rem;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__favorite svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__close {
+  top: .16rem;
+  right: .14rem;
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.m2-map-listing-card .m2-map-listing-preview__close svg {
+  width: .92rem;
+  height: .92rem;
+}
+
 @media (max-width: 340px) {
   .m2-map-listing-preview.m2-map-listing-carousel {
     right: 0;
@@ -671,7 +747,8 @@
 
   .m2-map-listing-card {
     width: calc(100% - 2.75rem);
-    grid-template-columns: 5.8rem minmax(0, 1fr);
+    height: 12.75rem;
+    grid-template-columns: 5.35rem minmax(0, 1fr);
   }
 
   .m2-map-listing-card.is-previous { transform: translate(-145%, -50%) scale(.94); }
