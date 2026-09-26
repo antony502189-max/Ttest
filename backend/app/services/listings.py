@@ -444,7 +444,8 @@ async def _replace_listing_video_locked(
         if (
             asset is None
             or asset.deleted_at is not None
-            or asset.kind != "listing_video"
+            or asset.kind != "listing_image"
+            or asset.mime_type != "video/mp4"
             or (not admin and asset.owner_id != user.id)
         ):
             raise HTTPException(
