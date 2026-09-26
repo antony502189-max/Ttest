@@ -1,4 +1,5 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test'
+import { uploadRequiredListingPhotos } from './media-fixtures'
 
 const API = 'http://127.0.0.1:8000'
 const API_PREFIX = '/api/v1'
@@ -124,9 +125,10 @@ async function createBackendListing(unique: string, title: string, tenantRequire
     data: { code: verificationCode },
   })
   expect(confirmed.status()).toBe(204)
+  const assetIds = await uploadRequiredListingPhotos(api, session.accessToken, unique)
   const created = await api.post(`${API_PREFIX}/listings`, {
     headers: { Authorization: `Bearer ${session.accessToken}` },
-    data: listingPayload(title, tenantRequirement),
+    data: { ...listingPayload(title, tenantRequirement), assetIds },
   })
   expect(created.status()).toBe(201)
   const listing = await created.json() as { id: string }
