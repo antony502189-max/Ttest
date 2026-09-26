@@ -21,18 +21,9 @@ def upgrade() -> None:
         sa.Column("video_asset_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
     op.create_index("ix_listings_video_asset_id", "listings", ["video_asset_id"], unique=False)
-    op.create_foreign_key(
-        "fk_listings_video_asset_id_media_assets",
-        "listings",
-        "media_assets",
-        ["video_asset_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_listings_video_asset_id_media_assets", "listings", type_="foreignkey")
     op.drop_index("ix_listings_video_asset_id", table_name="listings")
     op.drop_column("listings", "video_asset_id")
     # PostgreSQL enum values are intentionally left in place; removing an enum
