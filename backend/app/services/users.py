@@ -84,7 +84,7 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
         locked_user.avatar_asset_id = None
     else:
         asset = assets_by_id.get(payload.assetId)
-        if not asset or asset.owner_id != locked_user.id or asset.deleted_at:
+        if not asset or asset.owner_id != locked_user.id or asset.deleted_at or asset.kind != "listing_image":
             raise HTTPException(404, "Media not found")
         listing_attachment = await session.scalar(
             select(ListingImage.listing_id).where(ListingImage.media_asset_id == asset.id).limit(1)
