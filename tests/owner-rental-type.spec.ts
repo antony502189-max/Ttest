@@ -11,8 +11,19 @@ test('owner cards show the existing rental labels without adding them to public 
 
   const cards = page.locator('.manage-card')
   await expect(cards).toHaveCount(3)
-  await expect(cards.nth(0).getByTestId('owner-rental-type')).toHaveText('Larga estancia')
-  await expect(cards.nth(2).getByTestId('owner-rental-type')).toHaveText('Alquiler vacacional')
+  const longBadge = cards.nth(0).getByTestId('owner-rental-type')
+  const holidayBadge = cards.nth(2).getByTestId('owner-rental-type')
+  await expect(longBadge).toHaveText('Larga estancia')
+  await expect(longBadge).toHaveClass(/owner-rental-type--long/)
+  await expect(holidayBadge).toHaveText('Alquiler vacacional')
+  await expect(holidayBadge).toHaveClass(/owner-rental-type--holiday/)
+
+  const priceLine = cards.nth(0).locator('.manage-card__main > p').first()
+  const priceBox = await priceLine.boundingBox()
+  const badgeBox = await longBadge.boundingBox()
+  expect(priceBox).not.toBeNull()
+  expect(badgeBox).not.toBeNull()
+  expect(badgeBox!.y).toBeGreaterThan(priceBox!.y)
 
   await page.goto('/#/buscar')
   await expect(page.locator('[data-testid="owner-rental-type"]')).toHaveCount(0)
