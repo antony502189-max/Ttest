@@ -194,6 +194,9 @@ class Settings(BaseSettings):
             )
         if (
             self.max_upload_bytes < 1
+            or self.max_video_upload_bytes < 1
+            or self.max_video_duration_seconds < 1
+            or self.max_video_dimension < 2
             or self.max_image_dimension < 1
             or self.max_image_pixels < 1
             or self.media_full_max_dimension < 1
@@ -214,8 +217,9 @@ class Settings(BaseSettings):
                 )
             )
             or self.image_processing_concurrency < 1
+            or self.video_processing_concurrency < 1
             or self.max_media_assets_per_user < 1
-            or self.max_media_bytes_per_user < self.max_upload_bytes
+            or self.max_media_bytes_per_user < max(self.max_upload_bytes, self.max_video_upload_bytes)
         ):
             problems.append("Media upload, processing and quota limits are invalid")
         if (
