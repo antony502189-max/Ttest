@@ -774,3 +774,10 @@
 .m2-map-listing-card:not(.is-current) .m2-map-listing-preview__favorite {
   cursor: default;
 }
+
+
+/* Final specificity lock for side cards: keep them visually complete but
+   compact enough to stay inside the fixed carousel stage. */
+.m2-map-listing-carousel .m2-map-listing-card:not(.is-current) .m2-map-listing-preview__actions > span {
+  min-height: 1.85rem;
+}
