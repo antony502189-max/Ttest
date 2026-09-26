@@ -75,7 +75,7 @@
 .skip-link:focus { transform: translateY(0); }
 .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
 .route-loading { min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: .75rem; color: var(--ink-soft); }.route-loading span { width: 1.25rem; height: 1.25rem; border: 2px solid var(--line-strong); border-top-color: var(--brand-active); border-radius: 50%; animation: route-spin .7s linear infinite; }@keyframes route-spin { to { transform: rotate(360deg); } }
-.route-transition-loading { min-height: clamp(10rem, 32vh, 18rem); display: flex; align-items: center; justify-content: center; gap: .65rem; background: #fff; color: #4c5253; opacity: 0; animation: route-transition-reveal .14s ease-out .08s forwards; }
+.route-transition-loading { min-height: clamp(10rem, 32vh, 18rem); display: flex; align-items: center; justify-content: center; gap: .65rem; background: #fff; color: #4c5253; opacity: 1; animation: none; }
 .route-transition-loading > strong { color: #4c5253 !important; }
 .route-transition-loading > span { width: 1rem; height: 1rem; border: 2px solid #aeb3b0; border-top-color: #91a600; border-radius: 50%; animation: route-transition-spin .7s linear infinite; }
 @keyframes route-transition-spin { to { transform: rotate(360deg); } }
