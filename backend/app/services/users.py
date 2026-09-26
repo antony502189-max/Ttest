@@ -89,6 +89,7 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
             or asset.owner_id != locked_user.id
             or asset.deleted_at
             or asset.kind not in {"listing_image", "avatar"}
+            or not asset.mime_type.startswith("image/")
             or (asset.kind == "avatar" and asset.id != previous_id)
         ):
             raise HTTPException(404, "Media not found")
