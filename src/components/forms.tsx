@@ -928,7 +928,7 @@ export function VideoUploader({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localError, setLocalError] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | undefined>(video && !isMediaReference(video) ? video : undefined);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -939,17 +939,31 @@ export function VideoUploader({
       setPreviewUrl(undefined);
       return () => undefined;
     }
-    if (!isMediaReference(video)) {
-      setPreviewUrl(video);
-      return () => undefined;
-    }
 
-    void getMediaBlob(video).then((blob) => {
-      if (cancelled || !blob) return;
+    const load = async () => {
+      if (isMediaReference(video)) {
+        const blob = await getMediaBlob(video);
+        if (!blob) throw new MediaStorageError("read", "No se pudo leer el vídeo.");
+        return blob;
+      }
+      const pathname = new URL(video, window.location.origin).pathname;
+      const apiMediaPath = pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+      if (apiMediaPath) return apiBlob(apiMediaPath);
+      const response = await fetch(video, { credentials: "include" });
+      if (!response.ok) throw new MediaStorageError("read", "No se pudo leer el vídeo.");
+      return response.blob();
+    };
+
+    void load().then((blob) => {
+      if (cancelled) return;
+      if (!blob.type.startsWith("video/")) throw new MediaStorageError("type", "El archivo no es un vídeo válido.");
       objectUrl = URL.createObjectURL(blob);
       setPreviewUrl(objectUrl);
     }).catch(() => {
-      if (!cancelled) setLocalError("No se pudo abrir la vista previa del vídeo.");
+      if (!cancelled) {
+        setPreviewUrl(undefined);
+        setLocalError("No se pudo abrir la vista previa del vídeo.");
+      }
     });
 
     return () => {
