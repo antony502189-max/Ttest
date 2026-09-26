@@ -269,6 +269,7 @@ export function ImageUploader({
     targetIndex: number;
     active: boolean;
     card: HTMLDivElement;
+    sourceRect: { left: number; top: number; right: number; bottom: number };
   } | null>(null);
   const photoDragTimerRef = useRef<number | null>(null);
   const touchMovePreventerRef = useRef<((event: TouchEvent) => void) | null>(null);
@@ -491,11 +492,20 @@ export function ImageUploader({
     setPhotoDrag(null);
   };
 
-  const photoIndexAtPoint = (grid: HTMLElement, x: number, y: number, fallback: number) => {
+  const photoIndexAtPoint = (
+    grid: HTMLElement,
+    x: number,
+    y: number,
+    fallback: number,
+    sourceReference: string,
+    sourceRect: { left: number; top: number; right: number; bottom: number },
+  ) => {
+    if (x >= sourceRect.left && x <= sourceRect.right && y >= sourceRect.top && y <= sourceRect.bottom) return fallback;
     const cards = [...grid.querySelectorAll<HTMLElement>("[data-photo-index]")];
     let nearestIndex = fallback;
     let nearestDistance = Number.POSITIVE_INFINITY;
     cards.forEach((card) => {
+      if (card.dataset.photoReference === sourceReference) return;
       const index = Number(card.dataset.photoIndex);
       if (!Number.isInteger(index)) return;
       const rect = card.getBoundingClientRect();
@@ -523,6 +533,7 @@ export function ImageUploader({
     resetPhotoDrag();
     const card = event.currentTarget;
     card.setPointerCapture(event.pointerId);
+    const rect = card.getBoundingClientRect();
     photoDragRef.current = {
       reference,
       pointerId: event.pointerId,
@@ -534,6 +545,7 @@ export function ImageUploader({
       targetIndex: index,
       active: false,
       card,
+      sourceRect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
     };
 
     const delay = event.pointerType === "mouse" ? 120 : 280;
@@ -573,7 +585,14 @@ export function ImageUploader({
     event.preventDefault();
     const grid = drag.card.parentElement;
     if (!grid) return;
-    drag.targetIndex = photoIndexAtPoint(grid, event.clientX, event.clientY, drag.targetIndex);
+    drag.targetIndex = photoIndexAtPoint(
+      grid,
+      event.clientX,
+      event.clientY,
+      imagesRef.current.indexOf(drag.reference),
+      drag.reference,
+      drag.sourceRect,
+    );
     setPhotoDrag({
       reference: drag.reference,
       offsetX,
