@@ -278,6 +278,7 @@ export function ImageUploader({
   } | null>(null);
   const photoDragTimerRef = useRef<number | null>(null);
   const photoAutoScrollFrameRef = useRef<number | null>(null);
+  const photoAutoScrollLastFrameRef = useRef<number | null>(null);
   const touchMovePreventerRef = useRef<((event: TouchEvent) => void) | null>(null);
   const [photoDrag, setPhotoDrag] = useState<{
     sourceIndex: number;
@@ -481,9 +482,11 @@ export function ImageUploader({
   };
 
   const cancelPhotoAutoScroll = () => {
-    if (photoAutoScrollFrameRef.current === null) return;
-    window.cancelAnimationFrame(photoAutoScrollFrameRef.current);
-    photoAutoScrollFrameRef.current = null;
+    if (photoAutoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(photoAutoScrollFrameRef.current);
+      photoAutoScrollFrameRef.current = null;
+    }
+    photoAutoScrollLastFrameRef.current = null;
   };
 
   const dragOffsets = (
@@ -533,31 +536,37 @@ export function ImageUploader({
     const viewportTop = viewport?.offsetTop ?? 0;
     const viewportHeight = viewport?.height ?? window.innerHeight;
     const viewportBottom = viewportTop + viewportHeight;
-    const edge = Math.min(132, Math.max(72, viewportHeight * 0.16));
-    const maxStep = 22;
+    const edge = Math.min(180, Math.max(96, viewportHeight * 0.22));
+    const minSpeed = 650;
+    const maxSpeed = 3000;
 
     if (clientY < viewportTop + edge) {
       const strength = Math.min(1, Math.max(0, (viewportTop + edge - clientY) / edge));
-      return -Math.max(2, Math.round(maxStep * strength * strength));
+      return -(minSpeed + (maxSpeed - minSpeed) * strength);
     }
     if (clientY > viewportBottom - edge) {
       const strength = Math.min(1, Math.max(0, (clientY - (viewportBottom - edge)) / edge));
-      return Math.max(2, Math.round(maxStep * strength * strength));
+      return minSpeed + (maxSpeed - minSpeed) * strength;
     }
     return 0;
   };
 
-  const runPhotoAutoScroll = () => {
+  const runPhotoAutoScroll = (timestamp: number) => {
     const drag = photoDragRef.current;
     if (!drag?.active) {
       photoAutoScrollFrameRef.current = null;
+      photoAutoScrollLastFrameRef.current = null;
       return;
     }
 
-    const step = autoScrollSpeed(drag.lastClientY);
-    if (step) {
+    const previousTimestamp = photoAutoScrollLastFrameRef.current ?? timestamp;
+    const elapsedMs = Math.min(32, Math.max(0, timestamp - previousTimestamp));
+    photoAutoScrollLastFrameRef.current = timestamp;
+
+    const speed = autoScrollSpeed(drag.lastClientY);
+    if (speed && elapsedMs > 0) {
       const before = window.scrollY;
-      window.scrollBy({ top: step, left: 0, behavior: "auto" });
+      window.scrollBy({ top: speed * (elapsedMs / 1000), left: 0, behavior: "auto" });
       if (window.scrollY !== before) refreshPhotoDragTarget(drag);
     }
 
@@ -566,6 +575,7 @@ export function ImageUploader({
 
   const ensurePhotoAutoScroll = () => {
     if (photoAutoScrollFrameRef.current !== null) return;
+    photoAutoScrollLastFrameRef.current = null;
     photoAutoScrollFrameRef.current = window.requestAnimationFrame(runPhotoAutoScroll);
   };
 
