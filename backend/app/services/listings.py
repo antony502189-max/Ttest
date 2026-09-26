@@ -234,6 +234,13 @@ async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -
             )
         ).all()
     )
+    attached.update(
+        value
+        for value in (
+            await session.scalars(select(Listing.video_asset_id).where(Listing.video_asset_id.in_(active_ids)))
+        ).all()
+        if value is not None
+    )
     avatars = {
         value
         for value in (
@@ -420,6 +427,55 @@ async def _replace_listing_images_locked(
     await mark_orphaned_media(session, previous_ids - requested_ids)
 
 
+async def _replace_listing_video_locked(
+    listing: Listing,
+    asset_id: UUID | None,
+    user: User,
+    session: AsyncSession,
+    *,
+    admin: bool,
+) -> None:
+    previous_id = listing.video_asset_id
+    candidate_ids = {value for value in (previous_id, asset_id) if value is not None}
+    locked_assets = {asset.id: asset for asset in await lock_media_assets(session, candidate_ids)}
+
+    if asset_id is not None:
+        asset = locked_assets.get(asset_id)
+        if (
+            asset is None
+            or asset.deleted_at is not None
+            or asset.kind != "listing_video"
+            or (not admin and asset.owner_id != user.id)
+        ):
+            raise HTTPException(
+                422,
+                detail={
+                    "code": "LISTING_VIDEO_INVALID",
+                    "message": "The video must be an active listing video owned by the requester.",
+                    "fieldErrors": {"videoAssetId": "Remove the unavailable video and upload it again."},
+                },
+            )
+        other_listing = await session.scalar(
+            select(Listing.id)
+            .where(Listing.video_asset_id == asset_id, Listing.id != listing.id)
+            .limit(1)
+        )
+        if other_listing is not None:
+            raise HTTPException(
+                409,
+                detail={
+                    "code": "LISTING_VIDEO_ALREADY_ATTACHED",
+                    "message": "This video is already attached to another listing.",
+                    "fieldErrors": {"videoAssetId": "Upload a separate video for this listing."},
+                },
+            )
+
+    listing.video_asset_id = asset_id
+    await session.flush()
+    if previous_id is not None and previous_id != asset_id:
+        await mark_orphaned_media(session, {previous_id})
+
+
 async def create_listing(
     payload: ListingWrite,
     user: User,
@@ -454,6 +510,7 @@ async def create_listing(
     apply_room_detail_write(details, payload)
     session.add(details)
     await _replace_listing_images_locked(listing, payload.assetIds, user, session, admin=False)
+    await _replace_listing_video_locked(listing, payload.videoAssetId, user, session, admin=False)
     history = ListingStatusHistory(
         listing_id=listing.id,
         from_status="draft",
@@ -494,6 +551,8 @@ async def update_listing(
     admin = await ensure_owner_or_admin(listing, user, session)
     changes = payload.model_dump(exclude_unset=True)
     asset_ids = changes.pop("assetIds", None)
+    video_asset_supplied = "videoAssetId" in changes
+    video_asset_id = changes.pop("videoAssetId", None)
     sync_address_group = bool(changes.pop("syncAddressGroup", False))
     previous_address_group = _private_address_group_key(
         getattr(listing, "street", None),
@@ -632,6 +691,8 @@ async def update_listing(
             await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
     if asset_ids is not None:
         await _replace_listing_images_locked(listing, asset_ids, user, session, admin=admin)
+    if video_asset_supplied:
+        await _replace_listing_video_locked(listing, video_asset_id, user, session, admin=admin)
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()
@@ -708,6 +769,8 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     attached_ids = set(
         (await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.listing_id == listing.id))).all()
     )
+    if listing.video_asset_id is not None:
+        attached_ids.add(listing.video_asset_id)
     locked_assets = {asset.id: asset for asset in await lock_media_assets(session, attached_ids)}
     notify_owner_about_admin_delete = admin and owner.id != user.id
 
@@ -735,6 +798,13 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
                     select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(attached_ids))
                 )
             ).all()
+        )
+        still_attached.update(
+            value
+            for value in (
+                await session.scalars(select(Listing.video_asset_id).where(Listing.video_asset_id.in_(attached_ids)))
+            ).all()
+            if value is not None
         )
         avatars = {
             asset_id
