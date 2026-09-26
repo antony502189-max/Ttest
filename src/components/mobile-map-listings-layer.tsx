@@ -246,7 +246,13 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const renderCard = ({ item, position }: { item: Listing; position: MobileCarouselPosition }) => {
     const current = position === 'current'
     const capacity = item.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(item.roomCapacity)
-    const requirements = Array.from(new Set([...item.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacity]))
+    const translatedRestrictions = item.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language))
+    const capacityAlreadyCovered = item.roomCapacity != null && item.restrictions.some((restriction) => {
+      const normalized = restriction.toLocaleLowerCase()
+      return normalized.includes(String(item.roomCapacity))
+        && /(persona|personas|person|people|чел|человек)/i.test(normalized)
+    })
+    const requirements = Array.from(new Set([...translatedRestrictions, ...(capacityAlreadyCovered ? [] : [capacity])]))
     const cadence = item.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
     const saved = favorites.has(item.id)
     const externalUrl = item.isExternal && item.sourceUrl ? item.sourceUrl : null
