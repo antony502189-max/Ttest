@@ -10,7 +10,6 @@ from fastapi import HTTPException
 
 from ..core.config import get_settings
 
-
 SUPPORTED_VIDEO_MIME_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v"}
 
 
