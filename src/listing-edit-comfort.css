@@ -253,3 +253,72 @@
     transition-duration: .01ms;
   }
 }
+
+
+/* One optional short video shared by listing create/edit flows. */
+.listing-video-uploader {
+  margin-top: 1rem;
+  padding: .9rem;
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  background: var(--surface);
+}
+
+.listing-video-uploader__head,
+.listing-video-uploader__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.listing-video-uploader__head > div {
+  display: grid;
+  gap: .15rem;
+}
+
+.listing-video-uploader__head span {
+  color: var(--ink-muted);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.listing-video-uploader__preview {
+  display: grid;
+  gap: .75rem;
+  margin-top: .8rem;
+}
+
+.listing-video-uploader__preview video,
+.listing-video-uploader__loading {
+  width: 100%;
+  max-height: 28rem;
+  min-height: 12rem;
+  border-radius: .7rem;
+  background: #111;
+  object-fit: contain;
+}
+
+.listing-video-uploader__loading {
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.listing-video-uploader__actions {
+  justify-content: flex-start;
+}
+
+@media (max-width: 600px) {
+  .listing-video-uploader__head,
+  .listing-video-uploader__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .listing-video-uploader__preview video,
+  .listing-video-uploader__loading {
+    min-height: 10rem;
+    max-height: 22rem;
+  }
+}

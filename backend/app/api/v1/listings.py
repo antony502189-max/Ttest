@@ -67,6 +67,7 @@ def idempotency_payload_matches(
     existing: OwnedListingResponse,
     user: User,
     stored_asset_ids: list[UUID],
+    stored_video_asset_id: UUID | None,
 ) -> bool:
     """Reject a reused publication key when its material input changed.
 
@@ -77,6 +78,8 @@ def idempotency_payload_matches(
     compatibility with older clients.
     """
     if payload.assetIds != stored_asset_ids:
+        return False
+    if payload.videoAssetId != stored_video_asset_id:
         return False
     incoming = payload.model_dump(mode="json")
     # Owner exact coordinates are the canonical public map point. When they are
@@ -89,7 +92,7 @@ def idempotency_payload_matches(
         incoming["longitude"] = incoming["exactLongitude"]
     stored = existing.model_dump(mode="json")
     for field, value in incoming.items():
-        if field == "assetIds" or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
+        if field in {"assetIds", "videoAssetId"} or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
             continue
         previous = stored[field]
         if field in IDEMPOTENCY_COORDINATE_FIELDS and value is not None and previous is not None:
@@ -298,7 +301,13 @@ async def create_listing(
                 # publication committed its atomic contact update. Refresh it
                 # before comparing a replay so identical payloads remain idempotent.
                 await session.refresh(user)
-                if not idempotency_payload_matches(payload, existing_response, user, stored_asset_ids):
+                if not idempotency_payload_matches(
+                    payload,
+                    existing_response,
+                    user,
+                    stored_asset_ids,
+                    existing.video_asset_id,
+                ):
                     raise HTTPException(
                         status.HTTP_409_CONFLICT,
                         detail={

@@ -87,6 +87,7 @@ export interface Listing {
   description: string
   homeDescription: string
   images: string[]
+  video?: string
   owner: Owner
   advertiserType: AdvertiserType
   source?: string
@@ -233,6 +234,7 @@ export interface ListingDraft {
   empadronamientoAllowed: boolean
   rules: string
   images: string[]
+  video?: string
   title: string
   description: string
   contactName: string

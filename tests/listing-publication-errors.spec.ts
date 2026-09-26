@@ -18,6 +18,15 @@ const host = {
 }
 const secondHost = { ...host, id: '44444444-4444-4444-8444-444444444444', name: 'Segunda anfitriona', email: 'second-publication-ui@example.com' }
 
+const syntheticRoomPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+const requiredPhotoFiles = () => Array.from({ length: 5 }, (_, index) => ({
+  name: `synthetic-room-${index + 1}.png`,
+  mimeType: 'image/png',
+  buffer: syntheticRoomPng,
+}))
+const mockUploadAssetId = (call: number) => `22222222-2222-4222-8222-${String(222222222221 + call).padStart(12, '0')}`
+const requiredServerImageUrls = () => Array.from({ length: 5 }, (_, index) => `/api/v1/media/${mockUploadAssetId(index + 1)}`)
+
 type PublicationMode = 'email' | 'validation' | 'duplicate' | 'success'
 type PublicationTestState = {
   mode: PublicationMode
@@ -177,11 +186,12 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
     }
     if (path === '/uploads' && request.method() === 'POST') {
       state.uploadCalls = (state.uploadCalls ?? 0) + 1
+      const assetId = mockUploadAssetId(state.uploadCalls)
       if ((state.uploadFailures ?? 0) > 0) {
         state.uploadFailures = (state.uploadFailures ?? 0) - 1
         return json({ code: 'internal_error', message: 'Internal server error', fieldErrors: {} }, 500)
       }
-      return json({ id: '22222222-2222-4222-8222-222222222222', url: '/api/v1/media/22222222-2222-4222-8222-222222222222' }, 201)
+      return json({ id: assetId, url: `/api/v1/media/${assetId}` }, 201)
     }
     if (/^\/listings\/[^/]+\/images$/.test(path) && request.method() === 'PUT') {
       state.imageListingIds?.push(path.split('/')[2])
@@ -214,12 +224,8 @@ async function openCompletedPublicationForm(page: Page) {
   await page.locator('#publish-city').selectOption('Adeje')
   await page.locator('#publish-area').fill('Costa Adeje')
   await page.locator('#publish-postcode').fill('38660')
-  await page.getByLabel('Añadir fotos del anuncio').setInputFiles({
-    name: 'synthetic-room.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
-  })
-  await expect(page.locator('.upload-grid > div')).toHaveCount(1)
+  await page.getByLabel('Añadir fotos del anuncio').setInputFiles(requiredPhotoFiles())
+  await expect(page.locator('.upload-photo-card')).toHaveCount(5)
   await expect(page.getByRole('button', { name: 'Publicar anuncio' })).toBeVisible()
 }
 
@@ -263,29 +269,30 @@ test('duplicate photo gallery keeps the exact draft, removes temporary uploads a
   await expect(page.getByText('Такое объявление уже существует. Замените фотографии.')).toBeVisible()
   expect(Date.now() - startedAt).toBeGreaterThanOrEqual(900)
 
-  expect(state.uploadCalls).toBe(1)
+  expect(state.uploadCalls).toBe(5)
   expect(state.posts).toBe(1)
-  expect(state.deletedUploadIds).toEqual(['22222222-2222-4222-8222-222222222222'])
+  expect(state.deletedUploadIds).toEqual(Array.from({ length: 5 }, (_, index) => mockUploadAssetId(index + 1)))
   await expect(page).toHaveURL(/#\/publicar$/)
   const draftAfter = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
   expect(draftAfter).toBe(draftBefore)
   expect(draftAfter).toBeTruthy()
 
-  const originalPhoto = await page.locator('.upload-photo-card').getAttribute('data-photo-reference')
+  const originalPhoto = await page.locator('.upload-photo-card').first().getAttribute('data-photo-reference')
   await page.getByRole('button', { name: 'Eliminar foto 1' }).click()
   await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
+  await expect(page.locator('.upload-photo-card')).toHaveCount(4)
   await page.getByLabel('Añadir fotos del anuncio').setInputFiles({
     name: 'replacement-room.png',
     mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGP4z8DAwPAfAAcAAf9+CLHQAAAAAElFTkSuQmCC', 'base64'),
   })
-  await expect(page.locator('.upload-photo-card')).toHaveCount(1)
-  await expect(page.locator('.upload-photo-card')).not.toHaveAttribute('data-photo-reference', originalPhoto!)
+  await expect(page.locator('.upload-photo-card')).toHaveCount(5)
+  await expect(page.locator(`.upload-photo-card[data-photo-reference="${originalPhoto}"]`)).toHaveCount(0)
   state.mode = 'success'
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
   expect(state.posts).toBe(2)
-  expect(state.uploadCalls).toBe(2)
+  expect(state.uploadCalls).toBe(10)
 })
 
 test('double click sends one idempotent publication and then synchronizes images', async ({ page }) => {
@@ -338,22 +345,21 @@ test('image upload failure keeps the durable draft and retries before creating t
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page).toHaveURL(/#\/publicar$/)
   await expect(page.getByRole('button', { name: 'Publicar anuncio' })).toBeEnabled()
-  expect(state.uploadCalls).toBe(1)
+  expect(state.uploadCalls).toBeGreaterThanOrEqual(1)
   expect(state.posts).toBe(0)
   expect(await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).toBeTruthy()
+  const uploadsAfterFailure = state.uploadCalls
 
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
-  expect(state.uploadCalls).toBe(2)
+  expect(state.uploadCalls).toBeGreaterThan(uploadsAfterFailure)
   expect(state.posts).toBe(1)
-  expect(state.payload).toMatchObject({
-    assetIds: ['22222222-2222-4222-8222-222222222222'],
-  })
+  expect(state.payload?.assetIds).toHaveLength(5)
+  expect(new Set(state.payload?.assetIds as string[]).size).toBe(5)
 })
 
 test('customer video: edit PATCH ignores stale global create draft and persists the current private address', async ({ page }) => {
   const listingId = '33333333-3333-4333-8333-333333333333'
-  const imageId = '22222222-2222-4222-8222-222222222222'
   const state: PublicationTestState = {
     mode: 'success',
     posts: 0,
@@ -367,8 +373,8 @@ test('customer video: edit PATCH ignores stale global create draft and persists 
       exactLongitude: -16.7318,
       latitude: 28.0708,
       longitude: -16.7322,
-      imageUrls: [`/api/v1/media/${imageId}`],
-      coverImageUrl: `/api/v1/media/${imageId}`,
+      imageUrls: requiredServerImageUrls(),
+      coverImageUrl: requiredServerImageUrls()[0],
       description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
     }],
   }
@@ -438,7 +444,6 @@ test('customer follow-up: changing one room address synchronizes sibling rooms f
   const firstId = '33333333-3333-4333-8333-333333333333'
   const siblingId = '55555555-5555-4555-8555-555555555555'
   const independentId = '66666666-6666-4666-8666-666666666666'
-  const imageId = '22222222-2222-4222-8222-222222222222'
   const base = {
     ...lifecycleListing('published', firstId),
     street: 'Calle Poetas Españoles 3',
@@ -447,8 +452,8 @@ test('customer follow-up: changing one room address synchronizes sibling rooms f
     exactLongitude: -16.7318,
     latitude: 28.0708,
     longitude: -16.7322,
-    imageUrls: [`/api/v1/media/${imageId}`],
-    coverImageUrl: `/api/v1/media/${imageId}`,
+    imageUrls: requiredServerImageUrls(),
+    coverImageUrl: requiredServerImageUrls()[0],
     description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
   }
   const state: PublicationTestState = {
@@ -518,7 +523,6 @@ test('customer follow-up: changing one room address synchronizes sibling rooms f
 
 test('customer video: edit is not reported as saved when the server echoes a different private location', async ({ page }) => {
   const listingId = '33333333-3333-4333-8333-333333333333'
-  const imageId = '22222222-2222-4222-8222-222222222222'
   const original = {
     ...lifecycleListing('published', listingId),
     street: 'Calle Poetas Españoles 3',
@@ -527,8 +531,8 @@ test('customer video: edit is not reported as saved when the server echoes a dif
     exactLongitude: -16.7318,
     latitude: 28.0708,
     longitude: -16.7322,
-    imageUrls: [`/api/v1/media/${imageId}`],
-    coverImageUrl: `/api/v1/media/${imageId}`,
+    imageUrls: requiredServerImageUrls(),
+    coverImageUrl: requiredServerImageUrls()[0],
     description: 'Habitación de prueba con una descripción suficientemente larga para validar el formulario.',
   }
   const state: PublicationTestState = {

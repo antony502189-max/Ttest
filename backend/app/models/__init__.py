@@ -145,6 +145,11 @@ class Listing(Timestamped, Base):
     restrictions: Mapped[list[str]] = mapped_column(JSONB, default=list)
     amenities: Mapped[list[str]] = mapped_column(JSONB, default=list)
     external_image_urls: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    # Intentionally no FK: production migration policy keeps upgrades
+    # expand/rollback compatible with the previous release. The service layer
+    # validates ownership/type and prevents deletion while attached. A unique
+    # index also protects the one-video-to-one-listing invariant in the DB.
+    video_asset_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), index=True, unique=True)
     status: Mapped[str] = mapped_column(
         Enum("draft", "pending", "published", "hidden", "closed", "rejected", name="listing_status"),
         default="draft",
@@ -369,7 +374,7 @@ class MediaAsset(Base):
     checksum: Mapped[str] = mapped_column(String(64), index=True)
     perceptual_hash: Mapped[str | None] = mapped_column(String(16), index=True)
     kind: Mapped[str] = mapped_column(Enum("listing_image", "avatar", name="media_kind"), default="listing_image")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

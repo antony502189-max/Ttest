@@ -22,6 +22,7 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { currentLocale } from "@/lib/i18n-locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, FormField, StatusBadge } from "@/components/forms";
 import { EmptyState, PropertyCard } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
+import { useI18n } from "@/contexts/i18n-context";
 import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
@@ -456,6 +458,7 @@ export function ProfilePage() {
 }
 
 export function MyListingsPage() {
+  const { t } = useI18n();
   const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
   const [status, setStatus] = useState("Todos");
@@ -533,6 +536,7 @@ export function MyListingsPage() {
                   <span>Ref. {listing.id.slice(-5).toUpperCase()}</span>
                 </div>
                 <h2>{listing.title}</h2>
+                <Badge data-testid="owner-rental-type" variant="outline">{t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}</Badge>
                 <p>
                   {listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}
                 </p>

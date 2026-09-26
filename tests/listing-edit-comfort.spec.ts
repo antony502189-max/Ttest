@@ -152,6 +152,11 @@ test('create and edit forms share touch-capable press-and-drag photo ordering', 
 
   expect(create).toContain('<ImageUploader images={draft.images}')
   expect(edit).toContain('<ImageUploader images={draft.images}')
+  expect(create).toContain('<VideoUploader video={draft.video}')
+  expect(edit).toContain('<VideoUploader video={draft.video}')
+  expect(forms).toContain('MAX_LISTING_PHOTOS')
+  expect(forms).toContain('MAX_LISTING_VIDEO_SECONDS')
+  expect(forms).toContain('saveVideoFile(file)')
   expect(forms).toContain('onPointerDown={(event) => beginPhotoDrag(event, image, index)}')
   expect(forms).toContain('onPointerMove={updatePhotoDrag}')
   expect(forms).toContain('onPointerUp={finishPhotoDrag}')

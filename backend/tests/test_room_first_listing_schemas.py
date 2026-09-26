@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -47,6 +48,24 @@ def base_payload() -> dict:
         "latitude": 28.1272,
         "longitude": -16.739,
     }
+
+
+def test_listing_media_accepts_fifteen_photos_and_one_optional_video():
+    asset_ids = [uuid4() for _ in range(15)]
+    video_asset_id = uuid4()
+    listing = ListingWrite.model_validate(
+        base_payload() | {"assetIds": asset_ids, "videoAssetId": video_asset_id}
+    )
+
+    assert listing.assetIds == asset_ids
+    assert listing.videoAssetId == video_asset_id
+
+
+def test_listing_media_rejects_a_sixteenth_photo():
+    with pytest.raises(ValidationError):
+        ListingWrite.model_validate(
+            base_payload() | {"assetIds": [uuid4() for _ in range(16)]}
+        )
 
 
 def test_private_long_term_room_scenario_is_structured_and_valid():

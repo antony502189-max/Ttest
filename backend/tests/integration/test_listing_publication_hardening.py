@@ -204,11 +204,12 @@ async def test_publication_is_idempotent_and_contact_sync_is_atomic(client, regi
         assert user.phone == "+34 600 111 222"
 
     token, user_body = await register_user(client, email="publication-rollback@example.com", role="host")
+    rollback_assets = await client.seed_listing_assets(user_body["id"], 5)
     async with SessionLocal() as session:
         user = await session.get(User, UUID(user_body["id"]))
         assert user is not None
         original_name = user.name
-        payload_model = ListingWrite.model_validate(customer_listing(contactName="Must roll back"))
+        payload_model = ListingWrite.model_validate(customer_listing(contactName="Must roll back", assetIds=rollback_assets))
 
         async def fail_notification(*args, **kwargs):
             raise RuntimeError("synthetic notification failure")
@@ -302,7 +303,9 @@ async def test_listing_and_media_ownership_boundaries(client, register_user):
     foreign_media = await client.put(
         f"/api/v1/listings/{attacker_listing.json()['id']}/images",
         headers=auth(attacker_token),
-        json={"assetIds": [owner_asset.json()["id"]]},
+        json={"assetIds": [owner_asset.json()["id"], *[
+            url.rsplit("/", 1)[-1] for url in attacker_listing.json()["imageUrls"][:4]
+        ]]},
     )
     assert foreign_media.status_code == 422
     assert foreign_media.json()["code"] == "LISTING_IMAGE_INVALID"
@@ -321,6 +324,8 @@ def patterned_png(seed: int) -> bytes:
 
 async def upload_gallery(client, token: str, seeds: list[int]) -> list[str]:
     asset_ids = []
+    if len(seeds) < 5:
+        seeds = [*seeds, *(seeds[0] + 10_000 + index for index in range(5 - len(seeds)))]
     for seed in seeds:
         uploaded = await client.post(
             "/api/v1/uploads",
@@ -475,7 +480,7 @@ async def test_unreconciled_external_gallery_does_not_block_user_publication(cli
         stale_external.primary_source = "Idealista"
         stale_external.external_image_urls = [
             f"https://images.example.test/current-{index}.webp"
-            for index in range(5)
+            for index in range(6)
         ]
         await session.commit()
 

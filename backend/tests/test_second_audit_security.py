@@ -59,6 +59,14 @@ def test_valid_production_configuration_passes():
     production_settings().validate_runtime()
 
 
+def test_runtime_rejects_video_limits_that_exceed_media_quota():
+    with pytest.raises(RuntimeError, match="Media upload, processing and quota limits are invalid"):
+        production_settings(
+            max_video_upload_bytes=100 * 1024 * 1024,
+            max_media_bytes_per_user=64 * 1024 * 1024,
+        ).validate_runtime()
+
+
 def test_production_configuration_requires_direct_publication():
     with pytest.raises(RuntimeError, match="AUTO_PUBLISH_LISTINGS must be true in production"):
         production_settings(auto_publish_listings=False).validate_runtime()

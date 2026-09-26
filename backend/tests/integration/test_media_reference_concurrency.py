@@ -108,8 +108,25 @@ async def replace_images(user_id: UUID, listing_id: UUID, asset_ids: list[UUID])
         return 200
 
 
+async def extra_assets(owner_id: UUID, count: int) -> list[UUID]:
+    asset_ids = []
+    async with SessionLocal() as session:
+        for _ in range(count):
+            asset = MediaAsset(
+                owner_id=owner_id, storage_key=f"media/replacement-{uuid4()}.webp",
+                mime_type="image/webp", size_bytes=10, width=1, height=1,
+                checksum=uuid4().hex * 2, kind="listing_image",
+            )
+            session.add(asset)
+            await session.flush()
+            asset_ids.append(asset.id)
+        await session.commit()
+    return asset_ids
+
+
 async def test_delete_and_attach_cannot_leave_a_reference_to_deleted_media(monkeypatch):
     fixture = await create_fixture(attached=False)
+    supplementary_ids = await extra_assets(fixture.user_id, 4)
     asset_locked = asyncio.Event()
     release_delete = asyncio.Event()
     real_lock = uploads.lock_media_assets
@@ -131,7 +148,7 @@ async def test_delete_and_attach_cannot_leave_a_reference_to_deleted_media(monke
     delete_task = asyncio.create_task(delete_asset())
     await asyncio.wait_for(asset_locked.wait(), timeout=5)
     attach_task = asyncio.create_task(
-        replace_images(fixture.user_id, fixture.first_listing_id, [fixture.asset_id])
+        replace_images(fixture.user_id, fixture.first_listing_id, [fixture.asset_id, *supplementary_ids])
     )
     await asyncio.sleep(0.05)
     release_delete.set()
@@ -153,6 +170,7 @@ async def test_delete_and_attach_cannot_leave_a_reference_to_deleted_media(monke
 
 async def test_detach_and_attach_serialize_orphan_detection(monkeypatch):
     fixture = await create_fixture(attached=True)
+    replacement_ids = await extra_assets(fixture.user_id, 5)
     asset_locked = asyncio.Event()
     release_detach = asyncio.Event()
     real_lock = listings.lock_media_assets
@@ -171,12 +189,12 @@ async def test_detach_and_attach_serialize_orphan_detection(monkeypatch):
     monkeypatch.setattr(listings, "lock_media_assets", controlled_listing_lock)
 
     detach_task = asyncio.create_task(
-        replace_images(fixture.user_id, fixture.first_listing_id, []),
+        replace_images(fixture.user_id, fixture.first_listing_id, replacement_ids),
         name="detach-media",
     )
     await asyncio.wait_for(asset_locked.wait(), timeout=5)
     attach_task = asyncio.create_task(
-        replace_images(fixture.user_id, fixture.second_listing_id, [fixture.asset_id]),
+        replace_images(fixture.user_id, fixture.second_listing_id, [fixture.asset_id, *replacement_ids[:4]]),
         name="attach-media",
     )
     await asyncio.sleep(0.05)
@@ -197,6 +215,7 @@ async def test_detach_and_attach_serialize_orphan_detection(monkeypatch):
 
 async def test_avatar_and_listing_attachment_share_the_same_media_lock(monkeypatch):
     fixture = await create_fixture(attached=False)
+    supplementary_ids = await extra_assets(fixture.user_id, 4)
     asset_locked = asyncio.Event()
     release_avatar = asyncio.Event()
     real_lock = users.lock_media_assets
@@ -218,7 +237,7 @@ async def test_avatar_and_listing_attachment_share_the_same_media_lock(monkeypat
     avatar_task = asyncio.create_task(set_avatar())
     await asyncio.wait_for(asset_locked.wait(), timeout=5)
     attach_task = asyncio.create_task(
-        replace_images(fixture.user_id, fixture.first_listing_id, [fixture.asset_id])
+        replace_images(fixture.user_id, fixture.first_listing_id, [fixture.asset_id, *supplementary_ids])
     )
     await asyncio.sleep(0.05)
     release_avatar.set()

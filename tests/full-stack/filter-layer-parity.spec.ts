@@ -1,4 +1,5 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page } from '@playwright/test'
+import { uploadRequiredListingPhotos } from './media-fixtures'
 
 const API = 'http://127.0.0.1:8000'
 const API_PREFIX = '/api/v1'
@@ -94,9 +95,10 @@ function baseListing(title: string, city: string, area: string) {
 }
 
 async function createListing(api: APIRequestContext, token: string, payload: Record<string, unknown>) {
+  const assetIds = await uploadRequiredListingPhotos(api, token, String(payload.title ?? 'filter-listing'))
   const response = await api.post(`${API_PREFIX}/listings`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: payload,
+    data: { ...payload, assetIds },
   })
   expect(response.status()).toBe(201)
   return (await response.json() as { id: string }).id

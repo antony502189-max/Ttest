@@ -75,7 +75,7 @@ test('customer video fix keeps fresh location unresolved safely and validates it
   expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
   expect(publish).toContain('const validate = () =>')
   expect(publish).toContain('municipalityAreaError(draft.city, draft.area)')
-  expect(publish).toContain('if (savingRef.current || processingImages || !validate()) return')
+  expect(publish).toContain('if (savingRef.current || processingImages || processingVideo || !validate()) return')
 })
 
 test('customer video fix retries transient admin authorization without weakening the server route guard', () => {
@@ -110,17 +110,19 @@ test('customer video: listing edit prepares media first and commits fields plus 
   const update = context.slice(start, end)
 
   expect(start).toBeGreaterThanOrEqual(0)
-  expect(update).toContain('prepared = await prepareListingImages(next.images)')
-  expect(update).toContain('updateRemoteListing(id, next, prepared.assetIds, previous)')
+  expect(update).toContain('prepared = await prepareListingMedia(next.images, next.video)')
+  expect(update).toContain('updateRemoteListing(id, next, prepared.images.assetIds, prepared.video.assetId, previous)')
   expect(update).not.toContain('syncListingImages(id, next.images)')
   expect(media).toContain('const UPLOAD_CONCURRENCY = 3')
   expect(media).toContain('Promise.allSettled(')
   expect(media).toContain('newlyUploaded.map(deleteUploadedAsset)')
   expect(media).toContain('timeoutMs: 45_000')
   expect(api).toContain('...(assetIds ? { assetIds } : {})')
-  expect(schema).toContain('assetIds: list[UUID] | None = Field(default=None, max_length=8)')
+  expect(schema).toContain('assetIds: list[UUID] | None = Field(default=None, max_length=MAX_LISTING_PHOTOS)')
+  expect(schema).toContain('videoAssetId: UUID | None = None')
   expect(backend).toContain('asset_ids = changes.pop("assetIds", None)')
   expect(backend).toContain('await _replace_listing_images_locked(listing, asset_ids, user, session, admin=admin)')
+  expect(backend).toContain('await _replace_listing_video_locked(listing, video_asset_id, user, session, admin=admin)')
 })
 
 test('customer video: edit rejects a different municipality as area but keeps valid manual addresses allowed', async ({ page }) => {

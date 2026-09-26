@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, GripVertical, ImagePlus, RotateCw, Trash2, UploadCloud } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, ImagePlus, RotateCw, Trash2, UploadCloud, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiBlob } from "@/api/client";
 import {
@@ -30,7 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { acceptedImageTypes, getMediaBlob, isMediaReference, MediaStorageError, removeMediaReferences, saveMediaFile } from "@/lib/media-storage";
+import { acceptedImageTypes, acceptedVideoTypes, getMediaBlob, isMediaReference, MAX_LISTING_PHOTOS, MAX_LISTING_VIDEO_BYTES, MAX_LISTING_VIDEO_SECONDS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 import "@/listing-edit-comfort.css";
@@ -405,10 +405,10 @@ export function ImageUploader({
     const current = imagesRef.current;
     const accepted = [...files]
       .filter((file) => acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number]) && file.size <= 12_000_000)
-      .slice(0, Math.max(0, 8 - current.length));
+      .slice(0, Math.max(0, MAX_LISTING_PHOTOS - current.length));
     setLocalError(
       accepted.length !== files.length
-        ? "Algunas fotos se omitieron: usa JPEG, PNG o WebP de hasta 12 MB (máximo 8)."
+        ? `Algunas fotos se omitieron: usa JPEG, PNG o WebP de hasta 12 MB (máximo ${MAX_LISTING_PHOTOS}).`
         : "",
     );
     try {
@@ -784,7 +784,7 @@ export function ImageUploader({
       >
         <UploadCloud />
         <strong>Añade fotos luminosas y horizontales</strong>
-        <span>Arrastra o selecciona JPEG, PNG o WebP · máximo 8</span>
+        <span>Arrastra o selecciona JPEG, PNG o WebP · máximo {MAX_LISTING_PHOTOS}</span>
       </button>
       <input
         id="publish-images"
@@ -899,7 +899,7 @@ export function ImageUploader({
           </div>
           )
         })}
-        {images.length < 8 ? (
+        {images.length < MAX_LISTING_PHOTOS ? (
           <Button
             variant="outline"
             type="button"
@@ -913,6 +913,150 @@ export function ImageUploader({
     </div>
   );
 }
+
+
+export function VideoUploader({
+  video,
+  onChange,
+  onRemove,
+  onProcessingChange,
+  error,
+}: {
+  video?: string;
+  onChange: (video?: string) => void;
+  onRemove?: (video: string) => void;
+  onProcessingChange?: (processing: boolean) => void;
+  error?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [localError, setLocalError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    if (!video) {
+      setPreviewUrl(undefined);
+      return () => undefined;
+    }
+
+    const load = async () => {
+      if (isMediaReference(video)) {
+        const blob = await getMediaBlob(video);
+        if (!blob) throw new MediaStorageError("read", "No se pudo leer el vídeo.");
+        return blob;
+      }
+      const pathname = new URL(video, window.location.origin).pathname;
+      const apiMediaPath = pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+      if (apiMediaPath) return apiBlob(apiMediaPath, { timeoutMs: 120_000 });
+      const response = await fetch(video, { credentials: "include" });
+      if (!response.ok) throw new MediaStorageError("read", "No se pudo leer el vídeo.");
+      return response.blob();
+    };
+
+    void load().then((blob) => {
+      if (cancelled) return;
+      if (!blob.type.startsWith("video/")) throw new MediaStorageError("type", "El archivo no es un vídeo válido.");
+      objectUrl = URL.createObjectURL(blob);
+      setPreviewUrl(objectUrl);
+    }).catch(() => {
+      if (!cancelled) {
+        setPreviewUrl(undefined);
+        setLocalError("No se pudo abrir la vista previa del vídeo.");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [video]);
+
+  const chooseVideo = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setLocalError("");
+    setBusy(true);
+    onProcessingChange?.(true);
+    try {
+      if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
+        throw new MediaStorageError("type", "Formato de vídeo no compatible. Usa MP4 o MOV.");
+      }
+      if (file.size > MAX_LISTING_VIDEO_BYTES) {
+        throw new MediaStorageError("quota", "El vídeo no puede superar 100 MB.");
+      }
+      const previous = video;
+      const reference = await saveVideoFile(file);
+      onChange(reference);
+      if (previous && previous !== reference) onRemove?.(previous);
+    } catch (uploadError) {
+      setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar el vídeo.");
+    } finally {
+      setBusy(false);
+      onProcessingChange?.(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const removeVideo = () => {
+    if (!video) return;
+    const previous = video;
+    onChange(undefined);
+    onRemove?.(previous);
+    setLocalError("");
+  };
+
+  return (
+    <div className="listing-video-uploader">
+      <div className="listing-video-uploader__head">
+        <div>
+          <strong>Vídeo del anuncio</strong>
+          <span>Opcional · 1 vídeo · máximo {MAX_LISTING_VIDEO_SECONDS} segundos · MP4/MOV · hasta 100 MB</span>
+        </div>
+        {!video ? (
+          <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
+            <Video data-icon="inline-start" />
+            {busy ? "Preparando…" : "Añadir vídeo"}
+          </Button>
+        ) : null}
+      </div>
+      <input
+        ref={inputRef}
+        className="sr-only"
+        type="file"
+        aria-label="Añadir vídeo del anuncio"
+        accept="video/mp4,video/quicktime,video/x-m4v,.mp4,.mov,.m4v"
+        onChange={(event) => void chooseVideo(event.target.files)}
+      />
+      {video ? (
+        <div className="listing-video-uploader__preview">
+          {previewUrl ? (
+            <video src={previewUrl} controls playsInline preload="metadata" aria-label="Vista previa del vídeo del anuncio" />
+          ) : (
+            <div className="listing-video-uploader__loading" role="status">Cargando vista previa…</div>
+          )}
+          <div className="listing-video-uploader__actions">
+            <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
+              <Video data-icon="inline-start" />
+              Sustituir vídeo
+            </Button>
+            <Button type="button" variant="outline" onClick={removeVideo}>
+              <Trash2 data-icon="inline-start" />
+              Eliminar vídeo
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {error ? <p className="field-error" role="alert">{error}</p> : null}
+      {localError ? <p className="field-error" role="status">{localError}</p> : null}
+    </div>
+  );
+}
+
 
 export function AdminTable({
   headers,

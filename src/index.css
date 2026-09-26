@@ -743,7 +743,7 @@
   .owner-listings-page .manage-card h2 { margin-top: .25rem; font-size: .9rem; }
   .owner-listings-page .manage-card p { font-size: .75rem; }
   .owner-listings-page .manage-restrictions, .owner-listings-page .manage-metrics, .owner-listings-page .listing-ended-reason { display: none; }
-  .owner-listings-page .manage-actions { align-self: center; }
+  .owner-listings-page .manage-actions { align-self: center; flex-direction: column; gap: .25rem; }
 
   .publish-page { min-height: 100dvh; padding-bottom: 4.75rem; }
   .publish-page .publish-header { position: sticky; top: 0; z-index: 35; width: 100%; min-height: 3.5rem; display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); gap: .35rem; align-items: center; padding: .25rem .55rem; background: var(--market-lime); border-bottom: 1px solid #a9bb2b; }
@@ -1816,5 +1816,59 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
   body .contact-panel--mobile .condition-confirm {
     color: var(--ink);
     font-weight: 680;
+  }
+}
+
+
+.listing-video-tour {
+  display: grid;
+  gap: .7rem;
+  margin-top: 1rem;
+  padding: .9rem;
+  border: 1px solid var(--line);
+  border-radius: .9rem;
+  background: var(--surface);
+}
+
+.listing-video-tour__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.listing-video-tour__heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.listing-video-tour__heading span {
+  color: var(--ink-muted);
+  font-size: .78rem;
+}
+
+.listing-video-tour video {
+  display: block;
+  width: 100%;
+  max-height: 34rem;
+  border-radius: .75rem;
+  background: #111;
+  object-fit: contain;
+}
+
+@media (max-width: 600px) {
+  .listing-video-tour {
+    margin-top: .75rem;
+    padding: .7rem;
+  }
+
+  .listing-video-tour__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .15rem;
+  }
+
+  .listing-video-tour video {
+    max-height: 70dvh;
   }
 }

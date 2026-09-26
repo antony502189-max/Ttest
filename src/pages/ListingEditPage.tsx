@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { FormField, ImageUploader } from '@/components/forms'
+import { FormField, ImageUploader, VideoUploader } from '@/components/forms'
 import { ApproximateLocationMap } from '@/components/map-view'
 import { useApp } from '@/contexts/app-context'
 import { amenityOptions } from '@/data/listings'
 import { getCriticalRestrictions } from '@/lib/listings'
 import { approximatePublicCoordinates } from '@/lib/location-privacy'
 import type { ResolvedGoogleAddress } from '@/lib/google-maps/address'
-import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
+import { isMediaReference, MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS, removeUnusedMediaReferences } from '@/lib/media-storage'
 import {
   normalizeEquipmentAmenities,
   readEquipmentAmenities,
@@ -106,6 +106,7 @@ function toDraft(listing: Listing): ListingDraft {
     empadronamientoAllowed: listing.empadronamientoAllowed ?? false,
     rules: listing.homeDescription,
     images: listing.images,
+    video: listing.video,
     title: listing.title,
     description: listing.description,
     contactName: listing.owner.name,
@@ -200,6 +201,7 @@ function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string)
     description: draft.description.trim(),
     homeDescription: draft.rules,
     images: draft.images,
+    video: draft.video,
     expiresAt: draft.expiresAt,
     owner: { ...previous.owner, name: contactName, initials: ownerInitials(contactName) },
     ownerUserId: previous.ownerUserId ?? ownerUserId,
@@ -235,13 +237,17 @@ export function ListingEditPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
+  const [processingVideo, setProcessingVideo] = useState(false)
   const savingRef = useRef(false)
   const draftListingIdRef = useRef(existing?.id ?? null)
 
   const equipment = readEquipmentAmenities(draft?.amenities ?? [])
   const isDirty = Boolean(draft && JSON.stringify(draft) !== baseline)
   const nonDraftMedia = useMemo(() => {
-    const refs = new Set([...allListings, ...ownedListings].flatMap((listing) => listing.images))
+    const refs = new Set([...allListings, ...ownedListings].flatMap((listing) => [
+      ...listing.images,
+      ...(listing.video ? [listing.video] : []),
+    ]))
     if (currentUser?.avatarRef) refs.add(currentUser.avatarRef)
     return refs
   }, [allListings, currentUser?.avatarRef, ownedListings])
@@ -253,6 +259,7 @@ export function ListingEditPage() {
     savingRef.current = false
     setSaving(false)
     setProcessingImages(false)
+    setProcessingVideo(false)
     setErrors({})
     setDraft(nextDraft)
     setBaseline(JSON.stringify({ ...toDraft(existing), publicationKey: nextDraft.publicationKey }))
@@ -338,8 +345,10 @@ export function ListingEditPage() {
     if (draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = 'La fecha final debe ser posterior.'
     if (draft.rentalMode === 'long' && draft.minimumStayMonths < 1) next.minimumStay = 'Indica al menos 1 mes.'
     if (draft.rentalMode === 'holiday' && draft.minimumNights < 1) next.minimumStay = 'Indica al menos 1 noche.'
-    if (!draft.images.length) next.images = 'Añade al menos una fotografía.'
+    if (draft.images.length < MIN_LISTING_PHOTOS) next.images = `Añade al menos ${MIN_LISTING_PHOTOS} fotografías.`
+    else if (draft.images.length > MAX_LISTING_PHOTOS) next.images = `Puedes añadir como máximo ${MAX_LISTING_PHOTOS} fotografías.`
     else if (!mockMode && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = 'Vuelve a añadir las fotografías no disponibles.'
+    if (!mockMode && draft.video && !isMediaReference(draft.video) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(draft.video)) next.video = 'Vuelve a añadir el vídeo no disponible.'
     if (draft.title.trim().length < 15) next.title = 'Escribe un título de al menos 15 caracteres.'
     else if (containsBlockedListingLink(draft.title)) next.title = listingLinkBlockedMessage
     if (draft.description.trim().length < 40 || draft.description.length > 10_000) next.description = 'La descripción debe tener entre 40 y 10.000 caracteres.'
@@ -353,15 +362,25 @@ export function ListingEditPage() {
   }
 
   const save = async () => {
-    if (savingRef.current || processingImages || !validate()) return
+    if (savingRef.current || processingImages || processingVideo || !validate()) return
     savingRef.current = true
     setSaving(true)
     try {
       const authoritative = currentUser ? { ...draft, contactEmail: currentUser.email } : draft
       const listing = toListing(authoritative, existing, currentUser?.id)
       if (!await updateListing(existing.id, listing)) return
-      const usedAfterUpdate = new Set([...allListings, ...ownedListings].filter((item) => item.id !== existing.id).flatMap((item) => item.images).concat(listing.images, currentUser?.avatarRef ? [currentUser.avatarRef] : []))
-      await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch(() => undefined)
+      const usedAfterUpdate = new Set([
+        ...[...allListings, ...ownedListings]
+          .filter((item) => item.id !== existing.id)
+          .flatMap((item) => [...item.images, ...(item.video ? [item.video] : [])]),
+        ...listing.images,
+        ...(listing.video ? [listing.video] : []),
+        ...(currentUser?.avatarRef ? [currentUser.avatarRef] : []),
+      ])
+      await removeUnusedMediaReferences(
+        [...existing.images, ...(existing.video ? [existing.video] : [])],
+        usedAfterUpdate,
+      ).catch(() => undefined)
       if (storageKey) localStorage.removeItem(storageKey)
       setBaseline(JSON.stringify(authoritative))
       toast.success('Cambios guardados')
@@ -377,7 +396,7 @@ export function ListingEditPage() {
   const choice = <T extends string>(name: string, value: T, options: { value: T; title: string; text?: string }[], onChange: (value: T) => void) => <div className="listing-edit-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong>{option.text ? <small>{option.text}</small> : null}</span></label>)}</div>
 
   return <main className="listing-edit-page">
-    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar'}</Button></div></div>
+    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : 'Guardar'}</Button></div></div>
     <div className="listing-edit-shell">
       <header className="listing-edit-heading"><p>Ref. {existing.id.slice(-6).toUpperCase()}</p><h1>Editar habitación</h1><span>Todo el anuncio está en una sola página. Baja, cambia lo que necesites y guarda al final.</span></header>
 
@@ -463,8 +482,9 @@ export function ListingEditPage() {
         <FormField label="Normas de la vivienda" htmlFor="edit-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="edit-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="edit-photos" title="Fotografías" hint="Gira una foto, cambia la portada, reordena o añade nuevas.">
+      <Section id="edit-photos" title="Fotografías" hint={`Entre ${MIN_LISTING_PHOTOS} y ${MAX_LISTING_PHOTOS} fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.`}>
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
+        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { if (video !== existing.video) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>
 
       <Section id="edit-description" title="Título y descripción">
@@ -483,7 +503,7 @@ export function ListingEditPage() {
         {errors.contactMethods ? <p className="field-error" role="alert">{errors.contactMethods}</p> : null}
       </Section>
 
-      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar cambios'}</Button></div>
+      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : processingVideo ? 'Procesando el vídeo…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : processingVideo ? 'Terminamos de preparar el vídeo antes de guardar.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : 'Guardar cambios'}</Button></div>
     </div>
   </main>
 }

@@ -209,6 +209,7 @@ export function normalizeListing(value: unknown): Listing | null {
     description: legacy.description ?? '',
     homeDescription: legacy.homeDescription ?? '',
     images: value.images,
+    ...(typeof legacy.video === 'string' && legacy.video ? { video: legacy.video } : {}),
     owner: legacy.owner ?? { name: 'Anunciante', initials: 'AN', since: 'Cuenta local', response: 'Consulta disponibilidad', verified: false },
     advertiserType: legacy.advertiserType ?? 'Particular',
     source: legacy.source,
