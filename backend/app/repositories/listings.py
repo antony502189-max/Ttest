@@ -121,6 +121,7 @@ def response_from(row: Any) -> ListingResponse:
         showWhatsApp=bool(listing.external_contact_whatsapp) if listing.is_external else owner.show_whatsapp,
         coverImageUrl=image_urls[0] if image_urls else None,
         imageUrls=image_urls,
+        videoUrl=f"/api/v1/media/{listing.video_asset_id}" if listing.video_asset_id else None,
         title=listing.title,
         city=listing.city,
         area=listing.area,
