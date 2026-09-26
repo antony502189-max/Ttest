@@ -5,7 +5,7 @@ import {
   BriefcaseBusiness,
   Check,
   ChevronDown,
-  ChevronLeft,
+  ArrowLeft,
   ChevronRight,
   Crosshair,
   Heart,
@@ -221,7 +221,7 @@ function PrimaryButton({ children, onClick, testId, type = 'button' }: { childre
 }
 
 function BackHeader({ title, onBack, backLabel }: { title: string; onBack: () => void; backLabel: string }) {
-  return <header className="m2-back-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={backLabel}><ChevronLeft /></button><strong>{title}</strong><div className="m2-back-header__right" /></header>
+  return <header className="m2-back-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={backLabel}><ArrowLeft /></button><strong>{title}</strong><div className="m2-back-header__right" /></header>
 }
 
 function AuthPanel({ onContinue, t }: { onContinue: () => void; t: MobileCopy }) {
@@ -233,7 +233,7 @@ function Onboarding({ step, origin, language, setLanguage, onStep, onCountryCont
   onCountryContinue: () => void; onLanguageContinue: () => void; onAuthBack: () => void; onDone: () => void
 }) {
   const t: MobileCopy = copy[language]
-  if (step === 'auth') return <section className="m2-onboarding m2-onboarding--auth"><button type="button" className="m2-auth-back" onClick={onAuthBack} aria-label={t.back}>‹</button><button type="button" className="m2-auth-skip" onClick={onDone}>{t.skip}</button><AuthPanel onContinue={onDone} t={t} /></section>
+  if (step === 'auth') return <section className="m2-onboarding m2-onboarding--auth"><button type="button" className="m2-auth-back" onClick={onAuthBack} aria-label={t.back}><ArrowLeft /></button><button type="button" className="m2-auth-skip" onClick={onDone}>{t.skip}</button><AuthPanel onContinue={onDone} t={t} /></section>
   return <section className="m2-onboarding"><Brand />
     {step === 'language' ? <><div className="m2-onboarding__content"><h1>{t.languageTitle}</h1><div className="m2-language-list">{languages.map(({ value, label }) => <button key={value} type="button" className={cn(value === language && 'is-selected')} aria-pressed={value === language} onClick={() => setLanguage(value)}><span lang={value}>{label}</span>{value === language ? <Check /> : null}</button>)}</div></div><PrimaryButton onClick={onLanguageContinue}>{t.continue}</PrimaryButton></> : null}
     {step === 'country' ? <><div className="m2-onboarding__content"><h1>{t.regionTitle}</h1><button type="button" className="m2-country is-selected" aria-pressed="true"><span>ES</span><strong>España (Tenerife)</strong><Check /></button></div><PrimaryButton onClick={onCountryContinue}>{t.continue}</PrimaryButton></> : null}
@@ -532,7 +532,7 @@ function MapScreen({ mode, language, t, query, initialCenter, polygon, items, on
   const mainDrawLabel = drawing ? t.cancelDrawing : polygon.length >= 3 ? t.redrawZone : t.drawZone
   const toggleDrawing = () => setDrawing((current) => !current)
   return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', polygon.length >= 3 && 'has-drawn-zone')} data-testid={mapStatus === 'ready' ? `map-${mode}` : undefined}>
-    {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ChevronLeft /></button><div><strong>Tenerife</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => { if (!saved) onSave?.(); setSaved((value) => !value) }} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={onFilters}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={onList}><Menu />{t.list}</button></div></>}
+    {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ArrowLeft /></button><div><strong>Tenerife</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => { if (!saved) onSave?.(); setSaved((value) => !value) }} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={onFilters}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={onList}><Menu />{t.list}</button></div></>}
     <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} initialCenter={initialCenter} onStatus={setMapStatus} />
     <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} items={items} />
     <FreehandAreaLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} active={drawing} setActive={setDrawing} polygon={polygon} onPolygonChange={onPolygonChange} t={t} />

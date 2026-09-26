@@ -46,7 +46,7 @@
 .restriction-screen .restriction-card p { font-size: 1rem; }
 .restriction-screen--full { min-height: 100dvh; }
 .restriction-screen--full > .restriction-screen { min-height: auto; padding: 0; background: transparent; }
-.restriction-back { color: var(--market-link); font-weight: 700; }
+.restriction-back { display: inline-flex; align-items: center; gap: .4rem; color: var(--market-link); font-weight: 700; }
 .restriction-action-hint { display: inline-flex; align-items: center; gap: .35rem; color: var(--restriction); font-size: .75rem; font-weight: 700; }
 .restriction-action-hint svg { width: .9rem; }
 
