@@ -6,7 +6,11 @@ const DRAFT_KEYS = new Set(['112233:listing-draft:v3', '112233:listing-draft:v2'
 const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const acceptedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-m4v'] as const
 
+export const MAX_LISTING_PHOTOS = 15
+export const MAX_LISTING_VIDEO_SECONDS = 30
+export const MAX_LISTING_VIDEO_BYTES = 100 * 1024 * 1024
 
 const LOCAL_MEDIA_MAX_DIMENSION = 2048
 const LOCAL_MEDIA_WEBP_QUALITY = 0.84
@@ -133,17 +137,13 @@ function protectedDraftMediaReferences() {
   return protectedReferences
 }
 
-export async function saveMediaFile(file: File) {
-  if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number])) {
-    throw new MediaStorageError('type', 'Formato no compatible. Usa JPEG, PNG o WebP.')
-  }
-  const optimized = await optimizeMediaFile(file)
+async function storeMediaBlob(blob: Blob) {
   const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const database = await openDatabase()
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).put(optimized, id)
+      transaction.objectStore(STORE_NAME).put(blob, id)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error)
@@ -151,10 +151,54 @@ export async function saveMediaFile(file: File) {
     return `${MEDIA_PREFIX}${id}`
   } catch (error) {
     if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-      throw new MediaStorageError('quota', 'No hay espacio suficiente para guardar la imagen.')
+      throw new MediaStorageError('quota', 'No hay espacio suficiente para guardar el archivo.')
     }
-    throw new MediaStorageError('read', 'No se pudo leer o guardar la imagen.')
+    throw new MediaStorageError('read', 'No se pudo leer o guardar el archivo.')
   }
+}
+
+async function browserVideoDuration(file: File) {
+  if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return null
+  return await new Promise<number | null>((resolve) => {
+    const video = document.createElement('video')
+    const url = URL.createObjectURL(file)
+    let settled = false
+    const finish = (value: number | null) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
+      video.removeAttribute('src')
+      video.load()
+      URL.revokeObjectURL(url)
+      resolve(value)
+    }
+    const timer = window.setTimeout(() => finish(null), 5_000)
+    video.preload = 'metadata'
+    video.onloadedmetadata = () => finish(Number.isFinite(video.duration) ? video.duration : null)
+    video.onerror = () => finish(null)
+    video.src = url
+  })
+}
+
+export async function saveMediaFile(file: File) {
+  if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number])) {
+    throw new MediaStorageError('type', 'Formato no compatible. Usa JPEG, PNG o WebP.')
+  }
+  return storeMediaBlob(await optimizeMediaFile(file))
+}
+
+export async function saveVideoFile(file: File) {
+  if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
+    throw new MediaStorageError('type', 'Formato de vídeo no compatible. Usa MP4 o MOV.')
+  }
+  if (file.size > MAX_LISTING_VIDEO_BYTES) {
+    throw new MediaStorageError('quota', 'El vídeo no puede superar 100 MB.')
+  }
+  const duration = await browserVideoDuration(file)
+  if (duration !== null && duration > MAX_LISTING_VIDEO_SECONDS + 0.05) {
+    throw new MediaStorageError('type', 'El vídeo no puede durar más de 30 segundos.')
+  }
+  return storeMediaBlob(file)
 }
 
 export async function getMediaBlob(reference: string) {
