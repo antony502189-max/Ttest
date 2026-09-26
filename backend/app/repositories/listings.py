@@ -56,6 +56,19 @@ def image_asset_ids_subquery():
     )
 
 
+def active_promotion_expression():
+    return (
+        select(ListingPromotion.listing_id)
+        .where(
+            ListingPromotion.listing_id == Listing.id,
+            ListingPromotion.starts_at <= func.now(),
+            or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
+        )
+        .correlate(Listing)
+        .exists()
+    )
+
+
 def promotion_boosted_at_expression():
     return (
         select(ListingPromotion.boosted_at)
@@ -64,6 +77,7 @@ def promotion_boosted_at_expression():
             ListingPromotion.starts_at <= func.now(),
             or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
         )
+        .correlate(Listing)
         .scalar_subquery()
     )
 
@@ -414,17 +428,19 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
 
 def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:
     price = primary_price_expression()
-    # Promotion is a server-owned visibility tier, not a client presentation
-    # preference. Keep it first for every supported sort while the promotion
-    # window is active so paging cannot surface ordinary listings ahead of TOP.
-    promotion = promotion_boosted_at_expression().desc().nullslast()
+    # Active TOP is a hard server-owned tier. Ordinary listings can be newer,
+    # freshly imported, or newly published by a user, but they must never sort
+    # ahead of an active promotion. Boost time only orders listings *within*
+    # the TOP tier; the requested public sort then applies within each tier.
+    promotion_tier = active_promotion_expression().desc()
+    promotion_recency = promotion_boosted_at_expression().desc().nullslast()
     if payload.sort == "price_asc":
-        return query.order_by(promotion, price.asc().nullslast(), Listing.id)
+        return query.order_by(promotion_tier, promotion_recency, price.asc().nullslast(), Listing.id)
     if payload.sort == "price_desc":
-        return query.order_by(promotion, price.desc().nullslast(), Listing.id)
+        return query.order_by(promotion_tier, promotion_recency, price.desc().nullslast(), Listing.id)
     if payload.sort == "oldest":
-        return query.order_by(promotion, Listing.created_at.asc(), Listing.id)
-    return query.order_by(promotion, Listing.created_at.desc(), Listing.id)
+        return query.order_by(promotion_tier, promotion_recency, Listing.created_at.asc(), Listing.id)
+    return query.order_by(promotion_tier, promotion_recency, Listing.created_at.desc(), Listing.id)
 
 
 async def search_public(session: AsyncSession, payload: ListingSearchRequest) -> ListingSearchResponse:
