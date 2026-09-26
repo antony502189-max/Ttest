@@ -730,9 +730,50 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
     re_promoted = await client.put(f"/api/v1/admin/listings/{listing_id}/promotion", headers=admin_headers)
     assert re_promoted.status_code == 200, re_promoted.text
     assert re_promoted.json()["promoted"] is True
+
+    # Regression: publishing or importing a newer ordinary listing must not
+    # displace an active TOP listing. Both flows update the catalog while the
+    # promotion remains active.
+    fresh_owner = await client.post(
+        "/api/v1/listings",
+        headers=host_headers,
+        json=listing_payload(
+            title="Fresh owner listing below TOP",
+            latitude=28.4811,
+            longitude=-16.2711,
+            bedrooms=2,
+            price=1,
+        ),
+    )
+    fresh_import = await client.post(
+        "/api/v1/listings",
+        headers=host_headers,
+        json=listing_payload(
+            title="Fresh imported listing below TOP",
+            latitude=28.4821,
+            longitude=-16.2721,
+            bedrooms=2,
+            price=5000,
+        ),
+    )
+    assert fresh_owner.status_code == fresh_import.status_code == 201
+    fresh_owner_id = fresh_owner.json()["id"]
+    fresh_import_id = fresh_import.json()["id"]
+    async with SessionLocal() as session:
+        imported = await session.get(Listing, UUID(fresh_import_id))
+        assert imported is not None
+        imported.is_external = True
+        imported.primary_source = "test-parser"
+        imported.primary_source_url = "https://example.invalid/fresh-import-below-top"
+        await session.commit()
+
     public_after_promotion = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
-    assert public_after_promotion.json()["items"][0]["id"] == listing_id
-    assert public_after_promotion.json()["items"][0]["promoted"] is True
+    public_items = public_after_promotion.json()["items"]
+    public_ids = [item["id"] for item in public_items]
+    assert public_ids[0] == listing_id
+    assert public_items[0]["promoted"] is True
+    assert public_ids.index(fresh_owner_id) > 0
+    assert public_ids.index(fresh_import_id) > 0
     for sort in ("newest", "oldest", "price_asc", "price_desc"):
         sorted_page = await client.post(
             "/api/v1/listings/search",
