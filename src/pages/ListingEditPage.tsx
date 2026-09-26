@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { FormField, ImageUploader } from '@/components/forms'
+import { FormField, ImageUploader, VideoUploader } from '@/components/forms'
 import { ApproximateLocationMap } from '@/components/map-view'
 import { useApp } from '@/contexts/app-context'
 import { amenityOptions } from '@/data/listings'
@@ -106,6 +106,7 @@ function toDraft(listing: Listing): ListingDraft {
     empadronamientoAllowed: listing.empadronamientoAllowed ?? false,
     rules: listing.homeDescription,
     images: listing.images,
+    video: listing.video,
     title: listing.title,
     description: listing.description,
     contactName: listing.owner.name,
@@ -200,6 +201,7 @@ function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string)
     description: draft.description.trim(),
     homeDescription: draft.rules,
     images: draft.images,
+    video: draft.video,
     expiresAt: draft.expiresAt,
     owner: { ...previous.owner, name: contactName, initials: ownerInitials(contactName) },
     ownerUserId: previous.ownerUserId ?? ownerUserId,
@@ -241,7 +243,10 @@ export function ListingEditPage() {
   const equipment = readEquipmentAmenities(draft?.amenities ?? [])
   const isDirty = Boolean(draft && JSON.stringify(draft) !== baseline)
   const nonDraftMedia = useMemo(() => {
-    const refs = new Set([...allListings, ...ownedListings].flatMap((listing) => listing.images))
+    const refs = new Set([...allListings, ...ownedListings].flatMap((listing) => [
+      ...listing.images,
+      ...(listing.video ? [listing.video] : []),
+    ]))
     if (currentUser?.avatarRef) refs.add(currentUser.avatarRef)
     return refs
   }, [allListings, currentUser?.avatarRef, ownedListings])
@@ -360,8 +365,18 @@ export function ListingEditPage() {
       const authoritative = currentUser ? { ...draft, contactEmail: currentUser.email } : draft
       const listing = toListing(authoritative, existing, currentUser?.id)
       if (!await updateListing(existing.id, listing)) return
-      const usedAfterUpdate = new Set([...allListings, ...ownedListings].filter((item) => item.id !== existing.id).flatMap((item) => item.images).concat(listing.images, currentUser?.avatarRef ? [currentUser.avatarRef] : []))
-      await removeUnusedMediaReferences(existing.images, usedAfterUpdate).catch(() => undefined)
+      const usedAfterUpdate = new Set([
+        ...[...allListings, ...ownedListings]
+          .filter((item) => item.id !== existing.id)
+          .flatMap((item) => [...item.images, ...(item.video ? [item.video] : [])]),
+        ...listing.images,
+        ...(listing.video ? [listing.video] : []),
+        ...(currentUser?.avatarRef ? [currentUser.avatarRef] : []),
+      ])
+      await removeUnusedMediaReferences(
+        [...existing.images, ...(existing.video ? [existing.video] : [])],
+        usedAfterUpdate,
+      ).catch(() => undefined)
       if (storageKey) localStorage.removeItem(storageKey)
       setBaseline(JSON.stringify(authoritative))
       toast.success('Cambios guardados')
@@ -463,8 +478,9 @@ export function ListingEditPage() {
         <FormField label="Normas de la vivienda" htmlFor="edit-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="edit-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="edit-photos" title="Fotografías" hint="Gira una foto, cambia la portada, reordena o añade nuevas.">
+      <Section id="edit-photos" title="Fotografías" hint="Hasta 15 fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.">
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
+        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onRemove={(video) => { if (video !== existing.video) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>
 
       <Section id="edit-description" title="Título y descripción">
