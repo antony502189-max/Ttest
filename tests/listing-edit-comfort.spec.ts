@@ -153,9 +153,42 @@ test('create and edit forms share touch-capable press-and-drag photo ordering', 
   expect(forms).toContain('onPointerMove={updatePhotoDrag}')
   expect(forms).toContain('onPointerUp={finishPhotoDrag}')
   expect(forms).toContain('document.addEventListener("touchmove", preventTouchMove, { passive: false, capture: true })')
+  expect(forms).toContain('window.requestAnimationFrame(runPhotoAutoScroll)')
+  expect(forms).toContain('window.scrollBy({ top: step, left: 0, behavior: "auto" })')
+  expect(forms).toContain('window.scrollY - drag.startScrollY')
   expect(forms).toContain('movePhotoTo(sourceIndex, targetIndex)')
   expect(css).toContain('.upload-photo-card.is-dragging')
   expect(css).toContain('.upload-photo-card.is-drop-target')
+})
+
+test('dragging a photo near viewport edges auto-scrolls down and up', async ({ page }) => {
+  await openEditAsHost(page)
+  await page.setViewportSize({ width: 390, height: 600 })
+
+  const cards = page.locator('.upload-photo-card')
+  await expect(cards).toHaveCount(6)
+  await cards.nth(1).scrollIntoViewIfNeeded()
+  const box = await cards.nth(1).boundingBox()
+  expect(box).not.toBeNull()
+
+  const x = box!.x + box!.width / 2
+  const startY = Math.min(420, box!.y + box!.height / 2)
+  const initialScroll = await page.evaluate(() => window.scrollY)
+
+  await page.mouse.move(x, startY)
+  await page.mouse.down()
+  await page.waitForTimeout(180)
+  await expect(cards.nth(1)).toHaveClass(/is-dragging/)
+
+  await page.mouse.move(x, 585, { steps: 4 })
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(initialScroll + 30)
+  const scrolledDown = await page.evaluate(() => window.scrollY)
+
+  await page.mouse.move(x, 15, { steps: 4 })
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(scrolledDown - 30)
+
+  await page.mouse.up()
+  await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
 })
 
 test('photo reorder arrows keep ordering semantics in the desktop grid', async ({ page }) => {

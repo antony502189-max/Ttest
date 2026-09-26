@@ -265,6 +265,10 @@ export function ImageUploader({
     pointerType: string;
     startX: number;
     startY: number;
+    startScrollX: number;
+    startScrollY: number;
+    lastClientX: number;
+    lastClientY: number;
     offsetX: number;
     offsetY: number;
     targetIndex: number;
@@ -273,6 +277,7 @@ export function ImageUploader({
     sourceRect: { left: number; top: number; right: number; bottom: number };
   } | null>(null);
   const photoDragTimerRef = useRef<number | null>(null);
+  const photoAutoScrollFrameRef = useRef<number | null>(null);
   const touchMovePreventerRef = useRef<((event: TouchEvent) => void) | null>(null);
   const [photoDrag, setPhotoDrag] = useState<{
     sourceIndex: number;
@@ -285,6 +290,7 @@ export function ImageUploader({
     rotationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     rotationTimersRef.current.clear();
     if (photoDragTimerRef.current !== null) window.clearTimeout(photoDragTimerRef.current);
+    if (photoAutoScrollFrameRef.current !== null) window.cancelAnimationFrame(photoAutoScrollFrameRef.current);
     if (touchMovePreventerRef.current) {
       document.removeEventListener("touchmove", touchMovePreventerRef.current, true);
       touchMovePreventerRef.current = null;
@@ -474,6 +480,95 @@ export function ImageUploader({
     onChange(next);
   };
 
+  const cancelPhotoAutoScroll = () => {
+    if (photoAutoScrollFrameRef.current === null) return;
+    window.cancelAnimationFrame(photoAutoScrollFrameRef.current);
+    photoAutoScrollFrameRef.current = null;
+  };
+
+  const dragOffsets = (
+    drag: NonNullable<typeof photoDragRef.current>,
+    clientX = drag.lastClientX,
+    clientY = drag.lastClientY,
+  ) => ({
+    x: clientX - drag.startX + (window.scrollX - drag.startScrollX),
+    y: clientY - drag.startY + (window.scrollY - drag.startScrollY),
+  });
+
+  const scrolledSourceRect = (drag: NonNullable<typeof photoDragRef.current>) => {
+    const scrollX = window.scrollX - drag.startScrollX;
+    const scrollY = window.scrollY - drag.startScrollY;
+    return {
+      left: drag.sourceRect.left - scrollX,
+      top: drag.sourceRect.top - scrollY,
+      right: drag.sourceRect.right - scrollX,
+      bottom: drag.sourceRect.bottom - scrollY,
+    };
+  };
+
+  const refreshPhotoDragTarget = (drag: NonNullable<typeof photoDragRef.current>) => {
+    const grid = drag.card.parentElement;
+    if (!grid) return;
+    drag.targetIndex = photoIndexAtPoint(
+      grid,
+      drag.lastClientX,
+      drag.lastClientY,
+      drag.sourceIndex,
+      drag.sourceIndex,
+      scrolledSourceRect(drag),
+    );
+    const offsets = dragOffsets(drag);
+    drag.offsetX = offsets.x;
+    drag.offsetY = offsets.y;
+    setPhotoDrag({
+      sourceIndex: drag.sourceIndex,
+      offsetX: offsets.x,
+      offsetY: offsets.y,
+      targetIndex: drag.targetIndex,
+    });
+  };
+
+  const autoScrollSpeed = (clientY: number) => {
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportHeight = viewport?.height ?? window.innerHeight;
+    const viewportBottom = viewportTop + viewportHeight;
+    const edge = Math.min(132, Math.max(72, viewportHeight * 0.16));
+    const maxStep = 22;
+
+    if (clientY < viewportTop + edge) {
+      const strength = Math.min(1, Math.max(0, (viewportTop + edge - clientY) / edge));
+      return -Math.max(2, Math.round(maxStep * strength * strength));
+    }
+    if (clientY > viewportBottom - edge) {
+      const strength = Math.min(1, Math.max(0, (clientY - (viewportBottom - edge)) / edge));
+      return Math.max(2, Math.round(maxStep * strength * strength));
+    }
+    return 0;
+  };
+
+  const runPhotoAutoScroll = () => {
+    const drag = photoDragRef.current;
+    if (!drag?.active) {
+      photoAutoScrollFrameRef.current = null;
+      return;
+    }
+
+    const step = autoScrollSpeed(drag.lastClientY);
+    if (step) {
+      const before = window.scrollY;
+      window.scrollBy({ top: step, left: 0, behavior: "auto" });
+      if (window.scrollY !== before) refreshPhotoDragTarget(drag);
+    }
+
+    photoAutoScrollFrameRef.current = window.requestAnimationFrame(runPhotoAutoScroll);
+  };
+
+  const ensurePhotoAutoScroll = () => {
+    if (photoAutoScrollFrameRef.current !== null) return;
+    photoAutoScrollFrameRef.current = window.requestAnimationFrame(runPhotoAutoScroll);
+  };
+
   const removeTouchMovePreventer = () => {
     if (!touchMovePreventerRef.current) return;
     document.removeEventListener("touchmove", touchMovePreventerRef.current, true);
@@ -485,6 +580,7 @@ export function ImageUploader({
       window.clearTimeout(photoDragTimerRef.current);
       photoDragTimerRef.current = null;
     }
+    cancelPhotoAutoScroll();
     const drag = photoDragRef.current;
     if (drag?.card.hasPointerCapture(drag.pointerId)) drag.card.releasePointerCapture(drag.pointerId);
     photoDragRef.current = null;
@@ -542,6 +638,10 @@ export function ImageUploader({
       pointerType: event.pointerType,
       startX: event.clientX,
       startY: event.clientY,
+      startScrollX: window.scrollX,
+      startScrollY: window.scrollY,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
       offsetX: 0,
       offsetY: 0,
       targetIndex: index,
@@ -567,6 +667,7 @@ export function ImageUploader({
         offsetY: drag.offsetY,
         targetIndex: drag.targetIndex,
       });
+      ensurePhotoAutoScroll();
     }, delay);
   };
 
@@ -574,33 +675,20 @@ export function ImageUploader({
     const drag = photoDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const offsetX = event.clientX - drag.startX;
-    const offsetY = event.clientY - drag.startY;
-    drag.offsetX = offsetX;
-    drag.offsetY = offsetY;
+    drag.lastClientX = event.clientX;
+    drag.lastClientY = event.clientY;
+    const offsets = dragOffsets(drag);
+    drag.offsetX = offsets.x;
+    drag.offsetY = offsets.y;
 
     if (!drag.active) {
-      if (drag.pointerType !== "mouse" && Math.hypot(offsetX, offsetY) > 9) resetPhotoDrag();
+      if (drag.pointerType !== "mouse" && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 9) resetPhotoDrag();
       return;
     }
 
     event.preventDefault();
-    const grid = drag.card.parentElement;
-    if (!grid) return;
-    drag.targetIndex = photoIndexAtPoint(
-      grid,
-      event.clientX,
-      event.clientY,
-      drag.sourceIndex,
-      drag.sourceIndex,
-      drag.sourceRect,
-    );
-    setPhotoDrag({
-      sourceIndex: drag.sourceIndex,
-      offsetX,
-      offsetY,
-      targetIndex: drag.targetIndex,
-    });
+    refreshPhotoDragTarget(drag);
+    ensurePhotoAutoScroll();
   };
 
   const finishPhotoDrag = (event: React.PointerEvent<HTMLDivElement>) => {
