@@ -237,6 +237,7 @@ export function ListingEditPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
+  const [processingVideo, setProcessingVideo] = useState(false)
   const savingRef = useRef(false)
   const draftListingIdRef = useRef(existing?.id ?? null)
 
@@ -258,6 +259,7 @@ export function ListingEditPage() {
     savingRef.current = false
     setSaving(false)
     setProcessingImages(false)
+    setProcessingVideo(false)
     setErrors({})
     setDraft(nextDraft)
     setBaseline(JSON.stringify({ ...toDraft(existing), publicationKey: nextDraft.publicationKey }))
@@ -360,7 +362,7 @@ export function ListingEditPage() {
   }
 
   const save = async () => {
-    if (savingRef.current || processingImages || !validate()) return
+    if (savingRef.current || processingImages || processingVideo || !validate()) return
     savingRef.current = true
     setSaving(true)
     try {
@@ -394,7 +396,7 @@ export function ListingEditPage() {
   const choice = <T extends string>(name: string, value: T, options: { value: T; title: string; text?: string }[], onChange: (value: T) => void) => <div className="listing-edit-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong>{option.text ? <small>{option.text}</small> : null}</span></label>)}</div>
 
   return <main className="listing-edit-page">
-    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar'}</Button></div></div>
+    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : (processingImages || processingVideo) ? 'Procesando multimedia…' : 'Guardar'}</Button></div></div>
     <div className="listing-edit-shell">
       <header className="listing-edit-heading"><p>Ref. {existing.id.slice(-6).toUpperCase()}</p><h1>Editar habitación</h1><span>Todo el anuncio está en una sola página. Baja, cambia lo que necesites y guarda al final.</span></header>
 
@@ -482,7 +484,7 @@ export function ListingEditPage() {
 
       <Section id="edit-photos" title="Fotografías" hint="Hasta 15 fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.">
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
-        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onRemove={(video) => { if (video !== existing.video) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
+        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { if (video !== existing.video) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>
 
       <Section id="edit-description" title="Título y descripción">
@@ -501,7 +503,7 @@ export function ListingEditPage() {
         {errors.contactMethods ? <p className="field-error" role="alert">{errors.contactMethods}</p> : null}
       </Section>
 
-      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar cambios'}</Button></div>
+      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar cambios'}</Button></div>
     </div>
   </main>
 }
