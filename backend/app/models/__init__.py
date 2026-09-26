@@ -372,10 +372,7 @@ class MediaAsset(Base):
     height: Mapped[int] = mapped_column(Integer)
     checksum: Mapped[str] = mapped_column(String(64), index=True)
     perceptual_hash: Mapped[str | None] = mapped_column(String(16), index=True)
-    kind: Mapped[str] = mapped_column(
-        Enum("listing_image", "listing_video", "avatar", name="media_kind"),
-        default="listing_image",
-    )
+    kind: Mapped[str] = mapped_column(Enum("listing_image", "avatar", name="media_kind"), default="listing_image")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
