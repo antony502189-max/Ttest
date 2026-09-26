@@ -743,7 +743,7 @@
   .owner-listings-page .manage-card h2 { margin-top: .25rem; font-size: .9rem; }
   .owner-listings-page .manage-card p { font-size: .75rem; }
   .owner-listings-page .manage-restrictions, .owner-listings-page .manage-metrics, .owner-listings-page .listing-ended-reason { display: none; }
-  .owner-listings-page .manage-actions { align-self: center; }
+  .owner-listings-page .manage-actions { align-self: center; flex-direction: column; gap: .25rem; }
 
   .publish-page { min-height: 100dvh; padding-bottom: 4.75rem; }
   .publish-page .publish-header { position: sticky; top: 0; z-index: 35; width: 100%; min-height: 3.5rem; display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); gap: .35rem; align-items: center; padding: .25rem .55rem; background: var(--market-lime); border-bottom: 1px solid #a9bb2b; }
