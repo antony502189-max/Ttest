@@ -246,7 +246,7 @@ async def upload_video(
             height=prepared.height,
             checksum=hashlib.sha256(prepared.content).hexdigest(),
             perceptual_hash=None,
-            kind="listing_video",
+            kind="listing_image",
         )
         session.add(asset)
         await session.commit()
@@ -342,8 +342,16 @@ async def get_media(
                 MediaAsset.deleted_at.is_(None),
                 or_(
                     and_(MediaAsset.kind == "avatar", public_avatar),
-                    and_(MediaAsset.kind == "listing_image", public_listing),
-                    and_(MediaAsset.kind == "listing_video", public_listing_video),
+                    and_(
+                        MediaAsset.kind == "listing_image",
+                        MediaAsset.mime_type.like("image/%"),
+                        public_listing,
+                    ),
+                    and_(
+                        MediaAsset.kind == "listing_image",
+                        MediaAsset.mime_type == "video/mp4",
+                        public_listing_video,
+                    ),
                 ),
             )
             .limit(1)
@@ -369,6 +377,26 @@ async def get_media(
                     )
                 )
             )
+        elif asset.mime_type.startswith("video/"):
+            if not owner_or_admin:
+                await enforce_listing_view_access(user, session)
+            publicly_visible = bool(
+                await session.scalar(
+                    select(Listing.id)
+                    .join(User, User.id == Listing.owner_user_id)
+                    .where(
+                        Listing.video_asset_id == asset.id,
+                        Listing.status == "published",
+                        Listing.deleted_at.is_(None),
+                        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
+                        User.deleted_at.is_(None),
+                        User.blocked.is_(False),
+                        ~active_owner_restriction,
+                        ~active_listing_restriction,
+                    )
+                    .limit(1)
+                )
+            )
         elif asset.kind == "listing_image":
             # Authenticated restricted viewers must still pass their own policy;
             # owners/admins retain private management access.
@@ -381,26 +409,6 @@ async def get_media(
                     .join(User, User.id == Listing.owner_user_id)
                     .where(
                         ListingImage.media_asset_id == asset.id,
-                        Listing.status == "published",
-                        Listing.deleted_at.is_(None),
-                        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
-                        User.deleted_at.is_(None),
-                        User.blocked.is_(False),
-                        ~active_owner_restriction,
-                        ~active_listing_restriction,
-                    )
-                    .limit(1)
-                )
-            )
-        elif asset.kind == "listing_video":
-            if not owner_or_admin:
-                await enforce_listing_view_access(user, session)
-            publicly_visible = bool(
-                await session.scalar(
-                    select(Listing.id)
-                    .join(User, User.id == Listing.owner_user_id)
-                    .where(
-                        Listing.video_asset_id == asset.id,
                         Listing.status == "published",
                         Listing.deleted_at.is_(None),
                         (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
@@ -425,7 +433,7 @@ async def get_media(
 
     storage = get_storage()
     settings = get_settings()
-    if asset.kind == "listing_video":
+    if asset.mime_type.startswith("video/"):
         if variant != "full":
             raise HTTPException(400, "Video variants are not supported")
         content = await asyncio.to_thread(storage.get, asset.storage_key)
