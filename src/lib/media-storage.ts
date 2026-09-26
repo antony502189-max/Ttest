@@ -195,7 +195,7 @@ export async function saveVideoFile(file: File) {
     throw new MediaStorageError('quota', 'El vídeo no puede superar 100 MB.')
   }
   const duration = await browserVideoDuration(file)
-  if (duration !== null && duration > MAX_LISTING_VIDEO_SECONDS + 0.05) {
+  if (duration !== null && duration > MAX_LISTING_VIDEO_SECONDS) {
     throw new MediaStorageError('type', 'El vídeo no puede durar más de 30 segundos.')
   }
   return storeMediaBlob(file)
