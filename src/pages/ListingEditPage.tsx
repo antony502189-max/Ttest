@@ -13,7 +13,7 @@ import { amenityOptions } from '@/data/listings'
 import { getCriticalRestrictions } from '@/lib/listings'
 import { approximatePublicCoordinates } from '@/lib/location-privacy'
 import type { ResolvedGoogleAddress } from '@/lib/google-maps/address'
-import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
+import { isMediaReference, MAX_LISTING_PHOTOS, removeUnusedMediaReferences } from '@/lib/media-storage'
 import {
   normalizeEquipmentAmenities,
   readEquipmentAmenities,
@@ -344,7 +344,9 @@ export function ListingEditPage() {
     if (draft.rentalMode === 'long' && draft.minimumStayMonths < 1) next.minimumStay = 'Indica al menos 1 mes.'
     if (draft.rentalMode === 'holiday' && draft.minimumNights < 1) next.minimumStay = 'Indica al menos 1 noche.'
     if (!draft.images.length) next.images = 'Añade al menos una fotografía.'
+    else if (draft.images.length > MAX_LISTING_PHOTOS) next.images = `Puedes añadir como máximo ${MAX_LISTING_PHOTOS} fotografías.`
     else if (!mockMode && draft.images.some((image) => !isMediaReference(image) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(image))) next.images = 'Vuelve a añadir las fotografías no disponibles.'
+    if (!mockMode && draft.video && !isMediaReference(draft.video) && !/\/media\/[0-9a-f-]{36}(?:$|[?#])/i.test(draft.video)) next.video = 'Vuelve a añadir el vídeo no disponible.'
     if (draft.title.trim().length < 15) next.title = 'Escribe un título de al menos 15 caracteres.'
     else if (containsBlockedListingLink(draft.title)) next.title = listingLinkBlockedMessage
     if (draft.description.trim().length < 40 || draft.description.length > 10_000) next.description = 'La descripción debe tener entre 40 y 10.000 caracteres.'
