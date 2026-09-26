@@ -713,3 +713,16 @@
   background: var(--brand-soft);
   color: var(--market-magenta);
 }
+
+
+/* Final carousel overrides must come after the legacy preview declarations. */
+.selected-listing-carousel .selected-listing-carousel__title-preview {
+  font-size: .76rem;
+  line-height: 1.18;
+  -webkit-line-clamp: 3;
+}
+
+.selected-listing-carousel .selected-listing-sheet__actions .selected-listing-carousel__action-preview {
+  width: 2rem;
+  height: 2rem;
+}
