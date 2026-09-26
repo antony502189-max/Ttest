@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from app.repositories.listings import owned_response_from, response_from, visible_query
+from app.repositories.listings import apply_search_order, owned_response_from, response_from, visible_query
+from app.schemas.listings import ListingSearchRequest
 
 
 def listing(**overrides):
@@ -159,3 +160,14 @@ def test_public_projection_uses_scalar_coordinates_without_geojson():
     assert "array_agg" in projected_sql
     assert "listing_room_details" in projected_sql
     assert "ST_AsGeoJSON" not in projected_sql
+
+
+def test_public_order_uses_active_promotion_as_a_hard_first_tier():
+    sql = str(apply_search_order(visible_query(), ListingSearchRequest(rentalMode="long", sort="newest")))
+
+    order_by = sql.split("ORDER BY", 1)[1]
+    assert "EXISTS" in order_by
+    assert "listing_promotions" in order_by
+    assert "boosted_at" in order_by
+    assert order_by.index("EXISTS") < order_by.index("boosted_at")
+    assert order_by.index("boosted_at") < order_by.index("listings.created_at DESC")
