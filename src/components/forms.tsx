@@ -784,7 +784,7 @@ export function ImageUploader({
       >
         <UploadCloud />
         <strong>Añade fotos luminosas y horizontales</strong>
-        <span>Arrastra o selecciona JPEG, PNG o WebP · máximo 8</span>
+        <span>Arrastra o selecciona JPEG, PNG o WebP · máximo {MAX_LISTING_PHOTOS}</span>
       </button>
       <input
         id="publish-images"
