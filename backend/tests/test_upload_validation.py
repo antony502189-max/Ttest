@@ -1,4 +1,5 @@
 from io import BytesIO
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -7,6 +8,7 @@ from PIL import Image
 from app.api.v1.uploads import media_quota_exceeded
 from app.core.config import Settings
 from app.services.media_processing import prepare_image, render_variant, validate_and_normalize
+from app.services.video_processing import prepare_video
 
 
 def png_bytes(width: int = 12, height: int = 8) -> bytes:
@@ -46,6 +48,45 @@ def test_image_above_pixel_budget_is_rejected(monkeypatch):
         validate_and_normalize(png_bytes(11, 10))
 
     assert error.value.status_code == 422
+
+
+def test_listing_video_rejects_unsupported_format():
+    with pytest.raises(HTTPException) as error:
+        prepare_video(b"not-a-video", "video/webm")
+
+    assert error.value.status_code == 415
+
+
+def test_listing_video_rejects_duration_above_30_seconds(monkeypatch):
+    settings = Settings(max_video_duration_seconds=30)
+    monkeypatch.setattr("app.services.video_processing.get_settings", lambda: settings)
+    monkeypatch.setattr("app.services.video_processing._probe", lambda _path: (1920, 1080, 30.1))
+
+    with pytest.raises(HTTPException) as error:
+        prepare_video(b"fake-mp4", "video/mp4")
+
+    assert error.value.status_code == 422
+    assert "30 seconds" in str(error.value.detail)
+
+
+def test_listing_video_accepts_exactly_30_seconds_and_normalizes_to_mp4(monkeypatch):
+    settings = Settings(max_video_duration_seconds=30, max_video_dimension=1920)
+    monkeypatch.setattr("app.services.video_processing.get_settings", lambda: settings)
+    monkeypatch.setattr("app.services.video_processing._probe", lambda _path: (1280, 720, 30.0))
+
+    def fake_run(command, **_kwargs):
+        target = command[-1]
+        with open(target, "wb") as output:
+            output.write(b"normalized-mp4")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr("app.services.video_processing.subprocess.run", fake_run)
+
+    prepared = prepare_video(b"fake-mp4", "video/mp4")
+
+    assert prepared.duration_seconds == 30.0
+    assert prepared.content == b"normalized-mp4"
+    assert (prepared.width, prepared.height) == (1280, 720)
 
 
 def test_media_quota_rejects_asset_count_boundary():
