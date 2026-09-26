@@ -14,6 +14,7 @@ type ListingDto = {
   showWhatsApp: boolean
   coverImageUrl: string | null
   imageUrls: string[]
+  videoUrl: string | null
   title: string
   city: string
   area: string
@@ -172,6 +173,7 @@ export function toListing(dto: ListingDto): Listing {
     description: dto.description,
     homeDescription: dto.homeDescription,
     images: dto.imageUrls.map(resolveApiUrl),
+    ...(dto.videoUrl ? { video: resolveApiUrl(dto.videoUrl) } : {}),
     owner: {
       name: dto.owner.name,
       initials: dto.owner.initials,
@@ -352,7 +354,7 @@ async function syncContactProfile(listing: Listing) {
   })
 }
 
-function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[]) {
+function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[], videoAssetId?: string | null) {
   const exact = listing.exactCoordinates ?? existing?.exactCoordinates
   const coordinates = listing.coordinates
   if (!coordinates) throw new Error('Coordinates are required for owner-created listings')
@@ -393,14 +395,15 @@ function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[
     } : {}),
     ...(existing && ownerListingLocationChanged(listing, existing) ? { syncAddressGroup: true } : {}),
     ...(assetIds ? { assetIds } : {}),
+    ...(videoAssetId !== undefined ? { videoAssetId } : {}),
   }
 }
 
-export async function createRemoteListing(listing: Listing, assetIds: string[] = []) {
+export async function createRemoteListing(listing: Listing, assetIds: string[] = [], videoAssetId: string | null = null) {
   const request = () => api<ListingDto>('/listings', {
     method: 'POST',
     headers: { 'Idempotency-Key': listing.id },
-    body: JSON.stringify(listingPayload(listing, undefined, assetIds)),
+    body: JSON.stringify(listingPayload(listing, undefined, assetIds, videoAssetId)),
   })
   try {
     return toListing(await request())
@@ -431,11 +434,11 @@ function assertOwnerLocationEcho(intended: Listing, remote: Listing) {
   }
 }
 
-export async function updateRemoteListing(id: string, listing: Listing, assetIds: string[], existing?: Listing) {
+export async function updateRemoteListing(id: string, listing: Listing, assetIds: string[], videoAssetId: string | null, existing?: Listing) {
   await syncContactProfile(listing)
   const previous = existing ?? (await getOwnedListings()).find((item) => item.id === id)
   const request = () => api<ListingDto>(`/listings/${id}`, {
-    method: 'PATCH', body: JSON.stringify(listingPayload(listing, previous, assetIds)),
+    method: 'PATCH', body: JSON.stringify(listingPayload(listing, previous, assetIds, videoAssetId)),
   })
   const run = async () => {
     const remote = toListing(await request())
