@@ -195,6 +195,7 @@ export function ListingCreatePage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
+  const [processingVideo, setProcessingVideo] = useState(false)
   const savingRef = useRef(false)
   const [verificationOpen, setVerificationOpen] = useState(false)
   const [verificationEmail, setVerificationEmail] = useState('')
@@ -337,7 +338,7 @@ export function ListingCreatePage() {
   }
 
   const save = async () => {
-    if (savingRef.current || processingImages || !validate()) return
+    if (savingRef.current || processingImages || processingVideo || !validate()) return
     savingRef.current = true
     setSaving(true)
     try {
@@ -401,7 +402,7 @@ export function ListingCreatePage() {
 
   return <>
     <main className="listing-edit-page listing-create-page">
-      <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Publicar anuncio</strong><Button onClick={save} disabled={saving || processingImages}><Save data-icon="inline-start" />{saving ? 'Publicando…' : processingImages ? 'Procesando foto…' : recoveringImages ? 'Reintentar fotos' : 'Publicar'}</Button></div></div>
+      <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Publicar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo}><Save data-icon="inline-start" />{saving ? 'Publicando…' : processingImages ? 'Procesando foto…' : recoveringImages ? 'Reintentar fotos' : 'Publicar'}</Button></div></div>
       <div className="listing-edit-shell">
         <header className="listing-edit-heading"><p>Nuevo anuncio</p><h1>Publicar habitación</h1><span>Todo el anuncio está en una sola página. Baja, completa los datos y publica al final.</span></header>
         <div className="listing-create-draft-actions">
@@ -497,7 +498,7 @@ export function ListingCreatePage() {
 
       <Section id="publish-photos" title="Fotografías" hint="Hasta 15 fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.">
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
-        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onRemove={(video) => { void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
+        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>
 
       <Section disabled={recoveringImages} id="publish-description" title="Título y descripción">
@@ -516,7 +517,7 @@ export function ListingCreatePage() {
         {errors.contactMethods ? <p className="field-error" role="alert">{errors.contactMethods}</p> : null}
       </Section>
 
-      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : recoveringImages ? 'Falta terminar las fotografías' : isDirty ? 'El borrador tiene cambios' : 'Borrador guardado automáticamente'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos antes de publicar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages}><Save data-icon="inline-start" />{saving ? 'Publicando…' : processingImages ? 'Procesando foto…' : recoveringImages ? 'Reintentar fotografías' : 'Publicar anuncio'}</Button></div>
+      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : recoveringImages ? 'Falta terminar las fotografías' : isDirty ? 'El borrador tiene cambios' : 'Borrador guardado automáticamente'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos antes de publicar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || processingVideo}><Save data-icon="inline-start" />{saving ? 'Publicando…' : processingImages ? 'Procesando foto…' : recoveringImages ? 'Reintentar fotografías' : 'Publicar anuncio'}</Button></div>
     </div>
     </main>
     <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}><DialogContent aria-describedby="create-email-verification-description"><DialogHeader><DialogTitle>Confirma tu email para publicar</DialogTitle><DialogDescription id="create-email-verification-description">Enviaremos un código de seis dígitos a {verificationEmail || 'tu email'}. Tu borrador y tus fotos seguirán guardados.</DialogDescription></DialogHeader><div className="space-y-3"><Input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" aria-label="Código de seis dígitos" aria-invalid={Boolean(verificationError)} />{verificationError ? <p className="field-error" role="alert">{verificationError}</p> : null}<Button type="button" variant="outline" disabled={verificationBusy || verificationCooldown > 0} onClick={async () => { setVerificationBusy(true); try { const result = await requestEmailVerification(); setVerificationEmail(result.email); setVerificationCooldown(result.cooldownSeconds); setVerificationError(''); toast.success('Código enviado'); } catch (error) { setVerificationError(error instanceof Error ? error.message : 'No se pudo enviar el código.'); } finally { setVerificationBusy(false); } }}>{verificationCooldown > 0 ? `Reenviar en ${verificationCooldown}s` : 'Enviar código'}</Button><Button type="button" disabled={verificationBusy || verificationCode.length !== 6} onClick={async () => { setVerificationBusy(true); try { await verifyEmail(verificationCode); setVerificationOpen(false); setVerificationCode(''); setVerificationError(''); await save(); } catch (error) { setVerificationError(error instanceof Error ? error.message : 'Código no válido.'); } finally { setVerificationBusy(false); } }}>Confirmar y publicar</Button></div></DialogContent></Dialog>
