@@ -131,7 +131,7 @@ test('create and edit forms share touch-capable press-and-drag photo ordering', 
   expect(forms).toContain('onPointerMove={updatePhotoDrag}')
   expect(forms).toContain('onPointerUp={finishPhotoDrag}')
   expect(forms).toContain('document.addEventListener("touchmove", preventTouchMove, { passive: false, capture: true })')
-  expect(forms).toContain('movePhotoTo(reference, targetIndex)')
+  expect(forms).toContain('movePhotoTo(sourceIndex, targetIndex)')
   expect(css).toContain('.upload-photo-card.is-dragging')
   expect(css).toContain('.upload-photo-card.is-drop-target')
 })
