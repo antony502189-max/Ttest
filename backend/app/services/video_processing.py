@@ -73,7 +73,7 @@ def prepare_video(content: bytes, content_type: str) -> PreparedVideo:
         source.write_bytes(content)
 
         _, _, duration = _probe(source)
-        if duration > float(settings.max_video_duration_seconds) + 0.05:
+        if duration > float(settings.max_video_duration_seconds):
             raise HTTPException(
                 422,
                 f"Video must be {settings.max_video_duration_seconds} seconds or shorter",
@@ -132,7 +132,7 @@ def prepare_video(content: bytes, content_type: str) -> PreparedVideo:
             raise HTTPException(422, "Video processing failed")
 
         width, height, normalized_duration = _probe(target)
-        if normalized_duration > float(settings.max_video_duration_seconds) + 0.05:
+        if normalized_duration > float(settings.max_video_duration_seconds):
             raise HTTPException(
                 422,
                 f"Video must be {settings.max_video_duration_seconds} seconds or shorter",
