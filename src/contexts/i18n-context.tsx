@@ -533,6 +533,7 @@ const translations: Record<string, Translation> = {
   'Progreso de publicación': { ru: 'Прогресс публикации', en: 'Listing progress' },
   'Confirmar': { ru: 'Подтвердить', en: 'Confirm' },
   'Añade fotos luminosas y horizontales': { ru: 'Добавьте светлые горизонтальные фотографии', en: 'Add bright landscape photos' },
+  'Mantén pulsada una foto y arrástrala para cambiar el orden. La primera será la portada; el giro se procesa en segundo plano.': { ru: 'Зажмите фотографию и перетащите её, чтобы изменить порядок. Первая фотография будет обложкой; поворот обрабатывается в фоне.', en: 'Press and hold a photo, then drag it to change the order. The first photo will be the cover; rotation is processed in the background.' },
   'JPG o PNG · hasta 10 MB por foto': { ru: 'JPG или PNG · до 10 МБ на фото', en: 'JPG or PNG · up to 10 MB per photo' },
   'Portada': { ru: 'Обложка', en: 'Cover' },
   'Añadir': { ru: 'Добавить', en: 'Add' },
