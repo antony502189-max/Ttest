@@ -9,6 +9,11 @@ export type PreparedListingImages = {
   newlyUploaded: string[]
 }
 
+export type PreparedListingVideo = {
+  assetId: string | null
+  newlyUploaded: string[]
+}
+
 const UPLOAD_CONCURRENCY = 3
 const assetIdFromUrl = (reference: string) => reference.match(/\/media\/([0-9a-f-]{36})(?:$|[?#])/i)?.[1]
 
@@ -20,11 +25,25 @@ export async function uploadMediaReference(reference: string) {
   return api<MediaAssetDto>('/uploads', { method: 'POST', body, timeoutMs: 45_000 })
 }
 
+export async function uploadVideoReference(reference: string) {
+  const blob = await getMediaBlob(reference)
+  if (!blob) throw new Error('No se encontró el vídeo local.')
+  const body = new FormData()
+  const type = blob.type || 'video/mp4'
+  const extension = type === 'video/quicktime' ? 'mov' : 'mp4'
+  body.append('file', new File([blob], `listing-video.${extension}`, { type }))
+  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 120_000 })
+}
+
 async function deleteUploadedAsset(assetId: string) {
   await api<void>(`/uploads/${assetId}`, { method: 'DELETE' })
 }
 
 export async function cleanupPreparedListingImages(prepared: PreparedListingImages) {
+  await Promise.allSettled(prepared.newlyUploaded.map(deleteUploadedAsset))
+}
+
+export async function cleanupPreparedListingVideo(prepared: PreparedListingVideo) {
   await Promise.allSettled(prepared.newlyUploaded.map(deleteUploadedAsset))
 }
 
@@ -61,6 +80,17 @@ export async function prepareListingImages(references: string[]): Promise<Prepar
     throw failed.reason
   }
   return { assetIds, newlyUploaded }
+}
+
+export async function prepareListingVideo(reference?: string): Promise<PreparedListingVideo> {
+  if (!reference) return { assetId: null, newlyUploaded: [] }
+  const existingId = assetIdFromUrl(reference)
+  if (existingId) return { assetId: existingId, newlyUploaded: [] }
+  if (!isMediaReference(reference)) {
+    throw new Error('El vídeo ya no está disponible. Vuelve a añadirlo.')
+  }
+  const uploaded = await uploadVideoReference(reference)
+  return { assetId: uploaded.id, newlyUploaded: [uploaded.id] }
 }
 
 export async function syncListingImages(listingId: string, references: string[]) {
