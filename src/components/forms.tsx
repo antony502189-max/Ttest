@@ -260,6 +260,7 @@ export function ImageUploader({
   const [localError, setLocalError] = useState("");
   const photoDragRef = useRef<{
     reference: string;
+    sourceIndex: number;
     pointerId: number;
     pointerType: string;
     startX: number;
@@ -274,7 +275,7 @@ export function ImageUploader({
   const photoDragTimerRef = useRef<number | null>(null);
   const touchMovePreventerRef = useRef<((event: TouchEvent) => void) | null>(null);
   const [photoDrag, setPhotoDrag] = useState<{
-    reference: string;
+    sourceIndex: number;
     offsetX: number;
     offsetY: number;
     targetIndex: number;
@@ -463,10 +464,9 @@ export function ImageUploader({
     onChange(next);
   };
 
-  const movePhotoTo = (reference: string, targetIndex: number) => {
+  const movePhotoTo = (sourceIndex: number, targetIndex: number) => {
     const current = imagesRef.current;
-    const sourceIndex = current.indexOf(reference);
-    if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= current.length || sourceIndex === targetIndex) return;
+    if (sourceIndex < 0 || sourceIndex >= current.length || targetIndex < 0 || targetIndex >= current.length || sourceIndex === targetIndex) return;
     const next = [...current];
     const [moved] = next.splice(sourceIndex, 1);
     next.splice(targetIndex, 0, moved);
@@ -497,7 +497,7 @@ export function ImageUploader({
     x: number,
     y: number,
     fallback: number,
-    sourceReference: string,
+    sourceIndex: number,
     sourceRect: { left: number; top: number; right: number; bottom: number },
   ) => {
     if (x >= sourceRect.left && x <= sourceRect.right && y >= sourceRect.top && y <= sourceRect.bottom) return fallback;
@@ -505,8 +505,8 @@ export function ImageUploader({
     let nearestIndex = fallback;
     let nearestDistance = Number.POSITIVE_INFINITY;
     cards.forEach((card) => {
-      if (card.dataset.photoReference === sourceReference) return;
       const index = Number(card.dataset.photoIndex);
+      if (index === sourceIndex) return;
       if (!Number.isInteger(index)) return;
       const rect = card.getBoundingClientRect();
       if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
@@ -532,11 +532,13 @@ export function ImageUploader({
 
     resetPhotoDrag();
     const card = event.currentTarget;
-    card.setPointerCapture(event.pointerId);
+    const pointerId = event.pointerId;
+    card.setPointerCapture(pointerId);
     const rect = card.getBoundingClientRect();
     photoDragRef.current = {
       reference,
-      pointerId: event.pointerId,
+      sourceIndex: index,
+      pointerId,
       pointerType: event.pointerType,
       startX: event.clientX,
       startY: event.clientY,
@@ -551,7 +553,7 @@ export function ImageUploader({
     const delay = event.pointerType === "mouse" ? 120 : 280;
     photoDragTimerRef.current = window.setTimeout(() => {
       const drag = photoDragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId || drag.reference !== reference) return;
+      if (!drag || drag.pointerId !== pointerId || drag.sourceIndex !== index) return;
       drag.active = true;
       photoDragTimerRef.current = null;
       if (drag.pointerType !== "mouse") {
@@ -560,7 +562,7 @@ export function ImageUploader({
         document.addEventListener("touchmove", preventTouchMove, { passive: false, capture: true });
       }
       setPhotoDrag({
-        reference: drag.reference,
+        sourceIndex: drag.sourceIndex,
         offsetX: drag.offsetX,
         offsetY: drag.offsetY,
         targetIndex: drag.targetIndex,
@@ -589,12 +591,12 @@ export function ImageUploader({
       grid,
       event.clientX,
       event.clientY,
-      imagesRef.current.indexOf(drag.reference),
-      drag.reference,
+      drag.sourceIndex,
+      drag.sourceIndex,
       drag.sourceRect,
     );
     setPhotoDrag({
-      reference: drag.reference,
+      sourceIndex: drag.sourceIndex,
       offsetX,
       offsetY,
       targetIndex: drag.targetIndex,
@@ -605,10 +607,10 @@ export function ImageUploader({
     const drag = photoDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const shouldMove = drag.active;
-    const reference = drag.reference;
+    const sourceIndex = drag.sourceIndex;
     const targetIndex = drag.targetIndex;
     resetPhotoDrag();
-    if (shouldMove) movePhotoTo(reference, targetIndex);
+    if (shouldMove) movePhotoTo(sourceIndex, targetIndex);
   };
   const makeCover = (index: number) => {
     const current = imagesRef.current;
@@ -659,11 +661,11 @@ export function ImageUploader({
       <p className="image-uploader__edit-help">Mantén pulsada una foto y arrástrala para cambiar el orden. La primera será la portada; el giro se procesa en segundo plano.</p>
       <div className="upload-grid">
         {images.map((image, index) => {
-          const dragging = photoDrag?.reference === image;
-          const dropTarget = Boolean(photoDrag && photoDrag.reference !== image && photoDrag.targetIndex === index);
+          const dragging = photoDrag?.sourceIndex === index;
+          const dropTarget = Boolean(photoDrag && photoDrag.sourceIndex !== index && photoDrag.targetIndex === index);
           return (
           <div
-            key={image}
+            key={`${image}-${index}`}
             className={cn("upload-photo-card", dragging && "is-dragging", dropTarget && "is-drop-target")}
             data-photo-index={index}
             data-photo-reference={image}
