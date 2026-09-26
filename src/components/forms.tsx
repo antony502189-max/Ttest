@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, RotateCw, Trash2, UploadCloud } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, ImagePlus, RotateCw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiBlob } from "@/api/client";
 import {
@@ -258,10 +258,37 @@ export function ImageUploader({
   const busyReferencesRef = useRef(new Set<string>());
   const [previewTurns, setPreviewTurns] = useState<Record<string, number>>({});
   const [localError, setLocalError] = useState("");
+  const photoDragRef = useRef<{
+    reference: string;
+    sourceIndex: number;
+    pointerId: number;
+    pointerType: string;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+    targetIndex: number;
+    active: boolean;
+    card: HTMLDivElement;
+    sourceRect: { left: number; top: number; right: number; bottom: number };
+  } | null>(null);
+  const photoDragTimerRef = useRef<number | null>(null);
+  const touchMovePreventerRef = useRef<((event: TouchEvent) => void) | null>(null);
+  const [photoDrag, setPhotoDrag] = useState<{
+    sourceIndex: number;
+    offsetX: number;
+    offsetY: number;
+    targetIndex: number;
+  } | null>(null);
 
   useEffect(() => () => {
     rotationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     rotationTimersRef.current.clear();
+    if (photoDragTimerRef.current !== null) window.clearTimeout(photoDragTimerRef.current);
+    if (touchMovePreventerRef.current) {
+      document.removeEventListener("touchmove", touchMovePreventerRef.current, true);
+      touchMovePreventerRef.current = null;
+    }
   }, []);
 
   const reportBusy = (reference: string, busy: boolean) => {
@@ -436,6 +463,155 @@ export function ImageUploader({
     imagesRef.current = next;
     onChange(next);
   };
+
+  const movePhotoTo = (sourceIndex: number, targetIndex: number) => {
+    const current = imagesRef.current;
+    if (sourceIndex < 0 || sourceIndex >= current.length || targetIndex < 0 || targetIndex >= current.length || sourceIndex === targetIndex) return;
+    const next = [...current];
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    imagesRef.current = next;
+    onChange(next);
+  };
+
+  const removeTouchMovePreventer = () => {
+    if (!touchMovePreventerRef.current) return;
+    document.removeEventListener("touchmove", touchMovePreventerRef.current, true);
+    touchMovePreventerRef.current = null;
+  };
+
+  const resetPhotoDrag = () => {
+    if (photoDragTimerRef.current !== null) {
+      window.clearTimeout(photoDragTimerRef.current);
+      photoDragTimerRef.current = null;
+    }
+    const drag = photoDragRef.current;
+    if (drag?.card.hasPointerCapture(drag.pointerId)) drag.card.releasePointerCapture(drag.pointerId);
+    photoDragRef.current = null;
+    removeTouchMovePreventer();
+    setPhotoDrag(null);
+  };
+
+  const photoIndexAtPoint = (
+    grid: HTMLElement,
+    x: number,
+    y: number,
+    fallback: number,
+    sourceIndex: number,
+    sourceRect: { left: number; top: number; right: number; bottom: number },
+  ) => {
+    if (x >= sourceRect.left && x <= sourceRect.right && y >= sourceRect.top && y <= sourceRect.bottom) return fallback;
+    const cards = [...grid.querySelectorAll<HTMLElement>("[data-photo-index]")];
+    let nearestIndex = fallback;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    cards.forEach((card) => {
+      const index = Number(card.dataset.photoIndex);
+      if (index === sourceIndex) return;
+      if (!Number.isInteger(index)) return;
+      const rect = card.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        nearestIndex = index;
+        nearestDistance = -1;
+        return;
+      }
+      if (nearestDistance < 0) return;
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const distance = Math.hypot(x - centerX, y - centerY);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
+  };
+
+  const beginPhotoDrag = (event: React.PointerEvent<HTMLDivElement>, reference: string, index: number) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button, a, input")) return;
+
+    resetPhotoDrag();
+    const card = event.currentTarget;
+    const pointerId = event.pointerId;
+    card.setPointerCapture(pointerId);
+    const rect = card.getBoundingClientRect();
+    photoDragRef.current = {
+      reference,
+      sourceIndex: index,
+      pointerId,
+      pointerType: event.pointerType,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: 0,
+      offsetY: 0,
+      targetIndex: index,
+      active: false,
+      card,
+      sourceRect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+    };
+
+    const delay = event.pointerType === "touch" ? 280 : 120;
+    photoDragTimerRef.current = window.setTimeout(() => {
+      const drag = photoDragRef.current;
+      if (!drag || drag.pointerId !== pointerId || drag.sourceIndex !== index) return;
+      drag.active = true;
+      photoDragTimerRef.current = null;
+      if (drag.pointerType !== "mouse") {
+        const preventTouchMove = (touchEvent: TouchEvent) => touchEvent.preventDefault();
+        touchMovePreventerRef.current = preventTouchMove;
+        document.addEventListener("touchmove", preventTouchMove, { passive: false, capture: true });
+      }
+      setPhotoDrag({
+        sourceIndex: drag.sourceIndex,
+        offsetX: drag.offsetX,
+        offsetY: drag.offsetY,
+        targetIndex: drag.targetIndex,
+      });
+    }, delay);
+  };
+
+  const updatePhotoDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = photoDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const offsetX = event.clientX - drag.startX;
+    const offsetY = event.clientY - drag.startY;
+    drag.offsetX = offsetX;
+    drag.offsetY = offsetY;
+
+    if (!drag.active) {
+      if (drag.pointerType !== "mouse" && Math.hypot(offsetX, offsetY) > 9) resetPhotoDrag();
+      return;
+    }
+
+    event.preventDefault();
+    const grid = drag.card.parentElement;
+    if (!grid) return;
+    drag.targetIndex = photoIndexAtPoint(
+      grid,
+      event.clientX,
+      event.clientY,
+      drag.sourceIndex,
+      drag.sourceIndex,
+      drag.sourceRect,
+    );
+    setPhotoDrag({
+      sourceIndex: drag.sourceIndex,
+      offsetX,
+      offsetY,
+      targetIndex: drag.targetIndex,
+    });
+  };
+
+  const finishPhotoDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = photoDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const shouldMove = drag.active;
+    const sourceIndex = drag.sourceIndex;
+    const targetIndex = drag.targetIndex;
+    resetPhotoDrag();
+    if (shouldMove) movePhotoTo(sourceIndex, targetIndex);
+  };
   const makeCover = (index: number) => {
     const current = imagesRef.current;
     const next = [
@@ -482,14 +658,31 @@ export function ImageUploader({
           {localError}
         </p>
       ) : null}
-      <p className="image-uploader__edit-help">El giro se muestra al instante; procesamos la foto en segundo plano. También puedes cambiar la portada y reordenar.</p>
+      <p className="image-uploader__edit-help">Mantén pulsada una foto y arrástrala para cambiar el orden. La primera será la portada; el giro se procesa en segundo plano.</p>
       <div className="upload-grid">
-        {images.map((image, index) => (
-          <div key={`${image}-${index}`}>
+        {images.map((image, index) => {
+          const dragging = photoDrag?.sourceIndex === index;
+          const dropTarget = Boolean(photoDrag && photoDrag.sourceIndex !== index && photoDrag.targetIndex === index);
+          return (
+          <div
+            key={`${image}-${index}`}
+            className={cn("upload-photo-card", dragging && "is-dragging", dropTarget && "is-drop-target")}
+            data-photo-index={index}
+            data-photo-reference={image}
+            aria-grabbed={dragging ? true : undefined}
+            style={dragging ? { transform: `translate3d(${photoDrag.offsetX}px, ${photoDrag.offsetY}px, 0) scale(1.025)` } : undefined}
+            onPointerDown={(event) => beginPhotoDrag(event, image, index)}
+            onPointerMove={updatePhotoDrag}
+            onPointerUp={finishPhotoDrag}
+            onPointerCancel={() => resetPhotoDrag()}
+            onContextMenu={(event) => { if (photoDragRef.current?.active) event.preventDefault(); }}
+          >
+            <span className="upload-photo-drag-hint" aria-hidden="true"><GripVertical /></span>
             <MediaImage
               src={image}
               variant="thumb"
               alt={`Foto del anuncio ${index + 1}`}
+              draggable={false}
               className={previewTurns[image] ? "photo-rotation-preview" : undefined}
               data-preview-rotation={previewTurns[image] ? String(previewTurns[image] * 90) : undefined}
               style={previewTurns[image] ? { transform: `rotate(${previewTurns[image] * 90}deg)` } : undefined}
@@ -550,7 +743,8 @@ export function ImageUploader({
               <Trash2 />
             </button>
           </div>
-        ))}
+          )
+        })}
         {images.length < 8 ? (
           <Button
             variant="outline"

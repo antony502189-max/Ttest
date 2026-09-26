@@ -165,3 +165,86 @@
     line-height: 1.45;
   }
 }
+
+
+/* Press-and-drag photo ordering shared by create/edit listing forms. */
+.upload-grid > .upload-photo-card {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease,
+    outline-color 140ms ease;
+}
+
+.upload-grid > .upload-photo-card > img {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.upload-grid > .upload-photo-card.is-dragging {
+  z-index: 20;
+  cursor: grabbing;
+  opacity: .96;
+  box-shadow: 0 .9rem 2.2rem rgb(25 31 31 / .28);
+  transition: box-shadow 100ms ease, opacity 100ms ease;
+  will-change: transform;
+}
+
+.upload-grid > .upload-photo-card.is-drop-target {
+  outline: 3px solid var(--brand-active);
+  outline-offset: 3px;
+}
+
+.upload-photo-drag-hint {
+  position: absolute;
+  z-index: 4;
+  top: .4rem;
+  left: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(215 217 213 / .88);
+  border-radius: .4rem;
+  background: rgb(255 255 255 / .92);
+  color: var(--ink-soft);
+  box-shadow: 0 .12rem .4rem rgb(25 31 31 / .14);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.upload-photo-drag-hint svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.upload-photo-card.is-dragging .upload-photo-drag-hint {
+  background: var(--brand);
+  color: var(--ink);
+}
+
+@media (max-width: 600px) {
+  .listing-edit-page .upload-photo-drag-hint {
+    top: .55rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: .55rem;
+  }
+
+  .listing-edit-page .upload-photo-drag-hint svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-grid > .upload-photo-card {
+    transition-duration: .01ms;
+  }
+}

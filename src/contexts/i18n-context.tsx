@@ -533,6 +533,7 @@ const translations: Record<string, Translation> = {
   'Progreso de publicación': { ru: 'Прогресс публикации', en: 'Listing progress' },
   'Confirmar': { ru: 'Подтвердить', en: 'Confirm' },
   'Añade fotos luminosas y horizontales': { ru: 'Добавьте светлые горизонтальные фотографии', en: 'Add bright landscape photos' },
+  'Mantén pulsada una foto y arrástrala para cambiar el orden. La primera será la portada; el giro se procesa en segundo plano.': { ru: 'Зажмите фотографию и перетащите её, чтобы изменить порядок. Первая фотография будет обложкой; поворот обрабатывается в фоне.', en: 'Press and hold a photo, then drag it to change the order. The first photo will be the cover; rotation is processed in the background.' },
   'JPG o PNG · hasta 10 MB por foto': { ru: 'JPG или PNG · до 10 МБ на фото', en: 'JPG or PNG · up to 10 MB per photo' },
   'Portada': { ru: 'Обложка', en: 'Cover' },
   'Añadir': { ru: 'Добавить', en: 'Add' },
@@ -1151,7 +1152,82 @@ const finalAuditTranslations: Record<string, Translation> = {
   'Enviando…': { ru: 'Отправляем…', en: 'Sending…' },
 }
 
-Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations)
+
+const adminTranslations: Record<string, Translation> = {
+  'Cerrar': { ru: 'Закрыть', en: 'Close' },
+  'Poner en portada': { ru: 'Поставить на главную', en: 'Feature on homepage' },
+  'Cambiar portada': { ru: 'Изменить размещение на главной', en: 'Change homepage feature' },
+  'Quitar portada': { ru: 'Убрать с главной', en: 'Remove from homepage' },
+  'Subir al TOP': { ru: 'Поднять в TOP', en: 'Promote to TOP' },
+  'Cambiar TOP': { ru: 'Изменить TOP', en: 'Change TOP promotion' },
+  'Quitar TOP': { ru: 'Убрать из TOP', en: 'Remove from TOP' },
+  'Usuario': { ru: 'Пользователь', en: 'User' },
+  'Aprobar': { ru: 'Одобрить', en: 'Approve' },
+  'Rechazar': { ru: 'Отклонить', en: 'Reject' },
+  'Ocultar': { ru: 'Скрыть', en: 'Hide' },
+  'Restaurar a revisión': { ru: 'Вернуть на проверку', en: 'Return to review' },
+  'Desbloquear': { ru: 'Разблокировать', en: 'Unblock' },
+  'Bloquear': { ru: 'Заблокировать', en: 'Block' },
+  'Eliminar': { ru: 'Удалить', en: 'Delete' },
+  'Sin propietario': { ru: 'Без владельца', en: 'No owner' },
+  'Periodo finalizado': { ru: 'Период завершён', en: 'Period ended' },
+  'Bloqueado permanentemente': { ru: 'Заблокировано бессрочно', en: 'Blocked permanently' },
+  'Portada activa · hasta': { ru: 'На главной до', en: 'Homepage active until' },
+  'Terminó': { ru: 'Завершено', en: 'Ended' },
+  'Bloqueado hasta': { ru: 'Заблокировано до', en: 'Blocked until' },
+  '· hasta': { ru: '· до', en: '· until' },
+  'Portada programada': { ru: 'Главная: запланировано', en: 'Homepage scheduled' },
+  'Portada finalizada': { ru: 'Размещение на главной завершено', en: 'Homepage feature ended' },
+  'TOP programado': { ru: 'TOP запланирован', en: 'TOP scheduled' },
+  'TOP finalizado': { ru: 'TOP завершён', en: 'TOP ended' },
+  'Guardando…': { ru: 'Сохраняем…', en: 'Saving…' },
+  'Actualizar TOP': { ru: 'Обновить TOP', en: 'Update TOP' },
+  'Activar TOP': { ru: 'Активировать TOP', en: 'Activate TOP' },
+  'Actualizar portada': { ru: 'Обновить размещение на главной', en: 'Update homepage feature' },
+  'Duraciones rápidas': { ru: 'Быстрый выбор срока', en: 'Quick durations' },
+  'TOP desde': { ru: 'TOP с', en: 'TOP from' },
+  'TOP hasta': { ru: 'TOP до', en: 'TOP until' },
+  'Portada desde': { ru: 'На главной с', en: 'Homepage from' },
+  'Portada hasta': { ru: 'На главной до', en: 'Homepage until' },
+  '¿Eliminar este anuncio?': { ru: 'Удалить это объявление?', en: 'Delete this listing?' },
+  'El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es.': { ru: 'Объявление и связанные с ним данные будут безвозвратно удалены из 112233.es.', en: 'The listing and its associated data will be permanently deleted from 112233.es.' },
+  '¿Aprobar y publicar este anuncio?': { ru: 'Одобрить и опубликовать это объявление?', en: 'Approve and publish this listing?' },
+  '¿Rechazar este anuncio?': { ru: 'Отклонить это объявление?', en: 'Reject this listing?' },
+  '¿Ocultar este anuncio de la parte pública?': { ru: 'Скрыть это объявление из публичной части?', en: 'Hide this listing from the public site?' },
+  '¿Cerrar este anuncio?': { ru: 'Закрыть это объявление?', en: 'Close this listing?' },
+  '¿Restaurar este anuncio a revisión?': { ru: 'Вернуть это объявление на проверку?', en: 'Return this listing to review?' },
+  'Consulta el propietario, programa TOP o publicidad en portada por fechas y aplica moderación sin alterar el estado original del anuncio.': { ru: 'Проверяйте владельца, планируйте TOP и размещение на главной по датам и применяйте модерацию без изменения исходного состояния объявления.', en: 'Inspect the owner, schedule TOP or homepage promotion by date, and moderate without changing the listing original state.' },
+  'No hay anuncios que coincidan con la búsqueda.': { ru: 'Нет объявлений, соответствующих поиску.', en: 'No listings match the search.' },
+  'Sin anuncios': { ru: 'Нет объявлений', en: 'No listings' },
+  'Esta cuenta todavía no tiene anuncios.': { ru: 'У этого аккаунта пока нет объявлений.', en: 'This account does not have any listings yet.' },
+  'Sin denuncias': { ru: 'Нет жалоб', en: 'No reports' },
+  'No hay denuncias asociadas a esta cuenta.': { ru: 'С этим аккаунтом не связано ни одной жалобы.', en: 'There are no reports associated with this account.' },
+  'Sin historial': { ru: 'История отсутствует', en: 'No history' },
+  'Nunca se aplicaron restricciones a esta cuenta.': { ru: 'К этому аккаунту ещё не применялись ограничения.', en: 'No restrictions have ever been applied to this account.' },
+  'Historial de solo lectura.': { ru: 'История доступна только для чтения.', en: 'Read-only history.' },
+  'Solo las ven los administradores.': { ru: 'Их видят только администраторы.', en: 'Only administrators can see them.' },
+  'Añadir contexto para futuras revisiones…': { ru: 'Добавьте контекст для будущих проверок…', en: 'Add context for future reviews…' },
+  'Más acciones': { ru: 'Другие действия', en: 'More actions' },
+  'Admin': { ru: 'Администратор', en: 'Admin' },
+  'Sistema': { ru: 'Система', en: 'System' },
+  'Restricción retirada y propietario notificado': { ru: 'Ограничение снято, владелец уведомлён', en: 'Restriction removed and owner notified' },
+  'Anuncio retirado del TOP': { ru: 'Объявление убрано из TOP', en: 'Listing removed from TOP' },
+  'Publicidad retirada de la portada': { ru: 'Объявление убрано с главной', en: 'Homepage promotion removed' },
+  'Busca una cuenta, revisa su contexto y aplica solo la restricción necesaria.': { ru: 'Найдите аккаунт, проверьте контекст и примените только необходимое ограничение.', en: 'Find an account, review its context, and apply only the restriction that is needed.' },
+  'Sin resultados': { ru: 'Нет результатов', en: 'No results' },
+  'No hay usuarios que coincidan con este filtro.': { ru: 'Нет пользователей, соответствующих этому фильтру.', en: 'No users match this filter.' },
+  'Revisa el contexto y llega al usuario o al anuncio sin tener que buscarlo manualmente.': { ru: 'Проверяйте контекст и переходите к пользователю или объявлению без ручного поиска.', en: 'Review the context and open the user or listing without searching manually.' },
+  'Sin comentario adicional.': { ru: 'Без дополнительного комментария.', en: 'No additional comment.' },
+  'No hay reportes pendientes ni históricos disponibles.': { ru: 'Нет ни ожидающих, ни архивных жалоб.', en: 'There are no pending or historical reports.' },
+  'día': { ru: 'день', en: 'day' },
+  'días': { ru: 'дни', en: 'days' },
+  'Historial de acciones administrativas: quién hizo qué y cuándo.': { ru: 'История административных действий: кто, что и когда сделал.', en: 'Administrative action history: who did what and when.' },
+  'Sin actividad': { ru: 'Нет активности', en: 'No activity' },
+  'Las acciones administrativas aparecerán aquí.': { ru: 'Здесь появятся административные действия.', en: 'Administrative actions will appear here.' },
+  'Gestiona quién puede entrar en esta administración mediante una cuenta Google vinculada.': { ru: 'Управляйте тем, кто может входить в админку через привязанный Google-аккаунт.', en: 'Manage who can enter this admin area through a linked Google account.' },
+}
+
+Object.assign(translations, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations, adminTranslations)
 
 const localeByLanguage: Record<Language, string> = { es: 'es-ES', ru: 'ru-RU', en: 'en-GB' }
 const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русский', en: 'English' }
@@ -1252,7 +1328,7 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Denuncia: (.+)$/))) return target(`Жалоба: ${translateCore(match[1], language)}`, `Report: ${translateCore(match[1], language)}`)
   if ((match = source.match(/^(\d+) anuncios$/))) return target(`Объявлений: ${match[1]}`, `${match[1]} listings`)
   if ((match = source.match(/^Último acceso: (.+)$/))) return target(`Последний вход: ${match[1]}`, `Last sign-in: ${match[1]}`)
-  if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${match[1]}`, `Blocked until ${match[1]}`)
+  if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${localizeSpanishDate(match[1])}`, `Blocked until ${localizeSpanishDate(match[1])}`)
   if ((match = source.match(/^Activo desde (.+)$/))) return target(`Активен с ${match[1]}`, `Active since ${match[1]}`)
   if ((match = source.match(/^Fuente: (.+)$/))) return target(`Источник: ${match[1]}`, `Source: ${match[1]}`)
   if ((match = source.match(/^Estancia mínima de (\d+) (?:noche|noches)$/))) return target(`Минимальный срок: ${match[1]} ноч.`, `Minimum stay: ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
@@ -1260,6 +1336,16 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
   if ((match = source.match(/^Mínimo (\d+) (?:noche|noches)$/))) return target(`Минимум ${match[1]} ноч.`, `Minimum ${match[1]} ${match[1] === '1' ? 'night' : 'nights'}`)
   if ((match = source.match(/^Mínimo (\d+) (?:mes|meses)$/))) return target(`Минимум ${match[1]} мес.`, `Minimum ${match[1]} ${match[1] === '1' ? 'month' : 'months'}`)
   if ((match = source.match(/^Revisaremos «(.+)»\. No compartiremos tu identidad con el anunciante\.$/))) return target(`Мы проверим «${translateCore(match[1], language)}». Мы не сообщим владельцу вашу личность.`, `We will review “${translateCore(match[1], language)}”. We will not share your identity with the advertiser.`)
+  if ((match = source.match(/^Portada activa · hasta (.+)$/))) return target(`На главной до ${localizeSpanishDate(match[1])}`, `Homepage active until ${localizeSpanishDate(match[1])}`)
+  if ((match = source.match(/^TOP activo · hasta (.+)$/))) return target(`TOP активен до ${localizeSpanishDate(match[1])}`, `TOP active until ${localizeSpanishDate(match[1])}`)
+  if ((match = source.match(/^TOP activo$/))) return target('TOP активен', 'TOP active')
+  if ((match = source.match(/^Terminó (.+)$/))) return target(`Завершено ${localizeSpanishDate(match[1])}`, `Ended ${localizeSpanishDate(match[1])}`)
+  if ((match = source.match(/^Bloqueado hasta (.+)$/))) return target(`Заблокировано до ${match[1]}`, `Blocked until ${match[1]}`)
+  if ((match = source.match(/^(\d+) visitas$/))) return target(`${match[1]} просмотров`, `${match[1]} views`)
+  if ((match = source.match(/^(\d+) anuncios$/))) return target(`${match[1]} объявлений`, `${match[1]} listings`)
+  if ((match = source.match(/^(\d+) días$/))) return target(`${match[1]} дн.`, `${match[1]} days`)
+  if ((match = source.match(/^TOP configurado durante (\d+) (día|días)$/))) return target(`TOP настроен на ${match[1]} дн.`, `TOP configured for ${match[1]} day${match[1] === '1' ? '' : 's'}`)
+  if ((match = source.match(/^Publicidad de portada configurada durante (\d+) (día|días)$/))) return target(`Размещение на главной настроено на ${match[1]} дн.`, `Homepage promotion configured for ${match[1]} day${match[1] === '1' ? '' : 's'}`)
   if ((match = source.match(/^Hasta (.+)$/))) return target(`До ${match[1]}`, `Until ${match[1]}`)
   if ((match = source.match(/^Finaliza (.+)$/))) return target(`Завершается ${match[1]}`, `Ends ${match[1]}`)
   if ((match = source.match(/^(\d+) euros, (.+), ubicación aproximada$/))) return target(`${match[1]} евро, ${match[2]}, примерное местоположение`, `${match[1]} euros, ${match[2]}, approximate location`)

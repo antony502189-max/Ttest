@@ -156,7 +156,7 @@ function formatPromotionEndDate(value: string | null | undefined) {
 }
 
 function formatEuros(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+  return new Intl.NumberFormat(currentLocale(), { style: 'currency', currency: 'EUR' }).format(cents / 100)
 }
 
 function restrictionEndText(value: string | null | undefined) {

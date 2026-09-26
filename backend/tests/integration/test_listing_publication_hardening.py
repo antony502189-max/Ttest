@@ -383,6 +383,10 @@ async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(
     assert duplicate.json()["code"] == "DUPLICATE_LISTING_IMAGES"
     assert "assetIds" in duplicate.json()["fieldErrors"]
 
+    async with SessionLocal() as session:
+        persisted = int(await session.scalar(select(func.count(Listing.id)).where(Listing.deleted_at.is_(None))) or 0)
+    assert persisted == 1
+
 
 async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_second_listing(client, register_user):
     token, user_body = await register_user(client, email="same-owner-duplicate@example.com", role="host")
@@ -422,6 +426,32 @@ async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_secon
             or 0
         )
     assert persisted == 1
+
+    replacement_assets = await upload_gallery(client, token, [121, 122, 123])
+    replacement = await client.post(
+        "/api/v1/listings",
+        headers=publication_headers(token),
+        json=customer_listing(
+            assetIds=replacement_assets,
+            title="Новая галерея после отказа",
+            monthlyPrice=1777,
+            street="Completely different street",
+            postcode="38002",
+        ),
+    )
+    assert replacement.status_code == 201, replacement.text
+
+    async with SessionLocal() as session:
+        persisted = int(
+            await session.scalar(
+                select(func.count(Listing.id)).where(
+                    Listing.owner_user_id == UUID(user_body["id"]),
+                    Listing.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+    assert persisted == 2
 
 
 async def test_unreconciled_external_gallery_does_not_block_user_publication(client, register_user):
@@ -556,6 +586,10 @@ async def test_concurrent_duplicate_publications_leave_one_listing(client, regis
     assert sorted(response.status_code for response in responses) == [201, 409]
     rejected = next(response for response in responses if response.status_code == 409)
     assert rejected.json()["code"] == "DUPLICATE_LISTING_IMAGES"
+
+    async with SessionLocal() as session:
+        persisted = int(await session.scalar(select(func.count(Listing.id)).where(Listing.deleted_at.is_(None))) or 0)
+    assert persisted == 1
 
 
 
