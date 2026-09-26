@@ -395,6 +395,7 @@ async def _replace_listing_images_locked(
         asset is None
         or asset.deleted_at is not None
         or asset.kind != "listing_image"
+        or not asset.mime_type.startswith("image/")
         or (not admin and asset.owner_id != user.id)
         for asset in requested_assets
     ):
