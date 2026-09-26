@@ -165,7 +165,7 @@ def test_public_projection_uses_scalar_coordinates_without_geojson():
 def test_public_order_uses_active_promotion_as_a_hard_first_tier():
     sql = str(apply_search_order(visible_query(), ListingSearchRequest(rentalMode="long", sort="newest")))
 
-    order_by = sql.split("ORDER BY", 1)[1]
+    order_by = sql.rsplit("ORDER BY", 1)[1]
     assert "EXISTS" in order_by
     assert "listing_promotions" in order_by
     assert "boosted_at" in order_by
