@@ -275,16 +275,19 @@ export function ImageUploader({
     active: boolean;
     card: HTMLDivElement;
     sourceRect: { left: number; top: number; right: number; bottom: number };
+    slotRects: Array<{ left: number; top: number; right: number; bottom: number }>;
   } | null>(null);
   const photoDragTimerRef = useRef<number | null>(null);
   const photoAutoScrollFrameRef = useRef<number | null>(null);
   const photoAutoScrollLastFrameRef = useRef<number | null>(null);
+  const photoScrollBehaviorRef = useRef<string | null>(null);
   const touchMovePreventerRef = useRef<((event: TouchEvent) => void) | null>(null);
   const [photoDrag, setPhotoDrag] = useState<{
     sourceIndex: number;
     offsetX: number;
     offsetY: number;
     targetIndex: number;
+    displacements: Record<number, { x: number; y: number }>;
   } | null>(null);
 
   useEffect(() => () => {
@@ -292,6 +295,10 @@ export function ImageUploader({
     rotationTimersRef.current.clear();
     if (photoDragTimerRef.current !== null) window.clearTimeout(photoDragTimerRef.current);
     if (photoAutoScrollFrameRef.current !== null) window.cancelAnimationFrame(photoAutoScrollFrameRef.current);
+    if (photoScrollBehaviorRef.current !== null) {
+      document.documentElement.style.scrollBehavior = photoScrollBehaviorRef.current;
+      photoScrollBehaviorRef.current = null;
+    }
     if (touchMovePreventerRef.current) {
       document.removeEventListener("touchmove", touchMovePreventerRef.current, true);
       touchMovePreventerRef.current = null;
@@ -509,17 +516,78 @@ export function ImageUploader({
     };
   };
 
+  const photoSlotRect = (drag: NonNullable<typeof photoDragRef.current>, index: number) => {
+    const rect = drag.slotRects[index];
+    if (!rect) return null;
+    const scrollX = window.scrollX - drag.startScrollX;
+    const scrollY = window.scrollY - drag.startScrollY;
+    return {
+      left: rect.left - scrollX,
+      top: rect.top - scrollY,
+      right: rect.right - scrollX,
+      bottom: rect.bottom - scrollY,
+    };
+  };
+
+  const photoIndexAtPoint = (
+    drag: NonNullable<typeof photoDragRef.current>,
+    x: number,
+    y: number,
+  ) => {
+    const sourceRect = photoSlotRect(drag, drag.sourceIndex) ?? scrolledSourceRect(drag);
+    if (x >= sourceRect.left && x <= sourceRect.right && y >= sourceRect.top && y <= sourceRect.bottom) {
+      return drag.sourceIndex;
+    }
+
+    let nearestIndex = drag.sourceIndex;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    drag.slotRects.forEach((_, index) => {
+      if (index === drag.sourceIndex) return;
+      const rect = photoSlotRect(drag, index);
+      if (!rect) return;
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        nearestIndex = index;
+        nearestDistance = -1;
+        return;
+      }
+      if (nearestDistance < 0) return;
+      const centerX = rect.left + (rect.right - rect.left) / 2;
+      const centerY = rect.top + (rect.bottom - rect.top) / 2;
+      const distance = Math.hypot(x - centerX, y - centerY);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
+  };
+
+  const photoReorderDisplacements = (
+    drag: NonNullable<typeof photoDragRef.current>,
+    targetIndex: number,
+  ) => {
+    const displacements: Record<number, { x: number; y: number }> = {};
+    const { sourceIndex } = drag;
+    if (sourceIndex === targetIndex) return displacements;
+
+    if (sourceIndex < targetIndex) {
+      for (let index = sourceIndex + 1; index <= targetIndex; index += 1) {
+        const from = drag.slotRects[index];
+        const to = drag.slotRects[index - 1];
+        if (from && to) displacements[index] = { x: to.left - from.left, y: to.top - from.top };
+      }
+    } else {
+      for (let index = targetIndex; index < sourceIndex; index += 1) {
+        const from = drag.slotRects[index];
+        const to = drag.slotRects[index + 1];
+        if (from && to) displacements[index] = { x: to.left - from.left, y: to.top - from.top };
+      }
+    }
+    return displacements;
+  };
+
   const refreshPhotoDragTarget = (drag: NonNullable<typeof photoDragRef.current>) => {
-    const grid = drag.card.parentElement;
-    if (!grid) return;
-    drag.targetIndex = photoIndexAtPoint(
-      grid,
-      drag.lastClientX,
-      drag.lastClientY,
-      drag.sourceIndex,
-      drag.sourceIndex,
-      scrolledSourceRect(drag),
-    );
+    drag.targetIndex = photoIndexAtPoint(drag, drag.lastClientX, drag.lastClientY);
     const offsets = dragOffsets(drag);
     drag.offsetX = offsets.x;
     drag.offsetY = offsets.y;
@@ -528,6 +596,7 @@ export function ImageUploader({
       offsetX: offsets.x,
       offsetY: offsets.y,
       targetIndex: drag.targetIndex,
+      displacements: photoReorderDisplacements(drag, drag.targetIndex),
     });
   };
 
@@ -536,9 +605,9 @@ export function ImageUploader({
     const viewportTop = viewport?.offsetTop ?? 0;
     const viewportHeight = viewport?.height ?? window.innerHeight;
     const viewportBottom = viewportTop + viewportHeight;
-    const edge = Math.min(180, Math.max(96, viewportHeight * 0.22));
-    const minSpeed = 650;
-    const maxSpeed = 3000;
+    const edge = Math.min(150, Math.max(96, viewportHeight * 0.18));
+    const minSpeed = 520;
+    const maxSpeed = 1500;
 
     if (clientY < viewportTop + edge) {
       const strength = Math.min(1, Math.max(0, (viewportTop + edge - clientY) / edge));
@@ -593,43 +662,13 @@ export function ImageUploader({
     cancelPhotoAutoScroll();
     const drag = photoDragRef.current;
     if (drag?.card.hasPointerCapture(drag.pointerId)) drag.card.releasePointerCapture(drag.pointerId);
+    if (photoScrollBehaviorRef.current !== null) {
+      document.documentElement.style.scrollBehavior = photoScrollBehaviorRef.current;
+      photoScrollBehaviorRef.current = null;
+    }
     photoDragRef.current = null;
     removeTouchMovePreventer();
     setPhotoDrag(null);
-  };
-
-  const photoIndexAtPoint = (
-    grid: HTMLElement,
-    x: number,
-    y: number,
-    fallback: number,
-    sourceIndex: number,
-    sourceRect: { left: number; top: number; right: number; bottom: number },
-  ) => {
-    if (x >= sourceRect.left && x <= sourceRect.right && y >= sourceRect.top && y <= sourceRect.bottom) return fallback;
-    const cards = [...grid.querySelectorAll<HTMLElement>("[data-photo-index]")];
-    let nearestIndex = fallback;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    cards.forEach((card) => {
-      const index = Number(card.dataset.photoIndex);
-      if (index === sourceIndex) return;
-      if (!Number.isInteger(index)) return;
-      const rect = card.getBoundingClientRect();
-      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-        nearestIndex = index;
-        nearestDistance = -1;
-        return;
-      }
-      if (nearestDistance < 0) return;
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const distance = Math.hypot(x - centerX, y - centerY);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = index;
-      }
-    });
-    return nearestIndex;
   };
 
   const beginPhotoDrag = (event: React.PointerEvent<HTMLDivElement>, reference: string, index: number) => {
@@ -641,6 +680,13 @@ export function ImageUploader({
     const pointerId = event.pointerId;
     card.setPointerCapture(pointerId);
     const rect = card.getBoundingClientRect();
+    const grid = card.parentElement;
+    const slotRects = grid
+      ? [...grid.querySelectorAll<HTMLElement>("[data-photo-index]")].map((slot) => {
+          const slotRect = slot.getBoundingClientRect();
+          return { left: slotRect.left, top: slotRect.top, right: slotRect.right, bottom: slotRect.bottom };
+        })
+      : [{ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }];
     photoDragRef.current = {
       reference,
       sourceIndex: index,
@@ -658,6 +704,7 @@ export function ImageUploader({
       active: false,
       card,
       sourceRect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+      slotRects,
     };
 
     const delay = event.pointerType === "touch" ? 280 : 120;
@@ -666,6 +713,8 @@ export function ImageUploader({
       if (!drag || drag.pointerId !== pointerId || drag.sourceIndex !== index) return;
       drag.active = true;
       photoDragTimerRef.current = null;
+      photoScrollBehaviorRef.current = document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = "auto";
       if (drag.pointerType !== "mouse") {
         const preventTouchMove = (touchEvent: TouchEvent) => touchEvent.preventDefault();
         touchMovePreventerRef.current = preventTouchMove;
@@ -676,6 +725,7 @@ export function ImageUploader({
         offsetX: drag.offsetX,
         offsetY: drag.offsetY,
         targetIndex: drag.targetIndex,
+        displacements: {},
       });
       ensurePhotoAutoScroll();
     }, delay);
@@ -761,14 +811,20 @@ export function ImageUploader({
         {images.map((image, index) => {
           const dragging = photoDrag?.sourceIndex === index;
           const dropTarget = Boolean(photoDrag && photoDrag.sourceIndex !== index && photoDrag.targetIndex === index);
+          const displacement = photoDrag?.displacements[index];
+          const dragStyle = dragging && photoDrag
+            ? { transform: `translate3d(${photoDrag.offsetX}px, ${photoDrag.offsetY}px, 0) scale(1.025)` }
+            : displacement
+              ? { transform: `translate3d(${displacement.x}px, ${displacement.y}px, 0)` }
+              : undefined;
           return (
           <div
             key={`${image}-${index}`}
-            className={cn("upload-photo-card", dragging && "is-dragging", dropTarget && "is-drop-target")}
+            className={cn("upload-photo-card", dragging && "is-dragging", displacement && "is-shifting", dropTarget && "is-drop-target")}
             data-photo-index={index}
             data-photo-reference={image}
             aria-grabbed={dragging ? true : undefined}
-            style={dragging ? { transform: `translate3d(${photoDrag.offsetX}px, ${photoDrag.offsetY}px, 0) scale(1.025)` } : undefined}
+            style={dragStyle}
             onPointerDown={(event) => beginPhotoDrag(event, image, index)}
             onPointerMove={updatePhotoDrag}
             onPointerUp={finishPhotoDrag}
