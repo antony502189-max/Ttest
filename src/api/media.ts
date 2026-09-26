@@ -93,6 +93,29 @@ export async function prepareListingVideo(reference?: string): Promise<PreparedL
   return { assetId: uploaded.id, newlyUploaded: [uploaded.id] }
 }
 
+export type PreparedListingMedia = {
+  images: PreparedListingImages
+  video: PreparedListingVideo
+}
+
+export async function prepareListingMedia(imageReferences: string[], videoReference?: string): Promise<PreparedListingMedia> {
+  const images = await prepareListingImages(imageReferences)
+  try {
+    const video = await prepareListingVideo(videoReference)
+    return { images, video }
+  } catch (error) {
+    await cleanupPreparedListingImages(images)
+    throw error
+  }
+}
+
+export async function cleanupPreparedListingMedia(prepared: PreparedListingMedia) {
+  await Promise.allSettled([
+    cleanupPreparedListingImages(prepared.images),
+    cleanupPreparedListingVideo(prepared.video),
+  ])
+}
+
 export async function syncListingImages(listingId: string, references: string[]) {
   const prepared = await prepareListingImages(references)
   try {
