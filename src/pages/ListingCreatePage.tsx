@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ConfirmDialog, FormField, ImageUploader } from '@/components/forms'
+import { ConfirmDialog, FormField, ImageUploader, VideoUploader } from '@/components/forms'
 import { ApproximateLocationMap } from '@/components/map-view'
 import { useApp } from '@/contexts/app-context'
 import { amenityOptions, createDefaultDraft } from '@/data/listings'
@@ -140,6 +140,7 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     description: draft.description,
     homeDescription: draft.rules,
     images: draft.images,
+    ...(draft.video ? { video: draft.video } : {}),
     owner: previous?.owner ?? {
       name: draft.contactName,
       initials: draft.contactName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toLocaleUpperCase(),
@@ -207,7 +208,10 @@ export function ListingCreatePage() {
   const isDirty = JSON.stringify(draft) !== baseline
   const recoveringImages = Boolean(partialPublication && partialPublication.publicationKey === draft.publicationKey)
   const nonDraftMedia = useMemo(() => {
-    const refs = new Set([...allListings, ...ownedListings].flatMap((listing) => listing.images))
+    const refs = new Set([...allListings, ...ownedListings].flatMap((listing) => [
+      ...listing.images,
+      ...(listing.video ? [listing.video] : []),
+    ]))
     if (currentUser?.avatarRef) refs.add(currentUser.avatarRef)
     return refs
   }, [allListings, currentUser?.avatarRef, ownedListings])
@@ -483,8 +487,9 @@ export function ListingCreatePage() {
         <FormField label="Normas de la vivienda" htmlFor="publish-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="publish-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="publish-photos" title="Fotografías" hint="Gira una foto, cambia la portada, reordena o añade nuevas.">
+      <Section id="publish-photos" title="Fotografías" hint="Hasta 15 fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.">
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
+        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onRemove={(video) => { void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>
 
       <Section disabled={recoveringImages} id="publish-description" title="Título y descripción">
