@@ -41,5 +41,7 @@ test('mobile owner card shows delete directly below edit', async ({ page }) => {
   expect(editBox).not.toBeNull()
   expect(removeBox).not.toBeNull()
   expect(removeBox!.y).toBeGreaterThan(editBox!.y)
-  expect(Math.abs(removeBox!.x - editBox!.x)).toBeLessThanOrEqual(2)
+  const editCenter = editBox!.x + editBox!.width / 2
+  const removeCenter = removeBox!.x + removeBox!.width / 2
+  expect(Math.abs(removeCenter - editCenter)).toBeLessThanOrEqual(2)
 })
