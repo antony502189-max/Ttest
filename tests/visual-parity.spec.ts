@@ -71,6 +71,10 @@ test('existing desktop results, listing and publication designs stay visually lo
   await shot(page, 'current-desktop-search-1440x900')
 
   await open(page, '/#/habitacion/arme%C3%B1ime-luminosa-01', 1024, 900)
+  await expect(page.locator('.idealista-listing-page')).toBeVisible()
+  await expect(page.locator('.property-gallery')).toBeVisible()
+  await expect(page.locator('.listing-title')).toBeVisible()
+  await page.waitForLoadState('networkidle').catch(() => undefined)
   await shot(page, 'current-listing-1024x900')
 
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))

@@ -53,6 +53,21 @@ def test_single_photo_requires_exact_normalized_checksum():
     assert galleries_are_duplicates(left, exact)
 
 
+def test_visually_same_multi_photo_gallery_matches_without_identical_checksums():
+    left = [
+        image(1, checksum="1" * 64, phash="0000000000000000"),
+        image(2, checksum="2" * 64, phash="1111111111111111"),
+        image(3, checksum="3" * 64, phash="2222222222222222"),
+    ]
+    right = [
+        image(11, checksum="a" * 64, phash="0000000000000003"),
+        image(12, checksum="b" * 64, phash="1111111111111110"),
+        image(13, checksum="c" * 64, phash="2222222222222226"),
+    ]
+
+    assert galleries_are_duplicates(left, right)
+
+
 def test_perceptual_hash_hamming_distance_is_bit_based():
     assert hamming_distance("0000000000000000", "0000000000000001") == 1
     assert hamming_distance("0000000000000000", "000000000000000f") == 4

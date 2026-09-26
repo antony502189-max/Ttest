@@ -18,7 +18,7 @@ const host = {
 }
 const secondHost = { ...host, id: '44444444-4444-4444-8444-444444444444', name: 'Segunda anfitriona', email: 'second-publication-ui@example.com' }
 
-type PublicationMode = 'email' | 'validation' | 'success'
+type PublicationMode = 'email' | 'validation' | 'duplicate' | 'success'
 type PublicationTestState = {
   mode: PublicationMode
   posts: number
@@ -28,6 +28,7 @@ type PublicationTestState = {
   imageListingIds?: string[]
   uploadFailures?: number
   uploadCalls?: number
+  deletedUploadIds?: string[]
   mine?: ReturnType<typeof listingResponse>[]
   publicListings?: ReturnType<typeof listingResponse>[]
   publicListingsAfterFirstSearch?: ReturnType<typeof listingResponse>[]
@@ -166,8 +167,13 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
       state.payload = request.postDataJSON() as Record<string, unknown>
       if (state.mode === 'email') return json({ code: 'EMAIL_VERIFICATION_REQUIRED', message: 'Confirm email', fieldErrors: {} }, 409, { 'X-Request-ID': 'email-request' })
       if (state.mode === 'validation') return json({ detail: [{ loc: ['body', 'monthlyPrice'], msg: 'Field required' }] }, 422, { 'X-Request-ID': 'validation-request' })
+      if (state.mode === 'duplicate') return json({ code: 'DUPLICATE_LISTING_IMAGES', message: 'Duplicate gallery', fieldErrors: { assetIds: 'duplicate' } }, 409, { 'X-Request-ID': 'duplicate-request' })
       const key = request.headers()['idempotency-key']
       return json(listingResponse(state.payload, key), 201)
+    }
+    if (/^\/uploads\/[^/]+$/.test(path) && request.method() === 'DELETE') {
+      state.deletedUploadIds?.push(path.split('/')[2])
+      return route.fulfill({ status: 204, body: '' })
     }
     if (path === '/uploads' && request.method() === 'POST') {
       state.uploadCalls = (state.uploadCalls ?? 0) + 1
@@ -231,6 +237,39 @@ test('publication preserves email and FastAPI validation errors in Spanish', asy
   await expect(page.getByText('No se pudo publicar el anuncio en el servidor.')).toHaveCount(0)
   expect(state.posts).toBe(2)
   expect(state.profilePatches).toBe(0)
+})
+
+test('duplicate photo gallery keeps the exact draft, removes temporary uploads and shows localized replace-photo feedback', async ({ page }) => {
+  const state = {
+    mode: 'duplicate' as PublicationMode,
+    posts: 0,
+    profilePatches: 0,
+    uploadCalls: 0,
+    deletedUploadIds: [] as string[],
+  }
+  await mockPublicationApi(page, state)
+  await openCompletedPublicationForm(page)
+  await page.evaluate(() => {
+    localStorage.setItem('112233:language:v1', 'ru')
+    document.documentElement.lang = 'ru'
+  })
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))).not.toBeNull()
+  const draftBefore = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
+
+  const publish = page.getByRole('button', { name: 'Publicar anuncio' })
+  const startedAt = Date.now()
+  await publish.click()
+  await expect(page.getByRole('button', { name: 'Publicando…' }).first()).toBeDisabled()
+  await expect(page.getByText('Такое объявление уже существует. Замените фотографии.')).toBeVisible()
+  expect(Date.now() - startedAt).toBeGreaterThanOrEqual(900)
+
+  expect(state.uploadCalls).toBe(1)
+  expect(state.posts).toBe(1)
+  expect(state.deletedUploadIds).toEqual(['22222222-2222-4222-8222-222222222222'])
+  await expect(page).toHaveURL(/#\/publicar$/)
+  const draftAfter = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
+  expect(draftAfter).toBe(draftBefore)
+  expect(draftAfter).toBeTruthy()
 })
 
 test('double click sends one idempotent publication and then synchronizes images', async ({ page }) => {
