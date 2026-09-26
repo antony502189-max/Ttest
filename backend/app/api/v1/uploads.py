@@ -188,7 +188,13 @@ async def upload_video(
     settings = get_settings()
     content_type = file.content_type or ""
     if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
-        raise HTTPException(415, "Only MP4 and MOV videos are supported")
+        filename = (file.filename or "").casefold()
+        if filename.endswith(".mov"):
+            content_type = "video/quicktime"
+        elif filename.endswith((".mp4", ".m4v")):
+            content_type = "video/mp4"
+        else:
+            raise HTTPException(415, "Only MP4 and MOV videos are supported")
     content = await file.read(settings.max_video_upload_bytes + 1)
     await file.close()
     if not content or len(content) > settings.max_video_upload_bytes:
