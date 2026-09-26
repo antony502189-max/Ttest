@@ -948,7 +948,7 @@ export function VideoUploader({
       }
       const pathname = new URL(video, window.location.origin).pathname;
       const apiMediaPath = pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
-      if (apiMediaPath) return apiBlob(apiMediaPath);
+      if (apiMediaPath) return apiBlob(apiMediaPath, { timeoutMs: 120_000 });
       const response = await fetch(video, { credentials: "include" });
       if (!response.ok) throw new MediaStorageError("read", "No se pudo leer el vídeo.");
       return response.blob();
