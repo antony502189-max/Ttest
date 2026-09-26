@@ -66,8 +66,8 @@ test -s public/terminos/index.html
 grep -Fq 'Política de privacidad' public/privacidad/index.html
 grep -Fq 'Términos de uso' public/terminos/index.html
 grep -Fq 'BACKUP_AUTHENTICATION_KEY=' deploy/production.env.example
-grep -Fq 'MAX_MEDIA_ASSETS_PER_USER=100' deploy/production.env.example
-grep -Fq 'MAX_MEDIA_BYTES_PER_USER=268435456' deploy/production.env.example
+grep -Fq 'MAX_MEDIA_ASSETS_PER_USER=500' deploy/production.env.example
+grep -Fq 'MAX_MEDIA_BYTES_PER_USER=2147483648' deploy/production.env.example
 grep -Fq 'MAX_LISTING_COLLECTION_ITEMS_PER_USER=500' deploy/production.env.example
 grep -Fq 'EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES=3' deploy/production.env.example
 # A backup manifest must be generated outside the mirrored tree to avoid
@@ -134,9 +134,9 @@ if backend_env.get("EMAIL_VERIFICATION_HMAC_SECRET") != "ci-independent-verifica
     raise SystemExit("backend must receive the dedicated verification HMAC secret")
 if backend_env.get("PASSWORD_WORK_CONCURRENCY") != "2":
     raise SystemExit("backend must receive the bounded password-work setting")
-if backend_env.get("MAX_MEDIA_ASSETS_PER_USER") != "100":
+if backend_env.get("MAX_MEDIA_ASSETS_PER_USER") != "500":
     raise SystemExit("backend must receive the per-user media asset quota")
-if backend_env.get("MAX_MEDIA_BYTES_PER_USER") != "268435456":
+if backend_env.get("MAX_MEDIA_BYTES_PER_USER") != "2147483648":
     raise SystemExit("backend must receive the per-user media byte quota")
 if backend_env.get("MAX_LISTING_COLLECTION_ITEMS_PER_USER") != "500":
     raise SystemExit("backend must receive the per-user listing collection quota")
