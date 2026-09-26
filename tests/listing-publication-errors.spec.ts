@@ -360,7 +360,6 @@ test('image upload failure keeps the durable draft and retries before creating t
 
 test('customer video: edit PATCH ignores stale global create draft and persists the current private address', async ({ page }) => {
   const listingId = '33333333-3333-4333-8333-333333333333'
-  const imageId = '22222222-2222-4222-8222-222222222222'
   const state: PublicationTestState = {
     mode: 'success',
     posts: 0,
@@ -445,7 +444,6 @@ test('customer follow-up: changing one room address synchronizes sibling rooms f
   const firstId = '33333333-3333-4333-8333-333333333333'
   const siblingId = '55555555-5555-4555-8555-555555555555'
   const independentId = '66666666-6666-4666-8666-666666666666'
-  const imageId = '22222222-2222-4222-8222-222222222222'
   const base = {
     ...lifecycleListing('published', firstId),
     street: 'Calle Poetas Españoles 3',
@@ -525,7 +523,6 @@ test('customer follow-up: changing one room address synchronizes sibling rooms f
 
 test('customer video: edit is not reported as saved when the server echoes a different private location', async ({ page }) => {
   const listingId = '33333333-3333-4333-8333-333333333333'
-  const imageId = '22222222-2222-4222-8222-222222222222'
   const original = {
     ...lifecycleListing('published', listingId),
     street: 'Calle Poetas Españoles 3',
