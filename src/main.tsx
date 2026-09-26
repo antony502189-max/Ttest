@@ -12,7 +12,6 @@ import './mobile-search-results-panels.css'
 import './mobile-occupant-filters.css'
 import './reference-occupant-icons.css'
 import './listing-card-content-order.css'
-import './bolder-back-navigation-arrows.css'
 import './reference-occupant-icons'
 import './mobile-drawn-zone-search-navigation'
 import './white-theme.css'
@@ -25,6 +24,7 @@ import './mobile-publish-layout-hotfix.css'
 import './mobile-site-feedback.css'
 import './publish-select-canonical-values'
 import './customer-listing-photo-fit.css'
+import './bolder-back-navigation-arrows.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
