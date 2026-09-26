@@ -503,7 +503,7 @@ export function ListingEditPage() {
         {errors.contactMethods ? <p className="field-error" role="alert">{errors.contactMethods}</p> : null}
       </Section>
 
-      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : 'Guardar cambios'}</Button></div>
+      <div className="listing-edit-final"><div><strong>{processingImages ? 'Procesando la foto…' : processingVideo ? 'Procesando el vídeo…' : isDirty ? 'Tienes cambios sin guardar' : 'Todo guardado'}</strong><span>{processingImages ? 'El giro ya se muestra; terminamos de guardar la imagen.' : processingVideo ? 'Terminamos de preparar el vídeo antes de guardar.' : 'Revisamos todos los campos al guardar.'}</span></div><Button size="lg" onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : (processingImages || processingVideo) ? 'Procesando multimedia…' : 'Guardar cambios'}</Button></div>
     </div>
   </main>
 }
