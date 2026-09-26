@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 const listingId = 'armeñime-luminosa-01'
@@ -82,6 +83,57 @@ test('photo reorder arrows move photos earlier and later in the order on mobile'
   await secondUp.click()
   await expect(photos.nth(0)).toHaveAttribute('src', firstSrc!)
   await expect(photos.nth(1)).toHaveAttribute('src', secondSrc!)
+})
+
+test('press-and-drag moves a photo to a new position and updates the cover order', async ({ page }) => {
+  await openEditAsHost(page)
+  await page.setViewportSize({ width: 1100, height: 900 })
+
+  const cards = page.locator('.upload-photo-card')
+  const photos = page.locator('.upload-grid img')
+  await expect(cards).toHaveCount(6)
+  await expect(photos).toHaveCount(6)
+
+  const firstSrc = await photos.nth(0).getAttribute('src')
+  const secondSrc = await photos.nth(1).getAttribute('src')
+  const thirdSrc = await photos.nth(2).getAttribute('src')
+  const firstBox = await cards.nth(0).boundingBox()
+  const thirdBox = await cards.nth(2).boundingBox()
+  expect(firstSrc).toBeTruthy()
+  expect(secondSrc).toBeTruthy()
+  expect(thirdSrc).toBeTruthy()
+  expect(firstBox).not.toBeNull()
+  expect(thirdBox).not.toBeNull()
+
+  await page.mouse.move(firstBox!.x + firstBox!.width / 2, firstBox!.y + firstBox!.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(180)
+  await expect(cards.nth(0)).toHaveClass(/is-dragging/)
+  await page.mouse.move(thirdBox!.x + thirdBox!.width / 2, thirdBox!.y + thirdBox!.height / 2, { steps: 8 })
+  await page.mouse.up()
+
+  await expect(photos.nth(0)).toHaveAttribute('src', secondSrc!)
+  await expect(photos.nth(1)).toHaveAttribute('src', thirdSrc!)
+  await expect(photos.nth(2)).toHaveAttribute('src', firstSrc!)
+  await expect(page.locator('.upload-photo-card.is-dragging')).toHaveCount(0)
+  await expect(page.locator('.upload-photo-card').nth(0).locator('.cover-label')).toBeVisible()
+})
+
+test('create and edit forms share touch-capable press-and-drag photo ordering', () => {
+  const forms = readFileSync('src/components/forms.tsx', 'utf8')
+  const create = readFileSync('src/pages/ListingCreatePage.tsx', 'utf8')
+  const edit = readFileSync('src/pages/ListingEditPage.tsx', 'utf8')
+  const css = readFileSync('src/listing-edit-comfort.css', 'utf8')
+
+  expect(create).toContain('<ImageUploader images={draft.images}')
+  expect(edit).toContain('<ImageUploader images={draft.images}')
+  expect(forms).toContain('onPointerDown={(event) => beginPhotoDrag(event, image, index)}')
+  expect(forms).toContain('onPointerMove={updatePhotoDrag}')
+  expect(forms).toContain('onPointerUp={finishPhotoDrag}')
+  expect(forms).toContain('document.addEventListener("touchmove", preventTouchMove, { passive: false, capture: true })')
+  expect(forms).toContain('movePhotoTo(reference, targetIndex)')
+  expect(css).toContain('.upload-photo-card.is-dragging')
+  expect(css).toContain('.upload-photo-card.is-drop-target')
 })
 
 test('photo reorder arrows keep ordering semantics in the desktop grid', async ({ page }) => {
