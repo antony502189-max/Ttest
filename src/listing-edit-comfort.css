@@ -196,6 +196,11 @@
   will-change: transform;
 }
 
+.upload-grid > .upload-photo-card.is-shifting {
+  transition: transform 90ms ease-out, box-shadow 140ms ease, opacity 140ms ease, outline-color 140ms ease;
+  will-change: transform;
+}
+
 .upload-grid > .upload-photo-card.is-drop-target {
   outline: 3px solid var(--brand-active);
   outline-offset: 3px;
