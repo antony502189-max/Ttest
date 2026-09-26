@@ -7,7 +7,7 @@ import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSav
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
 import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getOwnedListings, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
-import { cleanupPreparedListingImages, prepareListingImages, syncListingImages } from '@/api/media'
+import { cleanupPreparedListingMedia, prepareListingMedia, syncListingImages } from '@/api/media'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters, initialListings } from '@/data/listings'
@@ -116,7 +116,7 @@ const publicationFieldLabels: Record<string, string> = {
   roomCapacity: 'la capacidad', currentRoomResidents: 'las personas que viven en la habitación', bedType: 'el tipo de cama',
   bedCount: 'el número de camas', acceptedTenantTypes: 'los perfiles admitidos', exactLatitude: 'la ubicación exacta',
   exactLongitude: 'la ubicación exacta', contactName: 'el nombre público', contactPhone: 'el teléfono',
-  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías',
+  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías', videoAssetId: 'el vídeo',
 }
 
 function duplicateListingMessage() {
@@ -606,20 +606,23 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
     const publicationStartedAt = Date.now()
     const optimistic = { ...listing, ownerUserId: currentUser.id, userCreated: true }
-    let prepared: Awaited<ReturnType<typeof prepareListingImages>>
+    let prepared: Awaited<ReturnType<typeof prepareListingMedia>>
     try {
-      prepared = await prepareListingImages(optimistic.images)
+      prepared = await prepareListingMedia(optimistic.images, optimistic.video)
     } catch (error) {
       console.error('listing_media_prepare_failed', publicationDiagnostic(error))
-      toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotografías.')
+      toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotos o el vídeo.')
       return false
     }
     setOwnedListings((current) => [optimistic, ...current.filter((item) => item.id !== optimistic.id)])
     try {
-      const remote = await createRemoteListing(optimistic, prepared.assetIds)
+      const remote = await createRemoteListing(optimistic, prepared.images.assetIds, prepared.video.assetId)
       const stored = { ...remote, userCreated: true }
       setOwnedListings((current) => current.map((item) => item.id === optimistic.id ? stored : item))
-      await removeUnusedMediaReferences(optimistic.images, stored.images).catch(() => undefined)
+      await removeUnusedMediaReferences(
+        [...optimistic.images, ...(optimistic.video ? [optimistic.video] : [])],
+        [...stored.images, ...(stored.video ? [stored.video] : [])],
+      ).catch(() => undefined)
       await refreshListingConsumers().catch(() => toast.error('El anuncio se guardó, pero no se pudo refrescar el catálogo.'))
       setPartialPublication(null)
       try { persistPartialPublication(null) } catch { /* Ignore cleanup failures after a successful publication. */ }
@@ -628,7 +631,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setOwnedListings((current) => current.filter((item) => item.id !== optimistic.id))
       const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
-      if (!uncertainCommit) await cleanupPreparedListingImages(prepared)
+      if (!uncertainCommit) await cleanupPreparedListingMedia(prepared)
       if (error instanceof ApiError && error.code === 'DUPLICATE_LISTING_IMAGES') {
         const remainingFeedbackDelay = 1000 - (Date.now() - publicationStartedAt)
         if (remainingFeedbackDelay > 0) await new Promise((resolve) => window.setTimeout(resolve, remainingFeedbackDelay))
@@ -658,16 +661,16 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
             && sharesPrivateAddressGroup(item, previous))
           .map((item) => item.id)
       : []
-    let prepared: Awaited<ReturnType<typeof prepareListingImages>>
+    let prepared: Awaited<ReturnType<typeof prepareListingMedia>>
     try {
-      prepared = await prepareListingImages(next.images)
+      prepared = await prepareListingMedia(next.images, next.video)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotografías.')
+      toast.error(error instanceof Error ? error.message : 'No se pudieron preparar las fotos o el vídeo.')
       return false
     }
     setOwnedListings((current) => current.map((item) => item.id === id ? next : item))
     try {
-      const remote = await updateRemoteListing(id, next, prepared.assetIds, previous)
+      const remote = await updateRemoteListing(id, next, prepared.images.assetIds, prepared.video.assetId, previous)
       const stored = { ...remote, userCreated: true }
       const siblingIdSet = new Set(siblingLocationIds)
       setOwnedListings((current) => current.map((item) => {
@@ -677,7 +680,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       siblingLocationIds.forEach((siblingId) => {
         try { localStorage.removeItem(`112233:listing-edit-draft:v1:${siblingId}`) } catch { /* server state stays authoritative */ }
       })
-      await removeUnusedMediaReferences(next.images, stored.images).catch(() => undefined)
+      await removeUnusedMediaReferences(
+        [...next.images, ...(next.video ? [next.video] : [])],
+        [...stored.images, ...(stored.video ? [stored.video] : [])],
+      ).catch(() => undefined)
       await refreshListingConsumers().catch(() => toast.error('Los cambios se guardaron, pero no se pudo refrescar el catálogo.'))
       if (siblingLocationIds.length) {
         toast.success(`Ubicación aplicada también a ${siblingLocationIds.length} ${siblingLocationIds.length === 1 ? 'anuncio' : 'anuncios'} del mismo domicilio.`)
@@ -686,7 +692,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setOwnedListings((current) => current.map((item) => item.id === id ? previous : item))
       const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
-      if (!uncertainCommit) await cleanupPreparedListingImages(prepared)
+      if (!uncertainCommit) await cleanupPreparedListingMedia(prepared)
       toast.error(error instanceof Error ? error.message : 'No se pudieron guardar los cambios del anuncio.')
       return false
     }
@@ -730,7 +736,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     ))
     setReports((current) => current.filter((report) => report.listingId !== id))
     try {
-      await removeUnusedMediaReferences([...listing.images, ...draftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
+      await removeUnusedMediaReferences([...listing.images, ...(listing.video ? [listing.video] : []), ...draftMedia], usedMediaReferences([...allListings.filter((item) => item.id !== id), ...remaining], users, deleteDraft ? null : draftRecord?.value))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron limpiar las imágenes locales.')
     }
