@@ -12,8 +12,9 @@ from .core.storage_failure_buffer import record_failed_storage_deletion
 
 
 class Storage(Protocol):
-    def put(self, key: str, content: bytes) -> None: ...
+    def put(self, key: str, content: bytes, content_type: str = "image/webp") -> None: ...
     def get(self, key: str) -> bytes | None: ...
+    def get_range(self, key: str, start: int, end: int) -> bytes | None: ...
     def delete(self, key: str) -> None: ...
     def healthcheck(self) -> None: ...
 
@@ -22,7 +23,7 @@ class LocalStorage:
     def __init__(self, root: Path):
         self.root = root
 
-    def put(self, key: str, content: bytes) -> None:
+    def put(self, key: str, content: bytes, content_type: str = "image/webp") -> None:
         destination = self._path(key)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(content)
@@ -30,6 +31,14 @@ class LocalStorage:
     def get(self, key: str) -> bytes | None:
         path = self._path(key)
         return path.read_bytes() if path.is_file() else None
+
+    def get_range(self, key: str, start: int, end: int) -> bytes | None:
+        path = self._path(key)
+        if not path.is_file():
+            return None
+        with path.open("rb") as handle:
+            handle.seek(start)
+            return handle.read(end - start + 1)
 
     def delete(self, key: str) -> None:
         self._path(key).unlink(missing_ok=True)
@@ -86,18 +95,30 @@ class S3Storage:
             ),
         )
 
-    def put(self, key: str, content: bytes) -> None:
+    def put(self, key: str, content: bytes, content_type: str = "image/webp") -> None:
         self.client.put_object(
             Bucket=self.bucket,
             Key=key,
             Body=content,
-            ContentType="image/webp",
+            ContentType=content_type,
             CacheControl="public, max-age=31536000, immutable",
         )
 
     def get(self, key: str) -> bytes | None:
         try:
             return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+        except self.client_error as error:
+            if error.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
+                return None
+            raise
+
+    def get_range(self, key: str, start: int, end: int) -> bytes | None:
+        try:
+            return self.client.get_object(
+                Bucket=self.bucket,
+                Key=key,
+                Range=f"bytes={start}-{end}",
+            )["Body"].read()
         except self.client_error as error:
             if error.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
                 return None
@@ -116,11 +137,14 @@ class BufferedDeleteStorage:
     def __init__(self, delegate: Storage):
         self.delegate = delegate
 
-    def put(self, key: str, content: bytes) -> None:
-        self.delegate.put(key, content)
+    def put(self, key: str, content: bytes, content_type: str = "image/webp") -> None:
+        self.delegate.put(key, content, content_type)
 
     def get(self, key: str) -> bytes | None:
         return self.delegate.get(key)
+
+    def get_range(self, key: str, start: int, end: int) -> bytes | None:
+        return self.delegate.get_range(key, start, end)
 
     def delete(self, key: str) -> None:
         try:
