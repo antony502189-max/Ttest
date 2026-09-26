@@ -51,6 +51,8 @@ def _probe(path: Path) -> tuple[int, int, float]:
         width = int(stream["width"])
         height = int(stream["height"])
         raw_duration = stream.get("duration") or (payload.get("format") or {}).get("duration")
+        if raw_duration is None:
+            raise ValueError("missing video duration")
         duration = float(raw_duration)
     except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise HTTPException(415, "Invalid video file") from exc
