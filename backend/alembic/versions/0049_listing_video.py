@@ -15,7 +15,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE media_kind ADD VALUE IF NOT EXISTS 'listing_video'")
     op.add_column(
         "listings",
         sa.Column("video_asset_id", postgresql.UUID(as_uuid=True), nullable=True),
@@ -26,5 +25,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_listings_video_asset_id", table_name="listings")
     op.drop_column("listings", "video_asset_id")
-    # PostgreSQL enum values are intentionally left in place; removing an enum
-    # value is not expand/rollback safe while an older application may still run.
