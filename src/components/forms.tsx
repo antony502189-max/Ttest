@@ -550,7 +550,7 @@ export function ImageUploader({
       sourceRect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
     };
 
-    const delay = event.pointerType === "mouse" ? 120 : 280;
+    const delay = event.pointerType === "touch" ? 280 : 120;
     photoDragTimerRef.current = window.setTimeout(() => {
       const drag = photoDragRef.current;
       if (!drag || drag.pointerId !== pointerId || drag.sourceIndex !== index) return;
