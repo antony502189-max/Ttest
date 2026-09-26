@@ -919,17 +919,21 @@ export function VideoUploader({
   video,
   onChange,
   onRemove,
+  onProcessingChange,
   error,
 }: {
   video?: string;
   onChange: (video?: string) => void;
   onRemove?: (video: string) => void;
+  onProcessingChange?: (processing: boolean) => void;
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localError, setLocalError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -977,6 +981,7 @@ export function VideoUploader({
     if (!file) return;
     setLocalError("");
     setBusy(true);
+    onProcessingChange?.(true);
     try {
       if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
         throw new MediaStorageError("type", "Formato de vídeo no compatible. Usa MP4 o MOV.");
@@ -992,6 +997,7 @@ export function VideoUploader({
       setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar el vídeo.");
     } finally {
       setBusy(false);
+      onProcessingChange?.(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
