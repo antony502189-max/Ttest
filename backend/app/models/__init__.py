@@ -145,10 +145,10 @@ class Listing(Timestamped, Base):
     restrictions: Mapped[list[str]] = mapped_column(JSONB, default=list)
     amenities: Mapped[list[str]] = mapped_column(JSONB, default=list)
     external_image_urls: Mapped[list[str]] = mapped_column(JSONB, default=list)
-    video_asset_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("media_assets.id", ondelete="SET NULL"),
-        index=True,
-    )
+    # Intentionally no FK: production migration policy keeps upgrades
+    # expand/rollback compatible with the previous release. The service layer
+    # validates ownership/type and prevents deletion while attached.
+    video_asset_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), index=True)
     status: Mapped[str] = mapped_column(
         Enum("draft", "pending", "published", "hidden", "closed", "rejected", name="listing_status"),
         default="draft",
