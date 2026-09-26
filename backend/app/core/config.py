@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     s3_max_attempts: int = 3
     s3_max_pool_connections: int = 32
     max_upload_bytes: int = 8 * 1024 * 1024
+    max_video_upload_bytes: int = 100 * 1024 * 1024
+    max_video_duration_seconds: int = 30
+    max_video_dimension: int = 1_920
     max_image_dimension: int = 8_000
     max_image_pixels: int = 25_000_000
     # Browser delivery sizes. Originals are normalized once to the full bound;
@@ -97,6 +100,7 @@ class Settings(BaseSettings):
     media_card_webp_quality: int = 82
     media_thumb_webp_quality: int = 80
     image_processing_concurrency: int = 2
+    video_processing_concurrency: int = 1
     max_media_assets_per_user: int = 100
     max_media_bytes_per_user: int = 256 * 1024 * 1024
     max_saved_searches_per_user: int = 50
