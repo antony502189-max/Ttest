@@ -103,7 +103,18 @@ export function ListingPage() {
 
       <ReportDialog listing={listing} open={reportOpen} onOpenChange={setReportOpen} trigger={false} />
       <UserReportDialog listing={listing} open={userReportOpen} onOpenChange={setUserReportOpen} />
-      <div className="container listing-gallery-container"><PropertyGallery listing={listing} /></div>
+      <div className="container listing-gallery-container">
+        <PropertyGallery listing={listing} />
+        {listing.video ? (
+          <section className="listing-video-tour" aria-label="Vídeo del anuncio">
+            <div className="listing-video-tour__heading">
+              <h2>Vídeo de la vivienda</h2>
+              <span>Recorrido de hasta 30 segundos</span>
+            </div>
+            <video src={listing.video} controls playsInline preload="metadata" aria-label={`Vídeo de ${listing.title}`} />
+          </section>
+        ) : null}
+      </div>
       <div className="container listing-layout">
         <div className="listing-main">
           <header className="listing-title"><div><h1>Habitación en <span data-i18n-exempt>{listing.area}, {listing.city}</span></h1><p data-i18n-exempt>{listing.title}</p><span className="listing-address" data-i18n-exempt><MapPin aria-hidden="true" />{listing.approximateAddress}</span></div><PriceBlock listing={listing} large /></header>
