@@ -1,7 +1,9 @@
-/* Keep navigation geometry unchanged while making every route/step back arrow visibly stronger. */
-.m2-back-header .lucide-chevron-left,
-.m2-results__header > button .lucide-chevron-left,
-.m2-map-results-header .lucide-chevron-left,
+/* Keep every route/step back arrow visually identical without changing any button or header geometry. */
+.m2-back-header .lucide-arrow-left,
+.m2-results__header > button .lucide-arrow-left,
+.m2-map-results-header .lucide-arrow-left,
+.m2-publication-gate__header > button .lucide-arrow-left,
+.m2-auth-back .lucide-arrow-left,
 .m2-auth-appbar > button .lucide-arrow-left,
 .m2-account-appbar > button .lucide-arrow-left,
 .mobile-map-screen__header .lucide-arrow-left,
@@ -10,6 +12,13 @@
 .owner-mobile-appbar .lucide-arrow-left,
 .publish-header .lucide-arrow-left,
 .wizard-actions .lucide-arrow-left,
+.listing-edit-back .lucide-arrow-left,
+.listing-location-dialog__back .lucide-arrow-left,
+.location-selector-dialog__header .lucide-arrow-left,
+.zone-selection__breadcrumb .lucide-arrow-left,
 .admin-back .lucide-arrow-left {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 1.45rem;
   stroke-width: 3.25;
 }
