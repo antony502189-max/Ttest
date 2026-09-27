@@ -233,6 +233,7 @@ export function normalizeListing(value: unknown): Listing | null {
     showWhatsApp: legacy.showWhatsApp ?? true,
     closedReason: legacy.closedReason,
     promoted: Boolean(legacy.promoted),
+    promotionEndsAt: typeof legacy.promotionEndsAt === 'string' ? legacy.promotionEndsAt : undefined,
   }
   listing.restrictions = getCriticalRestrictions(listing)
   return expireListing(listing)

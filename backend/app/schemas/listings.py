@@ -444,6 +444,7 @@ class OwnedListingResponse(ListingResponse):
     postcode: str
     exactLatitude: float | None
     exactLongitude: float | None
+    promotionEndsAt: datetime | None = None
 
 
 class SearchPoint(BaseModel):

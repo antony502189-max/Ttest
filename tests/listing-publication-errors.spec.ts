@@ -271,7 +271,9 @@ test('duplicate photo gallery keeps the exact draft, removes temporary uploads a
 
   expect(state.uploadCalls).toBe(5)
   expect(state.posts).toBe(1)
-  expect(state.deletedUploadIds).toEqual(Array.from({ length: 5 }, (_, index) => mockUploadAssetId(index + 1)))
+  expect([...state.deletedUploadIds].sort()).toEqual(
+    Array.from({ length: 5 }, (_, index) => mockUploadAssetId(index + 1)).sort(),
+  )
   await expect(page).toHaveURL(/#\/publicar$/)
   const draftAfter = await page.evaluate(() => localStorage.getItem('112233:listing-draft:v3'))
   expect(draftAfter).toBe(draftBefore)

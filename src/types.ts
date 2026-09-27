@@ -111,6 +111,7 @@ export interface Listing {
   showWhatsApp: boolean
   closedReason?: 'expired' | 'owner' | 'deleted' | 'account_deleted'
   promoted?: boolean
+  promotionEndsAt?: string
 }
 
 export type MappedListing = Listing & { coordinates: Coordinates }

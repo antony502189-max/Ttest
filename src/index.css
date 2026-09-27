@@ -361,6 +361,33 @@
 .owner-rental-type { width: max-content; max-width: 100%; display: inline-flex; align-items: center; margin-top: .22rem; padding: .14rem .48rem; border-radius: 999px; font-size: .7rem; font-weight: 700; line-height: 1.35; white-space: nowrap; }
 .owner-rental-type--long { background: var(--market-lime); color: #496000; }
 .owner-rental-type--holiday { background: var(--market-magenta); color: #fff; }
+.owner-top-status { display: flex; align-items: center; gap: .3rem; margin-top: .42rem; color: var(--ink); font-size: .78rem !important; font-weight: 760; line-height: 1.35; }
+.owner-top-status.is-active { color: #4d6500; }
+.owner-top-status.is-inactive { color: var(--ink-soft); }
+.owner-top-status > span { flex: none; font-size: .95rem; line-height: 1; }
+.owner-top-cta { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid #b8cd27; border-radius: var(--radius-lg); background: linear-gradient(115deg, #f8ffc5 0%, var(--market-lime) 58%, #d8ef33 100%); box-shadow: 0 .4rem 1.2rem rgb(74 91 0 / .13); }
+.owner-top-cta::after { content: ""; position: absolute; width: 8rem; height: 8rem; right: -3rem; top: -4rem; border-radius: 50%; background: rgb(255 255 255 / .28); pointer-events: none; }
+.owner-top-cta__copy { min-width: 0; display: flex; align-items: center; gap: .75rem; }
+.owner-top-cta__copy > div { min-width: 0; }
+.owner-top-cta__copy strong { display: block; color: #273000; font-size: 1rem; font-weight: 850; letter-spacing: -.01em; }
+.owner-top-cta__copy p { margin-top: .15rem; color: #536100; font-size: .78rem; }
+.owner-top-cta__eyebrow { flex: none; display: grid; place-items: center; min-width: 3rem; min-height: 2.15rem; padding-inline: .55rem; border-radius: 999px; background: #273000; color: #fff; font-size: .72rem; font-weight: 900; letter-spacing: .08em; }
+.owner-top-cta__action { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: .45rem; }
+.owner-top-cta__pointer { font-size: 1.45rem; line-height: 1; transform: rotate(-6deg); }
+.owner-top-cta__button { min-height: 2.7rem; padding-inline: 1.05rem !important; border: 0 !important; background: var(--market-magenta) !important; color: #fff !important; font-weight: 850 !important; box-shadow: 0 .25rem .7rem rgb(122 12 82 / .22); }
+.owner-top-cta__button:hover { background: var(--market-magenta-hover) !important; }
+.owner-top-dialog { width: min(32rem, calc(100vw - 1.25rem)); }
+.owner-top-dialog__list { max-height: min(52vh, 24rem); display: flex; flex-direction: column; gap: .45rem; overflow-y: auto; }
+.owner-top-dialog__option { width: 100%; display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: .7rem; align-items: center; padding: .55rem; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); text-align: left; }
+.owner-top-dialog__option:hover, .owner-top-dialog__option.is-selected { border-color: #96ad18; background: #fbffe2; box-shadow: 0 0 0 2px rgb(215 242 11 / .18); }
+.owner-top-dialog__option img { width: 4.6rem; height: 3.7rem; object-fit: cover; border-radius: var(--radius-sm); }
+.owner-top-dialog__option > span { min-width: 0; display: flex; flex-direction: column; gap: .08rem; }
+.owner-top-dialog__option strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; }
+.owner-top-dialog__option small { color: var(--ink-muted); font-size: .7rem; }
+.owner-top-dialog__option em { margin-top: .18rem; color: var(--ink-soft); font-size: .7rem; font-style: normal; font-weight: 720; }
+.owner-top-dialog__next { display: flex; flex-direction: column; gap: .15rem; padding: .65rem .75rem; border-radius: var(--radius-md); background: var(--surface-muted); color: var(--ink-soft); }
+.owner-top-dialog__next strong { color: var(--ink); font-size: .82rem; }
+.owner-top-dialog__next span { font-size: .72rem; }
 .status-badge { gap: .35rem; }.status-badge > span { width: .45rem; height: .45rem; border-radius: 50%; background: currentColor; }.status-published { color: var(--success); background: var(--success-soft); }.status-pending { color: var(--warning); background: var(--warning-soft); }.status-rejected { color: var(--error); background: var(--error-soft); }.status-draft, .status-hidden, .status-ended { color: #414b42; background: var(--surface-muted); }
 .account-empty { min-height: 24rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); }.account-empty > svg { width: 3rem; margin-bottom: 1rem; color: var(--ink-muted); }.account-empty p { margin: .5rem 0 1rem; color: var(--ink-muted); }
 
@@ -741,6 +768,15 @@
   .owner-listings-page .account-heading > .button { position: fixed; right: .7rem; bottom: calc(.65rem + env(safe-area-inset-bottom)); left: .7rem; z-index: 45; width: auto; min-height: 3rem; }
   .owner-listings-page .account-toolbar, .owner-listings-page .listing-summary { display: none; }
   .owner-listings-page .my-listings { gap: 0; }
+  .owner-listings-page .owner-top-cta { margin: .2rem 0 .65rem; padding: .72rem .7rem; gap: .55rem; border-radius: .45rem; }
+  .owner-listings-page .owner-top-cta__copy { gap: .5rem; }
+  .owner-listings-page .owner-top-cta__eyebrow { min-width: 2.55rem; min-height: 1.85rem; padding-inline: .4rem; font-size: .62rem; }
+  .owner-listings-page .owner-top-cta__copy strong { font-size: .84rem; }
+  .owner-listings-page .owner-top-cta__copy p { display: none; }
+  .owner-listings-page .owner-top-cta__action { gap: .25rem; }
+  .owner-listings-page .owner-top-cta__pointer { font-size: 1.15rem; }
+  .owner-listings-page .owner-top-cta__button { min-height: 2.35rem; padding-inline: .72rem !important; font-size: .75rem; white-space: nowrap; }
+  .owner-listings-page .owner-top-status { margin-top: .3rem; font-size: .72rem !important; }
   .owner-listings-page .manage-card { grid-template-columns: 6.25rem minmax(0, 1fr) 2.75rem; gap: .65rem; padding: .75rem 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
   .owner-listings-page .manage-card > img { width: 6.25rem; height: 5.25rem; border-radius: 0; }
   .owner-listings-page .manage-card h2 { margin-top: .25rem; font-size: .9rem; }
