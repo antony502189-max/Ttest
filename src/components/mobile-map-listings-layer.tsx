@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useNavigate } from 'react-router'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
@@ -28,6 +29,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   items: Listing[]
 }) {
   const { favorites, toggleFavorite } = useApp()
+  const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState('')
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
@@ -233,7 +235,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     if (sibling) mapRef.current?.panTo(sibling.coordinates)
   }
   const openInternalListing = (id: string) => {
-    window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: id } }))
+    navigate(`/habitacion/${encodeURIComponent(id)}`)
   }
 
   type MobileCarouselPosition = 'previous' | 'current' | 'next'
