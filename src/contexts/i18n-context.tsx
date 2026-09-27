@@ -192,6 +192,8 @@ const translations: Record<string, Translation> = {
   'Buscar municipio': { ru: 'Найти муниципалитет', en: 'Search municipality' },
   'Dibujar área': { ru: 'Нарисовать область', en: 'Draw area' },
   'Alquiler vacacional': { ru: 'Краткосрочная аренда', en: 'Holiday rental' },
+  'No estás en TOP': { ru: 'Вы не в TOP', en: 'You are not in TOP' },
+  'Estás en TOP hasta': { ru: 'Вы в TOP до', en: 'You are in TOP until' },
   'Ciudad, barrio o zona': { ru: 'Город, район или зона', en: 'City, district or area' },
   'Ej. Los Cristianos': { ru: 'Напр. Los Cristianos', en: 'E.g. Los Cristianos' },
   'Entrada': { ru: 'Заезд', en: 'Move-in' },
