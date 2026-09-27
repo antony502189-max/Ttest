@@ -567,7 +567,7 @@ export function MyListingsPage() {
             </section>
           ) : null}
           {items.map((listing) => (
-            <article className="manage-card" key={listing.id}>
+            <article className="manage-card" key={listing.id} data-listing-id={listing.id}>
               <MediaImage
                 src={listing.images[0]}
                 variant="thumb"
