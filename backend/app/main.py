@@ -313,13 +313,7 @@ async def request_context(request: Request, call_next):
     REQUESTS.labels(request.method, route_path, str(response.status_code)).inc()
     REQUEST_DURATION.labels(request.method, route_path).observe(duration)
     response.headers["X-Request-ID"] = request_id
-    public_media_policy = (
-        response.headers.get("Cross-Origin-Resource-Policy")
-        if request.url.path.startswith("/api/v1/media/") else None
-    )
     response.headers.update(SECURITY_HEADERS)
-    if public_media_policy == "cross-origin":
-        response.headers["Cross-Origin-Resource-Policy"] = public_media_policy
     logger.info(
         "http_request",
         extra={
