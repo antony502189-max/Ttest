@@ -92,9 +92,8 @@ test('owner card shows the real active TOP end date from listing data', async ({
   }, seeded)
 
   await page.goto('/#/mis-anuncios')
-  const card = page.locator(`.manage-card:has([data-listing-id="${seeded.listingId}"])`)
-  const fallbackCard = page.locator('.manage-card').filter({ has: page.locator(`[data-listing-id="${seeded.listingId}"]`) })
-  const ownerCard = (await card.count()) ? card : fallbackCard
+  const ownerCard = page.locator(`.manage-card[data-listing-id="${seeded.listingId}"]`)
+  await expect(ownerCard).toBeVisible()
   const status = ownerCard.getByTestId('owner-top-status')
   await expect(status).toHaveAttribute('data-top-active', 'true')
   await expect(status).toContainText('Estás en TOP hasta')
