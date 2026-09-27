@@ -155,6 +155,7 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
     private_media = await client.get(media_url, headers=auth(token))
     assert private_media.status_code == 200
     assert private_media.headers["cache-control"] == "private, no-store"
+    assert private_media.headers["cross-origin-resource-policy"] == "same-origin"
     assert (await client.get(media_url)).status_code == 404
 
     attached = await client.put(
@@ -167,14 +168,17 @@ async def test_private_media_cache_and_listing_avatar_separation(client: AsyncCl
     public_media = await client.get(media_url)
     assert public_media.status_code == 200
     assert public_media.headers["cache-control"] == "private, max-age=0, must-revalidate"
+    assert public_media.headers["cross-origin-resource-policy"] == "cross-origin"
     etag = public_media.headers["etag"]
     cached = await client.get(media_url, headers={"If-None-Match": etag})
     assert cached.status_code == 304
+    assert cached.headers["cross-origin-resource-policy"] == "cross-origin"
 
     thumbnail = await client.get(f"{media_url}?variant=thumb")
     assert thumbnail.status_code == 200
     assert thumbnail.headers["etag"] != etag
     assert thumbnail.headers["cache-control"] == "private, max-age=0, must-revalidate"
+    assert thumbnail.headers["cross-origin-resource-policy"] == "cross-origin"
 
     avatar_conflict = await client.put(
         "/api/v1/users/me/avatar",
