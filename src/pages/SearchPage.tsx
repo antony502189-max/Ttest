@@ -16,6 +16,7 @@ import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, Dr
 import { Field, FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useApp } from "@/contexts/app-context";
+import { useAppBack } from "@/hooks/use-app-back";
 import { useI18n } from "@/contexts/i18n-context";
 import { currentLocale } from "@/lib/i18n-locale";
 import { searchPublicListings } from "@/api/listings";
@@ -54,6 +55,15 @@ const PAGE_SIZE = 9;
 const sortOptions = ["Relevancia", "Más recientes", "Más antiguos", "Precio más bajo", "Precio más alto"];
 const MOBILE_MAP_MEDIA = "(max-width: 767px), (max-height: 480px) and (max-width: 900px)";
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1';
+const boundKeys = ['norte', 'sur', 'este', 'oeste'] as const;
+
+function boundsFromParams(params: URLSearchParams): MapBounds | null {
+  if (!boundKeys.every((key) => params.has(key))) return null;
+  const [north, south, east, west] = boundKeys.map((key) => Number(params.get(key)));
+  if (![north, south, east, west].every(Number.isFinite) || north <= south || east <= west ||
+    north > 90 || south < -90 || east > 180 || west < -180) return null;
+  return { north, south, east, west };
+}
 
 function SortControl({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return <Drawer><DrawerTrigger asChild><Button variant="outline" className="mobile-sort-control"><ArrowUpDown data-icon="inline-start" />Ordenar</Button></DrawerTrigger><DrawerContent className="sort-drawer"><DrawerHeader><DrawerTitle>Ordenar resultados</DrawerTitle><DrawerDescription>Elige cómo quieres ver las habitaciones.</DrawerDescription></DrawerHeader><RadioGroup value={value} onValueChange={onChange} className="sort-options">{sortOptions.map((option) => { const id = `sort-${option.replace(/\s+/g, '-').toLocaleLowerCase()}`; return <Field key={option} orientation="horizontal"><RadioGroupItem id={id} value={option} /><FieldLabel htmlFor={id}>{option}</FieldLabel></Field> })}</RadioGroup><DrawerFooter><DrawerClose asChild><Button>Aplicar orden</Button></DrawerClose></DrawerFooter></DrawerContent></Drawer>
@@ -61,8 +71,12 @@ function SortControl({ value, onChange }: { value: string; onChange: (value: str
 
 export function SearchPage() {
   const { t } = useI18n();
+  const goBack = useAppBack('/');
   const [params, setParams] = useSearchParams();
   const paramString = params.toString();
+  const requestParams = new URLSearchParams(paramString);
+  ['vista', 'pagina', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom'].forEach((key) => requestParams.delete(key));
+  const requestParamString = requestParams.toString();
   const {
     rentalMode: storedRentalMode,
     setRentalMode,
@@ -87,7 +101,7 @@ export function SearchPage() {
   const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState(false);
-  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const mapBounds = useMemo(() => boundsFromParams(new URLSearchParams(requestParamString)), [requestParamString]);
   const [zoneHierarchy, setZoneHierarchy] = useState<TenerifeZoneCollection | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_MAP_MEDIA).matches);
   const [initialMapAction, setInitialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' && (!params.has('lat') || !params.has('lng')) ? 'near' : null);
@@ -101,10 +115,10 @@ export function SearchPage() {
   const rentalMode: RentalMode =
     params.get("alquiler") === "holiday" ? "holiday" : "long";
   const filters = useMemo(() => {
-    return filtersFromParams(params);
+    return filtersFromParams(new URLSearchParams(requestParamString));
     // paramString captures the complete serialized filter state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paramString]);
+  }, [requestParamString]);
 
   useEffect(() => {
     const refresh = () => setCatalogEpoch((current) => current + 1);
@@ -183,18 +197,30 @@ export function SearchPage() {
       return;
     }
     let cancelled = false;
+    const request = new AbortController();
     setServerLoading(true);
     setServerError(false);
+    const activeParams = new URLSearchParams(requestParamString);
     const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
+    const roomTypes = (activeParams.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
+      ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value));
+    const latitude = Number(activeParams.get('lat'));
+    const longitude = Number(activeParams.get('lng'));
+    const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
+      Number.isFinite(latitude) && Number.isFinite(longitude);
     void searchPublicListings({
       rentalMode,
+      query,
+      roomTypes,
+      center: nearby ? { latitude, longitude } : undefined,
+      radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
       filters,
       bounds: mapBounds ?? undefined,
       polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
       sort,
-    }).then((items) => {
+    }, request.signal).then((items) => {
       if (!cancelled) setServerItems(items);
     }).catch(() => {
       if (!cancelled) {
@@ -204,8 +230,8 @@ export function SearchPage() {
     }).finally(() => {
       if (!cancelled) setServerLoading(false);
     });
-    return () => { cancelled = true; };
-  }, [catalogEpoch, filters, mapBounds, mapPolygon, rentalMode]);
+    return () => { cancelled = true; request.abort(); };
+  }, [catalogEpoch, filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
 
   const filteredItems = useMemo(
     () =>
@@ -273,6 +299,16 @@ export function SearchPage() {
     mutate(next);
     setParams(next, { replace });
   };
+  const commitBounds = (bounds: MapBounds | null) => updateParams((next) => {
+    boundKeys.forEach((key) => next.delete(key));
+    if (bounds) {
+      next.set('norte', bounds.north.toFixed(5));
+      next.set('sur', bounds.south.toFixed(5));
+      next.set('este', bounds.east.toFixed(5));
+      next.set('oeste', bounds.west.toFixed(5));
+    }
+    next.delete('pagina');
+  }, true);
   const commitPolygon = (polygon: MapPolygonPoint[]) => {
     const nextFilters = polygon.length >= 3 && filters.areas.length ? { ...filters, areas: [] } : filters;
     setMapPolygon(polygon);
@@ -360,10 +396,9 @@ export function SearchPage() {
   };
   const clearAll = () => {
     resetFilters();
-    setMapBounds(null);
     setMapPolygon([]);
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
-    ["pagina", "poligono", "zonas"].forEach((name) => next.delete(name));
+    ["pagina", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
     next.set('q', 'Tenerife');
     setParams(next);
   };
@@ -467,7 +502,7 @@ export function SearchPage() {
       chips.push({
         key: "bounds",
         label: "Área visible del mapa",
-        clear: () => setMapBounds(null),
+        clear: () => commitBounds(null),
       });
     return chips;
     // setOne only closes over the latest filters.
@@ -477,7 +512,7 @@ export function SearchPage() {
   if (view === 'map' && isMobile) {
     return <div className="mobile-map-screen" aria-label="Mapa de habitaciones en Tenerife">
       <header className="mobile-map-screen__header">
-        <Button type="button" variant="ghost" size="icon" onClick={() => changeView('list')} aria-label="Volver a la lista"><ArrowLeft /></Button>
+        <Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label="Volver"><ArrowLeft /></Button>
         <LocationSelector selected={filters.areas} currentQuery={`${items.length} habitaciones, ${query}`} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
         <Button type="button" className="mobile-save-search" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /><span>Guardar</span></Button>
       </header>
@@ -496,7 +531,7 @@ export function SearchPage() {
           initialAction={initialMapAction}
           onInitialActionHandled={() => setInitialMapAction(null)}
           fitResultsKey={mapBounds ? 1 : 0}
-          onBoundsSearch={(bounds) => { setMapBounds(bounds); updateParams((next) => next.delete('pagina'), true); }}
+          onBoundsSearch={commitBounds}
           onPolygonSearch={commitPolygon}
           onDrawingStart={() => {
             if (!filters.areas.length) return true;
@@ -518,7 +553,7 @@ export function SearchPage() {
       }
     >
       <header className="mobile-results-topbar">
-        <Button asChild variant="ghost" size="icon"><Link to="/" aria-label="Volver al inicio"><ArrowLeft /></Link></Button>
+        <Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label="Volver"><ArrowLeft /></Button>
         <LocationSelector selected={filters.areas} currentQuery={query} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
         <Button type="button" className="mobile-save-search" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /><span>Guardar</span></Button>
       </header>
@@ -676,10 +711,7 @@ export function SearchPage() {
                   initialAction={initialMapAction}
                   onInitialActionHandled={() => setInitialMapAction(null)}
                   fitResultsKey={mapBounds ? 1 : 0}
-                  onBoundsSearch={(bounds) => {
-                    setMapBounds(bounds);
-                    updateParams((next) => next.delete("pagina"), true);
-                  }}
+                  onBoundsSearch={commitBounds}
                   onPolygonSearch={(polygon: MapPolygonPoint[]) => {
                     commitPolygon(polygon);
                   }}

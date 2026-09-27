@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, Mail } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router'
+import { useAppBack } from '@/hooks/use-app-back'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import '@/mobile-app-v2.css'
@@ -51,6 +52,7 @@ const copy = {
 
 export function UnifiedAuthPage() {
   const navigate = useNavigate()
+  const back = useAppBack('/')
   const location = useLocation()
   const { language } = useI18n()
   const { currentUser, login, loginGoogle, selectGoogleRole } = useApp()
@@ -161,11 +163,6 @@ export function UnifiedAuthPage() {
     const message = await selectGoogleRole(role)
     setSubmitting(false)
     if (message) setError(message)
-  }
-
-  const back = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/', { replace: true })
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
-import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
+import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
 import { TENERIFE_BOUNDS, isInsideTenerife, normalizeTenerifeText } from '@/lib/tenerife'
 import { createRequestVersionGate } from '@/lib/google-maps/address'
 import type { Coordinates } from '@/types'
@@ -225,7 +225,7 @@ export function PublishExactAddressSync() {
 
     const geocode = async (query: string) => {
       if (googleMapsTestSdkEnabled) return window.__112233TestAddressGeocode?.(query) ?? []
-      await loadGoogleMaps()
+      await loadGoogleMapsOnDemand()
       const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
       const response = await new geocoding.Geocoder().geocode({
         address: query,

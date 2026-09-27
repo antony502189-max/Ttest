@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { ArrowLeft, LayoutDashboard, LogOut, Trash2, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router'
+import { useAppBack } from '@/hooks/use-app-back'
 import { toast } from 'sonner'
 import { ProfilePage as DesktopProfilePage } from '@/pages/AccountPages'
 import { useApp } from '@/contexts/app-context'
@@ -33,6 +34,7 @@ function useMobileProfileLayout() {
 
 function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
   const navigate = useNavigate()
+  const goBack = useAppBack('/menu')
   const { language } = useI18n()
   const { currentUser, updateProfile, logout, deleteAccount } = useApp()
   const t = copy[language]
@@ -106,7 +108,7 @@ function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
 
   return <div className="m2-app m2-account-screen notranslate" translate="no">
     <header className="m2-account-appbar">
-      <button type="button" onClick={() => navigate(-1)} aria-label={t.title}><ArrowLeft /></button>
+      <button type="button" onClick={goBack} aria-label={t.title}><ArrowLeft /></button>
       <strong>{t.title}</strong>
       <span aria-hidden="true" />
     </header>

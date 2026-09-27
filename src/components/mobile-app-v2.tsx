@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import {
   Bell,
@@ -25,22 +25,19 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { MobileMapListingsLayer } from '@/components/mobile-map-listings-layer'
 import { MediaImage } from '@/components/media-image'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useAdminAccess } from '@/hooks/use-admin-access'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocation'
-import { googleMapsConfig, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
-import { preloadOwnerListingRoutes } from '@/lib/route-preload'
+import { preloadAccountPages } from '@/lib/route-preload'
+import { useAppBack } from '@/hooks/use-app-back'
 import type { Listing } from '@/types'
-import '@/mobile-app-v2.css'
-import '@/mobile-favorites-selection.css'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type OnboardingOrigin = 'startup' | 'language-settings' | 'region-settings' | 'region-location' | 'account'
@@ -53,6 +50,7 @@ type OccupantOption = 'anyone' | 'man' | 'woman' | 'person' | 'couple' | 'unrest
 type MapStatus = 'loading' | 'ready' | 'error'
 type LocationStatus = 'idle' | 'loading' | 'success' | GeolocationFailure | 'empty'
 type MapPoint = { lat: number; lng: number }
+type MapCamera = MapPoint & { zoom: number }
 type DrawingStroke = { pointerId: number; lastX: number; lastY: number; points: MapPoint[] }
 type MapInteractionState = {
   gestureHandling: google.maps.MapOptions['gestureHandling']
@@ -63,6 +61,7 @@ type MapInteractionState = {
 }
 
 const ONBOARDING_KEY = '112233:mobile-onboarding:v1'
+const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileMapListingsLayer })))
 const TENERIFE_CENTER = { lat: 28.2916, lng: -16.6291 }
 const GENERAL_OCCUPANTS = new Set<OccupantOption>(['anyone', 'unrestricted'])
 
@@ -306,22 +305,31 @@ function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, nearbyStat
   return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button>{statusMessage ? <p className={cn('m2-location-feedback', !['loading', 'success'].includes(nearbyStatus) && 'is-error')} role={nearbyStatus === 'loading' ? 'status' : 'alert'}>{statusMessage}</p> : null}</div></section>
 }
 
-function GoogleMapCanvas({ language, t, mapRef, query, initialCenter, onStatus }: { language: AppLanguage; t: MobileCopy; mapRef: MutableRefObject<google.maps.Map | null>; query: string; initialCenter?: MapPoint; onStatus: (status: MapStatus) => void }) {
+function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onStatus, onCameraChange }: { t: MobileCopy; mapRef: MutableRefObject<google.maps.Map | null>; query: string; initialCenter?: MapPoint; initialCamera?: MapCamera; onStatus: (status: MapStatus) => void; onCameraChange: (camera: MapCamera) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<MapStatus>('loading')
-  const initialLat = initialCenter?.lat
-  const initialLng = initialCenter?.lng
+  const startingView = useRef({ query, initialCenter, initialCamera })
+  const cameraChange = useRef(onCameraChange)
+  cameraChange.current = onCameraChange
   useEffect(() => {
     let cancelled = false
     const initialize = async () => {
       try {
+        const { googleMapsConfig, loadGoogleMaps } = await import('@/lib/google-maps/loader')
         const { maps } = await loadGoogleMaps()
         const GoogleMap = maps.Map
         if (cancelled || !containerRef.current) return
         const mapId = googleMapsConfig.mapId
-        const hasInitialCenter = initialLat !== undefined && initialLng !== undefined
-        const map = new GoogleMap(containerRef.current, { center: hasInitialCenter ? { lat: initialLat, lng: initialLng } : TENERIFE_CENTER, zoom: hasInitialCenter ? 14 : query ? 12 : 10, mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 8, maxZoom: 19, restriction: { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } })
+        const { initialCenter: center, initialCamera: camera, query: initialQuery } = startingView.current
+        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? TENERIFE_CENTER, zoom: camera?.zoom ?? (center ? 14 : initialQuery ? 12 : 10), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 8, maxZoom: 19, restriction: { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } })
         mapRef.current = map
+        map.addListener('idle', () => {
+          if (cancelled) return
+          if (!startingView.current.initialCamera && map.getDiv().dataset.mapInitialFit !== '1') return
+          const point = map.getCenter()
+          const zoom = map.getZoom()
+          if (point && zoom !== undefined) cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom })
+        })
         google.maps.event.addListenerOnce(map, 'tilesloaded', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
       } catch (error) {
         console.error('Google Maps initialization failed', error)
@@ -330,7 +338,7 @@ function GoogleMapCanvas({ language, t, mapRef, query, initialCenter, onStatus }
     }
     setStatus('loading'); onStatus('loading'); void initialize()
     return () => { cancelled = true; mapRef.current = null }
-  }, [initialLat, initialLng, language, mapRef, onStatus, query])
+  }, [mapRef, onStatus])
   return <div className="m2-map-canvas-wrap"><div ref={containerRef} className="m2-map-canvas" data-testid="google-map" />{status === 'loading' ? <div className="m2-map-status" role="status">{t.mapLoading}</div> : null}{status === 'error' ? <div className="m2-map-status m2-map-status--error" role="alert">{t.mapError}</div> : null}</div>
 }
 
@@ -488,10 +496,11 @@ function FreehandAreaLayer({ mapRef, mapReady, active, setActive, polygon, onPol
   return <div className="m2-freehand-overlay" data-testid="freehand-overlay" role="application" aria-label={t.drawInstruction} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishStroke} onPointerCancel={cancelStroke} onContextMenu={(event) => event.preventDefault()}><span>{hint}</span></div>
 }
 
-function MapScreen({ mode, language, t, query, initialCenter, polygon, items, onPolygonChange, onBack, onSave, onList, onFilters, onSearchArea }: {
-  mode: MapMode; language: AppLanguage; t: MobileCopy; query: string; initialCenter?: MapPoint; polygon: MapPoint[]; items: Listing[]; onPolygonChange: (polygon: MapPoint[]) => void; onBack: () => void; onSave?: () => void; onList?: () => void; onFilters?: () => void; onSearchArea?: () => void
+function MapScreen({ mode, language, t, query, initialCenter, initialCamera, polygon, items, onPolygonChange, onCameraChange, onBack, onSave, onList, onFilters, onSearchArea }: {
+  mode: MapMode; language: AppLanguage; t: MobileCopy; query: string; initialCenter?: MapPoint; initialCamera?: MapCamera; polygon: MapPoint[]; items: Listing[]; onPolygonChange: (polygon: MapPoint[]) => void; onCameraChange: (camera: MapCamera) => void; onBack: () => void; onSave?: () => void; onList?: () => void; onFilters?: () => void; onSearchArea?: () => void
 }) {
   const mapRef = useRef<google.maps.Map | null>(null)
+  const preserveInitialCamera = useRef(Boolean(initialCamera))
   const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
   const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
   const [saved, setSaved] = useState(false)
@@ -500,6 +509,7 @@ function MapScreen({ mode, language, t, query, initialCenter, polygon, items, on
   const [drawing, setDrawing] = useState(false)
   const toggleLayers = () => { const next = mapType === 'roadmap' ? 'hybrid' : 'roadmap'; setMapType(next); mapRef.current?.setMapTypeId(next) }
   const showUserMarker = async (coordinates: MapPoint) => {
+    const { loadGoogleMaps } = await import('@/lib/google-maps/loader')
     await loadGoogleMaps()
     if (!mapRef.current) return
     if (!userMarkerRef.current) {
@@ -533,8 +543,8 @@ function MapScreen({ mode, language, t, query, initialCenter, polygon, items, on
   const toggleDrawing = () => setDrawing((current) => !current)
   return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', polygon.length >= 3 && 'has-drawn-zone')} data-testid={mapStatus === 'ready' ? `map-${mode}` : undefined}>
     {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ArrowLeft /></button><div><strong>Tenerife</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => { if (!saved) onSave?.(); setSaved((value) => !value) }} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={onFilters}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={onList}><Menu />{t.list}</button></div></>}
-    <GoogleMapCanvas language={language} t={t} mapRef={mapRef} query={query} initialCenter={initialCenter} onStatus={setMapStatus} />
-    <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} items={items} />
+    <GoogleMapCanvas t={t} mapRef={mapRef} query={query} initialCenter={initialCenter} initialCamera={initialCamera} onStatus={setMapStatus} onCameraChange={onCameraChange} />
+    <Suspense fallback={null}><MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} items={items} preserveCamera={preserveInitialCamera.current} onInitialFit={onCameraChange} /></Suspense>
     <FreehandAreaLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} active={drawing} setActive={setDrawing} polygon={polygon} onPolygonChange={onPolygonChange} t={t} />
     <div className="m2-map-controls"><button type="button" onClick={toggleLayers} aria-label={t.layers} aria-pressed={mapType === 'hybrid'} disabled={mapStatus !== 'ready' || drawing}><Layers3 /></button><button type="button" onClick={locate} aria-label={t.locate} disabled={mapStatus !== 'ready' || locationStatus === 'loading' || drawing}><Crosshair /></button></div>
     {locationMessage ? <div className={cn('m2-location-toast', !['loading', 'success'].includes(locationStatus) && 'is-error')} role="status">{locationMessage}</div> : null}
@@ -654,8 +664,21 @@ function tabFromPath(pathname: string): MobileTab {
 export function MobileAppV2() {
   const location = useLocation()
   const navigate = useNavigate()
+  const routeSearchRef = useRef(location.search)
+  const pendingRouteSearchRef = useRef<string | null>(null)
+  if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
+  if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
+  const backToHome = useAppBack('/')
+  const mapBackParams = new URLSearchParams(location.search)
+  mapBackParams.delete('vista')
+  mapBackParams.delete('mapLat')
+  mapBackParams.delete('mapLng')
+  mapBackParams.delete('mapZoom')
+  const backFromMap = useAppBack(`/buscar?${mapBackParams.toString()}`)
   const { language, setLanguage } = useI18n()
   const { allListings, discarded, favorites, toggleFavorite, savedSearches, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
+  const mapPolygonRef = useRef(mapPolygon)
+  mapPolygonRef.current = mapPolygon
   const [step, setStep] = useState<OnboardingStep>(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
     try {
@@ -677,6 +700,11 @@ export function MobileAppV2() {
   const t: MobileCopy = copy[language]
   const adminAllowed = useAdminAccess()
   const navItems = getNavItems(t)
+  const mapFilterParams = new URLSearchParams(location.search)
+  mapFilterParams.delete('mapLat')
+  mapFilterParams.delete('mapLng')
+  mapFilterParams.delete('mapZoom')
+  const mapFilterSearch = mapFilterParams.toString()
   const mapItems = useMemo(() => selectMobileSearchListings({
     listings: allListings,
     discarded,
@@ -684,8 +712,16 @@ export function MobileAppV2() {
     filters,
     polygon: mapPolygon,
     query: mapQuery || query,
-    params: new URLSearchParams(location.search),
-  }), [allListings, discarded, filters, location.search, mapPolygon, mapQuery, query, rentalMode])
+    params: new URLSearchParams(mapFilterSearch),
+  }), [allListings, discarded, filters, mapFilterSearch, mapPolygon, mapQuery, query, rentalMode])
+  const cameraParams = new URLSearchParams(location.search)
+  const cameraLat = Number(cameraParams.get('mapLat'))
+  const cameraLng = Number(cameraParams.get('mapLng'))
+  const cameraZoom = Number(cameraParams.get('mapZoom'))
+  const mapCamera = cameraParams.has('mapLat') && cameraParams.has('mapLng') && cameraParams.has('mapZoom')
+    && Number.isFinite(cameraLat) && Number.isFinite(cameraLng) && Number.isFinite(cameraZoom)
+    && cameraLat >= -90 && cameraLat <= 90 && cameraLng >= -180 && cameraLng <= 180 && cameraZoom >= 8 && cameraZoom <= 19
+    ? { lat: cameraLat, lng: cameraLng, zoom: cameraZoom } : undefined
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => allListings.filter((listing) => favorites.has(listing.id)).map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [allListings, favorites, navigate])
   const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
@@ -693,7 +729,7 @@ export function MobileAppV2() {
     return () => document.documentElement.classList.remove('mobile-v2-active')
   }, [shellActive])
   useEffect(() => {
-    if (shellActive && tab === 'menu' && currentUser) preloadOwnerListingRoutes()
+    if (shellActive && tab === 'menu' && currentUser) preloadAccountPages()
   }, [currentUser, shellActive, tab])
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)')
@@ -729,8 +765,8 @@ export function MobileAppV2() {
       ? polygonParam.split(';').map((pair) => pair.split(',').map(Number)).filter((pair) => pair.length === 2 && pair.every(Number.isFinite)).map(([lat, lng]) => ({ lat, lng }))
       : []
     const nextPolygon = routePolygon.length >= 3 ? routePolygon : []
-    if (JSON.stringify(nextPolygon) !== JSON.stringify(mapPolygon)) setMapPolygon(nextPolygon)
-  }, [location.pathname, location.search, mapPolygon, setMapPolygon, shellActive])
+    if (JSON.stringify(nextPolygon) !== JSON.stringify(mapPolygonRef.current)) setMapPolygon(nextPolygon)
+  }, [location.pathname, location.search, setMapPolygon, shellActive])
   useEffect(() => {
     if (location.pathname !== '/buscar') return
     setHomeMode(rentalMode === 'holiday' ? 'turismo' : 'vivienda')
@@ -777,15 +813,34 @@ export function MobileAppV2() {
   }
   const commitMobilePolygon = (polygon: MapPoint[]) => {
     setMapPolygon(polygon)
-    const params = new URLSearchParams(location.search)
+    const params = new URLSearchParams(routeSearchRef.current)
     if (polygon.length >= 3) params.set('poligono', polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     else params.delete('poligono')
+    routeSearchRef.current = `?${params.toString()}`
+    pendingRouteSearchRef.current = routeSearchRef.current
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true })
+  }
+  const commitMapCamera = (camera: MapCamera) => {
+    if (pendingRouteSearchRef.current) return
+    const params = new URLSearchParams(routeSearchRef.current)
+    const lat = camera.lat.toFixed(5)
+    const lng = camera.lng.toFixed(5)
+    const zoom = camera.zoom.toFixed(2)
+    if (params.get('mapLat') === lat && params.get('mapLng') === lng && params.get('mapZoom') === zoom) return
+    params.set('mapLat', lat)
+    params.set('mapLng', lng)
+    params.set('mapZoom', zoom)
+    routeSearchRef.current = `?${params.toString()}`
+    pendingRouteSearchRef.current = routeSearchRef.current
     navigate(`${location.pathname}?${params.toString()}`, { replace: true })
   }
   const navigateFromMap = (target: 'list' | 'filters' | 'area') => {
     const params = new URLSearchParams(location.search)
     params.delete('dibujar')
     params.delete('vista')
+    params.delete('mapLat')
+    params.delete('mapLng')
+    params.delete('mapZoom')
     params.delete('pagina')
     if (target === 'filters') params.set('panel', 'filtros')
     else params.delete('panel')
@@ -796,8 +851,11 @@ export function MobileAppV2() {
   }
   const searchThisMapArea = () => {
     const params = new URLSearchParams(location.search)
+    const keepMap = params.get('dibujar') === '1'
     params.delete('dibujar')
+    if (!keepMap) params.delete('vista')
     params.delete('pagina')
+    params.delete('panel')
     navigate(`/buscar?${params.toString()}`)
   }
   const runHomeSearch = () => {
@@ -812,7 +870,7 @@ export function MobileAppV2() {
   const openPublication = () => navigate(`${location.pathname}?gate=publicar`)
   if (!shellActive) return null
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
-  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={() => navigate('/')} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
-  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onBack={() => navigate('/?panel=ubicacion')} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
+  if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={backToHome} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
+  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} initialCamera={mapCamera} polygon={mapPolygon} items={mapItems} onPolygonChange={commitMobilePolygon} onCameraChange={commitMapCamera} onBack={backFromMap} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
   return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} onRemove={toggleFavorite} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }

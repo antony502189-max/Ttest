@@ -322,7 +322,9 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const orphanCleanupStarted = useRef(false)
   const authHydrationStarted = useRef(false)
   const listingsHydrationStarted = useRef(false)
+  const catalogHydrating = useRef(false)
   const catalogVersion = useRef<string | null>(null)
+  const catalogCheck = useRef<AbortController | null>(null)
   const catalogRequest = useRef<AbortController | null>(null)
   const ownedRequest = useRef<AbortController | null>(null)
   const ownedRequestVersion = useRef(0)
@@ -434,21 +436,24 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     if (listingsHydrationStarted.current) return
     listingsHydrationStarted.current = true
     if (mockMode) return
+    catalogHydrating.current = true
     void getStablePublicCatalog().then(({ items, version }) => {
       setAllListings(items)
       catalogVersion.current = version
     }).catch(() => {
       setAllListings([])
       toast.error('No se pudo cargar el catálogo del servidor.')
-    })
+    }).finally(() => { catalogHydrating.current = false })
   }, [])
 
   useEffect(() => {
     if (mockMode) return
-    const refreshIfChanged = (force = false) => {
+    const refreshIfChanged = () => {
+      if (catalogHydrating.current || catalogCheck.current) return
       const check = new AbortController()
+      catalogCheck.current = check
       void getCatalogVersion(check.signal).then((current) => {
-        if (!force && catalogVersion.current === current.version) return
+        if (catalogVersion.current === current.version) return
         catalogRequest.current?.abort()
         const request = new AbortController()
         catalogRequest.current = request
@@ -459,16 +464,18 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
             window.dispatchEvent(new Event('catalog:updated'))
           }
         })
-      }).catch(() => undefined)
-      return () => check.abort()
+      }).catch(() => undefined).finally(() => {
+        if (catalogCheck.current === check) catalogCheck.current = null
+      })
     }
     const interval = window.setInterval(refreshIfChanged, 60_000)
-    const onFocus = () => { refreshIfChanged(true) }
-    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged(true) }
+    const onFocus = () => { refreshIfChanged() }
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged() }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.clearInterval(interval)
+      catalogCheck.current?.abort()
       catalogRequest.current?.abort()
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)

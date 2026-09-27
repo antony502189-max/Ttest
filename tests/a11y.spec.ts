@@ -119,6 +119,7 @@ test("delta drawing announcement and controls have no serious or critical axe is
   await page.setViewportSize({ width: 390, height: 844 });
   await openRoute(page, { name: "mapa", path: "/#/buscar?q=Tenerife&vista=mapa&dibujar=1" });
   const drawZone = page.getByRole("button", { name: "Dibujar tu zona" });
+  await expect.poll(async () => (await page.getByTestId('map-draw').isVisible().catch(() => false)) || (await page.getByRole('alert').isVisible().catch(() => false))).toBe(true);
   if (await drawZone.isDisabled()) {
     await expect(page.getByRole("alert")).toContainText("No se pudo cargar Google Maps");
     await assertNoSeriousViolations(page);

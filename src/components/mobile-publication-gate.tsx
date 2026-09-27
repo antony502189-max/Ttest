@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { useApp } from '@/contexts/app-context'
+import { useAppBack } from '@/hooks/use-app-back'
 import { useI18n } from '@/contexts/i18n-context'
 import '@/mobile-publication-gate.css'
 
@@ -57,6 +58,7 @@ export function MobilePublicationGate() {
   const { language } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
+  const goBack = useAppBack(location.pathname)
   const [open, setOpen] = useState(false)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
 
@@ -81,7 +83,7 @@ export function MobilePublicationGate() {
     document.body.style.overflow = 'hidden'
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') navigate(location.pathname, { replace: true })
+      if (event.key === 'Escape') goBack()
     }
 
     document.addEventListener('keydown', closeOnEscape)
@@ -89,13 +91,13 @@ export function MobilePublicationGate() {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', closeOnEscape)
     }
-  }, [location.pathname, navigate, open])
+  }, [goBack, open])
 
   if (!open) return null
 
   const t = gateCopy[language]
 
-  const close = () => navigate(location.pathname, { replace: true })
+  const close = goBack
   const login = () => navigate('/acceso')
 
   return createPortal(

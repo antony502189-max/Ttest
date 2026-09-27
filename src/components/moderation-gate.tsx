@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { getModerationNotices, getMyRestriction, markModerationNoticeRead, type MyRestriction } from '@/api/moderation'
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/contexts/app-context'
+import { useAppBack } from '@/hooks/use-app-back'
 import { currentLocale } from '@/lib/i18n-locale'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
@@ -43,6 +44,7 @@ function RestrictionCard({ restriction, full = false }: { restriction: MyRestric
 function ProductionModerationGate({ children }: { children: ReactNode }) {
   const { currentUser, logout } = useApp()
   const location = useLocation()
+  const goBack = useAppBack('/')
   const currentUserId = currentUser?.id ?? null
   const [restriction, setRestriction] = useState<MyRestriction | null>(null)
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
@@ -149,7 +151,7 @@ function ProductionModerationGate({ children }: { children: ReactNode }) {
   if (restriction && routeBlocked) {
     return <main className="restriction-screen">
       <RestrictionCard restriction={restriction} full />
-      <button type="button" className="restriction-back" onClick={() => history.back()}><ArrowLeft aria-hidden="true" />Volver</button>
+      <button type="button" className="restriction-back" onClick={goBack}><ArrowLeft aria-hidden="true" />Volver</button>
     </main>
   }
 

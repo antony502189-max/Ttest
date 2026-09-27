@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog, FormField, ImageUploader, VideoUploader } from '@/components/forms'
 import { ApproximateLocationMap } from '@/components/map-view'
 import { useApp } from '@/contexts/app-context'
+import { useAppBack } from '@/hooks/use-app-back'
 import { amenityOptions, createDefaultDraft } from '@/data/listings'
 import { getCriticalRestrictions } from '@/lib/listings'
 import { approximatePublicCoordinates } from '@/lib/location-privacy'
@@ -172,6 +173,7 @@ function Section({ id, title, hint, disabled = false, children }: { id: string; 
 }
 
 export function ListingCreatePage() {
+  const goBack = useAppBack('/mis-anuncios')
   const { language } = useI18n()
   const navigate = useNavigate()
   const { allListings, ownedListings, createListing, currentUser, partialPublication } = useApp()
@@ -402,7 +404,7 @@ export function ListingCreatePage() {
 
   return <>
     <main className="listing-edit-page listing-create-page">
-      <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Publicar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo}><Save data-icon="inline-start" />{saving ? 'Publicando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : recoveringImages ? 'Reintentar fotos' : 'Publicar'}</Button></div></div>
+      <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" onClick={(event) => { if (isDirty || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented) return; event.preventDefault(); goBack() }} className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Publicar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo}><Save data-icon="inline-start" />{saving ? 'Publicando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : recoveringImages ? 'Reintentar fotos' : 'Publicar'}</Button></div></div>
       <div className="listing-edit-shell">
         <header className="listing-edit-heading"><p>Nuevo anuncio</p><h1>Publicar habitación</h1><span>Todo el anuncio está en una sola página. Baja, completa los datos y publica al final.</span></header>
         <div className="listing-create-draft-actions">

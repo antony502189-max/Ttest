@@ -5,7 +5,7 @@
     margin-top: .9rem;
   }
 
-  .m2-result-card__badges span {
+  body .m2-results .m2-result-card__badges span {
     min-height: 2.7rem;
     padding: .62rem .82rem;
     border: 2px solid #84a900;
@@ -20,7 +20,7 @@
 }
 
 @media (max-width: 340px) {
-  .m2-result-card__badges span {
+  body .m2-results .m2-result-card__badges span {
     min-height: 2.55rem;
     padding: .56rem .7rem;
     font-size: .82rem;

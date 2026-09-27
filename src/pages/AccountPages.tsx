@@ -43,6 +43,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog, FormField, StatusBadge } from "@/components/forms";
 import { EmptyState, PropertyCard } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
+import { useAppBack } from "@/hooks/use-app-back";
 import { useI18n } from "@/contexts/i18n-context";
 import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
@@ -476,6 +477,7 @@ function formatOwnerPromotionEnd(value: string, locale: string, language: string
 }
 
 export function MyListingsPage() {
+  const goBack = useAppBack('/menu');
   const { t, language, locale } = useI18n();
   const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
@@ -497,7 +499,7 @@ export function MyListingsPage() {
   };
   return (
     <div className="owner-listings-page">
-      <header className="owner-mobile-appbar"><Button asChild variant="ghost" size="icon"><Link to="/menu" aria-label="Volver al menú"><ArrowLeft /></Link></Button><strong>Tus anuncios</strong></header>
+      <header className="owner-mobile-appbar"><Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label="Volver"><ArrowLeft /></Button><strong>Tus anuncios</strong></header>
       <div className="container account-page">
       <AccountHeader
         eyebrow="Área del anunciante"

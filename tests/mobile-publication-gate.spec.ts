@@ -159,14 +159,16 @@ test('publish transition from admin never flashes the full-screen loader', async
 })
 
 
-test('owner listing routes are idle-prefetched and the hydration gate does not issue a second owner API request', () => {
+test('owner routes preload on intent without a second owner API request', () => {
   const layout = readFileSync('src/components/layout.tsx', 'utf8')
+  const mobile = readFileSync('src/components/mobile-app-v2.tsx', 'utf8')
   const gate = readFileSync('src/components/owned-listings-hydration-gate.tsx', 'utf8')
   const preload = readFileSync('src/lib/route-preload.ts', 'utf8')
   const moderation = readFileSync('src/components/moderation-gate.tsx', 'utf8')
 
-  expect(layout).toContain('requestIdleCallback')
-  expect(layout).toContain('preloadOwnerListingRoutes()')
+  expect(layout).not.toContain('requestIdleCallback')
+  expect(layout).toContain('onPointerEnter={preloadListingCreatePage}')
+  expect(mobile).toContain('preloadAccountPages()')
   expect(preload).toContain("import('@/pages/AccountPages')")
   expect(preload).toContain("import('@/pages/ListingCreatePage')")
   expect(gate).not.toContain('getOwnedListings(')

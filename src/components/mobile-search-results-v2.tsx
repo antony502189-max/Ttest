@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
+import { useAppBack } from '@/hooks/use-app-back'
 import {
   ArrowDownUp,
   ArrowLeft,
@@ -15,7 +16,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { MediaImage, preloadMediaImages } from '@/components/media-image'
+import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
 import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
@@ -27,7 +28,6 @@ import { filtersFromParams, filtersToParams } from '@/lib/search'
 import { compareListingFloors } from '@/lib/floor'
 import type { Filters, Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
-import '@/mobile-search-results.css'
 
 type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
@@ -155,7 +155,7 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
   const images = listing.images.length ? listing.images : [fallbackImage]
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
   return <article className="m2-result-card" data-listing-id={listing.id}>
-    <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} variant="card" onError={imageFallback} onLoad={() => { if (images.length > 1) preloadMediaImages([images[(imageIndex + 1) % images.length]], 'card') }} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} loading="lazy" /></button><span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
+    <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} variant="card" onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} width="720" height="480" loading="lazy" /></button><span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
     <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
@@ -163,6 +163,7 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
 }
 
 export function MobileSearchResults() {
+  const goBack = useAppBack('/')
   const { allListings, discarded, discardListing, favorites, toggleFavorite, rentalMode, setRentalMode, filters: appFilters, setFilters: setAppFilters, mapPolygon, query: appQuery } = useApp()
   const { language } = useI18n()
   const location = useLocation()
@@ -211,25 +212,6 @@ export function MobileSearchResults() {
   }, [location.pathname, location.search, mobileViewport, navigate, open, setAppFilters, setRentalMode])
 
   useEffect(() => {
-    const openListing = (event: Event) => {
-      const listingId = (event as CustomEvent<{ listingId?: string }>).detail?.listingId ?? ''
-      const listing = allListings.find((item) => item.id === listingId)
-      if (!listing) return
-      setRentalMode(listing.rentalMode)
-      setFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
-      setDraftFilters((current) => ({ ...current, rentalMode: listing.rentalMode }))
-      const params = new URLSearchParams(location.search)
-      params.delete('vista')
-      params.delete('dibujar')
-      params.set('alquiler', listing.rentalMode)
-      params.set('anuncio', listingId)
-      navigate(`/buscar?${params.toString()}`)
-    }
-    window.addEventListener('112233:open-mobile-listing', openListing)
-    return () => window.removeEventListener('112233:open-mobile-listing', openListing)
-  }, [allListings, location.search, navigate, setRentalMode])
-
-  useEffect(() => {
     if (!open || panel !== 'results' || !focusListingId) return
     const frame = requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-listing-id="${CSS.escape(focusListingId)}"]`)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
@@ -245,11 +227,11 @@ export function MobileSearchResults() {
         setDraftFilters(filters)
         setPanel('results')
       } else if (panel !== 'results') setPanel('results')
-      else navigate('/')
+      else goBack()
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
-  }, [filters, navigate, open, panel])
+  }, [filters, goBack, open, panel])
 
   const availableListings = useMemo(() => allListings.filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded])
   const filteredListings = useMemo(() => {
@@ -383,7 +365,7 @@ export function MobileSearchResults() {
     else params.delete('tiposHabitacion')
     params.delete('capacidades')
     params.delete('habitaciones')
-    navigate(`/buscar?${params.toString()}`, { replace: true })
+    navigate(`/buscar?${params.toString()}`)
     setPanel('results')
   }
   const clearFilters = () => setDraftFilters((current) => ({ ...createDefaultFilters(current.rentalMode), minPrice: defaultFilters.minPrice, maxPrice: defaultFilters.maxPrice, minArea: defaultFilters.roomSizeMin, maxArea: defaultFilters.roomSizeMax }))
@@ -395,12 +377,12 @@ export function MobileSearchResults() {
     const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
     params.set('mobileOrden', value)
     params.delete('panel')
-    navigate(`/buscar?${params.toString()}`, { replace: true })
+    navigate(`/buscar?${params.toString()}`)
     setPanel('results')
   }
 
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={() => navigate('/')} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
+    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }

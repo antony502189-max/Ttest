@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useI18n, type Language } from '@/contexts/i18n-context'
-import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
+import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
 import { TENERIFE_BOUNDS, isInsideTenerife } from '@/lib/tenerife'
 import type { Coordinates } from '@/types'
 
@@ -282,7 +282,7 @@ export function PublishSmartAddressAutocomplete() {
 
     const ensurePlaces = async () => {
       if (placesLibrary) return placesLibrary
-      await loadGoogleMaps()
+      await loadGoogleMapsOnDemand()
       placesLibrary = await google.maps.importLibrary('places') as google.maps.PlacesLibrary
       return placesLibrary
     }
@@ -353,7 +353,7 @@ export function PublishSmartAddressAutocomplete() {
 
     const fetchGeocoderPredictions = async (query: string): Promise<Prediction[]> => {
       try {
-        await loadGoogleMaps()
+        await loadGoogleMapsOnDemand()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
         const response = await new geocoding.Geocoder().geocode({
           address: `${query}, Tenerife, Spain`,

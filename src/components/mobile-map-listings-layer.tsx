@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useNavigate } from 'react-router'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
@@ -10,7 +11,6 @@ import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/load
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { hasListingCoordinates } from '@/lib/listings'
 import type { Listing } from '@/types'
-import '@/mobile-map-ideal.css'
 
 type MobileMapLanguage = 'es' | 'en' | 'ru'
 
@@ -20,19 +20,24 @@ const labels = {
   ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`, group: (count: number) => `${count} объявления по этому адресу` },
 } as const
 
-export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items }: {
+export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items, preserveCamera = false, onInitialFit }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
   language: MobileMapLanguage
   drawing: boolean
   items: Listing[]
+  preserveCamera?: boolean
+  onInitialFit?: (camera: { lat: number; lng: number; zoom: number }) => void
 }) {
   const { favorites, toggleFavorite } = useApp()
+  const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState('')
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const fittedSignatureRef = useRef('')
+  const onInitialFitRef = useRef(onInitialFit)
+  onInitialFitRef.current = onInitialFit
   const t = labels[language]
   const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items])
   // Keep camera-fitting tied to actual marker geometry rather than TOP state.
@@ -145,7 +150,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         })
       }
 
-      if (mappedItems.length && fittedSignatureRef.current !== signature) {
+      if (mappedItems.length && !preserveCamera && fittedSignatureRef.current !== signature) {
         fittedSignatureRef.current = signature
         const bounds = new google.maps.LatLngBounds()
         mappedItems.forEach((listing) => bounds.extend(listing.coordinates))
@@ -157,13 +162,15 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
           const center = map.getCenter()
           if (center) map.getDiv().dataset.mapCenter = `${center.lat().toFixed(6)},${center.lng().toFixed(6)}`
           map.getDiv().dataset.mapZoom = String(map.getZoom() ?? '')
+          map.getDiv().dataset.mapInitialFit = '1'
+          if (center) onInitialFitRef.current?.({ lat: center.lat(), lng: center.lng(), zoom: map.getZoom() ?? zoom })
         })
       }
     }
 
     void createMarkers()
     return () => { cancelled = true; clear() }
-  }, [mappedItems, mapReady, mapRef, signature])
+  }, [mappedItems, mapReady, mapRef, preserveCamera, signature])
 
   useEffect(() => {
     if (!selectedId || mappedItems.some((item) => item.id === selectedId)) return
@@ -233,7 +240,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     if (sibling) mapRef.current?.panTo(sibling.coordinates)
   }
   const openInternalListing = (id: string) => {
-    window.dispatchEvent(new CustomEvent('112233:open-mobile-listing', { detail: { listingId: id } }))
+    navigate(`/habitacion/${encodeURIComponent(id)}`)
   }
 
   type MobileCarouselPosition = 'previous' | 'current' | 'next'

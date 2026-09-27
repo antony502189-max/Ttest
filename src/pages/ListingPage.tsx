@@ -11,6 +11,7 @@ import { ContactPanel, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery,
 import { ListingLocationSection } from '@/components/listing-location-section'
 import { UserReportDialog } from '@/components/user-report-dialog'
 import { useApp } from '@/contexts/app-context'
+import { useAppBack } from '@/hooks/use-app-back'
 import { currentLocale } from '@/lib/i18n-locale'
 import { getPublicListing } from '@/api/listings'
 import { formatPublishedAt } from '@/lib/search'
@@ -32,6 +33,7 @@ function ExternalListingRedirect({ sourceUrl }: { sourceUrl: string }) {
 export function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const goBack = useAppBack('/buscar')
   const { allListings, acceptListingSnapshot, favorites, toggleFavorite, discardListing, localComments, addLocalComment, updateLocalComment, deleteLocalComment } = useApp()
   const [reportOpen, setReportOpen] = useState(false)
   const [userReportOpen, setUserReportOpen] = useState(false)
@@ -97,7 +99,7 @@ export function ListingPage() {
   return (
     <article className="listing-page idealista-listing-page">
       <div className="container listing-actionbar">
-        <Button asChild variant="ghost" size="icon"><Link to="/buscar" aria-label="Volver al listado"><ArrowLeft /></Link></Button>
+        <Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label="Volver"><ArrowLeft /></Button>
         <div><Button variant="ghost" size="icon" onClick={() => toggleFavorite(listing.id)} aria-label={saved ? 'Guardado' : 'Guardar'} aria-pressed={saved}><Heart fill={saved ? 'currentColor' : 'none'} /></Button><Button variant="ghost" size="icon" onClick={share} aria-label="Compartir"><Share2 /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Más acciones del anuncio"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuItem onSelect={discard}><Trash2 />Descartar</DropdownMenuItem><DropdownMenuItem onSelect={() => setReportOpen(true)}><CircleAlert />Denunciar anuncio</DropdownMenuItem><DropdownMenuItem onSelect={() => setUserReportOpen(true)}><CircleAlert />Denunciar anunciante</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu></div>
       </div>
 
