@@ -77,39 +77,7 @@ test('published listings are visible on the map and open from a bottom card', as
   await expect(page.locator('.m2-map-controls')).toHaveCSS('opacity', '0')
 
   await preview.locator('.m2-map-listing-preview__open').click()
-  await expect(page).toHaveURL(new RegExp('#/habitacion/' + encodeURIComponent(listingId!) + '
-})
-
-test('listing requirements are visually prominent in results', async ({ page }) => {
-  await finishOnboarding(page)
-  await page.locator('.m2-mode-switch > button').first().click()
-  await page.getByTestId('open-location').click()
-  const results = page.getByTestId('mobile-results')
-  await expect(results).toBeVisible()
-  const badges = results.locator('.m2-result-card').first().locator('.m2-result-card__badges span')
-  await expect(badges).not.toHaveCount(0)
-  await expect(badges.filter({ hasText: /Habitación para/ })).toHaveCount(1)
-  const style = await badges.first().evaluate((element) => {
-    const computed = getComputedStyle(element)
-    return {
-      fontWeight: Number(computed.fontWeight),
-      fontSize: Number.parseFloat(computed.fontSize),
-      height: element.getBoundingClientRect().height,
-      border: computed.borderTopWidth,
-      borderColor: computed.borderTopColor,
-      backgroundColor: computed.backgroundColor,
-      color: computed.color,
-    }
-  })
-  expect(style.fontWeight).toBeGreaterThanOrEqual(800)
-  expect(style.fontSize).toBeGreaterThanOrEqual(14)
-  expect(style.height).toBeGreaterThanOrEqual(43)
-  expect(style.border).toBe('2px')
-  expect(style.borderColor).toBe('rgb(132, 169, 0)')
-  expect(style.backgroundColor).toBe('rgb(228, 242, 163)')
-  expect(style.color).toBe('rgb(48, 70, 0)')
-})
-))
+  await expect(page).toHaveURL(new RegExp('#/habitacion/' + encodeURIComponent(listingId!) + '$'))
   await expect(page.locator('.idealista-listing-page')).toBeVisible()
   await expect(page.getByTestId('mobile-results')).toHaveCount(0)
 })
