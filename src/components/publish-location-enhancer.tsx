@@ -1,10 +1,10 @@
 import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
-import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { getMunicipalityId, getRootMunicipalityId, getZoneFeature, type TenerifeZoneCollection, type TenerifeZoneFeature, type TenerifeZoneGeometry } from '@/lib/map/zones'
 import { TENERIFE_BOUNDS, isInsideTenerife, normalizeTenerifeText, resolveTenerifeLocation } from '@/lib/tenerife'
 import { createRequestVersionGate } from '@/lib/google-maps/address'
+import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
 import type { Coordinates } from '@/types'
 import '@/publish-location-enhancer.css'
 
@@ -261,7 +261,7 @@ export function PublishLocationEnhancer() {
       if (known && isInsideTenerife(known)) return known
 
       try {
-        await loadGoogleMaps()
+        await loadGoogleMapsOnDemand()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
         const response = await new geocoding.Geocoder().geocode({ address: `${city}, Tenerife, Spain`, bounds: TENERIFE_BOUNDS, componentRestrictions: { country: 'ES' } })
         if (cancelled || !locationGate.isCurrent(version)) return null
@@ -303,7 +303,7 @@ export function PublishLocationEnhancer() {
         && (!municipality || pointInGeometry(known.coordinates, municipality.geometry))) return known.coordinates
 
       try {
-        await loadGoogleMaps()
+        await loadGoogleMapsOnDemand()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
         const response = await new geocoding.Geocoder().geocode({
           address: `${trimmedArea}, ${city}, Tenerife, Spain`,
@@ -436,7 +436,7 @@ export function PublishLocationEnhancer() {
       input.autocomplete = 'street-address'
       if (googleMapsTestSdkEnabled) { input.dataset.addressAutocomplete = 'test'; return }
       try {
-        await loadGoogleMaps()
+        await loadGoogleMapsOnDemand()
         const places = await google.maps.importLibrary('places') as google.maps.PlacesLibrary
         if (cancelled || !input.isConnected || input.dataset.addressAutocomplete === 'native') return
         const autocomplete = new places.PlaceAutocompleteElement({}) as StreetFirstAutocomplete

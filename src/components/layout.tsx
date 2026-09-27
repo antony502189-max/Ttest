@@ -1,23 +1,23 @@
-import { Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { Bell, ChevronDown, Globe2, Heart, Home, Menu, Plus, Search, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
 import { getNotifications, NOTIFICATIONS_UPDATED_EVENT } from '@/api/notifications'
-import { MobileAppV2 } from '@/components/mobile-app-v2'
-import { MobilePublicationGate } from '@/components/mobile-publication-gate'
-import { MobileSearchResults } from '@/components/mobile-search-results-v2'
 import { PublishLocationEnhancer } from '@/components/publish-location-enhancer'
 import { PublishAddressLifecycle } from '@/components/publish-address-lifecycle'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
-import { preloadListingCreatePage, preloadOwnerListingRoutes } from '@/lib/route-preload'
+import { preloadListingCreatePage } from '@/lib/route-preload'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu']
 const ROUTE_LOADING_DELAY_MS = 300
+const MobileAppV2 = lazy(() => import('@/components/mobile-app-v2').then((module) => ({ default: module.MobileAppV2 })))
+const MobilePublicationGate = lazy(() => import('@/components/mobile-publication-gate').then((module) => ({ default: module.MobilePublicationGate })))
+const MobileSearchResults = lazy(() => import('@/components/mobile-search-results-v2').then((module) => ({ default: module.MobileSearchResults })))
 
 function DelayedRouteFallback() {
   const [visible, setVisible] = useState(false)
@@ -84,9 +84,7 @@ export function Footer() {
 
 export function AppLayout() {
   const { pathname } = useLocation()
-  const { storageError, clearStorageError, currentUser } = useApp()
-  const currentUserId = currentUser?.id ?? null
-  const currentUserRole = currentUser?.role ?? null
+  const { storageError, clearStorageError } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
   const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
@@ -98,21 +96,5 @@ export function AppLayout() {
     return () => media.removeEventListener('change', update)
   }, [])
 
-  useEffect(() => {
-    if (!currentUserId || !currentUserRole || !['host', 'admin'].includes(currentUserRole)) return
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number
-      cancelIdleCallback?: (id: number) => void
-    }
-    let timer = 0
-    let idleId = 0
-    const preload = () => preloadOwnerListingRoutes()
-    if (idleWindow.requestIdleCallback) idleId = idleWindow.requestIdleCallback(preload, { timeout: 1_200 })
-    else timer = window.setTimeout(preload, 250)
-    return () => {
-      if (idleId && idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(idleId)
-      if (timer) window.clearTimeout(timer)
-    }
-  }, [currentUserId, currentUserRole])
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><PublishLocationEnhancer /><PublishAddressLifecycle /><MobileAppV2 /><MobilePublicationGate /><MobileSearchResults />{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <><PublishLocationEnhancer /><PublishAddressLifecycle /></> : null}<Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileViewport && pathname === '/buscar' ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
 }

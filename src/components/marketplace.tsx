@@ -563,11 +563,6 @@ export function PropertyCard({
             src={listing.images[imageIndex] || fallbackImage}
             variant="card"
             onError={imageFallback}
-            onLoad={() => {
-              if (listing.images.length > 1) {
-                preloadMediaImages([listing.images[(imageIndex + 1) % listing.images.length]], "card");
-              }
-            }}
             alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${listing.images.length}`}
             width="720"
             height="480"
