@@ -82,6 +82,19 @@ def promotion_boosted_at_expression():
     )
 
 
+def promotion_ends_at_expression():
+    return (
+        select(ListingPromotion.ends_at)
+        .where(
+            ListingPromotion.listing_id == Listing.id,
+            ListingPromotion.starts_at <= func.now(),
+            or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
+        )
+        .correlate(Listing)
+        .scalar_subquery()
+    )
+
+
 def response_from(row: Any) -> ListingResponse:
     listing, longitude, latitude, owner, asset_ids, room_details, *promotion = row
     boosted_at = promotion[0] if promotion else None
@@ -203,6 +216,7 @@ def response_from(row: Any) -> ListingResponse:
 def owned_response_from(row: Any) -> OwnedListingResponse:
     listing, longitude, latitude, owner, asset_ids, room_details, exact_longitude, exact_latitude, *promotion = row
     boosted_at = promotion[0] if promotion else None
+    ends_at = promotion[1] if len(promotion) > 1 else None
     public = response_from((listing, longitude, latitude, owner, asset_ids, room_details, boosted_at)).model_dump()
     return OwnedListingResponse(
         **public,
@@ -210,6 +224,7 @@ def owned_response_from(row: Any) -> OwnedListingResponse:
         postcode=listing.postcode,
         exactLatitude=exact_latitude,
         exactLongitude=exact_longitude,
+        promotionEndsAt=ends_at,
     )
 
 
@@ -272,6 +287,7 @@ def owned_query() -> Select:
             ST_X(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
             ST_Y(cast(Listing.exact_location, Geometry("POINT", srid=4326))),
             promotion_boosted_at_expression(),
+            promotion_ends_at_expression(),
         )
         .join(User, User.id == Listing.owner_user_id)
         .outerjoin(ListingRoomDetails, ListingRoomDetails.listing_id == Listing.id)
