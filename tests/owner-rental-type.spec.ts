@@ -85,13 +85,13 @@ test('owner card shows the real active TOP end date from listing data', async ({
     target.promotionEndsAt = '2026-10-05T00:00:00.000Z'
     return { payload: JSON.stringify(stored), listingId: target.id as string }
   })
-  await page.addInitScript(({ payload }) => {
+  await page.evaluate(({ payload }) => {
     localStorage.setItem('112233:listings:v3', payload)
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
   }, seeded)
 
-  await page.goto('/#/mis-anuncios')
+  await page.goto('/?owner-top-status=1#/mis-anuncios')
   const ownerCard = page.locator(`.manage-card[data-listing-id="${seeded.listingId}"]`)
   await expect(ownerCard).toBeVisible()
   const status = ownerCard.getByTestId('owner-top-status')
