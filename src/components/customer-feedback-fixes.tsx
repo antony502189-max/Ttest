@@ -383,7 +383,7 @@ export function CustomerFeedbackFixes() {
         const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
         params.delete('pagina')
         const search = params.toString()
-        navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true })
+        navigate({ pathname: location.pathname, search: search ? `?${search}` : '' })
       }
     }
 

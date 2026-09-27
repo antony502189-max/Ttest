@@ -262,25 +262,7 @@ export type ListingSearchInput = {
   sort?: 'newest' | 'oldest' | 'price_asc' | 'price_desc'
 }
 
-function routeSearchState() {
-  const hashQuery = window.location.hash.split('?', 2)[1] ?? ''
-  const params = new URLSearchParams(hashQuery)
-  const roomTypes = (params.get('tiposHabitacion') ?? '')
-    .split('|')
-    .filter((value): value is Listing['roomType'] => ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
-  const latitude = Number(params.get('lat'))
-  const longitude = Number(params.get('lng'))
-  const nearby = params.get('cerca') === '1' && Number.isFinite(latitude) && Number.isFinite(longitude)
-  return {
-    query: params.get('q')?.trim() || 'Tenerife',
-    roomTypes,
-    center: nearby ? { latitude, longitude } : undefined,
-    radiusKm: nearby ? Math.min(50, Math.max(1, Number(params.get('radio')) || 15)) : undefined,
-  }
-}
-
-export function searchPublicListings(input: ListingSearchInput) {
-  const route = routeSearchState()
+export function searchPublicListings(input: ListingSearchInput, signal?: AbortSignal) {
   const { bounds, polygon, filters, minPrice, maxPrice, ...payload } = input
   const yesNo = (value: string) => value === 'Cualquiera' ? undefined : value === 'Sí'
   const publicationDays = filters.publicationDate === '24h' ? 1 : filters.publicationDate === '7d' ? 7 : filters.publicationDate === '30d' ? 30 : undefined
@@ -288,10 +270,10 @@ export function searchPublicListings(input: ListingSearchInput) {
     ...payload,
     ...(minPrice !== defaultFilters.minPrice ? { minPrice } : {}),
     ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice } : {}),
-    query: input.query ?? route.query,
-    roomTypes: input.roomTypes ?? route.roomTypes,
-    center: input.center ?? route.center,
-    radiusKm: input.radiusKm ?? route.radiusKm,
+    query: input.query ?? 'Tenerife',
+    roomTypes: input.roomTypes ?? [],
+    center: input.center,
+    radiusKm: input.radiusKm,
     ...(filters.roomType !== 'Cualquiera' ? { roomType: filters.roomType } : {}),
     ...(filters.available ? { availableFrom: filters.available } : {}),
     ...(filters.availableUntil ? { availableUntil: filters.availableUntil } : {}),
@@ -340,7 +322,7 @@ export function searchPublicListings(input: ListingSearchInput) {
     } : {}),
     ...(polygon?.length ? { polygon } : {}),
   }
-  return fetchAllSearch(body)
+  return fetchAllSearch(body, signal)
 }
 
 async function syncContactProfile(listing: Listing) {

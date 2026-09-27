@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { FormField, ImageUploader, VideoUploader } from '@/components/forms'
 import { ApproximateLocationMap } from '@/components/map-view'
 import { useApp } from '@/contexts/app-context'
+import { useAppBack } from '@/hooks/use-app-back'
 import { amenityOptions } from '@/data/listings'
 import { getCriticalRestrictions } from '@/lib/listings'
 import { approximatePublicCoordinates } from '@/lib/location-privacy'
@@ -220,6 +221,7 @@ function Section({ id, title, hint, children }: { id: string; title: string; hin
 }
 
 export function ListingEditPage() {
+  const goBack = useAppBack('/mis-anuncios')
   const { language } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
@@ -396,7 +398,7 @@ export function ListingEditPage() {
   const choice = <T extends string>(name: string, value: T, options: { value: T; title: string; text?: string }[], onChange: (value: T) => void) => <div className="listing-edit-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong>{option.text ? <small>{option.text}</small> : null}</span></label>)}</div>
 
   return <main className="listing-edit-page">
-    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : 'Guardar'}</Button></div></div>
+    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" onClick={(event) => { if (isDirty || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented) return; event.preventDefault(); goBack() }} className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : 'Guardar'}</Button></div></div>
     <div className="listing-edit-shell">
       <header className="listing-edit-heading"><p>Ref. {existing.id.slice(-6).toUpperCase()}</p><h1>Editar habitación</h1><span>Todo el anuncio está en una sola página. Baja, cambia lo que necesites y guarda al final.</span></header>
 

@@ -38,6 +38,8 @@ test('unrestricted home search restores the full mode catalog after stale advanc
   await expect(narrowed.locator('.m2-result-card')).toHaveCount(filteredCount)
 
   await narrowed.getByRole('button', { name: 'Volver' }).click()
+  await expect(narrowed.locator('.m2-result-card')).toHaveCount(23)
+  await narrowed.getByRole('button', { name: 'Volver' }).click()
   await expect(page.getByTestId('mobile-results')).toHaveCount(0)
   await page.evaluate(() => localStorage.setItem('112233:listing-access-profile:v1', JSON.stringify({ occupant: 'any', pets: 'Cualquiera', smoking: 'Cualquiera' })))
 

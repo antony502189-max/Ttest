@@ -47,7 +47,7 @@ test('DELTA-MOBILE-02 list, filters, sorting, map, back and reload are URL-backe
   await page.reload()
   await expect(page.getByTestId('map-search')).toBeVisible()
   await page.getByRole('button', { name: 'Volver' }).click()
-  await expect(page.getByTestId('location-screen')).toBeVisible()
+  await expect(page.getByTestId('mobile-results')).toBeVisible()
 })
 
 test('DELTA-MOBILE-03 drawing and nearby search expose dedicated working map states', async ({ page, context }) => {
