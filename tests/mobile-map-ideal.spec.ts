@@ -77,9 +77,9 @@ test('published listings are visible on the map and open from a bottom card', as
   await expect(page.locator('.m2-map-controls')).toHaveCSS('opacity', '0')
 
   await preview.locator('.m2-map-listing-preview__open').click()
-  const results = page.getByTestId('mobile-results')
-  await expect(results).toBeVisible()
-  await expect(results.locator('.m2-result-card').first()).toHaveAttribute('data-listing-id', listingId!)
+  await expect(page).toHaveURL(new RegExp('#/habitacion/' + encodeURIComponent(listingId!) + '$'))
+  await expect(page.locator('.idealista-listing-page')).toBeVisible()
+  await expect(page.getByTestId('mobile-results')).toHaveCount(0)
 })
 
 test('listing requirements are visually prominent in results', async ({ page }) => {
