@@ -88,6 +88,7 @@ type ListingDto = {
   views: number
   closedReason: Listing['closedReason'] | null
   promoted: boolean
+  promotionEndsAt?: string | null
 }
 
 type ListingSearchDto = { items: ListingDto[]; total: number; limit: number; offset: number }
@@ -205,6 +206,7 @@ export function toListing(dto: ListingDto): Listing {
     showWhatsApp: dto.showWhatsApp,
     closedReason: dto.closedReason ?? undefined,
     promoted: dto.promoted,
+    ...(dto.promotionEndsAt ? { promotionEndsAt: dto.promotionEndsAt } : {}),
   }
 }
 
