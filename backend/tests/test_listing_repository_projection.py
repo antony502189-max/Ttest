@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from app.repositories.listings import apply_search_order, owned_response_from, response_from, visible_query
+from app.repositories.listings import apply_search_order, owned_query, owned_response_from, response_from, visible_query
 from app.schemas.listings import ListingSearchRequest
 
 
@@ -150,6 +150,24 @@ def test_owned_coordinate_projection_preserves_exact_location_values():
     assert response.latitude == 28.087
     assert response.exactLongitude == -16.733
     assert response.exactLatitude == 28.088
+
+
+def test_owned_projection_exposes_active_promotion_end_date():
+    boosted_at = datetime(2026, 9, 27, 12, 0, tzinfo=UTC)
+    ends_at = datetime(2026, 10, 5, 0, 0, tzinfo=UTC)
+    response = owned_response_from(
+        (listing(), -16.732, 28.087, owner(), [], details(), -16.733, 28.088, boosted_at, ends_at)
+    )
+
+    assert response.promoted is True
+    assert response.promotionEndsAt == ends_at
+
+
+def test_owned_query_projects_active_promotion_end_date():
+    sql = str(owned_query())
+
+    assert "listing_promotions.ends_at" in sql
+    assert "listing_promotions.starts_at" in sql
 
 
 def test_public_projection_uses_scalar_coordinates_without_geojson():
