@@ -24,6 +24,13 @@ import { currentLocale } from "@/lib/i18n-locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -456,17 +463,38 @@ export function ProfilePage() {
   );
 }
 
+function formatOwnerPromotionEnd(value: string, locale: string, language: string) {
+  const inclusiveEnd = new Date(value);
+  if (Number.isNaN(inclusiveEnd.getTime())) return "";
+  inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  const formatted = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(inclusiveEnd);
+  return language === "ru" ? `${formatted} г.` : formatted;
+}
+
 export function MyListingsPage() {
-  const { t } = useI18n();
+  const { t, language, locale } = useI18n();
   const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
     useApp();
   const [status, setStatus] = useState("Todos");
+  const [topDialogOpen, setTopDialogOpen] = useState(false);
+  const [topCandidateId, setTopCandidateId] = useState("");
   useEffect(() => refreshListingLifecycle(), [refreshListingLifecycle]);
   const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
+  const promotable = mine.filter((listing) => listing.status === "Publicado" && !listing.isExternal);
   const items =
     status === "Todos"
       ? mine
       : mine.filter((listing) => listing.status === status);
+  const openTopFlow = () => {
+    const candidate = promotable.find((listing) => !listing.promoted) ?? promotable[0];
+    if (!candidate) return;
+    setTopCandidateId(candidate.id);
+    setTopDialogOpen(true);
+  };
   return (
     <div className="owner-listings-page">
       <header className="owner-mobile-appbar"><Button asChild variant="ghost" size="icon"><Link to="/menu" aria-label="Volver al menú"><ArrowLeft /></Link></Button><strong>Tus anuncios</strong></header>
@@ -521,6 +549,23 @@ export function MyListingsPage() {
               <strong>{mine.length}</strong> anuncios locales
             </span>
           </div>
+          {promotable.length ? (
+            <section className="owner-top-cta" data-testid="owner-top-cta" aria-label={t("Sube tu anuncio a TOP")}>
+              <div className="owner-top-cta__copy">
+                <span className="owner-top-cta__eyebrow">TOP</span>
+                <div>
+                  <strong>{t("Sube tu anuncio a TOP")}</strong>
+                  <p>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</p>
+                </div>
+              </div>
+              <div className="owner-top-cta__action">
+                <span className="owner-top-cta__pointer" aria-hidden="true">👉</span>
+                <Button type="button" className="owner-top-cta__button" onClick={openTopFlow}>
+                  {t("Llevar a TOP")}
+                </Button>
+              </div>
+            </section>
+          ) : null}
           {items.map((listing) => (
             <article className="manage-card" key={listing.id}>
               <MediaImage
@@ -544,6 +589,18 @@ export function MyListingsPage() {
                 >
                   {t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}
                 </span>
+                <p
+                  className={`owner-top-status ${listing.promoted ? "is-active" : "is-inactive"}`}
+                  data-testid="owner-top-status"
+                  data-top-active={listing.promoted ? "true" : "false"}
+                >
+                  <span aria-hidden="true">{listing.promoted ? "👍" : "😏"}</span>
+                  {listing.promoted
+                    ? listing.promotionEndsAt
+                      ? `${t("Estás en TOP hasta")} ${formatOwnerPromotionEnd(listing.promotionEndsAt, locale, language)}`
+                      : t("Estás en TOP")
+                    : t("No estás en TOP")}
+                </p>
                 <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
                 {listing.status === "Finalizado" ? <p className="listing-ended-reason">{listing.closedReason === "expired" ? "Finalizado automáticamente por vencimiento." : "Cerrado por el anunciante."}</p> : null}
                 <div className="manage-metrics">
@@ -638,6 +695,37 @@ export function MyListingsPage() {
         </div>
       )}
       </div>
+      <Dialog open={topDialogOpen} onOpenChange={setTopDialogOpen}>
+        <DialogContent className="owner-top-dialog">
+          <DialogHeader>
+            <DialogTitle>{t("Sube tu anuncio a TOP")}</DialogTitle>
+            <DialogDescription>{t("Selecciona uno de tus anuncios publicados. En el siguiente paso configuraremos la duración y el pago.")}</DialogDescription>
+          </DialogHeader>
+          <div className="owner-top-dialog__list" role="list">
+            {promotable.map((listing) => (
+              <button
+                key={listing.id}
+                type="button"
+                className={`owner-top-dialog__option ${topCandidateId === listing.id ? "is-selected" : ""}`}
+                data-testid="owner-top-option"
+                data-listing-id={listing.id}
+                onClick={() => setTopCandidateId(listing.id)}
+              >
+                <MediaImage src={listing.images[0]} variant="thumb" alt="" />
+                <span>
+                  <strong>{listing.title}</strong>
+                  <small>{listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}</small>
+                  <em>{listing.promoted ? `👍 ${t("Estás en TOP")}` : `😏 ${t("No estás en TOP")}`}</em>
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
+            <strong>{t("Siguiente: duración y pago")}</strong>
+            <span>{t("Elige el anuncio que quieres destacar")}</span>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
