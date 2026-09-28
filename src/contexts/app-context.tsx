@@ -6,7 +6,7 @@ import { ApiError, resolveApiUrl } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
-import { createRemoteListing, deleteRemoteListing, getOwnedListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
+import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getOwnedListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
 import { cleanupPreparedListingMedia, prepareListingMedia, syncListingImages, type PreparedListingMedia } from '@/api/media'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
@@ -282,6 +282,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [storageError, setStorageError] = useState<string | null>(null)
   const authHydrationStarted = useRef(false)
+  const catalogVersion = useRef<string | null>(null)
+  const catalogCheck = useRef<AbortController | null>(null)
   const ownedRequest = useRef<AbortController | null>(null)
   const ownedRequestVersion = useRef(0)
 
@@ -375,6 +377,42 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       if (!(error instanceof ApiError) || error.status !== 401) toast.error('No se pudo restaurar la sesión.')
     })
   }, [setRemoteUser])
+
+  useEffect(() => {
+    if (mockMode) return
+    const initial = new AbortController()
+    let active = true
+    void getCatalogVersion(initial.signal).then((current) => {
+      if (active) catalogVersion.current = current.version
+    }).catch(() => undefined)
+
+    const refreshIfChanged = () => {
+      if (catalogCheck.current) return
+      const check = new AbortController()
+      catalogCheck.current = check
+      void getCatalogVersion(check.signal).then((current) => {
+        if (check.signal.aborted) return
+        const previous = catalogVersion.current
+        catalogVersion.current = current.version
+        if (previous !== null && previous !== current.version) {
+          window.dispatchEvent(new Event('catalog:updated'))
+        }
+      }).catch(() => undefined).finally(() => {
+        if (catalogCheck.current === check) catalogCheck.current = null
+      })
+    }
+    const onFocus = () => refreshIfChanged()
+    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      active = false
+      initial.abort()
+      catalogCheck.current?.abort()
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
 
   useEffect(() => {
     if (!currentUserId) return
