@@ -72,7 +72,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
     rendered.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null })
     rendered.current = markers.map((item) => {
       const content = item.type === 'cluster'
-        ? createClusterContent(item.count)
+        ? createClusterContent(item.count, item.promoted)
         : createPriceMarkerContentFromData(`${item.price ?? '—'} €`, item.promoted, `Anuncio ${item.price ?? '—'} euros`)
       const title = item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`
       if (item.type === 'listing') {
