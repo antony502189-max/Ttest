@@ -400,6 +400,23 @@ def is_in_target_province(data: dict[str, Any]) -> bool:
     )
 
 
+def is_in_import_scope(data: dict[str, Any], scope_key: str) -> bool:
+    """Conservative province admission for opt-in geographic slices.
+
+    The legacy Santa Cruz adapter retains its established location policy.
+    New provinces require an explicit structured province from the source;
+    title, page chrome and broad coordinate boxes are insufficient proof.
+    """
+    if scope_key == "santa_cruz":
+        return is_in_target_province(data)
+    if not scope_key.startswith("province:"):
+        return False
+    expected = scope_key.removeprefix("province:").strip().casefold()
+    country = clean(data.get("country")).casefold()
+    province = clean(data.get("province")).casefold()
+    return bool(expected and province == expected and country in {"", "es", "españa", "espana", "spain"})
+
+
 def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
     return any(
         min_lat <= latitude <= max_lat and min_lng <= longitude <= max_lng
@@ -751,6 +768,7 @@ class NormalizedListing:
 
 class ExternalListingSource(ABC):
     name: str
+    scope_key: str = "santa_cruz"
     discovery_urls: tuple[str, ...]
     domain: str
     url_tokens: tuple[str, ...]
@@ -1207,7 +1225,7 @@ class ExternalListingSource(ABC):
         if data.get("deleted") or clean(data.get("status")).casefold() in {"deleted", "removed", "not found"}:
             return None
         title = clean(data.get("title"))
-        if not title or not (is_room_offer(data) and is_rental(data) and is_in_target_province(data)):
+        if not title or not (is_room_offer(data) and is_rental(data) and is_in_import_scope(data, self.scope_key)):
             return None
         amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
         corpus = clean(
@@ -1938,9 +1956,10 @@ class AlquilerDocenteCanariasSource(ExternalListingSource):
     max_discovery_pages = 1
     removed_markers = ExternalListingSource.removed_markers + ("propiedad eliminada", "inmueble eliminado")
 
-    @staticmethod
-    def _target_room_sitemap_url(url: str) -> bool:
+    def _target_room_sitemap_url(self, url: str) -> bool:
         path = unquote(urlparse(url).path).replace("-", " ").casefold()
+        if self.scope_key != "santa_cruz":
+            return ("habitacion" in path or "habitación" in path) and self.scope_key.removeprefix("province:") in path
         return (
             "habitacion" in path or "habitación" in path
         ) and any(place in path for place in SANTA_CRUZ) and not any(place in path for place in LAS_PALMAS)
@@ -2058,9 +2077,10 @@ class FlatioSource(ExternalListingSource):
     max_discovery_pages = 2
     removed_markers = ExternalListingSource.removed_markers + ("offer is no longer available",)
 
-    @staticmethod
-    def _target_room_sitemap_url(url: str) -> bool:
+    def _target_room_sitemap_url(self, url: str) -> bool:
         path = unquote(urlparse(url).path).replace("_", " ").replace("-", " ").casefold()
+        if self.scope_key != "santa_cruz":
+            return "/rent/room/" in urlparse(url).path.casefold() and self.scope_key.removeprefix("province:") in path
         return (
             "/rent/room/" in urlparse(url).path.casefold()
             and not any(place in path for place in LAS_PALMAS)

@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 import httpx
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
 from fastapi import HTTPException
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +26,7 @@ from ..external_sources import (
     ExternalListingSource,
     NormalizedListing,
     SourceBlocked,
-    is_in_target_province,
+    is_in_import_scope,
     is_rental,
     is_room_offer,
     parse_optional_date,
@@ -238,12 +238,19 @@ async def import_images(
 
     Remote/image/object-storage I/O happens with no open DB transaction. The
     relational gallery is replaced only after every unique source image in the
-    bounded 20-photo set downloads successfully, so a transient remote failure
+    bounded gallery downloads successfully, so a transient remote failure
     can never erase a previously healthy gallery. Removed source images are
     detached and truly orphaned media is queued for storage deletion.
     """
     settings = get_settings()
-    source_urls = list(dict.fromkeys(urls))[:20]
+    existing_count = int(await session.scalar(
+        select(func.count(ListingImage.media_asset_id)).where(ListingImage.listing_id == listing_id)
+    ) or 0)
+    await session.commit()
+    # The configurable default applies to new imports. A change to an existing
+    # listing must not silently trim a previously mirrored gallery.
+    image_cap = min(20, max(settings.external_import_max_images, existing_count))
+    source_urls = list(dict.fromkeys(urls))[:image_cap]
     if not settings.external_import_download_images or not source_urls:
         return
 
@@ -497,7 +504,7 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
     return NormalizedListing(**value)
 
 
-async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False) -> str:
+async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False, scope_key: str = "santa_cruz") -> str:
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
     source = await session.scalar(
@@ -535,6 +542,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     # cannot own a map marker. If a verified duplicate exists, prefer it as the
     # primary so the canonical card can keep a trustworthy marker.
     if source:
+        source.scope_key = scope_key
         source.raw_payload = item.raw_payload
         source.normalized_payload = normalized_snapshot(item)
         source.fingerprint = item.fingerprint
@@ -755,6 +763,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     if not source:
         source = SourceRecord(
             source_name=item.source_name,
+            scope_key=scope_key,
             external_id=item.external_id,
             source_url=item.source_url,
             canonical_listing_id=listing.id,
@@ -877,20 +886,29 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
     # Keep the public adapter protocol duck-typed: test adapters and future
     # sources need only expose ``name`` and ``check_listing_state``.
     source_name = source if isinstance(source, str) else source.name
-    candidates = (
-        await session.execute(
-            select(SourceRecord.id, SourceRecord.source_url).where(
+    scope_key = "santa_cruz" if isinstance(source, str) else getattr(source, "scope_key", "santa_cruz")
+    async def candidate_ids():
+        last_id = None
+        while True:
+            query = select(SourceRecord.id, SourceRecord.source_url).where(
                 SourceRecord.source_name == source_name,
+                SourceRecord.scope_key == scope_key,
                 SourceRecord.current_status == "active",
                 SourceRecord.last_seen_at < started_at,
-            )
-        )
-    ).all()
-    # Do not hold the candidate-query transaction while remote state probes run.
-    await session.commit()
+            ).order_by(SourceRecord.id).limit(100)
+            if last_id is not None:
+                query = query.where(SourceRecord.id > last_id)
+            batch = (await session.execute(query)).all()
+            # Never hold a database transaction while probing remote details.
+            await session.commit()
+            if not batch:
+                break
+            last_id = batch[-1][0]
+            for row in batch:
+                yield row
 
     archived = 0
-    for row_id, source_url in candidates:
+    async for row_id, source_url in candidate_ids():
         require_no_active_transaction(session, "external listing state check")
         state = "unknown" if isinstance(source, str) else await source.check_listing_state(source_url)
         row = await session.get(SourceRecord, row_id)
@@ -990,14 +1008,25 @@ async def deactivate_rejected_source(session: AsyncSession, source_name: str, so
     await deactivate_source_record(session, row, "rejected")
 
 
-async def reconcile_unverified_source_locations(session: AsyncSession, source_name: str) -> int:
+async def reconcile_unverified_source_locations(session: AsyncSession, source_name: str, scope_key: str = "santa_cruz") -> int:
     """Remove legacy invented markers while keeping valid cards in the catalog."""
+    missing_coordinates = or_(
+        SourceRecord.normalized_payload["latitude"].astext.is_(None),
+        SourceRecord.normalized_payload["longitude"].astext.is_(None),
+    )
     rows = (
         await session.scalars(
-            select(SourceRecord).where(
+            select(SourceRecord).join(Listing, Listing.id == SourceRecord.canonical_listing_id).where(
                 SourceRecord.source_name == source_name,
+                SourceRecord.scope_key == scope_key,
                 SourceRecord.current_status == "active",
-            )
+                Listing.primary_source == source_name,
+                or_(
+                    and_(missing_coordinates, Listing.location.is_not(None)),
+                    Listing.closed_reason == "source_location_unverified",
+                    and_(~missing_coordinates, SourceRecord.last_error == "source_location_unverified"),
+                ),
+            ).order_by(SourceRecord.id).limit(100)
         )
     ).all()
     changed = 0
@@ -1039,8 +1068,9 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
     return changed
 
 
-async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> dict[str, int]:
+async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> SourceRunCounters:
     started = perf_counter()
+    scope_key = getattr(source, "scope_key", "santa_cruz")
     counters = SourceRunCounters({
         key: 0
         for key in (
@@ -1065,10 +1095,10 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "rejected_invalid_price",
         )
     })
-    run = ExternalImportRun(run_id=run_id, source_name=source.name)
+    run = ExternalImportRun(run_id=run_id, source_name=source.name, scope_key=scope_key)
     session.add(run)
     await session.commit()
-    reconciled_locations = await reconcile_unverified_source_locations(session, source.name)
+    reconciled_locations = await reconcile_unverified_source_locations(session, source.name, scope_key)
     if reconciled_locations:
         logger.info(
             "external_import_reconciled_unverified_locations",
@@ -1079,6 +1109,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         select(ExternalImportRun)
         .where(
             ExternalImportRun.source_name == source.name,
+            ExternalImportRun.scope_key == scope_key,
             ExternalImportRun.result == "blocked",
             ExternalImportRun.next_check_at > started_at,
         )
@@ -1114,6 +1145,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             select(ExternalImportRun)
             .where(
                 ExternalImportRun.source_name == source.name,
+                ExternalImportRun.scope_key == scope_key,
                 ExternalImportRun.result == "success",
                 ExternalImportRun.id != run.id,
             )
@@ -1139,20 +1171,27 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             await source.close()
             EXTERNAL_IMPORTS.labels(source.name, run.result).inc()
             EXTERNAL_IMPORT_DURATION.labels(source.name).observe(perf_counter() - started)
+            counters.result = run.result
             return counters
         source.not_found_urls.clear()
         getattr(source, "removed_urls", set()).clear()
         if urls:
-            rows = await session.scalars(
-                select(SourceRecord).where(SourceRecord.source_name == source.name, SourceRecord.source_url.in_(urls))
-            )
             known_urls = set()
-            for row in rows:
-                known_urls.add(row.source_url)
-                row.last_seen_at = started_at
-                row.last_discovered_at = started_at
-                row.consecutive_missing_runs = 0
-                row.consecutive_unknown_state_runs = 0
+            ordered_urls = sorted(urls)
+            for start in range(0, len(ordered_urls), 250):
+                rows = await session.scalars(
+                    select(SourceRecord).where(
+                        SourceRecord.source_name == source.name,
+                        SourceRecord.scope_key == scope_key,
+                        SourceRecord.source_url.in_(ordered_urls[start:start + 250]),
+                    )
+                )
+                for row in rows:
+                    known_urls.add(row.source_url)
+                    row.last_seen_at = started_at
+                    row.last_discovered_at = started_at
+                    row.consecutive_missing_runs = 0
+                    row.consecutive_unknown_state_runs = 0
             counters["new_discovered"] = len(urls - known_urls)
         # Persist discovery metadata, then release the DB connection before the
         # concurrent detail fetches. Each accepted/rejected detail is committed
@@ -1165,9 +1204,17 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 return url, await source.fetch_listing(url)
 
         require_no_active_transaction(session, "external detail fetch")
-        fetched_results = await asyncio.gather(*(fetch(url) for url in urls), return_exceptions=True)
+        async def fetch_batches():
+            ordered_urls = sorted(urls)
+            for start in range(0, len(ordered_urls), 100):
+                results = await asyncio.gather(
+                    *(fetch(url) for url in ordered_urls[start:start + 100]), return_exceptions=True
+                )
+                for result in results:
+                    yield result
+
         partial = False
-        for result in fetched_results:
+        async for result in fetch_batches():
             if isinstance(result, BaseException):
                 counters["failed_details"] += 1
                 partial = True
@@ -1199,7 +1246,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 await deactivate_rejected_source(session, source.name, url)
                 await session.commit()
                 continue
-            if not is_in_target_province(parsed):
+            if not is_in_import_scope(parsed, scope_key):
                 counters["filtered_wrong_location"] += 1
                 counters["rejected_wrong_location"] += 1
                 await deactivate_rejected_source(session, source.name, url)
@@ -1212,7 +1259,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 await session.commit()
                 continue
             counters["accepted_rooms"] += 1
-            outcome = await upsert(session, item)
+            outcome = await upsert(session, item, scope_key=scope_key)
             counters[outcome] += 1
             if outcome == "imported":
                 counters["created"] += 1
@@ -1237,6 +1284,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         previous_challenges = await session.scalar(
             select(ExternalImportRun).where(
                 ExternalImportRun.source_name == source.name,
+                ExternalImportRun.scope_key == scope_key,
                 ExternalImportRun.result == "blocked",
             )
         )

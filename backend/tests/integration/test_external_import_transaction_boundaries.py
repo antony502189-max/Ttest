@@ -412,7 +412,7 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
 
         first_urls = [f"https://images.example.test/room-{index}.webp" for index in range(25)]
         await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
-        assert sorted(calls) == sorted(first_urls[:20])
+        assert sorted(calls) == sorted(first_urls[:8])
 
         first_ids = list(
             (
@@ -423,6 +423,23 @@ async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(mo
                 )
             ).all()
         )
+        assert len(first_ids) == 8
+        await session.commit()
+
+        # Simulate a legacy 20-photo gallery, then lower the configured cap.
+        # The new policy must not silently trim existing source media.
+        original_settings = importer.get_settings()
+        monkeypatch.setattr(importer, "get_settings", lambda: original_settings.model_copy(update={"external_import_max_images": 20}))
+        await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
+        await session.commit()
+        monkeypatch.setattr(importer, "get_settings", lambda: original_settings)
+        calls.clear()
+        await importer.import_images(session, listing.id, listing.owner_user_id, first_urls)
+        first_ids = list((await session.scalars(
+            select(ListingImage.media_asset_id)
+            .where(ListingImage.listing_id == listing.id)
+            .order_by(ListingImage.sort_order)
+        )).all())
         assert len(first_ids) == 20
         await session.commit()
 

@@ -6,16 +6,18 @@ import logging
 import signal
 from datetime import UTC, datetime, timedelta
 from time import monotonic
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from redis.asyncio import from_url
 from redis.exceptions import RedisError
+from sqlalchemy import or_, select
 
 from ..core.config import get_settings
 from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
 from ..external_sources import configured_sources, retired_source_names
-from ..models import ExternalWorkerState
+from ..models import ExternalImportScope, ExternalWorkerState
 from ..services.duplicate_cleanup import deduplicate_active_listings
 from ..services.external_import import completed_source_contract, retire_source_records, run_removal_check, run_source
 
@@ -305,6 +307,44 @@ async def run_once() -> dict[str, dict[str, int]]:
             )
             await worker_state(health="failed", error=failure_summary, run_id=run_id)
             return result
+        if getattr(settings, "external_import_nationwide_enabled", False):
+            # The global import lease serializes scope claims across replicas.
+            # next_run_at remains due after a crash, so the next run retries it.
+            async with SessionLocal() as session:
+                due_scopes = (
+                    await session.scalars(
+                        select(ExternalImportScope).where(
+                            ExternalImportScope.enabled.is_(True),
+                            or_(ExternalImportScope.next_run_at.is_(None), ExternalImportScope.next_run_at <= datetime.now(UTC)),
+                        ).order_by(ExternalImportScope.next_run_at, ExternalImportScope.id).limit(8)
+                    )
+                ).all()
+                scope_tasks = [(row.id, row.source_name, row.scope_key, list(row.discovery_urls or []), row.interval_seconds) for row in due_scopes]
+            source_types = {type(source).name: type(source) for source in sources}
+            for scope_id, source_name, scope_key, discovery_urls, interval_seconds in scope_tasks:
+                source_type = source_types.get(source_name)
+                if (source_type is None or not scope_key.startswith("province:") or not discovery_urls
+                        or not 3_600 <= interval_seconds <= 2_592_000
+                        or any(urlparse(url).scheme != "https" or not (
+                            urlparse(url).hostname == source_type.domain
+                            or (urlparse(url).hostname or "").endswith("." + source_type.domain)
+                        ) for url in discovery_urls)):
+                    logger.error("external_import_scope_invalid", extra={"source": source_name, "scope": scope_key})
+                    continue
+                scoped_source = source_type()
+                scoped_source.scope_key = scope_key
+                scoped_source.discovery_urls = tuple(discovery_urls)
+                async with SessionLocal() as session:
+                    outcome = await run_source(session, scoped_source, run_id)
+                    row = await session.get(ExternalImportScope, scope_id)
+                    if row is not None:
+                        row.last_run_at = datetime.now(UTC)
+                        row.last_result = outcome.result
+                        delay = interval_seconds if outcome.result == "success" else min(interval_seconds, 3_600)
+                        row.next_run_at = row.last_run_at + timedelta(seconds=delay)
+                        await session.commit()
+                logger.info("external_import_scope_finished", extra={"source": source_name, "scope": scope_key, "result": outcome.result, "counters": dict(outcome)})
+                await worker_state(health="running", run_id=run_id)
         # Every source gallery has now had a chance to reconcile to its current
         # bounded photo set. Re-run the same conservative photo-only cleanup so
         # legacy append-only parser galleries cannot keep historical duplicates
