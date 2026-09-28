@@ -152,7 +152,7 @@ function MobileServerSelectedPreview({ listing, language, onClose }: {
           <button type="button" className="m2-map-listing-preview__close" onClick={onClose} aria-label={t.close}><X /></button>
           <p><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p>
           <h2>{translatedTitle}</h2>
-          <strong>{priceLabel(listing)} {listing.sourcePriceText ? null : <small>/ {cadence}</small>}</strong>
+          <strong>{priceLabel(listing)} {listing.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
           <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
           <div className="m2-map-listing-preview__actions">
             <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(listing.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
