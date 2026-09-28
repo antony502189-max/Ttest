@@ -392,7 +392,8 @@ export function MobileSearchResults() {
       window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer')
       return
     }
-    navigate(`/habitacion/${listing.id}#contacto`)
+    const returnTo = `${location.pathname}${location.search}${location.hash}`
+    navigate(`/habitacion/${listing.id}#contacto`, { state: { returnTo } })
   }
   const openMap = () => {
     const params = new URLSearchParams(location.search)
@@ -459,7 +460,8 @@ export function MobileSearchResults() {
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
-        navigate(`/habitacion/${listing.id}`)
+        const returnTo = `${location.pathname}${location.search}${location.hash}`
+        navigate(`/habitacion/${listing.id}`, { state: { returnTo } })
       }} />) : <div className="m2-results__empty">{t.empty}</div>}{!mockMode && !serverLoading && !serverError && resultCount > 20 ? <nav className="m2-results-pagination" aria-label="Paginación"><button type="button" disabled={currentPage <= 1} onClick={() => changePage(currentPage - 1)}>Anterior</button><span>Página {currentPage} de {totalPages}</span><button type="button" disabled={currentPage >= totalPages} onClick={() => changePage(currentPage + 1)}>Siguiente</button></nav> : null}</div></> : null}
 
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{(mockMode ? orderKeys : productionOrderKeys).map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
