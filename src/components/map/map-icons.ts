@@ -28,7 +28,7 @@ export function createPriceMarkerContentFromData(priceText: string, promoted: bo
 }
 
 export function createPriceMarkerContent(listing: Listing) {
-  return createPriceMarkerContentFromData(priceLabel(listing), listing.promoted, `${listing.area}, ${priceLabel(listing)}`)
+  return createPriceMarkerContentFromData(priceLabel(listing), Boolean(listing.promoted), `${listing.area}, ${priceLabel(listing)}`)
 }
 
 export function setPriceMarkerState(content: HTMLElement, selected: boolean, highlighted: boolean, promoted: boolean) {
