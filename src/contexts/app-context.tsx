@@ -6,16 +6,16 @@ import { ApiError, resolveApiUrl } from '@/api/client'
 import { addDiscarded, addFavorite, clearDiscarded, createSavedSearch, deleteSavedSearch, getDiscarded, getFavorites, getSavedSearches, importGuestState, removeFavorite, updateSavedSearch } from '@/api/user-state'
 import { deleteCurrentUser, type RemoteUser, updateCurrentAvatar, updateCurrentUser } from '@/api/users'
 import { addSearchHistory as addRemoteSearchHistory, clearSearchHistory as clearRemoteSearchHistory, getSearchHistory } from '@/api/search-history'
-import { createRemoteListing, deleteRemoteListing, getCatalogVersion, getOwnedListings, getPublicListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
+import { createRemoteListing, deleteRemoteListing, getOwnedListings, renewRemoteListing, setRemoteListingStatus, updateRemoteListing } from '@/api/listings'
 import { cleanupPreparedListingMedia, prepareListingMedia, syncListingImages, type PreparedListingMedia } from '@/api/media'
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
-import { defaultFilters, initialListings } from '@/data/listings'
-import { expireListing, isListingLike, normalizeListing } from '@/lib/listings'
+import { defaultFilters } from '@/data/listings'
+import { expireListing } from '@/lib/listings'
 import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
-import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
+import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
 import { currentLocale } from '@/lib/i18n-locale'
 import type { DemoUser, Filters, Listing, ListingStatus, LocalListingComment, MapPolygonPoint, RentalMode, ReportRecord, UserRole } from '@/types'
@@ -101,8 +101,6 @@ export interface AppState {
 }
 
 export const AppContext = createContext<AppState | null>(null)
-const LISTINGS_KEY = '112233:listings:v3'
-const LISTINGS_VERSION = 3
 const DRAFT_KEY = '112233:listing-draft:v3'
 const LEGACY_DRAFT_KEY = '112233:listing-draft:v2'
 const PARTIAL_PUBLICATION_KEY = '112233:listing-publication-recovery:v1'
@@ -234,25 +232,6 @@ const isSavedSearch = (value: unknown): value is SavedSearch => Boolean(value) &
 const isScopedSavedSearches = (value: unknown): value is UserScopedState<SavedSearch[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isSavedSearch))
 const isLocalComment = (value: unknown): value is LocalListingComment => Boolean(value) && typeof value === 'object' && typeof (value as LocalListingComment).id === 'string' && typeof (value as LocalListingComment).userId === 'string' && typeof (value as LocalListingComment).listingId === 'string' && typeof (value as LocalListingComment).text === 'string' && typeof (value as LocalListingComment).createdAt === 'string'
 const isScopedLocalComments = (value: unknown): value is UserScopedState<LocalListingComment[]> => Boolean(value) && typeof value === 'object' && Object.values(value as Record<string, unknown>).every((items) => Array.isArray(items) && items.every(isLocalComment))
-const isListingArray = (value: unknown): value is Listing[] => Array.isArray(value) && value.every(isListingLike)
-
-function readListings() {
-  if (!mockMode) return { data: [] as Listing[] }
-  const current = readVersioned(LISTINGS_KEY, LISTINGS_VERSION, [] as Listing[], isListingArray)
-  if (!current.failure && localStorage.getItem(LISTINGS_KEY)) {
-    return { data: current.data.map(normalizeListing).filter((item): item is Listing => Boolean(item)) }
-  }
-  if (current.failure) return { data: initialListings.map((listing) => expireListing(listing)), failure: current.failure }
-
-  const legacy = parseJson<unknown>(localStorage.getItem('112233:listings:v2'))
-  if (legacy.failure) return { data: initialListings.map((listing) => expireListing(listing)), failure: legacy.failure }
-  if (legacy.data !== null) {
-    if (!isListingArray(legacy.data)) return { data: initialListings.map((listing) => expireListing(listing)), failure: 'corrupted' as const }
-    return { data: legacy.data.map(normalizeListing).filter((item): item is Listing => Boolean(item)) }
-  }
-  return { data: initialListings.map((listing) => expireListing(listing)) }
-}
-
 function readScopedStrings(key: string, legacyKey: string) {
   const current = readVersioned(key, 2, {} as UserScopedState<string[]>, isScopedStringArrays)
   if (localStorage.getItem(key) && !current.failure) {
@@ -283,24 +262,7 @@ const storageMessage = (failure: StorageFailure) => failure === 'quota'
     ? 'Había datos locales dañados. Se ha cargado una copia segura.'
     : 'No se pudo guardar en este navegador. Revisa la privacidad o el espacio disponible.'
 
-async function getStablePublicCatalog(signal?: AbortSignal) {
-  let lastVersion = await getCatalogVersion(signal)
-  let items: Listing[] = []
-  let itemsVersion = lastVersion.version
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    itemsVersion = lastVersion.version
-    items = await getPublicListings(signal)
-    const after = await getCatalogVersion(signal)
-    if (after.version === lastVersion.version) return { items, version: after.version }
-    lastVersion = after
-  }
-  // Keep the version observed before the final fetch. If another mutation won
-  // all three races, the normal poll still sees a newer version and retries.
-  return { items, version: itemsVersion }
-}
-
 function RemoteAppProvider({ children }: { children: ReactNode }) {
-  const [listingLoad] = useState(readListings)
   const [rentalMode, setRentalMode] = useState<RentalMode>('long')
   const [query, setQuery] = useState('Tenerife')
   const [favoriteScopes, setFavoriteScopes] = useState<UserScopedState<string[]>>(() => readScopedStrings('112233:favorites:v2', '112233:favorites:v1'))
@@ -309,7 +271,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [historyScopes, setHistoryScopes] = useState<UserScopedState<string[]>>(() => readScopedStrings('112233:search-history:v2', '112233:search-history:v1'))
   const [savedSearchScopes, setSavedSearchScopes] = useState<UserScopedState<SavedSearch[]>>(readScopedSavedSearches)
   const [mapPolygon, setMapPolygonState] = useState<MapPolygonPoint[]>([])
-  const [allListings, setAllListings] = useState<Listing[]>(listingLoad.data)
+  const [allListings, setAllListings] = useState<Listing[]>([])
   const [ownedListings, setOwnedListings] = useState<Listing[]>([])
   const [ownedListingsHydrationStatus, setOwnedListingsHydrationStatus] = useState<OwnedListingsHydrationStatus>('idle')
   const [partialPublication, setPartialPublication] = useState<PartialPublicationRecovery | null>(() => mockMode ? null : readPartialPublication())
@@ -318,14 +280,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const [commentScopes, setCommentScopes] = useState<UserScopedState<LocalListingComment[]>>(readScopedLocalComments)
   const [users, setUsers] = useState<DemoUser[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [storageError, setStorageError] = useState<string | null>(() => listingLoad.failure ? storageMessage(listingLoad.failure) : null)
-  const orphanCleanupStarted = useRef(false)
+  const [storageError, setStorageError] = useState<string | null>(null)
   const authHydrationStarted = useRef(false)
-  const listingsHydrationStarted = useRef(false)
-  const catalogHydrating = useRef(false)
-  const catalogVersion = useRef<string | null>(null)
-  const catalogCheck = useRef<AbortController | null>(null)
-  const catalogRequest = useRef<AbortController | null>(null)
   const ownedRequest = useRef<AbortController | null>(null)
   const ownedRequestVersion = useRef(0)
 
@@ -338,9 +294,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const localComments = useMemo(() => commentScopes[scopeKey] ?? [], [commentScopes, scopeKey])
 
   const refreshPublicConsumers = useCallback(async () => {
-    const { items, version } = await getStablePublicCatalog()
-    setAllListings(items)
-    catalogVersion.current = version
     window.dispatchEvent(new Event('catalog:updated'))
   }, [])
 
@@ -384,7 +337,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [refreshOwnedConsumers, refreshPublicConsumers])
 
   const acceptListingSnapshot = useCallback((snapshot: Listing) => {
-    setAllListings((current) => current.map((listing) => listing.id === snapshot.id ? { ...listing, ...snapshot } : listing))
+    setAllListings((current) => [...current.filter((listing) => listing.id !== snapshot.id).slice(-19), snapshot])
     // Preserve owner-only fields while accepting mutable public fields such as
     // the daily view counter returned by GET /listings/{id}.
     setOwnedListings((current) => current.map((listing) => listing.id === snapshot.id ? { ...listing, ...snapshot } : listing))
@@ -401,9 +354,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   useEffect(() => reportStorageFailure(persistVersioned('112233:discarded:v2', 2, discardedScopes)), [discardedScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:search-history:v2', 2, historyScopes)), [historyScopes, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:saved-searches:v3', 3, savedSearchScopes)), [savedSearchScopes, reportStorageFailure])
-  useEffect(() => {
-    if (mockMode) reportStorageFailure(persistVersioned(LISTINGS_KEY, LISTINGS_VERSION, allListings))
-  }, [allListings, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistJson('112233:reports:v1', reports)), [reports, reportStorageFailure])
   useEffect(() => reportStorageFailure(persistVersioned('112233:listing-comments:v1', 1, commentScopes)), [commentScopes, reportStorageFailure])
   useEffect(() => {
@@ -411,12 +361,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     setPartialPublication(null)
     try { persistPartialPublication(null) } catch { /* Ignore stale recovery cleanup failures. */ }
   }, [currentUserId, partialPublication])
-  useEffect(() => {
-    if (orphanCleanupStarted.current) return
-    orphanCleanupStarted.current = true
-    void cleanupOrphanedMedia(usedMediaReferences([...allListings, ...ownedListings], users)).catch(() => undefined)
-  }, [allListings, ownedListings, users])
-
   const setRemoteUser = useCallback((remote: RemoteUser) => {
     const user = toAppUser(remote)
     if (currentUserId !== user.id) invalidateOwnedListings()
@@ -431,56 +375,6 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       if (!(error instanceof ApiError) || error.status !== 401) toast.error('No se pudo restaurar la sesión.')
     })
   }, [setRemoteUser])
-
-  useEffect(() => {
-    if (listingsHydrationStarted.current) return
-    listingsHydrationStarted.current = true
-    if (mockMode) return
-    catalogHydrating.current = true
-    void getStablePublicCatalog().then(({ items, version }) => {
-      setAllListings(items)
-      catalogVersion.current = version
-    }).catch(() => {
-      setAllListings([])
-      toast.error('No se pudo cargar el catálogo del servidor.')
-    }).finally(() => { catalogHydrating.current = false })
-  }, [])
-
-  useEffect(() => {
-    if (mockMode) return
-    const refreshIfChanged = () => {
-      if (catalogHydrating.current || catalogCheck.current) return
-      const check = new AbortController()
-      catalogCheck.current = check
-      void getCatalogVersion(check.signal).then((current) => {
-        if (catalogVersion.current === current.version) return
-        catalogRequest.current?.abort()
-        const request = new AbortController()
-        catalogRequest.current = request
-        return getStablePublicCatalog(request.signal).then(({ items, version }) => {
-          if (!request.signal.aborted) {
-            setAllListings(items)
-            catalogVersion.current = version
-            window.dispatchEvent(new Event('catalog:updated'))
-          }
-        })
-      }).catch(() => undefined).finally(() => {
-        if (catalogCheck.current === check) catalogCheck.current = null
-      })
-    }
-    const interval = window.setInterval(refreshIfChanged, 60_000)
-    const onFocus = () => { refreshIfChanged() }
-    const onVisibility = () => { if (document.visibilityState === 'visible') refreshIfChanged() }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => {
-      window.clearInterval(interval)
-      catalogCheck.current?.abort()
-      catalogRequest.current?.abort()
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
-  }, [])
 
   useEffect(() => {
     if (!currentUserId) return

@@ -44,6 +44,7 @@ import { ConfirmDialog, FormField, StatusBadge } from "@/components/forms";
 import { EmptyState, PropertyCard } from "@/components/marketplace";
 import { useApp } from "@/contexts/app-context";
 import { useAppBack } from "@/hooks/use-app-back";
+import { useFavoriteListings } from "@/hooks/use-favorite-listings";
 import { useI18n } from "@/contexts/i18n-context";
 import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
@@ -75,8 +76,8 @@ function AccountHeader({
 }
 
 export function FavoritesPage() {
-  const { favorites, allListings, toggleFavorite } = useApp();
-  const saved = allListings.filter((listing) => favorites.has(listing.id));
+  const { toggleFavorite } = useApp();
+  const { listings: saved } = useFavoriteListings();
   return (
     <div className="container account-page">
       <AccountHeader

@@ -13,7 +13,7 @@ import { UserReportDialog } from '@/components/user-report-dialog'
 import { useApp } from '@/contexts/app-context'
 import { useAppBack } from '@/hooks/use-app-back'
 import { currentLocale } from '@/lib/i18n-locale'
-import { getPublicListing } from '@/api/listings'
+import { getPublicListing, getSimilarListings } from '@/api/listings'
 import { formatPublishedAt } from '@/lib/search'
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicListing, unknownListingFact } from '@/lib/listings'
 import type { Listing } from '@/types'
@@ -41,6 +41,7 @@ export function ListingPage() {
   const [commentText, setCommentText] = useState('')
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [serverListing, setServerListing] = useState<Listing | null>(null)
+  const [serverSimilar, setServerSimilar] = useState<Listing[]>([])
   const [detailLoading, setDetailLoading] = useState(true)
   const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [compactContact, setCompactContact] = useState(() => window.matchMedia(COMPACT_CONTACT_QUERY).matches)
@@ -58,6 +59,13 @@ export function ListingPage() {
     }).catch(() => { if (!cancelled) setServerListing(null) }).finally(() => { if (!cancelled) setDetailLoading(false) })
     return () => { cancelled = true }
   }, [acceptListingSnapshot, catalogEpoch, id])
+
+  useEffect(() => {
+    if (!id || mockMode) return
+    const request = new AbortController()
+    void getSimilarListings(id, request.signal).then((items) => { if (!request.signal.aborted) setServerSimilar(items) }).catch(() => { if (!request.signal.aborted) setServerSimilar([]) })
+    return () => request.abort()
+  }, [catalogEpoch, id])
 
   useEffect(() => {
     const refresh = () => setCatalogEpoch((current) => current + 1)
@@ -80,7 +88,7 @@ export function ListingPage() {
 
   const criticalRestrictions = getCriticalRestrictions(listing)
   const primaryRestriction = criticalRestrictions[0]
-  const similar = allListings.filter((item) => item.id !== listing.id && item.status === 'Publicado' && item.rentalMode === listing.rentalMode).sort((a, b) => Number(b.area === listing.area) - Number(a.area === listing.area) || Math.abs(getPrimaryPrice(a) - getPrimaryPrice(listing)) - Math.abs(getPrimaryPrice(b) - getPrimaryPrice(listing))).slice(0, 3)
+  const similar = mockMode ? allListings.filter((item) => item.id !== listing.id && item.status === 'Publicado' && item.rentalMode === listing.rentalMode).sort((a, b) => Number(b.area === listing.area) - Number(a.area === listing.area) || Math.abs(getPrimaryPrice(a) - getPrimaryPrice(listing)) - Math.abs(getPrimaryPrice(b) - getPrimaryPrice(listing))).slice(0, 3) : serverSimilar
   const saved = favorites.has(listing.id)
   const listingComments = localComments.filter((comment) => comment.listingId === listing.id)
   const availableSpots = listing.availableSpots ?? (listing.roomCapacity != null && listing.currentRoomResidents != null ? Math.max(0, listing.roomCapacity - listing.currentRoomResidents) : null)

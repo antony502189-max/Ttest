@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { EmptyState, PropertyCard } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
+import { useFavoriteListings } from '@/hooks/use-favorite-listings'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import '@/favorites-selection.css'
 
@@ -73,13 +74,10 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
 }
 
 export function FavoritesPage() {
-  const { favorites, allListings, toggleFavorite } = useApp()
+  const { favorites, toggleFavorite } = useApp()
+  const { listings: saved, loading, error, retry } = useFavoriteListings()
   const { language } = useI18n()
   const copy = copyByLanguage[language]
-  const saved = useMemo(
-    () => allListings.filter((listing) => favorites.has(listing.id)),
-    [allListings, favorites],
-  )
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
 
@@ -177,7 +175,7 @@ export function FavoritesPage() {
         </div>
       ) : null}
 
-      {saved.length ? (
+      {loading ? <p role="status">Cargando favoritos…</p> : error ? <div role="alert">No se pudieron cargar los favoritos. <Button onClick={retry}>Reintentar</Button></div> : saved.length ? (
         <div className="property-grid favorites-grid">
           {saved.map((listing) => {
             const isSelected = selected.has(listing.id)

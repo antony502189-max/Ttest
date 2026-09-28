@@ -546,6 +546,7 @@ export function PropertyCard({
   };
   const criticalRestrictions = getCriticalRestrictions(listing);
   const visibleRestrictions = criticalRestrictions.slice(0, compact ? 2 : 3);
+  const cardImages = listing.images.length ? listing.images : [fallbackImage];
   return (
     <article
       className={cn(
@@ -560,41 +561,41 @@ export function PropertyCard({
       <div className="property-card__media">
         <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`}>
           <MediaImage
-            src={listing.images[imageIndex] || fallbackImage}
+            src={cardImages[imageIndex] || fallbackImage}
             variant="card"
             onError={imageFallback}
-            alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${listing.images.length}`}
+            alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${cardImages.length}`}
             width="720"
             height="480"
             loading="lazy"
           />
         </ListingDestination>
-        <button
+        {cardImages.length > 1 ? <button
           type="button"
           className="card-gallery-arrow card-gallery-arrow--previous"
           onClick={() =>
             setImageIndex(
               (current) =>
-                (current - 1 + listing.images.length) % listing.images.length,
+                (current - 1 + cardImages.length) % cardImages.length,
             )
           }
           aria-label={`Foto anterior de ${listing.title}`}
         >
           <ChevronLeft />
-        </button>
-        <button
+        </button> : null}
+        {cardImages.length > 1 ? <button
           type="button"
           className="card-gallery-arrow card-gallery-arrow--next"
           onClick={() =>
-            setImageIndex((current) => (current + 1) % listing.images.length)
+            setImageIndex((current) => (current + 1) % cardImages.length)
           }
           aria-label={`Foto siguiente de ${listing.title}`}
         >
           <ChevronRight />
-        </button>
+        </button> : null}
         <span className="image-counter">
           <Camera aria-hidden="true" />
-          {imageIndex + 1}/{listing.images.length}
+          {imageIndex + 1}/{cardImages.length}
         </span>
         <FavoriteButton listing={listing} />
         {imageIndex === 0 ? <CriticalRestrictionOverlay listing={listing} /> : null}
@@ -1125,7 +1126,7 @@ export function FilterButton({
               setOpen(false);
             }}
           >
-            Mostrar {draftResultCount} habitaciones
+            {import.meta.env.VITE_ENABLE_MOCK_MODE === '1' ? `Mostrar ${draftResultCount} habitaciones` : 'Mostrar resultados'}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -1175,6 +1176,7 @@ export function FilterSidebar({
 
 export function MapView(props: {
   items: MappedListing[];
+  serverQuery?: Record<string, unknown>;
   selectedId?: string;
   highlightedId?: string;
   onSelect: (id: string) => void;
@@ -1512,12 +1514,14 @@ export function Pagination({
   page,
   totalPages,
   onPage,
+  sequential = false,
 }: {
   page: number;
   totalPages: number;
   onPage: (page: number) => void;
+  sequential?: boolean;
 }) {
-  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const pages = sequential ? [page] : Array.from({ length: totalPages }, (_, index) => index + 1);
   return (
     <nav className="pagination" aria-label="Paginación">
       <Button

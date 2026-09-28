@@ -91,7 +91,11 @@ type ListingDto = {
   promotionEndsAt?: string | null
 }
 
-type ListingSearchDto = { items: ListingDto[]; total: number; limit: number; offset: number }
+type ListingCardDto = Pick<ListingDto, 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'>
+export type ListingCardPage = { items: Listing[]; total: number; nextCursor: string | null; previousCursor: string | null }
+export type ListingMapMarker =
+  | { type: 'listing'; id: string; latitude: number; longitude: number; price: number | null; promoted: boolean; isExternal: boolean; sourceUrl: string | null }
+  | { type: 'cluster'; id: string; latitude: number; longitude: number; count: number }
 
 const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
@@ -210,25 +214,48 @@ export function toListing(dto: ListingDto): Listing {
   }
 }
 
-async function fetchAllSearch(body: Record<string, unknown>, signal?: AbortSignal) {
-  const pageSize = 100
-  const items: ListingDto[] = []
-  let offset = 0
-  let total = 0
-  do {
-    const response = await api<ListingSearchDto>('/listings/search', {
-      method: 'POST', body: JSON.stringify({ ...body, limit: pageSize, offset }), signal,
-    })
-    items.push(...response.items)
-    total = response.total
-    if (!response.items.length) break
-    offset += response.items.length
-  } while (items.length < total)
-  return items.map(toListing)
+export function toCardListing(dto: ListingCardDto): Listing {
+  const availableFrom = dateOnly(dto.availableFrom, new Date().toISOString().slice(0, 10))
+  return {
+    id: dto.id, title: dto.title, city: dto.city, area: dto.area,
+    approximateAddress: dto.approximateAddress, rentalMode: dto.rentalMode,
+    price: dto.price ?? 0, cadence: dto.rentalMode === 'holiday' ? 'noche' : 'mes',
+    roomType: dto.roomType, currentResidents: dto.currentResidents, roomCapacity: dto.roomCapacity,
+    bedroomCount: dto.bedroomCount ?? undefined, roomSizeM2: dto.roomSizeM2,
+    available: dto.availableFrom ? `Disponible desde ${availableFrom}` : 'Consultar disponibilidad',
+    availableFrom, minimumStay: 'Consultar estancia mínima', minimumStayMonths: null,
+    deposit: 'Consultar fianza', depositAmount: null,
+    bills: dto.billsIncluded == null ? 'Consultar gastos' : dto.billsIncluded ? 'Gastos incluidos' : 'Gastos no incluidos',
+    billsIncluded: dto.billsIncluded, bathroom: null, kitchen: null, furnished: null,
+    shower: 'Ducha compartida', tenantRequirement: null,
+    smokingAllowed: null, petsAllowed: null, childrenAllowed: null, empadronamientoAllowed: null,
+    restrictions: dto.restrictions, amenities: [], description: dto.description, homeDescription: '',
+    images: dto.coverImageUrl ? [resolveApiUrl(dto.coverImageUrl)] : [],
+    owner: { name: '', initials: '', since: '', response: '', verified: false },
+    advertiserType: dto.advertiserType ?? 'Particular', isExternal: dto.isExternal,
+    sourceUrl: dto.sourceUrl ?? undefined, primarySource: dto.primarySource ?? undefined,
+    sourcePriceText: dto.sourcePriceText ?? undefined, pricePeriod: dto.pricePeriod ?? undefined,
+    priceIsFrom: dto.priceIsFrom ?? undefined, status: 'Publicado',
+    publishedAt: dateOnly(dto.publishedAt, availableFrom), views: 0, expiresAt: '2099-12-31',
+    showPhone: false, showWhatsApp: false, promoted: dto.promoted,
+  }
 }
 
-export function getPublicListings(signal?: AbortSignal) {
-  return fetchAllSearch({ sort: 'newest' }, signal)
+export async function getPublicCardsByIds(ids: string[], signal?: AbortSignal): Promise<Listing[]> {
+  const validIds = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+  const chunks = Array.from({ length: Math.ceil(validIds.length / 100) }, (_, index) => validIds.slice(index * 100, (index + 1) * 100))
+  const responses = await Promise.all(chunks.map((chunk) => api<ListingCardDto[]>('/listings/cards/resolve', { method: 'POST', body: JSON.stringify({ ids: chunk }), signal })))
+  return responses.flat().map(toCardListing)
+}
+
+export async function getSimilarListings(id: string, signal?: AbortSignal): Promise<Listing[]> {
+  const cards = await api<ListingCardDto[]>(`/listings/similar/${id}`, { signal })
+  return cards.map(toCardListing)
+}
+
+export async function getMapMarkers(body: Record<string, unknown>, signal?: AbortSignal): Promise<ListingMapMarker[]> {
+  const response = await api<{ items: ListingMapMarker[] }>('/listings/map', { method: 'POST', body: JSON.stringify(body), signal })
+  return response.items
 }
 
 export function getCatalogVersion(signal?: AbortSignal) {
@@ -259,10 +286,11 @@ export type ListingSearchInput = {
   polygon?: Array<{ latitude: number; longitude: number }>
   center?: { latitude: number; longitude: number }
   radiusKm?: number
-  sort?: 'newest' | 'oldest' | 'price_asc' | 'price_desc'
+  sort?: 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'saved_new' | 'saved_old' | 'reduced' | 'sqm_asc' | 'sqm_desc' | 'area_asc' | 'area_desc' | 'floor_asc' | 'floor_desc'
+  favoriteIds?: string[]
 }
 
-export function searchPublicListings(input: ListingSearchInput, signal?: AbortSignal) {
+export function buildListingSearchBody(input: ListingSearchInput): Record<string, unknown> {
   const { bounds, polygon, filters, minPrice, maxPrice, ...payload } = input
   const yesNo = (value: string) => value === 'Cualquiera' ? undefined : value === 'Sí'
   const publicationDays = filters.publicationDate === '24h' ? 1 : filters.publicationDate === '7d' ? 7 : filters.publicationDate === '30d' ? 30 : undefined
@@ -322,7 +350,14 @@ export function searchPublicListings(input: ListingSearchInput, signal?: AbortSi
     } : {}),
     ...(polygon?.length ? { polygon } : {}),
   }
-  return fetchAllSearch(body, signal)
+  return body
+}
+
+export async function searchPublicListings(input: ListingSearchInput, signal?: AbortSignal, cursor?: string, limit = 20): Promise<ListingCardPage> {
+  const response = await api<{ items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }>('/listings/search/cards', {
+    method: 'POST', body: JSON.stringify({ ...buildListingSearchBody(input), cursor, limit }), signal,
+  })
+  return { items: response.items.map(toCardListing), total: response.total, nextCursor: response.nextCursor, previousCursor: response.previousCursor }
 }
 
 async function syncContactProfile(listing: Listing) {

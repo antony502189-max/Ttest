@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect } from 'react'
-import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const APPEARANCE_KEY = '112233:appearance:v1'
@@ -34,7 +33,6 @@ function hideAppearanceRow() {
 
 export function MobileSiteFeedbackFixes() {
   const { language } = useI18n()
-  const { allListings } = useApp()
   const copy = feedbackCopy[language]
 
   useLayoutEffect(() => {
@@ -58,16 +56,14 @@ export function MobileSiteFeedbackFixes() {
           if (!element.matches('.m2-result-card__badges span')) return
 
           const card = element.closest<HTMLElement>('.m2-result-card')
-          const listingId = card?.dataset.listingId
-          const listing = listingId ? allListings.find((item) => item.id === listingId) : undefined
-          const sourceUrl = listing?.isExternal ? listing.sourceUrl : undefined
+          const sourceUrl = card?.dataset.externalSourceUrl
           if (sourceUrl) {
             element.classList.remove('m2-unknown-fact')
             element.classList.add('m2-external-source-cta')
             element.dataset.externalSourceUrl = sourceUrl
             element.setAttribute('role', 'link')
             element.tabIndex = 0
-            element.setAttribute('aria-label', `${copy.unknownFact}: ${listing?.primarySource ?? listing?.source ?? 'sitio original'}`)
+            element.setAttribute('aria-label', `${copy.unknownFact}: ${card?.dataset.primarySource ?? 'sitio original'}`)
           } else {
             element.classList.remove('m2-external-source-cta')
             delete element.dataset.externalSourceUrl
@@ -87,7 +83,7 @@ export function MobileSiteFeedbackFixes() {
       cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [allListings, copy.unknownFact, language])
+  }, [copy.unknownFact, language])
 
   useEffect(() => {
     const activate = (target: EventTarget | null) => {

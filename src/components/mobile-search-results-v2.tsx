@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppBack } from '@/hooks/use-app-back'
+import { searchPublicListings } from '@/api/listings'
 import {
   ArrowDownUp,
   ArrowLeft,
@@ -32,6 +33,7 @@ import { cn } from '@/lib/utils'
 type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
 type ResultsOrder = 'relevance' | 'cheap' | 'expensive' | 'saved-new' | 'saved-old' | 'reduced' | 'sqm-cheap' | 'sqm-expensive' | 'area-large' | 'area-small' | 'floor-high' | 'floor-low'
+const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 type ResultsFilters = {
   rentalMode: RentalMode | null
@@ -72,6 +74,7 @@ const createDefaultFilters = (rentalMode: RentalMode | null = null): ResultsFilt
 })
 
 const orderKeys: ResultsOrder[] = ['relevance', 'cheap', 'expensive', 'saved-new', 'saved-old', 'reduced', 'sqm-cheap', 'sqm-expensive', 'area-large', 'area-small', 'floor-high', 'floor-low']
+const productionOrderKeys: ResultsOrder[] = orderKeys
 
 const resultsCopy = {
   es: {
@@ -154,7 +157,7 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
   const [imageIndex, setImageIndex] = useState(0)
   const images = listing.images.length ? listing.images : [fallbackImage]
   const nextImage = () => setImageIndex((current) => (current + 1) % images.length)
-  return <article className="m2-result-card" data-listing-id={listing.id}>
+  return <article className="m2-result-card" data-listing-id={listing.id} data-external-source-url={listing.isExternal ? listing.sourceUrl : undefined} data-primary-source={listing.primarySource ?? listing.source}>
     <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} variant="card" onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} width="720" height="480" loading="lazy" /></button><span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
     <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
@@ -174,7 +177,52 @@ export function MobileSearchResults() {
   const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
   const [draftFilters, setDraftFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
   const [focusListingId, setFocusListingId] = useState('')
+  const [serverItems, setServerItems] = useState<Listing[] | null>(null)
+  const [serverTotal, setServerTotal] = useState(0)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [previousCursor, setPreviousCursor] = useState<string | null>(null)
+  const [serverLoading, setServerLoading] = useState(false)
+  const [serverError, setServerError] = useState(false)
+  const [retry, setRetry] = useState(0)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
+
+  useEffect(() => {
+    if (mockMode || !open) return
+    const params = new URLSearchParams(location.search)
+    if (params.get('vista') === 'mapa') return
+    const request = new AbortController()
+    const canonical = filtersFromParams(params)
+    const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
+      ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
+    const mobileOrder = params.get('mobileOrden')
+    const sortByOrder = {
+      relevance: 'newest', cheap: 'price_asc', expensive: 'price_desc',
+      'saved-new': 'saved_new', 'saved-old': 'saved_old', reduced: 'reduced',
+      'sqm-cheap': 'sqm_asc', 'sqm-expensive': 'sqm_desc',
+      'area-large': 'area_desc', 'area-small': 'area_asc',
+      'floor-high': 'floor_desc', 'floor-low': 'floor_asc',
+    } as const
+    const sort = sortByOrder[mobileOrder as ResultsOrder] ?? 'newest'
+    setServerItems(null)
+    setServerLoading(true)
+    setServerError(false)
+    void searchPublicListings({
+      rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' : 'long',
+      query: params.get('q') ?? 'Tenerife', filters: canonical,
+      minPrice: canonical.minPrice, maxPrice: canonical.maxPrice, roomTypes, sort,
+      favoriteIds: sort.startsWith('saved_') ? [...favorites].slice(0, 1000) : undefined,
+    }, request.signal, params.get('cursor') ?? undefined, 20).then((page) => {
+      if (!request.signal.aborted) {
+        setServerItems(page.items)
+        setServerTotal(page.total)
+        setNextCursor(page.nextCursor)
+        setPreviousCursor(page.previousCursor)
+      }
+    }).catch(() => { if (!request.signal.aborted) setServerError(true) }).finally(() => {
+      if (!request.signal.aborted) setServerLoading(false)
+    })
+    return () => request.abort()
+  }, [favorites, location.search, open, retry])
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
@@ -204,7 +252,7 @@ export function MobileSearchResults() {
     setRentalMode(routeMode)
     setAppFilters(parsed)
     const routeOrder = params.get('mobileOrden') as ResultsOrder | null
-    setOrder(routeOrder && orderKeys.includes(routeOrder) ? routeOrder : 'relevance')
+    setOrder(routeOrder && (mockMode ? orderKeys : productionOrderKeys).includes(routeOrder) ? routeOrder : 'relevance')
     setFocusListingId(params.get('anuncio') ?? '')
     if (params.get('panel') === 'filtros') setPanel('filters')
     else if (params.get('panel') === 'orden') setPanel('sort')
@@ -233,8 +281,9 @@ export function MobileSearchResults() {
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
   }, [filters, goBack, open, panel])
 
-  const availableListings = useMemo(() => allListings.filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded])
+  const availableListings = useMemo(() => (mockMode ? allListings : serverItems ?? []).filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded, serverItems])
   const filteredListings = useMemo(() => {
+    if (!mockMode) return (serverItems ?? []).filter((listing) => !discarded.has(listing.id))
     const params = new URLSearchParams(location.search)
     if (filters.roomTypes.length) params.set('tiposHabitacion', filters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
@@ -259,9 +308,10 @@ export function MobileSearchResults() {
       amenities: filters.amenities,
     }
     return selectMobileSearchListings({ listings: allListings, discarded, rentalMode: filters.rentalMode ?? rentalMode, filters: canonicalFilters, polygon: mapPolygon, query: params.get('q') ?? appQuery, params })
-  }, [allListings, appFilters, appQuery, discarded, filters, location.search, mapPolygon, rentalMode])
+  }, [allListings, appFilters, appQuery, discarded, filters, location.search, mapPolygon, rentalMode, serverItems])
 
   const previewFilteredListings = useMemo(() => {
+    if (!mockMode) return filteredListings
     const params = new URLSearchParams(location.search)
     if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
     else params.delete('tiposHabitacion')
@@ -286,9 +336,9 @@ export function MobileSearchResults() {
       amenities: draftFilters.amenities,
     }
     return selectMobileSearchListings({ listings: allListings, discarded, rentalMode: draftFilters.rentalMode ?? rentalMode, filters: canonicalFilters, polygon: mapPolygon, query: params.get('q') ?? appQuery, params })
-  }, [allListings, appFilters, appQuery, discarded, draftFilters, location.search, mapPolygon, rentalMode])
+  }, [allListings, appFilters, appQuery, discarded, draftFilters, filteredListings, location.search, mapPolygon, rentalMode])
 
-  const listings = useMemo(() => [...filteredListings].sort((a, b) => {
+  const listings = useMemo(() => mockMode ? [...filteredListings].sort((a, b) => {
     const promotionPriority = Number(Boolean(b.promoted)) - Number(Boolean(a.promoted))
     if (promotionPriority) return promotionPriority
     if (order === 'cheap') return a.price - b.price
@@ -303,8 +353,20 @@ export function MobileSearchResults() {
     if (order === 'floor-high') return compareListingFloors(a, b, 'desc')
     if (order === 'floor-low') return compareListingFloors(a, b, 'asc')
     return 0
-  }), [favorites, filteredListings, order])
+  }) : filteredListings, [favorites, filteredListings, order])
   const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])
+  const resultCount = mockMode ? availableListings.length : serverTotal
+  const currentPage = Math.max(1, Number(new URLSearchParams(location.search).get('pagina') || 1))
+  const totalPages = Math.max(1, Math.ceil(resultCount / 20))
+  const changePage = (nextPage: number) => {
+    const cursor = nextPage > currentPage ? nextCursor : previousCursor
+    if (!cursor) return
+    const params = new URLSearchParams(location.search)
+    if (nextPage === 1) params.delete('pagina')
+    else params.set('pagina', String(nextPage))
+    params.set('cursor', cursor)
+    navigate(`/buscar?${params.toString()}`)
+  }
 
   if (!open) return null
   const t = resultsCopy[language] as ResultsCopy
@@ -359,6 +421,8 @@ export function MobileSearchResults() {
     setRentalMode(nextMode)
     setAppFilters(nextFilters)
     const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
+    params.delete('pagina')
+    params.delete('cursor')
     params.set('alquiler', nextMode)
     params.delete('panel')
     if (draftFilters.roomTypes.length) params.set('tiposHabitacion', draftFilters.roomTypes.join('|'))
@@ -375,6 +439,8 @@ export function MobileSearchResults() {
     const nextFilters = { ...appFilters, sort: canonicalSort }
     setAppFilters(nextFilters)
     const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
+    params.delete('pagina')
+    params.delete('cursor')
     params.set('mobileOrden', value)
     params.delete('panel')
     navigate(`/buscar?${params.toString()}`)
@@ -382,14 +448,14 @@ export function MobileSearchResults() {
   }
 
   return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(listings.length)}</strong><small>{t.zone}</small></div></header>
+    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
-      <div className="m2-results__summary"><span>{t.showing(listings.length, availableListings.length)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
+      <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
-      }} />) : <div className="m2-results__empty">{t.empty}</div>}</div></> : null}
+      }} />) : <div className="m2-results__empty">{t.empty}</div>}{!mockMode && !serverLoading && !serverError && resultCount > 20 ? <nav className="m2-results-pagination" aria-label="Paginación"><button type="button" disabled={currentPage <= 1} onClick={() => changePage(currentPage - 1)}>Anterior</button><span>Página {currentPage} de {totalPages}</span><button type="button" disabled={currentPage >= totalPages} onClick={() => changePage(currentPage + 1)}>Siguiente</button></nav> : null}</div></> : null}
 
-    {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{orderKeys.map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
+    {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{(mockMode ? orderKeys : productionOrderKeys).map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
     {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => { setDraftFilters(filters); setPanel('results') }} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
       <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(draftFilters.rentalMode === 'long' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(draftFilters.rentalMode === 'holiday' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>
@@ -406,6 +472,6 @@ export function MobileSearchResults() {
       <fieldset><legend>{t.bathroomType}</legend><label className="m2-results-filter__select"><span>{t.bathroomType}</span><select aria-label={t.bathroomType} value={bathroomProfile} onChange={(event) => { const value = event.target.value; setDraftFilters((current) => value === 'private' ? { ...current, shower: 'Ducha privada', toilet: 'Aseo privado' } : value === 'private-toilet' ? { ...current, shower: 'Ducha compartida', toilet: 'Aseo privado' } : value === 'shared' ? { ...current, shower: 'Ducha compartida', toilet: 'Aseo compartido' } : value === 'any' ? { ...current, shower: 'Cualquiera', toilet: 'Cualquiera' } : current) }}><option value="any">{t.any}</option><option value="private">{t.bathroomPrivate}</option><option value="private-toilet">{t.toiletPrivateShowerShared}</option><option value="shared">{t.bathroomShared}</option>{bathroomProfile === 'custom' ? <option value="custom">{t.customBathroom}</option> : null}</select></label></fieldset>
       <fieldset><legend>{t.additional}</legend><div className="m2-results-filter__checks"><label><input type="checkbox" checked={hasDraftAmenity('Terraza')} onChange={(event) => setDraftAmenity('Terraza', event.target.checked)} /><span>{t.terrace}</span></label><label><input type="checkbox" checked={hasDraftAmenity('Piscina')} onChange={(event) => setDraftAmenity('Piscina', event.target.checked)} /><span>{t.pool}</span></label><label><input type="checkbox" checked={hasDraftAmenity('Jardín')} onChange={(event) => setDraftAmenity('Jardín', event.target.checked)} /><span>{t.garden}</span></label><label><input type="checkbox" checked={hasDraftAmenity('Ascensor')} onChange={(event) => setDraftAmenity('Ascensor', event.target.checked)} /><span>{t.elevator}</span></label><label><input type="checkbox" checked={hasDraftAmenity('Limpieza incluida')} onChange={(event) => setDraftAmenity('Limpieza incluida', event.target.checked)} /><span>{t.cleaning}</span></label><label><input type="checkbox" checked={draftFilters.accessible === 'Sí'} onChange={(event) => setDraftFilters((current) => ({ ...current, accessible: event.target.checked ? 'Sí' : 'Cualquiera' }))} /><span>{t.accessibleLabel}</span></label></div><label className="m2-results-filter__select"><span>{t.floor}</span><select aria-label={t.floor} value={draftFilters.floor} onChange={(event) => setDraftFilters((current) => ({ ...current, floor: event.target.value as Filters['floor'] }))}><option value="Cualquiera">{t.any}</option><option value="basement">{t.basement}</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4+">4+</option><option value="top">{t.topFloor}</option></select></label></fieldset>
       <fieldset><legend>{t.housingType}</legend><div className="m2-results-filter__checks">{([['Habitación individual', t.individual], ['Habitación compartida', t.shared], ['Estudio', t.studio]] as const).map(([value, label]) => <label key={value}><input type="checkbox" checked={draftFilters.roomTypes.includes(value)} onChange={() => setDraftFilters((current) => ({ ...current, roomTypes: toggleValue(current.roomTypes, value) }))} /><span>{label}</span></label>)}</div></fieldset>
-    </div><footer><button type="button" onClick={applyFilters}>{t.showListings} · {previewFilteredListings.length}</button></footer></section> : null}
+    </div><footer><button type="button" onClick={applyFilters}>{t.showListings}{mockMode ? ` · ${previewFilteredListings.length}` : ""}</button></footer></section> : null}
   </section>, document.body)
 }

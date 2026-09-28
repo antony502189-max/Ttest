@@ -3,6 +3,7 @@ import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markercluste
 import { MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { useApp } from '@/contexts/app-context'
+import { getMapMarkers, getPublicListing, type ListingMapMarker } from '@/api/listings'
 import { useI18n } from '@/contexts/i18n-context'
 import { requestCurrentLocation } from '@/lib/geolocation'
 import { getPrimaryPrice } from '@/lib/listings'
@@ -16,7 +17,7 @@ import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClust
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { cn } from '@/lib/utils'
-import type { MappedListing, MapPolygonPoint } from '@/types'
+import type { Listing, MappedListing, MapPolygonPoint } from '@/types'
 import '@/map.css'
 import '@/current-location-marker.css'
 import '@/freehand-map-drawing.css'
@@ -30,6 +31,7 @@ export interface MapBounds {
 
 export interface ResultsMapProps {
   items: MappedListing[]
+  serverQuery?: Record<string, unknown>
   selectedId?: string
   highlightedId?: string
   onSelect: (id: string) => void
@@ -90,7 +92,7 @@ function fitListings(map: google.maps.Map, listings: MappedListing[]) {
   })
 }
 
-export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
+export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
   const { filters, mapPolygon, setMapPolygon, clearMapPolygon } = useApp()
   const { language } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -98,6 +100,11 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const markerContentRef = useRef(new Map<string, HTMLElement>())
+  const serverMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
+  const [serverMarkers, setServerMarkers] = useState<ListingMapMarker[]>([])
+  const [selectedDetail, setSelectedDetail] = useState<Listing | null>(null)
+  const serverQueryKey = serverQuery ? JSON.stringify(serverQuery) : ''
+  const serverModeRef = useRef(Boolean(serverQuery))
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
   const vertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const drawingRef = useRef(false)
@@ -132,7 +139,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   const [focusSheetOnOpen, setFocusSheetOnOpen] = useState(false)
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
 
-  const selected = items.find((item) => item.id === selectedId)
+  const selected = items.find((item) => item.id === selectedId) ?? (selectedDetail?.id === selectedId ? selectedDetail : null)
   const coincidentListings = coincidentIds.flatMap((id) => {
     const listing = items.find((item) => item.id === id)
     return listing ? [listing] : []
@@ -149,6 +156,76 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
   useEffect(() => { onSelectRef.current = onSelect }, [onSelect])
   useEffect(() => { onHighlightRef.current = onHighlight }, [onHighlight])
   useEffect(() => { drawingRef.current = drawing }, [drawing])
+  useEffect(() => {
+    if (!serverQueryKey || !selectedId || items.some((item) => item.id === selectedId)) {
+      setSelectedDetail(null)
+      return
+    }
+    let cancelled = false
+    void getPublicListing(selectedId).then((detail) => {
+      if (!cancelled) setSelectedDetail(detail)
+    }).catch(() => {
+      if (!cancelled) setSelectedDetail(null)
+    })
+    return () => { cancelled = true }
+  }, [items, selectedId, serverQueryKey])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !serverQueryKey) return
+    let timer: number | undefined
+    let request: AbortController | null = null
+    let lastKey = ''
+    const loadViewport = () => {
+      const viewport = getMapBounds(map)
+      if (!viewport || viewport.east <= viewport.west) return
+      const zoom = map.getZoom() ?? 8
+      const key = JSON.stringify([serverQueryKey, zoom, ...Object.values(viewport).map((value) => value.toFixed(4))])
+      if (key === lastKey) return
+      lastKey = key
+      request?.abort()
+      request = new AbortController()
+      void getMapMarkers({ ...JSON.parse(serverQueryKey), ...viewport, zoom }, request.signal).then(setServerMarkers).catch((error) => {
+        if (error?.name !== 'AbortError') setActionAnnouncement('No se pudieron cargar los anuncios del mapa. Mueve el mapa para reintentar.')
+      })
+    }
+    const schedule = () => { window.clearTimeout(timer); timer = window.setTimeout(loadViewport, 180) }
+    const listener = map.addListener('idle', schedule)
+    schedule()
+    return () => { listener.remove(); window.clearTimeout(timer); request?.abort() }
+  // The serialized query is the request identity; the object itself may be recreated.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, serverQueryKey])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !serverQueryKey) return
+    serverMarkerRef.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null })
+    serverMarkerRef.current = serverMarkers.map((item) => {
+      const content = document.createElement('button')
+      content.type = 'button'
+      content.className = item.type === 'cluster' ? 'server-map-cluster' : 'server-map-listing'
+      content.textContent = item.type === 'cluster' ? String(item.count) : `${item.price ?? '—'} €`
+      content.setAttribute('aria-label', item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`)
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        map, position: { lat: item.latitude, lng: item.longitude }, content,
+        title: content.getAttribute('aria-label') ?? '', gmpClickable: true,
+      })
+      const activate = () => {
+        if (item.type === 'cluster') {
+          map.panTo({ lat: item.latitude, lng: item.longitude })
+          map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2))
+        } else onSelectRef.current(item.id)
+      }
+      marker.addEventListener('gmp-click', activate)
+      content.addEventListener('click', (event) => { event.stopPropagation(); activate() })
+      return marker
+    })
+    return () => {
+      serverMarkerRef.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null })
+      serverMarkerRef.current = []
+    }
+  }, [ready, serverMarkers, serverQueryKey])
   useEffect(() => () => {
     if (userMarkerRef.current) userMarkerRef.current.map = null
     accuracyCircleRef.current?.setMap(null)
@@ -187,7 +264,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
       const map = new maps.Map(containerRef.current, {
         center: TENERIFE_CENTER,
         zoom: TENERIFE_DEFAULT_ZOOM,
-        minZoom: 8,
+        minZoom: serverModeRef.current ? 2 : 8,
         maxZoom: 19,
         mapId: googleMapsConfig.mapId,
         mapTypeId: getGoogleMapType('street'),
@@ -195,7 +272,7 @@ export function ResultsMap({ items, selectedId, highlightedId, onSelect, onHighl
         clickableIcons: false,
         keyboardShortcuts: true,
         gestureHandling: 'greedy',
-        restriction: {
+        restriction: serverModeRef.current ? undefined : {
           latLngBounds: TENERIFE_BOUNDS,
           // A hard restriction forces a tall mobile viewport to zoom into only
           // half of Tenerife. Keep the island as a soft pan boundary so the
