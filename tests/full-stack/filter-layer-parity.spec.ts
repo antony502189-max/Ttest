@@ -145,11 +145,11 @@ async function expectSerialized(
 }
 
 test('FILTER-LAYER desktop URL state serializes every active customer server-backed filter into the FastAPI request', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'mobile-chromium', 'Mobile results consume the fully paginated catalog and use the shared client filter engine; URL-to-FastAPI serialization is a desktop-path contract.')
+  test.skip(testInfo.project.name === 'mobile-chromium', 'Mobile results use their own bounded search consumer; URL-to-FastAPI serialization here is a desktop-path contract.')
   const bodies: Record<string, unknown>[] = []
-  await page.route('**/api/v1/listings/search', async (route) => {
+  await page.route('**/api/v1/listings/search/cards', async (route) => {
     bodies.push(route.request().postDataJSON() as Record<string, unknown>)
-    await route.fulfill({ json: { items: [], total: 0, limit: 100, offset: 0 } })
+    await route.fulfill({ json: { items: [], total: 0, nextCursor: null, previousCursor: null } })
   })
 
   const cases: Array<{ mode?: 'long' | 'holiday'; params: Record<string, string>; key: string; expected: unknown }> = [
