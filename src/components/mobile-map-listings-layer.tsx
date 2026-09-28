@@ -4,10 +4,9 @@ import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markercluste
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { getMapMarkers, getPublicListing, type ListingMapMarker } from '@/api/listings'
-import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
-import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
-import { translateText } from '@/contexts/i18n-context'
+import { translateText, useI18n } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
@@ -17,11 +16,37 @@ import '@/map.css'
 
 type MobileMapLanguage = 'es' | 'en' | 'ru'
 
+function createServerPriceMarkerContent(item: Extract<ListingMapMarker, { type: 'listing' }>) {
+  const shell = document.createElement('div')
+  shell.className = 'map-price-marker-shell price-marker-shell m2-listing-marker'
+  shell.dataset.listingId = item.id
+  shell.dataset.testid = `mobile-map-marker-${item.id}`
+  shell.dataset.promoted = String(item.promoted)
+  shell.setAttribute('aria-label', `Anuncio ${item.price ?? '—'} euros`)
+  const marker = document.createElement('span')
+  marker.className = `map-price-marker price-marker${item.promoted ? ' is-promoted' : ''}`
+  const label = document.createElement('span')
+  label.className = 'map-price-marker__label'
+  const price = document.createElement('span')
+  price.textContent = `${item.price ?? '—'} €`
+  const promotion = document.createElement('span')
+  promotion.className = 'map-price-marker__promotion'
+  promotion.setAttribute('aria-hidden', 'true')
+  promotion.textContent = '👍'
+  label.append(price, promotion)
+  const tail = document.createElement('i')
+  tail.setAttribute('aria-hidden', 'true')
+  marker.append(label, tail)
+  shell.append(marker)
+  return shell
+}
+
 export function MobileServerMapLayer({ mapRef, mapReady, query }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
   query: Record<string, unknown>
 }) {
+  const { language } = useI18n()
   const [markers, setMarkers] = useState<ListingMapMarker[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Listing | null>(null)
@@ -71,15 +96,27 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
     if (!map || !mapReady) return
     rendered.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null })
     rendered.current = markers.map((item) => {
-      const content = document.createElement('button')
-      content.type = 'button'
-      content.className = item.type === 'cluster' ? 'server-map-cluster' : 'server-map-listing'
-      content.textContent = item.type === 'cluster' ? String(item.count) : `${item.price ?? '—'} €`
-      content.setAttribute('aria-label', item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`)
-      const marker = new google.maps.marker.AdvancedMarkerElement({ map, position: { lat: item.latitude, lng: item.longitude }, content, title: content.getAttribute('aria-label') ?? '', gmpClickable: true })
+      const content = item.type === 'cluster'
+        ? createClusterContent(item.count)
+        : createServerPriceMarkerContent(item)
+      const title = item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: { lat: item.latitude, lng: item.longitude },
+        content,
+        title,
+        gmpClickable: true,
+        zIndex: item.type === 'cluster' ? 1000 + item.count : item.promoted ? 100 : 10,
+      })
       const activate = () => {
-        if (item.type === 'cluster') { map.panTo({ lat: item.latitude, lng: item.longitude }); map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2)) }
-        else setSelectedId(item.id)
+        if (item.type === 'cluster') {
+          map.panTo({ lat: item.latitude, lng: item.longitude })
+          map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2))
+          return
+        }
+        setSelectedId(item.id)
+        marker.zIndex = 4000
+        map.panTo({ lat: item.latitude, lng: item.longitude })
       }
       marker.addEventListener('gmp-click', activate)
       content.addEventListener('click', (event) => { event.stopPropagation(); activate() })
@@ -88,9 +125,22 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
     return () => { rendered.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null }); rendered.current = [] }
   }, [mapReady, mapRef, markers])
 
+  useEffect(() => {
+    rendered.current.forEach((marker) => {
+      const content = marker.content
+      if (!(content instanceof HTMLElement)) return
+      const listingId = content.dataset.listingId
+      if (!listingId) return
+      const promoted = content.dataset.promoted === 'true'
+      const isSelected = listingId === selectedId
+      setPriceMarkerState(content, isSelected, false, promoted)
+      marker.zIndex = isSelected ? 4000 : promoted ? 100 : 10
+    })
+  }, [selectedId])
+
   return <>
     {error ? <div className="m2-location-toast is-error" role="alert">No se pudieron cargar los anuncios. Mueve el mapa para reintentar.</div> : null}
-    {selected ? <SelectedListingSheet listing={selected} onClose={() => setSelectedId(null)} /> : null}
+    {selected ? <MobileServerSelectedPreview listing={selected} language={language as MobileMapLanguage} onClose={() => setSelectedId(null)} /> : null}
   </>
 }
 
@@ -99,6 +149,69 @@ const labels = {
   en: { close: 'Close', view: 'View listing', favorite: 'Save', unfavorite: 'Remove from favorites', capacity: (count: number) => `Room for ${count} ${count === 1 ? 'person' : 'people'}`, group: (count: number) => `${count} listings at this address` },
   ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`, group: (count: number) => `${count} объявления по этому адресу` },
 } as const
+
+function MobileServerSelectedPreview({ listing, language, onClose }: {
+  listing: Listing
+  language: MobileMapLanguage
+  onClose: () => void
+}) {
+  const { favorites, toggleFavorite } = useApp()
+  const navigate = useNavigate()
+  const t = labels[language]
+  const capacity = listing.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(listing.roomCapacity)
+  const translatedRestrictions = listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language))
+  const capacityAlreadyCovered = listing.roomCapacity != null && listing.restrictions.some((restriction) => {
+    const normalized = restriction.toLocaleLowerCase()
+    return normalized.includes(String(listing.roomCapacity))
+      && /(persona|personas|person|people|чел|человек)/i.test(normalized)
+  })
+  const requirements = Array.from(new Set([...translatedRestrictions, ...(capacityAlreadyCovered ? [] : [capacity])]))
+  const cadence = listing.cadence === 'noche'
+    ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche'
+    : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
+  const saved = favorites.has(listing.id)
+  const externalUrl = listing.isExternal && listing.sourceUrl ? listing.sourceUrl : null
+  const translatedTitle = translateText(listing.title, language)
+  const openInternalListing = () => navigate(`/habitacion/${encodeURIComponent(listing.id)}`)
+
+  return <section
+    className={cn('m2-map-listing-preview', 'm2-map-listing-carousel')}
+    data-testid="mobile-map-listing-preview"
+    data-listing-id={listing.id}
+    data-group-size="1"
+    data-promoted={listing.promoted || undefined}
+  >
+    <div className="m2-map-listing-carousel__stage">
+      <article
+        className="m2-map-listing-card is-current"
+        data-listing-id={listing.id}
+        data-carousel-position="current"
+        data-promoted={listing.promoted || undefined}
+      >
+        <div className="m2-map-listing-preview__media-shell">
+          {externalUrl
+            ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={listing.images[0]} variant="card" alt={listing.title} /></a>
+            : <button type="button" className="m2-map-listing-preview__media" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={listing.images[0]} variant="card" alt={listing.title} /></button>}
+          {listing.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
+        </div>
+        <div className="m2-map-listing-preview__body">
+          <button type="button" className="m2-map-listing-preview__close" onClick={onClose} aria-label={t.close}><X /></button>
+          <p><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p>
+          <h2>{translatedTitle}</h2>
+          <strong>{priceLabel(listing)} {listing.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
+          <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
+          <div className="m2-map-listing-preview__actions">
+            <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(listing.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
+            {externalUrl
+              ? <a className="m2-map-listing-preview__open" href={externalUrl} target="_blank" rel="noopener noreferrer">{t.view}</a>
+              : <button type="button" className="m2-map-listing-preview__open" onClick={openInternalListing}>{t.view}</button>}
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+}
+
 
 export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items, preserveCamera = false, onInitialFit }: {
   mapRef: MutableRefObject<google.maps.Map | null>
