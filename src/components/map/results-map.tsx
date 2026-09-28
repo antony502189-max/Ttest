@@ -103,6 +103,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const serverMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const [serverMarkers, setServerMarkers] = useState<ListingMapMarker[]>([])
   const [selectedDetail, setSelectedDetail] = useState<Listing | null>(null)
+  const [serverCoincidentListings, setServerCoincidentListings] = useState<Listing[]>([])
   const serverQueryKey = serverQuery ? JSON.stringify(serverQuery) : ''
   const serverModeRef = useRef(Boolean(serverQuery))
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
@@ -140,10 +141,12 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
 
   const selected = items.find((item) => item.id === selectedId) ?? (selectedDetail?.id === selectedId ? selectedDetail : null)
-  const coincidentListings = coincidentIds.flatMap((id) => {
-    const listing = items.find((item) => item.id === id)
-    return listing ? [listing] : []
-  })
+  const coincidentListings = serverQueryKey
+    ? serverCoincidentListings
+    : coincidentIds.flatMap((id) => {
+        const listing = items.find((item) => item.id === id)
+        return listing ? [listing] : []
+      })
   // Geometry drives marker recreation and fitting. TOP state is intentionally
   // separate so a remote promotion refresh cannot undo the user's pan/zoom.
   const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}`).join('|'), [items])
@@ -159,16 +162,35 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   useEffect(() => {
     if (!serverQueryKey || !selectedId || items.some((item) => item.id === selectedId)) {
       setSelectedDetail(null)
+      setServerCoincidentListings([])
       return
     }
+    const selectedMarker = serverMarkers.find((item): item is Extract<ListingMapMarker, { type: 'listing' }> => item.type === 'listing' && item.id === selectedId)
+    if (!selectedMarker) {
+      setSelectedDetail(null)
+      setServerCoincidentListings([])
+      return
+    }
+    const groupIds = serverMarkers
+      .filter((item): item is Extract<ListingMapMarker, { type: 'listing' }> =>
+        item.type === 'listing'
+        && Math.abs(item.latitude - selectedMarker.latitude) < 0.0000001
+        && Math.abs(item.longitude - selectedMarker.longitude) < 0.0000001)
+      .map((item) => item.id)
+      .slice(0, 20)
     let cancelled = false
-    void getPublicListing(selectedId).then((detail) => {
-      if (!cancelled) setSelectedDetail(detail)
+    void Promise.all(groupIds.map((id) => getPublicListing(id))).then((details) => {
+      if (cancelled) return
+      setSelectedDetail(details.find((detail) => detail.id === selectedId) ?? details[0] ?? null)
+      setServerCoincidentListings(details.length > 1 ? details : [])
     }).catch(() => {
-      if (!cancelled) setSelectedDetail(null)
+      if (!cancelled) {
+        setSelectedDetail(null)
+        setServerCoincidentListings([])
+      }
     })
     return () => { cancelled = true }
-  }, [items, selectedId, serverQueryKey])
+  }, [items, selectedId, serverMarkers, serverQueryKey])
 
   useEffect(() => {
     const map = mapRef.current
