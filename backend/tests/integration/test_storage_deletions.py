@@ -48,6 +48,31 @@ async def test_enqueue_is_idempotent_and_successful_delete_removes_job(monkeypat
         assert await check.scalar(select(StorageDeletionJob)) is None
 
 
+async def test_live_asset_is_retained_even_when_stale_deletion_job_exists(monkeypatch):
+    async with SessionLocal() as setup:
+        user = User(email="retained-media@example.test", password_hash=None,
+                    name="Media owner", role="host", initials="MO", email_verified=True)
+        setup.add(user)
+        await setup.flush()
+        asset = MediaAsset(owner_id=user.id, storage_key="media/live.webp", mime_type="image/webp",
+                           size_bytes=10, width=2, height=2, checksum="a" * 64, kind="avatar")
+        setup.add(asset)
+        await setup.flush()
+        user.avatar_asset_id = asset.id
+        await storage_deletions.enqueue_storage_deletion(setup, asset.storage_key)
+        await setup.commit()
+
+    storage = RecordingStorage()
+    monkeypatch.setattr(storage_deletions, "get_storage", lambda: storage)
+    async with SessionLocal() as worker:
+        result = await storage_deletions.process_storage_deletions(worker)
+
+    assert result == {"deleted": 0, "failed": 0}
+    assert storage.deleted == []
+    async with SessionLocal() as check:
+        assert await check.scalar(select(StorageDeletionJob)) is None
+
+
 async def test_failure_releases_lease_and_schedules_retry(monkeypatch):
     async with SessionLocal() as setup:
         await storage_deletions.enqueue_storage_deletion(setup, "media/unavailable.webp")

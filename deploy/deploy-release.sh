@@ -157,6 +157,11 @@ printf 'old_sha=%s\nnew_sha=%s\nstatus=in_progress\ntimestamp=%s\n' "$old_sha" "
 backups="first_deploy:no_existing_persistent_data"
 revision="none"
 if [[ -n "$old_release" ]]; then
+  if (( has_existing_minio )); then
+    # Verify the scheduled media recovery point before entering downtime.
+    minio_backup="$(ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" bash "$release/deploy/require-fresh-minio-backup.sh")"
+    backups="minio=$minio_backup"
+  fi
   # Quiesce every writer before the backup and migration boundary. The ERR
   # trap restores the previous application services if any later step fails.
   "${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker
@@ -172,12 +177,8 @@ if [[ -n "$old_release" ]]; then
 
   if (( has_existing_postgres )); then
     postgres_backup="$(COMPOSE_FILE="$old_release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-postgres.sh")"
-    backups="postgres=$postgres_backup"
+    if [[ "$backups" == "first_deploy:"* ]]; then backups="postgres=$postgres_backup"; else backups="$backups postgres=$postgres_backup"; fi
     revision="$("${previous_compose[@]}" run --rm migrate alembic current 2>/dev/null || true)"
-  fi
-  if (( has_existing_minio )); then
-    minio_backup="$(COMPOSE_FILE="$old_release/docker-compose.production.yml" ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" "$release/deploy/backup-minio.sh")"
-    if [[ "$backups" == "first_deploy:"* ]]; then backups="minio=$minio_backup"; else backups="$backups minio=$minio_backup"; fi
   fi
 fi
 printf 'backups=%s\nrevision_before=%s\nbackup_runtime_sha=%s\n' "$backups" "$revision" "$old_sha" >> "$metadata"
