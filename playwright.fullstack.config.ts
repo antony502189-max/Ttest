@@ -25,6 +25,7 @@ export default defineConfig({
       VITE_API_BASE_URL: 'http://127.0.0.1:8000/api/v1',
       VITE_E2E_BYPASS_ONBOARDING: '1',
       VITE_ENABLE_MOCK_MODE: '0',
+      VITE_GOOGLE_MAPS_TEST_SDK: '1',
     },
   },
   projects: [
