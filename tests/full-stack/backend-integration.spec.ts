@@ -251,29 +251,33 @@ test('unrestricted tourism search omits default price and room-size bounds from 
   await expect(drawer.getByLabel('Precio máximo')).toHaveAttribute('max', '350')
 })
 
-test('browser catalog client requests every API page after the 100-record boundary', async ({ page }) => {
+test('browser search stays bounded instead of hydrating the full catalog', async ({ page }) => {
   const catalog = Array.from({ length: 150 }, (_, index) => paginationListing(index))
-  const offsets: number[] = []
+  const cardRequests: Array<{ limit?: number; cursor?: string | null }> = []
+  let legacySearchRequests = 0
   await page.route('**/api/v1/listings/search', async (route) => {
-    const request = route.request().postDataJSON() as { limit?: number; offset?: number }
-    const offset = request.offset ?? 0
-    offsets.push(offset)
+    legacySearchRequests += 1
+    await route.fulfill({ json: { items: [], total: 0, limit: 100, offset: 0 } })
+  })
+  await page.route('**/api/v1/listings/search/cards', async (route) => {
+    const request = route.request().postDataJSON() as { limit?: number; cursor?: string | null }
+    cardRequests.push(request)
+    const limit = Math.min(50, request.limit ?? 20)
     await route.fulfill({
       json: {
-        items: catalog.slice(offset, offset + (request.limit ?? 100)),
+        items: catalog.slice(0, limit),
         total: catalog.length,
-        limit: request.limit ?? 100,
-        offset,
+        nextCursor: 'next-page',
+        previousCursor: null,
       },
     })
   })
 
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.getByText('Pagination listing 0', { exact: true }).first()).toBeVisible()
-  // The catalog refresh effect may legitimately repeat a completed request
-  // during a React update.  Verify that both required pages were requested
-  // without turning that harmless duplicate into a flaky failure.
-  await expect.poll(() => [...new Set(offsets)].sort((left, right) => left - right)).toEqual([0, 100])
+  await expect.poll(() => cardRequests.length).toBeGreaterThan(0)
+  expect(cardRequests.every((request) => (request.limit ?? 20) <= 50 && !request.cursor)).toBe(true)
+  expect(legacySearchRequests).toBe(0)
 })
 
 test('anonymous auth and publication routes render without a route error', async ({ page }) => {
