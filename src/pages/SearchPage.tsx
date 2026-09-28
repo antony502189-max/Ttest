@@ -19,7 +19,7 @@ import { useApp } from "@/contexts/app-context";
 import { useAppBack } from "@/hooks/use-app-back";
 import { useI18n } from "@/contexts/i18n-context";
 import { currentLocale } from "@/lib/i18n-locale";
-import { searchPublicListings } from "@/api/listings";
+import { buildListingSearchBody, searchPublicListings, type ListingSearchInput } from "@/api/listings";
 import { defaultFilters } from "@/data/listings";
 import { hasListingCoordinates, tenantRequirementLabels } from "@/lib/listings";
 import { loadTenerifeZoneHierarchy } from "@/lib/map/geojson";
@@ -49,9 +49,10 @@ import {
   SearchBar,
   type MapBounds,
 } from "@/components/marketplace";
-import type { Filters, Listing, MapPolygonPoint, RentalMode } from "@/types";
+import type { Filters, Listing, MappedListing, MapPolygonPoint, RentalMode } from "@/types";
 
 const PAGE_SIZE = 9;
+const EMPTY_MAP_ITEMS: MappedListing[] = [];
 const sortOptions = ["Relevancia", "Más recientes", "Más antiguos", "Precio más bajo", "Precio más alto"];
 const MOBILE_MAP_MEDIA = "(max-width: 767px), (max-height: 480px) and (max-width: 900px)";
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1';
@@ -75,7 +76,7 @@ export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const paramString = params.toString();
   const requestParams = new URLSearchParams(paramString);
-  ['vista', 'pagina', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom'].forEach((key) => requestParams.delete(key));
+  ['vista', 'pagina', 'cursor', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom'].forEach((key) => requestParams.delete(key));
   const requestParamString = requestParams.toString();
   const {
     rentalMode: storedRentalMode,
@@ -98,6 +99,9 @@ export function SearchPage() {
   const [highlighted, setHighlighted] = useState("");
   const [loading, setLoading] = useState(false);
   const [serverItems, setServerItems] = useState<Listing[] | null>(null);
+  const [serverTotal, setServerTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [previousCursor, setPreviousCursor] = useState<string | null>(null);
   const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [serverLoading, setServerLoading] = useState(false);
   const [serverError, setServerError] = useState(false);
@@ -108,10 +112,11 @@ export function SearchPage() {
   const actionConsumedRef = useRef(false);
   const view = params.get("vista") === "mapa" ? "map" : "list";
   const page = Math.max(1, Number(params.get("pagina") || 1));
+  const pageCursor = params.get('cursor') ?? undefined;
   const requestedQuery = params.get("q")?.trim() || "Tenerife";
   const location = resolveTenerifeLocation(requestedQuery);
-  const invalidLocation = !location;
-  const query = location?.normalizedValue ?? "Tenerife";
+  const invalidLocation = false;
+  const query = location?.normalizedValue ?? requestedQuery;
   const rentalMode: RentalMode =
     params.get("alquiler") === "holiday" ? "holiday" : "long";
   const filters = useMemo(() => {
@@ -189,6 +194,27 @@ export function SearchPage() {
     setParams(next, { replace: true });
   }, [initialMapAction, params, setParams]);
 
+  const searchInput = useMemo<ListingSearchInput>(() => {
+    const activeParams = new URLSearchParams(requestParamString);
+    const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
+    const roomTypes = (activeParams.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
+      ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value));
+    const latitude = Number(activeParams.get('lat'));
+    const longitude = Number(activeParams.get('lng'));
+    const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
+      Number.isFinite(latitude) && Number.isFinite(longitude);
+    return {
+      rentalMode, query, roomTypes,
+      center: nearby ? { latitude, longitude } : undefined,
+      radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
+      minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters,
+      bounds: mapBounds ?? undefined,
+      polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
+      sort,
+    };
+  }, [filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
+  const mapQuery = useMemo(() => buildListingSearchBody(searchInput), [searchInput]);
+
   useEffect(() => {
     if (mockMode) {
       setServerItems(null);
@@ -200,28 +226,14 @@ export function SearchPage() {
     const request = new AbortController();
     setServerLoading(true);
     setServerError(false);
-    const activeParams = new URLSearchParams(requestParamString);
-    const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
-    const roomTypes = (activeParams.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
-      ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value));
-    const latitude = Number(activeParams.get('lat'));
-    const longitude = Number(activeParams.get('lng'));
-    const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
-      Number.isFinite(latitude) && Number.isFinite(longitude);
-    void searchPublicListings({
-      rentalMode,
-      query,
-      roomTypes,
-      center: nearby ? { latitude, longitude } : undefined,
-      radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
-      minPrice: filters.minPrice,
-      maxPrice: filters.maxPrice,
-      filters,
-      bounds: mapBounds ?? undefined,
-      polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
-      sort,
-    }, request.signal).then((items) => {
-      if (!cancelled) setServerItems(items);
+    setServerItems(null);
+    void searchPublicListings(searchInput, request.signal, pageCursor, PAGE_SIZE).then((result) => {
+      if (!cancelled) {
+        setServerItems(result.items);
+        setServerTotal(result.total);
+        setNextCursor(result.nextCursor);
+        setPreviousCursor(result.previousCursor);
+      }
     }).catch(() => {
       if (!cancelled) {
         setServerItems(mockMode ? null : []);
@@ -231,21 +243,22 @@ export function SearchPage() {
       if (!cancelled) setServerLoading(false);
     });
     return () => { cancelled = true; request.abort(); };
-  }, [catalogEpoch, filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
+  }, [catalogEpoch, pageCursor, searchInput]);
 
   const filteredItems = useMemo(
     () =>
-      filterListings(
+      mockMode ? filterListings(
         (serverItems ?? (mockMode ? allListings : [])).filter((listing) => !discarded.has(listing.id)),
         rentalMode,
         filters,
         zoneHierarchy,
-      ).filter((listing) => !invalidLocation && listingMatchesTenerifeLocation(listing, location)),
+      ).filter((listing) => !invalidLocation && listingMatchesTenerifeLocation(listing, location))
+      : (serverItems ?? []).filter((listing) => !discarded.has(listing.id)),
     [allListings, discarded, filters, invalidLocation, location, rentalMode, serverItems, zoneHierarchy],
   );
   const spatialItems = useMemo(
     () =>
-      filteredItems.filter((listing) => {
+      mockMode ? filteredItems.filter((listing) => {
         if (mapBounds) {
           if (!hasListingCoordinates(listing)) return false;
           if (
@@ -261,20 +274,18 @@ export function SearchPage() {
             return false;
         }
         return true;
-      }),
+      }) : filteredItems,
     [filteredItems, mapBounds, mapPolygon],
   );
-  const items = useMemo(
-    () => sortListings(spatialItems, filters.sort),
-    [filters.sort, spatialItems],
-  );
+  const items = useMemo(() => mockMode ? sortListings(spatialItems, filters.sort) : spatialItems, [filters.sort, spatialItems]);
   const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items]);
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageItems = items.slice(
+  const totalPages = Math.max(1, Math.ceil((mockMode ? items.length : serverTotal) / PAGE_SIZE));
+  const currentPage = mockMode ? Math.min(page, totalPages) : page;
+  const pageItems = mockMode ? items.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
-  );
+  ) : items;
+  const resultCount = mockMode ? items.length : serverTotal;
   const forcedState = params.get("estado");
   const formattedDate = filters.available
     ? new Intl.DateTimeFormat(currentLocale(), {
@@ -285,7 +296,7 @@ export function SearchPage() {
     : "Cualquier fecha";
 
   useEffect(() => {
-    if (page <= totalPages) return;
+    if (!mockMode || page <= totalPages) return;
     const next = new URLSearchParams(params);
     next.set("pagina", String(totalPages));
     setParams(next, { replace: true });
@@ -308,6 +319,7 @@ export function SearchPage() {
       next.set('oeste', bounds.west.toFixed(5));
     }
     next.delete('pagina');
+    next.delete('cursor');
   }, true);
   const commitPolygon = (polygon: MapPolygonPoint[]) => {
     const nextFilters = polygon.length >= 3 && filters.areas.length ? { ...filters, areas: [] } : filters;
@@ -315,6 +327,7 @@ export function SearchPage() {
     if (nextFilters !== filters) setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.delete("pagina");
+    next.delete('cursor');
     if (polygon.length >= 3) next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
     else next.delete("poligono");
     setParams(next, { replace: true });
@@ -323,20 +336,23 @@ export function SearchPage() {
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.delete("pagina");
+    next.delete('cursor');
     setParams(next);
   };
   const selectLocation = (nextQuery: string) => {
     const nextLocation = resolveTenerifeLocation(nextQuery);
-    if (!nextLocation) return;
+    const selectedQuery = nextLocation?.normalizedValue ?? nextQuery.trim();
+    if (!selectedQuery) return;
     const nextFilters = {
       ...filters,
-      areas: nextLocation.type === 'area' || nextLocation.type === 'district' ? [nextLocation.normalizedValue] : [],
+      areas: nextLocation?.type === 'area' || nextLocation?.type === 'district' ? [selectedQuery] : [],
     };
-    setQuery(nextLocation.normalizedValue);
+    setQuery(selectedQuery);
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
-    next.set('q', nextLocation.normalizedValue);
+    next.set('q', selectedQuery);
     next.delete('pagina');
+    next.delete('cursor');
     setParams(next);
   };
   const applyLocationAreas = (selectedAreas: string[]) => {
@@ -350,6 +366,7 @@ export function SearchPage() {
       next.set('q', nextQuery);
       if (selectedAreas.length) next.delete('poligono');
       next.delete('pagina');
+      next.delete('cursor');
       return next;
     });
     if (selectedAreas.length) setMapPolygon([]);
@@ -365,6 +382,7 @@ export function SearchPage() {
       const next = filtersToParams(nextFilters, new URLSearchParams(current));
       next.set("alquiler", mode);
       next.delete("pagina");
+      next.delete('cursor');
       return next;
     });
   };
@@ -380,16 +398,21 @@ export function SearchPage() {
       const nextFilters = { ...filtersFromParams(current), sort: value };
       const next = filtersToParams(nextFilters, new URLSearchParams(current));
       next.delete("pagina");
+      next.delete('cursor');
       return next;
     });
     window.setTimeout(() => setLoading(false), 180);
   };
   const changePage = (nextPage: number) => {
-    updateParams((next) =>
-      nextPage === 1
-        ? next.delete("pagina")
-        : next.set("pagina", String(nextPage)),
-    );
+    if (!mockMode && Math.abs(nextPage - currentPage) !== 1) return;
+    const cursor = nextPage > currentPage ? nextCursor : previousCursor;
+    if (!mockMode && !cursor) return;
+    updateParams((next) => {
+      if (nextPage === 1) next.delete('pagina');
+      else next.set('pagina', String(nextPage));
+      if (cursor) next.set('cursor', cursor);
+      else next.delete('cursor');
+    });
     document
       .getElementById("results-title")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -398,7 +421,7 @@ export function SearchPage() {
     resetFilters();
     setMapPolygon([]);
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
-    ["pagina", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
+    ["pagina", "cursor", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
     next.set('q', 'Tenerife');
     setParams(next);
   };
@@ -513,16 +536,17 @@ export function SearchPage() {
     return <div className="mobile-map-screen" aria-label="Mapa de habitaciones en Tenerife">
       <header className="mobile-map-screen__header">
         <Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label="Volver"><ArrowLeft /></Button>
-        <LocationSelector selected={filters.areas} currentQuery={`${items.length} habitaciones, ${query}`} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
+        <LocationSelector selected={filters.areas} currentQuery={`${resultCount} habitaciones, ${query}`} onApply={applyLocationAreas} onLocationSelect={selectLocation} />
         <Button type="button" className="mobile-save-search" onClick={saveCurrentSearch} aria-label="Guardar búsqueda"><Bell /><span>Guardar</span></Button>
       </header>
       <div className="mobile-map-screen__contextbar" aria-label="Acciones de resultados">
-        <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={changeRentalMode} />
+        <FilterButton resultCount={resultCount} onFiltersChange={commitFilters} onRentalModeChange={changeRentalMode} />
         <Button type="button" variant="ghost" onClick={() => changeView('list')}><List data-icon="inline-start" />Lista</Button>
       </div>
       <div className="mobile-map-screen__canvas">
         <MapView
-          items={mappedItems}
+          items={mockMode ? mappedItems : EMPTY_MAP_ITEMS}
+          serverQuery={mockMode ? undefined : mapQuery}
           selectedId={selected}
           highlightedId={highlighted}
           onSelect={setSelected}
@@ -540,7 +564,7 @@ export function SearchPage() {
           }}
         />
       </div>
-      <div className="mobile-map-screen__footer"><ListMapSwitcher value="map" count={items.length} onChange={changeView} /></div>
+      <div className="mobile-map-screen__footer"><ListMapSwitcher value="map" count={resultCount} onChange={changeView} /></div>
     </div>;
   }
 
@@ -579,7 +603,7 @@ export function SearchPage() {
         }
       >
         <FilterSidebar
-          resultCount={items.length}
+          resultCount={resultCount}
           onFiltersChange={commitFilters}
         />
         <section className="idealista-results" aria-labelledby="results-title">
@@ -604,7 +628,7 @@ export function SearchPage() {
           <header className="results-head idealista-results-head">
             <div>
               <h1 id="results-title">
-                {t(`${items.length} ${items.length === 1 ? "habitación" : "habitaciones"} en ${query || "Tenerife"}`)}
+                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${query || "Tenerife"}`)}
               </h1>
               <p>
                 <CalendarDays aria-hidden="true" />
@@ -634,7 +658,7 @@ export function SearchPage() {
             </Button>
           </header>
           <QuickFilters
-            resultCount={items.length}
+            resultCount={resultCount}
             onFiltersChange={commitFilters}
           />
           {appliedFilters.length ? (
@@ -656,7 +680,7 @@ export function SearchPage() {
           ) : null}
           <div className="idealista-results-toolbar">
             <div className="mobile-filter-control">
-              <FilterButton resultCount={items.length} onFiltersChange={commitFilters} onRentalModeChange={changeRentalMode} />
+              <FilterButton resultCount={resultCount} onFiltersChange={commitFilters} onRentalModeChange={changeRentalMode} />
             </div>
             <SortControl value={filters.sort} onChange={changeSort} />
             <label className="desktop-sort-control">
@@ -702,7 +726,8 @@ export function SearchPage() {
               </div>
               <div className="idealista-map-view">
                 <MapView
-                  items={mappedItems}
+                  items={mockMode ? mappedItems : EMPTY_MAP_ITEMS}
+                  serverQuery={mockMode ? undefined : mapQuery}
                   selectedId={selected}
                   highlightedId={highlighted}
                   onSelect={setSelected}
@@ -748,6 +773,7 @@ export function SearchPage() {
                 page={currentPage}
                 totalPages={totalPages}
                 onPage={changePage}
+                sequential={!mockMode}
               />
               <section
                 className="search-related"
@@ -767,7 +793,7 @@ export function SearchPage() {
           )}
         </section>
       </div>
-      <ListMapSwitcher className="mobile-map-toggle" value={view} count={items.length} onChange={changeView} />
+      <ListMapSwitcher className="mobile-map-toggle" value={view} count={resultCount} onChange={changeView} />
     </div>
   );
 }

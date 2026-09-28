@@ -130,3 +130,8 @@ def test_external_cleanup_requires_reconciled_gallery_snapshot():
         external_image_urls=[],
         stored_image_count=3,
     )
+    assert external_gallery_is_reconciled(
+        is_external=True,
+        external_image_urls=[str(index) for index in range(15)],
+        stored_image_count=8,
+    )

@@ -192,6 +192,7 @@ class ExternalListingSource(Base):
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     source_name: Mapped[str] = mapped_column(String(64), index=True)
+    scope_key: Mapped[str] = mapped_column(String(120), default="santa_cruz", server_default="santa_cruz", index=True)
     external_id: Mapped[str] = mapped_column(String(255))
     source_url: Mapped[str] = mapped_column(Text)
     canonical_listing_id: Mapped[UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"), index=True)
@@ -220,6 +221,7 @@ class ExternalImportRun(Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     run_id: Mapped[str] = mapped_column(String(64), index=True)
     source_name: Mapped[str] = mapped_column(String(64), index=True)
+    scope_key: Mapped[str] = mapped_column(String(120), default="santa_cruz", server_default="santa_cruz", index=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     result: Mapped[str] = mapped_column(String(32), default="running")
@@ -233,6 +235,22 @@ class ExternalImportRun(Base):
     discovery_complete: Mapped[bool | None] = mapped_column(Boolean)
     discovery_pages: Mapped[int | None] = mapped_column(Integer)
     discovery_failed_pages: Mapped[list[str]] = mapped_column(JSONB, default=list)
+
+
+class ExternalImportScope(Base):
+    """Operator-configured geographic discovery slice; never enabled by migration."""
+
+    __tablename__ = "external_import_scopes"
+    __table_args__ = (UniqueConstraint("source_name", "scope_key", name="uq_external_import_scope"),)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    source_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    discovery_urls: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    interval_seconds: Mapped[int] = mapped_column(Integer, default=86_400, server_default="86400")
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_result: Mapped[str | None] = mapped_column(String(32))
 
 
 class ExternalWorkerState(Base):

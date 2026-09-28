@@ -1,22 +1,28 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import json
+import math
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from hmac import new as hmac_new
 from typing import Any
+from uuid import UUID
 
-from geoalchemy2 import Geometry
+from fastapi import HTTPException
+from geoalchemy2 import Geography, Geometry
 from geoalchemy2.functions import (
     ST_X,
     ST_Y,
-    ST_Covers,
     ST_DWithin,
     ST_GeomFromText,
+    ST_Intersects,
     ST_MakeEnvelope,
     ST_MakePoint,
     ST_SetSRID,
 )
-from sqlalchemy import Select, case, cast, func, or_, select, update
+from sqlalchemy import Float, Select, String, and_, case, cast, func, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +31,13 @@ from ..models import Listing, ListingImage, ListingView, MediaAsset, User
 from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
 from ..models.room_details import ListingRoomDetails
 from ..schemas.listings import (
+    ClusterMarker,
+    ListingCardResponse,
+    ListingCardSearchRequest,
+    ListingCardSearchResponse,
+    ListingMapRequest,
+    ListingMapResponse,
+    ListingMarker,
     ListingOwnerResponse,
     ListingResponse,
     ListingSearchRequest,
@@ -51,6 +64,18 @@ def image_asset_ids_subquery():
         select(func.array_agg(aggregate_order_by(MediaAsset.id, ListingImage.is_cover.desc(), ListingImage.sort_order)))
         .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
         .where(ListingImage.listing_id == Listing.id, MediaAsset.deleted_at.is_(None))
+        .correlate(Listing)
+        .scalar_subquery()
+    )
+
+
+def cover_asset_id_subquery():
+    return (
+        select(MediaAsset.id)
+        .join(ListingImage, ListingImage.media_asset_id == MediaAsset.id)
+        .where(ListingImage.listing_id == Listing.id, MediaAsset.deleted_at.is_(None))
+        .order_by(ListingImage.is_cover.desc(), ListingImage.sort_order)
+        .limit(1)
         .correlate(Listing)
         .scalar_subquery()
     )
@@ -433,7 +458,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
         bbox = ST_MakeEnvelope(
             payload.minLongitude, payload.minLatitude, payload.maxLongitude, payload.maxLatitude, 4326
         )
-        query = query.where(ST_Covers(bbox, cast(Listing.location, Geometry("POINT", srid=4326))))
+        query = query.where(ST_Intersects(Listing.location, cast(bbox, Geography("POLYGON", srid=4326))))
     if payload.center and payload.radiusKm is not None:
         query = query.where(
             ST_DWithin(
@@ -443,7 +468,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     if payload.polygon:
         wkt = "POLYGON((" + ", ".join(f"{item.longitude} {item.latitude}" for item in payload.polygon) + "))"
         polygon = ST_GeomFromText(wkt, 4326)
-        query = query.where(ST_Covers(polygon, cast(Listing.location, Geometry("POINT", srid=4326))))
+        query = query.where(ST_Intersects(Listing.location, cast(polygon, Geography("POLYGON", srid=4326))))
     return query
 
 
@@ -476,6 +501,172 @@ async def search_public(session: AsyncSession, payload: ListingSearchRequest) ->
         limit=payload.limit,
         offset=payload.offset,
     )
+
+
+def _card_sort_components(sort: str, favorite_ids: list[UUID]):
+    promoted = case((active_promotion_expression(), 1), else_=0)
+    boosted = func.coalesce(func.extract("epoch", promotion_boosted_at_expression()), 0)
+    created = func.extract("epoch", Listing.created_at)
+    components: list[tuple[Any, bool]] = [(promoted, False), (boosted, False)]
+    if sort.startswith("saved_"):
+        components.append((case((Listing.id.in_(favorite_ids), 1), else_=0), False))
+        components.append((created, sort == "saved_old"))
+    if sort.startswith("price_"):
+        price = primary_price_expression()
+        components.extend([(case((price.is_(None), 1), else_=0), True), (func.coalesce(price, 0), sort == "price_asc")])
+    elif sort == "reduced":
+        price = primary_price_expression()
+        components.extend([(case((price.is_(None), 1), else_=0), True), (func.coalesce(price, 0), True), (Listing.views, False)])
+    elif sort.startswith("sqm_"):
+        price = primary_price_expression()
+        size = Listing.room_size_m2
+        components.extend([(case((or_(price.is_(None), size.is_(None), size <= 0), 1), else_=0), True),
+                           (cast(func.coalesce(price, 0) / func.greatest(1, func.coalesce(size, 1)), Float), sort == "sqm_asc")])
+    elif sort.startswith("area_"):
+        size = Listing.room_size_m2
+        components.extend([(case((size.is_(None), 1), else_=0), True), (func.coalesce(size, 0), sort == "area_asc")])
+    elif sort.startswith("floor_"):
+        floor = ListingRoomDetails.floor
+        rank = case((floor == "basement", 0), (floor == "1", 1), (floor == "2", 2),
+                    (floor == "3", 3), (floor == "4+", 4), (floor == "top", 5))
+        components.extend([(case((floor.is_(None), 1), else_=0), True),
+                           (func.coalesce(rank, 0), sort == "floor_asc")])
+    elif not sort.startswith("saved_"):
+        components.append((created, sort == "oldest"))
+    components.append((Listing.id, True))
+    return components
+
+
+def card_from_detail(detail: ListingResponse) -> ListingCardResponse:
+    return ListingCardResponse(
+        id=detail.id, title=detail.title, city=detail.city, area=detail.area,
+        approximateAddress=detail.approximateAddress, rentalMode=detail.rentalMode,
+        price=detail.price, roomType=detail.roomType, currentResidents=detail.currentResidents,
+        roomCapacity=detail.roomCapacity, bedroomCount=detail.bedroomCount,
+        roomSizeM2=detail.roomSizeM2, availableFrom=detail.availableFrom,
+        billsIncluded=detail.billsIncluded, restrictions=detail.restrictions,
+        advertiserType=detail.advertiserType, isExternal=detail.isExternal,
+        sourceUrl=detail.sourceUrl, primarySource=detail.primarySource,
+        sourcePriceText=detail.sourcePriceText, pricePeriod=detail.pricePeriod,
+        priceIsFrom=detail.priceIsFrom, publishedAt=detail.publishedAt,
+        promoted=detail.promoted, coverImageUrl=detail.coverImageUrl,
+        description=detail.description[:240],
+    )
+
+
+def _cursor_fingerprint(payload: ListingCardSearchRequest) -> str:
+    filters = payload.model_dump(mode="json", exclude={"cursor", "limit", "offset"})
+    return sha256(json.dumps(filters, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:20]
+
+
+def _decode_cursor(cursor: str, fingerprint: str, component_count: int) -> tuple[list, str]:
+    try:
+        data = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
+        if data["q"] != fingerprint or data["d"] not in {"after", "before"} or not isinstance(data["k"], list) or len(data["k"]) != component_count:
+            raise ValueError("cursor does not match search")
+        values = data["k"]
+        values[-1] = UUID(values[-1])
+        if not all(type(value) in (int, float) and math.isfinite(value) for value in values[:-1]):
+            raise ValueError("invalid cursor values")
+        return values, data["d"]
+    except (KeyError, TypeError, ValueError, OverflowError, binascii.Error) as exc:
+        raise HTTPException(400, "Invalid search cursor") from exc
+
+
+def _seek(components: list, values: list, direction: str):
+    branches = []
+    for index, (expression, ascending) in enumerate(components):
+        preceding = [components[prior][0] == values[prior] for prior in range(index)]
+        comparison = expression > values[index] if ascending == (direction == "after") else expression < values[index]
+        branches.append(and_(*preceding, comparison))
+    return or_(*branches)
+
+
+async def search_public_cards(session: AsyncSession, payload: ListingCardSearchRequest) -> ListingCardSearchResponse:
+    filtered = apply_search_filters(visible_query(), payload)
+    count_query = filtered.with_only_columns(Listing.id).order_by(None).subquery()
+    total = await session.scalar(select(func.count()).select_from(count_query)) or 0
+    components = _card_sort_components(payload.sort, payload.favoriteIds)
+    fingerprint = _cursor_fingerprint(payload)
+    direction = "after"
+    if payload.cursor:
+        values, direction = _decode_cursor(payload.cursor, fingerprint, len(components))
+        filtered = filtered.where(_seek(components, values, direction))
+    cover = func.coalesce(
+        literal("/api/v1/media/") + cast(cover_asset_id_subquery(), String),
+        Listing.external_image_urls[0].astext,
+    )
+    columns = [
+        Listing.id.label("id"), Listing.title.label("title"), Listing.city.label("city"),
+        Listing.area.label("area"), Listing.approximate_address.label("approximateAddress"),
+        Listing.rental_mode.label("rentalMode"), primary_price_expression().label("price"),
+        Listing.room_type.label("roomType"), Listing.current_residents.label("currentResidents"),
+        func.coalesce(ListingRoomDetails.room_capacity_v2, Listing.room_capacity).label("roomCapacity"),
+        bedroom_count_expression().label("bedroomCount"),
+        Listing.room_size_m2.label("roomSizeM2"), Listing.available_from.label("availableFrom"),
+        Listing.bills_included.label("billsIncluded"), Listing.restrictions.label("restrictions"),
+        Listing.advertiser_type.label("advertiserType"), Listing.is_external.label("isExternal"),
+        Listing.primary_source_url.label("sourceUrl"), Listing.primary_source.label("primarySource"),
+        Listing.source_price_text.label("sourcePriceText"), Listing.source_price_period.label("pricePeriod"),
+        Listing.source_price_is_from.label("priceIsFrom"), Listing.published_at.label("publishedAt"),
+        active_promotion_expression().label("promoted"), cover.label("coverImageUrl"),
+        func.left(Listing.description, 240).label("description"),
+    ]
+    card_columns = len(columns)
+    query = filtered.with_only_columns(*columns, *(expression.label(f"seek_{index}") for index, (expression, _) in enumerate(components)))
+    query = query.order_by(*(expression.asc() if ascending == (direction == "after") else expression.desc() for expression, ascending in components))
+    rows = list((await session.execute(query.limit(payload.limit + 1))).all())
+    has_more = len(rows) > payload.limit
+    rows = rows[:payload.limit]
+    if direction == "before":
+        rows.reverse()
+    items = [ListingCardResponse.model_validate({
+        str(key): (str(value) if key == "id" else value)
+        for key, value in list(row._mapping.items())[:card_columns]
+    }) for row in rows]
+    def encode(row, cursor_direction):
+        values = [str(value) if isinstance(value, UUID) else float(value) if value is not None else 0 for value in row[card_columns:]]
+        return base64.urlsafe_b64encode(json.dumps({"q": fingerprint, "d": cursor_direction, "k": values}, separators=(",", ":")).encode()).decode().rstrip("=")
+    return ListingCardSearchResponse(
+        items=items, total=total,
+        nextCursor=encode(rows[-1], "after") if rows and (has_more if direction == "after" else bool(payload.cursor)) else None,
+        previousCursor=encode(rows[0], "before") if rows and (bool(payload.cursor) if direction == "after" else has_more) else None,
+    )
+
+
+async def search_public_map(session: AsyncSession, payload: ListingMapRequest) -> ListingMapResponse:
+    # A viewport is mandatory. Grid dimensions are derived from its size, so the
+    # number of returned buckets is bounded even when the viewport covers Spain.
+    bounded = payload.model_copy(update={
+        "minLatitude": payload.south, "maxLatitude": payload.north,
+        "minLongitude": payload.west, "maxLongitude": payload.east,
+    })
+    filtered = apply_search_filters(visible_query(), bounded)
+    longitude = ST_X(cast(Listing.location, Geometry("POINT", srid=4326)))
+    latitude = ST_Y(cast(Listing.location, Geometry("POINT", srid=4326)))
+    max_markers = 300
+    if payload.zoom >= 13:
+        columns = [Listing.id, latitude, longitude, primary_price_expression(), active_promotion_expression(), Listing.is_external, Listing.primary_source_url]
+        rows = (await session.execute(filtered.with_only_columns(*columns).order_by(Listing.id).limit(max_markers + 1))).all()
+        if len(rows) <= max_markers:
+            return ListingMapResponse(items=[ListingMarker(
+                id=str(row[0]), latitude=row[1], longitude=row[2], price=row[3],
+                promoted=row[4], isExternal=row[5], sourceUrl=row[6],
+            ) for row in rows if row[1] is not None and row[2] is not None])
+    lon_cell = (payload.east - payload.west) / 20
+    lat_cell = (payload.north - payload.south) / 20
+    base = filtered.with_only_columns(latitude.label("lat"), longitude.label("lon")).subquery()
+    x = func.least(19, func.greatest(0, func.floor((base.c.lon - payload.west) / lon_cell)))
+    y = func.least(19, func.greatest(0, func.floor((base.c.lat - payload.south) / lat_cell)))
+    clusters = (
+        select(x.label("x"), y.label("y"), func.avg(base.c.lat), func.avg(base.c.lon), func.count())
+        .where(base.c.lat.is_not(None), base.c.lon.is_not(None))
+        .group_by(x, y)
+    )
+    rows = (await session.execute(clusters)).all()
+    return ListingMapResponse(items=[ClusterMarker(
+        id=f"{int(row[0])}:{int(row[1])}", latitude=float(row[2]), longitude=float(row[3]), count=row[4],
+    ) for row in rows])
 
 
 async def register_view(listing: Listing, viewer_key: str, session: AsyncSession) -> bool:

@@ -34,6 +34,17 @@ EXTERNAL_IMPORT_DURATION = Histogram(
     "External import source duration",
     ("source",),
 )
+CATALOG_QUERY_DURATION = Histogram(
+    "ttest_catalog_query_duration_seconds",
+    "Public catalog query duration",
+    ("kind",),
+)
+CATALOG_RESULT_COUNT = Histogram(
+    "ttest_catalog_result_count",
+    "Public catalog records returned or matched",
+    ("kind",),
+    buckets=(0, 1, 5, 10, 20, 50, 100, 300, 400, 1_000, 10_000, 100_000, 1_000_000),
+)
 
 
 class JsonFormatter(logging.Formatter):

@@ -532,8 +532,11 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("center and radiusKm must be provided together")
         if self.rentalMode not in {None, "long", "holiday"}:
             raise ValueError("rentalMode must be long or holiday")
-        if self.sort not in {"newest", "oldest", "price_asc", "price_desc"}:
-            raise ValueError("sort must be newest, oldest, price_asc, or price_desc")
+        if self.sort not in {
+            "newest", "oldest", "price_asc", "price_desc", "saved_new", "saved_old",
+            "reduced", "sqm_asc", "sqm_desc", "area_asc", "area_desc", "floor_asc", "floor_desc",
+        }:
+            raise ValueError("unsupported sort")
         if self.minPrice is not None and self.maxPrice is not None and self.minPrice > self.maxPrice:
             raise ValueError("minPrice cannot exceed maxPrice")
         if (
@@ -595,6 +598,91 @@ class ListingSearchResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ListingCardResponse(BaseModel):
+    id: str
+    title: str
+    city: str
+    area: str
+    approximateAddress: str
+    rentalMode: str
+    price: int | None
+    roomType: str
+    currentResidents: int
+    roomCapacity: int | None
+    bedroomCount: int | None
+    roomSizeM2: int | None
+    availableFrom: date | None
+    billsIncluded: bool | None
+    restrictions: list[str]
+    advertiserType: str | None
+    isExternal: bool
+    sourceUrl: str | None
+    primarySource: str | None
+    sourcePriceText: str | None
+    pricePeriod: str | None
+    priceIsFrom: bool | None
+    publishedAt: datetime | None
+    promoted: bool
+    coverImageUrl: str | None
+    description: str
+
+
+class ListingCardSearchRequest(ListingSearchRequest):
+    limit: int = Field(default=20, ge=1, le=50)
+    cursor: str | None = Field(default=None, max_length=1024)
+    favoriteIds: list[UUID] = Field(default_factory=list, max_length=1000)
+
+
+class ListingCardSearchResponse(BaseModel):
+    items: list[ListingCardResponse]
+    total: int
+    nextCursor: str | None
+    previousCursor: str | None
+
+
+class ListingCardIdsRequest(BaseModel):
+    ids: list[UUID] = Field(max_length=100)
+
+
+class ListingMapRequest(ListingSearchRequest):
+    north: float = Field(ge=-90, le=90)
+    south: float = Field(ge=-90, le=90)
+    east: float = Field(ge=-180, le=180)
+    west: float = Field(ge=-180, le=180)
+    zoom: float = Field(ge=2, le=21)
+
+    @model_validator(mode="after")
+    def validate_viewport(self):
+        if self.north <= self.south or self.east <= self.west:
+            raise ValueError("map bounds must have north > south and east > west")
+        if self.north - self.south > 180 or self.east - self.west > 360:
+            raise ValueError("map viewport is too large")
+        return self
+
+
+class ListingMarker(BaseModel):
+    type: Literal["listing"] = "listing"
+    id: str
+    latitude: float
+    longitude: float
+    price: int | None
+    promoted: bool
+    isExternal: bool
+    sourceUrl: str | None
+
+
+class ClusterMarker(BaseModel):
+    type: Literal["cluster"] = "cluster"
+    id: str
+    latitude: float
+    longitude: float
+    count: int
+
+
+class ListingMapResponse(BaseModel):
+    items: list[ListingMarker | ClusterMarker]
 
 
 class ListingImagesRequest(BaseModel):

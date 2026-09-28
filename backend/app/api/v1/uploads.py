@@ -449,6 +449,11 @@ async def get_media(
     # response still revalidates through FastAPI before it can be reused.
     cache_control = "private, max-age=0, must-revalidate" if publicly_visible else "private, no-store"
     headers = {"ETag": etag, "Cache-Control": cache_control, "Vary": "Authorization"}
+    if publicly_visible:
+        # Public listing media may be served from the API origin while the web
+        # client is hosted on another origin. Private/unpublished media keeps
+        # the global same-origin policy.
+        headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
 

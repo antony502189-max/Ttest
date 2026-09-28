@@ -31,7 +31,7 @@ required_fragments = {
     "writer quiescence": '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker',
     "old PostgreSQL backup runtime": 'COMPOSE_FILE="$old_release/docker-compose.production.yml"',
     "audited PostgreSQL backup script": '"$release/deploy/backup-postgres.sh"',
-    "audited MinIO backup script": '"$release/deploy/backup-minio.sh"',
+    "audited MinIO backup freshness gate": '"$release/deploy/require-fresh-minio-backup.sh"',
     "orphan-volume refusal": "persistent production volumes exist but there is no current release",
     "backup runtime metadata": "backup_runtime_sha=%s",
     "dependency rollback": '"${previous_compose[@]}" up -d postgres redis minio minio-init',
@@ -66,16 +66,16 @@ stop_position = text.index(
     '"${previous_compose[@]}" stop frontend backend mail-worker external-listings-worker'
 )
 postgres_backup_position = text.index('"$release/deploy/backup-postgres.sh"')
-minio_backup_position = text.index('"$release/deploy/backup-minio.sh"')
+minio_backup_gate_position = text.index('"$release/deploy/require-fresh-minio-backup.sh"')
 new_dependencies_position = text.rindex('"${compose[@]}" up -d postgres redis minio minio-init')
 migration_position = text.index('"${compose[@]}" run --rm migrate')
 
-if not image_gate_position < stop_position:
-    raise SystemExit("stateful image compatibility must be verified before writers stop")
+if not image_gate_position < minio_backup_gate_position < stop_position:
+    raise SystemExit("fresh authenticated MinIO recovery point must be verified before writers stop")
+if '"$release/deploy/backup-minio.sh"' in text:
+    raise SystemExit("ordinary code deploys must not create a full MinIO archive")
 if not stop_position < postgres_backup_position < new_dependencies_position:
     raise SystemExit("PostgreSQL backup must run after writer quiescence and before new dependency images")
-if not stop_position < minio_backup_position < new_dependencies_position:
-    raise SystemExit("MinIO backup must run after writer quiescence and before new dependency images")
 if not new_dependencies_position < migration_position:
     raise SystemExit("new dependencies must become healthy before migrations run")
 

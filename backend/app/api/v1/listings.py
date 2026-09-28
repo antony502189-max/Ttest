@@ -4,27 +4,39 @@ import logging
 from datetime import UTC, datetime
 from math import isclose
 from secrets import token_urlsafe
+from time import perf_counter
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import get_settings
+from ...core.observability import CATALOG_QUERY_DURATION, CATALOG_RESULT_COUNT
 from ...db.session import get_session
 from ...models import CatalogState, ExternalListingSource, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
+    card_from_detail,
     owned_query,
     owned_response_from,
+    primary_price_expression,
     response_from,
     search_public,
+    search_public_cards,
+    search_public_map,
     visible_query,
 )
 from ...schemas.listings import (
     CatalogVersionResponse,
+    ListingCardIdsRequest,
+    ListingCardResponse,
+    ListingCardSearchRequest,
+    ListingCardSearchResponse,
     ListingImageResponse,
     ListingImagesRequest,
+    ListingMapRequest,
+    ListingMapResponse,
     ListingPatch,
     ListingResponse,
     ListingSearchRequest,
@@ -157,6 +169,71 @@ async def search_listings(
 ):
     await enforce_listing_view_access(user, session)
     return await search_public(session, payload)
+
+
+@router.post("/search/cards", response_model=ListingCardSearchResponse)
+async def search_listing_cards(
+    payload: ListingCardSearchRequest,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await enforce_listing_view_access(user, session)
+    started = perf_counter()
+    result = await search_public_cards(session, payload)
+    CATALOG_QUERY_DURATION.labels("search").observe(perf_counter() - started)
+    CATALOG_RESULT_COUNT.labels("search_page").observe(len(result.items))
+    CATALOG_RESULT_COUNT.labels("search_matches").observe(result.total)
+    return result
+
+
+@router.post("/map", response_model=ListingMapResponse)
+async def map_listings(
+    payload: ListingMapRequest,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await enforce_listing_view_access(user, session)
+    started = perf_counter()
+    result = await search_public_map(session, payload)
+    CATALOG_QUERY_DURATION.labels("map").observe(perf_counter() - started)
+    CATALOG_RESULT_COUNT.labels("map_markers").observe(sum(item.type == "listing" for item in result.items))
+    CATALOG_RESULT_COUNT.labels("map_clusters").observe(sum(item.type == "cluster" for item in result.items))
+    return result
+
+
+@router.post("/cards/resolve", response_model=list[ListingCardResponse])
+async def resolve_listing_cards(
+    payload: ListingCardIdsRequest,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await enforce_listing_view_access(user, session)
+    if not payload.ids:
+        return []
+    rows = (await session.execute(visible_query().where(Listing.id.in_(payload.ids)).limit(100))).all()
+    cards = {str(row[0].id): card_from_detail(response_from(row)) for row in rows}
+    return [cards[str(listing_id)] for listing_id in payload.ids if str(listing_id) in cards]
+
+
+@router.get("/similar/{listing_id}", response_model=list[ListingCardResponse])
+async def similar_listing_cards(
+    listing_id: UUID,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await enforce_listing_view_access(user, session)
+    original = (await session.execute(visible_query().where(Listing.id == listing_id))).one_or_none()
+    if original is None:
+        raise HTTPException(404, "Listing not found")
+    listing = original[0]
+    price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
+    query = visible_query().where(Listing.id != listing_id, Listing.rental_mode == listing.rental_mode)
+    query = query.order_by(
+        case((Listing.area == listing.area, 0), else_=1),
+        func.abs(primary_price_expression() - (price or 0)), Listing.id,
+    ).limit(3)
+    rows = (await session.execute(query)).all()
+    return [card_from_detail(response_from(row)) for row in rows]
 
 
 @router.get("/homepage-hero", response_model=ListingResponse | None)

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
+import { getMapMarkers, getPublicListing, type ListingMapMarker } from '@/api/listings'
+import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { translateText } from '@/contexts/i18n-context'
@@ -11,8 +13,86 @@ import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/load
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { hasListingCoordinates } from '@/lib/listings'
 import type { Listing } from '@/types'
+import '@/map.css'
 
 type MobileMapLanguage = 'es' | 'en' | 'ru'
+
+export function MobileServerMapLayer({ mapRef, mapReady, query }: {
+  mapRef: MutableRefObject<google.maps.Map | null>
+  mapReady: boolean
+  query: Record<string, unknown>
+}) {
+  const [markers, setMarkers] = useState<ListingMapMarker[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Listing | null>(null)
+  const [error, setError] = useState(false)
+  const rendered = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
+  const queryKey = JSON.stringify(query)
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    let timer: number | undefined
+    let request: AbortController | null = null
+    let lastKey = ''
+    const fetchViewport = () => {
+      const bounds = map.getBounds()
+      if (!bounds) return
+      const northEast = bounds.getNorthEast()
+      const southWest = bounds.getSouthWest()
+      const viewport = { north: northEast.lat(), south: southWest.lat(), east: northEast.lng(), west: southWest.lng(), zoom: map.getZoom() ?? 8 }
+      if (viewport.east <= viewport.west) return
+      const key = JSON.stringify([queryKey, ...Object.values(viewport).map((value) => value.toFixed(4))])
+      if (key === lastKey) return
+      lastKey = key
+      request?.abort()
+      request = new AbortController()
+      void getMapMarkers({ ...query, ...viewport }, request.signal).then((items) => { setMarkers(items); setError(false) }).catch((failure) => {
+        if (failure?.name !== 'AbortError') setError(true)
+      })
+    }
+    const schedule = () => { window.clearTimeout(timer); timer = window.setTimeout(fetchViewport, 180) }
+    const listener = map.addListener('idle', schedule)
+    schedule()
+    return () => { listener.remove(); window.clearTimeout(timer); request?.abort() }
+  // The serialized query is the stable request identity.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, mapRef, queryKey])
+
+  useEffect(() => {
+    if (!selectedId) { setSelected(null); return }
+    let cancelled = false
+    void getPublicListing(selectedId).then((listing) => { if (!cancelled) setSelected(listing) }).catch(() => { if (!cancelled) setSelected(null) })
+    return () => { cancelled = true }
+  }, [selectedId])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    rendered.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null })
+    rendered.current = markers.map((item) => {
+      const content = document.createElement('button')
+      content.type = 'button'
+      content.className = item.type === 'cluster' ? 'server-map-cluster' : 'server-map-listing'
+      content.textContent = item.type === 'cluster' ? String(item.count) : `${item.price ?? '—'} €`
+      content.setAttribute('aria-label', item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`)
+      const marker = new google.maps.marker.AdvancedMarkerElement({ map, position: { lat: item.latitude, lng: item.longitude }, content, title: content.getAttribute('aria-label') ?? '', gmpClickable: true })
+      const activate = () => {
+        if (item.type === 'cluster') { map.panTo({ lat: item.latitude, lng: item.longitude }); map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2)) }
+        else setSelectedId(item.id)
+      }
+      marker.addEventListener('gmp-click', activate)
+      content.addEventListener('click', (event) => { event.stopPropagation(); activate() })
+      return marker
+    })
+    return () => { rendered.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null }); rendered.current = [] }
+  }, [mapReady, mapRef, markers])
+
+  return <>
+    {error ? <div className="m2-location-toast is-error" role="alert">No se pudieron cargar los anuncios. Mueve el mapa para reintentar.</div> : null}
+    {selected ? <SelectedListingSheet listing={selected} onClose={() => setSelectedId(null)} /> : null}
+  </>
+}
 
 const labels = {
   es: { close: 'Cerrar', view: 'Ver anuncio', favorite: 'Guardar', unfavorite: 'Quitar de favoritos', capacity: (count: number) => `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`, group: (count: number) => `${count} anuncios en esta dirección` },

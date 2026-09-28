@@ -15,6 +15,7 @@ from ..core.storage_failure_buffer import (
     acknowledge_failed_storage_deletions,
     read_failed_storage_deletions,
 )
+from ..models import Listing, ListingImage, MediaAsset, User
 from ..models.storage_deletion import StorageDeletionJob
 from ..storage import get_storage
 
@@ -156,9 +157,28 @@ async def process_storage_deletions(
     storage = get_storage()
     deleted_count = 0
     failed_count = 0
+    retained_count = 0
     for claim in claims:
         deleted = False
         error: str | None = None
+        # A queued key is only deletion intent. Check the authoritative DB
+        # again before touching storage: a retry can outlive the original
+        # transaction, and the asset may have been attached in the meantime.
+        asset = await session.scalar(select(MediaAsset).where(MediaAsset.storage_key == claim.storage_key))
+        if asset is not None:
+            referenced = await session.scalar(
+                select(
+                    select(ListingImage.media_asset_id).where(ListingImage.media_asset_id == asset.id).exists()
+                    | select(Listing.id).where(Listing.video_asset_id == asset.id).exists()
+                    | select(User.id).where(User.avatar_asset_id == asset.id).exists()
+                )
+            )
+            if referenced or asset.deleted_at is None:
+                await finalize_storage_deletion(session, claim, deleted=True)
+                retained_count += 1
+                logger.warning("storage_deletion_retained_live_asset", extra={"storage_deletion_id": str(claim.id)})
+                continue
+        await session.commit()
         try:
             await asyncio.to_thread(storage.delete, claim.storage_key)
             deleted = True
@@ -174,4 +194,6 @@ async def process_storage_deletions(
             continue
         deleted_count += int(deleted)
         failed_count += int(not deleted)
+    if retained_count:
+        logger.info("storage_deletion_live_assets_retained", extra={"count": retained_count})
     return {"deleted": deleted_count, "failed": failed_count}

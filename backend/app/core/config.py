@@ -131,6 +131,12 @@ class Settings(BaseSettings):
     external_import_request_timeout_seconds: int = 25
     external_import_max_concurrency_per_source: int = 3
     external_import_download_images: bool = True
+    # New external galleries retain a useful detail carousel while avoiding
+    # the native 15-photo storage footprint. Existing galleries keep their size.
+    external_import_max_images: int = 8
+    # Scope rows remain inert until operators explicitly enable this after
+    # the larger-server migration and source-specific geographic validation.
+    external_import_nationwide_enabled: bool = False
     external_import_user_agent: str = "112233.es room aggregator"
     external_import_playwright_enabled: bool = False
     external_removal_check_enabled: bool = True
@@ -246,6 +252,7 @@ class Settings(BaseSettings):
             or self.external_import_min_healthy_sources < 1
             or self.external_import_request_timeout_seconds < 1
             or self.external_import_max_concurrency_per_source < 1
+            or not 1 <= self.external_import_max_images <= 20
             or self.external_worker_stale_after_seconds < 120
         ):
             problems.append("External import limits are invalid")
