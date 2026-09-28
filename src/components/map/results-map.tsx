@@ -13,7 +13,7 @@ import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentLi
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
 import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
-import { AdvancedClusterRenderer, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
 import { cn } from '@/lib/utils'
@@ -103,6 +103,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const serverMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const [serverMarkers, setServerMarkers] = useState<ListingMapMarker[]>([])
   const [selectedDetail, setSelectedDetail] = useState<Listing | null>(null)
+  const [serverCoincidentListings, setServerCoincidentListings] = useState<Listing[]>([])
   const serverQueryKey = serverQuery ? JSON.stringify(serverQuery) : ''
   const serverModeRef = useRef(Boolean(serverQuery))
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
@@ -140,10 +141,12 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
 
   const selected = items.find((item) => item.id === selectedId) ?? (selectedDetail?.id === selectedId ? selectedDetail : null)
-  const coincidentListings = coincidentIds.flatMap((id) => {
-    const listing = items.find((item) => item.id === id)
-    return listing ? [listing] : []
-  })
+  const coincidentListings = serverQueryKey
+    ? serverCoincidentListings
+    : coincidentIds.flatMap((id) => {
+        const listing = items.find((item) => item.id === id)
+        return listing ? [listing] : []
+      })
   // Geometry drives marker recreation and fitting. TOP state is intentionally
   // separate so a remote promotion refresh cannot undo the user's pan/zoom.
   const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}`).join('|'), [items])
@@ -159,16 +162,35 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   useEffect(() => {
     if (!serverQueryKey || !selectedId || items.some((item) => item.id === selectedId)) {
       setSelectedDetail(null)
+      setServerCoincidentListings([])
       return
     }
+    const selectedMarker = serverMarkers.find((item): item is Extract<ListingMapMarker, { type: 'listing' }> => item.type === 'listing' && item.id === selectedId)
+    if (!selectedMarker) {
+      setSelectedDetail(null)
+      setServerCoincidentListings([])
+      return
+    }
+    const groupIds = serverMarkers
+      .filter((item): item is Extract<ListingMapMarker, { type: 'listing' }> =>
+        item.type === 'listing'
+        && Math.abs(item.latitude - selectedMarker.latitude) < 0.0000001
+        && Math.abs(item.longitude - selectedMarker.longitude) < 0.0000001)
+      .map((item) => item.id)
+      .slice(0, 20)
     let cancelled = false
-    void getPublicListing(selectedId).then((detail) => {
-      if (!cancelled) setSelectedDetail(detail)
+    void Promise.all(groupIds.map((id) => getPublicListing(id))).then((details) => {
+      if (cancelled) return
+      setSelectedDetail(details.find((detail) => detail.id === selectedId) ?? details[0] ?? null)
+      setServerCoincidentListings(details.length > 1 ? details : [])
     }).catch(() => {
-      if (!cancelled) setSelectedDetail(null)
+      if (!cancelled) {
+        setSelectedDetail(null)
+        setServerCoincidentListings([])
+      }
     })
     return () => { cancelled = true }
-  }, [items, selectedId, serverQueryKey])
+  }, [items, selectedId, serverMarkers, serverQueryKey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -202,14 +224,17 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     if (!map || !ready || !serverQueryKey) return
     serverMarkerRef.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null })
     serverMarkerRef.current = serverMarkers.map((item) => {
-      const content = document.createElement('button')
-      content.type = 'button'
-      content.className = item.type === 'cluster' ? 'server-map-cluster' : 'server-map-listing'
-      content.textContent = item.type === 'cluster' ? String(item.count) : `${item.price ?? '—'} €`
-      content.setAttribute('aria-label', item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`)
+      const content = item.type === 'cluster'
+        ? createClusterContent(item.count, item.promoted)
+        : createPriceMarkerContentFromData(`${item.price ?? '—'} €`, item.promoted, `Anuncio ${item.price ?? '—'} euros`)
+      if (item.type === 'listing') {
+        content.dataset.listingId = item.id
+        content.dataset.promoted = String(item.promoted)
+      }
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map, position: { lat: item.latitude, lng: item.longitude }, content,
         title: content.getAttribute('aria-label') ?? '', gmpClickable: true,
+        zIndex: item.type === 'cluster' ? (item.promoted ? 2000 : 1000) + item.count : item.promoted ? 100 : 10,
       })
       const activate = () => {
         if (item.type === 'cluster') {
@@ -226,6 +251,20 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       serverMarkerRef.current = []
     }
   }, [ready, serverMarkers, serverQueryKey])
+
+  useEffect(() => {
+    serverMarkerRef.current.forEach((marker) => {
+      const content = marker.content
+      if (!(content instanceof HTMLElement)) return
+      const listingId = content.dataset.listingId
+      if (!listingId) return
+      const promoted = content.dataset.promoted === 'true'
+      const selectedMarker = listingId === selectedId
+      const highlightedMarker = listingId === highlightedId
+      setPriceMarkerState(content, selectedMarker, highlightedMarker, promoted)
+      marker.zIndex = selectedMarker ? 4000 : highlightedMarker ? 3000 : promoted ? 100 : 10
+    })
+  }, [highlightedId, selectedId, serverMarkers])
   useEffect(() => () => {
     if (userMarkerRef.current) userMarkerRef.current.map = null
     accuracyCircleRef.current?.setMap(null)

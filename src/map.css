@@ -726,20 +726,3 @@
   width: 2rem;
   height: 2rem;
 }
-.server-map-listing,
-.server-map-cluster {
-  min-width: 46px;
-  min-height: 40px;
-  padding: 6px 10px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: #af187b;
-  color: #fff;
-  box-shadow: 0 2px 10px #0004;
-  font: 700 14px/1.2 Arial, sans-serif;
-  cursor: pointer;
-}
-
-.server-map-cluster { background: #27415e; }
-.server-map-listing:focus-visible,
-.server-map-cluster:focus-visible { outline: 3px solid #1b65bb; outline-offset: 2px; }

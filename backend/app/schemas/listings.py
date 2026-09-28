@@ -679,6 +679,7 @@ class ClusterMarker(BaseModel):
     latitude: float
     longitude: float
     count: int
+    promoted: bool
 
 
 class ListingMapResponse(BaseModel):

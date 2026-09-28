@@ -5,16 +5,16 @@ import '@/promoted-map-like.css'
 
 export const priceLabel = (listing: Listing) => listing.sourcePriceText ?? `${getPrimaryPrice(listing)} €`
 
-export function createPriceMarkerContent(listing: Listing) {
+export function createPriceMarkerContentFromData(priceText: string, promoted: boolean, ariaLabel: string) {
   const shell = document.createElement('div')
   shell.className = 'map-price-marker-shell price-marker-shell'
-  shell.setAttribute('aria-label', `${listing.area}, ${priceLabel(listing)}`)
+  shell.setAttribute('aria-label', ariaLabel)
   const marker = document.createElement('span')
-  marker.className = `map-price-marker price-marker${listing.promoted ? ' is-promoted' : ''}`
+  marker.className = `map-price-marker price-marker${promoted ? ' is-promoted' : ''}`
   const label = document.createElement('span')
   label.className = 'map-price-marker__label'
   const price = document.createElement('span')
-  price.textContent = priceLabel(listing)
+  price.textContent = priceText
   const promotion = document.createElement('span')
   promotion.className = 'map-price-marker__promotion'
   promotion.setAttribute('aria-hidden', 'true')
@@ -25,6 +25,10 @@ export function createPriceMarkerContent(listing: Listing) {
   marker.append(label, tail)
   shell.append(marker)
   return shell
+}
+
+export function createPriceMarkerContent(listing: Listing) {
+  return createPriceMarkerContentFromData(priceLabel(listing), Boolean(listing.promoted), `${listing.area}, ${priceLabel(listing)}`)
 }
 
 export function setPriceMarkerState(content: HTMLElement, selected: boolean, highlighted: boolean, promoted: boolean) {

@@ -655,17 +655,32 @@ async def search_public_map(session: AsyncSession, payload: ListingMapRequest) -
             ) for row in rows if row[1] is not None and row[2] is not None])
     lon_cell = (payload.east - payload.west) / 20
     lat_cell = (payload.north - payload.south) / 20
-    base = filtered.with_only_columns(latitude.label("lat"), longitude.label("lon")).subquery()
+    base = filtered.with_only_columns(
+        latitude.label("lat"),
+        longitude.label("lon"),
+        active_promotion_expression().label("promoted"),
+    ).subquery()
     x = func.least(19, func.greatest(0, func.floor((base.c.lon - payload.west) / lon_cell)))
     y = func.least(19, func.greatest(0, func.floor((base.c.lat - payload.south) / lat_cell)))
     clusters = (
-        select(x.label("x"), y.label("y"), func.avg(base.c.lat), func.avg(base.c.lon), func.count())
+        select(
+            x.label("x"),
+            y.label("y"),
+            func.avg(base.c.lat),
+            func.avg(base.c.lon),
+            func.count(),
+            func.bool_or(base.c.promoted),
+        )
         .where(base.c.lat.is_not(None), base.c.lon.is_not(None))
         .group_by(x, y)
     )
     rows = (await session.execute(clusters)).all()
     return ListingMapResponse(items=[ClusterMarker(
-        id=f"{int(row[0])}:{int(row[1])}", latitude=float(row[2]), longitude=float(row[3]), count=row[4],
+        id=f"{int(row[0])}:{int(row[1])}",
+        latitude=float(row[2]),
+        longitude=float(row[3]),
+        count=row[4],
+        promoted=bool(row[5]),
     ) for row in rows])
 
 
