@@ -114,11 +114,29 @@ async function mockPublicationApi(page: Page, state: PublicationTestState) {
     if (path === '/auth/login') return json({ accessToken: 'publication-test-token', user: state.loginUser ?? host })
     if (path === '/auth/logout') return json({})
     if (path === '/auth/email-verification/status') return json({ verified: true, email: host.email })
-    if (path === '/listings/search') {
+    if (path === '/listings/search/cards') {
       state.searchCalls = (state.searchCalls ?? 0) + 1
       const items = state.searchCalls > 1 && state.publicListingsAfterFirstSearch
         ? state.publicListingsAfterFirstSearch
         : state.publicListings ?? []
+      return json({ items, total: items.length, nextCursor: null, previousCursor: null })
+    }
+    if (path === '/listings/cards/resolve') {
+      state.searchCalls = (state.searchCalls ?? 0) + 1
+      const requested = (request.postDataJSON() as { ids?: string[] }).ids ?? []
+      const items = (state.publicListings ?? []).filter((item) => requested.includes(item.id))
+      return json(items)
+    }
+    if (path === '/listings/map') {
+      const items = (state.publicListings ?? []).flatMap((item) =>
+        typeof item.latitude === 'number' && typeof item.longitude === 'number'
+          ? [{ type: 'listing', id: item.id, latitude: item.latitude, longitude: item.longitude, price: item.price ?? null, promoted: item.promoted, isExternal: item.isExternal, sourceUrl: item.sourceUrl }]
+          : [])
+      return json({ items })
+    }
+    if (path === '/listings/search') {
+      state.searchCalls = (state.searchCalls ?? 0) + 1
+      const items = state.publicListings ?? []
       return json({ items, total: items.length, limit: 100, offset: 0 })
     }
     if (path === '/listings/catalog-version') return json({ version: state.catalogVersions?.shift() ?? '1', updatedAt: '2026-08-28T00:00:00Z' })
@@ -594,11 +612,11 @@ test('publication contact validation matches the backend for hidden values and l
   expect(state.posts).toBe(1)
 })
 
-test('catalog hydration retries when a lifecycle mutation races the public snapshot', async ({ page }) => {
+test('favorites resolve a bounded card set without hydrating the public catalog', async ({ page }) => {
   const published = lifecycleListing('published')
   const state: PublicationTestState = {
     mode: 'success', posts: 0, profilePatches: 0,
-    publicListings: [], publicListingsAfterFirstSearch: [published], catalogVersions: ['1', '2', '2'],
+    publicListings: [published],
     favoriteIds: [published.id],
   }
   await mockPublicationApi(page, state)
@@ -606,7 +624,7 @@ test('catalog hydration retries when a lifecycle mutation races the public snaps
   await page.goto('/#/favoritos')
 
   await expect(page.locator('.property-card').filter({ hasText: published.title })).toHaveCount(1)
-  expect(state.searchCalls).toBeGreaterThanOrEqual(2)
+  expect(state.searchCalls).toBe(1)
 })
 
 test('stale owner response cannot cross an account switch', async ({ page }) => {
