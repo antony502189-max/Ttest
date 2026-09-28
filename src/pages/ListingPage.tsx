@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Bath, BedDouble, Check, CircleAlert, CookingPot, Heart, Home, MapPin, MessageSquareText, MoreHorizontal, Pencil, Ruler, Share2, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,7 +33,14 @@ function ExternalListingRedirect({ sourceUrl }: { sourceUrl: string }) {
 export function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const goBack = useAppBack('/buscar')
+  const location = useLocation()
+  const requestedReturnTo = (location.state as { returnTo?: unknown } | null)?.returnTo
+  const backFallback = typeof requestedReturnTo === 'string'
+    && requestedReturnTo.startsWith('/')
+    && !requestedReturnTo.startsWith('//')
+    ? requestedReturnTo
+    : '/buscar'
+  const goBack = useAppBack(backFallback)
   const { allListings, acceptListingSnapshot, favorites, toggleFavorite, discardListing, localComments, addLocalComment, updateLocalComment, deleteLocalComment } = useApp()
   const [reportOpen, setReportOpen] = useState(false)
   const [userReportOpen, setUserReportOpen] = useState(false)
