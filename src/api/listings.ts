@@ -95,7 +95,7 @@ type ListingCardDto = Pick<ListingDto, 'id' | 'title' | 'city' | 'area' | 'appro
 export type ListingCardPage = { items: Listing[]; total: number; nextCursor: string | null; previousCursor: string | null }
 export type ListingMapMarker =
   | { type: 'listing'; id: string; latitude: number; longitude: number; price: number | null; promoted: boolean; isExternal: boolean; sourceUrl: string | null }
-  | { type: 'cluster'; id: string; latitude: number; longitude: number; count: number }
+  | { type: 'cluster'; id: string; latitude: number; longitude: number; count: number; promoted: boolean }
 
 const statusMap: Record<string, ListingStatus> = {
   draft: 'Borrador', pending: 'Pendiente', published: 'Publicado', hidden: 'Oculto', closed: 'Finalizado', rejected: 'Rechazado',
