@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Heart, MessageSquare, Phone, X } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { MediaImage } from '@/components/media-image'
 import { useApp } from '@/contexts/app-context'
 import { getCriticalRestrictions, getPrimaryCadence, unknownListingFact } from '@/lib/listings'
@@ -26,6 +26,8 @@ export function SelectedListingSheet({
   returnFocus?: HTMLElement | null
 }) {
   const { favorites, toggleFavorite } = useApp()
+  const location = useLocation()
+  const returnTo = `${location.pathname}${location.search}${location.hash}`
   const sheetRef = useRef<HTMLElement>(null)
   const carousel = useMemo(() => siblingListings.length > 1 ? siblingListings : [listing], [listing, siblingListings])
   const carouselIndex = Math.max(0, carousel.findIndex((item) => item.id === listing.id))
@@ -90,7 +92,7 @@ export function SelectedListingSheet({
         {current
           ? item.isExternal && item.sourceUrl
             ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{item.title}</a>
-            : <Link to={`/habitacion/${item.id}`}>{item.title}</Link>
+            : <Link to={`/habitacion/${item.id}`} state={{ returnTo }}>{item.title}</Link>
           : <span className="selected-listing-carousel__title-preview">{item.title}</span>}
         <strong>{priceLabel(item)} {item.sourcePriceText ? null : <span>/{getPrimaryCadence(item)}</span>}</strong>
         <p>{item.approximateAddress ? `${item.approximateAddress}, ${item.city}` : `${item.area}, ${item.city}`}</p>
@@ -99,7 +101,7 @@ export function SelectedListingSheet({
       </div>
       <div className="selected-listing-sheet__actions">
         {current ? <>
-          {item.isExternal && item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><MessageSquare aria-hidden="true" /><span>Ver anuncio</span></a> : <Link to={`/habitacion/${item.id}#contacto`}><MessageSquare aria-hidden="true" /><span>Contactar</span></Link>}
+          {item.isExternal && item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><MessageSquare aria-hidden="true" /><span>Ver anuncio</span></a> : <Link to={`/habitacion/${item.id}#contacto`} state={{ returnTo }}><MessageSquare aria-hidden="true" /><span>Contactar</span></Link>}
           {item.showPhone && item.contactPhone ? <a href={`tel:${item.contactPhone.replace(/\s+/g, '')}`}><Phone aria-hidden="true" /><span>Llamar</span></a> : null}
           <button type="button" className={cn('selected-listing-sheet__favorite', saved && 'is-saved')} aria-label={saved ? `Quitar ${item.title} de favoritos` : `Guardar ${item.title} en favoritos`} aria-pressed={saved} onClick={() => toggleFavorite(item.id)}><Heart aria-hidden="true" fill={saved ? 'currentColor' : 'none'} /><span>Guardar</span></button>
         </> : <>
