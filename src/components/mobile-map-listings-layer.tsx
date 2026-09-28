@@ -24,7 +24,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
   const { language } = useI18n()
   const [markers, setMarkers] = useState<ListingMapMarker[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [selected, setSelected] = useState<Listing | null>(null)
+  const [selectedListings, setSelectedListings] = useState<Listing[]>([])
   const [error, setError] = useState(false)
   const rendered = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const queryKey = JSON.stringify(query)
@@ -60,11 +60,24 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
   }, [mapReady, mapRef, queryKey])
 
   useEffect(() => {
-    if (!selectedId) { setSelected(null); return }
+    if (!selectedId) { setSelectedListings([]); return }
+    const selectedMarker = markers.find((item): item is Extract<ListingMapMarker, { type: 'listing' }> => item.type === 'listing' && item.id === selectedId)
+    if (!selectedMarker) { setSelectedListings([]); return }
+    const groupIds = markers
+      .filter((item): item is Extract<ListingMapMarker, { type: 'listing' }> =>
+        item.type === 'listing'
+        && Math.abs(item.latitude - selectedMarker.latitude) < 0.0000001
+        && Math.abs(item.longitude - selectedMarker.longitude) < 0.0000001)
+      .map((item) => item.id)
+      .slice(0, 20)
     let cancelled = false
-    void getPublicListing(selectedId).then((listing) => { if (!cancelled) setSelected(listing) }).catch(() => { if (!cancelled) setSelected(null) })
+    void Promise.all(groupIds.map((id) => getPublicListing(id))).then((items) => {
+      if (!cancelled) setSelectedListings(items)
+    }).catch(() => {
+      if (!cancelled) setSelectedListings([])
+    })
     return () => { cancelled = true }
-  }, [selectedId])
+  }, [markers, selectedId])
 
   useEffect(() => {
     const map = mapRef.current
@@ -121,7 +134,17 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
 
   return <>
     {error ? <div className="m2-location-toast is-error" role="alert">No se pudieron cargar los anuncios. Mueve el mapa para reintentar.</div> : null}
-    {selected ? <MobileServerSelectedPreview listing={selected} language={language as MobileMapLanguage} onClose={() => setSelectedId(null)} /> : null}
+    {selectedListings.length ? <MobileServerSelectedPreview
+      listings={selectedListings}
+      selectedId={selectedId ?? selectedListings[0].id}
+      language={language as MobileMapLanguage}
+      onSelectSibling={(id) => {
+        setSelectedId(id)
+        const marker = markers.find((item) => item.type === 'listing' && item.id === id)
+        if (marker) mapRef.current?.panTo({ lat: marker.latitude, lng: marker.longitude })
+      }}
+      onClose={() => setSelectedId(null)}
+    /> : null}
   </>
 }
 
@@ -131,68 +154,98 @@ const labels = {
   ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`, group: (count: number) => `${count} объявления по этому адресу` },
 } as const
 
-function MobileServerSelectedPreview({ listing, language, onClose }: {
-  listing: Listing
+function MobileServerSelectedPreview({ listings, selectedId, language, onSelectSibling, onClose }: {
+  listings: Listing[]
+  selectedId: string
   language: MobileMapLanguage
+  onSelectSibling: (id: string) => void
   onClose: () => void
 }) {
   const { favorites, toggleFavorite } = useApp()
   const navigate = useNavigate()
   const t = labels[language]
-  const capacity = listing.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(listing.roomCapacity)
-  const translatedRestrictions = listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language))
-  const capacityAlreadyCovered = listing.roomCapacity != null && listing.restrictions.some((restriction) => {
-    const normalized = restriction.toLocaleLowerCase()
-    return normalized.includes(String(listing.roomCapacity))
-      && /(persona|personas|person|people|чел|человек)/i.test(normalized)
-  })
-  const requirements = Array.from(new Set([...translatedRestrictions, ...(capacityAlreadyCovered ? [] : [capacity])]))
-  const cadence = listing.cadence === 'noche'
-    ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche'
-    : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
-  const saved = favorites.has(listing.id)
-  const externalUrl = listing.isExternal && listing.sourceUrl ? listing.sourceUrl : null
-  const translatedTitle = translateText(listing.title, language)
-  const openInternalListing = () => navigate(`/habitacion/${encodeURIComponent(listing.id)}`)
+  const selected = listings.find((item) => item.id === selectedId) ?? listings[0]
+  const carouselIndex = Math.max(0, listings.findIndex((item) => item.id === selected.id))
+  const previous = listings.length > 1 ? listings[(carouselIndex - 1 + listings.length) % listings.length] : null
+  const next = listings.length > 1 ? listings[(carouselIndex + 1) % listings.length] : null
+  type Position = 'previous' | 'current' | 'next'
+  const slots: Array<{ item: Listing; position: Position }> = listings.length <= 1
+    ? [{ item: selected, position: 'current' }]
+    : listings.length === 2
+      ? [{ item: selected, position: 'current' }, { item: next!, position: 'next' }]
+      : [{ item: previous!, position: 'previous' }, { item: selected, position: 'current' }, { item: next!, position: 'next' }]
 
-  return <section
-    className={cn('m2-map-listing-preview', 'm2-map-listing-carousel')}
-    data-testid="mobile-map-listing-preview"
-    data-listing-id={listing.id}
-    data-group-size="1"
-    data-promoted={listing.promoted || undefined}
-  >
-    <div className="m2-map-listing-carousel__stage">
-      <article
-        className="m2-map-listing-card is-current"
-        data-listing-id={listing.id}
-        data-carousel-position="current"
-        data-promoted={listing.promoted || undefined}
-      >
-        <div className="m2-map-listing-preview__media-shell">
-          {externalUrl
-            ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={listing.images[0]} variant="card" alt={listing.title} /></a>
-            : <button type="button" className="m2-map-listing-preview__media" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={listing.images[0]} variant="card" alt={listing.title} /></button>}
-          {listing.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
-        </div>
-        <div className="m2-map-listing-preview__body">
-          <button type="button" className="m2-map-listing-preview__close" onClick={onClose} aria-label={t.close}><X /></button>
-          <p><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p>
-          <h2>{translatedTitle}</h2>
-          <strong>{priceLabel(listing)} {listing.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
-          <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
-          <div className="m2-map-listing-preview__actions">
-            <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(listing.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
+  const renderCard = ({ item, position }: { item: Listing; position: Position }) => {
+    const current = position === 'current'
+    const capacity = item.roomCapacity == null ? translateText('Consultar con el anunciante', language) : t.capacity(item.roomCapacity)
+    const translatedRestrictions = item.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language))
+    const capacityAlreadyCovered = item.roomCapacity != null && item.restrictions.some((restriction) => {
+      const normalized = restriction.toLocaleLowerCase()
+      return normalized.includes(String(item.roomCapacity))
+        && /(persona|personas|person|people|чел|человек)/i.test(normalized)
+    })
+    const requirements = Array.from(new Set([...translatedRestrictions, ...(capacityAlreadyCovered ? [] : [capacity])]))
+    const cadence = item.cadence === 'noche'
+      ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche'
+      : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
+    const saved = favorites.has(item.id)
+    const externalUrl = item.isExternal && item.sourceUrl ? item.sourceUrl : null
+    const translatedTitle = translateText(item.title, language)
+    const openInternalListing = () => navigate(`/habitacion/${encodeURIComponent(item.id)}`)
+
+    return <article
+      key={item.id}
+      className={cn('m2-map-listing-card', `is-${position}`)}
+      data-listing-id={item.id}
+      data-carousel-position={position}
+      data-promoted={item.promoted || undefined}
+      aria-hidden={current ? undefined : true}
+    >
+      <div className="m2-map-listing-preview__media-shell">
+        {current
+          ? externalUrl
+            ? <a className="m2-map-listing-preview__media" href={externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={item.title} /></a>
+            : <button type="button" className="m2-map-listing-preview__media" onClick={openInternalListing} aria-label={`${t.view}: ${translatedTitle}`}><MediaImage src={item.images[0]} variant="card" alt={item.title} /></button>
+          : <div className="m2-map-listing-preview__media"><MediaImage src={item.images[0]} variant="card" alt="" /></div>}
+        {item.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
+      </div>
+      <div className="m2-map-listing-preview__body">
+        {current ? <button type="button" className="m2-map-listing-preview__close" onClick={onClose} aria-label={t.close}><X /></button> : null}
+        <p><MapPin />{item.approximateAddress ? `${item.approximateAddress}, ${item.city}` : `${item.area}, ${item.city}`}</p>
+        <h2>{translatedTitle}</h2>
+        <strong>{priceLabel(item)} {item.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
+        <div className="m2-map-listing-preview__requirements">{requirements.map((requirement) => <span key={requirement}>{requirement}</span>)}</div>
+        <div className="m2-map-listing-preview__actions">
+          {current ? <>
+            <button type="button" className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')} onClick={() => toggleFavorite(item.id)} aria-pressed={saved} aria-label={saved ? t.unfavorite : t.favorite}><Heart fill={saved ? 'currentColor' : 'none'} /></button>
             {externalUrl
               ? <a className="m2-map-listing-preview__open" href={externalUrl} target="_blank" rel="noopener noreferrer">{t.view}</a>
               : <button type="button" className="m2-map-listing-preview__open" onClick={openInternalListing}>{t.view}</button>}
-          </div>
+          </> : <>
+            <span className={cn('m2-map-listing-preview__favorite', saved && 'is-saved')}><Heart fill={saved ? 'currentColor' : 'none'} /></span>
+            <span className="m2-map-listing-preview__open">{t.view}</span>
+          </>}
         </div>
-      </article>
-    </div>
+      </div>
+      {!current ? <button type="button" className="m2-map-listing-carousel__side-hit" tabIndex={-1} aria-hidden="true" data-testid={position === 'previous' ? 'mobile-map-listing-peek-prev' : 'mobile-map-listing-peek-next'} onClick={() => onSelectSibling(item.id)} /> : null}
+    </article>
+  }
+
+  return <section
+    className={cn('m2-map-listing-preview', 'm2-map-listing-carousel', listings.length > 1 && 'has-multiple', listings.length === 2 && 'has-two')}
+    data-testid="mobile-map-listing-preview"
+    data-listing-id={selected.id}
+    data-group-size={listings.length}
+    data-promoted={selected.promoted || undefined}
+  >
+    <div className="m2-map-listing-carousel__stage">{slots.map(renderCard)}</div>
+    {listings.length > 1 ? <>
+      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} onClick={() => previous && onSelectSibling(previous.id)}><ChevronLeft /></button>
+      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Anuncio siguiente en esta dirección'} onClick={() => next && onSelectSibling(next.id)}><ChevronRight /></button>
+      <span className="m2-map-listing-carousel__count" aria-label={`${carouselIndex + 1} / ${listings.length}`}>{carouselIndex + 1}/{listings.length}</span>
+    </> : null}
   </section>
 }
-
 
 export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items, preserveCamera = false, onInitialFit }: {
   mapRef: MutableRefObject<google.maps.Map | null>
