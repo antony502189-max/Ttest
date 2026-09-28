@@ -4,7 +4,7 @@ import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markercluste
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { getMapMarkers, getPublicListing, type ListingMapMarker } from '@/api/listings'
-import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
+import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { useApp } from '@/contexts/app-context'
 import { translateText, useI18n } from '@/contexts/i18n-context'
 import { cn } from '@/lib/utils'
@@ -15,31 +15,6 @@ import type { Listing } from '@/types'
 import '@/map.css'
 
 type MobileMapLanguage = 'es' | 'en' | 'ru'
-
-function createServerPriceMarkerContent(item: Extract<ListingMapMarker, { type: 'listing' }>) {
-  const shell = document.createElement('div')
-  shell.className = 'map-price-marker-shell price-marker-shell m2-listing-marker'
-  shell.dataset.listingId = item.id
-  shell.dataset.testid = `mobile-map-marker-${item.id}`
-  shell.dataset.promoted = String(item.promoted)
-  shell.setAttribute('aria-label', `Anuncio ${item.price ?? '—'} euros`)
-  const marker = document.createElement('span')
-  marker.className = `map-price-marker price-marker${item.promoted ? ' is-promoted' : ''}`
-  const label = document.createElement('span')
-  label.className = 'map-price-marker__label'
-  const price = document.createElement('span')
-  price.textContent = `${item.price ?? '—'} €`
-  const promotion = document.createElement('span')
-  promotion.className = 'map-price-marker__promotion'
-  promotion.setAttribute('aria-hidden', 'true')
-  promotion.textContent = '👍'
-  label.append(price, promotion)
-  const tail = document.createElement('i')
-  tail.setAttribute('aria-hidden', 'true')
-  marker.append(label, tail)
-  shell.append(marker)
-  return shell
-}
 
 export function MobileServerMapLayer({ mapRef, mapReady, query }: {
   mapRef: MutableRefObject<google.maps.Map | null>
@@ -98,8 +73,14 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
     rendered.current = markers.map((item) => {
       const content = item.type === 'cluster'
         ? createClusterContent(item.count)
-        : createServerPriceMarkerContent(item)
+        : createPriceMarkerContentFromData(`${item.price ?? '—'} €`, item.promoted, `Anuncio ${item.price ?? '—'} euros`)
       const title = item.type === 'cluster' ? `${item.count} anuncios. Acercar mapa` : `Anuncio ${item.price ?? ''} euros`
+      if (item.type === 'listing') {
+        content.classList.add('m2-listing-marker')
+        content.dataset.listingId = item.id
+        content.dataset.testid = `mobile-map-marker-${item.id}`
+        content.dataset.promoted = String(item.promoted)
+      }
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map,
         position: { lat: item.latitude, lng: item.longitude },
