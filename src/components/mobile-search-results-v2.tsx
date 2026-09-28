@@ -184,7 +184,14 @@ export function MobileSearchResults() {
   const [serverLoading, setServerLoading] = useState(false)
   const [serverError, setServerError] = useState(false)
   const [retry, setRetry] = useState(0)
+  const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
+
+  useEffect(() => {
+    const refresh = () => setCatalogEpoch((current) => current + 1)
+    window.addEventListener('catalog:updated', refresh)
+    return () => window.removeEventListener('catalog:updated', refresh)
+  }, [])
 
   useEffect(() => {
     if (mockMode || !open) return
@@ -222,7 +229,7 @@ export function MobileSearchResults() {
       if (!request.signal.aborted) setServerLoading(false)
     })
     return () => request.abort()
-  }, [favorites, location.search, open, retry])
+  }, [catalogEpoch, favorites, location.search, open, retry])
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
