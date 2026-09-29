@@ -188,6 +188,10 @@ export function MobileSearchResults() {
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
   const loadMoreRequestRef = useRef<AbortController | null>(null)
   const loadingMoreCursorRef = useRef<string | null>(null)
+  const resultsRootRef = useRef<HTMLElement>(null)
+  const savedScrollTopRef = useRef(0)
+  const loadedSearchKeyRef = useRef('')
+  const loadedCatalogEpochRef = useRef(-1)
   const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
 
@@ -223,15 +227,24 @@ export function MobileSearchResults() {
       favoriteIds: sort.startsWith('saved_') ? [...favorites].slice(0, 1000) : undefined,
     }
   }, [favorites, location.search])
+  const serverSearchKey = useMemo(() => serverSearchRequest ? JSON.stringify(serverSearchRequest) : '', [serverSearchRequest])
 
   useEffect(() => {
     if (mockMode || !open || !serverSearchRequest) return
+    if (
+      serverItems !== null
+      && loadedSearchKeyRef.current === serverSearchKey
+      && loadedCatalogEpochRef.current === catalogEpoch
+    ) return
     const params = new URLSearchParams(location.search)
     if (params.get('vista') === 'mapa') return
     const request = new AbortController()
     loadMoreRequestRef.current?.abort()
     loadMoreRequestRef.current = null
     loadingMoreCursorRef.current = null
+    if (loadedSearchKeyRef.current !== serverSearchKey || loadedCatalogEpochRef.current !== catalogEpoch) {
+      savedScrollTopRef.current = 0
+    }
     setServerItems(null)
     setServerLoading(true)
     setServerLoadingMore(false)
@@ -242,12 +255,14 @@ export function MobileSearchResults() {
         setServerItems(page.items)
         setServerTotal(page.total)
         setNextCursor(page.nextCursor)
+        loadedSearchKeyRef.current = serverSearchKey
+        loadedCatalogEpochRef.current = catalogEpoch
       }
     }).catch(() => { if (!request.signal.aborted) setServerError(true) }).finally(() => {
       if (!request.signal.aborted) setServerLoading(false)
     })
     return () => request.abort()
-  }, [catalogEpoch, location.search, open, retry, serverSearchRequest])
+  }, [catalogEpoch, location.search, open, retry, serverItems, serverSearchKey, serverSearchRequest])
 
   const loadMore = useCallback(() => {
     const cursor = nextCursor
@@ -276,6 +291,14 @@ export function MobileSearchResults() {
   }, [nextCursor, open, serverLoading, serverSearchRequest])
 
   useEffect(() => () => loadMoreRequestRef.current?.abort(), [])
+
+  useEffect(() => {
+    if (!open) return
+    const frame = window.requestAnimationFrame(() => {
+      if (resultsRootRef.current) resultsRootRef.current.scrollTop = savedScrollTopRef.current
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [open])
 
   useEffect(() => {
     if (mockMode || !open || panel !== 'results' || !nextCursor || serverLoading || serverError || serverLoadMoreError) return
@@ -505,7 +528,7 @@ export function MobileSearchResults() {
     setPanel('results')
   }
 
-  return createPortal(<section className="m2-results notranslate" translate="no" data-testid="mobile-results">
+  return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { savedScrollTopRef.current = event.currentTarget.scrollTop }}>
     {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
