@@ -11,6 +11,7 @@ export const acceptedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-m4v'
 export const MIN_LISTING_PHOTOS = 5
 export const MAX_LISTING_PHOTOS = 15
 export const MAX_LISTING_VIDEO_SECONDS = 60
+export const MAX_LISTING_VIDEO_BYTES = 100 * 1024 * 1024
 
 const LOCAL_MEDIA_MAX_DIMENSION = 2048
 const LOCAL_MEDIA_WEBP_QUALITY = 0.84
@@ -190,6 +191,9 @@ export async function saveMediaFile(file: File) {
 export async function saveVideoFile(file: File) {
   if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
     throw new MediaStorageError('type', 'Formato de vídeo no compatible. Usa MP4 o MOV.')
+  }
+  if (file.size > MAX_LISTING_VIDEO_BYTES) {
+    throw new MediaStorageError('quota', 'El vídeo no puede superar 100 MB.')
   }
   const duration = await browserVideoDuration(file)
   if (duration !== null && duration > MAX_LISTING_VIDEO_SECONDS) {

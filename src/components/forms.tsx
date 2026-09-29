@@ -30,7 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { acceptedImageTypes, acceptedVideoTypes, getMediaBlob, isMediaReference, MAX_LISTING_PHOTOS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile } from "@/lib/media-storage";
+import { acceptedImageTypes, acceptedVideoTypes, getMediaBlob, isMediaReference, MAX_LISTING_PHOTOS, MAX_LISTING_VIDEO_BYTES, MAX_LISTING_VIDEO_SECONDS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 import "@/listing-edit-comfort.css";
@@ -1012,7 +1012,7 @@ export function VideoUploader({
       <div className="listing-video-uploader__head">
         <div>
           <strong>Vídeo del anuncio</strong>
-          <span>Opcional · 1 vídeo · hasta 1 minuto · MP4/MOV</span>
+          <span>Opcional · 1 vídeo · máximo {MAX_LISTING_VIDEO_SECONDS} segundos · MP4/MOV · hasta {MAX_LISTING_VIDEO_BYTES / (1024 * 1024)} MB</span>
         </div>
         {!video ? (
           <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
