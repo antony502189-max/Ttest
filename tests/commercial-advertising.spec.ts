@@ -24,7 +24,7 @@ test('mobile house advertisement scrolls above fixed navigation', async ({ page 
   await ad.scrollIntoViewIfNeeded()
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
   await page.waitForFunction(() => document.querySelector('.commercial-ad--mobile')!.getBoundingClientRect().bottom <= document.querySelector('.m2-bottom-nav')!.getBoundingClientRect().top)
-  await page.screenshot({ path: 'output/playwright/advertising-mobile.png' })
+  await test.info().attach('advertising-mobile', { body: await page.screenshot(), contentType: 'image/png' })
   await expect(ad).toBeVisible()
   const bounds = await page.evaluate(() => {
     const ad = document.querySelector('.commercial-ad--mobile')!.getBoundingClientRect()
@@ -50,7 +50,7 @@ test('approved advertisement has a visible disclosure and safe sponsored link', 
   await expect(link).toHaveAttribute('href', 'https://example.org/moving')
   await expect(link).toHaveAttribute('target', '_blank')
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer sponsored')
-  await page.screenshot({ path: 'output/playwright/advertising-desktop.png', fullPage: true })
+  await test.info().attach('advertising-desktop', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
 })
 
 test('homepage carousel exposes at most twelve campaigns and rotates without redesigning the card', async ({ page }) => {
