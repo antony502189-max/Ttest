@@ -4,7 +4,7 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
@@ -220,6 +220,12 @@ async def approve_advertisement(
     ad_id: UUID, decision: ModerationDecision, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
     ad = await admin_ad(session, ad_id)
+    # Serialize the capacity decision so concurrent admin approvals cannot both
+    # observe the same free slot and exceed the twelve-campaign ceiling.
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": "commercial-advertising:homepage-bottom"},
+    )
     now = datetime.now(UTC)
     proposed_start = decision.startsAt or ad.starts_at or now
     proposed_end = decision.endsAt or ad.ends_at or proposed_start + timedelta(days=30)
