@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppBack } from '@/hooks/use-app-back'
@@ -79,7 +79,7 @@ const productionOrderKeys: ResultsOrder[] = orderKeys
 const resultsCopy = {
   es: {
     header: (count: number) => `${count} viviendas en Tenerife`, zone: 'Tu zona seleccionada', filters: 'Filtros', order: 'Orden', map: 'Mapa', showing: (count: number, total: number) => `Viendo ${count} de ${total} viviendas`, top: 'Destacado',
-    contact: 'Contactar', call: 'Llamar', favorite: 'Guardar en favoritos', unfavorite: 'Quitar de favoritos', discard: 'Ocultar anuncio', photo: 'Siguiente foto', back: 'Volver', close: 'Cerrar', clear: 'Limpiar', empty: 'No hay anuncios que coincidan con estos filtros.',
+    contact: 'Contactar', call: 'Llamar', favorite: 'Guardar en favoritos', unfavorite: 'Quitar de favoritos', discard: 'Ocultar anuncio', photo: 'Siguiente foto', back: 'Volver', close: 'Cerrar', clear: 'Limpiar', empty: 'No hay anuncios que coincidan con estos filtros.', loadingMore: 'Cargando más anuncios…', loadMoreError: 'No se pudieron cargar más anuncios.', retryMore: 'Reintentar', allLoaded: (count: number) => `Has visto los ${count} anuncios disponibles.`,
     vivienda: 'Vivienda', turismo: 'Turismo', price: 'Precio', area: 'Superficie', min: 'Mín', max: 'Máx', housingType: 'Tipo de vivienda', rooms: 'Número de habitaciones', roomCount: (count: number) => `${count} ${count === 1 ? 'habitación' : 'habitaciones'}`, moreThanTenRooms: 'Más de 10 habitaciones',
     moveIn: 'Fecha de entrada', moveOut: 'Fecha de salida (opcional)', priority: 'Características principales', privateShower: 'Ducha / baño privado en la habitación', privateToilet: 'Aseo / WC privado en la habitación', privateKitchen: 'Cocina / mini-cocina privada en la habitación', fullyPrivate: 'Zona totalmente privada: cocina + aseo + ducha', airConditioning: 'Aire acondicionado', bed: 'Tipo de cama', any: 'Cualquiera', streetWindow: 'Ventana a la calle', smokingAllowed: 'Se permite fumar', bathroomType: 'Tipo de baño / aseo', bathroomPrivate: 'Ducha + aseo privados', toiletPrivateShowerShared: 'Aseo privado, ducha compartida', bathroomShared: 'Ducha + aseo compartidos', customBathroom: 'Configuración personalizada', additional: 'Filtros adicionales', terrace: 'Terraza', pool: 'Piscina', garden: 'Jardín', elevator: 'Ascensor', cleaning: 'Limpieza incluida', accessibleLabel: 'Adaptado para movilidad reducida', floor: 'Planta', basement: 'Sótano / semisótano', topFloor: 'Última planta',
     individual: 'Habitaciones individuales', shared: 'Habitaciones compartidas', studio: 'Estudios', showListings: 'Ver anuncios', residents: 'residentes',
@@ -87,7 +87,7 @@ const resultsCopy = {
   },
   en: {
     header: (count: number) => `${count} properties in Tenerife`, zone: 'Your selected area', filters: 'Filters', order: 'Order', map: 'Map', showing: (count: number, total: number) => `Viewing ${count} of ${total} properties`, top: 'Featured',
-    contact: 'Contact', call: 'Call', favorite: 'Add to favorites', unfavorite: 'Remove from favorites', discard: 'Hide listing', photo: 'Next photo', back: 'Back', close: 'Close', clear: 'Clear', empty: 'No listings match these filters.',
+    contact: 'Contact', call: 'Call', favorite: 'Add to favorites', unfavorite: 'Remove from favorites', discard: 'Hide listing', photo: 'Next photo', back: 'Back', close: 'Close', clear: 'Clear', empty: 'No listings match these filters.', loadingMore: 'Loading more listings…', loadMoreError: 'More listings could not be loaded.', retryMore: 'Retry', allLoaded: (count: number) => `You have seen all ${count} available listings.`,
     vivienda: 'Housing', turismo: 'Tourism', price: 'Price', area: 'Area', min: 'Min', max: 'Max', housingType: 'Property category', rooms: 'Number of rooms', roomCount: (count: number) => `${count} ${count === 1 ? 'room' : 'rooms'}`, moreThanTenRooms: 'More than 10 rooms',
     moveIn: 'Move-in date', moveOut: 'Move-out date (optional)', priority: 'Main features', privateShower: 'Private shower / bathroom in the room', privateToilet: 'Private toilet in the room', privateKitchen: 'Private kitchen / kitchenette in the room', fullyPrivate: 'Fully private zone: kitchen + toilet + shower', airConditioning: 'Air conditioning', bed: 'Bed type', any: 'Any', streetWindow: 'Street-facing window', smokingAllowed: 'Smoking allowed', bathroomType: 'Bathroom / toilet type', bathroomPrivate: 'Private shower + toilet', toiletPrivateShowerShared: 'Private toilet, shared shower', bathroomShared: 'Shared shower + toilet', customBathroom: 'Custom configuration', additional: 'Additional filters', terrace: 'Terrace', pool: 'Pool', garden: 'Garden', elevator: 'Elevator', cleaning: 'Cleaning included', accessibleLabel: 'Accessible for reduced mobility', floor: 'Floor', basement: 'Basement', topFloor: 'Top floor',
     individual: 'Individual rooms', shared: 'Shared rooms', studio: 'Studios', showListings: 'View listings', residents: 'residents',
@@ -95,7 +95,7 @@ const resultsCopy = {
   },
   ru: {
     header: (count: number) => `${count} объявлений на Тенерифе`, zone: 'Ваша выделенная зона', filters: 'Фильтры', order: 'Порядок', map: 'Карта', showing: (count: number, total: number) => `Просмотр ${count} из ${total} объявлений`, top: 'Топ',
-    contact: 'Связаться', call: 'Позвонить', favorite: 'Добавить в избранное', unfavorite: 'Убрать из избранного', discard: 'Скрыть объявление', photo: 'Следующая фотография', back: 'Назад', close: 'Закрыть', clear: 'Сбросить', empty: 'Нет объявлений, подходящих под выбранные фильтры.',
+    contact: 'Связаться', call: 'Позвонить', favorite: 'Добавить в избранное', unfavorite: 'Убрать из избранного', discard: 'Скрыть объявление', photo: 'Следующая фотография', back: 'Назад', close: 'Закрыть', clear: 'Сбросить', empty: 'Нет объявлений, подходящих под выбранные фильтры.', loadingMore: 'Загружаем ещё объявления…', loadMoreError: 'Не удалось загрузить следующие объявления.', retryMore: 'Повторить', allLoaded: (count: number) => `Вы просмотрели все ${count} объявлений.`,
     vivienda: 'Жильё', turismo: 'Туризм', price: 'Цена', area: 'Площадь', min: 'Мин', max: 'Макс', housingType: 'Тип жилья', rooms: 'Количество комнат', roomCount: (count: number) => `${count} ${count === 1 ? 'комната' : count >= 2 && count <= 4 ? 'комнаты' : 'комнат'}`, moreThanTenRooms: 'Больше 10 комнат',
     moveIn: 'Дата заезда', moveOut: 'Дата выезда (необязательно)', priority: 'Основные параметры', privateShower: 'Личный душ / ванная в комнате', privateToilet: 'Личный туалет в комнате', privateKitchen: 'Личная кухня / мини-кухня в комнате', fullyPrivate: 'Полностью приватная зона: кухня + туалет + душ', airConditioning: 'Кондиционер', bed: 'Тип кровати', any: 'Любой', streetWindow: 'Окно на улицу', smokingAllowed: 'Курение разрешено', bathroomType: 'Тип санузла', bathroomPrivate: 'Личный душ + туалет', toiletPrivateShowerShared: 'Личный туалет, общий душ', bathroomShared: 'Полностью общий санузел', customBathroom: 'Своя комбинация', additional: 'Дополнительные фильтры', terrace: 'Терраса', pool: 'Бассейн', garden: 'Сад', elevator: 'Лифт', cleaning: 'Уборка включена', accessibleLabel: 'Для людей с ограниченной мобильностью', floor: 'Этаж', basement: 'Цокольный', topFloor: 'Последний этаж',
     individual: 'Отдельные комнаты', shared: 'Общие комнаты', studio: 'Студии', showListings: 'Перейти к объявлениям', residents: 'жильцов',
@@ -180,10 +180,14 @@ export function MobileSearchResults() {
   const [serverItems, setServerItems] = useState<Listing[] | null>(null)
   const [serverTotal, setServerTotal] = useState(0)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [previousCursor, setPreviousCursor] = useState<string | null>(null)
   const [serverLoading, setServerLoading] = useState(false)
+  const [serverLoadingMore, setServerLoadingMore] = useState(false)
   const [serverError, setServerError] = useState(false)
+  const [serverLoadMoreError, setServerLoadMoreError] = useState(false)
   const [retry, setRetry] = useState(0)
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
+  const loadMoreRequestRef = useRef<AbortController | null>(null)
+  const loadingMoreCursorRef = useRef<string | null>(null)
   const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
 
@@ -193,11 +197,9 @@ export function MobileSearchResults() {
     return () => window.removeEventListener('catalog:updated', refresh)
   }, [])
 
-  useEffect(() => {
-    if (mockMode || !open) return
+  const serverSearchRequest = useMemo(() => {
+    if (mockMode) return null
     const params = new URLSearchParams(location.search)
-    if (params.get('vista') === 'mapa') return
-    const request = new AbortController()
     const canonical = filtersFromParams(params)
     const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
       ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value))
@@ -210,26 +212,83 @@ export function MobileSearchResults() {
       'floor-high': 'floor_desc', 'floor-low': 'floor_asc',
     } as const
     const sort = sortByOrder[mobileOrder as ResultsOrder] ?? 'newest'
+    return {
+      rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' as const : 'long' as const,
+      query: params.get('q') ?? 'Tenerife',
+      filters: canonical,
+      minPrice: canonical.minPrice,
+      maxPrice: canonical.maxPrice,
+      roomTypes,
+      sort,
+      favoriteIds: sort.startsWith('saved_') ? [...favorites].slice(0, 1000) : undefined,
+    }
+  }, [favorites, location.search])
+
+  useEffect(() => {
+    if (mockMode || !open || !serverSearchRequest) return
+    const params = new URLSearchParams(location.search)
+    if (params.get('vista') === 'mapa') return
+    const request = new AbortController()
+    loadMoreRequestRef.current?.abort()
+    loadMoreRequestRef.current = null
+    loadingMoreCursorRef.current = null
     setServerItems(null)
     setServerLoading(true)
+    setServerLoadingMore(false)
     setServerError(false)
-    void searchPublicListings({
-      rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' : 'long',
-      query: params.get('q') ?? 'Tenerife', filters: canonical,
-      minPrice: canonical.minPrice, maxPrice: canonical.maxPrice, roomTypes, sort,
-      favoriteIds: sort.startsWith('saved_') ? [...favorites].slice(0, 1000) : undefined,
-    }, request.signal, params.get('cursor') ?? undefined, 20).then((page) => {
+    setServerLoadMoreError(false)
+    void searchPublicListings(serverSearchRequest, request.signal, undefined, 20).then((page) => {
       if (!request.signal.aborted) {
         setServerItems(page.items)
         setServerTotal(page.total)
         setNextCursor(page.nextCursor)
-        setPreviousCursor(page.previousCursor)
       }
     }).catch(() => { if (!request.signal.aborted) setServerError(true) }).finally(() => {
       if (!request.signal.aborted) setServerLoading(false)
     })
     return () => request.abort()
-  }, [catalogEpoch, favorites, location.search, open, retry])
+  }, [catalogEpoch, location.search, open, retry, serverSearchRequest])
+
+  const loadMore = useCallback(() => {
+    const cursor = nextCursor
+    if (mockMode || !open || !serverSearchRequest || !cursor || serverLoading || loadingMoreCursorRef.current) return
+    const request = new AbortController()
+    loadMoreRequestRef.current = request
+    loadingMoreCursorRef.current = cursor
+    setServerLoadingMore(true)
+    setServerLoadMoreError(false)
+    void searchPublicListings(serverSearchRequest, request.signal, cursor, 20).then((page) => {
+      if (request.signal.aborted) return
+      setServerItems((current) => {
+        const existing = current ?? []
+        const seen = new Set(existing.map((item) => item.id))
+        return [...existing, ...page.items.filter((item) => !seen.has(item.id))]
+      })
+      setServerTotal(page.total)
+      setNextCursor(page.nextCursor)
+    }).catch(() => {
+      if (!request.signal.aborted) setServerLoadMoreError(true)
+    }).finally(() => {
+      if (loadMoreRequestRef.current === request) loadMoreRequestRef.current = null
+      if (loadingMoreCursorRef.current === cursor) loadingMoreCursorRef.current = null
+      if (!request.signal.aborted) setServerLoadingMore(false)
+    })
+  }, [nextCursor, open, serverLoading, serverSearchRequest])
+
+  useEffect(() => () => loadMoreRequestRef.current?.abort(), [])
+
+  useEffect(() => {
+    if (mockMode || !open || panel !== 'results' || !nextCursor || serverLoading || serverError || serverLoadMoreError) return
+    const sentinel = loadMoreSentinelRef.current
+    if (!sentinel) return
+    const root = sentinel.closest<HTMLElement>('.m2-results')
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMore()
+    }, { root, rootMargin: '700px 0px 700px 0px' })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMore, nextCursor, open, panel, serverError, serverLoadMoreError, serverLoading])
+
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
@@ -247,6 +306,8 @@ export function MobileSearchResults() {
     const parsed = filtersFromParams(params)
     const canonicalParams = filtersToParams(parsed, new URLSearchParams(params))
     canonicalParams.delete('habitaciones')
+    canonicalParams.delete('pagina')
+    canonicalParams.delete('cursor')
     if (canonicalParams.toString() !== params.toString()) {
       navigate(`/buscar?${canonicalParams.toString()}`, { replace: true })
       return
@@ -363,17 +424,7 @@ export function MobileSearchResults() {
   }) : filteredListings, [favorites, filteredListings, order])
   const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])
   const resultCount = mockMode ? availableListings.length : serverTotal
-  const currentPage = Math.max(1, Number(new URLSearchParams(location.search).get('pagina') || 1))
-  const totalPages = Math.max(1, Math.ceil(resultCount / 20))
-  const changePage = (nextPage: number) => {
-    const cursor = nextPage > currentPage ? nextCursor : previousCursor
-    if (!cursor) return
-    const params = new URLSearchParams(location.search)
-    if (nextPage === 1) params.delete('pagina')
-    else params.set('pagina', String(nextPage))
-    params.set('cursor', cursor)
-    navigate(`/buscar?${params.toString()}`)
-  }
+
 
   if (!open) return null
   const t = resultsCopy[language] as ResultsCopy
@@ -460,7 +511,7 @@ export function MobileSearchResults() {
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
-      }} />) : <div className="m2-results__empty">{t.empty}</div>}{!mockMode && !serverLoading && !serverError && resultCount > 20 ? <nav className="m2-results-pagination" aria-label="Paginación"><button type="button" disabled={currentPage <= 1} onClick={() => changePage(currentPage - 1)}>Anterior</button><span>Página {currentPage} de {totalPages}</span><button type="button" disabled={currentPage >= totalPages} onClick={() => changePage(currentPage + 1)}>Siguiente</button></nav> : null}</div></> : null}
+      }} />) : <div className="m2-results__empty">{t.empty}</div>}{!mockMode && !serverLoading && !serverError && nextCursor ? <div ref={loadMoreSentinelRef} className="m2-results__load-more" data-testid="mobile-results-load-more">{serverLoadingMore ? <span role="status">{t.loadingMore}</span> : serverLoadMoreError ? <><span role="alert">{t.loadMoreError}</span><button type="button" onClick={loadMore}>{t.retryMore}</button></> : <span aria-hidden="true" />}</div> : null}{!mockMode && !serverLoading && !serverError && !nextCursor && serverItems && serverItems.length > 20 ? <div className="m2-results__all-loaded" role="status">{t.allLoaded(resultCount)}</div> : null}</div></> : null}
 
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{(mockMode ? orderKeys : productionOrderKeys).map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
