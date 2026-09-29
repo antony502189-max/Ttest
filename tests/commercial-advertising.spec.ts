@@ -53,6 +53,54 @@ test('approved advertisement has a visible disclosure and safe sponsored link', 
   await page.screenshot({ path: 'output/playwright/advertising-desktop.png', fullPage: true })
 })
 
+test('homepage carousel exposes at most twelve campaigns and rotates without redesigning the card', async ({ page }) => {
+  const ads = Array.from({ length: 13 }, (_, index) => ({
+    id: `00000000-0000-4000-8000-${String(800 + index).padStart(12, '0')}`,
+    title: `Campaign ${index + 1}`,
+    description: `Commercial campaign number ${index + 1} for carousel verification.`,
+    imageUrl: `/api/v1/media/${assetId}?variant=card`,
+    imageWidth: 800,
+    imageHeight: 450,
+    destinationType: 'website',
+    destinationUrl: `https://example.org/campaign-${index + 1}`,
+    placement: 'homepage_bottom',
+  }))
+  await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: ads }))
+  await page.route(`**/api/v1/media/${assetId}**`, (route) => route.fulfill({ body: png, contentType: 'image/png' }))
+  await page.goto('/#/')
+
+  const placement = page.locator('.commercial-ad')
+  const slide = placement.getByTestId('commercial-ad-slide')
+  await expect(slide).toHaveAttribute('data-ad-id', ads[0].id)
+  await expect(placement.getByText('1 / 12')).toBeVisible()
+  await expect(placement.locator('.commercial-ad__carousel-dots button')).toHaveCount(12)
+  await expect(placement.getByRole('heading', { name: 'Campaign 13' })).toHaveCount(0)
+
+  await placement.getByRole('button', { name: 'Publicidad siguiente' }).click()
+  await expect(slide).toHaveAttribute('data-ad-id', ads[1].id)
+  await expect(placement.getByText('2 / 12')).toBeVisible()
+  await expect(placement.getByRole('heading', { name: 'Campaign 2' })).toBeVisible()
+
+  await placement.getByRole('button', { name: 'Publicidad anterior' }).click()
+  await expect(slide).toHaveAttribute('data-ad-id', ads[0].id)
+  await expect(placement.getByText('1 / 12')).toBeVisible()
+})
+
+test('authenticated mobile advertising entry stays inside the existing menu row design', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.goto('/#/menu')
+  const menu = page.locator('.m2-menu')
+  await expect(menu).toBeVisible()
+  const advertising = menu.getByRole('button', { name: /Mis campañas publicitarias/ })
+  await expect(advertising).toBeVisible()
+  await expect(advertising).toHaveClass(/m2-menu-row/)
+  await expect(advertising.locator('svg')).toHaveCount(2)
+  expect(await advertising.evaluate((element) => element.parentElement?.classList.contains('m2-menu') ?? false)).toBe(true)
+  await advertising.click()
+  await expect(page).toHaveURL(/#\/mis-campanas$/)
+})
+
 test('advertising API failure leaves homepage usable', async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.abort())
   await page.goto('/#/')
