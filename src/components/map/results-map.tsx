@@ -44,8 +44,6 @@ export interface ResultsMapProps {
   fitResultsKey?: number
   initialAction?: 'draw' | 'near' | null
   onInitialActionHandled?: () => void
-  initialCamera?: { lat: number; lng: number; zoom: number }
-  onCameraChange?: (camera: { lat: number; lng: number; zoom: number }) => void
 }
 
 const boundsAreEqual = (left: MapBounds, right: MapBounds) =>
@@ -94,14 +92,11 @@ function fitListings(map: google.maps.Map, listings: MappedListing[]) {
   })
 }
 
-export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled, initialCamera, onCameraChange }: ResultsMapProps) {
+export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
   const { filters, mapPolygon, setMapPolygon, clearMapPolygon } = useApp()
   const { language } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
-  const startingCameraRef = useRef(initialCamera)
-  const cameraChangeRef = useRef(onCameraChange)
-  cameraChangeRef.current = onCameraChange
   const clusterRef = useRef<MarkerClusterer | null>(null)
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const markerContentRef = useRef(new Map<string, HTMLElement>())
@@ -306,8 +301,8 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const map = new maps.Map(containerRef.current, {
-        center: startingCameraRef.current ?? TENERIFE_CENTER,
-        zoom: startingCameraRef.current?.zoom ?? TENERIFE_DEFAULT_ZOOM,
+        center: TENERIFE_CENTER,
+        zoom: TENERIFE_DEFAULT_ZOOM,
         minZoom: serverModeRef.current ? 2 : 8,
         maxZoom: 19,
         mapId: googleMapsConfig.mapId,
@@ -324,10 +319,6 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
           strictBounds: false,
         },
       })
-      if (startingCameraRef.current) {
-        map.setCenter(startingCameraRef.current)
-        map.setZoom(startingCameraRef.current.zoom)
-      }
       mapRef.current = map
       initializedMap = map
       listeners.push(google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
@@ -341,9 +332,6 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         if (containerRef.current && center) {
           containerRef.current.dataset.mapCenter = `${center.lat().toFixed(6)},${center.lng().toFixed(6)}`
           containerRef.current.dataset.mapZoom = String(map.getZoom() ?? '')
-        }
-        if (center && (startingCameraRef.current || fittedResultsRef.current)) {
-          cameraChangeRef.current?.({ lat: center.lat(), lng: center.lng(), zoom: map.getZoom() ?? TENERIFE_DEFAULT_ZOOM })
         }
         if (manualMovePendingRef.current && !programmaticMoveRef.current) {
           manualMovePendingRef.current = false
@@ -371,12 +359,11 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       setMapError('')
       google.maps.event.addListenerOnce(map, 'idle', updateBounds)
       listeners.push(google.maps.event.addListenerOnce(map, 'idle', () => {
-        if (cancelled || !itemsRef.current.length || startingCameraRef.current) return
+        if (cancelled || !itemsRef.current.length) return
         programmaticMoveRef.current = true
         fitListings(map, itemsRef.current)
         google.maps.event.addListenerOnce(map, 'idle', () => {
           fittedResultsRef.current = true
-          updateBounds()
           programmaticMoveRef.current = false
         })
       }))
@@ -479,14 +466,12 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       })
     if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })
     clusterRef.current = cluster
-    if (itemsRef.current.length && !skipNextResultsFitRef.current && !startingCameraRef.current) {
+    if (itemsRef.current.length && !skipNextResultsFitRef.current) {
       programmaticMoveRef.current = true
       fitListings(map, itemsRef.current)
       google.maps.event.addListenerOnce(map, 'idle', () => {
         fittedResultsRef.current = true
         programmaticMoveRef.current = false
-        const center = map.getCenter()
-        if (center) cameraChangeRef.current?.({ lat: center.lat(), lng: center.lng(), zoom: map.getZoom() ?? TENERIFE_DEFAULT_ZOOM })
       })
     } else if (skipNextResultsFitRef.current) {
       skipNextResultsFitRef.current = false
