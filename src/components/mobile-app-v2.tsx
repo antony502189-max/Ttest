@@ -69,6 +69,7 @@ const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listin
 const CommercialAdvertisementPlacement = lazy(() => import('@/components/commercial-advertisement-placement').then((module) => ({ default: module.CommercialAdvertisementPlacement })))
 const MobileServerMapLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileServerMapLayer })))
 const TENERIFE_CENTER = { lat: 28.2916, lng: -16.6291 }
+const MOBILE_TENERIFE_OVERVIEW_ZOOM = 10
 const GENERAL_OCCUPANTS = new Set<OccupantOption>(['anyone', 'unrestricted'])
 
 const languages: Array<{ value: AppLanguage; label: string }> = [
@@ -326,8 +327,8 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         const GoogleMap = maps.Map
         if (cancelled || !containerRef.current) return
         const mapId = googleMapsConfig.mapId
-        const { initialCenter: center, initialCamera: camera, query: initialQuery } = startingView.current
-        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? TENERIFE_CENTER, zoom: camera?.zoom ?? (center ? 14 : initialQuery ? 12 : 10), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: mockMode ? 8 : 2, maxZoom: 19, restriction: mockMode ? { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } : undefined })
+        const { initialCenter: center, initialCamera: camera } = startingView.current
+        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? TENERIFE_CENTER, zoom: camera?.zoom ?? (center ? 14 : MOBILE_TENERIFE_OVERVIEW_ZOOM), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: mockMode ? 8 : 2, maxZoom: 19, restriction: mockMode ? { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } : undefined })
         mapRef.current = map
         if (camera) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`

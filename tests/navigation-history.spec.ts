@@ -12,6 +12,17 @@ async function finishOnboarding(page: Page) {
 test.describe('mobile history', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
+  test('fresh map opens on the Tenerife island overview before any listing is opened', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThanOrEqual(9)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThanOrEqual(10)
+    await expect(page).toHaveURL(/mapZoom=10\.00/)
+  })
+
   test('Home → results → map → detail unwinds one visible screen at a time', async ({ page }) => {
     await finishOnboarding(page)
     await page.locator('.m2-mode-switch > button').first().click()
