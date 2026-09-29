@@ -105,6 +105,16 @@ test('authenticated mobile advertising entry stays inside the existing menu row 
   await expect(page).toHaveURL(/#\/mis-campanas$/)
 })
 
+test('direct advertising moderation deeplink keeps the normal site footer and mobile nav out of the admin shell', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo')))
+  await page.route('**/api/v1/admin/advertisements**', (route) => route.fulfill({ json: [] }))
+  await page.goto('/#/admin/publicidad')
+  await expect(page.getByRole('heading', { name: 'Moderación de publicidad' })).toBeVisible()
+  await expect(page.locator('.site-footer')).toHaveCount(0)
+  await expect(page.locator('.bottom-nav')).toHaveCount(0)
+})
+
 test('advertising API failure leaves homepage usable', async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.abort())
   await page.goto('/#/')
