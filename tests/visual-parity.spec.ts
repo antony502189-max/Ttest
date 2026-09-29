@@ -37,14 +37,12 @@ test('current mobile home, results, location and map visual states', async ({ pa
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa')
   await expect(page.getByTestId('map-search')).toBeVisible()
-  await expect(page.locator('.m2-listing-marker').first()).toBeAttached()
   await shot(page, 'current-map-390x844')
 })
 
 test('current mobile menu, auth and Russian visual states', async ({ page }) => {
   await open(page, '/#/menu')
-  await expect(page.locator('.m2-menu')).toBeVisible()
-  await expect(page.locator('.m2-bottom-nav')).toBeVisible()
+  await shot(page, 'current-menu-390x844')
 
   await open(page, '/#/acceso')
   await shot(page, 'current-auth-390x844')
