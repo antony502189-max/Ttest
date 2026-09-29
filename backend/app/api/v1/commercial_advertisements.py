@@ -19,7 +19,7 @@ from ...schemas.commercial_advertisements import (
     DestinationType,
     ModerationDecision,
 )
-from ...services.commercial_advertisements import approve, destination_url, payment_service
+from ...services.commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, approve, destination_url, payment_service
 from ...services.listings import mark_orphaned_media
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ..dependencies import current_user, require_admin
@@ -75,7 +75,7 @@ async def homepage_advertisements(session: AsyncSession = Depends(get_session)):
         select(Ad, MediaAsset).join(MediaAsset, Ad.image_asset_id == MediaAsset.id)
         .join(User, Ad.owner_user_id == User.id)
         .where(eligible(), MediaAsset.deleted_at.is_(None), User.deleted_at.is_(None), User.blocked.is_(False))
-        .order_by(Ad.admin_priority.desc(), Ad.approved_at, Ad.id).limit(3)
+        .order_by(Ad.admin_priority.desc(), Ad.approved_at, Ad.id).limit(MAX_ACTIVE_HOMEPAGE_ADS)
     )).all()
     return [AdvertisementPublic(
         id=ad.id, title=ad.title, description=ad.description, imageUrl=image_url(ad.image_asset_id),
@@ -155,8 +155,10 @@ async def edit_advertisement(
         ad.approved_at = None
         if expired:
             ad.payment_status = "unpaid"
-            ad.starts_at = None
-            ad.ends_at = None
+        # Once content changes, the old publication window no longer belongs to
+        # the newly moderated creative. A fresh window is assigned on approval.
+        ad.starts_at = None
+        ad.ends_at = None
         ad.moderation_note = None
         ad.status = "pending_review" if ad.payment_status == "paid" else "pending_payment"
         if ad.status == "pending_review":
@@ -218,7 +220,24 @@ async def approve_advertisement(
     ad_id: UUID, decision: ModerationDecision, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
     ad = await admin_ad(session, ad_id)
-    approve(ad, decision.startsAt, decision.endsAt)
+    now = datetime.now(UTC)
+    proposed_start = decision.startsAt or ad.starts_at or now
+    proposed_end = decision.endsAt or ad.ends_at or proposed_start + timedelta(days=30)
+    if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
+        raise HTTPException(422, "Invalid advertisement schedule")
+    overlapping = await session.scalar(
+        select(func.count(Ad.id)).where(
+            Ad.id != ad.id,
+            Ad.placement == "homepage_bottom",
+            Ad.status == "active",
+            Ad.payment_status == "paid",
+            or_(Ad.starts_at.is_(None), Ad.starts_at < proposed_end),
+            or_(Ad.ends_at.is_(None), Ad.ends_at > proposed_start),
+        )
+    )
+    if (overlapping or 0) >= MAX_ACTIVE_HOMEPAGE_ADS:
+        raise HTTPException(409, f"Homepage advertising is limited to {MAX_ACTIVE_HOMEPAGE_ADS} simultaneous campaigns")
+    approve(ad, proposed_start, proposed_end)
     await session.commit()
     await session.refresh(ad)
     logger.info("commercial_advertisement_approved")
