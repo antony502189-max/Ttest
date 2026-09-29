@@ -17,6 +17,7 @@ from ..models import (
     PasswordResetToken,
     User,
 )
+from ..models.commercial_advertisement import CommercialAdvertisement
 from .listings import mark_orphaned_media
 
 MAIL_OUTBOX_RETENTION_DAYS = 30
@@ -37,6 +38,7 @@ async def prune_unattached_media(session: AsyncSession, *, now: datetime, batch_
             ~select(ListingImage.media_asset_id).where(ListingImage.media_asset_id == MediaAsset.id).exists(),
             ~select(Listing.id).where(Listing.video_asset_id == MediaAsset.id).exists(),
             ~select(User.id).where(User.avatar_asset_id == MediaAsset.id).exists(),
+            ~select(CommercialAdvertisement.id).where(CommercialAdvertisement.image_asset_id == MediaAsset.id).exists(),
         )
         .order_by(MediaAsset.created_at, MediaAsset.id)
         .limit(batch_size)

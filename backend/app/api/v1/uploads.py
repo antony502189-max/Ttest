@@ -15,6 +15,7 @@ from ...core.config import Settings, get_settings
 from ...core.media_keys import variant_storage_key
 from ...db.session import get_session
 from ...models import Listing, ListingImage, MediaAsset, User
+from ...models.commercial_advertisement import CommercialAdvertisement
 from ...models.moderation import ListingRestriction, UserRestriction
 from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
@@ -308,6 +309,20 @@ async def get_media(
         .correlate(Listing)
         .exists()
     )
+    public_advertisement = (
+        select(CommercialAdvertisement.id)
+        .join(User, User.id == CommercialAdvertisement.owner_user_id)
+        .where(
+            CommercialAdvertisement.image_asset_id == MediaAsset.id,
+            CommercialAdvertisement.status == "active",
+            CommercialAdvertisement.payment_status == "paid",
+            (CommercialAdvertisement.starts_at.is_(None)) | (CommercialAdvertisement.starts_at <= func.now()),
+            (CommercialAdvertisement.ends_at.is_(None)) | (CommercialAdvertisement.ends_at > func.now()),
+            User.deleted_at.is_(None), User.blocked.is_(False),
+        )
+        .correlate(MediaAsset)
+        .exists()
+    )
 
     if user is None:
         # Anonymous browsing is the hottest media path. Resolve the asset and
@@ -362,6 +377,7 @@ async def get_media(
                 MediaAsset.id == asset_id,
                 MediaAsset.deleted_at.is_(None),
                 or_(
+                    and_(MediaAsset.kind == "advertisement_image", public_advertisement),
                     and_(MediaAsset.kind == "avatar", public_avatar),
                     and_(
                         MediaAsset.kind == "listing_image",
@@ -398,6 +414,17 @@ async def get_media(
                     )
                 )
             )
+        elif asset.kind == "advertisement_image":
+            publicly_visible = bool(await session.scalar(
+                select(CommercialAdvertisement.id).join(User, User.id == CommercialAdvertisement.owner_user_id).where(
+                    CommercialAdvertisement.image_asset_id == asset.id,
+                    CommercialAdvertisement.status == "active",
+                    CommercialAdvertisement.payment_status == "paid",
+                    (CommercialAdvertisement.starts_at.is_(None)) | (CommercialAdvertisement.starts_at <= func.now()),
+                    (CommercialAdvertisement.ends_at.is_(None)) | (CommercialAdvertisement.ends_at > func.now()),
+                    User.deleted_at.is_(None), User.blocked.is_(False),
+                ).limit(1)
+            ))
         elif asset.mime_type.startswith("video/"):
             if not owner_or_admin:
                 await enforce_listing_view_access(user, session)
@@ -581,7 +608,8 @@ async def delete_upload(
     video_attachment = await session.scalar(
         select(Listing.id).where(Listing.video_asset_id == asset.id).limit(1)
     )
-    if active_avatar or listing_attachment or video_attachment:
+    advertisement_attachment = await session.scalar(select(CommercialAdvertisement.id).where(CommercialAdvertisement.image_asset_id == asset.id).limit(1))
+    if active_avatar or listing_attachment or video_attachment or advertisement_attachment:
         raise HTTPException(409, "Media is still attached to an active resource")
     asset.deleted_at = datetime.now(UTC)
     await enqueue_storage_deletion(session, asset.storage_key)
