@@ -251,6 +251,7 @@ export function ListingEditPage() {
   const [saving, setSaving] = useState(false)
   const [processingImages, setProcessingImages] = useState(false)
   const [processingVideo, setProcessingVideo] = useState(false)
+  const draftImages = draft?.images
   const savingRef = useRef(false)
   const draftListingIdRef = useRef(existing?.id ?? null)
 
@@ -284,8 +285,8 @@ export function ListingEditPage() {
   }, [currentUser?.id, draft, existing, storageKey])
 
   useEffect(() => {
-    if (!draft || !existing) return
-    const localImages = draft.images.filter(isMediaReference)
+    if (!draftImages || !existing) return
+    const localImages = draftImages.filter(isMediaReference)
     if (!localImages.length) return
     let cancelled = false
     void Promise.all(localImages.map(async (reference) => {
@@ -293,7 +294,7 @@ export function ListingEditPage() {
       catch { return [reference, false] as const }
     })).then((checks) => {
       if (cancelled) return
-      const missing = new Set(checks.filter(([, exists]) => !exists).map(([reference]) => reference))
+      const missing = new Set<string>(checks.filter(([, exists]) => !exists).map(([reference]) => reference))
       if (!missing.size) return
       setDraft((current) => {
         if (!current) return current
@@ -302,7 +303,7 @@ export function ListingEditPage() {
       })
     })
     return () => { cancelled = true }
-  }, [draft?.images, existing])
+  }, [draftImages, existing])
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (isDirty) event.preventDefault() }
