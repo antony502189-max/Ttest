@@ -14,7 +14,7 @@ import { amenityOptions } from '@/data/listings'
 import { getCriticalRestrictions } from '@/lib/listings'
 import { approximatePublicCoordinates } from '@/lib/location-privacy'
 import type { ResolvedGoogleAddress } from '@/lib/google-maps/address'
-import { isMediaReference, MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS, removeUnusedMediaReferences } from '@/lib/media-storage'
+import { getMediaBlob, isMediaReference, MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS, removeUnusedMediaReferences } from '@/lib/media-storage'
 import {
   normalizeEquipmentAmenities,
   readEquipmentAmenities,
@@ -282,6 +282,27 @@ export function ListingEditPage() {
     if (!draft || !existing || !storageKey) return
     try { localStorage.setItem(storageKey, JSON.stringify({ version: 3, ownerUserId: currentUser?.id, listingId: existing.id, data: draft })) } catch { /* autosave is best-effort */ }
   }, [currentUser?.id, draft, existing, storageKey])
+
+  useEffect(() => {
+    if (!draft || !existing) return
+    const localImages = draft.images.filter(isMediaReference)
+    if (!localImages.length) return
+    let cancelled = false
+    void Promise.all(localImages.map(async (reference) => {
+      try { return [reference, Boolean(await getMediaBlob(reference))] as const }
+      catch { return [reference, false] as const }
+    })).then((checks) => {
+      if (cancelled) return
+      const missing = new Set(checks.filter(([, exists]) => !exists).map(([reference]) => reference))
+      if (!missing.size) return
+      setDraft((current) => {
+        if (!current) return current
+        const surviving = current.images.filter((reference) => !missing.has(reference))
+        return { ...current, images: surviving.length ? surviving : existing.images }
+      })
+    })
+    return () => { cancelled = true }
+  }, [draft?.images, existing])
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (isDirty) event.preventDefault() }

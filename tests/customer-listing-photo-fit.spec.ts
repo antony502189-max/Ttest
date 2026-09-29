@@ -37,6 +37,16 @@ test('mobile listing hero fills one fixed frame for uploaded photos', async ({ p
   expect(styles.galleryBackground).toBe('rgb(255, 255, 255)')
   expect(styles.mainBackground).toBe('rgb(255, 255, 255)')
   expect(styles.imageBackground).toBe('rgb(255, 255, 255)')
+
+  const before = await gallery.boundingBox()
+  await page.getByRole('button', { name: 'Foto siguiente' }).click()
+  await expect(image).toBeVisible()
+  const after = await gallery.boundingBox()
+  expect(before).not.toBeNull()
+  expect(after).not.toBeNull()
+  expect(Math.round(after!.width)).toBe(Math.round(before!.width))
+  expect(Math.round(after!.height)).toBe(Math.round(before!.height))
+  expect(await image.evaluate((node) => getComputedStyle(node).objectFit)).toBe('cover')
 })
 
 test('search result cards keep their existing cover crop', async ({ page }) => {
