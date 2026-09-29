@@ -340,7 +340,6 @@ export function CustomerFeedbackFixes() {
       setFilters(normalized)
       return
     }
-    if (!['/', '/buscar', '/publicar'].includes(location.pathname)) return
 
     let frame = 0
     const synchronize = () => {
