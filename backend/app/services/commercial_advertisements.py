@@ -11,6 +11,7 @@ from ..models.commercial_advertisement import CommercialAdvertisement
 
 PACKAGE_DURATION_DAYS = 30
 PACKAGE_ID = "test_homepage_30d"
+MAX_ACTIVE_HOMEPAGE_ADS = 12
 
 
 def normalize_destination(kind: str, raw: str) -> str:
@@ -29,12 +30,21 @@ def normalize_destination(kind: str, raw: str) -> str:
             raise ValueError("Invalid website port") from exc
         return urlunsplit((parsed.scheme.lower(), parsed.netloc, parsed.path, parsed.query, ""))
     if kind in {"phone", "whatsapp"}:
-        if not re.fullmatch(r"\+?[0-9][0-9 ()-]{5,23}", value):
+        if not re.fullmatch(r"(?:\+|00)?[0-9][0-9 ()-]{5,23}", value):
             raise ValueError("Invalid phone number")
         digits = re.sub(r"\D", "", value)
-        if not 7 <= len(digits) <= 15:
+        if value.startswith("00"):
+            normalized = f"+{digits[2:]}"
+        elif value.startswith("+"):
+            normalized = f"+{digits}"
+        elif len(digits) == 9 and digits[0] in {"6", "7", "8", "9"}:
+            normalized = f"+34{digits}"
+        else:
+            raise ValueError("Use +country code, or a 9-digit Spanish phone number")
+        international_digits = re.sub(r"\D", "", normalized)
+        if not 8 <= len(international_digits) <= 15:
             raise ValueError("Invalid phone number")
-        return f"+{digits}"
+        return normalized
     if kind == "email":
         if len(value) > 320 or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", value):
             raise ValueError("Invalid email address")
