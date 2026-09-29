@@ -331,10 +331,12 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         mapRef.current = map
         map.addListener('idle', () => {
           if (cancelled) return
-          if (!startingView.current.initialCamera && map.getDiv().dataset.mapInitialFit !== '1') return
           const point = map.getCenter()
           const zoom = map.getZoom()
-          if (point && zoom !== undefined) cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom })
+          if (!point || zoom === undefined) return
+          map.getDiv().dataset.mapCenter = `${point.lat().toFixed(6)},${point.lng().toFixed(6)}`
+          map.getDiv().dataset.mapZoom = String(zoom)
+          cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom })
         })
         google.maps.event.addListenerOnce(map, 'tilesloaded', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
       } catch (error) {
