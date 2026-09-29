@@ -66,6 +66,14 @@ def test_runtime_does_not_charge_uncompressed_video_input_against_media_quota():
     ).validate_runtime()
 
 
+def test_runtime_rejects_video_output_larger_than_input_cap():
+    with pytest.raises(RuntimeError, match="Media upload, processing and quota limits are invalid"):
+        production_settings(
+            max_video_upload_bytes=64 * 1024 * 1024,
+            max_video_output_bytes=65 * 1024 * 1024,
+        ).validate_runtime()
+
+
 def test_runtime_rejects_normalized_video_output_that_exceeds_media_quota():
     with pytest.raises(RuntimeError, match="Media upload, processing and quota limits are invalid"):
         production_settings(
