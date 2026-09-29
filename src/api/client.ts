@@ -73,7 +73,7 @@ type ApiRequestInit = RequestInit & { timeoutMs?: number }
 export async function api<T>(path: string, init: ApiRequestInit = {}, retried = false): Promise<T> {
   const controller = new AbortController()
   const { timeoutMs = 15_000, ...requestInit } = init
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  const timeout = timeoutMs > 0 ? window.setTimeout(() => controller.abort(), timeoutMs) : undefined
   try {
     const headers = new Headers(requestInit.headers)
     const requestHadAccessToken = Boolean(accessToken)
@@ -112,7 +112,7 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
       throw new ApiError(0, 'No se pudo conectar con el servidor.', {}, 'NETWORK_ERROR')
     }
     throw error
-  } finally { window.clearTimeout(timeout) }
+  } finally { if (timeout !== undefined) window.clearTimeout(timeout) }
 }
 
 export async function apiBlob(path: string, init: ApiRequestInit = {}, retried = false): Promise<Blob> {

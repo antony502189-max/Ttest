@@ -119,7 +119,7 @@ export function ListingPage() {
           <section className="listing-video-tour" aria-label="Vídeo del anuncio">
             <div className="listing-video-tour__heading">
               <h2>Vídeo de la vivienda</h2>
-              <span>Recorrido de hasta 30 segundos</span>
+              <span>Recorrido de hasta 1 minuto</span>
             </div>
             <video src={listing.video} controls playsInline preload="metadata" aria-label={`Vídeo de ${listing.title}`} />
           </section>

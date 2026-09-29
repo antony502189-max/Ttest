@@ -87,8 +87,8 @@ class Settings(BaseSettings):
     s3_max_pool_connections: int = 32
     max_upload_bytes: int = 8 * 1024 * 1024
     max_video_upload_bytes: int = 100 * 1024 * 1024
-    max_video_output_bytes: int = 24 * 1024 * 1024
-    max_video_duration_seconds: int = 30
+    max_video_output_bytes: int = 64 * 1024 * 1024
+    max_video_duration_seconds: int = 60
     max_video_dimension: int = 1_920
     max_image_dimension: int = 8_000
     max_image_pixels: int = 25_000_000
@@ -230,7 +230,7 @@ class Settings(BaseSettings):
             or self.image_processing_concurrency < 1
             or self.video_processing_concurrency < 1
             or self.max_media_assets_per_user < 1
-            or self.max_media_bytes_per_user < max(self.max_upload_bytes, self.max_video_upload_bytes)
+            or self.max_media_bytes_per_user < max(self.max_upload_bytes, self.max_video_output_bytes)
         ):
             problems.append("Media upload, processing and quota limits are invalid")
         if (

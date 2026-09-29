@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('mobile listing hero preserves the full uploaded photo with white sidebars instead of cover-cropping it', async ({ page }) => {
+test('mobile listing hero fills one fixed frame for uploaded photos', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
@@ -31,12 +31,22 @@ test('mobile listing hero preserves the full uploaded photo with white sidebars 
     }
   })
 
-  expect(styles.objectFit).toBe('contain')
+  expect(styles.objectFit).toBe('cover')
   expect(styles.objectPosition).toContain('50%')
   expect(styles.galleryHeight).toBeGreaterThanOrEqual(440)
   expect(styles.galleryBackground).toBe('rgb(255, 255, 255)')
   expect(styles.mainBackground).toBe('rgb(255, 255, 255)')
   expect(styles.imageBackground).toBe('rgb(255, 255, 255)')
+
+  const before = await gallery.boundingBox()
+  await gallery.getByRole('button', { name: 'Foto siguiente', exact: true }).click()
+  await expect(image).toBeVisible()
+  const after = await gallery.boundingBox()
+  expect(before).not.toBeNull()
+  expect(after).not.toBeNull()
+  expect(Math.round(after!.width)).toBe(Math.round(before!.width))
+  expect(Math.round(after!.height)).toBe(Math.round(before!.height))
+  expect(await image.evaluate((node) => getComputedStyle(node).objectFit)).toBe('cover')
 })
 
 test('search result cards keep their existing cover crop', async ({ page }) => {

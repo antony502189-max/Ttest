@@ -10,7 +10,7 @@ export const acceptedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-m4v'
 
 export const MIN_LISTING_PHOTOS = 5
 export const MAX_LISTING_PHOTOS = 15
-export const MAX_LISTING_VIDEO_SECONDS = 30
+export const MAX_LISTING_VIDEO_SECONDS = 60
 export const MAX_LISTING_VIDEO_BYTES = 100 * 1024 * 1024
 
 const LOCAL_MEDIA_MAX_DIMENSION = 2048
@@ -197,7 +197,7 @@ export async function saveVideoFile(file: File) {
   }
   const duration = await browserVideoDuration(file)
   if (duration !== null && duration > MAX_LISTING_VIDEO_SECONDS) {
-    throw new MediaStorageError('type', 'El vídeo no puede durar más de 30 segundos.')
+    throw new MediaStorageError('type', 'El vídeo no puede durar más de 1 minuto.')
   }
   return storeMediaBlob(file)
 }

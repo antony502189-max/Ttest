@@ -986,9 +986,6 @@ export function VideoUploader({
       if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
         throw new MediaStorageError("type", "Formato de vídeo no compatible. Usa MP4 o MOV.");
       }
-      if (file.size > MAX_LISTING_VIDEO_BYTES) {
-        throw new MediaStorageError("quota", "El vídeo no puede superar 100 MB.");
-      }
       const previous = video;
       const reference = await saveVideoFile(file);
       onChange(reference);
@@ -1015,7 +1012,7 @@ export function VideoUploader({
       <div className="listing-video-uploader__head">
         <div>
           <strong>Vídeo del anuncio</strong>
-          <span>Opcional · 1 vídeo · máximo {MAX_LISTING_VIDEO_SECONDS} segundos · MP4/MOV · hasta 100 MB</span>
+          <span>Opcional · 1 vídeo · máximo {MAX_LISTING_VIDEO_SECONDS} segundos · MP4/MOV · hasta {MAX_LISTING_VIDEO_BYTES / (1024 * 1024)} MB</span>
         </div>
         {!video ? (
           <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>

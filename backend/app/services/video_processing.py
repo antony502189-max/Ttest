@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import BinaryIO
 
 from fastapi import HTTPException
 
@@ -65,7 +66,7 @@ def _probe(path: Path) -> tuple[int, int, float]:
     return width, height, duration
 
 
-def prepare_video(content: bytes, content_type: str) -> PreparedVideo:
+def prepare_video(content: bytes | BinaryIO, content_type: str) -> PreparedVideo:
     settings = get_settings()
     if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
         raise HTTPException(415, "Only MP4 and MOV videos are supported")
@@ -74,7 +75,20 @@ def prepare_video(content: bytes, content_type: str) -> PreparedVideo:
     with tempfile.TemporaryDirectory(prefix="listing-video-") as temp_dir:
         source = Path(temp_dir) / f"source{suffix}"
         target = Path(temp_dir) / "normalized.mp4"
-        source.write_bytes(content)
+        if isinstance(content, bytes):
+            if not content or len(content) > settings.max_video_upload_bytes:
+                raise HTTPException(413, "Video is too large")
+            source.write_bytes(content)
+        else:
+            total_bytes = 0
+            with source.open("wb") as destination:
+                while chunk := content.read(1024 * 1024):
+                    total_bytes += len(chunk)
+                    if total_bytes > settings.max_video_upload_bytes:
+                        raise HTTPException(413, "Video is too large")
+                    destination.write(chunk)
+            if total_bytes == 0:
+                raise HTTPException(413, "Video is too large")
 
         _, _, duration = _probe(source)
         if duration > float(settings.max_video_duration_seconds):

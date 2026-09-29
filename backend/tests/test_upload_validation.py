@@ -57,22 +57,22 @@ def test_listing_video_rejects_unsupported_format():
     assert error.value.status_code == 415
 
 
-def test_listing_video_rejects_duration_above_30_seconds(monkeypatch):
-    settings = Settings(max_video_duration_seconds=30)
+def test_listing_video_rejects_duration_above_60_seconds(monkeypatch):
+    settings = Settings(max_video_duration_seconds=60)
     monkeypatch.setattr("app.services.video_processing.get_settings", lambda: settings)
-    monkeypatch.setattr("app.services.video_processing._probe", lambda _path: (1920, 1080, 30.1))
+    monkeypatch.setattr("app.services.video_processing._probe", lambda _path: (1920, 1080, 60.1))
 
     with pytest.raises(HTTPException) as error:
         prepare_video(b"fake-mp4", "video/mp4")
 
     assert error.value.status_code == 422
-    assert "30 seconds" in str(error.value.detail)
+    assert "60 seconds" in str(error.value.detail)
 
 
-def test_listing_video_accepts_exactly_30_seconds_and_normalizes_to_mp4(monkeypatch):
-    settings = Settings(max_video_duration_seconds=30, max_video_dimension=1920)
+def test_listing_video_accepts_exactly_60_seconds_and_normalizes_to_mp4(monkeypatch):
+    settings = Settings(max_video_duration_seconds=60, max_video_dimension=1920)
     monkeypatch.setattr("app.services.video_processing.get_settings", lambda: settings)
-    monkeypatch.setattr("app.services.video_processing._probe", lambda _path: (1280, 720, 30.0))
+    monkeypatch.setattr("app.services.video_processing._probe", lambda _path: (1280, 720, 60.0))
 
     def fake_run(command, **_kwargs):
         target = command[-1]
@@ -84,7 +84,7 @@ def test_listing_video_accepts_exactly_30_seconds_and_normalizes_to_mp4(monkeypa
 
     prepared = prepare_video(b"fake-mp4", "video/mp4")
 
-    assert prepared.duration_seconds == 30.0
+    assert prepared.duration_seconds == 60.0
     assert prepared.content == b"normalized-mp4"
     assert (prepared.width, prepared.height) == (1280, 720)
 

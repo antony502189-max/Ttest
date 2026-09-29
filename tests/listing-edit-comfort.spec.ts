@@ -47,6 +47,32 @@ test('listing editing is one long scroll form instead of a paged wizard', async 
   await expect(page.getByRole('heading', { name: 'Contacto' })).toBeVisible()
 })
 
+test('editing with video restores server photos when a stale local draft image is missing', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/#/')
+  await page.evaluate((id) => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem(`112233:listing-edit-draft:v1:${id}`, JSON.stringify({
+      version: 3,
+      ownerUserId: 'host-demo',
+      listingId: id,
+      data: {
+        images: ['idb-media:missing-edit-photo'],
+        video: 'https://example.test/listing-video.mp4',
+      },
+    }))
+  }, listingId)
+  await page.reload()
+  await page.goto(`/#/mis-anuncios/${encodeURIComponent(listingId)}/editar`)
+
+  await expect(page.getByRole('heading', { name: 'Editar habitación' })).toBeVisible()
+  await expect(page.locator('.upload-grid img')).toHaveCount(6)
+  await expect(page.locator('.upload-grid img').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sustituir vídeo' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Eliminar vídeo' })).toBeVisible()
+})
+
 test('photo reorder arrows move photos earlier and later in the order on mobile', async ({ page }) => {
   await openEditAsHost(page)
 
@@ -149,13 +175,15 @@ test('create and edit forms share touch-capable press-and-drag photo ordering', 
   const create = readFileSync('src/pages/ListingCreatePage.tsx', 'utf8')
   const edit = readFileSync('src/pages/ListingEditPage.tsx', 'utf8')
   const css = readFileSync('src/listing-edit-comfort.css', 'utf8')
+  const mediaStorage = readFileSync('src/lib/media-storage.ts', 'utf8')
 
   expect(create).toContain('<ImageUploader images={draft.images}')
   expect(edit).toContain('<ImageUploader images={draft.images}')
   expect(create).toContain('<VideoUploader video={draft.video}')
   expect(edit).toContain('<VideoUploader video={draft.video}')
   expect(forms).toContain('MAX_LISTING_PHOTOS')
-  expect(forms).toContain('MAX_LISTING_VIDEO_SECONDS')
+  expect(mediaStorage).toContain('MAX_LISTING_VIDEO_SECONDS = 60')
+  expect(mediaStorage).toContain('MAX_LISTING_VIDEO_BYTES = 100 * 1024 * 1024')
   expect(forms).toContain('saveVideoFile(file)')
   expect(forms).toContain('onPointerDown={(event) => beginPhotoDrag(event, image, index)}')
   expect(forms).toContain('onPointerMove={updatePhotoDrag}')

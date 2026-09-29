@@ -1,6 +1,5 @@
-/* Customer-reported listing detail regression: portrait uploads must not be
-   cropped into the landscape gallery viewport. Keep search/result cards
-   unchanged; this only affects the listing detail hero on mobile. */
+/* Keep every mobile listing photo inside the same fixed hero frame.
+   Search/result cards remain unchanged; this only affects the listing detail hero. */
 @media (max-width: 767px) {
   .idealista-listing-page .listing-gallery-container .property-gallery {
     height: clamp(28rem, 68dvh, 38rem);
@@ -14,7 +13,7 @@
   .idealista-listing-page .listing-gallery-container .gallery-main > img {
     width: 100%;
     height: 100%;
-    object-fit: contain !important;
+    object-fit: cover !important;
     object-position: center center;
     background: #fff;
   }
