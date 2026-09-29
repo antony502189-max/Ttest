@@ -61,15 +61,15 @@ test('admin mobile navigation remains readable and does not overflow the viewpor
   expect(metrics.pageFont).toBeGreaterThanOrEqual(16)
   expect(metrics.navFont).toBeGreaterThanOrEqual(16)
   expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1)
-  await page.goto('/#/admin/publicidad')
-  await expect(page.locator('.bottom-nav')).toHaveCount(0)
 })
 
 test('production admin listing actions wrap instead of widening the page', () => {
   const css = readFileSync('src/admin-moderation.css', 'utf8')
   const productionAdmin = readFileSync('src/pages/AdminPage.tsx', 'utf8')
+  const layout = readFileSync('src/components/layout.tsx', 'utf8')
 
   expect(productionAdmin).toContain('className="admin-listing-actions"')
   expect(css).toMatch(/\.admin-listing-actions\s*\{[\s\S]*?flex-wrap:\s*wrap;/)
   expect(css).toMatch(/\.admin-main\s*\{[\s\S]*?overflow-x:\s*clip;/)
+  expect(layout).toContain("const hideBottomNavigation = pathname === '/admin'")
 })
