@@ -19,6 +19,7 @@ from ..models import (
 )
 from ..models.commercial_advertisement import CommercialAdvertisement
 from .listings import mark_orphaned_media
+from .media_lifecycle import lock_media_assets
 
 MAIL_OUTBOX_RETENTION_DAYS = 30
 SECURITY_RECORD_RETENTION_DAYS = 7
@@ -49,33 +50,44 @@ async def prune_unattached_media(session: AsyncSession, *, now: datetime, batch_
 async def prune_stale_commercial_advertisements(session: AsyncSession, *, now: datetime, batch_size: int) -> int:
     """Drop old terminal campaign history, then release its media safely."""
     cutoff = now - timedelta(days=COMMERCIAL_AD_HISTORY_RETENTION_DAYS)
-    rows = (await session.execute(
+    retention_filter = or_(
+        (
+            CommercialAdvertisement.status.in_(("cancelled", "rejected"))
+            & (CommercialAdvertisement.updated_at <= cutoff)
+        ),
+        (
+            (CommercialAdvertisement.status == "active")
+            & CommercialAdvertisement.ends_at.is_not(None)
+            & (CommercialAdvertisement.ends_at <= cutoff)
+        ),
+    )
+    candidates = (await session.execute(
         select(CommercialAdvertisement.id, CommercialAdvertisement.image_asset_id)
-        .where(
-            or_(
-                (
-                    CommercialAdvertisement.status.in_(("cancelled", "rejected"))
-                    & (CommercialAdvertisement.updated_at <= cutoff)
-                ),
-                (
-                    (CommercialAdvertisement.status == "active")
-                    & CommercialAdvertisement.ends_at.is_not(None)
-                    & (CommercialAdvertisement.ends_at <= cutoff)
-                ),
-            )
-        )
+        .where(retention_filter)
         .order_by(CommercialAdvertisement.updated_at, CommercialAdvertisement.id)
         .limit(batch_size)
-        .with_for_update(skip_locked=True)
     )).all()
-    if not rows:
+    if not candidates:
         return 0
-    ids = [row[0] for row in rows]
-    media_ids = {row[1] for row in rows if row[1] is not None}
-    await session.execute(delete(CommercialAdvertisement).where(CommercialAdvertisement.id.in_(ids)))
+
+    candidate_ids = [row[0] for row in candidates]
+    candidate_media_ids = {row[1] for row in candidates if row[1] is not None}
+    # Match the global mutation order used by listing/ad edits and account
+    # deletion: media rows are locked before campaign rows. The retention
+    # predicate is rechecked by DELETE after those locks, so a campaign that
+    # was concurrently resubmitted is preserved instead of being deleted from
+    # a stale candidate snapshot.
+    await lock_media_assets(session, candidate_media_ids)
+    deleted_rows = (await session.execute(
+        delete(CommercialAdvertisement)
+        .where(CommercialAdvertisement.id.in_(candidate_ids), retention_filter)
+        .returning(CommercialAdvertisement.id, CommercialAdvertisement.image_asset_id)
+    )).all()
+    if not deleted_rows:
+        return 0
     await session.flush()
-    await mark_orphaned_media(session, media_ids)
-    return len(ids)
+    await mark_orphaned_media(session, {row[1] for row in deleted_rows if row[1] is not None})
+    return len(deleted_rows)
 
 
 

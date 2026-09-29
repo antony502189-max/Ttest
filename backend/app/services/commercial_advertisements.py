@@ -2,6 +2,7 @@
 
 import re
 from datetime import UTC, datetime, timedelta
+from ipaddress import ip_address
 from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
 
@@ -22,7 +23,14 @@ def normalize_destination(kind: str, raw: str) -> str:
         parsed = urlsplit(value)
         if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
             raise ValueError("Only http and https website URLs are allowed")
-        if parsed.hostname in {"localhost", "127.0.0.1", "::1"}:
+        hostname = parsed.hostname.rstrip(".").casefold()
+        if hostname == "localhost" or hostname.endswith(".localhost"):
+            raise ValueError("A public website URL is required")
+        try:
+            literal_ip = ip_address(hostname)
+        except ValueError:
+            literal_ip = None
+        if literal_ip is not None and not literal_ip.is_global:
             raise ValueError("A public website URL is required")
         try:
             _ = parsed.port
