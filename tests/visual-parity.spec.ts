@@ -37,7 +37,7 @@ test('current mobile home, results, location and map visual states', async ({ pa
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa')
   await expect(page.getByTestId('map-search')).toBeVisible()
-  await expect(page.locator('.google-map-canvas')).toHaveAttribute('data-map-instance', 'google-ready', { timeout: 20_000 })
+  await expect(page.locator('.m2-map-canvas')).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => page.locator('.map-price-marker-shell, .map-cluster-marker-shell').count(), { timeout: 20_000 }).toBeGreaterThan(0)
   await shot(page, 'current-map-390x844')
 })
