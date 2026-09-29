@@ -35,34 +35,7 @@ test.describe('mobile history', () => {
       zoom: await map.getAttribute('data-map-zoom'),
     }
     await preview.locator('.m2-map-listing-preview__open').click()
-    await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(listingId!)}import { expect, test, type Page } from '@playwright/test'
-
-async function finishOnboarding(page: Page) {
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByRole('button', { name: 'Ahora no' }).click()
-  await expect(page.getByTestId('open-location')).toBeVisible()
-}
-
-test.describe('mobile history', () => {
-  test.use({ viewport: { width: 390, height: 844 } })
-
-  test('Home → results → map → detail unwinds one visible screen at a time', async ({ page }) => {
-    await finishOnboarding(page)
-    await page.locator('.m2-mode-switch > button').first().click()
-    await page.getByTestId('open-location').click()
-    const results = page.getByTestId('mobile-results')
-    await expect(results.locator('.m2-result-card').first()).toBeVisible()
-    const resultsUrl = page.url()
-    await results.getByRole('button', { name: 'Mapa' }).click()
-    const map = page.getByTestId('google-map')
-    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
-    const marker = page.locator('.m2-listing-marker').first()
-    await expect(marker).toBeAttached()
-    await marker.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-))
+    await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(listingId!)}$`))
     await expect(page.locator('.listing-page h1')).toBeVisible()
     await page.getByRole('button', { name: 'Volver', exact: true }).click()
     await expect(map).toBeVisible()
