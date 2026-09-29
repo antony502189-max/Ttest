@@ -207,7 +207,6 @@ async def upload_video(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    settings = get_settings()
     content_type = file.content_type or ""
     if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
         filename = (file.filename or "").casefold()
@@ -218,12 +217,11 @@ async def upload_video(
         else:
             raise HTTPException(415, "Only MP4 and MOV videos are supported")
     async with video_processing_slots:
-        content = await file.read(settings.max_video_upload_bytes + 1)
-        await file.close()
-        if not content or len(content) > settings.max_video_upload_bytes:
-            raise HTTPException(413, "Video is too large")
-        prepared = await asyncio.to_thread(prepare_video, content, content_type)
-        del content
+        await file.seek(0)
+        try:
+            prepared = await asyncio.to_thread(prepare_video, file.file, content_type)
+        finally:
+            await file.close()
 
     storage_key = f"{user.id}/{uuid4().hex}.mp4"
     storage = get_storage()

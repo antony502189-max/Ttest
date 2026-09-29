@@ -38,7 +38,7 @@ An operator can later configure province discovery slices in `external_import_sc
 
 ## Media, backup and reconciliation
 
-User media limits remain 5–15 photos, one video, maximum 30 seconds. The external eight-image default is separate. Media asset keys and URLs are storage-backend agnostic, so a later move from local MinIO to compatible object storage does not change listing semantics.
+User media limits remain 5–15 photos and one video up to one minute. Video input size is not capped by the application; uploaded videos are normalized before they are stored, with normalized output bounded to 64 MB. The external eight-image default is separate. Media asset keys and URLs are storage-backend agnostic, so a later move from local MinIO to compatible object storage does not change listing semantics.
 
 `deploy-release.sh` continues to make an authenticated PostgreSQL backup, but checks for a recent authenticated MinIO archive instead of copying the entire bucket on every code release. Schedule `deploy/backup-minio.sh` separately at an interval that meets recovery objectives; the gate defaults to 72 hours. `deploy/prune-backups.sh` defaults to dry-run and only removes an expired archive when two newer authenticated archives of the same type exist. It holds the release lock. Verify restore drills and off-node copies before relying on local backup retention; keeping full media copies on the same disk scales approximately with bucket size times retained copy count.
 

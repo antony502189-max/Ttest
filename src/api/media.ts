@@ -32,7 +32,7 @@ export async function uploadVideoReference(reference: string) {
   const type = blob.type || 'video/mp4'
   const extension = type === 'video/quicktime' ? 'mov' : 'mp4'
   body.append('file', new File([blob], `listing-video.${extension}`, { type }))
-  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 120_000 })
+  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 0 })
 }
 
 async function deleteUploadedAsset(assetId: string) {

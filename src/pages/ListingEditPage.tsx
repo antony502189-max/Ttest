@@ -132,7 +132,18 @@ function readEditDraft(listing: Listing, storageKey: string, currentUserId?: str
       && (!stored.ownerUserId || stored.ownerUserId === currentUserId)
       && stored.data
     ) {
-      return { ...defaults, ...stored.data }
+      const savedImages = Array.isArray(stored.data.images)
+        ? stored.data.images.filter((image): image is string => typeof image === 'string'
+          && (isMediaReference(image) || /^https?:\/\//i.test(image) || /^data:image\//i.test(image) || image.startsWith('/')))
+        : []
+      return {
+        ...defaults,
+        ...stored.data,
+        // The server listing is authoritative when an old or incomplete edit
+        // draft has lost its photo references. Keep an intentional non-empty
+        // photo selection unchanged.
+        images: savedImages.length ? savedImages : defaults.images,
+      }
     }
   } catch { /* use server values */ }
   return defaults
@@ -484,7 +495,7 @@ export function ListingEditPage() {
         <FormField label="Normas de la vivienda" htmlFor="edit-rules" description="No se permiten enlaces ni dominios externos." error={errors.rules}><Textarea id="edit-rules" rows={5} value={draft.rules} aria-invalid={Boolean(errors.rules)} onChange={(e) => set('rules', e.target.value)} /></FormField>
       </Section>
 
-      <Section id="edit-photos" title="Fotografías" hint={`Entre ${MIN_LISTING_PHOTOS} y ${MAX_LISTING_PHOTOS} fotos y, opcionalmente, un vídeo de hasta 30 segundos. La primera foto será la portada.`}>
+      <Section id="edit-photos" title="Fotografías" hint={`Entre ${MIN_LISTING_PHOTOS} y ${MAX_LISTING_PHOTOS} fotos y, opcionalmente, un vídeo de hasta 1 minuto. La primera foto será la portada.`}>
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
         <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { if (video !== existing.video) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
       </Section>

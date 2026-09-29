@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -66,4 +67,7 @@ def test_transient_service_receives_runtime_overrides() -> None:
 
 
 def test_acceptance_runner_is_executable() -> None:
-    assert SCRIPT_PATH.stat().st_mode & 0o111
+    if os.name == "nt":
+        assert SCRIPT_PATH.is_file()
+    else:
+        assert SCRIPT_PATH.stat().st_mode & 0o111

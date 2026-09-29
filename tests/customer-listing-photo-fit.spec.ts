@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
-test('mobile listing hero preserves the full uploaded photo with white sidebars instead of cover-cropping it', async ({ page }) => {
+test('mobile listing hero fills one fixed frame for uploaded photos', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
 
@@ -31,7 +31,7 @@ test('mobile listing hero preserves the full uploaded photo with white sidebars 
     }
   })
 
-  expect(styles.objectFit).toBe('contain')
+  expect(styles.objectFit).toBe('cover')
   expect(styles.objectPosition).toContain('50%')
   expect(styles.galleryHeight).toBeGreaterThanOrEqual(440)
   expect(styles.galleryBackground).toBe('rgb(255, 255, 255)')
