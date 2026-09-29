@@ -87,8 +87,9 @@ export function AppLayout() {
   const { storageError, clearStorageError } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
-  const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  const hideBottomNavigation = pathname === '/admin'
+  const adminRoute = pathname === '/admin' || pathname.startsWith('/admin/')
+  const hideFooter = pathname === '/buscar' || adminRoute || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
+  const hideBottomNavigation = adminRoute
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
     const update = () => setMobileViewport(media.matches)
