@@ -153,6 +153,30 @@ async def test_expired_campaign_requires_new_test_checkout(client, register_user
     assert (await client.get("/api/v1/advertisements/homepage")).json() == []
 
 
+async def test_blocked_owner_campaign_cannot_be_approved(client, register_user):
+    ad, _, owner_headers, owner = await create_ad(client, register_user, email="blocked-ad-owner@example.com")
+    assert (
+        await client.post(
+            f"/api/v1/advertisements/{ad['id']}/fake-payment/complete",
+            headers=owner_headers,
+        )
+    ).status_code == 200
+    admin = await admin_headers(client, register_user)
+    async with SessionLocal() as session:
+        account = await session.get(User, owner["id"])
+        assert account is not None
+        account.blocked = True
+        await session.commit()
+
+    blocked = await client.post(
+        f"/api/v1/admin/advertisements/{ad['id']}/approve",
+        headers=admin,
+        json={},
+    )
+    assert blocked.status_code == 409
+    assert (await client.get("/api/v1/advertisements/homepage")).json() == []
+
+
 async def test_spanish_phone_and_whatsapp_destinations_are_normalized(client, register_user):
     token, _ = await register_user(client, email="spanish-ad@example.com")
     headers = {"Authorization": f"Bearer {token}"}

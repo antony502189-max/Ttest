@@ -220,6 +220,19 @@ async def approve_advertisement(
     ad_id: UUID, decision: ModerationDecision, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
     ad = await admin_ad(session, ad_id)
+    owner_is_active = await session.scalar(
+        select(User.id).where(User.id == ad.owner_user_id, User.deleted_at.is_(None), User.blocked.is_(False))
+    )
+    image_is_active = await session.scalar(
+        select(MediaAsset.id).where(
+            MediaAsset.id == ad.image_asset_id,
+            MediaAsset.owner_id == ad.owner_user_id,
+            MediaAsset.deleted_at.is_(None),
+            MediaAsset.kind == "advertisement_image",
+        )
+    )
+    if owner_is_active is None or image_is_active is None:
+        raise HTTPException(409, "Advertisement owner and image must still be active")
     # Serialize the capacity decision so concurrent admin approvals cannot both
     # observe the same free slot and exceed the twelve-campaign ceiling.
     await session.execute(
