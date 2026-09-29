@@ -10,6 +10,7 @@ from app.db.session import SessionLocal
 from app.models import User
 from app.models.commercial_advertisement import CommercialAdvertisement
 from app.models.moderation import AdminAccess
+from app.services.commercial_advertisements import normalize_destination
 
 pytestmark = pytest.mark.integration
 
@@ -60,18 +61,19 @@ async def test_create_requires_auth_and_valid_image_and_destination(client, regi
     assert upload.status_code == 201
     base = {"title": "Local service", "description": "A helpful local service for everyone.",
             "imageAssetId": upload.json()["id"], "destinationType": "website"}
+    for destination in ("javascript:alert(1)", "data:text/html,hi", "https://example.org\\@evil.test"):
+        invalid = await client.post("/api/v1/advertisements", headers=headers,
+                                    json={**base, "destination": destination})
+        assert invalid.status_code == 422, invalid.text
+
     for destination in (
-        "javascript:alert(1)",
-        "data:text/html,hi",
-        "https://example.org\\@evil.test",
         "http://127.0.0.2/private",
         "http://192.168.1.1/router",
         "http://service.localhost/internal",
         "http://[::1]/",
     ):
-        invalid = await client.post("/api/v1/advertisements", headers=headers,
-                                    json={**base, "destination": destination})
-        assert invalid.status_code == 422, invalid.text
+        with pytest.raises(ValueError, match="public website"):
+            normalize_destination("website", destination)
 
 
 async def test_payment_moderation_public_visibility_and_media(client, register_user):
