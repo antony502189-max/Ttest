@@ -454,3 +454,32 @@
 .m2-results-filter__checks--priority { gap: .2rem; margin-bottom: .75rem; }
 .m2-results-filter__checks--priority > label { min-height: 2.8rem; padding: .3rem 0; border-bottom: 1px solid #303030; }
 .m2-results-filter__checks--priority > label:last-child { border-bottom: 0; }
+
+
+.m2-results__load-more,
+.m2-results__all-loaded {
+  min-height: 4.5rem;
+  display: grid;
+  place-items: center;
+  gap: .65rem;
+  padding: 1rem;
+  color: #aaa;
+  font-size: .78rem;
+  text-align: center;
+}
+
+.m2-results__load-more button {
+  min-height: 2.5rem;
+  padding: .55rem .9rem;
+  border: 1px solid #5c6f19;
+  border-radius: .35rem;
+  background: #202800;
+  color: var(--results-lime);
+  font: inherit;
+  font-weight: 700;
+}
+
+.m2-results__all-loaded {
+  min-height: 3.5rem;
+  border-top: 1px solid #303030;
+}
