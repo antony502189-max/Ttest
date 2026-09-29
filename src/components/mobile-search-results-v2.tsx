@@ -232,8 +232,7 @@ export function MobileSearchResults() {
   useEffect(() => {
     if (mockMode || !open || !serverSearchRequest) return
     if (
-      serverItems !== null
-      && loadedSearchKeyRef.current === serverSearchKey
+      loadedSearchKeyRef.current === serverSearchKey
       && loadedCatalogEpochRef.current === catalogEpoch
     ) return
     const params = new URLSearchParams(location.search)
@@ -262,7 +261,7 @@ export function MobileSearchResults() {
       if (!request.signal.aborted) setServerLoading(false)
     })
     return () => request.abort()
-  }, [catalogEpoch, location.search, open, retry, serverItems, serverSearchKey, serverSearchRequest])
+  }, [catalogEpoch, location.search, open, retry, serverSearchKey, serverSearchRequest])
 
   const loadMore = useCallback(() => {
     const cursor = nextCursor
