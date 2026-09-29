@@ -29,7 +29,6 @@ import { filtersFromParams, filtersToParams } from '@/lib/search'
 import { compareListingFloors } from '@/lib/floor'
 import type { Filters, Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
-import { preloadRoute } from '@/lib/route-preload'
 
 type ResultsLanguage = Language
 type ResultsPanel = 'results' | 'filters' | 'sort'
@@ -362,10 +361,6 @@ export function MobileSearchResults() {
     if (order === 'floor-low') return compareListingFloors(a, b, 'asc')
     return 0
   }) : filteredListings, [favorites, filteredListings, order])
-
-  useEffect(() => {
-    if (open && listings.length > 0) preloadRoute('/habitacion/intent', true)
-  }, [open, listings.length])
   const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])
   const resultCount = mockMode ? availableListings.length : serverTotal
   const currentPage = Math.max(1, Number(new URLSearchParams(location.search).get('pagina') || 1))
