@@ -1,0 +1,19 @@
+.commercial-ad { width: min(100% - 2rem, 1080px); margin: 2.5rem auto 4rem; padding: 1.25rem; border: 1px solid #d9e7a5; border-radius: 1.25rem; background: #fff; color: #263321; }
+.commercial-ad__eyebrow { display: flex; align-items: center; gap: .45rem; margin-bottom: 1rem; font-size: .73rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; opacity: .72; }
+.commercial-ad__eyebrow svg { width: 1rem; height: 1rem; }
+.commercial-ad__content { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 1fr); gap: 1.5rem; align-items: center; }
+.commercial-ad__visual { display: grid; place-items: center; min-height: 190px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: .85rem; background: #f4f9e5; }
+.commercial-ad__visual img { width: 100%; height: 100%; object-fit: contain; }
+.commercial-ad__visual > svg { width: 3rem; height: 3rem; opacity: .35; }
+.commercial-ad__copy h2, .commercial-ad__house h2 { margin: 0 0 .5rem; font-size: clamp(1.15rem, 2vw, 1.65rem); line-height: 1.2; overflow-wrap: anywhere; }
+.commercial-ad__copy p, .commercial-ad__house p { margin: 0 0 1.15rem; line-height: 1.5; overflow-wrap: anywhere; opacity: .75; }
+.commercial-ad__cta { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 44px; padding: .7rem 1rem; border: 0; border-radius: .65rem; background: var(--market-lime, #dff34f); color: #263321; font-weight: 800; text-decoration: none; }
+.commercial-ad__cta:hover { filter: brightness(.94); }
+.commercial-ad__cta:focus-visible { outline: 3px solid #58712b; outline-offset: 3px; }
+.commercial-ad__cta svg { width: 1rem; height: 1rem; }
+.commercial-ad__house { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto; gap: 1.25rem; align-items: center; }
+.commercial-ad__mark { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 1rem; background: #f0f9c9; color: #496000; }
+.commercial-ad__mark svg { width: 2rem; height: 2rem; }
+.commercial-ad__house p { margin-bottom: 0; }
+@media (max-width: 700px) { .commercial-ad { width: calc(100% - 1.5rem); margin: 1.5rem auto 2rem; padding: 1rem; } .commercial-ad__content, .commercial-ad__house { grid-template-columns: 1fr; gap: .85rem; } .commercial-ad__mark { width: 3rem; height: 3rem; } .commercial-ad__mark svg { width: 1.5rem; height: 1.5rem; } .commercial-ad__visual { min-height: 150px; } .commercial-ad__cta { width: 100%; } }
+.commercial-ad--mobile { width: 100%; margin: 1.25rem 0 calc(var(--m2-nav-height, 4rem) + 1.5rem); }
