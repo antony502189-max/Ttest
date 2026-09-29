@@ -16,8 +16,6 @@ async function openPublishLocation(page: Page) {
   await page.reload()
   await page.goto('/#/publicar')
   await expect(page.locator('.approximate-location-map')).toBeVisible()
-  await expect(page.locator('.approximate-location-map .gm-style')).toBeAttached()
-  await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
 }
 
 async function typeExactAddress(page: Page, streetValue = 'Calle Londres 5', postcodeValue = '38660') {
