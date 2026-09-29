@@ -28,14 +28,47 @@ test.describe('mobile history', () => {
     const preview = page.getByTestId('mobile-map-listing-preview')
     await expect(preview).toBeVisible()
     const listingId = await preview.getAttribute('data-listing-id')
-    await expect(page).toHaveURL(/mapLat=.*mapLng=.*mapZoom=/)
-    const mapUrl = page.url()
+    await expect(map).toHaveAttribute('data-map-center', /.+/)
+    await expect(map).toHaveAttribute('data-map-zoom', /.+/)
+    const cameraBeforeDetail = {
+      center: await map.getAttribute('data-map-center'),
+      zoom: await map.getAttribute('data-map-zoom'),
+    }
     await preview.locator('.m2-map-listing-preview__open').click()
-    await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(listingId!)}$`))
+    await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(listingId!)}import { expect, test, type Page } from '@playwright/test'
+
+async function finishOnboarding(page: Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Ahora no' }).click()
+  await expect(page.getByTestId('open-location')).toBeVisible()
+}
+
+test.describe('mobile history', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('Home → results → map → detail unwinds one visible screen at a time', async ({ page }) => {
+    await finishOnboarding(page)
+    await page.locator('.m2-mode-switch > button').first().click()
+    await page.getByTestId('open-location').click()
+    const results = page.getByTestId('mobile-results')
+    await expect(results.locator('.m2-result-card').first()).toBeVisible()
+    const resultsUrl = page.url()
+    await results.getByRole('button', { name: 'Mapa' }).click()
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    const marker = page.locator('.m2-listing-marker').first()
+    await expect(marker).toBeAttached()
+    await marker.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+))
     await expect(page.locator('.listing-page h1')).toBeVisible()
     await page.getByRole('button', { name: 'Volver', exact: true }).click()
     await expect(map).toBeVisible()
-    await expect(page).toHaveURL(mapUrl)
+    await expect(page).toHaveURL(/mapLat=.*mapLng=.*mapZoom=/)
+    await expect.poll(() => map.getAttribute('data-map-center')).toBe(cameraBeforeDetail.center)
+    await expect.poll(() => map.getAttribute('data-map-zoom')).toBe(cameraBeforeDetail.zoom)
     await expect(page.getByTestId('mobile-results')).toHaveCount(0)
     await page.goBack()
     await expect(page).toHaveURL(resultsUrl)
