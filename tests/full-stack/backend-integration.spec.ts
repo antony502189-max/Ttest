@@ -280,6 +280,50 @@ test('browser search stays bounded instead of hydrating the full catalog', async
   expect(legacySearchRequests).toBe(0)
 })
 
+test('mobile results progressively append bounded cursor pages until every result is visible', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile-chromium', 'Infinite scroll is a mobile results behavior.')
+  const catalog = Array.from({ length: 45 }, (_, index) => paginationListing(index))
+  const cardRequests: Array<{ limit?: number; cursor?: string | null }> = []
+
+  await page.route('**/api/v1/listings/search/cards', async (route) => {
+    const request = route.request().postDataJSON() as { limit?: number; cursor?: string | null }
+    cardRequests.push(request)
+    const limit = Math.min(50, request.limit ?? 20)
+    const offset = request.cursor?.startsWith('page-') ? Number(request.cursor.slice(5)) : 0
+    const nextOffset = offset + limit
+    await route.fulfill({
+      json: {
+        items: catalog.slice(offset, nextOffset),
+        total: catalog.length,
+        nextCursor: nextOffset < catalog.length ? `page-${nextOffset}` : null,
+        previousCursor: null,
+      },
+    })
+  })
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  const results = page.getByTestId('mobile-results')
+  await expect(results).toBeVisible()
+  await expect(page.getByText('Pagination listing 0', { exact: true })).toBeVisible()
+  await expect(results.locator('.m2-result-card')).toHaveCount(20)
+  await expect(results.locator('.m2-results__summary')).toContainText('20')
+  await expect(results.locator('.m2-results__summary')).toContainText('45')
+  await expect(results.locator('.m2-results-pagination')).toHaveCount(0)
+
+  await results.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect(page.getByText('Pagination listing 20', { exact: true })).toBeVisible()
+  await expect(results.locator('.m2-result-card')).toHaveCount(40)
+
+  await results.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect(page.getByText('Pagination listing 40', { exact: true })).toBeVisible()
+  await expect(results.locator('.m2-result-card')).toHaveCount(45)
+  await expect(results.locator('.m2-results__summary')).toContainText('45')
+  await expect(results.locator('.m2-results__all-loaded')).toBeVisible()
+
+  expect(cardRequests.map((request) => request.cursor ?? null)).toEqual([null, 'page-20', 'page-40'])
+  expect(cardRequests.every((request) => (request.limit ?? 20) === 20)).toBe(true)
+})
+
 test('anonymous auth and publication routes render without a route error', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
