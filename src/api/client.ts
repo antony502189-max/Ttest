@@ -22,6 +22,15 @@ function validationFieldErrors(detail: ValidationDetail[] | undefined) {
 }
 
 export function setAccessToken(token: string | null) { accessToken = token }
+export async function fetchAuthenticatedMedia(path: string): Promise<Blob> {
+  const url = resolveApiUrl(path.replace(/^\/api\/v1/, ''))
+  let response = await fetch(url, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'include' })
+  if (response.status === 401 && accessToken && await refresh()) {
+    response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
+  }
+  if (!response.ok) throw new ApiError(response.status, 'No se pudo cargar la imagen.')
+  return response.blob()
+}
 export function resolveApiUrl(path: string) {
   if (/^https?:\/\//.test(path)) return path
   const base = /^https?:\/\//.test(API_BASE_URL)
