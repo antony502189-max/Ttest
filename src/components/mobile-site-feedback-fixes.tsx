@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect } from 'react'
-import { useLocation } from 'react-router'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 
 const APPEARANCE_KEY = '112233:appearance:v1'
@@ -34,7 +33,6 @@ function hideAppearanceRow() {
 
 export function MobileSiteFeedbackFixes() {
   const { language } = useI18n()
-  const { pathname } = useLocation()
   const copy = feedbackCopy[language]
 
   useLayoutEffect(() => {
@@ -42,7 +40,6 @@ export function MobileSiteFeedbackFixes() {
   }, [])
 
   useLayoutEffect(() => {
-    if (pathname !== '/menu' && pathname !== '/buscar') return
     let frame = 0
     const synchronize = () => {
       cancelAnimationFrame(frame)
@@ -86,7 +83,7 @@ export function MobileSiteFeedbackFixes() {
       cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [copy.unknownFact, language, pathname])
+  }, [copy.unknownFact, language])
 
   useEffect(() => {
     const activate = (target: EventTarget | null) => {
