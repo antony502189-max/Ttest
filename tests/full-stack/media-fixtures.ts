@@ -28,7 +28,7 @@ function seedNumber(seed: string) {
   return value >>> 0
 }
 
-function listingTestPng(seed: string, imageIndex: number) {
+export function listingTestPng(seed: string, imageIndex: number) {
   const width = 8
   const height = 8
   const raw = Buffer.alloc((width * 3 + 1) * height)

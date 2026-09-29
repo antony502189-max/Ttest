@@ -257,6 +257,8 @@ async def mark_orphaned_media(session: AsyncSession, candidate_ids: set[UUID]) -
         ).all()
         if value is not None
     }
+    from ..models.commercial_advertisement import CommercialAdvertisement
+    attached.update((await session.scalars(select(CommercialAdvertisement.image_asset_id).where(CommercialAdvertisement.image_asset_id.in_(active_ids)))).all())
     orphan_ids = active_ids - attached - avatars
     assets = [active_assets[asset_id] for asset_id in sorted(orphan_ids, key=str)]
     if not assets:
@@ -828,7 +830,9 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
             ).all()
             if asset_id is not None
         }
-        orphan_ids = attached_ids - still_attached - avatars
+        from ..models.commercial_advertisement import CommercialAdvertisement
+        ad_attached = set((await session.scalars(select(CommercialAdvertisement.image_asset_id).where(CommercialAdvertisement.image_asset_id.in_(attached_ids)))).all())
+        orphan_ids = attached_ids - still_attached - avatars - ad_attached
         if orphan_ids:
             storage_keys = {
                 locked_assets[asset_id].storage_key

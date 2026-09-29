@@ -79,7 +79,7 @@ export function BottomNavigation() { const location = useLocation(); return <nav
 
 export function Footer() {
   const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
-  return <footer className="site-footer"><div className="container footer-grid"><div><Logo /><p>El marketplace especializado en habitaciones de Tenerife.</p></div><nav aria-label="Información"><strong>112233.es</strong><Link to="/sobre-nosotros">Sobre nosotros</Link><Link to="/como-funciona">Cómo funciona</Link></nav><nav aria-label="Ayuda"><strong>Ayuda</strong><Link to="/ayuda">Centro de ayuda</Link><Link to="/normas-de-publicacion">Normas de publicación</Link><Link to="/publicar">Publicar</Link></nav><nav aria-label="Legal"><strong>Legal</strong><Link to="/terminos">Términos</Link><Link to="/privacidad">Privacidad</Link><Link to="/cookies">Cookies</Link></nav></div><div className="container footer-bottom"><span>© 2026 112233.es</span><span>{mockMode ? 'Entorno de demostración con datos locales.' : 'Catálogo conectado al servicio de anuncios.'}</span></div></footer>
+  return <footer className="site-footer"><div className="container footer-grid"><div><Logo /><p>El marketplace especializado en habitaciones de Tenerife.</p></div><nav aria-label="Información"><strong>112233.es</strong><Link to="/sobre-nosotros">Sobre nosotros</Link><Link to="/como-funciona">Cómo funciona</Link></nav><nav aria-label="Ayuda"><strong>Ayuda</strong><Link to="/ayuda">Centro de ayuda</Link><Link to="/normas-de-publicacion">Normas de publicación</Link><Link to="/publicar">Publicar</Link><Link to="/mis-campanas">Mis campañas publicitarias</Link></nav><nav aria-label="Legal"><strong>Legal</strong><Link to="/terminos">Términos</Link><Link to="/privacidad">Privacidad</Link><Link to="/cookies">Cookies</Link></nav></div><div className="container footer-bottom"><span>© 2026 112233.es</span><span>{mockMode ? 'Entorno de demostración con datos locales.' : 'Catálogo conectado al servicio de anuncios.'}</span></div></footer>
 }
 
 export function AppLayout() {
@@ -87,8 +87,9 @@ export function AppLayout() {
   const { storageError, clearStorageError } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
-  const hideFooter = pathname === '/buscar' || pathname === '/admin' || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  const hideBottomNavigation = pathname === '/admin'
+  const adminRoute = pathname === '/admin' || pathname.startsWith('/admin/')
+  const hideFooter = pathname === '/buscar' || adminRoute || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
+  const hideBottomNavigation = adminRoute
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
     const update = () => setMobileViewport(media.matches)

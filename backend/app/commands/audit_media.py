@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from ..db.session import SessionLocal
 from ..models import Listing, ListingImage, MediaAsset, User
+from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.storage_deletion import StorageDeletionJob
 from ..services.storage_deletions import enqueue_storage_deletion
 from ..storage import get_storage
@@ -42,6 +43,7 @@ async def audit(limit: int, enqueue_confirmed: bool, after: UUID | None = None) 
         image_ids = set((await session.scalars(select(ListingImage.media_asset_id).where(ListingImage.media_asset_id.in_(ids)))).all())
         video_ids = set((await session.scalars(select(Listing.video_asset_id).where(Listing.video_asset_id.in_(ids)))).all())
         avatar_ids = set((await session.scalars(select(User.avatar_asset_id).where(User.avatar_asset_id.in_(ids)))).all())
+        advertisement_ids = set((await session.scalars(select(CommercialAdvertisement.image_asset_id).where(CommercialAdvertisement.image_asset_id.in_(ids)))).all())
         queued = set((await session.scalars(select(StorageDeletionJob.storage_key).where(
             StorageDeletionJob.storage_key.in_([asset.storage_key for asset in assets])
         ))).all())
@@ -51,7 +53,7 @@ async def audit(limit: int, enqueue_confirmed: bool, after: UUID | None = None) 
             try:
                 exists = await asyncio.to_thread(storage.get_range, asset.storage_key, 0, 0) is not None
                 kind = classify_asset(
-                    referenced=asset.id in image_ids or asset.id in video_ids or asset.id in avatar_ids,
+                    referenced=asset.id in image_ids or asset.id in video_ids or asset.id in avatar_ids or asset.id in advertisement_ids,
                     object_exists=exists, pending=asset.storage_key in queued,
                     deleted=asset.deleted_at is not None,
                 )

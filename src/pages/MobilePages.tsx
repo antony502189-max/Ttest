@@ -20,6 +20,7 @@ export function MenuPage() {
     </div>
     <nav className="app-menu-list" aria-label="Cuenta y anuncios">
       {currentUser ? <MenuRow to="/mis-anuncios" icon={Home}>Mis anuncios</MenuRow> : null}
+      {currentUser ? <MenuRow to="/mis-campanas" icon={FileText}>Mis campañas publicitarias</MenuRow> : null}
       {currentUser ? <MenuRow to="/notificaciones" icon={Bell}>Notificaciones</MenuRow> : null}
       <MenuRow to="/publicar" icon={Plus}>Publicar anuncio</MenuRow>
       <MenuRow to="/favoritos" icon={Heart}>Favoritos</MenuRow>

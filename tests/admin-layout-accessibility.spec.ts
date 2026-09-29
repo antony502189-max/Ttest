@@ -71,5 +71,6 @@ test('production admin listing actions wrap instead of widening the page', () =>
   expect(productionAdmin).toContain('className="admin-listing-actions"')
   expect(css).toMatch(/\.admin-listing-actions\s*\{[\s\S]*?flex-wrap:\s*wrap;/)
   expect(css).toMatch(/\.admin-main\s*\{[\s\S]*?overflow-x:\s*clip;/)
-  expect(layout).toContain("const hideBottomNavigation = pathname === '/admin'")
+  expect(layout).toContain("const adminRoute = pathname === '/admin' || pathname.startsWith('/admin/')")
+  expect(layout).toContain('const hideBottomNavigation = adminRoute')
 })

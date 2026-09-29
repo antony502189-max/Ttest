@@ -152,6 +152,7 @@ Backend специально отказывается запускаться в 
 
 - [Архитектура](docs/architecture.md)
 - [API](docs/api.md)
+- [Publicidad comercial en la portada](docs/homepage-advertising.md)
 - [База данных](docs/database.md)
 - [Локальная разработка](docs/local-development.md)
 - [Deployment](docs/deployment.md)

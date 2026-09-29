@@ -20,6 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .api.public_pages import router as public_pages_router
 from .api.v1.admin import router as admin_router
 from .api.v1.auth import router as auth_router
+from .api.v1.commercial_advertisements import router as commercial_advertisements_router
 from .api.v1.favorites import router as favorites_router
 from .api.v1.listings import router as listings_router
 from .api.v1.notifications import router as notifications_router
@@ -126,6 +127,8 @@ RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
     ("POST", "/api/v1/auth/email-verification/confirm"): (10, 60),
     ("POST", "/api/v1/reports"): (10, 60),
     ("POST", "/api/v1/uploads"): (20, 60),
+    ("POST", "/api/v1/advertisements/uploads"): (10, 60),
+    ("POST", "/api/v1/advertisements"): (5, 3600),
     ("POST", "/api/v1/listings"): (20, 60),
     ("POST", "/api/v1/account/import-guest-state"): (5, 60),
     ("DELETE", "/api/v1/discarded-listings"): (60, 60),
@@ -154,6 +157,8 @@ def rate_limit_rule(method: str, path: str) -> tuple[str, int, int] | None:
         return "/api/v1/favorites/{listing_id}", 60, 60
     if method in {"PUT", "DELETE"} and path.startswith("/api/v1/discarded-listings/"):
         return "/api/v1/discarded-listings/{listing_id}", 60, 60
+    if method == "POST" and path.startswith("/api/v1/advertisements/") and path.endswith("/fake-payment/complete"):
+        return "/api/v1/advertisements/{id}/fake-payment/complete", 10, 60
     return None
 
 
@@ -421,6 +426,7 @@ async def metrics():
 
 app.include_router(public_pages_router)
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(commercial_advertisements_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(favorites_router, prefix="/api/v1")
 app.include_router(listings_router, prefix="/api/v1")

@@ -23,6 +23,7 @@ from ..models import (
     SearchHistory,
     User,
 )
+from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.moderation import ModerationNotice
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
 from .catalog import touch_catalog
@@ -183,6 +184,7 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     await session.execute(delete(MailOutbox).where(MailOutbox.recipient == original_email))
     if media_ids:
         await session.execute(delete(ListingImage).where(ListingImage.media_asset_id.in_(media_ids)))
+    await session.execute(delete(CommercialAdvertisement).where(CommercialAdvertisement.owner_user_id == locked_user.id))
     await session.execute(
         update(Listing)
         .where(Listing.owner_user_id == locked_user.id, Listing.deleted_at.is_(None))

@@ -1,0 +1,25 @@
+.ad-flow { width: min(100% - 2rem, 900px); margin: 2rem auto 6rem; color: var(--foreground); }
+.ad-flow__back { display: inline-flex; gap: .5rem; align-items: center; margin-bottom: 1.5rem; color: inherit; }
+.ad-flow__back svg { width: 1rem; }
+.ad-flow__heading { margin-bottom: 1.5rem; }
+.ad-flow__heading > span, .ad-flow__preview small { color: #a92883; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.ad-flow__heading h1 { margin: .4rem 0; font-size: clamp(1.8rem, 4vw, 2.5rem); }
+.ad-flow__heading p { opacity: .7; }
+.ad-flow__panel { padding: 1.35rem; border: 1px solid color-mix(in srgb, currentColor 17%, transparent); border-radius: 1rem; background: color-mix(in srgb, currentColor 3%, transparent); }
+.ad-flow__form { display: grid; gap: 1.2rem; }
+.ad-flow__form label { display: grid; gap: .5rem; font-weight: 700; }
+.ad-flow__form input, .ad-flow__form textarea, .ad-flow__form select { width: 100%; min-height: 44px; padding: .7rem; border: 1px solid #aaa; border-radius: .5rem; background: var(--background); color: var(--foreground); font: inherit; }
+.ad-flow__form input[type=file] { height: auto; }
+.ad-flow__form textarea { resize: vertical; }
+.ad-flow button:not(.ad-flow__secondary), .ad-flow__button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .7rem 1rem; border: 0; border-radius: .6rem; background: #d8ff4b; color: #151515; font-weight: 800; text-decoration: none; cursor: pointer; }
+.ad-flow button:disabled { opacity: .5; cursor: wait; }
+.ad-flow :is(button, input, select, textarea, a):focus-visible { outline: 3px solid #a92883; outline-offset: 2px; }
+.ad-flow__secondary { min-height: 44px; padding: .7rem 1rem; border: 1px solid currentColor; border-radius: .6rem; background: transparent; color: inherit; cursor: pointer; }
+.ad-flow__actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1rem; }
+.ad-flow__preview, .ad-flow__row { display: grid; grid-template-columns: minmax(0, 40%) minmax(0, 1fr); gap: 1.2rem; align-items: center; }
+.ad-flow__preview > img, .ad-flow__uploaded { width: 100%; max-height: 300px; object-fit: contain; border-radius: .6rem; }
+.ad-flow__row .commercial-ad__visual { min-height: 120px; }
+.ad-flow__list { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.ad-flow__error { padding: .8rem; border-radius: .5rem; background: #ffe2e2; color: #7c1616; }
+.ad-flow__notice { padding: .8rem; border-radius: .5rem; background: color-mix(in srgb, #d8ff4b 20%, transparent); }
+@media (max-width: 650px) { .ad-flow__preview, .ad-flow__row { grid-template-columns: 1fr; } .ad-flow { width: calc(100% - 1.5rem); margin-top: 1.25rem; } }

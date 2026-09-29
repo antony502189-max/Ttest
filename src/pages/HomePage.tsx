@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { HomeMandatorySearch } from '@/components/home-mandatory-search'
+import { CommercialAdvertisementPlacement } from '@/components/commercial-advertisement-placement'
 import { MediaImage } from '@/components/media-image'
 import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import '@/home.css'
@@ -79,6 +80,7 @@ export function HomePage() {
       </section>
 
       <div className="home-publish-action"><Button asChild variant="outline"><Link to="/publicar"><Plus data-icon="inline-start" />Publicar anuncio</Link></Button></div>
+      <CommercialAdvertisementPlacement />
     </div>
   )
 }
