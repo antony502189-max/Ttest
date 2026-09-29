@@ -76,12 +76,16 @@ def prepare_video(content: bytes | BinaryIO, content_type: str) -> PreparedVideo
         source = Path(temp_dir) / f"source{suffix}"
         target = Path(temp_dir) / "normalized.mp4"
         if isinstance(content, bytes):
+            if not content or len(content) > settings.max_video_upload_bytes:
+                raise HTTPException(413, "Video is too large")
             source.write_bytes(content)
         else:
             total_bytes = 0
             with source.open("wb") as destination:
                 while chunk := content.read(1024 * 1024):
                     total_bytes += len(chunk)
+                    if total_bytes > settings.max_video_upload_bytes:
+                        raise HTTPException(413, "Video is too large")
                     destination.write(chunk)
             if total_bytes == 0:
                 raise HTTPException(413, "Video is too large")

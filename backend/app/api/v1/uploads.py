@@ -207,6 +207,7 @@ async def upload_video(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    settings = get_settings()
     content_type = file.content_type or ""
     if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
         filename = (file.filename or "").casefold()

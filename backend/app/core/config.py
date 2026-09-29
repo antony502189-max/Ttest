@@ -86,8 +86,7 @@ class Settings(BaseSettings):
     s3_max_attempts: int = 3
     s3_max_pool_connections: int = 32
     max_upload_bytes: int = 8 * 1024 * 1024
-    # Kept for backwards compatibility; video inputs are no longer size-limited.
-    max_video_upload_bytes: int = 0
+    max_video_upload_bytes: int = 100 * 1024 * 1024
     max_video_output_bytes: int = 64 * 1024 * 1024
     max_video_duration_seconds: int = 60
     max_video_dimension: int = 1_920
@@ -204,7 +203,9 @@ class Settings(BaseSettings):
             )
         if (
             self.max_upload_bytes < 1
+            or self.max_video_upload_bytes < 1
             or self.max_video_output_bytes < 1
+            or self.max_video_output_bytes > self.max_video_upload_bytes
             or self.max_video_duration_seconds < 1
             or self.max_video_dimension < 2
             or self.max_image_dimension < 1
