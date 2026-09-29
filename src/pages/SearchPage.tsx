@@ -76,7 +76,7 @@ export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const paramString = params.toString();
   const requestParams = new URLSearchParams(paramString);
-  ['vista', 'pagina', 'cursor', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom'].forEach((key) => requestParams.delete(key));
+  ['vista', 'pagina', 'cursor', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom', 'mapSelected'].forEach((key) => requestParams.delete(key));
   const requestParamString = requestParams.toString();
   const {
     rentalMode: storedRentalMode,
@@ -95,7 +95,7 @@ export function SearchPage() {
     mapPolygon,
     setMapPolygon,
   } = useApp();
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(() => params.get('mapSelected') ?? '');
   const [highlighted, setHighlighted] = useState("");
   const [loading, setLoading] = useState(false);
   const [serverItems, setServerItems] = useState<Listing[] | null>(null);
@@ -111,6 +111,31 @@ export function SearchPage() {
   const [initialMapAction, setInitialMapAction] = useState<'draw' | 'near' | null>(() => params.get('dibujar') === '1' ? 'draw' : params.get('cerca') === '1' && (!params.has('lat') || !params.has('lng')) ? 'near' : null);
   const actionConsumedRef = useRef(false);
   const view = params.get("vista") === "mapa" ? "map" : "list";
+  const cameraLat = Number(params.get('mapLat'));
+  const cameraLng = Number(params.get('mapLng'));
+  const cameraZoom = Number(params.get('mapZoom'));
+  const initialCamera = params.has('mapLat') && params.has('mapLng') && params.has('mapZoom')
+    && Number.isFinite(cameraLat) && Number.isFinite(cameraLng) && Number.isFinite(cameraZoom)
+    && cameraLat >= -90 && cameraLat <= 90 && cameraLng >= -180 && cameraLng <= 180 && cameraZoom >= 2 && cameraZoom <= 19
+    ? { lat: cameraLat, lng: cameraLng, zoom: cameraZoom } : undefined;
+  const selectMapListing = (id: string) => {
+    setSelected(id);
+    const next = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+    if (id) next.set('mapSelected', id);
+    else next.delete('mapSelected');
+    setParams(next, { replace: true });
+  };
+  const commitMapCamera = (camera: { lat: number; lng: number; zoom: number }) => {
+    const next = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+    const lat = camera.lat.toFixed(5);
+    const lng = camera.lng.toFixed(5);
+    const zoom = camera.zoom.toFixed(2);
+    if (next.get('mapLat') === lat && next.get('mapLng') === lng && next.get('mapZoom') === zoom) return;
+    next.set('mapLat', lat);
+    next.set('mapLng', lng);
+    next.set('mapZoom', zoom);
+    setParams(next, { replace: true });
+  };
   const page = Math.max(1, Number(params.get("pagina") || 1));
   const pageCursor = params.get('cursor') ?? undefined;
   const requestedQuery = params.get("q")?.trim() || "Tenerife";
@@ -134,6 +159,8 @@ export function SearchPage() {
   useEffect(() => {
     if (!invalidLocation) addSearchHistory(query);
   }, [addSearchHistory, invalidLocation, query]);
+
+  useEffect(() => { setSelected(params.get('mapSelected') ?? '') }, [paramString, params]);
 
   useLayoutEffect(() => {
     const canonicalParams = filtersToParams(filters, new URLSearchParams(params));
@@ -549,7 +576,9 @@ export function SearchPage() {
           serverQuery={mockMode ? undefined : mapQuery}
           selectedId={selected}
           highlightedId={highlighted}
-          onSelect={setSelected}
+          onSelect={selectMapListing}
+          initialCamera={initialCamera}
+          onCameraChange={commitMapCamera}
           onHighlight={highlightListing}
           fullScreen
           initialAction={initialMapAction}
@@ -730,7 +759,9 @@ export function SearchPage() {
                   serverQuery={mockMode ? undefined : mapQuery}
                   selectedId={selected}
                   highlightedId={highlighted}
-                  onSelect={setSelected}
+                  onSelect={selectMapListing}
+                  initialCamera={initialCamera}
+                  onCameraChange={commitMapCamera}
                   onHighlight={highlightListing}
                   fullScreen
                   initialAction={initialMapAction}

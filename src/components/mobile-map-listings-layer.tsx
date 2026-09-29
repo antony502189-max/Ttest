@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import { useNavigate } from 'react-router'
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
@@ -16,14 +15,20 @@ import '@/map.css'
 
 type MobileMapLanguage = 'es' | 'en' | 'ru'
 
-export function MobileServerMapLayer({ mapRef, mapReady, query }: {
+export function MobileServerMapLayer({ mapRef, mapReady, query, initialSelectedId = '', onSelectionChange, onOpenListing }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
   query: Record<string, unknown>
+  initialSelectedId?: string
+  onSelectionChange?: (id: string) => void
+  onOpenListing: (id: string) => void
 }) {
   const { language } = useI18n()
   const [markers, setMarkers] = useState<ListingMapMarker[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId || null)
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  onSelectionChangeRef.current = onSelectionChange
+  const selectListing = useCallback((id: string | null) => { setSelectedId(id); onSelectionChangeRef.current?.(id ?? '') }, [])
   const [selectedListings, setSelectedListings] = useState<Listing[]>([])
   const [error, setError] = useState(false)
   const rendered = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
@@ -108,7 +113,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
           map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2))
           return
         }
-        setSelectedId(item.id)
+        selectListing(item.id)
         marker.zIndex = 4000
         map.panTo({ lat: item.latitude, lng: item.longitude })
       }
@@ -117,7 +122,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
       return marker
     })
     return () => { rendered.current.forEach((marker) => { google.maps.event.clearInstanceListeners(marker); marker.map = null }); rendered.current = [] }
-  }, [mapReady, mapRef, markers])
+  }, [mapReady, mapRef, markers, selectListing])
 
   useEffect(() => {
     rendered.current.forEach((marker) => {
@@ -139,11 +144,12 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
       selectedId={selectedId ?? selectedListings[0].id}
       language={language as MobileMapLanguage}
       onSelectSibling={(id) => {
-        setSelectedId(id)
+        selectListing(id)
         const marker = markers.find((item) => item.type === 'listing' && item.id === id)
         if (marker) mapRef.current?.panTo({ lat: marker.latitude, lng: marker.longitude })
       }}
-      onClose={() => setSelectedId(null)}
+      onClose={() => selectListing(null)}
+      onOpenListing={onOpenListing}
     /> : null}
   </>
 }
@@ -154,15 +160,15 @@ const labels = {
   ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`, group: (count: number) => `${count} объявления по этому адресу` },
 } as const
 
-function MobileServerSelectedPreview({ listings, selectedId, language, onSelectSibling, onClose }: {
+function MobileServerSelectedPreview({ listings, selectedId, language, onSelectSibling, onClose, onOpenListing }: {
   listings: Listing[]
   selectedId: string
   language: MobileMapLanguage
   onSelectSibling: (id: string) => void
   onClose: () => void
+  onOpenListing: (id: string) => void
 }) {
   const { favorites, toggleFavorite } = useApp()
-  const navigate = useNavigate()
   const t = labels[language]
   const selected = listings.find((item) => item.id === selectedId) ?? listings[0]
   const carouselIndex = Math.max(0, listings.findIndex((item) => item.id === selected.id))
@@ -191,7 +197,7 @@ function MobileServerSelectedPreview({ listings, selectedId, language, onSelectS
     const saved = favorites.has(item.id)
     const externalUrl = item.isExternal && item.sourceUrl ? item.sourceUrl : null
     const translatedTitle = translateText(item.title, language)
-    const openInternalListing = () => navigate(`/habitacion/${encodeURIComponent(item.id)}`)
+    const openInternalListing = () => onOpenListing(item.id)
 
     return <article
       key={item.id}
@@ -247,7 +253,7 @@ function MobileServerSelectedPreview({ listings, selectedId, language, onSelectS
   </section>
 }
 
-export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items, preserveCamera = false, onInitialFit }: {
+export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, items, preserveCamera = false, onInitialFit, initialSelectedId = '', onSelectionChange, onOpenListing }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
   language: MobileMapLanguage
@@ -255,10 +261,15 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   items: Listing[]
   preserveCamera?: boolean
   onInitialFit?: (camera: { lat: number; lng: number; zoom: number }) => void
+  initialSelectedId?: string
+  onSelectionChange?: (id: string) => void
+  onOpenListing: (id: string) => void
 }) {
   const { favorites, toggleFavorite } = useApp()
-  const navigate = useNavigate()
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(initialSelectedId)
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  onSelectionChangeRef.current = onSelectionChange
+  const selectListing = useCallback((id: string) => { setSelectedId(id); onSelectionChangeRef.current?.(id) }, [])
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
   const markersRef = useRef(new Map<string, google.maps.marker.AdvancedMarkerElement>())
   const clusterRef = useRef<MarkerClusterer | null>(null)
@@ -339,7 +350,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         const select = () => {
           const groupIds = coincidentListingIdsFor(mappedItems, listing.id)
           setCoincidentIds(groupIds.length > 1 ? groupIds : [])
-          setSelectedId(listing.id)
+          selectListing(listing.id)
           marker.zIndex = 4000
           map.panTo(display.position)
         }
@@ -366,7 +377,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
             const coincidentIds = exactCoincidentListingIds(mappedItems, clusteredIds)
             if (coincidentIds.length > 1) {
               setCoincidentIds(coincidentIds)
-              setSelectedId(coincidentIds[0])
+              selectListing(coincidentIds[0])
               const first = mappedItems.find((listing) => listing.id === coincidentIds[0])
               if (first) clusterMap.panTo(first.coordinates)
               return
@@ -397,7 +408,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
 
     void createMarkers()
     return () => { cancelled = true; clear() }
-  }, [mappedItems, mapReady, mapRef, preserveCamera, signature])
+  }, [mappedItems, mapReady, mapRef, preserveCamera, selectListing, signature])
 
   useEffect(() => {
     if (!selectedId || mappedItems.some((item) => item.id === selectedId)) return
@@ -462,12 +473,12 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const previous = carousel.length > 1 ? carousel[(carouselIndex - 1 + carousel.length) % carousel.length] : null
   const next = carousel.length > 1 ? carousel[(carouselIndex + 1) % carousel.length] : null
   const selectSibling = (id: string) => {
-    setSelectedId(id)
+    selectListing(id)
     const sibling = mappedItems.find((item) => item.id === id)
     if (sibling) mapRef.current?.panTo(sibling.coordinates)
   }
   const openInternalListing = (id: string) => {
-    navigate(`/habitacion/${encodeURIComponent(id)}`)
+    onOpenListing(id)
   }
 
   type MobileCarouselPosition = 'previous' | 'current' | 'next'
@@ -509,7 +520,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
         {item.promoted ? <span className="m2-map-listing-preview__promoted" aria-label="TOP">👍</span> : null}
       </div>
       <div className="m2-map-listing-preview__body">
-        {current ? <button type="button" className="m2-map-listing-preview__close" onClick={() => { setSelectedId(''); setCoincidentIds([]) }} aria-label={t.close}><X /></button> : null}
+        {current ? <button type="button" className="m2-map-listing-preview__close" onClick={() => { selectListing(''); setCoincidentIds([]) }} aria-label={t.close}><X /></button> : null}
         <p><MapPin />{item.approximateAddress ? `${item.approximateAddress}, ${item.city}` : `${item.area}, ${item.city}`}</p>
         <h2>{translatedTitle}</h2>
         <strong>{priceLabel(item)} {item.sourcePriceText ? null : <small>/{cadence}</small>}</strong>
