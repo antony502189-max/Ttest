@@ -23,6 +23,7 @@ from .listings import mark_orphaned_media
 MAIL_OUTBOX_RETENTION_DAYS = 30
 SECURITY_RECORD_RETENTION_DAYS = 7
 EXTERNAL_IMPORT_RUN_RETENTION_DAYS = 30
+COMMERCIAL_AD_HISTORY_RETENTION_DAYS = 180
 RETENTION_BATCH_SIZE = 1_000
 RETENTION_RUN_INTERVAL = timedelta(hours=1)
 UNATTACHED_MEDIA_GRACE = timedelta(hours=24)
@@ -44,6 +45,37 @@ async def prune_unattached_media(session: AsyncSession, *, now: datetime, batch_
         .limit(batch_size)
     )).all())
     return await mark_orphaned_media(session, candidate_ids)
+
+async def prune_stale_commercial_advertisements(session: AsyncSession, *, now: datetime, batch_size: int) -> int:
+    """Drop old terminal campaign history, then release its media safely."""
+    cutoff = now - timedelta(days=COMMERCIAL_AD_HISTORY_RETENTION_DAYS)
+    rows = (await session.execute(
+        select(CommercialAdvertisement.id, CommercialAdvertisement.image_asset_id)
+        .where(
+            or_(
+                (
+                    CommercialAdvertisement.status.in_(("cancelled", "rejected"))
+                    & (CommercialAdvertisement.updated_at <= cutoff)
+                ),
+                (
+                    (CommercialAdvertisement.status == "active")
+                    & CommercialAdvertisement.ends_at.is_not(None)
+                    & (CommercialAdvertisement.ends_at <= cutoff)
+                ),
+            )
+        )
+        .order_by(CommercialAdvertisement.updated_at, CommercialAdvertisement.id)
+        .limit(batch_size)
+    )).all()
+    if not rows:
+        return 0
+    ids = [row[0] for row in rows]
+    media_ids = {row[1] for row in rows if row[1] is not None}
+    await session.execute(delete(CommercialAdvertisement).where(CommercialAdvertisement.id.in_(ids)))
+    await session.flush()
+    await mark_orphaned_media(session, media_ids)
+    return len(ids)
+
 
 
 async def _delete_selected_ids(
@@ -153,6 +185,9 @@ async def prune_expired_records(
             session,
             ExternalImportRun,
             old_external_import_run_ids(current, external_run_cutoff, batch_size),
+        ),
+        "commercial_advertisements": await prune_stale_commercial_advertisements(
+            session, now=current, batch_size=batch_size,
         ),
         "unattached_media": await prune_unattached_media(session, now=current, batch_size=batch_size),
     }
