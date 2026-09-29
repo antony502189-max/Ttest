@@ -66,6 +66,7 @@ async def prune_stale_commercial_advertisements(session: AsyncSession, *, now: d
         )
         .order_by(CommercialAdvertisement.updated_at, CommercialAdvertisement.id)
         .limit(batch_size)
+        .with_for_update(skip_locked=True)
     )).all()
     if not rows:
         return 0

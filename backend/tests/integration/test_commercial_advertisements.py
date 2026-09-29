@@ -134,11 +134,14 @@ async def test_expired_campaign_requires_new_test_checkout(client, register_user
         assert stored is not None
         stored.ends_at = datetime.now(UTC) - timedelta(seconds=1)
         await session.commit()
-    changed = await client.patch(f"/api/v1/advertisements/{ad_id}", headers=owner_headers,
-                                 json={**payload, "title": "Renewed local service"})
-    assert changed.status_code == 200
-    assert changed.json()["status"] == "pending_payment"
-    assert changed.json()["paymentStatus"] == "unpaid"
+    renewed = await client.patch(
+        f"/api/v1/advertisements/{ad_id}",
+        headers=owner_headers,
+        json=payload,
+    )
+    assert renewed.status_code == 200
+    assert renewed.json()["status"] == "pending_payment"
+    assert renewed.json()["paymentStatus"] == "unpaid"
     assert (await client.get("/api/v1/advertisements/homepage")).json() == []
 
 

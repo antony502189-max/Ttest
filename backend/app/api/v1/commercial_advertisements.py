@@ -145,8 +145,8 @@ async def edit_advertisement(
     changed = any((ad.title != payload.title, ad.description != payload.description,
                    ad.image_asset_id != payload.imageAssetId, ad.destination_type != payload.destinationType,
                    ad.destination != payload.destination))
-    if changed:
-        expired = ad.status == "active" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
+    expired = ad.status == "active" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
+    if changed or expired:
         ad.title = payload.title
         ad.description = payload.description
         ad.image_asset_id = payload.imageAssetId
