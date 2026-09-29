@@ -345,6 +345,7 @@ test('mobile infinite-scroll state survives opening a later card and going Back'
       },
     })
   })
+
   await page.route('**/api/v1/listings/' + selected.id, async (route) => {
     await route.fulfill({
       json: {
@@ -392,58 +393,7 @@ test('mobile infinite-scroll state survives opening a later card and going Back'
   expect(cardRequests).toHaveLength(2)
 
   await selectedCard.locator('.m2-result-card__image-button').click()
-  await expect(page).toHaveURL(new RegExp('#/habitacion/' + selected.id + '
-  const consoleErrors: string[] = []
-  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
-  page.on('pageerror', (error) => consoleErrors.push(error.message))
-
-  await page.goto('/#/acceso')
-  await expect(page.locator('.m2-auth-screen')).toBeVisible()
-  await expect(page.locator('.route-error')).toHaveCount(0)
-
-  await page.goto('/#/publicar')
-  await expect(page).toHaveURL(/#\/acceso$/)
-  await expect(page.locator('.m2-auth-screen')).toBeVisible()
-  await expect(page.locator('.route-error')).toHaveCount(0)
-  expect(consoleErrors).toEqual([])
-})
-
-test('legacy bedroom-count URL parameter is removed from customer search', async ({ page }) => {
-  test.skip(test.info().project.name !== 'mobile-chromium', 'Mobile overlay is not rendered in the desktop project')
-  const requests: Record<string, unknown>[] = []
-  page.on('request', (request) => {
-    if (request.url().includes('/listings/search') && request.method() === 'POST') requests.push(request.postDataJSON() as Record<string, unknown>)
-  })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&habitaciones=4')
-  await expect(page.getByTestId('mobile-results')).toBeVisible()
-  await expect(page).not.toHaveURL(/habitaciones=/)
-  expect(requests.some((body) => 'bedroomCounts' in body)).toBe(false)
-})
-
-test('an open catalog refreshes after its version changes on focus', async ({ page }) => {
-  const unique = `${Date.now()}-catalog-version-${test.info().project.name}`
-  const title = `HabitaciГіn catalog ${unique}`
-  const created = await createBackendListing(unique, title)
-
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
-
-  const api = await playwrightRequest.newContext({
-    baseURL: API,
-    extraHTTPHeaders: { Origin: 'http://127.0.0.1:4174', Authorization: `Bearer ${created.accessToken}` },
-  })
-  const closed = await api.patch(`${API_PREFIX}/listings/${created.listingId}`, {
-    data: { status: "closed" },
-  })
-  expect(closed.status()).toBe(200)
-  await api.dispose()
-
-  // The provider also polls; focus gives the same version check immediately,
-  // without requiring a page reload or changing the visible layout.
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await expect(page.getByText(title, { exact: true }).first()).not.toBeVisible()
-})
-))
+  await expect(page).toHaveURL(new RegExp('#/habitacion/' + selected.id + '$'))
   await expect(page.locator('.idealista-listing-page')).toBeVisible()
 
   await page.getByRole('button', { name: 'Volver', exact: true }).click()
