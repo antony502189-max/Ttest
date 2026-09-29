@@ -54,6 +54,7 @@ test('approved advertisement has a visible disclosure and safe sponsored link', 
 })
 
 test('homepage carousel exposes at most twelve campaigns and rotates without redesigning the card', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   const ads = Array.from({ length: 13 }, (_, index) => ({
     id: `00000000-0000-4000-8000-${String(800 + index).padStart(12, '0')}`,
     title: `Campaign ${index + 1}`,
@@ -75,6 +76,9 @@ test('homepage carousel exposes at most twelve campaigns and rotates without red
   await expect(placement.getByText('1 / 12')).toBeVisible()
   await expect(placement.locator('.commercial-ad__carousel-dots button')).toHaveCount(12)
   await expect(placement.getByRole('heading', { name: 'Campaign 13' })).toHaveCount(0)
+  await placement.scrollIntoViewIfNeeded()
+  expect(await placement.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await test.info().attach('advertising-carousel-mobile-12', { body: await page.screenshot(), contentType: 'image/png' })
 
   await placement.getByRole('button', { name: 'Publicidad siguiente' }).click()
   await expect(slide).toHaveAttribute('data-ad-id', ads[1].id)
