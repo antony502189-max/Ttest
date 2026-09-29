@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
@@ -221,6 +222,60 @@ async def test_homepage_returns_twelve_and_rejects_thirteenth_overlapping_campai
     approved = await client.post(f"/api/v1/admin/advertisements/{ad_id}/approve", headers=admin, json={})
     assert approved.status_code == 200, approved.text
     assert len((await client.get("/api/v1/advertisements/homepage")).json()) == 12
+
+
+async def test_concurrent_approvals_cannot_overbook_twelve_homepage_slots(client, register_user):
+    first, first_payload, first_headers, user = await create_ad(
+        client, register_user, email="capacity-race-one@example.com"
+    )
+    second, _, second_headers, _ = await create_ad(
+        client, register_user, email="capacity-race-two@example.com"
+    )
+    assert (
+        await client.post(
+            f"/api/v1/advertisements/{first['id']}/fake-payment/complete",
+            headers=first_headers,
+        )
+    ).status_code == 200
+    assert (
+        await client.post(
+            f"/api/v1/advertisements/{second['id']}/fake-payment/complete",
+            headers=second_headers,
+        )
+    ).status_code == 200
+    admin = await admin_headers(client, register_user)
+    now = datetime.now(UTC)
+
+    async with SessionLocal() as session:
+        for index in range(11):
+            session.add(
+                CommercialAdvertisement(
+                    owner_user_id=user["id"],
+                    image_asset_id=first_payload["imageAssetId"],
+                    title=f"Race capacity ad {index}",
+                    description="Concurrent capacity test advertisement for the homepage carousel.",
+                    destination_type="website",
+                    destination=f"https://example.org/race-{index}",
+                    status="active",
+                    payment_status="paid",
+                    placement="homepage_bottom",
+                    package_id="test_homepage_30d",
+                    admin_priority=index,
+                    starts_at=now - timedelta(hours=1),
+                    ends_at=now + timedelta(days=2),
+                    approved_at=now - timedelta(hours=1),
+                )
+            )
+        await session.commit()
+
+    responses = await asyncio.gather(
+        client.post(f"/api/v1/admin/advertisements/{first['id']}/approve", headers=admin, json={}),
+        client.post(f"/api/v1/admin/advertisements/{second['id']}/approve", headers=admin, json={}),
+    )
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    public = await client.get("/api/v1/advertisements/homepage")
+    assert public.status_code == 200
+    assert len(public.json()) == 12
 
 
 async def test_active_edit_clears_old_window_and_can_be_reapproved(client, register_user):
