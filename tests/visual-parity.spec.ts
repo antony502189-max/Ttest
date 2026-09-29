@@ -44,6 +44,7 @@ test('current mobile home, results, location and map visual states', async ({ pa
 
 test('current mobile menu, auth and Russian visual states', async ({ page }) => {
   await open(page, '/#/menu')
+  await expect(page.locator('.m2-menu')).toBeVisible()
   await shot(page, 'current-menu-390x844')
 
   await open(page, '/#/acceso')
