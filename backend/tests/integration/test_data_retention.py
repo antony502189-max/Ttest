@@ -9,9 +9,11 @@ from app.models import (
     EmailVerificationToken,
     ExternalImportRun,
     MailOutbox,
+    MediaAsset,
     PasswordResetToken,
     User,
 )
+from app.models.commercial_advertisement import CommercialAdvertisement
 from app.services.data_retention import prune_expired_records
 
 pytestmark = pytest.mark.integration
@@ -126,6 +128,7 @@ async def test_retention_removes_only_old_completed_or_expired_records():
         "password_reset_tokens": 1,
         "email_verification_tokens": 1,
         "external_import_runs": 0,
+        "commercial_advertisements": 0,
         "unattached_media": 0,
     }
 
@@ -235,3 +238,59 @@ async def test_external_import_retention_keeps_latest_success_and_active_backoff
     async with SessionLocal() as check:
         remaining = set((await check.scalars(select(ExternalImportRun.id))).all())
         assert remaining == retained_ids
+
+
+async def test_retention_releases_media_from_old_terminal_commercial_campaigns():
+    now = datetime.now(UTC)
+    old = now - timedelta(days=181)
+    async with SessionLocal() as setup:
+        user = User(
+            email="retention-ad@example.test",
+            password_hash=None,
+            name="Retention Ad",
+            role="tenant",
+            initials="RA",
+        )
+        setup.add(user)
+        await setup.flush()
+        asset = MediaAsset(
+            owner_id=user.id,
+            storage_key="commercial-retention/banner.webp",
+            mime_type="image/webp",
+            size_bytes=128,
+            width=800,
+            height=450,
+            checksum="9" * 64,
+            kind="advertisement_image",
+            created_at=old,
+        )
+        setup.add(asset)
+        await setup.flush()
+        ad = CommercialAdvertisement(
+            owner_user_id=user.id,
+            image_asset_id=asset.id,
+            title="Old cancelled campaign",
+            description="Old cancelled campaign retained long enough for account history.",
+            destination_type="website",
+            destination="https://example.org",
+            status="cancelled",
+            payment_status="paid",
+            placement="homepage_bottom",
+            package_id="test_homepage_30d",
+            created_at=old,
+            updated_at=old,
+        )
+        setup.add(ad)
+        await setup.commit()
+        ad_id = ad.id
+        asset_id = asset.id
+
+    async with SessionLocal() as maintenance:
+        counts = await prune_expired_records(maintenance, now=now, batch_size=100)
+    assert counts["commercial_advertisements"] == 1
+
+    async with SessionLocal() as check:
+        assert await check.get(CommercialAdvertisement, ad_id) is None
+        retained_asset = await check.get(MediaAsset, asset_id)
+        assert retained_asset is not None
+        assert retained_asset.deleted_at is not None
