@@ -20,7 +20,7 @@ test.describe('mobile history', () => {
     await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThanOrEqual(9)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThanOrEqual(10)
-    await expect(page).toHaveURL(/mapZoom=9(?:\.\d+)?/)
+    await expect(page).toHaveURL(/mapZoom=10\.00/)
   })
 
   test('Home → results → map → detail unwinds one visible screen at a time', async ({ page }) => {
