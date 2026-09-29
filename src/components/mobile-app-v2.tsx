@@ -69,7 +69,7 @@ const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listin
 const CommercialAdvertisementPlacement = lazy(() => import('@/components/commercial-advertisement-placement').then((module) => ({ default: module.CommercialAdvertisementPlacement })))
 const MobileServerMapLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileServerMapLayer })))
 const TENERIFE_CENTER = { lat: 28.2916, lng: -16.6291 }
-const MOBILE_TENERIFE_OVERVIEW_ZOOM = 9.5
+const MOBILE_TENERIFE_OVERVIEW_ZOOM = 10
 const GENERAL_OCCUPANTS = new Set<OccupantOption>(['anyone', 'unrestricted'])
 
 const languages: Array<{ value: AppLanguage; label: string }> = [
