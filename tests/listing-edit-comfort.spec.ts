@@ -69,7 +69,8 @@ test('editing with video restores server photos when a stale local draft image i
   await expect(page.getByRole('heading', { name: 'Editar habitación' })).toBeVisible()
   await expect(page.locator('.upload-grid img')).toHaveCount(6)
   await expect(page.locator('.upload-grid img').first()).toBeVisible()
-  await expect(page.locator('.listing-video-uploader video')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sustituir vídeo' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Eliminar vídeo' })).toBeVisible()
 })
 
 test('photo reorder arrows move photos earlier and later in the order on mobile', async ({ page }) => {
