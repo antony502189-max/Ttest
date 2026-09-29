@@ -1189,8 +1189,6 @@ export function MapView(props: {
   fitResultsKey?: number;
   initialAction?: 'draw' | 'near' | null;
   onInitialActionHandled?: () => void;
-  initialCamera?: { lat: number; lng: number; zoom: number };
-  onCameraChange?: (camera: { lat: number; lng: number; zoom: number }) => void;
 }) {
   return (
     <Suspense
