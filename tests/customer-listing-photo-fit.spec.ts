@@ -39,7 +39,7 @@ test('mobile listing hero fills one fixed frame for uploaded photos', async ({ p
   expect(styles.imageBackground).toBe('rgb(255, 255, 255)')
 
   const before = await gallery.boundingBox()
-  await page.getByRole('button', { name: 'Foto siguiente' }).click()
+  await gallery.getByRole('button', { name: 'Foto siguiente', exact: true }).click()
   await expect(image).toBeVisible()
   const after = await gallery.boundingBox()
   expect(before).not.toBeNull()
