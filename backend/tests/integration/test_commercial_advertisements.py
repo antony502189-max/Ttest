@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
 import pytest
-from sqlalchemy import select
 from PIL import Image
+from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.models import User
@@ -142,7 +142,7 @@ async def test_expired_campaign_requires_new_test_checkout(client, register_user
 
 
 async def test_spanish_phone_and_whatsapp_destinations_are_normalized(client, register_user):
-    token, user = await register_user(client, email="spanish-ad@example.com")
+    token, _ = await register_user(client, email="spanish-ad@example.com")
     headers = {"Authorization": f"Bearer {token}"}
     upload = await client.post(
         "/api/v1/advertisements/uploads",
