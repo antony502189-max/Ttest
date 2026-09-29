@@ -17,3 +17,60 @@
 .commercial-ad__house p { margin-bottom: 0; }
 @media (max-width: 700px) { .commercial-ad { width: calc(100% - 1.5rem); margin: 1.5rem auto 2rem; padding: 1rem; } .commercial-ad__content, .commercial-ad__house { grid-template-columns: 1fr; gap: .85rem; } .commercial-ad__mark { width: 3rem; height: 3rem; } .commercial-ad__mark svg { width: 1.5rem; height: 1.5rem; } .commercial-ad__visual { min-height: 150px; } .commercial-ad__cta { width: 100%; } }
 .commercial-ad--mobile { width: 100%; margin: 1.25rem 0 calc(var(--m2-nav-height, 4rem) + 1.5rem); }
+
+.commercial-ad__carousel {
+  display: grid;
+  grid-template-columns: 2.75rem auto minmax(0, 1fr) 2.75rem;
+  gap: .75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+.commercial-ad__carousel-arrow {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #c9d991;
+  border-radius: 999px;
+  background: #fff;
+  color: #314000;
+  cursor: pointer;
+}
+.commercial-ad__carousel-arrow:hover { background: #f4f9e5; }
+.commercial-ad__carousel-arrow:focus-visible { outline: 3px solid #58712b; outline-offset: 2px; }
+.commercial-ad__carousel-arrow svg { width: 1.15rem; height: 1.15rem; }
+.commercial-ad__carousel-position {
+  min-width: 3.25rem;
+  color: #52603e;
+  font-size: .82rem;
+  font-weight: 800;
+  text-align: center;
+}
+.commercial-ad__carousel-dots {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .42rem;
+}
+.commercial-ad__carousel-dots button {
+  width: .62rem;
+  height: .62rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #c9d3aa;
+  cursor: pointer;
+}
+.commercial-ad__carousel-dots button.is-active { background: #708900; transform: scale(1.2); }
+.commercial-ad__carousel-dots button:focus-visible { outline: 2px solid #58712b; outline-offset: 2px; }
+
+@media (max-width: 700px) {
+  .commercial-ad__carousel {
+    grid-template-columns: 2.75rem auto minmax(0, 1fr) 2.75rem;
+    gap: .45rem;
+  }
+  .commercial-ad__carousel-dots { gap: .34rem; }
+  .commercial-ad__carousel-dots button { width: .55rem; height: .55rem; }
+}
