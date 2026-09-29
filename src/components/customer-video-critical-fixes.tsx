@@ -161,6 +161,7 @@ export function CustomerVideoCriticalFixes() {
   const migratedPublication = useRef<string | null>(null)
 
   useLayoutEffect(() => {
+    if (pathname !== '/mis-anuncios' && pathname !== '/publicar') return
     let disposed = false
 
     const localizeOwnedEmptyState = () => {

@@ -38,7 +38,7 @@ import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { CommercialAdvertisementPlacement } from '@/components/commercial-advertisement-placement'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
-import { preloadAccountPages } from '@/lib/route-preload'
+import { preloadAccountPages, preloadRoute } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
 import type { Listing } from '@/types'
 
@@ -740,7 +740,9 @@ export function MobileAppV2() {
     return () => document.documentElement.classList.remove('mobile-v2-active')
   }, [shellActive])
   useEffect(() => {
-    if (shellActive && tab === 'menu' && currentUser) preloadAccountPages()
+    if (!shellActive || tab !== 'menu') return
+    preloadRoute(currentUser ? '/perfil' : '/acceso', true)
+    if (currentUser) preloadAccountPages()
   }, [currentUser, shellActive, tab])
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)')
