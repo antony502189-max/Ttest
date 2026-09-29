@@ -232,13 +232,19 @@ async def approve_advertisement(
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
     overlapping = await session.scalar(
-        select(func.count(Ad.id)).where(
+        select(func.count(Ad.id))
+        .join(User, User.id == Ad.owner_user_id)
+        .join(MediaAsset, MediaAsset.id == Ad.image_asset_id)
+        .where(
             Ad.id != ad.id,
             Ad.placement == "homepage_bottom",
             Ad.status == "active",
             Ad.payment_status == "paid",
             or_(Ad.starts_at.is_(None), Ad.starts_at < proposed_end),
             or_(Ad.ends_at.is_(None), Ad.ends_at > proposed_start),
+            User.deleted_at.is_(None),
+            User.blocked.is_(False),
+            MediaAsset.deleted_at.is_(None),
         )
     )
     if (overlapping or 0) >= MAX_ACTIVE_HOMEPAGE_ADS:
