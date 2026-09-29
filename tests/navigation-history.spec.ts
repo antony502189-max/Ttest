@@ -28,14 +28,20 @@ test.describe('mobile history', () => {
     const preview = page.getByTestId('mobile-map-listing-preview')
     await expect(preview).toBeVisible()
     const listingId = await preview.getAttribute('data-listing-id')
-    await expect(page).toHaveURL(/mapLat=.*mapLng=.*mapZoom=/)
-    const mapUrl = page.url()
+    await expect(map).toHaveAttribute('data-map-center', /.+/)
+    await expect(map).toHaveAttribute('data-map-zoom', /.+/)
+    const cameraBeforeDetail = {
+      center: await map.getAttribute('data-map-center'),
+      zoom: await map.getAttribute('data-map-zoom'),
+    }
     await preview.locator('.m2-map-listing-preview__open').click()
     await expect(page).toHaveURL(new RegExp(`#/habitacion/${encodeURIComponent(listingId!)}$`))
     await expect(page.locator('.listing-page h1')).toBeVisible()
     await page.getByRole('button', { name: 'Volver', exact: true }).click()
     await expect(map).toBeVisible()
-    await expect(page).toHaveURL(mapUrl)
+    await expect(page).toHaveURL(/mapLat=.*mapLng=.*mapZoom=/)
+    await expect.poll(() => map.getAttribute('data-map-center')).toBe(cameraBeforeDetail.center)
+    await expect.poll(() => map.getAttribute('data-map-zoom')).toBe(cameraBeforeDetail.zoom)
     await expect(page.getByTestId('mobile-results')).toHaveCount(0)
     await page.goBack()
     await expect(page).toHaveURL(resultsUrl)

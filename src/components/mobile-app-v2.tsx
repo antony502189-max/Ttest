@@ -329,12 +329,19 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         const { initialCenter: center, initialCamera: camera, query: initialQuery } = startingView.current
         const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? TENERIFE_CENTER, zoom: camera?.zoom ?? (center ? 14 : initialQuery ? 12 : 10), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: mockMode ? 8 : 2, maxZoom: 19, restriction: mockMode ? { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } : undefined })
         mapRef.current = map
+        if (camera) {
+          map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
+          map.getDiv().dataset.mapZoom = String(camera.zoom)
+          cameraChange.current(camera)
+        }
         map.addListener('idle', () => {
           if (cancelled) return
-          if (!startingView.current.initialCamera && map.getDiv().dataset.mapInitialFit !== '1') return
           const point = map.getCenter()
           const zoom = map.getZoom()
-          if (point && zoom !== undefined) cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom })
+          if (!point || zoom === undefined) return
+          map.getDiv().dataset.mapCenter = `${point.lat().toFixed(6)},${point.lng().toFixed(6)}`
+          map.getDiv().dataset.mapZoom = String(zoom)
+          cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom })
         })
         google.maps.event.addListenerOnce(map, 'tilesloaded', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
       } catch (error) {

@@ -16,6 +16,25 @@ import '@/map.css'
 
 type MobileMapLanguage = 'es' | 'en' | 'ru'
 
+function persistCurrentMapCameraBeforeDetail(map: google.maps.Map | null) {
+  if (!map) return
+  const center = map.getCenter()
+  const zoom = map.getZoom()
+  if (!center || zoom === undefined) return
+  const url = new URL(window.location.href)
+  const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash
+  const separator = hash.indexOf('?')
+  const path = separator >= 0 ? hash.slice(0, separator) : hash
+  if (path !== '/buscar') return
+  const params = new URLSearchParams(separator >= 0 ? hash.slice(separator + 1) : '')
+  if (params.get('vista') !== 'mapa') return
+  params.set('mapLat', center.lat().toFixed(5))
+  params.set('mapLng', center.lng().toFixed(5))
+  params.set('mapZoom', zoom.toFixed(2))
+  url.hash = `${path}?${params.toString()}`
+  window.history.replaceState(window.history.state, '', url.toString())
+}
+
 export function MobileServerMapLayer({ mapRef, mapReady, query }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
@@ -138,6 +157,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
       listings={selectedListings}
       selectedId={selectedId ?? selectedListings[0].id}
       language={language as MobileMapLanguage}
+      mapRef={mapRef}
       onSelectSibling={(id) => {
         setSelectedId(id)
         const marker = markers.find((item) => item.type === 'listing' && item.id === id)
@@ -154,10 +174,11 @@ const labels = {
   ru: { close: 'Закрыть', view: 'Перейти к объявлению', favorite: 'Сохранить', unfavorite: 'Убрать из избранного', capacity: (count: number) => `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`, group: (count: number) => `${count} объявления по этому адресу` },
 } as const
 
-function MobileServerSelectedPreview({ listings, selectedId, language, onSelectSibling, onClose }: {
+function MobileServerSelectedPreview({ listings, selectedId, language, mapRef, onSelectSibling, onClose }: {
   listings: Listing[]
   selectedId: string
   language: MobileMapLanguage
+  mapRef: MutableRefObject<google.maps.Map | null>
   onSelectSibling: (id: string) => void
   onClose: () => void
 }) {
@@ -191,7 +212,10 @@ function MobileServerSelectedPreview({ listings, selectedId, language, onSelectS
     const saved = favorites.has(item.id)
     const externalUrl = item.isExternal && item.sourceUrl ? item.sourceUrl : null
     const translatedTitle = translateText(item.title, language)
-    const openInternalListing = () => navigate(`/habitacion/${encodeURIComponent(item.id)}`)
+    const openInternalListing = () => {
+      persistCurrentMapCameraBeforeDetail(mapRef.current)
+      navigate(`/habitacion/${encodeURIComponent(item.id)}`)
+    }
 
     return <article
       key={item.id}
@@ -467,6 +491,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     if (sibling) mapRef.current?.panTo(sibling.coordinates)
   }
   const openInternalListing = (id: string) => {
+    persistCurrentMapCameraBeforeDetail(mapRef.current)
     navigate(`/habitacion/${encodeURIComponent(id)}`)
   }
 
