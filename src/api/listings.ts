@@ -91,7 +91,7 @@ type ListingDto = {
   promotionEndsAt?: string | null
 }
 
-type ListingCardDto = Pick<ListingDto, 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'>
+type ListingCardDto = Pick<ListingDto, 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'> & { imageUrls?: string[] }
 export type ListingCardPage = { items: Listing[]; total: number; nextCursor: string | null; previousCursor: string | null }
 export type ListingMapMarker =
   | { type: 'listing'; id: string; latitude: number; longitude: number; price: number | null; promoted: boolean; isExternal: boolean; sourceUrl: string | null }
@@ -230,7 +230,9 @@ export function toCardListing(dto: ListingCardDto): Listing {
     shower: 'Ducha compartida', tenantRequirement: null,
     smokingAllowed: null, petsAllowed: null, childrenAllowed: null, empadronamientoAllowed: null,
     restrictions: dto.restrictions, amenities: [], description: dto.description, homeDescription: '',
-    images: dto.coverImageUrl ? [resolveApiUrl(dto.coverImageUrl)] : [],
+    images: dto.imageUrls?.length
+      ? dto.imageUrls.map(resolveApiUrl)
+      : dto.coverImageUrl ? [resolveApiUrl(dto.coverImageUrl)] : [],
     owner: { name: '', initials: '', since: '', response: '', verified: false },
     advertiserType: dto.advertiserType ?? 'Particular', isExternal: dto.isExternal,
     sourceUrl: dto.sourceUrl ?? undefined, primarySource: dto.primarySource ?? undefined,
