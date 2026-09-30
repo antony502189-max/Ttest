@@ -296,3 +296,50 @@ html.mobile-v2-active #main-content > :not(.m2-app) { display: none !important; 
 .m2-hero-ad__card > strong { grid-column: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .84rem; }
 .m2-hero-ad__card > small { grid-column: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d4d4d4; font-size: .7rem; }
 .m2-hero-ad__card > button { grid-column: 2; grid-row: 1 / 4; align-self: stretch; min-width: 5.6rem; border: 0; border-radius: .55rem; background: #d8ff4b; color: #151515; font-weight: 800; }
+
+
+.m2-hero-ad__cta {
+  position: absolute;
+  right: .72rem;
+  bottom: .62rem;
+  z-index: 3;
+  min-height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .48rem;
+  padding: .36rem .4rem .36rem .78rem;
+  border: 1px solid rgb(255 255 255 / .78);
+  border-radius: 999px;
+  background: rgb(255 255 255 / .93);
+  color: #171717;
+  box-shadow: 0 .45rem 1rem rgb(0 0 0 / .25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.m2-hero-ad__cta svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: .28rem;
+  border-radius: 50%;
+  background: var(--m2-lime);
+  color: #243000;
+  stroke-width: 2.6;
+}
+.m2-hero-ad__cta:active { transform: scale(.97); }
+.m2-hero-ad__cta:focus-visible {
+  outline: 3px solid var(--m2-lime);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .m2-hero-ad__cta:hover {
+    transform: translateY(-1px);
+    background: #fff;
+    box-shadow: 0 .62rem 1.25rem rgb(0 0 0 / .3);
+  }
+}

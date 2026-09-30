@@ -23,6 +23,10 @@ test('homepage falls back unless an active promoted listing is returned', () => 
   expect(desktop).toContain('/habitacion/${heroListing.id}')
   expect(mobile).toContain('m2-hero__promotion-image')
   expect(mobile).toContain('m2-hero-ad__reveal')
+  expect(mobile).toContain('m2-hero-ad__cta')
+  expect(mobile).toContain('<span>{t.heroAdView}</span><ChevronRight')
+  expect(desktop).toContain('home-hero-promotion__cta')
+  expect(desktop).toContain('<span>Ver anuncio</span><ChevronRight')
   expect(hook).toContain('getHomepageHeroListing')
 })
 
