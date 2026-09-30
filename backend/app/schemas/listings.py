@@ -626,7 +626,7 @@ class ListingCardResponse(BaseModel):
     publishedAt: datetime | None
     promoted: bool
     coverImageUrl: str | None
-    imageUrls: list[str] = Field(default_factory=list, max_length=MAX_LISTING_PHOTOS)
+    imageUrls: list[str] = Field(default_factory=list)
     description: str
 
 
