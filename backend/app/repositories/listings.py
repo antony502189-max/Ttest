@@ -550,6 +550,7 @@ def card_from_detail(detail: ListingResponse) -> ListingCardResponse:
         sourcePriceText=detail.sourcePriceText, pricePeriod=detail.pricePeriod,
         priceIsFrom=detail.priceIsFrom, publishedAt=detail.publishedAt,
         promoted=detail.promoted, coverImageUrl=detail.coverImageUrl,
+        imageUrls=detail.imageUrls,
         description=detail.description[:240],
     )
 
@@ -592,10 +593,7 @@ async def search_public_cards(session: AsyncSession, payload: ListingCardSearchR
     if payload.cursor:
         values, direction = _decode_cursor(payload.cursor, fingerprint, len(components))
         filtered = filtered.where(_seek(components, values, direction))
-    cover = func.coalesce(
-        literal("/api/v1/media/") + cast(cover_asset_id_subquery(), String),
-        Listing.external_image_urls[0].astext,
-    )
+    gallery_asset_ids = image_asset_ids_subquery()
     columns = [
         Listing.id.label("id"), Listing.title.label("title"), Listing.city.label("city"),
         Listing.area.label("area"), Listing.approximate_address.label("approximateAddress"),
@@ -609,7 +607,8 @@ async def search_public_cards(session: AsyncSession, payload: ListingCardSearchR
         Listing.primary_source_url.label("sourceUrl"), Listing.primary_source.label("primarySource"),
         Listing.source_price_text.label("sourcePriceText"), Listing.source_price_period.label("pricePeriod"),
         Listing.source_price_is_from.label("priceIsFrom"), Listing.published_at.label("publishedAt"),
-        active_promotion_expression().label("promoted"), cover.label("coverImageUrl"),
+        active_promotion_expression().label("promoted"),
+        gallery_asset_ids.label("_imageAssetIds"), Listing.external_image_urls.label("_externalImageUrls"),
         func.left(Listing.description, 240).label("description"),
     ]
     card_columns = len(columns)
@@ -620,10 +619,18 @@ async def search_public_cards(session: AsyncSession, payload: ListingCardSearchR
     rows = rows[:payload.limit]
     if direction == "before":
         rows.reverse()
-    items = [ListingCardResponse.model_validate({
-        str(key): (str(value) if key == "id" else value)
-        for key, value in list(row._mapping.items())[:card_columns]
-    }) for row in rows]
+    items: list[ListingCardResponse] = []
+    for row in rows:
+        values = {
+            str(key): (str(value) if key == "id" else value)
+            for key, value in list(row._mapping.items())[:card_columns]
+        }
+        asset_ids = values.pop("_imageAssetIds", None) or []
+        external_image_urls = values.pop("_externalImageUrls", None) or []
+        image_urls = [f"/api/v1/media/{asset_id}" for asset_id in asset_ids] or list(external_image_urls)
+        values["coverImageUrl"] = image_urls[0] if image_urls else None
+        values["imageUrls"] = image_urls
+        items.append(ListingCardResponse.model_validate(values))
     def encode(row, cursor_direction):
         values = [str(value) if isinstance(value, UUID) else float(value) if value is not None else 0 for value in row[card_columns:]]
         return base64.urlsafe_b64encode(json.dumps({"q": fingerprint, "d": cursor_direction, "k": values}, separators=(",", ":")).encode()).decode().rstrip("=")
