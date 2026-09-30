@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, MessageCircle, PawPrint, Plus, ShieldCheck } from 'lucide-react'
+import { ChevronRight, Heart, MessageCircle, PawPrint, Plus, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +45,11 @@ export function HomePage() {
             aria-expanded={promotionOpen}
             onClick={() => setPromotionOpen(true)}
           />
+          {!promotionOpen ? <Link
+            className="home-hero-promotion__cta"
+            to={`/habitacion/${heroListing.id}`}
+            aria-label={`Ver anuncio: ${heroListing.title}`}
+          ><span>Ver anuncio</span><ChevronRight aria-hidden="true" /></Link> : null}
           {promotionOpen ? <div className="home-hero-promotion__card">
             <span>Publicidad destacada</span>
             <strong>{heroListing.title}</strong>
