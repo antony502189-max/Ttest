@@ -621,16 +621,16 @@ async def search_public_cards(session: AsyncSession, payload: ListingCardSearchR
         rows.reverse()
     items: list[ListingCardResponse] = []
     for row in rows:
-        values = {
+        card_data = {
             str(key): (str(value) if key == "id" else value)
             for key, value in list(row._mapping.items())[:card_columns]
         }
-        asset_ids = values.pop("_imageAssetIds", None) or []
-        external_image_urls = values.pop("_externalImageUrls", None) or []
+        asset_ids = card_data.pop("_imageAssetIds", None) or []
+        external_image_urls = card_data.pop("_externalImageUrls", None) or []
         image_urls = [f"/api/v1/media/{asset_id}" for asset_id in asset_ids] or list(external_image_urls)
-        values["coverImageUrl"] = image_urls[0] if image_urls else None
-        values["imageUrls"] = image_urls
-        items.append(ListingCardResponse.model_validate(values))
+        card_data["coverImageUrl"] = image_urls[0] if image_urls else None
+        card_data["imageUrls"] = image_urls
+        items.append(ListingCardResponse.model_validate(card_data))
     def encode(row, cursor_direction):
         values = [str(value) if isinstance(value, UUID) else float(value) if value is not None else 0 for value in row[card_columns:]]
         return base64.urlsafe_b64encode(json.dumps({"q": fingerprint, "d": cursor_direction, "k": values}, separators=(",", ":")).encode()).decode().rstrip("=")
