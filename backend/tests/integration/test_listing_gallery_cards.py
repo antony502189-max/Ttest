@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.models import Listing, ListingImage, MediaAsset, User
@@ -84,7 +85,7 @@ async def test_bounded_cards_and_detail_keep_full_gallery_for_both_rental_modes(
             f"/api/v1/media/{asset_id}"
             for asset_id in (
                 await session.execute(
-                    __import__("sqlalchemy").select(ListingImage.media_asset_id)
+                    select(ListingImage.media_asset_id)
                     .where(ListingImage.listing_id == listing_id)
                     .order_by(ListingImage.is_cover.desc(), ListingImage.sort_order)
                 )
