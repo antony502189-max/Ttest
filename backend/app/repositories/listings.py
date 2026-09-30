@@ -22,7 +22,7 @@ from geoalchemy2.functions import (
     ST_MakePoint,
     ST_SetSRID,
 )
-from sqlalchemy import Float, Select, String, and_, case, cast, func, literal, or_, select, update
+from sqlalchemy import Float, Select, and_, case, cast, func, or_, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
