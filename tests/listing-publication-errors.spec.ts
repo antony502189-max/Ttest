@@ -495,7 +495,7 @@ test('customer video: an expired holiday listing can be edited without implicitl
     mine: [expiredHoliday],
   }
   await mockPublicationApi(page, state)
-  await page.route(\`**/api/v1/listings/\${listingId}\`, async (route) => {
+  await page.route(`**/api/v1/listings/${listingId}`, async (route) => {
     if (route.request().method() !== 'PATCH') return route.fallback()
     const patch = route.request().postDataJSON() as Record<string, unknown>
     if ('expiresAt' in patch) {
@@ -519,7 +519,7 @@ test('customer video: an expired holiday listing can be edited without implicitl
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
   })
   await page.reload()
-  await page.goto(\`/#/mis-anuncios/\${listingId}/editar\`)
+  await page.goto(`/#/mis-anuncios/${listingId}/editar`)
 
   await expect(page.locator('#edit-nightly-price')).toHaveValue('55')
   await page.locator('#edit-weekly-price').fill('1500')
@@ -572,7 +572,7 @@ test('customer video: edit validation errors are localized instead of exposing t
     }],
   }
   await mockPublicationApi(page, state)
-  await page.route(\`**/api/v1/listings/\${listingId}\`, async (route) => {
+  await page.route(`**/api/v1/listings/${listingId}`, async (route) => {
     if (route.request().method() !== 'PATCH') return route.fallback()
     return route.fulfill({
       status: 422,
@@ -593,11 +593,11 @@ test('customer video: edit validation errors are localized instead of exposing t
     localStorage.setItem('112233:language:v1', 'ru')
   })
   await page.reload()
-  await page.goto(\`/#/mis-anuncios/\${listingId}/editar\`)
+  await page.goto(`/#/mis-anuncios/${listingId}/editar`)
   await page.locator('#edit-nightly-price').fill('56')
   await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
 
-  await expect(page).toHaveURL(new RegExp(\`#\\\\/mis-anuncios\\\\/\${listingId}\\\\/editar$\`))
+  await expect(page).toHaveURL(new RegExp(`#\\\\/mis-anuncios\\\\/${listingId}\\\\/editar$`))
   await expect(page.getByText('Проверьте поле «цена за ночь».')).toBeVisible()
   await expect(page.getByText('One or more request fields are invalid.')).toHaveCount(0)
 })
