@@ -460,6 +460,147 @@ test('customer video: edit PATCH ignores stale global create draft and persists 
   await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
 })
 
+test('customer video: an expired holiday listing can be edited without implicitly renewing its lifecycle', async ({ page }) => {
+  const listingId = '77777777-7777-4777-8777-777777777777'
+  const images = requiredServerImageUrls()
+  const expiredHoliday = {
+    ...lifecycleListing('closed', listingId),
+    title: 'Habitación privada con cocina y aseo propios',
+    rentalMode: 'holiday',
+    monthlyPrice: null,
+    nightlyPrice: 55,
+    weeklyPrice: 330,
+    price: 55,
+    cadence: 'noche',
+    availableFrom: '2026-08-15',
+    availableUntil: null,
+    minimumStayMonths: 0,
+    minimumNights: 3,
+    depositAmount: 100,
+    tenantRequirement: 'single-man',
+    acceptedTenantTypes: ['man'],
+    householdGender: 'men',
+    imageUrls: images,
+    coverImageUrl: images[0],
+    expiresAt: '2026-09-01T00:00:00Z',
+    closedReason: 'expired',
+    description: 'Habitación exterior y tranquila en una casa compartida bien cuidada. Dispone de cama, armario, cocina privada y aseo privado.',
+    homeDescription: 'Buscamos una convivencia tranquila. Se respetan los horarios de descanso y se organizan turnos de limpieza.',
+  }
+  const state: PublicationTestState = {
+    mode: 'success',
+    posts: 0,
+    profilePatches: 0,
+    listingPatches: [],
+    mine: [expiredHoliday],
+  }
+  await mockPublicationApi(page, state)
+  await page.route(`**/api/v1/listings/${listingId}`, async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback()
+    const patch = route.request().postDataJSON() as Record<string, unknown>
+    if ('expiresAt' in patch) {
+      return route.fulfill({
+        status: 422,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'VALIDATION_ERROR',
+          message: 'One or more request fields are invalid.',
+          fieldErrors: { expiresAt: 'expiresAt must be in the future' },
+        }),
+      })
+    }
+    return route.fallback()
+  })
+
+  await page.goto('/#/')
+  await page.evaluate(() => {
+    localStorage.clear()
+    localStorage.setItem('112233:has-session', '1')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+  })
+  await page.reload()
+  await page.goto(`/#/mis-anuncios/${listingId}/editar`)
+
+  await expect(page.locator('#edit-nightly-price')).toHaveValue('55')
+  await page.locator('#edit-weekly-price').fill('1500')
+  await page.locator('#edit-deposit').fill('300')
+  await page.locator('#edit-from').fill('2026-10-01')
+  await page.locator('#edit-min-nights').fill('3')
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  const patch = state.listingPatches?.at(-1)
+  expect(patch).toMatchObject({
+    rentalMode: 'holiday',
+    nightlyPrice: 55,
+    weeklyPrice: 1500,
+    depositAmount: 300,
+    availableFrom: '2026-10-01',
+    minimumNights: 3,
+  })
+  expect(patch).not.toHaveProperty('expiresAt')
+  expect(state.mine?.[0]).toMatchObject({
+    status: 'closed',
+    expiresAt: '2026-09-01T00:00:00Z',
+    weeklyPrice: 1500,
+    depositAmount: 300,
+  })
+})
+
+test('customer video: edit validation errors are localized instead of exposing the raw backend English message', async ({ page }) => {
+  const listingId = '88888888-8888-4888-8888-888888888888'
+  const images = requiredServerImageUrls()
+  const state: PublicationTestState = {
+    mode: 'success',
+    posts: 0,
+    profilePatches: 0,
+    listingPatches: [],
+    mine: [{
+      ...lifecycleListing('published', listingId),
+      title: 'Habitación vacacional para validar errores',
+      rentalMode: 'holiday',
+      monthlyPrice: null,
+      nightlyPrice: 55,
+      weeklyPrice: 330,
+      price: 55,
+      cadence: 'noche',
+      minimumStayMonths: 0,
+      minimumNights: 3,
+      imageUrls: images,
+      coverImageUrl: images[0],
+      description: 'Habitación vacacional de prueba con una descripción suficientemente larga para validar el editor.',
+    }],
+  }
+  await mockPublicationApi(page, state)
+  await page.route(`**/api/v1/listings/${listingId}`, async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback()
+    return route.fulfill({
+      status: 422,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'VALIDATION_ERROR',
+        message: 'One or more request fields are invalid.',
+        fieldErrors: { nightlyPrice: 'Input should be greater than 0' },
+      }),
+    })
+  })
+
+  await page.goto('/#/')
+  await page.evaluate(() => {
+    localStorage.clear()
+    localStorage.setItem('112233:has-session', '1')
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+  })
+  await page.reload()
+  await page.goto(`/#/mis-anuncios/${listingId}/editar`)
+  await page.locator('#edit-nightly-price').fill('56')
+  await page.evaluate(() => localStorage.setItem('112233:language:v1', 'ru'))
+  await page.locator('.listing-edit-final button').click()
+
+  await expect(page).toHaveURL(new RegExp(`#/mis-anuncios/${listingId}/editar$`))
+  await expect(page.getByText('Проверьте поле «цена за ночь».')).toBeVisible()
+  await expect(page.getByText('One or more request fields are invalid.')).toHaveCount(0)
+})
 test('customer follow-up: changing one room address synchronizes sibling rooms from the same old dwelling', async ({ page }) => {
   const firstId = '33333333-3333-4333-8333-333333333333'
   const siblingId = '55555555-5555-4555-8555-555555555555'
