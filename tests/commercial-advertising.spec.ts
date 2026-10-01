@@ -8,6 +8,14 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
+async function expectDecodedImage(locator: import('@playwright/test').Locator) {
+  await expect(locator).toBeVisible()
+  await expect.poll(() => locator.evaluate((node) => {
+    const image = node as HTMLImageElement
+    return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
+  })).toBe(true)
+}
+
 test('house advertisement is visible and signed-out CTA keeps the intended route', async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: [] }))
   await page.goto('/#/')
@@ -46,6 +54,7 @@ test('approved advertisement has a visible disclosure and safe sponsored link', 
   const ad = page.locator('.commercial-ad')
   await expect(ad.getByText('Publicidad', { exact: true })).toBeVisible()
   await expect(ad.getByRole('heading', { name: 'Local moving service' })).toBeVisible()
+  await expectDecodedImage(ad.locator('.commercial-ad__visual img'))
   const link = ad.getByRole('link', { name: 'Más información' })
   await expect(link).toHaveAttribute('href', 'https://example.org/moving')
   await expect(link).toHaveAttribute('target', '_blank')
@@ -155,11 +164,14 @@ test('advertiser previews, completes test checkout and sees persisted review sta
   await page.getByRole('button', { name: 'Continuar al pago de prueba' }).click()
   await expect(page).toHaveURL(new RegExp(`#/publicidad/${adId}/checkout`))
   await expect(page.getByText('Pago de prueba — sin cargo')).toBeVisible()
+  await expectDecodedImage(page.locator('.ad-flow__preview .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Simular pago' }).click()
   await expect(page).toHaveURL(/#\/mis-campanas$/)
   await expect(page.getByText('Pendiente de revisión')).toBeVisible()
+  await expectDecodedImage(page.locator('.ad-flow__row .commercial-ad__visual img'))
   await page.reload()
   await expect(page.getByText('Pendiente de revisión')).toBeVisible()
+  await expectDecodedImage(page.locator('.ad-flow__row .commercial-ad__visual img'))
 })
 
 test('admin approves a paid campaign and the homepage displays it', async ({ page }) => {
@@ -189,8 +201,11 @@ test('admin approves a paid campaign and the homepage displays it', async ({ pag
   await page.goto('/#/admin/publicidad')
   await expect(page.getByRole('heading', { name: 'Moderación de publicidad' })).toBeVisible()
   await expect(page.getByRole('heading', { name: detail.title })).toBeVisible()
+  await expectDecodedImage(page.locator('.ad-flow__row .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Aprobar' }).click()
   await expect(page.getByText('active · paid')).toBeVisible()
   await page.goto('/#/')
-  await expect(page.locator('.commercial-ad').getByRole('heading', { name: detail.title })).toBeVisible()
+  const publicAd = page.locator('.commercial-ad')
+  await expect(publicAd.getByRole('heading', { name: detail.title })).toBeVisible()
+  await expectDecodedImage(publicAd.locator('.commercial-ad__visual img'))
 })
