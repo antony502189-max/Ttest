@@ -590,11 +590,11 @@ test('customer video: edit validation errors are localized instead of exposing t
     localStorage.clear()
     localStorage.setItem('112233:has-session', '1')
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
-    localStorage.setItem('112233:language:v1', 'ru')
   })
   await page.reload()
   await page.goto(`/#/mis-anuncios/${listingId}/editar`)
   await page.locator('#edit-nightly-price').fill('56')
+  await page.evaluate(() => localStorage.setItem('112233:language:v1', 'ru'))
   await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
 
   await expect(page).toHaveURL(new RegExp(`#\\\\/mis-anuncios\\\\/${listingId}\\\\/editar$`))
