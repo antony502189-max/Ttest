@@ -27,8 +27,20 @@ test('real API persists advertiser upload, checkout and pending review', async (
   await page.getByRole('button', { name: 'Simular pago' }).click()
   await expect(page).toHaveURL(/#\/mis-campanas$/)
   await expect(page.getByText('Pendiente de revisión')).toBeVisible()
+  const ownerImage = page.locator('.ad-flow__row .commercial-ad__visual img')
+  await expect(ownerImage).toBeVisible()
+  await expect.poll(() => ownerImage.evaluate((node) => {
+    const image = node as HTMLImageElement
+    return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
+  })).toBe(true)
   await page.reload()
   await expect(page.getByText('Pendiente de revisión')).toBeVisible()
+  const reloadedOwnerImage = page.locator('.ad-flow__row .commercial-ad__visual img')
+  await expect(reloadedOwnerImage).toBeVisible()
+  await expect.poll(() => reloadedOwnerImage.evaluate((node) => {
+    const image = node as HTMLImageElement
+    return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
+  })).toBe(true)
   const mine = await api.get('/api/v1/advertisements/mine', { headers: { Authorization: `Bearer ${account.accessToken}` } })
   expect(mine.status()).toBe(200)
   const ads = await mine.json() as Array<{ id: string; paymentStatus: string; status: string }>
