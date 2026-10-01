@@ -23,12 +23,14 @@ function validationFieldErrors(detail: ValidationDetail[] | undefined) {
 
 export function setAccessToken(token: string | null) { accessToken = token }
 export async function fetchAuthenticatedMedia(path: string): Promise<Blob> {
-  const url = resolveApiUrl(path.replace(/^\/api\/v1/, ''))
+  const url = resolveApiUrl(path)
   let response = await fetch(url, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'include' })
   if (response.status === 401 && accessToken && await refresh()) {
     response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
   }
   if (!response.ok) throw new ApiError(response.status, 'No se pudo cargar la imagen.')
+  const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() ?? ''
+  if (!contentType.startsWith('image/')) throw new ApiError(502, 'El servidor devolvió un archivo de imagen no válido.')
   return response.blob()
 }
 export function resolveApiUrl(path: string) {
@@ -36,7 +38,11 @@ export function resolveApiUrl(path: string) {
   const base = /^https?:\/\//.test(API_BASE_URL)
     ? API_BASE_URL
     : new URL(API_BASE_URL || '/', window.location.origin).toString().replace(/\/$/, '')
-  return new URL(path, `${base}/`).toString()
+  const apiPrefix = new URL(`${base}/`).pathname.replace(/\/$/, '')
+  const normalized = path.startsWith(`${apiPrefix}/`)
+    ? path.slice(apiPrefix.length + 1)
+    : path.replace(/^\/+/, '')
+  return new URL(normalized, `${base}/`).toString()
 }
 
 async function performRefresh() {
