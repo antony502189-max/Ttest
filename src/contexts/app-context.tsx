@@ -172,6 +172,7 @@ const listingUpdateFieldLabels: Record<'ru-RU' | 'en-GB', Record<string, string>
 function listingUpdateErrorMessage(error: unknown) {
   const locale = currentLocale()
   if (!(error instanceof ApiError)) {
+    if (error instanceof Error && error.message.trim()) return error.message
     if (locale === 'ru-RU') return 'Не удалось сохранить изменения объявления.'
     if (locale === 'en-GB') return 'The listing changes could not be saved.'
     return 'No se pudieron guardar los cambios del anuncio.'
