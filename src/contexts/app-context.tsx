@@ -115,7 +115,7 @@ const publicationFieldLabels: Record<string, string> = {
   roomCapacity: 'la capacidad', currentRoomResidents: 'las personas que viven en la habitación', bedType: 'el tipo de cama',
   bedCount: 'el número de camas', acceptedTenantTypes: 'los perfiles admitidos', exactLatitude: 'la ubicación exacta',
   exactLongitude: 'la ubicación exacta', contactName: 'el nombre público', contactPhone: 'el teléfono',
-  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías', videoAssetId: 'el vídeo',
+  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías', videoAssetId: 'el vídeo', expiresAt: 'la fecha de vencimiento',
 }
 
 function duplicateListingMessage() {
@@ -142,6 +142,81 @@ function publicationErrorMessage(error: unknown) {
   return error.status >= 500
     ? 'El servidor no pudo completar la publicación. Inténtalo de nuevo más tarde.'
     : 'No se pudo publicar el anuncio. Revisa los datos e inténtalo de nuevo.'
+}
+
+const listingUpdateFieldLabels: Record<'ru-RU' | 'en-GB', Record<string, string>> = {
+  'ru-RU': {
+    title: 'заголовок', city: 'муниципалитет', area: 'район', roomType: 'тип комнаты',
+    monthlyPrice: 'цена за месяц', nightlyPrice: 'цена за ночь', weeklyPrice: 'цена за неделю',
+    availableFrom: 'дата начала', availableUntil: 'дата окончания', minimumStayMonths: 'минимальный срок',
+    minimumNights: 'минимальный срок', depositAmount: 'залог', roomSizeM2: 'площадь комнаты',
+    homeSizeM2: 'площадь жилья', roomCapacity: 'вместимость', currentRoomResidents: 'жильцы комнаты',
+    bedType: 'тип кровати', bedCount: 'количество кроватей', acceptedTenantTypes: 'допустимые жильцы',
+    exactLatitude: 'точное местоположение', exactLongitude: 'точное местоположение',
+    contactName: 'имя', contactPhone: 'телефон', contactWhatsapp: 'WhatsApp',
+    assetIds: 'фотографии', videoAssetId: 'видео', expiresAt: 'срок публикации',
+  },
+  'en-GB': {
+    title: 'title', city: 'municipality', area: 'area', roomType: 'room type',
+    monthlyPrice: 'monthly price', nightlyPrice: 'nightly price', weeklyPrice: 'weekly price',
+    availableFrom: 'start date', availableUntil: 'end date', minimumStayMonths: 'minimum stay',
+    minimumNights: 'minimum stay', depositAmount: 'deposit', roomSizeM2: 'room size',
+    homeSizeM2: 'home size', roomCapacity: 'capacity', currentRoomResidents: 'room residents',
+    bedType: 'bed type', bedCount: 'bed count', acceptedTenantTypes: 'accepted tenants',
+    exactLatitude: 'exact location', exactLongitude: 'exact location',
+    contactName: 'name', contactPhone: 'phone', contactWhatsapp: 'WhatsApp',
+    assetIds: 'photos', videoAssetId: 'video', expiresAt: 'listing expiry',
+  },
+}
+
+function listingUpdateErrorMessage(error: unknown) {
+  const locale = currentLocale()
+  if (!(error instanceof ApiError)) {
+    if (locale === 'ru-RU') return 'Не удалось сохранить изменения объявления.'
+    if (locale === 'en-GB') return 'The listing changes could not be saved.'
+    return 'No se pudieron guardar los cambios del anuncio.'
+  }
+  if (error.code === 'DUPLICATE_LISTING_IMAGES') return duplicateListingMessage()
+  if (error.status === 401) {
+    if (locale === 'ru-RU') return 'Сессия истекла. Войдите снова и повторите сохранение.'
+    if (locale === 'en-GB') return 'Your session has expired. Sign in again and retry the save.'
+    return 'Tu sesión ha caducado. Inicia sesión de nuevo y vuelve a guardar.'
+  }
+  if (error.status === 403) {
+    if (locale === 'ru-RU') return 'У вас нет доступа к редактированию этого объявления.'
+    if (locale === 'en-GB') return 'You do not have permission to edit this listing.'
+    return 'No tienes permiso para editar este anuncio.'
+  }
+  if (error.code === 'REQUEST_TIMEOUT') {
+    if (locale === 'ru-RU') return 'Сохранение заняло слишком много времени. Повторите попытку.'
+    if (locale === 'en-GB') return 'Saving took too long. Please try again.'
+    return 'El guardado ha tardado demasiado. Inténtalo de nuevo.'
+  }
+  if (error.code === 'NETWORK_ERROR' || error.status === 0) {
+    if (locale === 'ru-RU') return 'Не удалось подключиться к серверу. Проверьте соединение и повторите попытку.'
+    if (locale === 'en-GB') return 'Could not connect to the server. Check your connection and try again.'
+    return 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+  }
+  if (error.code === 'VALIDATION_ERROR' || error.status === 422) {
+    const field = Object.keys(error.fieldErrors)[0]
+    if (locale === 'ru-RU') {
+      const label = field ? listingUpdateFieldLabels['ru-RU'][field] : undefined
+      return label ? `Проверьте поле «${label}».` : 'Проверьте данные объявления и повторите сохранение.'
+    }
+    if (locale === 'en-GB') {
+      const label = field ? listingUpdateFieldLabels['en-GB'][field] : undefined
+      return label ? `Check the ${label} field.` : 'Check the listing details and try saving again.'
+    }
+    return field ? `Revisa ${publicationFieldLabels[field] ?? 'los datos del anuncio'}.` : 'Revisa los datos del anuncio y vuelve a guardar.'
+  }
+  if (error.status >= 500) {
+    if (locale === 'ru-RU') return 'Сервер не смог сохранить изменения. Повторите попытку позже.'
+    if (locale === 'en-GB') return 'The server could not save the changes. Try again later.'
+    return 'El servidor no pudo guardar los cambios. Inténtalo de nuevo más tarde.'
+  }
+  if (locale === 'ru-RU') return 'Не удалось сохранить изменения объявления.'
+  if (locale === 'en-GB') return 'The listing changes could not be saved.'
+  return 'No se pudieron guardar los cambios del anuncio.'
 }
 
 function publicationDiagnostic(error: unknown) {
@@ -688,7 +763,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       setOwnedListings((current) => current.map((item) => item.id === id ? previous : item))
       const uncertainCommit = error instanceof ApiError && ['REQUEST_TIMEOUT', 'NETWORK_ERROR'].includes(error.code ?? '')
       if (!uncertainCommit) await cleanupPreparedListingMedia(prepared)
-      toast.error(error instanceof Error ? error.message : 'No se pudieron guardar los cambios del anuncio.')
+      toast.error(listingUpdateErrorMessage(error))
       return false
     }
   }, [canManageListing, ownedListings, refreshListingConsumers])
