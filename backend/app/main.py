@@ -89,6 +89,7 @@ VALIDATION_FIELD_HINTS = (
     "exactLatitude",
     "exactLongitude",
     "advertiserType",
+    "expiresAt",
     "contactName",
     "contactPhone",
     "contactWhatsapp",
