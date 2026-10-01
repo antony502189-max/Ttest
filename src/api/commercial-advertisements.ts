@@ -34,7 +34,7 @@ export type AdvertisementDetail = AdvertisementWrite & {
 }
 export type AdminAdvertisement = AdvertisementDetail & { ownerEmail: string; adminPriority: number }
 
-export const adImageUrl = (path: string) => resolveApiUrl(path.replace(/^\/api\/v1/, ''))
+export const adImageUrl = (path: string) => resolveApiUrl(path)
 export const getHomepageAdvertisements = () => api<PublicAdvertisement[]>('/advertisements/homepage', { timeoutMs: 6000 })
 export const getMyAdvertisements = () => api<AdvertisementDetail[]>('/advertisements/mine')
 export const getAdvertisement = (id: string) => api<AdvertisementDetail>(`/advertisements/${id}`)
