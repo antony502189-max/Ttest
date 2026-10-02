@@ -844,13 +844,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const renewListing = useCallback(async (id: string): Promise<ListingStatus | null> => {
     const previous = ownedListings.find((listing) => listing.id === id)
     if (!previous || !canManageListing(previous)) return null
-    mutateOwned(id, (listing) => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const currentExpiry = new Date(`${listing.expiresAt}T00:00:00`)
-    const base = Number.isFinite(currentExpiry.getTime()) && currentExpiry > today ? currentExpiry : today
-    base.setDate(base.getDate() + 30)
-    return { ...listing, expiresAt: base.toISOString().slice(0, 10), closedReason: undefined }
-    })
+    mutateOwned(id, (listing) => ({ ...listing, closedReason: undefined }))
     try {
       const remote = await renewRemoteListing(id)
       setOwnedListings((current) => current.map((listing) => listing.id === id ? { ...remote, userCreated: true } : listing))
@@ -863,7 +857,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     }
   }, [canManageListing, mutateOwned, ownedListings, refreshListingConsumers])
   const closeListing = useCallback((id: string) => setListingStatus(id, 'Finalizado'), [setListingStatus])
-  const refreshListingLifecycle = useCallback(() => setOwnedListings((current) => current.map((listing) => expireListing(listing))), [])
+  const refreshListingLifecycle = useCallback(() => undefined, [])
   const addReport = useCallback((listingId: string, reason: string, comment: string) => {
     const optimistic: ReportRecord = { id: `REP-${Date.now().toString().slice(-6)}`, listingId, reason, comment, createdAt: new Date().toISOString(), status: 'Abierta' }
     setReports((current) => [optimistic, ...current])
