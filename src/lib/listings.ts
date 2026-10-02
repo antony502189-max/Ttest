@@ -239,11 +239,10 @@ export function normalizeListing(value: unknown): Listing | null {
   return expireListing(listing)
 }
 
-export function expireListing(listing: Listing, now = new Date()): Listing {
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const expires = new Date(`${listing.expiresAt}T00:00:00`).getTime()
-  if (listing.status === 'Publicado' && Number.isFinite(expires) && expires < today) {
-    return { ...listing, status: 'Finalizado', closedReason: 'expired' }
+export function expireListing(listing: Listing): Listing {
+  // Repair browser-local rows produced by the retired automatic-expiry policy.
+  if (!listing.isExternal && listing.status === 'Finalizado' && listing.closedReason === 'expired') {
+    return { ...listing, status: 'Publicado', closedReason: undefined }
   }
   return listing
 }

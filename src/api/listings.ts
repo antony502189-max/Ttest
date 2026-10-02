@@ -406,12 +406,6 @@ function listingPayload(listing: Listing, existing?: Listing, assetIds?: string[
     longitude: coordinates.lng, exactLatitude: exact?.lat ?? null, exactLongitude: exact?.lng ?? null,
     description: listing.description, homeDescription: listing.homeDescription,
     advertiserType: listing.advertiserType,
-    // Expiry is lifecycle state, not a normal edit-form field. Re-sending an
-    // unchanged past expiry makes edits to already-finished listings fail
-    // schema validation even though the user did not renew the listing.
-    ...(!existing || listing.expiresAt !== existing.expiresAt
-      ? { expiresAt: listing.expiresAt ? `${listing.expiresAt}T00:00:00Z` : null }
-      : {}),
     ...(!existing ? {
       contactName: listing.owner.name.trim(),
       contactPhone: listing.contactPhone ?? '',

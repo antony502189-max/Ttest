@@ -5,11 +5,9 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
-from app.models import Listing, MailOutbox, Notification
-from app.services.listing_lifecycle import expire_due_listings
+from app.models import Listing
 
 pytestmark = pytest.mark.integration
 
@@ -57,82 +55,44 @@ def listing_payload(title: str) -> dict:
         "longitude": -16.7244,
         "exactLatitude": 28.123,
         "exactLongitude": -16.724,
-        "description": "Lifecycle integration listing.",
+        "description": "Permanent listing integration fixture.",
         "homeDescription": "Shared home.",
         "advertiserType": "Particular",
-        "expiresAt": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+        # Old clients may still send this field; the service intentionally
+        # ignores it now.
+        "expiresAt": (datetime.now(UTC) - timedelta(days=30)).isoformat(),
     }
 
 
-async def test_expired_listing_closes_once_and_notifies_owner_and_favorite_holder(
+async def test_past_legacy_expiry_never_hides_or_closes_a_published_listing(
     client: AsyncClient,
     register_user,
 ) -> None:
-    owner_token, owner = await register_user(client, email="expiry-owner@example.com", role="host")
-    tenant_token, tenant = await register_user(client, email="expiry-tenant@example.com", role="tenant")
+    owner_token, _ = await register_user(client, email="permanent-owner@example.com", role="host")
 
     created = await client.post(
         "/api/v1/listings",
         headers=auth(owner_token),
-        json=listing_payload("Room that expires server-side"),
+        json=listing_payload("Room without automatic expiry"),
     )
     assert created.status_code == 201, created.text
     listing_id = UUID(created.json()["id"])
+    assert created.json()["status"] == "published"
+    assert created.json()["expiresAt"] is None
 
-    favorited = await client.put(f"/api/v1/favorites/{listing_id}", headers=auth(tenant_token))
-    assert favorited.status_code == 204, favorited.text
-
+    # Simulate a legacy production row that still carries a past expires_at.
     async with SessionLocal() as session:
         listing = await session.get(Listing, listing_id)
         assert listing is not None
-        listing.status = "published"
-        listing.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        listing.expires_at = datetime.now(UTC) - timedelta(days=2)
         await session.commit()
 
-    async with SessionLocal() as session:
-        assert await expire_due_listings(session) == 1
+    detail = await client.get(f"/api/v1/listings/{listing_id}")
+    assert detail.status_code == 200, detail.text
 
-    async with SessionLocal() as session:
-        listing = await session.get(Listing, listing_id)
-        assert listing is not None
-        assert listing.status == "closed"
-        assert listing.closed_reason == "expired"
+    search = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
+    assert listing_id in {UUID(item["id"]) for item in search.json()["items"]}
 
-        owner_types = set(
-            await session.scalars(
-                select(Notification.type).where(Notification.recipient_user_id == UUID(owner["id"]))
-            )
-        )
-        tenant_types = set(
-            await session.scalars(
-                select(Notification.type).where(Notification.recipient_user_id == UUID(tenant["id"]))
-            )
-        )
-        assert "listing_expired" in owner_types
-        assert "favorite_unavailable" in tenant_types
-
-        owner_mail = await session.scalar(
-            select(func.count()).select_from(MailOutbox).where(
-                MailOutbox.recipient == "expiry-owner@example.com",
-                MailOutbox.kind == "notification_listing_expired",
-            )
-        )
-        tenant_mail = await session.scalar(
-            select(func.count()).select_from(MailOutbox).where(
-                MailOutbox.recipient == "expiry-tenant@example.com",
-                MailOutbox.kind == "notification_favorite_unavailable",
-            )
-        )
-        assert owner_mail == 1
-        assert tenant_mail == 1
-
-        notification_count = await session.scalar(
-            select(func.count()).select_from(Notification).where(Notification.entity_listing_id == listing_id)
-        )
-
-    async with SessionLocal() as session:
-        assert await expire_due_listings(session) == 0
-        repeated_count = await session.scalar(
-            select(func.count()).select_from(Notification).where(Notification.entity_listing_id == listing_id)
-        )
-        assert repeated_count == notification_count
+    mine = await client.get("/api/v1/listings/mine", headers=auth(owner_token))
+    row = next(item for item in mine.json() if UUID(item["id"]) == listing_id)
+    assert row["status"] == "published"

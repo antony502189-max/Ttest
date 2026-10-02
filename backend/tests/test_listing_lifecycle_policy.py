@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
-from pydantic import ValidationError
 
 from app.schemas.listings import ListingPatch, ListingWrite
 from app.services.listings import resolve_owner_status_transition
@@ -28,13 +27,13 @@ def test_owner_cannot_bypass_canonical_lifecycle(current: str, requested: str) -
     assert error.value.status_code == 409
 
 
-def test_expired_create_and_patch_payloads_are_rejected_before_database_mutation() -> None:
+def test_legacy_expiry_values_are_accepted_for_backwards_compatibility() -> None:
     expired = datetime.now(UTC) - timedelta(minutes=1)
-    with pytest.raises(ValidationError, match="expiresAt must be in the future"):
-        ListingPatch(expiresAt=expired)
+    patch = ListingPatch(expiresAt=expired)
+    assert patch.expiresAt == expired
 
     valid = {
-        "title": "Schema expiry lifecycle listing",
+        "title": "Permanent listing schema",
         "city": "Adeje",
         "area": "Centro",
         "approximateAddress": "Adeje · ubicación aproximada",
@@ -45,6 +44,6 @@ def test_expired_create_and_patch_payloads_are_rejected_before_database_mutation
         "longitude": -16.7,
         "expiresAt": expired,
     }
-    with pytest.raises(ValidationError, match="expiresAt must be in the future"):
-        ListingWrite.model_validate(valid)
+    created = ListingWrite.model_validate(valid)
+    assert created.expiresAt == expired
 

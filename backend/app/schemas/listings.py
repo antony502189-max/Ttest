@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -174,10 +174,6 @@ class ListingWrite(BaseModel):
             raise ValueError("exactLatitude and exactLongitude must be provided together")
         if self.availableFrom and self.availableUntil and self.availableUntil < self.availableFrom:
             raise ValueError("availableUntil cannot be before availableFrom")
-        if self.expiresAt:
-            expiry = self.expiresAt if self.expiresAt.tzinfo else self.expiresAt.replace(tzinfo=UTC)
-            if expiry <= datetime.now(UTC):
-                raise ValueError("expiresAt must be in the future")
         if self.contactPhone and not PHONE_PATTERN.fullmatch(self.contactPhone):
             raise ValueError("contactPhone contains an invalid phone number")
         if self.contactWhatsapp and not PHONE_PATTERN.fullmatch(self.contactWhatsapp):
@@ -314,10 +310,6 @@ class ListingPatch(BaseModel):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
         if self.assetIds is not None and len(set(self.assetIds)) != len(self.assetIds):
             raise ValueError("assetIds must be unique")
-        if self.expiresAt is not None:
-            expiry = self.expiresAt if self.expiresAt.tzinfo else self.expiresAt.replace(tzinfo=UTC)
-            if expiry <= datetime.now(UTC):
-                raise ValueError("expiresAt must be in the future")
         if self.tenantRequirement is not None and self.tenantRequirement not in ALLOWED_TENANT_REQUIREMENTS:
             raise ValueError("tenantRequirement contains an unsupported value")
         if self.advertiserType is not None and self.advertiserType not in ALLOWED_ADVERTISER_TYPES:

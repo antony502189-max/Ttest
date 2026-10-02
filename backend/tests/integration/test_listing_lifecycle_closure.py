@@ -185,15 +185,15 @@ async def test_production_moderation_lifecycle_keeps_owner_public_map_and_detail
     assert renewed.status_code == 200 and renewed.json()["status"] == "pending"
 
 
-async def test_expired_closed_listing_accepts_content_edits_without_implicit_renewal(
+async def test_past_legacy_expiry_does_not_hide_or_block_listing_edits(
     client: AsyncClient,
     register_user,
 ) -> None:
-    owner_token, _ = await register_user(client, email="expired-edit-owner@example.com", role="host")
+    owner_token, _ = await register_user(client, email="legacy-expiry-edit-owner@example.com", role="host")
     created = await client.post(
         "/api/v1/listings",
         headers=auth(owner_token),
-        json=listing_payload("Expired listing edit boundary", room_capacity=2),
+        json=listing_payload("Permanent edit boundary", room_capacity=2),
     )
     assert created.status_code == 201, created.text
     listing_id = created.json()["id"]
@@ -202,8 +202,8 @@ async def test_expired_closed_listing_accepts_content_edits_without_implicit_ren
     async with SessionLocal() as session:
         listing = await session.get(Listing, UUID(listing_id))
         assert listing is not None
-        listing.status = "closed"
-        listing.closed_reason = "expired"
+        listing.status = "published"
+        listing.closed_reason = None
         listing.expires_at = expired_at
         await session.commit()
 
@@ -218,17 +218,10 @@ async def test_expired_closed_listing_accepts_content_edits_without_implicit_ren
     )
     assert edited.status_code == 200, edited.text
     body = edited.json()
-    assert body["status"] == "closed"
+    assert body["status"] == "published"
     assert body["monthlyPrice"] == 875
     assert body["depositAmount"] == 300
-
-    async with SessionLocal() as session:
-        listing = await session.get(Listing, UUID(listing_id))
-        assert listing is not None
-        assert listing.status == "closed"
-        assert listing.closed_reason == "expired"
-        assert listing.expires_at is not None
-        assert abs((listing.expires_at - expired_at).total_seconds()) < 1
+    assert (await client.get(f"/api/v1/listings/{listing_id}")).status_code == 200
 
 
 async def test_admin_must_use_moderation_endpoint_for_status_changes(

@@ -239,45 +239,38 @@ test('CONTACT-01..06 confirmation gates direct channels and internal messaging s
   await expect(page.getByRole('dialog', { name: 'Enviar un mensaje' })).toHaveCount(0)
 })
 
-test('LIFE-01..04 expiration hides public listing and renew republishes it', async ({ page }) => {
+test('LIFE-01..04 listings stay published until the owner closes them', async ({ page }) => {
   await page.goto('/#/')
   await page.evaluate((id) => {
     const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}') as { version: number; data: Array<Record<string, unknown>> }
-    payload.data = payload.data.map((item) => item.id === id ? { ...item, status: 'Publicado', expiresAt: '2020-01-01' } : item)
+    payload.data = payload.data.map((item) => item.id === id ? { ...item, status: 'Publicado', expiresAt: '2020-01-01', closedReason: undefined } : item)
     localStorage.setItem('112233:listings:v3', JSON.stringify(payload))
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
   }, firstListingId)
   await page.reload()
+
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  await expect(page.locator(`[data-listing-id="${firstListingId}"]`)).toHaveCount(0)
+  await expect(page.locator(`[data-listing-id="${firstListingId}"]`)).toHaveCount(1)
+
   await page.goto('/#/mis-anuncios')
-  const card = page.locator('.manage-card').first()
-  await expect(card).toContainText('Finalizado automáticamente')
-  await card.getByRole('button', { name: /Más acciones/ }).click()
-  await page.getByRole('menuitem', { name: 'Volver a publicar' }).click()
+  const card = page.locator(`[data-listing-id="${firstListingId}"]`)
   await expect(card).toContainText('Publicado')
-  const renewed = (await storedListings(page)).find((item) => item.id === firstListingId)
-  expect(renewed?.status).toBe('Publicado')
-  const expectedExpiry = await page.evaluate(() => {
-    const date = new Date()
-    date.setHours(0, 0, 0, 0)
-    date.setDate(date.getDate() + 30)
-    return date.toISOString().slice(0, 10)
-  })
-  expect(renewed?.expiresAt).toBe(expectedExpiry)
+  await expect(card).not.toContainText('Finaliza')
+
   await card.getByRole('button', { name: /Más acciones/ }).click()
   await page.getByRole('menuitem', { name: 'Cerrar anuncio' }).click()
   await expect(card).toContainText('Finalizado')
   const closed = (await storedListings(page)).find((item) => item.id === firstListingId)
   expect(closed?.closedReason).toBe('owner')
-  await page.evaluate(() => {
-    const payload = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}') as { data: Array<Record<string, unknown>> }
-    payload.data[1] = { ...payload.data[1], status: 'Oculto', expiresAt: '2020-01-01' }
-    localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: payload.data }))
-  })
-  await page.reload()
-  expect((await storedListings(page))[1].status).toBe('Oculto')
+
+  await card.getByRole('button', { name: /Más acciones/ }).click()
+  await page.getByRole('menuitem', { name: 'Volver a publicar' }).click()
+  await expect(card).toContainText('Publicado')
+  const republished = (await storedListings(page)).find((item) => item.id === firstListingId)
+  expect(republished?.status).toBe('Publicado')
+  expect(republished?.closedReason).toBeUndefined()
 })
+
 
 test('WIZ-01..03 dirty state warns only after edits and save clears it', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')

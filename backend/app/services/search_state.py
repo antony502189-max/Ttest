@@ -40,7 +40,6 @@ def visible_listing_conditions():
     return (
         Listing.status == "published",
         Listing.deleted_at.is_(None),
-        (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
         User.deleted_at.is_(None),
         User.blocked.is_(False),
         ~active_owner_restriction,

@@ -104,7 +104,7 @@ def idempotency_payload_matches(
         incoming["longitude"] = incoming["exactLongitude"]
     stored = existing.model_dump(mode="json")
     for field, value in incoming.items():
-        if field in {"assetIds", "videoAssetId"} or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
+        if field in {"assetIds", "videoAssetId", "expiresAt"} or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
             continue
         previous = stored[field]
         if field in IDEMPOTENCY_COORDINATE_FIELDS and value is not None and previous is not None:
@@ -488,7 +488,6 @@ async def list_listing_images(
     moderated = await listing_hidden_by_moderation(listing.id, listing.owner_user_id, session)
     public_visible = bool(
         listing.status == "published"
-        and (listing.expires_at is None or listing.expires_at > datetime.now(UTC))
         and owner
         and owner.deleted_at is None
         and not owner.blocked
