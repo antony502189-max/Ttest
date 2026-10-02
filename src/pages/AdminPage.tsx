@@ -498,7 +498,6 @@ function HomepageHeroPromotionDialog({
   onSaved: (promotion: HomepageHeroPromotion) => void
 }) {
   const today = localDateInput(new Date())
-  const sameListing = current?.listingId === listing.id
   const hasCurrentHomepage = isCurrentHomepagePromotion(current, listing.id)
   const existingEnd = hasCurrentHomepage && current?.endsAt ? localDateInput(promotionInclusiveEnd(current.endsAt)) : null
   const existingStart = hasCurrentHomepage && current?.startsAt
