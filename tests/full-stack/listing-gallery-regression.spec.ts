@@ -136,3 +136,32 @@ test('production mobile cards and detail keep photo carousel for long and holida
     await page.unroute(`**/api/v1/listings/similar/${item.id}`)
   }
 })
+
+
+test('production mobile holiday card recovers its full internal gallery when bounded card payload is truncated', async ({ page }) => {
+  test.skip(test.info().project.name !== 'mobile-chromium', 'Customer regression is mobile-specific.')
+
+  const item = card('holiday')
+  const truncated = { ...item, imageUrls: [gallery[0]], coverImageUrl: gallery[0] }
+
+  await page.route('**/api/v1/listings/search/cards', async (route) => {
+    await route.fulfill({ json: { items: [truncated], total: 1, nextCursor: null, previousCursor: null } })
+  })
+  await page.route(`**/api/v1/listings/${item.id}/images`, async (route) => {
+    await route.fulfill({
+      json: gallery.map((url, index) => ({
+        assetId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        url,
+        sortOrder: index,
+        isCover: index === 0,
+      })),
+    })
+  })
+
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  const resultCard = page.getByTestId('mobile-results').locator('.m2-result-card').first()
+  await expect(resultCard).toBeVisible()
+  await expect(resultCard.locator('.m2-result-card__counter')).toContainText('1/5')
+  await resultCard.locator('.m2-result-card__next').click()
+  await expect(resultCard.locator('.m2-result-card__counter')).toContainText('2/5')
+})
