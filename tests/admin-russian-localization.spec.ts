@@ -15,6 +15,10 @@ test('Russian admin listing actions do not leak Spanish labels', () => {
     'Desbloquear': 'Разблокировать',
     'Eliminar': 'Удалить',
     'Sin bloqueo administrativo': 'Без административной блокировки',
+    'Externo': 'Внешнее',
+    'Local': 'Локальное',
+    'Publica el anuncio para gestionar portada y TOP.': 'Сначала опубликуйте объявление, чтобы управлять главной и TOP.',
+    'Título, usuario, zona o Ref.…': 'Название, пользователь, район или Ref.…',
   }
 
   for (const [source, translated] of Object.entries(expected)) {
