@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Save } from 'lucide-react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -235,7 +235,6 @@ export function ListingEditPage() {
   const goBack = useAppBack('/mis-anuncios')
   const { language } = useI18n()
   const { id } = useParams()
-  const navigate = useNavigate()
   const { allListings, ownedListings, updateListing, currentUser, canManageListing } = useApp()
   const existing = ownedListings.find((listing) => listing.id === id)
   const storageKey = id ? editDraftKey(id) : ''
@@ -419,7 +418,7 @@ export function ListingEditPage() {
       if (storageKey) localStorage.removeItem(storageKey)
       setBaseline(JSON.stringify(authoritative))
       toast.success('Cambios guardados')
-      navigate('/mis-anuncios')
+      goBack()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.')
     } finally {
@@ -431,7 +430,7 @@ export function ListingEditPage() {
   const choice = <T extends string>(name: string, value: T, options: { value: T; title: string; text?: string }[], onChange: (value: T) => void) => <div className="listing-edit-choice-grid">{options.map((option) => <label key={option.value}><input type="radio" name={name} checked={value === option.value} onChange={() => onChange(option.value)} /><span><strong>{option.title}</strong>{option.text ? <small>{option.text}</small> : null}</span></label>)}</div>
 
   return <main className="listing-edit-page">
-    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" onClick={(event) => { if (isDirty || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented) return; event.preventDefault(); goBack() }} className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : 'Guardar'}</Button></div></div>
+    <div className="listing-edit-topbar"><div className="listing-edit-topbar__inner"><Link to="/mis-anuncios" onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented) return; event.preventDefault(); goBack() }} className="listing-edit-back"><ArrowLeft /> Tus anuncios</Link><strong>Editar anuncio</strong><Button onClick={save} disabled={saving || processingImages || processingVideo || !isDirty}><Save data-icon="inline-start" />{saving ? 'Guardando…' : processingImages ? 'Procesando foto…' : processingVideo ? 'Procesando vídeo…' : 'Guardar'}</Button></div></div>
     <div className="listing-edit-shell">
       <header className="listing-edit-heading"><p>Ref. {existing.id.slice(-6).toUpperCase()}</p><h1>Editar habitación</h1><span>Todo el anuncio está en una sola página. Baja, cambia lo que necesites y guarda al final.</span></header>
 
