@@ -295,7 +295,6 @@ def visible_query() -> Select:
             User.blocked.is_(False),
             ~active_user_restriction,
             ~active_listing_restriction,
-            (Listing.expires_at.is_(None)) | (Listing.expires_at > func.now()),
         )
     )
 
