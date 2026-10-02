@@ -234,6 +234,7 @@ async def _candidate_listing_ids(
     *,
     exclude_listing_id: UUID | None,
     external_only: bool | None = None,
+    rental_mode: str | None = None,
 ) -> list[UUID]:
     checksums = {item.checksum for item in fingerprints if item.checksum}
     perceptual_hashes = {item.perceptual_hash for item in fingerprints if item.perceptual_hash}
@@ -262,6 +263,8 @@ async def _candidate_listing_ids(
         query = query.where(Listing.id != exclude_listing_id)
     if external_only is not None:
         query = query.where(Listing.is_external.is_(external_only))
+    if rental_mode is not None:
+        query = query.where(Listing.rental_mode == rental_mode)
     return list((await session.scalars(query)).all())
 
 
@@ -271,12 +274,14 @@ async def duplicate_listing_id(
     *,
     exclude_listing_id: UUID | None = None,
     external_only: bool | None = None,
+    rental_mode: str | None = None,
 ) -> UUID | None:
     for candidate_id in await _candidate_listing_ids(
         session,
         fingerprints,
         exclude_listing_id=exclude_listing_id,
         external_only=external_only,
+        rental_mode=rental_mode,
     ):
         candidate = await listing_gallery(session, candidate_id)
         if not await listing_gallery_is_reconciled(
@@ -296,6 +301,7 @@ async def duplicate_listing_for_hashes(
     *,
     exclude_listing_id: UUID | None = None,
     external_only: bool | None = None,
+    rental_mode: str | None = None,
 ) -> UUID | None:
     hashes = list(dict.fromkeys(value for value in hashes if value))
     if not hashes:
@@ -320,6 +326,8 @@ async def duplicate_listing_for_hashes(
         query = query.where(Listing.id != exclude_listing_id)
     if external_only is not None:
         query = query.where(Listing.is_external.is_(external_only))
+    if rental_mode is not None:
+        query = query.where(Listing.rental_mode == rental_mode)
 
     for candidate_id in (await session.scalars(query)).all():
         candidate = await listing_gallery(session, candidate_id)
@@ -350,11 +358,15 @@ async def assert_existing_listing_gallery_is_unique(
     fingerprints = await listing_gallery(session, listing_id)
     if not fingerprints:
         return
+    listing = await session.get(Listing, listing_id)
+    if listing is None:
+        return
     await acquire_duplicate_guard(session)
     duplicate_id = await duplicate_listing_id(
         session,
         fingerprints,
         exclude_listing_id=listing_id,
+        rental_mode=listing.rental_mode,
     )
     if duplicate_id is None:
         return
@@ -378,12 +390,16 @@ async def assert_gallery_is_unique(
     fingerprints = fingerprints_from_assets(assets)
     if not fingerprints:
         return
+    listing = await session.get(Listing, listing_id)
+    if listing is None:
+        return
 
     await acquire_duplicate_guard(session)
     duplicate_id = await duplicate_listing_id(
         session,
         fingerprints,
         exclude_listing_id=listing_id,
+        rental_mode=listing.rental_mode,
     )
     if duplicate_id is None:
         return
