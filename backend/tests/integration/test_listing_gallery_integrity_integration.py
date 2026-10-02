@@ -130,10 +130,12 @@ async def test_repair_restores_only_missing_suffix_from_unique_cross_mode_siblin
             status="published",
             checksums=[source_checksums[0]],
         )
+        source_id = source.id
+        target_id = target.id
         target_cover_id = (
             await session.scalar(
                 select(ListingImage.media_asset_id)
-                .where(ListingImage.listing_id == target.id)
+                .where(ListingImage.listing_id == target_id)
                 .order_by(ListingImage.sort_order)
             )
         )
@@ -142,20 +144,20 @@ async def test_repair_restores_only_missing_suffix_from_unique_cross_mode_siblin
         dry_run = await repair_legacy_internal_galleries(session, apply=False)
         assert dry_run["repairable"] == 1
         assert dry_run["repaired"] == 0
-        assert await active_listing_photo_count(session, target.id) == 1
+        assert await active_listing_photo_count(session, target_id) == 1
 
         applied = await repair_legacy_internal_galleries(session, apply=True)
         assert applied["repaired"] == 1
-        assert applied["repairs"][0]["listingId"] == str(target.id)
-        assert applied["repairs"][0]["sourceListingId"] == str(source.id)
+        assert applied["repairs"][0]["listingId"] == str(target_id)
+        assert applied["repairs"][0]["sourceListingId"] == str(source_id)
         assert applied["repairs"][0]["before"] == 1
         assert applied["repairs"][0]["after"] == 8
-        assert await active_listing_photo_count(session, target.id) == 8
+        assert await active_listing_photo_count(session, target_id) == 8
 
         rows = (
             await session.execute(
                 select(ListingImage)
-                .where(ListingImage.listing_id == target.id)
+                .where(ListingImage.listing_id == target_id)
                 .order_by(ListingImage.sort_order)
             )
         ).scalars().all()
