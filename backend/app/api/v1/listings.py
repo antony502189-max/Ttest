@@ -488,7 +488,6 @@ async def list_listing_images(
     moderated = await listing_hidden_by_moderation(listing.id, listing.owner_user_id, session)
     public_visible = bool(
         listing.status == "published"
-        and (listing.expires_at is None or listing.expires_at > datetime.now(UTC))
         and owner
         and owner.deleted_at is None
         and not owner.blocked
