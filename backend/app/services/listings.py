@@ -33,6 +33,7 @@ from ..schemas.listings import (
 )
 from .catalog import touch_catalog
 from .listing_deduplication import assert_existing_listing_gallery_is_unique, assert_gallery_is_unique
+from .listing_gallery_integrity import assert_existing_listing_photo_count
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
@@ -671,6 +672,7 @@ async def update_listing(
         and listing.status in {"pending", "published"}
         and asset_ids is None
     ):
+        await assert_existing_listing_photo_count(session, listing.id)
         await assert_existing_listing_gallery_is_unique(session, listing.id)
     if listing.status != previous_status:
         history = ListingStatusHistory(
@@ -722,6 +724,7 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
     listing.expires_at = None
     previous_status = listing.status
     listing.status = "published" if get_settings().auto_publish_listings else "pending"
+    await assert_existing_listing_photo_count(session, listing.id)
     await assert_existing_listing_gallery_is_unique(session, listing.id)
     listing.closed_reason = None
     if listing.status == "published" and listing.published_at is None:
