@@ -480,12 +480,10 @@ function formatOwnerPromotionEnd(value: string, locale: string, language: string
 export function MyListingsPage() {
   const goBack = useAppBack('/menu');
   const { t, language, locale } = useI18n();
-  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, currentUser } =
-    useApp();
+  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser } = useApp();
   const [status, setStatus] = useState("Todos");
   const [topDialogOpen, setTopDialogOpen] = useState(false);
   const [topCandidateId, setTopCandidateId] = useState("");
-  useEffect(() => refreshListingLifecycle(), [refreshListingLifecycle]);
   const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
   const promotable = mine.filter((listing) => listing.status === "Publicado" && !listing.isExternal);
   const items =
@@ -505,7 +503,7 @@ export function MyListingsPage() {
       <AccountHeader
         eyebrow="Área del anunciante"
         title="Mis anuncios"
-        description="Gestiona estado, vigencia y rendimiento."
+        description="Gestiona el estado y rendimiento de tus anuncios."
         action={
           <Button asChild>
             <Link to="/publicar">
@@ -605,15 +603,11 @@ export function MyListingsPage() {
                     : t("No estás en TOP")}
                 </p>
                 <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
-                {listing.status === "Finalizado" ? <p className="listing-ended-reason">{listing.closedReason === "expired" ? "Finalizado automáticamente por vencimiento." : "Cerrado por el anunciante."}</p> : null}
+                {listing.status === "Finalizado" ? <p className="listing-ended-reason">Cerrado por el anunciante.</p> : null}
                 <div className="manage-metrics">
                   <span>
                     <Eye />
                     {listing.views} vistas
-                  </span>
-                  <span>
-                    <CalendarClock />
-                    Finaliza {listing.expiresAt}
                   </span>
                 </div>
               </div>
@@ -658,7 +652,7 @@ export function MyListingsPage() {
                       {listing.status === "Finalizado" ? <DropdownMenuItem
                         onClick={async () => {
                           const next = await renewListing(listing.id);
-                          if (next) toast.success(next === "Publicado" ? "Anuncio publicado de nuevo durante 30 días" : "Anuncio renovado y enviado a revisión");
+                          if (next) toast.success(next === "Publicado" ? "Anuncio publicado de nuevo" : "Anuncio enviado a revisión");
                         }}
                       ><RotateCcw />Volver a publicar</DropdownMenuItem> : <DropdownMenuItem
                         onClick={async () => {
@@ -670,15 +664,6 @@ export function MyListingsPage() {
                         {listing.status === "Oculto" || listing.status === "Rechazado" ? <Eye /> : <EyeOff />}
                         {listing.status === "Oculto" || listing.status === "Rechazado" ? "Enviar a revisión" : "Ocultar"}
                       </DropdownMenuItem>}
-                      <DropdownMenuItem
-                        onClick={async () => {
-                          const next = await renewListing(listing.id);
-                          if (next) toast.success(next === "Publicado" ? "Anuncio renovado 30 días" : "Anuncio renovado y enviado a revisión");
-                        }}
-                      >
-                        <RotateCcw />
-                        Renovar
-                      </DropdownMenuItem>
                       {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
