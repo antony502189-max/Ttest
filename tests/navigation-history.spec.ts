@@ -103,6 +103,8 @@ test.describe('mobile history', () => {
     await expect(page.locator('.manage-card')).toHaveCount(1)
     await page.getByRole('link', { name: /editar/i }).click()
     await expect(page.getByRole('heading', { name: /editar habitación/i })).toBeVisible()
+    const title = page.locator('#edit-title')
+    await title.fill(`${await title.inputValue()} historial`)
     await page.locator('.listing-edit-back').click()
     await expect(page.locator('.manage-card')).toHaveCount(1)
     await page.locator('.owner-mobile-appbar button').click()
