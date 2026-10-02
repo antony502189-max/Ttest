@@ -194,6 +194,8 @@ revision_after="$("${compose[@]}" run --rm migrate alembic current 2>/dev/null |
 # maintenance window so the external worker and user requests cannot race it.
 dedupe_report="$("${compose[@]}" run --rm migrate python -m app.commands.deduplicate_listings --apply)"
 printf 'dedupe_report=%s\n' "$dedupe_report" >> "$metadata"
+gallery_repair_report="$("${compose[@]}" run --rm migrate python -m app.commands.repair_listing_galleries --apply)"
+printf 'gallery_repair_report=%s\n' "$gallery_repair_report" >> "$metadata"
 "${compose[@]}" up -d --build backend mail-worker external-listings-worker frontend
 for _ in $(seq 1 30); do
   if "${compose[@]}" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"; then break; fi
