@@ -20,6 +20,7 @@ from ..schemas.admin import (
 )
 from .catalog import touch_catalog
 from .listing_deduplication import assert_existing_listing_gallery_is_unique
+from .listing_gallery_integrity import assert_existing_listing_photo_count
 from .moderation import (
     active_listing_restriction,
     active_user_restriction,
@@ -227,6 +228,7 @@ async def change_listing_status(
             },
         )
     if previous != new_status and new_status in {"pending", "published"}:
+        await assert_existing_listing_photo_count(session, listing.id)
         await assert_existing_listing_gallery_is_unique(session, listing.id)
     listing.status = new_status
     if new_status == "published" and listing.published_at is None:
@@ -290,6 +292,7 @@ async def promote_listing(
     listing, owner = await _actionable_listing(listing_id, session)
     if listing.status != "published":
         raise HTTPException(409, "Only published listings can be promoted")
+    await assert_existing_listing_photo_count(session, listing.id)
     if await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session):
         raise HTTPException(409, "Only publicly eligible listings can be promoted")
 

@@ -92,6 +92,7 @@ def test_cleanup_does_not_collapse_transitive_similarity_chain():
         listing_id: SimpleNamespace(
             id=listing_id,
             is_external=False,
+            rental_mode="long",
             published_at=None,
             created_at=None,
         )
@@ -135,3 +136,29 @@ def test_external_cleanup_requires_reconciled_gallery_snapshot():
         external_image_urls=[str(index) for index in range(15)],
         stored_image_count=8,
     )
+
+
+def test_cleanup_keeps_identical_long_and_holiday_listings_separate():
+    gallery = [image(index) for index in range(5)]
+    long_id = UUID(int=101)
+    holiday_id = UUID(int=102)
+    galleries = {long_id: gallery, holiday_id: list(gallery)}
+    listings = {
+        long_id: SimpleNamespace(
+            id=long_id,
+            is_external=False,
+            rental_mode="long",
+            published_at=None,
+            created_at=None,
+        ),
+        holiday_id: SimpleNamespace(
+            id=holiday_id,
+            is_external=False,
+            rental_mode="holiday",
+            published_at=None,
+            created_at=None,
+        ),
+    }
+
+    assert galleries_are_duplicates(galleries[long_id], galleries[holiday_id])
+    assert _direct_duplicate_batches(galleries.keys(), galleries, listings) == []  # type: ignore[arg-type]

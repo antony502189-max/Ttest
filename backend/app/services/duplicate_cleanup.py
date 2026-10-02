@@ -133,6 +133,7 @@ def _direct_duplicate_batches(
             listing
             for listing in remaining
             if listing.id != canonical.id
+            and listing.rental_mode == canonical.rental_mode
             and galleries_are_duplicates(galleries[canonical.id], galleries[listing.id])
         ]
         if not losers:

@@ -481,13 +481,14 @@ async def canonical_for(
 
     Contact details, address/city, title, description and price are deliberately
     excluded: one advertiser or one building can legitimately contain several
-    different rooms/listings.
+    different rooms/listings. Rental mode is part of identity so the same room
+    may legitimately be offered for long stay and holiday rental.
     """
-    del item
     duplicate_id = await duplicate_listing_id(
         session,
         image_fingerprints,
         external_only=True,
+        rental_mode=item.rental_mode,
     )
     return await session.get(Listing, duplicate_id) if duplicate_id is not None else None
 
@@ -528,6 +529,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 session,
                 image_fingerprints,
                 external_only=None,
+                rental_mode=item.rental_mode,
             )
             if duplicate_id is not None:
                 duplicate = await session.get(Listing, duplicate_id)
@@ -574,6 +576,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 session,
                 current_fingerprints,
                 exclude_listing_id=listing.id,
+                rental_mode=item.rental_mode,
             )
             if active_duplicate_id is not None:
                 await session.commit()
