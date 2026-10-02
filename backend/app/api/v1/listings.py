@@ -500,7 +500,7 @@ async def list_listing_images(
             select(ListingImage, MediaAsset)
             .join(MediaAsset, MediaAsset.id == ListingImage.media_asset_id)
             .where(ListingImage.listing_id == listing.id, MediaAsset.deleted_at.is_(None))
-            .order_by(ListingImage.sort_order)
+            .order_by(ListingImage.is_cover.desc(), ListingImage.sort_order)
         )
     ).all()
     return [
