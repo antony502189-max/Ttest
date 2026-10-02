@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from contextlib import asynccontextmanager
@@ -30,7 +31,7 @@ from .api.v1.uploads import router as uploads_router
 from .api.v1.users import router as users_router
 from .core.config import get_settings
 from .core.observability import REQUEST_DURATION, REQUESTS, UNHANDLED_ERRORS, configure_logging, metrics_payload
-from .db.session import SessionLocal, engine
+from .db.session import engine
 from .services.rate_limit import ResilientRateLimiter
 from .storage import get_storage
 
