@@ -104,7 +104,7 @@ def idempotency_payload_matches(
         incoming["longitude"] = incoming["exactLongitude"]
     stored = existing.model_dump(mode="json")
     for field, value in incoming.items():
-        if field in {"assetIds", "videoAssetId"} or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
+        if field in {"assetIds", "videoAssetId", "expiresAt"} or field in IDEMPOTENCY_CONTACT_FIELDS or field not in stored:
             continue
         previous = stored[field]
         if field in IDEMPOTENCY_COORDINATE_FIELDS and value is not None and previous is not None:
