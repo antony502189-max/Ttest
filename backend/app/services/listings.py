@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unicodedata
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -315,7 +315,6 @@ def apply_write(listing: Listing, payload: ListingWrite) -> None:
     listing.description = payload.description
     listing.home_description = payload.homeDescription
     listing.advertiser_type = payload.advertiserType
-    listing.expires_at = payload.expiresAt
 
 
 def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) -> None:
@@ -620,7 +619,6 @@ async def update_listing(
         "empadronamientoAllowed": "empadronamiento_allowed",
         "homeDescription": "home_description",
         "advertiserType": "advertiser_type",
-        "expiresAt": "expires_at",
     }
     detail_changes = {key: changes.pop(key) for key in list(changes) if key in ROOM_DETAIL_MAPPING}
     if detail_changes:
@@ -720,8 +718,7 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
     listing, owner = await _lock_mutable_listing(listing_id, session)
     await ensure_owner_or_admin(listing, user, session)
     now = datetime.now(UTC)
-    expiry_base = listing.expires_at if listing.expires_at and listing.expires_at > now else now
-    listing.expires_at = expiry_base + timedelta(days=30)
+    listing.expires_at = None
     previous_status = listing.status
     listing.status = "published" if get_settings().auto_publish_listings else "pending"
     await assert_existing_listing_gallery_is_unique(session, listing.id)
