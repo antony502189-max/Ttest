@@ -520,7 +520,7 @@ test("21–24 one-page publication validates, restores draft, creates and edits"
   ).toBeVisible();
 });
 
-test("25–26 hide/show, renew and delete listing all change shared data", async ({
+test("25–26 hide/show, manual close/re-publish and delete listing all change shared data", async ({
   page,
 }) => {
   await login(page, "host");
@@ -536,10 +536,17 @@ test("25–26 hide/show, renew and delete listing all change shared data", async
   await openActions();
   await page.getByRole("menuitem", { name: /enviar a revisión/i }).click();
   await expect(card).toContainText("Pendiente");
-  const oldExpiry = await card.locator(".manage-metrics").innerText();
+
   await openActions();
-  await page.getByRole("menuitem", { name: /renovar/i }).click();
-  await expect(card.locator(".manage-metrics")).not.toHaveText(oldExpiry);
+  await page.getByRole("menuitem", { name: /cerrar anuncio/i }).click();
+  await expect(card).toContainText("Finalizado");
+  await expect(card).toContainText("Cerrado por el anunciante");
+
+  await openActions();
+  await page.getByRole("menuitem", { name: /volver a publicar/i }).click();
+  await expect(card).toContainText("Publicado");
+  await expect(card).not.toContainText("Finaliza");
+
   await card.getByRole("button", { name: /^eliminar /i }).click();
   await page.getByRole("button", { name: /^eliminar$/i }).click();
   await expect(page.getByText(id, { exact: false })).toHaveCount(0);
