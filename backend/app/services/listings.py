@@ -564,6 +564,7 @@ async def update_listing(
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
     changes = payload.model_dump(exclude_unset=True)
+    changes.pop("expiresAt", None)  # Retired field accepted only for old-client compatibility.
     asset_ids = changes.pop("assetIds", None)
     if asset_ids is not None:
         validate_listing_photo_count(asset_ids)
