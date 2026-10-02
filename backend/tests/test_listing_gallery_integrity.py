@@ -104,3 +104,14 @@ def test_repair_accepts_normalized_accents_case_and_whitespace():
     )
 
     assert _matching_repair_candidates(target, [source]) == [source]
+
+
+def test_repair_does_not_create_same_mode_duplicate():
+    target = listing(10, rental_mode="holiday", checksums=["cover"])
+    same_mode = listing(
+        20,
+        rental_mode="holiday",
+        checksums=["cover", "2", "3", "4", "5"],
+    )
+
+    assert _matching_repair_candidates(target, [same_mode]) == []
