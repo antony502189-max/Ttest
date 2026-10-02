@@ -372,13 +372,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   }, [mutateOwned])
 
   const renewListing = useCallback(async (id: string): Promise<ListingStatus | null> => {
-    mutateOwned(id, (listing) => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const currentExpiry = new Date(`${listing.expiresAt}T00:00:00`)
-    const base = Number.isFinite(currentExpiry.getTime()) && currentExpiry > today ? currentExpiry : today
-    base.setDate(base.getDate() + 30)
-    return { ...listing, status: 'Publicado', expiresAt: base.toISOString().slice(0, 10), closedReason: undefined }
-    })
+    mutateOwned(id, (listing) => ({ ...listing, status: 'Publicado', closedReason: undefined }))
     return 'Publicado'
   }, [mutateOwned])
 
