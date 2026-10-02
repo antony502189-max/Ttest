@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
