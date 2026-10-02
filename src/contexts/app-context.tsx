@@ -11,7 +11,6 @@ import { cleanupPreparedListingMedia, prepareListingMedia, syncListingImages, ty
 import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters } from '@/data/listings'
-import { expireListing } from '@/lib/listings'
 import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
@@ -115,7 +114,7 @@ const publicationFieldLabels: Record<string, string> = {
   roomCapacity: 'la capacidad', currentRoomResidents: 'las personas que viven en la habitación', bedType: 'el tipo de cama',
   bedCount: 'el número de camas', acceptedTenantTypes: 'los perfiles admitidos', exactLatitude: 'la ubicación exacta',
   exactLongitude: 'la ubicación exacta', contactName: 'el nombre público', contactPhone: 'el teléfono',
-  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías', videoAssetId: 'el vídeo', expiresAt: 'la fecha de vencimiento',
+  contactWhatsapp: 'WhatsApp', assetIds: 'las fotografías', videoAssetId: 'el vídeo',
 }
 
 function duplicateListingMessage() {
@@ -154,7 +153,7 @@ const listingUpdateFieldLabels: Record<'ru-RU' | 'en-GB', Record<string, string>
     bedType: 'тип кровати', bedCount: 'количество кроватей', acceptedTenantTypes: 'допустимые жильцы',
     exactLatitude: 'точное местоположение', exactLongitude: 'точное местоположение',
     contactName: 'имя', contactPhone: 'телефон', contactWhatsapp: 'WhatsApp',
-    assetIds: 'фотографии', videoAssetId: 'видео', expiresAt: 'срок публикации',
+    assetIds: 'фотографии', videoAssetId: 'видео',
   },
   'en-GB': {
     title: 'title', city: 'municipality', area: 'area', roomType: 'room type',
@@ -165,7 +164,7 @@ const listingUpdateFieldLabels: Record<'ru-RU' | 'en-GB', Record<string, string>
     bedType: 'bed type', bedCount: 'bed count', acceptedTenantTypes: 'accepted tenants',
     exactLatitude: 'exact location', exactLongitude: 'exact location',
     contactName: 'name', contactPhone: 'phone', contactWhatsapp: 'WhatsApp',
-    assetIds: 'photos', videoAssetId: 'video', expiresAt: 'listing expiry',
+    assetIds: 'photos', videoAssetId: 'video',
   },
 }
 
