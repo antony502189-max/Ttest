@@ -260,7 +260,19 @@
 .admin-listing-row > div:first-child,
 .admin-listing-state { min-width: 0; display: flex; flex-direction: column; }
 .admin-listing-state { align-items: flex-start; gap: .3rem; }
+.admin-listing-reference {
+  margin-top: .18rem;
+  font-weight: 750;
+  letter-spacing: .025em;
+}
 .admin-listing-actions { display: flex; gap: .45rem; }
+.admin-listing-actions-note {
+  align-self: center;
+  max-width: 16rem;
+  color: var(--ink-muted);
+  font-size: .82rem;
+  line-height: 1.35;
+}
 
 .admin-audit-list article { display: grid; grid-template-columns: auto minmax(12rem, .8fr) minmax(0, 1fr); gap: .8rem; }
 .admin-audit-icon { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; background: var(--surface-muted); }
@@ -649,6 +661,11 @@
     justify-content: stretch;
   }
   .admin-listing-actions button { width: 100%; min-height: 3rem; }
+  .admin-listing-actions-note {
+    grid-column: 1 / -1;
+    max-width: none;
+    padding: .35rem .1rem 0;
+  }
   .admin-report-card footer {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

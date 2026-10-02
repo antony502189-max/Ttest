@@ -50,3 +50,20 @@ test('exclusive TOP end boundary is rendered as the selected inclusive Hasta cal
   expect(adminPage).toContain('formatPromotionEndDate(listing.promotionEndsAt)')
 })
 
+
+
+test('expired admin promotion records are history, not current promotion actions', () => {
+  expect(adminPage).toContain("function isCurrentPromotionState(state: AdminListing['promotionState'])")
+  expect(adminPage).toContain("return state === 'active' || state === 'scheduled'")
+  expect(adminPage).toContain("hasCurrentPromotion ? 'Actualizar TOP' : 'Activar TOP'")
+  expect(adminPage).toContain("isCurrentPromotionState(listing.promotionState) ? 'Cambiar TOP' : 'Subir al TOP'")
+  expect(adminPage).toContain("isCurrentPromotionState(listing.promotionState) ? <Button")
+  expect(adminPage).not.toContain("listing.promotionState ? 'Cambiar TOP' : 'Subir al TOP'")
+})
+
+test('expired homepage feature is not treated as the current removable placement', () => {
+  expect(adminPage).toContain('function isCurrentHomepagePromotion')
+  expect(adminPage).toContain("current?.listingId === listingId && current.state !== 'expired'")
+  expect(adminPage).toContain("hasCurrentHomepage ? 'Actualizar portada' : 'Poner en portada'")
+  expect(adminPage).toContain("isCurrentHomepagePromotion(homepageHero, listing.id) ? 'Cambiar portada' : 'Poner en portada'")
+})

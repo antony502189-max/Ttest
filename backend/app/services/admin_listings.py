@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import String, and_, cast, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ExternalListingSource, Listing, User
@@ -77,7 +77,16 @@ async def list_listings(
         query = query.where(Listing.status == status)
     if search:
         term = f"%{search.strip()}%"
-        query = query.where(Listing.title.ilike(term) | User.name.ilike(term))
+        query = query.where(
+            or_(
+                Listing.title.ilike(term),
+                User.name.ilike(term),
+                User.email.ilike(term),
+                Listing.area.ilike(term),
+                Listing.city.ilike(term),
+                cast(Listing.id, String).ilike(term),
+            )
+        )
     active_restriction = (
         select(ListingRestriction.id)
         .where(ListingRestriction.listing_id == Listing.id, *active_window(ListingRestriction))
