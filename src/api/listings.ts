@@ -1,6 +1,7 @@
 import { api, ApiError, resolveApiUrl } from '@/api/client'
 import { defaultFilters } from '@/data/listings'
 import { ownerListingLocationChanged } from '@/lib/listing-address-group'
+import { MIN_LISTING_PHOTOS } from '@/lib/media-storage'
 import type { Filters, Listing, ListingStatus, TenantRequirement } from '@/types'
 
 type ListingDto = {
@@ -93,6 +94,37 @@ type ListingDto = {
 
 type ListingCardDto = Pick<ListingDto, 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'> & { imageUrls?: string[] }
 export type ListingCardPage = { items: Listing[]; total: number; nextCursor: string | null; previousCursor: string | null }
+
+type ListingImageDto = {
+  assetId: string
+  url: string
+  sortOrder: number
+  isCover: boolean
+}
+
+function orderedGalleryUrls(rows: ListingImageDto[]) {
+  return [...rows]
+    .sort((left, right) => Number(right.isCover) - Number(left.isCover) || left.sortOrder - right.sortOrder)
+    .map((row) => resolveApiUrl(row.url))
+}
+
+async function hydrateIncompleteInternalGallery(listing: Listing, signal?: AbortSignal): Promise<Listing> {
+  if (listing.isExternal || listing.images.length >= MIN_LISTING_PHOTOS) return listing
+  try {
+    const rows = await api<ListingImageDto[]>(`/listings/${listing.id}/images`, { signal })
+    const images = orderedGalleryUrls(rows)
+    return images.length > listing.images.length ? { ...listing, images } : listing
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'REQUEST_ABORTED') throw error
+    // Search/detail must remain usable if the recovery endpoint is temporarily
+    // unavailable. The original card image is still better than failing the page.
+    return listing
+  }
+}
+
+async function hydrateIncompleteInternalGalleries(listings: Listing[], signal?: AbortSignal) {
+  return Promise.all(listings.map((listing) => hydrateIncompleteInternalGallery(listing, signal)))
+}
 export type ListingMapMarker =
   | { type: 'listing'; id: string; latitude: number; longitude: number; price: number | null; promoted: boolean; isExternal: boolean; sourceUrl: string | null }
   | { type: 'cluster'; id: string; latitude: number; longitude: number; count: number; promoted: boolean }
@@ -247,12 +279,12 @@ export async function getPublicCardsByIds(ids: string[], signal?: AbortSignal): 
   const validIds = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id))
   const chunks = Array.from({ length: Math.ceil(validIds.length / 100) }, (_, index) => validIds.slice(index * 100, (index + 1) * 100))
   const responses = await Promise.all(chunks.map((chunk) => api<ListingCardDto[]>('/listings/cards/resolve', { method: 'POST', body: JSON.stringify({ ids: chunk }), signal })))
-  return responses.flat().map(toCardListing)
+  return hydrateIncompleteInternalGalleries(responses.flat().map(toCardListing), signal)
 }
 
 export async function getSimilarListings(id: string, signal?: AbortSignal): Promise<Listing[]> {
   const cards = await api<ListingCardDto[]>(`/listings/similar/${id}`, { signal })
-  return cards.map(toCardListing)
+  return hydrateIncompleteInternalGalleries(cards.map(toCardListing), signal)
 }
 
 export async function getMapMarkers(body: Record<string, unknown>, signal?: AbortSignal): Promise<ListingMapMarker[]> {
@@ -269,7 +301,8 @@ export async function getOwnedListings(signal?: AbortSignal) {
 }
 
 export async function getPublicListing(id: string) {
-  return toListing(await api<ListingDto>(`/listings/${id}`))
+  const listing = toListing(await api<ListingDto>(`/listings/${id}`))
+  return hydrateIncompleteInternalGallery(listing)
 }
 
 export async function getHomepageHeroListing(signal?: AbortSignal) {
@@ -359,7 +392,8 @@ export async function searchPublicListings(input: ListingSearchInput, signal?: A
   const response = await api<{ items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }>('/listings/search/cards', {
     method: 'POST', body: JSON.stringify({ ...buildListingSearchBody(input), cursor, limit }), signal,
   })
-  return { items: response.items.map(toCardListing), total: response.total, nextCursor: response.nextCursor, previousCursor: response.previousCursor }
+  const items = await hydrateIncompleteInternalGalleries(response.items.map(toCardListing), signal)
+  return { items, total: response.total, nextCursor: response.nextCursor, previousCursor: response.previousCursor }
 }
 
 async function syncContactProfile(listing: Listing) {
