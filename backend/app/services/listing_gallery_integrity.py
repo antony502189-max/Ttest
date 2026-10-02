@@ -71,6 +71,11 @@ def _matching_repair_candidates(
     for candidate in candidates:
         if candidate.listing_id == target.listing_id or candidate.owner_id != target.owner_id:
             continue
+        # Same-mode matching galleries belong to duplicate prevention, not
+        # recovery. Automatic repair is only for an intentional long/holiday
+        # counterpart such as the production A32B1B regression.
+        if candidate.rental_mode == target.rental_mode:
+            continue
         if _address_key(candidate) != target_address:
             continue
         if _normalized_text(candidate.title) != _normalized_text(target.title):
