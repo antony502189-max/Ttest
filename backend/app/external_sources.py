@@ -1873,6 +1873,9 @@ class PisoCompartidoSource(ExternalListingSource):
         # responsive/lazy variants that previously inflated a six-photo advert
         # into counters such as 6/25 or 11/28.
         gallery_images = bounded_photo_urls(list(data["images"]))
+        source_gallery_count = re.search(r"\bVer\s+(\d{1,2})\s+fotos?\b", clean(document), re.IGNORECASE)
+        if source_gallery_count:
+            gallery_images = gallery_images[: min(int(source_gallery_count.group(1)), MAX_LISTING_PHOTOS)]
         advertiser = re.search(r'(?:anunciante|propietario)[^<]{0,80}</[^>]+>\s*<[^>]+>([^<]+)', document, re.IGNORECASE)
         availability = re.search(r'(?:disponible(?:\s+desde)?|fecha disponible)\s*[:\-]?\s*([^<\n]{4,40})', clean(document), re.IGNORECASE)
         data.update({
