@@ -11,7 +11,6 @@ import {
   LogOut,
   MapPin,
   MoreHorizontal,
-  MousePointerClick,
   Plus,
   RotateCcw,
   Save,
@@ -52,6 +51,27 @@ import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/l
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
 import type { DemoUser } from "@/types";
+
+function OwnerPromoteIcon() {
+  return (
+    <svg
+      className="owner-top-promote-icon"
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M13.2 4.8h12.1v12.1l-4.1-4.1-7 7-6.1-6.1 7-7-1.9-1.9Z"
+        stroke="currentColor"
+        strokeWidth="2.75"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <path d="M8.2 18.1 5.4 20.9M10.5 21.6 6.7 25.4M14 23.9l-2.8 2.8" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 function AccountHeader({
   eyebrow,
@@ -613,7 +633,7 @@ export function MyListingsPage() {
                     onClick={() => openTopFlow(listing.id)}
                     aria-label={`${t("Destacar")}: ${listing.title}`}
                   >
-                    <MousePointerClick aria-hidden="true" />
+                    <OwnerPromoteIcon />
                     {t("Destacar")}
                   </Button>
                 ) : null}
