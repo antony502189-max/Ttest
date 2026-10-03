@@ -112,6 +112,28 @@ def test_coordinate_projection_preserves_public_response_values():
     assert response.imageUrls == ["/api/v1/media/asset-id"]
 
 
+def test_public_projection_never_exposes_more_than_15_local_photos():
+    asset_ids = [f"asset-{index}" for index in range(20)]
+    response = response_from((listing(), -16.732, 28.087, owner(), asset_ids, details()))
+
+    assert len(response.imageUrls) == 15
+    assert response.imageUrls[-1] == "/api/v1/media/asset-14"
+
+
+def test_public_projection_never_exposes_more_than_15_external_photo_urls():
+    urls = [f"https://images.example.test/{index}.jpg" for index in range(28)]
+    response = response_from((
+        listing(is_external=True, external_image_urls=urls),
+        -16.732,
+        28.087,
+        owner(),
+        [],
+        details(),
+    ))
+
+    assert response.imageUrls == urls[:15]
+
+
 def test_room_first_projection_exposes_structured_details_and_available_spots():
     response = response_from(
         (

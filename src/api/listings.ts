@@ -1,7 +1,7 @@
 import { api, ApiError, resolveApiUrl } from '@/api/client'
 import { defaultFilters } from '@/data/listings'
 import { ownerListingLocationChanged } from '@/lib/listing-address-group'
-import { MIN_LISTING_PHOTOS } from '@/lib/media-storage'
+import { MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS } from '@/lib/media-storage'
 import type { Filters, Listing, ListingStatus, TenantRequirement } from '@/types'
 
 type ListingDto = {
@@ -105,6 +105,7 @@ type ListingImageDto = {
 function orderedGalleryUrls(rows: ListingImageDto[]) {
   return [...rows]
     .sort((left, right) => Number(right.isCover) - Number(left.isCover) || left.sortOrder - right.sortOrder)
+    .slice(0, MAX_LISTING_PHOTOS)
     .map((row) => resolveApiUrl(row.url))
 }
 
@@ -209,7 +210,7 @@ export function toListing(dto: ListingDto): Listing {
     amenities: dto.amenities.map((item) => item === 'Fibra' ? 'Wi-Fi' : item),
     description: dto.description,
     homeDescription: dto.homeDescription,
-    images: dto.imageUrls.map(resolveApiUrl),
+    images: dto.imageUrls.slice(0, MAX_LISTING_PHOTOS).map(resolveApiUrl),
     ...(dto.videoUrl ? { video: resolveApiUrl(dto.videoUrl) } : {}),
     owner: {
       name: dto.owner.name,
@@ -263,7 +264,7 @@ export function toCardListing(dto: ListingCardDto): Listing {
     smokingAllowed: null, petsAllowed: null, childrenAllowed: null, empadronamientoAllowed: null,
     restrictions: dto.restrictions, amenities: [], description: dto.description, homeDescription: '',
     images: dto.imageUrls?.length
-      ? dto.imageUrls.map(resolveApiUrl)
+      ? dto.imageUrls.slice(0, MAX_LISTING_PHOTOS).map(resolveApiUrl)
       : dto.coverImageUrl ? [resolveApiUrl(dto.coverImageUrl)] : [],
     owner: { name: '', initials: '', since: '', response: '', verified: false },
     advertiserType: dto.advertiserType ?? 'Particular', isExternal: dto.isExternal,

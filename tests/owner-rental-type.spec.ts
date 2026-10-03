@@ -32,6 +32,9 @@ test('owner cards show the existing rental labels without adding them to public 
   const promoteButton = firstCard.getByTestId('owner-top-promote-button')
   await expect(promoteButton).toBeVisible()
   await expect(promoteButton).toHaveText('Destacar')
+  const promoteIcon = promoteButton.locator('svg.owner-top-promote-icon')
+  await expect(promoteIcon).toBeVisible()
+  await expect(promoteIcon).toHaveAttribute('viewBox', '0 0 32 32')
   const firstListingId = await firstCard.getAttribute('data-listing-id')
   expect(firstListingId).toBeTruthy()
 
