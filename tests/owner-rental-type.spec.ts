@@ -27,8 +27,13 @@ test('owner cards show the existing rental labels without adding them to public 
 
   const topCta = page.getByTestId('owner-top-cta')
   await expect(topCta).toBeVisible()
-  await expect(cards.first().getByTestId('owner-top-status')).toHaveAttribute('data-top-active', 'false')
-  await expect(cards.first().getByTestId('owner-top-status')).toContainText('No estás en TOP')
+  const firstCard = cards.first()
+  await expect(firstCard.getByTestId('owner-top-status')).toHaveCount(0)
+  const promoteButton = firstCard.getByTestId('owner-top-promote-button')
+  await expect(promoteButton).toBeVisible()
+  await expect(promoteButton).toHaveText('Destacar')
+  const firstListingId = await firstCard.getAttribute('data-listing-id')
+  expect(firstListingId).toBeTruthy()
 
   const ctaBox = await topCta.boundingBox()
   const firstCardBox = await cards.first().boundingBox()
@@ -36,9 +41,13 @@ test('owner cards show the existing rental labels without adding them to public 
   expect(firstCardBox).not.toBeNull()
   expect(ctaBox!.y).toBeLessThan(firstCardBox!.y)
 
+  await promoteButton.click()
+  await expect(page.locator(`[data-testid="owner-top-option"][data-listing-id="${firstListingId}"]`)).toHaveClass(/is-selected/)
+  await expect(page.getByTestId('owner-top-next-step')).toBeVisible()
+  await page.keyboard.press('Escape')
+
   await topCta.getByRole('button').click()
   await expect(page.getByTestId('owner-top-option')).not.toHaveCount(0)
-  await expect(page.getByTestId('owner-top-next-step')).toBeVisible()
   await page.keyboard.press('Escape')
 
   await page.goto('/#/buscar')
@@ -99,4 +108,5 @@ test('owner card shows the real active TOP end date from listing data', async ({
   await expect(status).toContainText('Estás en TOP hasta')
   await expect(status).toContainText('2026')
   await expect(status).toContainText('👍')
+  await expect(ownerCard.getByTestId('owner-top-promote-button')).toHaveCount(0)
 })

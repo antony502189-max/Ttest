@@ -198,6 +198,7 @@ const translations: Record<string, Translation> = {
   'Sube tu anuncio a TOP': { ru: 'Поднять свое объявление в TOP', en: 'Boost your listing to TOP' },
   'Haz que tu anuncio destaque y aparezca antes que los demás.': { ru: 'Сделайте объявление заметнее и покажите его выше остальных.', en: 'Make your listing stand out and appear ahead of the rest.' },
   'Llevar a TOP': { ru: 'Вывести в TOP', en: 'Move to TOP' },
+  'Destacar': { ru: 'Вывести в TOP', en: 'Highlight' },
   'Elige el anuncio que quieres destacar': { ru: 'Выберите объявление, которое хотите поднять', en: 'Choose the listing you want to boost' },
   'Selecciona uno de tus anuncios publicados. En el siguiente paso configuraremos la duración y el pago.': { ru: 'Выберите одно из опубликованных объявлений. На следующем шаге настроим срок и оплату.', en: 'Choose one of your published listings. On the next step we will configure duration and payment.' },
   'Siguiente: duración y pago': { ru: 'Дальше: срок и оплата', en: 'Next: duration and payment' },
