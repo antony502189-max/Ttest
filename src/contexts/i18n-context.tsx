@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { localizationAuditCatalog, localizationSourceAliases } from '../lib/localization-audit-catalog'
 
 export type Language = 'es' | 'ru' | 'en'
 
@@ -1295,14 +1296,72 @@ Object.assign(translations, {
   'Desactivar': { ru: 'Отключить', en: 'Deactivate' },
   'No hay campañas en este estado.': { ru: 'Нет кампаний с этим статусом.', en: 'No campaigns in this status.' },
   'Solo se admiten imágenes JPEG, PNG o WebP.': { ru: 'Допустимы только изображения JPEG, PNG или WebP.', en: 'Only JPEG, PNG or WebP images are allowed.' },
-}, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations, adminTranslations)
+}, listingTranslations, screenshotLockedTranslations, roomFirstTranslations, finalAuditTranslations, adminTranslations, localizationAuditCatalog)
 
 const localeByLanguage: Record<Language, string> = { es: 'es-ES', ru: 'ru-RU', en: 'en-GB' }
 const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русский', en: 'English' }
 
+// React may already supply localized copy (t(), locale-specific option labels).
+// Retain its Spanish source so DOM synchronization can switch it back to ES.
+const translatedSources = new Map<string, string>()
+Object.entries(translations).forEach(([source, value]) => {
+  if (value.ru === value.en) return // Shared names such as Wi-Fi are not source aliases.
+  ;[value.ru, value.en].forEach((translated) => {
+    if (!(translated in translations) && !translatedSources.has(translated)) translatedSources.set(translated, source)
+  })
+})
+
+function canonicalUiText(value: string, previous?: string): string {
+  if (previous && (['es', 'ru', 'en'] as const).some((language) => translateText(previous, language) === value)) return previous
+  const source = value.trim()
+  const canonical = localizationSourceAliases[source] ?? translatedSources.get(source)
+  return canonical ? value.replace(source, canonical) : value
+}
+
+const publicationFieldTranslations: Record<string, Translation> = {
+  'el título': { ru: 'заголовок', en: 'title' },
+  'el municipio': { ru: 'муниципалитет', en: 'municipality' },
+  'la zona': { ru: 'район', en: 'area' },
+  'el tipo de habitación': { ru: 'тип комнаты', en: 'room type' },
+  'el precio mensual': { ru: 'цена за месяц', en: 'monthly price' },
+  'el precio por noche': { ru: 'цена за ночь', en: 'nightly price' },
+  'el precio semanal': { ru: 'цена за неделю', en: 'weekly price' },
+  'la fecha de inicio': { ru: 'дата начала', en: 'start date' },
+  'la fecha final': { ru: 'дата окончания', en: 'end date' },
+  'la estancia mínima': { ru: 'минимальный срок', en: 'minimum stay' },
+  'la superficie de la habitación': { ru: 'площадь комнаты', en: 'room size' },
+  'la superficie de la vivienda': { ru: 'площадь жилья', en: 'home size' },
+  'la capacidad': { ru: 'вместимость', en: 'capacity' },
+  'las personas que viven en la habitación': { ru: 'жильцы комнаты', en: 'room residents' },
+  'el tipo de cama': { ru: 'тип кровати', en: 'bed type' },
+  'el número de camas': { ru: 'количество кроватей', en: 'bed count' },
+  'los perfiles admitidos': { ru: 'допустимые жильцы', en: 'accepted tenants' },
+  'la ubicación exacta': { ru: 'точное местоположение', en: 'exact location' },
+  'el nombre público': { ru: 'публичное имя', en: 'public name' },
+  'el teléfono': { ru: 'телефон', en: 'phone' },
+  'WhatsApp': { ru: 'WhatsApp', en: 'WhatsApp' },
+  'las fotografías': { ru: 'фотографии', en: 'photos' },
+  'el vídeo': { ru: 'видео', en: 'video' },
+  'los datos del anuncio': { ru: 'данные объявления', en: 'listing details' },
+}
+
 const translatePattern = (source: string, language: Exclude<Language, 'es'>) => {
   const target = (ru: string, en: string) => language === 'ru' ? ru : en
   let match: RegExpMatchArray | null
+  if ((match = source.match(/^Revisa (.+)\.$/))) {
+    const field = publicationFieldTranslations[match[1]]?.[language]
+    if (field) return target(`Проверьте поле «${field}».`, `Check the ${field} field.`)
+  }
+  if ((match = source.match(/^Mínimo (\d+) (mes\(es\)|noche\(s\))$/))) return target(`Минимум ${match[1]} ${match[2] === 'mes(es)' ? 'мес.' : 'ноч.'}`, `Minimum ${match[1]} ${match[2] === 'mes(es)' ? Number(match[1]) === 1 ? 'month' : 'months' : Number(match[1]) === 1 ? 'night' : 'nights'}`)
+  if ((match = source.match(/^(.+) € de fianza$/))) return target(`Депозит ${match[1]} €`, `€${match[1]} deposit`)
+  if ((match = source.match(/^Usa al menos (\d+) caracteres\.$/))) return target(`Используйте не менее ${match[1]} символов.`, `Use at least ${match[1]} characters.`)
+  if ((match = source.match(/^Usa como máximo (\d+) caracteres\.$/))) return target(`Используйте не более ${match[1]} символов.`, `Use at most ${match[1]} characters.`)
+  if ((match = source.match(/^La portada admite como máximo (\d+) campañas simultáneas\.$/))) return target(`На главной допускается не более ${match[1]} одновременных кампаний.`, `The homepage allows at most ${match[1]} simultaneous campaigns.`)
+  if ((match = source.match(/^Zona dibujada aplicada con (\d+) puntos\.$/))) return target(`Нарисованная зона применена, точек: ${match[1]}.`, `Drawn area applied with ${match[1]} points.`)
+  if ((match = source.match(/^Abrir notificaciones \((\d+) sin leer\)$/))) return target(`Открыть уведомления (не прочитано: ${match[1]})`, `Open notifications (${match[1]} unread)`)
+  if ((match = source.match(/^Las consultas sobre estas condiciones pueden enviarse a (.+)\. La versión completa y directamente accesible está disponible en \/terminos\.$/))) return target(`Вопросы об этих условиях можно отправить на ${match[1]}. Полная версия доступна на /terminos.`, `Questions about these conditions can be sent to ${match[1]}. The full, directly accessible version is available at /terminos.`)
+  if ((match = source.match(/^Los datos se conservan mientras la cuenta o el anuncio estén activos y durante los periodos técnicos o legales necesarios\. Puede solicitar acceso, rectificación o eliminación escribiendo desde el email asociado a (.+)\.$/))) return target(`Данные хранятся, пока аккаунт или объявление активны, и в течение необходимых технических или законных сроков. Вы можете запросить доступ, исправление или удаление, написав с привязанного email на ${match[1]}.`, `Data is kept while the account or listing is active and for necessary technical or legal periods. You can request access, correction or deletion by writing from the associated email to ${match[1]}.`)
+  if ((match = source.match(/^(.+) (añadida|eliminada)\. (\d+) zonas seleccionadas\.$/))) return target(`${match[1]} ${match[2] === 'añadida' ? 'добавлена' : 'удалена'}. Выбрано районов: ${match[3]}.`, `${match[1]} ${match[2] === 'añadida' ? 'added' : 'removed'}. ${match[3]} areas selected.`)
   const localizeSpanishDate = (value: string) => {
     const ruMonths: Record<string, string> = {
       enero: 'января', febrero: 'февраля', marzo: 'марта', abril: 'апреля', mayo: 'мая', junio: 'июня',
@@ -1313,7 +1372,13 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
       julio: 'July', agosto: 'August', septiembre: 'September', octubre: 'October', noviembre: 'November', diciembre: 'December',
     }
     const months = language === 'ru' ? ruMonths : enMonths
+    const abbreviations: Record<string, Translation> = {
+      ene: { ru: 'янв.', en: 'Jan' }, feb: { ru: 'февр.', en: 'Feb' }, mar: { ru: 'мар.', en: 'Mar' }, abr: { ru: 'апр.', en: 'Apr' },
+      may: { ru: 'мая', en: 'May' }, jun: { ru: 'июн.', en: 'Jun' }, jul: { ru: 'июл.', en: 'Jul' }, ago: { ru: 'авг.', en: 'Aug' },
+      sept: { ru: 'сент.', en: 'Sept' }, sep: { ru: 'сент.', en: 'Sept' }, oct: { ru: 'окт.', en: 'Oct' }, nov: { ru: 'нояб.', en: 'Nov' }, dic: { ru: 'дек.', en: 'Dec' },
+    }
     return value.replace(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/gi, (month) => months[month.toLowerCase()] ?? month)
+      .replace(/\b(ene|feb|mar|abr|may|jun|jul|ago|sept|sep|oct|nov|dic)\.?(?=\s|$|,)/gi, (month) => abbreviations[month.replace('.', '').toLowerCase()]?.[language] ?? month)
   }
   if ((match = source.match(/^Gastos aparte: aprox\. (.+) €$/))) return target(`Коммунальные расходы отдельно: примерно ${match[1]} €`, `Utilities extra: approx. €${match[1]}`)
   if ((match = source.match(/^Disponible desde (.+)$/))) return target(`Доступно с ${localizeSpanishDate(match[1])}`, `Available from ${localizeSpanishDate(match[1])}`)
@@ -1423,6 +1488,13 @@ const translatePattern = (source: string, language: Exclude<Language, 'es'>) => 
 }
 
 function translateCore(source: string, language: Language): string {
+  source = localizationSourceAliases[source] ?? localizationSourceAliases[source.replace(/^Value error, /, '')] ?? source
+  const minimumLength = source.match(/^String should have at least (\d+) characters$/)
+  const maximumLength = source.match(/^String should have at most (\d+) characters$/)
+  const campaignLimit = source.match(/^Homepage advertising is limited to (\d+) simultaneous campaigns$/)
+  if (minimumLength) source = `Usa al menos ${minimumLength[1]} caracteres.`
+  if (maximumLength) source = `Usa como máximo ${maximumLength[1]} caracteres.`
+  if (campaignLimit) source = `La portada admite como máximo ${campaignLimit[1]} campañas simultáneas.`
   if (language === 'es' || !source) return source
   const exact = translations[source]?.[language]
   if (exact) return exact
@@ -1432,7 +1504,7 @@ function translateCore(source: string, language: Language): string {
 }
 
 export function translateText(value: string, language: Language): string {
-  if (language === 'es' || !value.trim()) return value
+  if (!value.trim()) return value
   const match = value.match(/^(\s*)(.*?)(\s*)$/s)
   if (!match) return translateCore(value, language)
   return `${match[1]}${translateCore(match[2], language)}${match[3]}`
@@ -1475,7 +1547,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
     const translateTextNode = (node: Text) => {
       if (isTranslationExempt(node)) return
       const lastApplied = textApplied.get(node)
-      if (!textOriginals.has(node) || (lastApplied !== undefined && node.data !== lastApplied)) textOriginals.set(node, node.data)
+      if (!textOriginals.has(node) || (lastApplied !== undefined && node.data !== lastApplied)) textOriginals.set(node, canonicalUiText(node.data, textOriginals.get(node)))
       const original = textOriginals.get(node) ?? node.data
       const next = translateText(original, language)
       textApplied.set(node, next)
@@ -1492,7 +1564,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
         const current = element.getAttribute(attribute)
         if (current === null) return
         const lastApplied = applied?.get(attribute)
-        if (!originals?.has(attribute) || (lastApplied !== undefined && current !== lastApplied)) originals?.set(attribute, current)
+        if (!originals?.has(attribute) || (lastApplied !== undefined && current !== lastApplied)) originals?.set(attribute, canonicalUiText(current, originals?.get(attribute)))
         const original = originals?.get(attribute) ?? current
         const next = translateText(original, language)
         applied?.set(attribute, next)

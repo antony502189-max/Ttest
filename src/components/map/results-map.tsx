@@ -94,7 +94,7 @@ function fitListings(map: google.maps.Map, listings: MappedListing[]) {
 
 export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
   const { filters, mapPolygon, setMapPolygon, clearMapPolygon } = useApp()
-  const { language } = useI18n()
+  const { language, t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const clusterRef = useRef<MarkerClusterer | null>(null)
@@ -720,15 +720,16 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const locateCurrentPosition = async () => {
     if (geolocationPendingRef.current) return
     geolocationPendingRef.current = true
-    const messages = {
+    const messageSources = {
       es: { success: 'Ubicación encontrada en Tenerife.', denied: 'No has permitido acceder a tu ubicación.', unavailable: 'Tu ubicación no está disponible.', timeout: 'La búsqueda de ubicación ha tardado demasiado.', unsupported: 'Tu navegador no ofrece geolocalización.', outside: 'Tu ubicación está fuera de Tenerife.' },
       en: { success: 'Location found in Tenerife.', denied: 'Location permission was denied.', unavailable: 'Your location is unavailable.', timeout: 'Finding your location took too long.', unsupported: 'Your browser does not provide geolocation.', outside: 'Your location is outside Tenerife.' },
       ru: { success: 'Местоположение на Тенерифе найдено.', denied: 'Доступ к местоположению отклонён.', unavailable: 'Местоположение недоступно.', timeout: 'Определение местоположения заняло слишком много времени.', unsupported: 'Браузер не поддерживает геолокацию.', outside: 'Вы находитесь за пределами Тенерифе.' },
-    }[language]
+    }
+    const messages = messageSources[language]
     const result = await requestCurrentLocation({ enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 })
     geolocationPendingRef.current = false
     if (!result.ok) {
-      setActionAnnouncement(messages[result.reason])
+      setActionAnnouncement(messageSources.es[result.reason])
       toast.error(messages[result.reason])
       return
     }
@@ -756,7 +757,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       accuracyCircleRef.current.setCenter(result.coordinates)
     }
     google.maps.event.addListenerOnce(map, 'idle', () => { programmaticMoveRef.current = false })
-    setActionAnnouncement(messages.success)
+    setActionAnnouncement(messageSources.es.success)
   }
   const searchBounds = () => {
     const currentBounds = mapRef.current ? getMapBounds(mapRef.current) : bounds
@@ -791,7 +792,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     {drawing ? <div className="freehand-map-overlay" role="application" aria-label="Mantén pulsado y dibuja el contorno de la zona" onPointerDown={startFreehandStroke} onPointerMove={continueFreehandStroke} onPointerUp={finishFreehandStroke} onPointerCancel={cancelFreehandStroke} onContextMenu={(event) => event.preventDefault()} /> : null}
     <MapLayerSwitcher value={layer} onChange={setLayer} />
     {fullScreen ? <MapToolbar boundsDirty={boundsDirty} canSearchBounds={Boolean(boundsDirty && bounds && onBoundsSearch)} drawing={drawing} pointCount={draftPolygon.length} hasPolygon={mapPolygon.length >= 3} onSearchBounds={searchBounds} onLocate={locateCurrentPosition} onStartDrawing={startDrawing} onAddPoint={addKeyboardPoint} onCancelDrawing={cancelDrawing} onFinishDrawing={finishDrawing} onDeletePolygon={deletePolygon} /> : null}
-    {actionAnnouncement ? <div ref={announcementRef} className="map-action-announcement" role="status" aria-live="polite" tabIndex={-1}>{actionAnnouncement}</div> : null}
+    {actionAnnouncement ? <div ref={announcementRef} className="map-action-announcement" role="status" aria-live="polite" tabIndex={-1}>{t(actionAnnouncement)}</div> : null}
     {!ready && !mapError ? <div className="map-loading" role="status" aria-live="polite"><span aria-hidden="true" /><strong>Cargando Google Maps</strong></div> : null}
     {googleMapsConfig.usesDevelopmentMapId ? <p className="map-dev-notice">Mapa de desarrollo: configura un Map ID propio antes de publicar.</p> : null}
     {mapError ? <div className="map-inline-error" role="alert"><strong>Mapa no disponible</strong><span>{mapError}</span></div> : null}

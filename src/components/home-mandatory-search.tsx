@@ -98,13 +98,13 @@ export function HomeMandatorySearch() {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!canSearch) {
-      setError(t('Selecciona al menos una condición para ver los anuncios.'))
+      setError('Selecciona al menos una condición para ver los anuncios.')
       return
     }
 
     const location = resolveTenerifeLocation(query.trim() || 'Tenerife')
     if (!location) {
-      setError(t('En esta versión solo puedes buscar habitaciones en Tenerife.'))
+      setError('En esta versión solo puedes buscar habitaciones en Tenerife.')
       return
     }
 
@@ -172,7 +172,7 @@ export function HomeMandatorySearch() {
       <SearchLocationInput home value={query} onChange={(value) => { setQuery(value); setError('') }} />
     </div>
 
-    {error ? <p className="mandatory-home-search__error" role="alert">{error}</p> : null}
+    {error ? <p className="mandatory-home-search__error" role="alert">{t(error)}</p> : null}
 
     <Button type="submit" size="lg" disabled={!canSearch} aria-disabled={!canSearch}>
       <Search data-icon="inline-start" />

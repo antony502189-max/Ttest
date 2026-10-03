@@ -83,6 +83,7 @@ export function Footer() {
 }
 
 export function AppLayout() {
+  const { t } = useI18n()
   const { pathname } = useLocation()
   const { storageError, clearStorageError } = useApp()
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
@@ -97,5 +98,5 @@ export function AppLayout() {
     return () => media.removeEventListener('change', update)
   }, [])
 
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <><PublishLocationEnhancer /><PublishAddressLifecycle /></> : null}<Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <><PublishLocationEnhancer /><PublishAddressLifecycle /></> : null}<Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton containerAriaLabel={t('Notificaciones')} toastOptions={{ classNames: { toast: 'cn-toast' }, closeButtonAriaLabel: t('Cerrar notificación') }} /></>
 }
