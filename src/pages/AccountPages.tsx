@@ -564,7 +564,7 @@ export function MyListingsPage() {
               </div>
               <div className="owner-top-cta__action">
                 <span className="owner-top-cta__pointer" aria-hidden="true">👉</span>
-                <Button type="button" className="owner-top-cta__button" onClick={openTopFlow}>
+                <Button type="button" className="owner-top-cta__button" onClick={() => openTopFlow()}>
                   {t("Llevar a TOP")}
                 </Button>
               </div>
