@@ -11,6 +11,7 @@ import {
   LogOut,
   MapPin,
   MoreHorizontal,
+  MousePointerClick,
   Plus,
   RotateCcw,
   Save,
@@ -490,8 +491,10 @@ export function MyListingsPage() {
     status === "Todos"
       ? mine
       : mine.filter((listing) => listing.status === status);
-  const openTopFlow = () => {
-    const candidate = promotable.find((listing) => !listing.promoted) ?? promotable[0];
+  const openTopFlow = (listingId?: string) => {
+    const candidate = listingId
+      ? promotable.find((listing) => listing.id === listingId)
+      : promotable.find((listing) => !listing.promoted) ?? promotable[0];
     if (!candidate) return;
     setTopCandidateId(candidate.id);
     setTopDialogOpen(true);
@@ -590,18 +593,30 @@ export function MyListingsPage() {
                 >
                   {t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}
                 </span>
-                <p
-                  className={`owner-top-status ${listing.promoted ? "is-active" : "is-inactive"}`}
-                  data-testid="owner-top-status"
-                  data-top-active={listing.promoted ? "true" : "false"}
-                >
-                  <span aria-hidden="true">{listing.promoted ? "👍" : "😏"}</span>
-                  {listing.promoted
-                    ? listing.promotionEndsAt
+                {listing.promoted ? (
+                  <p
+                    className="owner-top-status is-active"
+                    data-testid="owner-top-status"
+                    data-top-active="true"
+                  >
+                    <span aria-hidden="true">👍</span>
+                    {listing.promotionEndsAt
                       ? `${t("Estás en TOP hasta")} ${formatOwnerPromotionEnd(listing.promotionEndsAt, locale, language)}`
-                      : t("Estás en TOP")
-                    : t("No estás en TOP")}
-                </p>
+                      : t("Estás en TOP")}
+                  </p>
+                ) : listing.status === "Publicado" && !listing.isExternal ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="owner-top-promote-button"
+                    data-testid="owner-top-promote-button"
+                    onClick={() => openTopFlow(listing.id)}
+                    aria-label={`${t("Destacar")}: ${listing.title}`}
+                  >
+                    <MousePointerClick aria-hidden="true" />
+                    {t("Destacar")}
+                  </Button>
+                ) : null}
                 <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
                 {listing.status === "Finalizado" ? <p className="listing-ended-reason">Cerrado por el anunciante.</p> : null}
                 <div className="manage-metrics">
