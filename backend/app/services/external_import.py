@@ -244,9 +244,6 @@ async def import_images(
     detached and truly orphaned media is queued for storage deletion.
     """
     settings = get_settings()
-    existing_count = int(await session.scalar(
-        select(func.count(ListingImage.media_asset_id)).where(ListingImage.listing_id == listing_id)
-    ) or 0)
     await session.commit()
     # Product galleries have one hard ceiling everywhere, including imports.
     # Legacy external rows above the limit are intentionally reconciled down
