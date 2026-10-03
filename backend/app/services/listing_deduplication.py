@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.config import get_settings
+from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..models import Listing, ListingImage, MediaAsset
 
 # The upload request has already finished object-storage work before listing
@@ -424,10 +424,8 @@ def external_gallery_is_reconciled(
 ) -> bool:
     if not is_external:
         return True
-    # New galleries use the configurable external cap. Older, larger
-    # galleries keep their current size, up to the historical ceiling.
-    cap = min(20, max(get_settings().external_import_max_images, stored_image_count))
-    expected_count = len(list(dict.fromkeys(external_image_urls))[:cap])
+    # Imported and native galleries share the same product ceiling.
+    expected_count = len(list(dict.fromkeys(external_image_urls))[:MAX_LISTING_PHOTOS])
     return expected_count > 0 and stored_image_count == expected_count
 
 
