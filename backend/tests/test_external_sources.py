@@ -774,6 +774,60 @@ def test_structured_items_are_merged_for_public_address_coordinates_and_all_phot
         (PisoCompartidoSource, "pisocompartido", "https://www.pisocompartido.com/habitacion/123456/"),
     ],
 )
+def test_pisocompartido_uses_structured_gallery_instead_of_page_chrome_images():
+    gallery = [f"https://images.example.test/room-{index}.jpg" for index in range(6)]
+    page_chrome = "".join(
+        f'<img src="https://images.example.test/chrome-{index}.jpg">'
+        for index in range(25)
+    )
+    document = f"""
+    <html>
+      <head>
+        <script type="application/ld+json">
+        {{
+          "@type": "Room",
+          "name": "Habitación Individual en Calle de las Lagunetas 8",
+          "description": "Se alquila habitación amueblada en piso compartido.",
+          "image": {json.dumps(gallery)},
+          "address": {{
+            "addressLocality": "San Cristóbal de La Laguna",
+            "addressRegion": "Santa Cruz de Tenerife",
+            "streetAddress": "C/ Lagunetas Núm. 8"
+          }}
+        }}
+        </script>
+      </head>
+      <body>
+        <h1>Habitación Individual en Calle de las Lagunetas 8</h1>
+        <p>370 €/mes alquiler habitación</p>
+        {page_chrome}
+      </body>
+    </html>
+    """
+    source = PisoCompartidoSource()
+    url = "https://www.pisocompartido.com/habitacion/1008162/"
+    parsed = source.parse_listing(document, url)
+    normalized = source.normalize_listing(parsed, url)
+
+    assert parsed["images"] == gallery
+    assert normalized is not None
+    assert normalized.photos == gallery
+
+
+def test_normalized_external_gallery_is_hard_capped_at_native_15_photo_limit():
+    source = IdealistaSource()
+    images = [f"https://images.example.test/photo-{index}.jpg" for index in range(28)]
+    parsed = room_offer(
+        city="Adeje",
+        images=images,
+        description="Se alquila habitación amueblada en piso compartido en Adeje.",
+    )
+    normalized = source.normalize_listing(parsed, "https://www.idealista.com/inmueble/123456/")
+
+    assert normalized is not None
+    assert normalized.photos == images[:15]
+
+
 def test_source_specific_room_fixtures(source, fixture, url):
     document = (Path(__file__).parent / "fixtures" / "external_sources" / fixture / "room.html").read_text(
         encoding="utf-8"
