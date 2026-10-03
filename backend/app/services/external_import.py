@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
+from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..core.media_keys import variant_storage_key
 from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
 from ..external_sources import (
@@ -130,7 +131,7 @@ async def public_image_fingerprints(urls: list[str]) -> list[ImageFingerprint]:
     identity is therefore established only when every unique source image in
     the bounded 20-photo gallery can be inspected successfully.
     """
-    source_urls = list(dict.fromkeys(urls))[:20]
+    source_urls = list(dict.fromkeys(urls))[:MAX_LISTING_PHOTOS]
     if not source_urls:
         return []
 
@@ -247,9 +248,10 @@ async def import_images(
         select(func.count(ListingImage.media_asset_id)).where(ListingImage.listing_id == listing_id)
     ) or 0)
     await session.commit()
-    # The configurable default applies to new imports. A change to an existing
-    # listing must not silently trim a previously mirrored gallery.
-    image_cap = min(20, max(settings.external_import_max_images, existing_count))
+    # Product galleries have one hard ceiling everywhere, including imports.
+    # Legacy external rows above the limit are intentionally reconciled down
+    # to the first MAX_LISTING_PHOTOS source images on their next sync.
+    image_cap = MAX_LISTING_PHOTOS
     source_urls = list(dict.fromkeys(urls))[:image_cap]
     if not settings.external_import_download_images or not source_urls:
         return
