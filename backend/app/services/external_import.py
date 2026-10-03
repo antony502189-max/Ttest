@@ -129,7 +129,7 @@ async def public_image_fingerprints(urls: list[str]) -> list[ImageFingerprint]:
     A partial sample is unsafe for room listings because several rooms in one
     dwelling may share the same first kitchen/building photos. Cross-source
     identity is therefore established only when every unique source image in
-    the bounded 20-photo gallery can be inspected successfully.
+    the bounded 15-photo gallery can be inspected successfully.
     """
     source_urls = list(dict.fromkeys(urls))[:MAX_LISTING_PHOTOS]
     if not source_urls:
