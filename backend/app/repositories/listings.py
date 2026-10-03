@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
+from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
 from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
 from ..models.room_details import ListingRoomDetails
@@ -124,9 +125,9 @@ def response_from(row: Any) -> ListingResponse:
     listing, longitude, latitude, owner, asset_ids, room_details, *promotion = row
     boosted_at = promotion[0] if promotion else None
     price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
-    image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])]
+    image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])[:MAX_LISTING_PHOTOS]]
     if not image_urls:
-        image_urls = listing.external_image_urls
+        image_urls = list(listing.external_image_urls or [])[:MAX_LISTING_PHOTOS]
     current_room_residents = room_details.current_room_residents if room_details else None
     room_capacity = (
         room_details.room_capacity_v2
@@ -626,7 +627,10 @@ async def search_public_cards(session: AsyncSession, payload: ListingCardSearchR
         }
         asset_ids = card_data.pop("_imageAssetIds", None) or []
         external_image_urls = card_data.pop("_externalImageUrls", None) or []
-        image_urls = [f"/api/v1/media/{asset_id}" for asset_id in asset_ids] or list(external_image_urls)
+        image_urls = (
+            [f"/api/v1/media/{asset_id}" for asset_id in asset_ids[:MAX_LISTING_PHOTOS]]
+            or list(external_image_urls)[:MAX_LISTING_PHOTOS]
+        )
         card_data["coverImageUrl"] = image_urls[0] if image_urls else None
         card_data["imageUrls"] = image_urls
         items.append(ListingCardResponse.model_validate(card_data))
