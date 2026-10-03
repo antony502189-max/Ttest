@@ -114,6 +114,46 @@ test('authenticated mobile advertising entry stays inside the existing menu row 
   await expect(page).toHaveURL(/#\/mis-campanas$/)
 })
 
+test('mobile campaign page bottom navigation spans the viewport and every tab routes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.route('**/api/v1/advertisements/mine', (route) => route.fulfill({ json: [] }))
+
+  await page.goto('/#/mis-campanas')
+  const nav = page.locator('.bottom-nav')
+  await expect(nav).toBeVisible()
+  const items = nav.locator('.bottom-nav__item')
+  await expect(items).toHaveCount(4)
+
+  const geometry = await nav.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    const itemBounds = Array.from(element.querySelectorAll<HTMLElement>('.bottom-nav__item')).map((item) => item.getBoundingClientRect())
+    return {
+      left: bounds.left,
+      right: bounds.right,
+      width: bounds.width,
+      viewportWidth: window.innerWidth,
+      itemWidths: itemBounds.map((item) => item.width),
+      lastRight: itemBounds.at(-1)?.right ?? 0,
+    }
+  })
+  expect(Math.abs(geometry.left)).toBeLessThanOrEqual(1)
+  expect(Math.abs(geometry.right - geometry.viewportWidth)).toBeLessThanOrEqual(1)
+  expect(geometry.width).toBeGreaterThanOrEqual(geometry.viewportWidth - 1)
+  expect(Math.abs(geometry.lastRight - geometry.viewportWidth)).toBeLessThanOrEqual(1)
+  for (const width of geometry.itemWidths) expect(width).toBeGreaterThanOrEqual(geometry.viewportWidth / 4 - 1)
+
+  const destinations = [/#\/$/, /#\/favoritos$/, /#\/buscar$/, /#\/perfil$/]
+  for (let index = 0; index < destinations.length; index += 1) {
+    if (index > 0) {
+      await page.goto('/#/mis-campanas')
+      await expect(page.locator('.bottom-nav')).toBeVisible()
+    }
+    await page.locator('.bottom-nav__item').nth(index).click()
+    await expect(page).toHaveURL(destinations[index])
+  }
+})
+
 test('direct advertising moderation deeplink keeps the normal site footer and mobile nav out of the admin shell', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo')))
