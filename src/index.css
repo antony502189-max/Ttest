@@ -365,10 +365,10 @@
 .owner-top-status.is-active { color: #4d6500; }
 .owner-top-status.is-inactive { color: var(--ink-soft); }
 .owner-top-status > span { flex: none; font-size: .95rem; line-height: 1; }
-.owner-top-promote-button { width: min(100%, 18rem); min-height: 3rem; justify-content: center; gap: .55rem; margin-top: .45rem; padding-inline: 1.1rem !important; border: 2px solid #687274 !important; border-radius: 999px !important; background: #fff !important; color: #4b5355 !important; font-weight: 850 !important; box-shadow: none !important; }
-.owner-top-promote-button:hover { border-color: #40484a !important; background: #f8f9f9 !important; color: #2f3638 !important; }
+.owner-top-promote-button { width: 100%; min-height: 3.65rem; justify-content: center; gap: .72rem; margin-top: .48rem; padding: .35rem 1rem !important; border: 3px solid #727c7e !important; border-radius: 999px !important; background: #fff !important; color: #202426 !important; font-size: 1.02rem !important; font-weight: 850 !important; line-height: 1 !important; box-shadow: none !important; }
+.owner-top-promote-button:hover { border-color: #5f686a !important; background: #fff !important; color: #16191a !important; }
 .owner-top-promote-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--market-lime) 72%, white); outline-offset: 2px; }
-.owner-top-promote-button svg { width: 1.35rem; height: 1.35rem; flex: none; stroke-width: 2.4; }
+.owner-top-promote-icon { width: 1.8rem !important; height: 1.8rem !important; flex: none; }
 .owner-top-cta { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid #b8cd27; border-radius: var(--radius-lg); background: linear-gradient(115deg, #f8ffc5 0%, var(--market-lime) 58%, #d8ef33 100%); box-shadow: 0 .4rem 1.2rem rgb(74 91 0 / .13); }
 .owner-top-cta::after { content: ""; position: absolute; width: 8rem; height: 8rem; right: -3rem; top: -4rem; border-radius: 50%; background: rgb(255 255 255 / .28); pointer-events: none; }
 .owner-top-cta__copy { min-width: 0; display: flex; align-items: center; gap: .75rem; }
@@ -781,8 +781,8 @@
   .owner-listings-page .owner-top-cta__pointer { font-size: 1.15rem; }
   .owner-listings-page .owner-top-cta__button { min-height: 2.35rem; padding-inline: .72rem !important; font-size: .75rem; white-space: nowrap; }
   .owner-listings-page .owner-top-status { margin-top: .3rem; font-size: .72rem !important; }
-  .owner-listings-page .owner-top-promote-button { width: 100%; min-height: 2.75rem; margin-top: .45rem; padding-inline: .7rem !important; font-size: .78rem; }
-  .owner-listings-page .owner-top-promote-button svg { width: 1.2rem; height: 1.2rem; }
+  .owner-listings-page .owner-top-promote-button { width: 100%; min-height: 3.35rem; margin-top: .45rem; padding: .3rem .7rem !important; border-width: 2.5px !important; font-size: .94rem !important; }
+  .owner-listings-page .owner-top-promote-icon { width: 1.55rem !important; height: 1.55rem !important; }
   .owner-listings-page .manage-card { grid-template-columns: 6.25rem minmax(0, 1fr) 2.75rem; gap: .65rem; padding: .75rem 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
   .owner-listings-page .manage-card > img { width: 6.25rem; height: 5.25rem; border-radius: 0; }
   .owner-listings-page .manage-card h2 { margin-top: .25rem; font-size: .9rem; }
