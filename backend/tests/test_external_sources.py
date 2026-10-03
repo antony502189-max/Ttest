@@ -776,6 +776,7 @@ def test_structured_items_are_merged_for_public_address_coordinates_and_all_phot
 )
 def test_pisocompartido_uses_structured_gallery_instead_of_page_chrome_images():
     gallery = [f"https://images.example.test/room-{index}.jpg" for index in range(6)]
+    structured_extras = [f"https://images.example.test/recommendation-{index}.jpg" for index in range(3)]
     page_chrome = "".join(
         f'<img src="https://images.example.test/chrome-{index}.jpg">'
         for index in range(25)
@@ -788,7 +789,7 @@ def test_pisocompartido_uses_structured_gallery_instead_of_page_chrome_images():
           "@type": "Room",
           "name": "Habitación Individual en Calle de las Lagunetas 8",
           "description": "Se alquila habitación amueblada en piso compartido.",
-          "image": {json.dumps(gallery)},
+          "image": {json.dumps(gallery + structured_extras)},
           "address": {{
             "addressLocality": "San Cristóbal de La Laguna",
             "addressRegion": "Santa Cruz de Tenerife",
@@ -800,6 +801,7 @@ def test_pisocompartido_uses_structured_gallery_instead_of_page_chrome_images():
       <body>
         <h1>Habitación Individual en Calle de las Lagunetas 8</h1>
         <p>370 €/mes alquiler habitación</p>
+        <span>Ver 6 fotos</span>
         {page_chrome}
       </body>
     </html>
