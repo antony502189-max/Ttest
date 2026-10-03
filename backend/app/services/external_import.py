@@ -19,8 +19,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..core.media_keys import variant_storage_key
+from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
 from ..external_sources import (
     DiscoveryResult,
