@@ -22,6 +22,7 @@ from .core.browser_network import (
     validate_public_browser_url,
 )
 from .core.config import get_settings
+from .core.media_limits import MAX_LISTING_PHOTOS
 
 logger = logging.getLogger(__name__)
 
@@ -687,6 +688,19 @@ def public_detail_fields(data: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def bounded_photo_urls(values: list[str] | tuple[str, ...]) -> list[str]:
+    """Keep one public URL per exact source image and enforce the product gallery ceiling."""
+    result: list[str] = []
+    for value in values:
+        candidate = html.unescape(str(value)).strip()
+        if not candidate.startswith(("http://", "https://")) or candidate in result:
+            continue
+        result.append(candidate)
+        if len(result) >= MAX_LISTING_PHOTOS:
+            break
+    return result
+
+
 @dataclass
 class NormalizedListing:
     source_name: str
@@ -733,6 +747,9 @@ class NormalizedListing:
     available_from: date | None = None
     published_at: datetime | None = None
     public_address: str | None = None
+
+    def __post_init__(self) -> None:
+        self.photos = bounded_photo_urls(self.photos)
 
     @property
     def fingerprint(self) -> str:
@@ -1850,14 +1867,19 @@ class PisoCompartidoSource(ExternalListingSource):
         heading = re.search(r'<h1[^>]*>(.*?)</h1>', document, re.IGNORECASE | re.DOTALL)
         description = re.search(r'<(?:div|section)[^>]*(?:descripcion|description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
         price = re.search(r'(?:precio|alquiler)[^0-9€]{0,40}([\d.]+(?:,\d+)?\s*€(?:\s*(?:/|al|por)\s*\w+)?)', document, re.IGNORECASE)
-        images = re.findall(r'<img[^>]+(?:src|data-src)=["\'](https?[^"\']+)["\']', document, re.IGNORECASE)
+        # The generic parser already reads the advert's structured gallery
+        # (JSON-LD / embedded public state). Do not append every <img> in the
+        # document: PisoCompartido pages also contain chrome, avatars and
+        # responsive/lazy variants that previously inflated a six-photo advert
+        # into counters such as 6/25 or 11/28.
+        gallery_images = bounded_photo_urls(list(data["images"]))
         advertiser = re.search(r'(?:anunciante|propietario)[^<]{0,80}</[^>]+>\s*<[^>]+>([^<]+)', document, re.IGNORECASE)
         availability = re.search(r'(?:disponible(?:\s+desde)?|fecha disponible)\s*[:\-]?\s*([^<\n]{4,40})', clean(document), re.IGNORECASE)
         data.update({
             "title": clean(heading.group(1)) if heading else data["title"],
             "description": clean(description.group(1)) if description else data["description"],
             "price_text": clean(price.group(1)) if price else data["price_text"],
-            "images": list(dict.fromkeys([*data["images"], *images])),
+            "images": gallery_images,
             "advertiser_name": clean(advertiser.group(1)) if advertiser else data.get("advertiser_name"),
             "available_from": availability.group(1) if availability else data.get("available_from"),
         })
