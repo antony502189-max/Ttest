@@ -1868,11 +1868,19 @@ class PisoCompartidoSource(ExternalListingSource):
         description = re.search(r'<(?:div|section)[^>]*(?:descripcion|description)[^>]*>(.*?)</(?:div|section)>', document, re.IGNORECASE | re.DOTALL)
         price = re.search(r'(?:precio|alquiler)[^0-9€]{0,40}([\d.]+(?:,\d+)?\s*€(?:\s*(?:/|al|por)\s*\w+)?)', document, re.IGNORECASE)
         # The generic parser already reads the advert's structured gallery
-        # (JSON-LD / embedded public state). Do not append every <img> in the
-        # document: PisoCompartido pages also contain chrome, avatars and
-        # responsive/lazy variants that previously inflated a six-photo advert
-        # into counters such as 6/25 or 11/28.
+        # (JSON-LD / embedded public state). Prefer it and never append page
+        # chrome to a real advert gallery. Some legacy/public variants expose
+        # no structured images at all, so only in that case keep the bounded
+        # server-rendered <img> fallback for backwards compatibility.
         gallery_images = bounded_photo_urls(list(data["images"]))
+        if not gallery_images:
+            gallery_images = bounded_photo_urls(
+                re.findall(
+                    r'<img[^>]+(?:src|data-src)=["\\\'](https?[^"\\\']+)["\\\']',
+                    document,
+                    re.IGNORECASE,
+                )
+            )
         source_gallery_count = re.search(r"\bVer\s+(\d{1,2})\s+fotos?\b", clean(document), re.IGNORECASE)
         if source_gallery_count:
             gallery_images = gallery_images[: min(int(source_gallery_count.group(1)), MAX_LISTING_PHOTOS)]
