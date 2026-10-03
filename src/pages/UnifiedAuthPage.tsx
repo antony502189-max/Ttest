@@ -16,6 +16,7 @@ type GoogleButtonOptions = {
   shape: 'rectangular'
   logo_alignment: 'left'
   width: number
+  locale: string
 }
 type GoogleIdentityApi = {
   accounts: { id: {
@@ -107,7 +108,7 @@ export function UnifiedAuthPage() {
       const width = Math.max(220, Math.min(400, Math.floor(container.getBoundingClientRect().width || 360)))
       api.renderButton(container, {
         type: 'standard', theme: 'filled_black', size: 'large', text: 'continue_with',
-        shape: 'rectangular', logo_alignment: 'left', width,
+        shape: 'rectangular', logo_alignment: 'left', width, locale: language,
       })
       setGoogleReady(true)
     }
@@ -146,7 +147,7 @@ export function UnifiedAuthPage() {
       window.cancelAnimationFrame(frame)
       window.google?.accounts.id.cancel?.()
     }
-  }, [acceptGoogleCredential, t.googleMissing])
+  }, [acceptGoogleCredential, language, t.googleMissing])
 
   const runMockGoogle = async () => {
     setError('')

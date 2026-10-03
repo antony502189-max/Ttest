@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { useI18n } from '@/contexts/i18n-context'
 import type { Listing } from '@/types'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
@@ -25,6 +26,7 @@ export function UserReportDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const { t } = useI18n()
   const [reason, setReason] = useState('')
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -50,9 +52,9 @@ export function UserReportDialog({
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Denunciar a {listing.owner.name}</DialogTitle>
-        <DialogDescription>
-          La denuncia se asociará al anunciante y usará «{listing.title}» como contexto. No compartiremos tu identidad con el anunciante.
+        <DialogTitle data-i18n-exempt>{t('Denunciar a')} {listing.owner.name}</DialogTitle>
+        <DialogDescription data-i18n-exempt>
+          {t('La denuncia se asociará al anunciante y usará «')}{listing.title}{t('» como contexto. No compartiremos tu identidad con el anunciante.')}
         </DialogDescription>
       </DialogHeader>
       <fieldset className="report-options">
