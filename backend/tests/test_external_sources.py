@@ -765,15 +765,6 @@ def test_structured_items_are_merged_for_public_address_coordinates_and_all_phot
     assert parsed["price_text"] == "450€ al mes"
 
 
-@pytest.mark.parametrize(
-    ("source", "fixture", "url"),
-    [
-        (IdealistaSource, "idealista", "https://www.idealista.com/inmueble/123456/"),
-        (FotocasaSource, "fotocasa", "https://www.fotocasa.es/es/alquiler/inmueble/123456"),
-        (MilanunciosSource, "milanuncios", "https://www.milanuncios.com/habitaciones-en-alquiler/123456.htm"),
-        (PisoCompartidoSource, "pisocompartido", "https://www.pisocompartido.com/habitacion/123456/"),
-    ],
-)
 def test_pisocompartido_uses_structured_gallery_instead_of_page_chrome_images():
     gallery = [f"https://images.example.test/room-{index}.jpg" for index in range(6)]
     structured_extras = [f"https://images.example.test/recommendation-{index}.jpg" for index in range(3)]
@@ -830,6 +821,15 @@ def test_normalized_external_gallery_is_hard_capped_at_native_15_photo_limit():
     assert normalized.photos == images[:15]
 
 
+@pytest.mark.parametrize(
+    ("source", "fixture", "url"),
+    [
+        (IdealistaSource, "idealista", "https://www.idealista.com/inmueble/123456/"),
+        (FotocasaSource, "fotocasa", "https://www.fotocasa.es/es/alquiler/inmueble/123456"),
+        (MilanunciosSource, "milanuncios", "https://www.milanuncios.com/habitaciones-en-alquiler/123456.htm"),
+        (PisoCompartidoSource, "pisocompartido", "https://www.pisocompartido.com/habitacion/123456/"),
+    ],
+)
 def test_source_specific_room_fixtures(source, fixture, url):
     document = (Path(__file__).parent / "fixtures" / "external_sources" / fixture / "room.html").read_text(
         encoding="utf-8"
