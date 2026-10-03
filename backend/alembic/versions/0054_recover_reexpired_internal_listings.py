@@ -1,6 +1,6 @@
 """Re-assert permanent first-party listing policy after stale expiry-worker rollouts.
 
-Revision ID: 0054_recover_reexpired_internal_listings
+Revision ID: 0054_recover_reexpired
 Revises: 0053_permanent_internal_listings
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0054_recover_reexpired_internal_listings"
+revision = "0054_recover_reexpired"
 down_revision = "0053_permanent_internal_listings"
 branch_labels = None
 depends_on = None
