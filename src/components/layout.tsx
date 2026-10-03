@@ -89,7 +89,7 @@ export function AppLayout() {
   const mobileShellActive = mobileViewport && MOBILE_SHELL_ROUTES.includes(pathname)
   const adminRoute = pathname === '/admin' || pathname.startsWith('/admin/')
   const hideFooter = pathname === '/buscar' || adminRoute || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  const hideBottomNavigation = adminRoute
+  const hideBottomNavigation = adminRoute || mobileShellActive
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
     const update = () => setMobileViewport(media.matches)
