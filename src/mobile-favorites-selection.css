@@ -76,7 +76,7 @@
 .m2-favorite-card__media img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .m2-favorite-card__media svg {
