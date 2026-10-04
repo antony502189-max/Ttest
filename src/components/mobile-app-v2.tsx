@@ -620,13 +620,13 @@ function FavoritesCollectionScreen({ items, recentItems, onRemove, onClearRecent
   return <section className="m2-screen m2-empty m2-collection">
     <header className="m2-collection__header">
       <span>{t.favoritesTitle}</span>
-      <button
+      {items.length ? <button
         type="button"
         className="m2-favorites-trash"
         aria-label={selecting ? actionCopy.cancel : actionCopy.startDelete}
         aria-pressed={selecting}
         onClick={() => { if (selecting) stopSelecting(); else setSelecting(true) }}
-      >{selecting ? <X /> : <Trash2 />}</button>
+      >{selecting ? <X /> : <Trash2 />}</button> : null}
     </header>
     {selecting ? <div className="m2-favorites-selection-bar" role="toolbar" aria-label={actionCopy.startDelete}>
       <strong aria-live="polite">{actionCopy.selected(selected.size)}</strong>
