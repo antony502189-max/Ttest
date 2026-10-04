@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
@@ -88,6 +89,16 @@ test('favorites includes a deduplicated recently viewed history that can be clea
 
   const stored = await page.evaluate(() => localStorage.getItem('112233:recently-viewed:v1:guest'))
   expect(stored).toBeNull()
+})
+
+test('mobile favorites use the full source image instead of the legacy cropped card derivative', () => {
+  const component = readFileSync('src/components/mobile-app-v2.tsx', 'utf8')
+  const css = readFileSync('src/mobile-favorites-selection.css', 'utf8')
+
+  expect(component).toContain('<MediaImage src={item.image} variant="full"')
+  expect(component).not.toContain('<MediaImage src={item.image} variant="card"')
+  expect(css).toContain('.m2-favorite-card__media img')
+  expect(css).toContain('object-fit: contain !important;')
 })
 
 test('favorites selection mode is localized and functional in Russian on mobile', async ({ page }) => {

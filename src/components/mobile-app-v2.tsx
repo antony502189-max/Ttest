@@ -654,7 +654,7 @@ function FavoritesCollectionScreen({ items, recentItems, onRemove, onClearRecent
             onClick={selecting ? () => toggleSelected(item.id) : item.onOpen}
           >
             <span className="m2-favorite-card__media" aria-hidden="true">
-              {item.image ? <MediaImage src={item.image} variant="card" alt="" loading="lazy" /> : <ImageIcon />}
+              {item.image ? <MediaImage src={item.image} variant="full" alt="" loading="lazy" /> : <ImageIcon />}
             </span>
             <span className="m2-favorite-card__copy"><strong>{item.title}</strong><small>{item.meta}</small></span>
             {selecting ? <span className="m2-favorites-select-indicator" aria-hidden="true">{isSelected ? <Check /> : null}</span> : <ChevronRight />}
