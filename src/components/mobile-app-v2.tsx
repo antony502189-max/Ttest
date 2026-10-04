@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { buildListingSearchBody } from '@/api/listings'
 import { useFavoriteListings } from '@/hooks/use-favorite-listings'
+import { useRecentlyViewedListings } from '@/hooks/use-recently-viewed-listings'
 import { useAdminAccess } from '@/hooks/use-admin-access'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocation'
@@ -89,7 +90,7 @@ const copy = {
     searchTenerife: 'Buscar en Tenerife', search: 'Buscar', publishAd: 'Publicar anuncio', searchesTitle: 'Tus búsquedas', searchesHeading: 'Todas tus búsquedas en un solo lugar',
     searchesText: 'Guarda aquí tus búsquedas habituales para acceder a ellas más fácilmente. También te avisaremos cuando aparezcan nuevos anuncios que coincidan con tus criterios.',
     searchesEmpty: 'Aún no tienes búsquedas guardadas', searchesEmptyText: 'Aplica tus condiciones y guárdalas desde los resultados.',
-    favoritesTitle: 'Favoritos y listas', favoritesHeading: 'No tienes viviendas en favoritos', favoritesText: 'Guarda los anuncios que te gusten en tu cuenta para consultarlos desde el teléfono, la tableta o el ordenador.',
+    favoritesTitle: 'Favoritos y listas', favoritesHeading: 'No tienes viviendas en favoritos', favoritesText: 'Guarda los anuncios que te gusten en tu cuenta para consultarlos desde el teléfono, la tableta o el ordenador.', recentlyViewed: 'Vistos recientemente', clearHistory: 'Borrar historial', historyEmpty: 'Los anuncios que abras aparecerán aquí.',
     login: 'Iniciar sesión', menu: 'Menú', loginDescription: 'Sincroniza tus favoritos y búsquedas en el ordenador, la tableta y el teléfono móvil.',
     yourProperties: 'Ver y crear anuncios', editProfile: 'Editar perfil', propertyManagement: 'Gestión de propiedades', findAgencies: 'Buscar agencias para vender', publishYourAd: 'Publica tu anuncio', settings: 'Ajustes', searchRegion: 'Región de búsqueda',
     language: 'Idioma', appearance: 'Apariencia', appearanceDefault: 'Predeterminada (clara)', about: 'Acerca de la aplicación', version: 'Versión 14.5.0', adminPanel: 'Abrir panel de administración',
@@ -115,7 +116,7 @@ const copy = {
     searchTenerife: 'Search in Tenerife', search: 'Search', publishAd: 'Publish an ad', searchesTitle: 'Your searches', searchesHeading: 'All your searches in one place',
     searchesText: 'Save your frequent searches here for easier access. We will also notify you when new ads match your criteria.', favoritesTitle: 'Favorites and lists',
     searchesEmpty: 'You have no saved searches yet', searchesEmptyText: 'Set your conditions and save them from the results.',
-    favoritesHeading: 'You have no favorite properties', favoritesText: 'Save the ads you like to your account and view them on your phone, tablet, or computer.',
+    favoritesHeading: 'You have no favorite properties', favoritesText: 'Save the ads you like to your account and view them on your phone, tablet, or computer.', recentlyViewed: 'Recently viewed', clearHistory: 'Clear history', historyEmpty: 'Listings you open will appear here.',
     login: 'Sign in', menu: 'Menu', loginDescription: 'Sync your favorites and searches across your computer, tablet, and mobile phone.', yourProperties: 'View and create listings', editProfile: 'Edit profile', propertyManagement: 'Property management',
     findAgencies: 'Find agencies to sell', publishYourAd: 'Publish your ad', settings: 'Settings', searchRegion: 'Search region', language: 'Language', appearance: 'Appearance',
     appearanceDefault: 'Default (light)', about: 'About the app', version: 'Version 14.5.0', adminPanel: 'Open administration panel', home: 'Home', searches: 'Searches', favorites: 'Favorites',
@@ -141,7 +142,7 @@ const copy = {
     search: 'Найти', publishAd: 'Разместить объявление', searchesTitle: 'Ваши поиски', searchesHeading: 'Все ваши поиски в одном месте',
     searchesText: 'Сохраняйте здесь частые настройки поиска для большего удобства. Также мы уведомим вас о появлении новых объявлений, совпадающих с вашими критериями.',
     searchesEmpty: 'У вас пока нет сохранённых поисков', searchesEmptyText: 'Выберите условия и сохраните их из результатов.',
-    favoritesTitle: 'Избранное и списки', favoritesHeading: 'У вас нет объектов в избранном', favoritesText: 'Сохраните понравившиеся объявления в аккаунте, чтобы просматривать их на телефоне, планшете или компьютере.',
+    favoritesTitle: 'Избранное и списки', favoritesHeading: 'У вас нет объектов в избранном', favoritesText: 'Сохраните понравившиеся объявления в аккаунте, чтобы просматривать их на телефоне, планшете или компьютере.', recentlyViewed: 'Недавно просмотренные', clearHistory: 'Очистить историю', historyEmpty: 'Открытые вами объявления появятся здесь.',
     login: 'Войти в аккаунт', menu: 'Меню', loginDescription: 'Синхронизируйте избранное и поиски на компьютере, планшете и мобильном телефоне.',
     yourProperties: 'Просмотр и создание объявлений', editProfile: 'Редактировать профиль', propertyManagement: 'Управление объектами', findAgencies: 'Искать агентства для продажи', publishYourAd: 'Опубликовать своё объявление', settings: 'Настройки', searchRegion: 'Регион поиска',
     language: 'Язык', appearance: 'Внешний вид', appearanceDefault: 'По умолчанию (светлый)', about: 'О приложении', version: 'Версия 14.5.0', adminPanel: 'Перейти в админ-панель', home: 'Главная',
@@ -577,9 +578,11 @@ function EmptyScreen({ kind, onLogin, onExplore, authenticated, t, items = [] }:
   return <section className="m2-screen m2-empty"><header>{data.title}</header><div className="m2-empty__icon">{data.icon}</div><h1>{heading}</h1><p>{text}</p><PrimaryButton onClick={authenticated ? onExplore : onLogin}>{authenticated ? t.search : t.login}</PrimaryButton></section>
 }
 
-function FavoritesCollectionScreen({ items, onRemove, onLogin, onExplore, authenticated, language, t }: {
+function FavoritesCollectionScreen({ items, recentItems, onRemove, onClearRecent, onLogin, onExplore, authenticated, language, t }: {
   items: MobileCollectionItem[]
+  recentItems: MobileCollectionItem[]
   onRemove: (id: string) => void
+  onClearRecent: () => void
   onLogin: () => void
   onExplore: () => void
   authenticated: boolean
@@ -596,7 +599,7 @@ function FavoritesCollectionScreen({ items, onRemove, onLogin, onExplore, authen
     if (!items.length) setSelecting(false)
   }, [items])
 
-  if (!items.length) return <EmptyScreen kind="favorites" onLogin={onLogin} onExplore={onExplore} authenticated={authenticated} t={t} />
+  if (!items.length && !recentItems.length) return <EmptyScreen kind="favorites" onLogin={onLogin} onExplore={onExplore} authenticated={authenticated} t={t} />
 
   const allSelected = selected.size === items.length
   const stopSelecting = () => { setSelecting(false); setSelected(new Set()) }
@@ -633,7 +636,7 @@ function FavoritesCollectionScreen({ items, onRemove, onLogin, onExplore, authen
         <button type="button" className="m2-favorites-remove-selected" disabled={!selected.size} onClick={removeSelected}><Trash2 />{actionCopy.removeSelected(selected.size)}</button>
       </div>
     </div> : null}
-    <div className="m2-collection__list">
+    {items.length ? <div className="m2-collection__list">
       {items.map((item) => {
         const isSelected = selected.has(item.id)
         return <button
@@ -648,7 +651,16 @@ function FavoritesCollectionScreen({ items, onRemove, onLogin, onExplore, authen
           {selecting ? <span className="m2-favorites-select-indicator" aria-hidden="true">{isSelected ? <Check /> : null}</span> : <ChevronRight />}
         </button>
       })}
-    </div>
+    </div> : null}
+    <section className="m2-recent-history" aria-labelledby="m2-recent-history-title">
+      <div className="m2-recent-history__head">
+        <strong id="m2-recent-history-title">{t.recentlyViewed}</strong>
+        {recentItems.length ? <button type="button" onClick={onClearRecent}>{t.clearHistory}</button> : null}
+      </div>
+      {recentItems.length ? <div className="m2-collection__list m2-recent-history__list">
+        {recentItems.map((item) => <button type="button" key={item.id} onClick={item.onOpen}><span><strong>{item.title}</strong><small>{item.meta}</small></span><ChevronRight /></button>)}
+      </div> : <p className="m2-recent-history__empty">{t.historyEmpty}</p>}
+    </section>
   </section>
 }
 
@@ -743,7 +755,13 @@ export function MobileAppV2() {
     && cameraLat >= -90 && cameraLat <= 90 && cameraLng >= -180 && cameraLng <= 180 && cameraZoom >= 8 && cameraZoom <= 19
     ? { lat: cameraLat, lng: cameraLng, zoom: cameraZoom } : undefined
   const { listings: favoriteListings } = useFavoriteListings()
+  const { listings: recentlyViewedListings, clear: clearRecentHistory, mark: markRecent } = useRecentlyViewedListings()
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => favoriteListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [favoriteListings, navigate])
+  const recentItems = useMemo<MobileCollectionItem[]>(() => recentlyViewedListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, onOpen: () => {
+    markRecent(listing.id)
+    if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
+    navigate(`/habitacion/${listing.id}`)
+  } })), [markRecent, navigate, recentlyViewedListings])
   const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
@@ -893,5 +911,5 @@ export function MobileAppV2() {
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={backToHome} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} initialCamera={mapCamera} polygon={mapPolygon} items={mapItems} serverQuery={serverMapQuery} onPolygonChange={commitMobilePolygon} onCameraChange={commitMapCamera} onBack={backFromMap} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
-  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} onRemove={toggleFavorite} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} recentItems={recentItems} onRemove={toggleFavorite} onClearRecent={clearRecentHistory} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }
