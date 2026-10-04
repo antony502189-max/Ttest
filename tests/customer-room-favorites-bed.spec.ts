@@ -91,14 +91,14 @@ test('favorites includes a deduplicated recently viewed history that can be clea
   expect(stored).toBeNull()
 })
 
-test('mobile favorites use the full source image instead of the legacy cropped card derivative', () => {
+test('mobile favorites render the direct full source image with uncropped inline fit', () => {
   const component = readFileSync('src/components/mobile-app-v2.tsx', 'utf8')
-  const css = readFileSync('src/mobile-favorites-selection.css', 'utf8')
 
-  expect(component).toContain('<MediaImage src={item.image} variant="full"')
+  expect(component).toContain('data-testid="favorite-full-photo"')
+  expect(component).toContain('src={item.image}')
+  expect(component).toContain("objectFit: 'contain'")
   expect(component).not.toContain('<MediaImage src={item.image} variant="card"')
-  expect(css).toContain('.m2-favorite-card__media img')
-  expect(css).toContain('object-fit: contain !important;')
+  expect(component).not.toContain('<MediaImage src={item.image} variant="full"')
 })
 
 test('favorites selection mode is localized and functional in Russian on mobile', async ({ page }) => {
@@ -124,7 +124,10 @@ test('favorites selection mode is localized and functional in Russian on mobile'
   await expect(page.locator('#m2-favorites-primary-title')).toHaveText('Избранное')
   const favoriteCard = page.locator('.m2-favorite-card').first()
   await expect(favoriteCard).toBeVisible()
-  await expect(favoriteCard.locator('.m2-favorite-card__media img')).toBeVisible()
+  const favoritePhoto = favoriteCard.getByTestId('favorite-full-photo')
+  await expect(favoritePhoto).toBeVisible()
+  await expect(favoritePhoto).toHaveCSS('object-fit', 'contain')
+  expect(await favoritePhoto.getAttribute('src')).not.toContain('variant=')
   const favoriteMediaLayout = await favoriteCard.evaluate((card) => {
     const media = card.querySelector<HTMLElement>('.m2-favorite-card__media')
     if (!media) return null
