@@ -27,6 +27,9 @@ type FavoritesCopy = {
   recentlyViewed: string
   clearHistory: string
   historyEmpty: string
+  historyLoading: string
+  historyLoadError: string
+  retry: string
 }
 
 const copyByLanguage: Record<Language, FavoritesCopy> = {
@@ -47,6 +50,9 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
     recentlyViewed: 'Vistos recientemente',
     clearHistory: 'Borrar historial',
     historyEmpty: 'Los anuncios que abras aparecerán aquí.',
+    historyLoading: 'Cargando historial…',
+    historyLoadError: 'No se pudo cargar el historial.',
+    retry: 'Reintentar',
   },
   ru: {
     eyebrow: 'Ваш выбор',
@@ -65,6 +71,9 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
     recentlyViewed: 'Недавно просмотренные',
     clearHistory: 'Очистить историю',
     historyEmpty: 'Открытые вами объявления появятся здесь.',
+    historyLoading: 'Загрузка истории…',
+    historyLoadError: 'Не удалось загрузить историю.',
+    retry: 'Повторить',
   },
   en: {
     eyebrow: 'Your selection',
@@ -83,6 +92,9 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
     recentlyViewed: 'Recently viewed',
     clearHistory: 'Clear history',
     historyEmpty: 'Listings you open will appear here.',
+    historyLoading: 'Loading history…',
+    historyLoadError: 'Could not load history.',
+    retry: 'Retry',
   },
 }
 
@@ -225,8 +237,8 @@ export function FavoritesPage() {
           <h2 id="recently-viewed-title"><Clock3 aria-hidden="true" />{copy.recentlyViewed}</h2>
           {recentlyViewed.length ? <button type="button" onClick={clearRecent}>{copy.clearHistory}</button> : null}
         </div>
-        {recentLoading ? <p role="status">Cargando historial…</p> : recentError ? (
-          <div role="alert">No se pudo cargar el historial. <Button variant="outline" size="sm" onClick={retryRecent}>Reintentar</Button></div>
+        {recentLoading ? <p role="status">{copy.historyLoading}</p> : recentError ? (
+          <div role="alert">{copy.historyLoadError} <Button variant="outline" size="sm" onClick={retryRecent}>{copy.retry}</Button></div>
         ) : recentlyViewed.length ? (
           <div className="property-grid favorites-recent__grid">
             {recentlyViewed.map((listing) => <PropertyCard key={listing.id} listing={listing} compact />)}
