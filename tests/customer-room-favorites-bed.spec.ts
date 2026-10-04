@@ -110,7 +110,7 @@ test('favorites selection mode is localized and functional in Russian on mobile'
 
   await expect(page.getByText('Избранное и списки', { exact: true })).toBeVisible()
   await expect(page.locator('.m2-favorites-primary')).toBeVisible()
-  await expect(page.getByText('Избранное', { exact: true })).toBeVisible()
+  await expect(page.locator('#m2-favorites-primary-title')).toHaveText('Избранное')
   const favoriteCard = page.locator('.m2-favorite-card').first()
   await expect(favoriteCard).toBeVisible()
   await expect(favoriteCard.locator('.m2-favorite-card__media img')).toBeVisible()
