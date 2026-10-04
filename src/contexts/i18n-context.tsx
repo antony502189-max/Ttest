@@ -1301,23 +1301,6 @@ Object.assign(translations, {
 const localeByLanguage: Record<Language, string> = { es: 'es-ES', ru: 'ru-RU', en: 'en-GB' }
 const languageNames: Record<Language, string> = { es: 'Español', ru: 'Русский', en: 'English' }
 
-// React may already supply localized copy (t(), locale-specific option labels).
-// Retain its Spanish source so DOM synchronization can switch it back to ES.
-const translatedSources = new Map<string, string>()
-Object.entries(translations).forEach(([source, value]) => {
-  if (value.ru === value.en) return // Shared names such as Wi-Fi are not source aliases.
-  ;[value.ru, value.en].forEach((translated) => {
-    if (!(translated in translations) && !translatedSources.has(translated)) translatedSources.set(translated, source)
-  })
-})
-
-function canonicalUiText(value: string, previous?: string): string {
-  if (previous && (['es', 'ru', 'en'] as const).some((language) => translateText(previous, language) === value)) return previous
-  const source = value.trim()
-  const canonical = localizationSourceAliases[source] ?? translatedSources.get(source)
-  return canonical ? value.replace(source, canonical) : value
-}
-
 const publicationFieldTranslations: Record<string, Translation> = {
   'el título': { ru: 'заголовок', en: 'title' },
   'el municipio': { ru: 'муниципалитет', en: 'municipality' },
@@ -1547,7 +1530,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
     const translateTextNode = (node: Text) => {
       if (isTranslationExempt(node)) return
       const lastApplied = textApplied.get(node)
-      if (!textOriginals.has(node) || (lastApplied !== undefined && node.data !== lastApplied)) textOriginals.set(node, canonicalUiText(node.data, textOriginals.get(node)))
+      if (!textOriginals.has(node) || (lastApplied !== undefined && node.data !== lastApplied)) textOriginals.set(node, node.data)
       const original = textOriginals.get(node) ?? node.data
       const next = translateText(original, language)
       textApplied.set(node, next)
@@ -1564,7 +1547,7 @@ function I18nDocumentSync({ language }: { language: Language }) {
         const current = element.getAttribute(attribute)
         if (current === null) return
         const lastApplied = applied?.get(attribute)
-        if (!originals?.has(attribute) || (lastApplied !== undefined && current !== lastApplied)) originals?.set(attribute, canonicalUiText(current, originals?.get(attribute)))
+        if (!originals?.has(attribute) || (lastApplied !== undefined && current !== lastApplied)) originals?.set(attribute, current)
         const original = originals?.get(attribute) ?? current
         const next = translateText(original, language)
         applied?.set(attribute, next)
