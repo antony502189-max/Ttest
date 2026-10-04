@@ -12,7 +12,7 @@ import { ListingLocationSection } from '@/components/listing-location-section'
 import { UserReportDialog } from '@/components/user-report-dialog'
 import { useApp } from '@/contexts/app-context'
 import { useAppBack } from '@/hooks/use-app-back'
-import { currentLocale } from '@/lib/i18n-locale'
+import { useI18n } from '@/contexts/i18n-context'
 import { getPublicListing, getSimilarListings } from '@/api/listings'
 import { formatPublishedAt } from '@/lib/search'
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice, isPublicListing, unknownListingFact } from '@/lib/listings'
@@ -31,6 +31,7 @@ function ExternalListingRedirect({ sourceUrl }: { sourceUrl: string }) {
 }
 
 export function ListingPage() {
+  const { t, locale } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
   const goBack = useAppBack('/buscar')
@@ -136,7 +137,7 @@ export function ListingPage() {
             <Button variant="ghost" className="listing-comment-add" onClick={() => { setEditingCommentId(null); setCommentText(''); setCommentEditorOpen(true) }}><MessageSquareText data-icon="inline-start" />Añadir comentario</Button>
             {listing.homeDescription ? <div className="advertiser-comment"><h2 id="listing-comments-title">Comentario del anunciante</h2><p data-i18n-exempt>{listing.homeDescription}</p></div> : <h2 id="listing-comments-title" className="sr-only">Comentarios</h2>}
             {commentEditorOpen ? <div className="listing-comment-editor"><label htmlFor="local-listing-comment">{editingCommentId ? 'Editar comentario' : 'Comentario personal'}</label><Textarea id="local-listing-comment" rows={4} maxLength={600} value={commentText} autoFocus onChange={(event) => setCommentText(event.target.value)} placeholder="Escribe una nota sobre este anuncio" /><p>Se guarda solo en este dispositivo y no se envía al anunciante.</p><div><Button variant="ghost" onClick={closeCommentEditor}>Cancelar</Button><Button onClick={saveComment} disabled={!commentText.trim()}>Guardar comentario</Button></div></div> : null}
-            {listingComments.length ? <div className="local-listing-comments" aria-label="Tus comentarios locales">{listingComments.map((comment) => <article key={comment.id}><p data-i18n-exempt>{comment.text}</p><footer><span><span>Guardado en este dispositivo</span> · <time dateTime={comment.updatedAt ?? comment.createdAt}>{new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(comment.updatedAt ?? comment.createdAt))}</time>{comment.updatedAt ? <span> · editado</span> : null}</span><div><Button variant="ghost" size="sm" onClick={() => { setEditingCommentId(comment.id); setCommentText(comment.text); setCommentEditorOpen(true) }}><Pencil data-icon="inline-start" />Editar</Button><Button variant="ghost" size="sm" onClick={() => deleteLocalComment(comment.id)}><Trash2 data-icon="inline-start" />Eliminar</Button></div></footer></article>)}</div> : null}
+            {listingComments.length ? <div className="local-listing-comments" aria-label="Tus comentarios locales">{listingComments.map((comment) => <article key={comment.id}><p data-i18n-exempt>{comment.text}</p><footer><span><span>Guardado en este dispositivo</span> · <time dateTime={comment.updatedAt ?? comment.createdAt}>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(comment.updatedAt ?? comment.createdAt))}</time>{comment.updatedAt ? <span> · editado</span> : null}</span><div><Button variant="ghost" size="sm" onClick={() => { setEditingCommentId(comment.id); setCommentText(comment.text); setCommentEditorOpen(true) }}><Pencil data-icon="inline-start" />Editar</Button><Button variant="ghost" size="sm" onClick={() => deleteLocalComment(comment.id)}><Trash2 data-icon="inline-start" />Eliminar</Button></div></footer></article>)}</div> : null}
           </section>
 
           <Separator />
@@ -178,7 +179,7 @@ export function ListingPage() {
           <ListingLocationSection listing={listing} />
           <Separator />
           <section className="listing-section owner-detail"><div className="owner-monogram" data-i18n-exempt>{listing.owner.initials}</div><div><span>Anunciante</span><h2 data-i18n-exempt>{listing.owner.name}</h2><p data-i18n-exempt>{listing.owner.since} · {listing.owner.response}</p><p>{listing.owner.verified ? 'Identidad y teléfono verificados por 112233.es.' : 'Identidad pendiente de verificación.'}</p><Button variant="ghost" size="sm" onClick={() => setUserReportOpen(true)}><CircleAlert />Denunciar anunciante</Button></div>{listing.owner.verified ? <Badge variant="outline"><ShieldCheck />Anunciante verificado</Badge> : null}</section>
-          <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span data-i18n-exempt>{listing.source ?? 'Anuncio directo'}</span></div>
+          <div className="listing-meta"><span>{formatPublishedAt(listing.publishedAt)}</span><span>Referencia {listing.id.slice(-5).toUpperCase()}</span><span data-i18n-exempt>{listing.source ?? t('Anuncio directo')}</span></div>
         </div>
         <div className="listing-aside">{compactContact ? null : <ContactPanel listing={listing} />}</div>
       </div>

@@ -14,5 +14,5 @@ export function CommercialAdvertisementImage({ path, title }: { path: string; ti
     }).catch(() => { if (active) setUrl('') })
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [path])
-  return <div className="commercial-ad__visual">{url ? <img src={url} alt={title} loading="lazy" /> : <Megaphone aria-label={title} />}</div>
+  return <div className="commercial-ad__visual">{url ? <img src={url} data-i18n-exempt alt={title} loading="lazy" /> : <Megaphone data-i18n-exempt aria-label={title} />}</div>
 }

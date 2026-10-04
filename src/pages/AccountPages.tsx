@@ -603,7 +603,7 @@ export function MyListingsPage() {
                   <StatusBadge status={listing.status} />
                   <span>Ref. {listing.id.slice(-5).toUpperCase()}</span>
                 </div>
-                <h2>{listing.title}</h2>
+                <h2 data-i18n-exempt>{listing.title}</h2>
                 <p>
                   {listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}
                 </p>

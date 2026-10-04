@@ -55,7 +55,7 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
   return <section
     className={`commercial-ad ${mobile ? 'commercial-ad--mobile' : ''}`}
     aria-label={t('Publicidad comercial')}
-    aria-roledescription={ads.length > 1 ? 'carousel' : undefined}
+    aria-roledescription={ads.length > 1 ? t('Carrusel') : undefined}
     onMouseEnter={() => setHovered(true)}
     onMouseLeave={() => setHovered(false)}
     onFocusCapture={() => setFocusWithin(true)}
@@ -68,8 +68,9 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
       <div className="commercial-ad__content" data-testid="commercial-ad-slide" data-ad-id={ad.id}>
         <div className="commercial-ad__visual">
           {imageFailed
-            ? <Megaphone aria-label={ad.title} />
+            ? <Megaphone data-i18n-exempt aria-label={ad.title} />
             : <img
+                data-i18n-exempt
                 src={adImageUrl(ad.imageUrl)}
                 width={ad.imageWidth}
                 height={ad.imageHeight}
@@ -80,8 +81,8 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
               />}
         </div>
         <div className="commercial-ad__copy">
-          <h2>{ad.title}</h2>
-          <p>{ad.description}</p>
+          <h2 data-i18n-exempt>{ad.title}</h2>
+          <p data-i18n-exempt>{ad.description}</p>
           <a className="commercial-ad__cta" href={destination} target={isExternal ? '_blank' : undefined} rel={isExternal ? 'noopener noreferrer sponsored' : 'sponsored'}>
             {t('Más información')}<ArrowUpRight aria-hidden="true" />
           </a>

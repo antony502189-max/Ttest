@@ -39,7 +39,7 @@ function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
   const { currentUser, updateProfile, logout, deleteAccount } = useApp()
   const t = copy[language]
   const [name, setName] = useState(currentUser?.name ?? '')
-  const [saveState, setSaveState] = useState('')
+  const [saveState, setSaveState] = useState<'' | 'saving' | 'saved'>('')
   const [loggingOut, setLoggingOut] = useState(false)
   const [uploading, setUploading] = useState(false)
   const saveMessageTimer = useRef<number | null>(null)
@@ -64,10 +64,10 @@ function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
       return
     }
     if (normalized === currentUser.name) return
-    setSaveState(t.saving)
+    setSaveState('saving')
     updateProfile({ name: normalized })
     setName(normalized)
-    setSaveState(t.saved)
+    setSaveState('saved')
     if (saveMessageTimer.current) window.clearTimeout(saveMessageTimer.current)
     saveMessageTimer.current = window.setTimeout(() => setSaveState(''), 1800)
   }
@@ -133,7 +133,7 @@ function MobileProfilePage({ adminAccess }: { adminAccess: AdminAccessState }) {
           <label htmlFor="mobile-profile-email">{t.email}</label>
           <input id="mobile-profile-email" value={currentUser.email} type="email" readOnly aria-readonly="true" />
         </div>
-        <p className="m2-account-save-state" role="status" aria-live="polite">{saveState}</p>
+        <p className="m2-account-save-state" role="status" aria-live="polite">{saveState ? t[saveState] : ''}</p>
         {adminAccess === 'allowed' ? <button type="button" className="m2-account-admin" onClick={() => navigate('/admin')}>
           <LayoutDashboard aria-hidden="true" />
           <span>{t.admin}</span>

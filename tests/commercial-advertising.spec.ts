@@ -243,7 +243,7 @@ test('admin approves a paid campaign and the homepage displays it', async ({ pag
   await expect(page.getByRole('heading', { name: detail.title })).toBeVisible()
   await expectDecodedImage(page.locator('.ad-flow__row .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Aprobar' }).click()
-  await expect(page.getByText('active · paid')).toBeVisible()
+  await expect(page.getByText('Activa · Pagado (prueba)')).toBeVisible()
   await page.goto('/#/')
   const publicAd = page.locator('.commercial-ad')
   await expect(publicAd.getByRole('heading', { name: detail.title })).toBeVisible()
