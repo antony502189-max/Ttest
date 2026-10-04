@@ -47,17 +47,17 @@
 .m2-favorite-cards {
   gap: .65rem;
   margin-top: 0;
-  margin-inline: calc(-1rem + .12rem);
+  margin-inline: 0;
 }
 
 .m2-collection__list > button.m2-favorite-card {
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: stretch;
-  gap: 0;
-  padding: 0;
+  grid-template-columns: minmax(8.5rem, 40%) minmax(0, 1fr) 1.2rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .55rem .65rem .55rem .55rem;
   border: 1px solid var(--m2-line);
   border-radius: .75rem;
   background: var(--m2-panel);
@@ -67,11 +67,12 @@
 .m2-favorite-card__media {
   width: 100%;
   height: auto;
-  aspect-ratio: 1.28 / 1;
+  aspect-ratio: 1 / 1;
   display: grid !important;
   place-items: center;
+  gap: 0 !important;
   overflow: hidden;
-  border-radius: 0;
+  border-radius: .55rem;
   background: var(--m2-panel-soft);
   color: var(--m2-muted);
 }
@@ -93,8 +94,8 @@
   min-width: 0;
   display: grid !important;
   align-content: center;
-  gap: .35rem;
-  padding: .75rem 2.8rem .8rem .85rem;
+  gap: .4rem;
+  padding: 0;
 }
 
 .m2-collection__list .m2-favorite-card__copy strong {
@@ -107,9 +108,9 @@
 }
 
 .m2-favorite-card > svg {
-  position: absolute;
-  right: .8rem;
-  bottom: 1.05rem;
+  position: static;
+  justify-self: end;
+  align-self: center;
 }
 
 .m2-recent-history {
