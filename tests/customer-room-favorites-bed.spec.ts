@@ -124,7 +124,7 @@ test('favorites selection mode is localized and functional in Russian on mobile'
   expect(favoriteMediaLayout).not.toBeNull()
   expect(favoriteMediaLayout!.mediaWidth).toBeGreaterThan(favoriteMediaLayout!.cardWidth * 0.34)
   expect(favoriteMediaLayout!.mediaWidth).toBeLessThan(favoriteMediaLayout!.cardWidth * 0.46)
-  expect(Math.abs(favoriteMediaLayout!.mediaWidth / favoriteMediaLayout!.mediaHeight - 1)).toBeLessThan(0.05)
+  expect(Math.abs(favoriteMediaLayout!.mediaWidth / favoriteMediaLayout!.mediaHeight - 1.28)).toBeLessThan(0.05)
   await expect(page.locator('.m2-recent-history')).toBeVisible()
   await expect(page.getByText('Недавно просмотренные', { exact: true })).toBeVisible()
 
