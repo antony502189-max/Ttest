@@ -119,9 +119,10 @@ test('favorites selection mode is localized and functional in Russian on mobile'
     if (!media) return null
     const cardRect = card.getBoundingClientRect()
     const mediaRect = media.getBoundingClientRect()
-    return { cardWidth: cardRect.width, mediaWidth: mediaRect.width, mediaHeight: mediaRect.height }
+    return { cardWidth: cardRect.width, mediaWidth: mediaRect.width, mediaHeight: mediaRect.height, viewportWidth: window.innerWidth }
   })
   expect(favoriteMediaLayout).not.toBeNull()
+  expect(favoriteMediaLayout!.cardWidth).toBeGreaterThan(favoriteMediaLayout!.viewportWidth * 0.98)
   expect(favoriteMediaLayout!.mediaWidth).toBeGreaterThan(favoriteMediaLayout!.cardWidth * 0.95)
   expect(Math.abs(favoriteMediaLayout!.mediaWidth / favoriteMediaLayout!.mediaHeight - 1.28)).toBeLessThan(0.05)
   await expect(page.locator('.m2-recent-history')).toBeVisible()
