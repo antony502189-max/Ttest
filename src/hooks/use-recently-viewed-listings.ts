@@ -107,6 +107,10 @@ export function useRecentlyViewedListings(limit = MAX_RECENTLY_VIEWED) {
     return limitedIds.map((id) => byId.get(id)).filter((listing): listing is Listing => Boolean(listing))
   }, [allListings, limitedIds, remote])
 
+  const mark = useCallback((listingId: string) => {
+    recordRecentlyViewedListing(listingId, currentUser?.id)
+  }, [currentUser?.id])
+
   const clear = useCallback(() => {
     try {
       localStorage.removeItem(key)
@@ -122,6 +126,7 @@ export function useRecentlyViewedListings(limit = MAX_RECENTLY_VIEWED) {
     listings,
     loading,
     error,
+    mark,
     clear,
     retry: () => setRetry((value) => value + 1),
   }
