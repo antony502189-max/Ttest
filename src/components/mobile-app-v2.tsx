@@ -10,6 +10,7 @@ import {
   Crosshair,
   Heart,
   Home,
+  Image as ImageIcon,
   Layers3,
   Mail,
   Map,
@@ -568,7 +569,7 @@ function MapScreen({ mode, language, t, query, initialCenter, initialCamera, pol
   </section>
 }
 
-type MobileCollectionItem = { id: string; title: string; meta: string; onOpen: () => void }
+type MobileCollectionItem = { id: string; title: string; meta: string; image?: string; onOpen: () => void }
 
 function EmptyScreen({ kind, onLogin, onExplore, authenticated, t, items = [] }: { kind: 'searches' | 'favorites'; onLogin: () => void; onExplore: () => void; authenticated: boolean; t: MobileCopy; items?: MobileCollectionItem[] }) {
   const data = { searches: { title: t.searchesTitle, heading: t.searchesHeading, text: t.searchesText, icon: <Bell /> }, favorites: { title: t.favoritesTitle, heading: t.favoritesHeading, text: t.favoritesText, icon: <Heart /> } }[kind]
@@ -636,22 +637,31 @@ function FavoritesCollectionScreen({ items, recentItems, onRemove, onClearRecent
         <button type="button" className="m2-favorites-remove-selected" disabled={!selected.size} onClick={removeSelected}><Trash2 />{actionCopy.removeSelected(selected.size)}</button>
       </div>
     </div> : null}
-    {items.length ? <div className="m2-collection__list">
-      {items.map((item) => {
-        const isSelected = selected.has(item.id)
-        return <button
-          type="button"
-          key={item.id}
-          className={cn(selecting && 'm2-favorite-item--selecting', isSelected && 'm2-favorite-item--selected')}
-          aria-pressed={selecting ? isSelected : undefined}
-          aria-label={selecting ? (isSelected ? actionCopy.deselectListing(item.title) : actionCopy.selectListing(item.title)) : undefined}
-          onClick={selecting ? () => toggleSelected(item.id) : item.onOpen}
-        >
-          <span><strong>{item.title}</strong><small>{item.meta}</small></span>
-          {selecting ? <span className="m2-favorites-select-indicator" aria-hidden="true">{isSelected ? <Check /> : null}</span> : <ChevronRight />}
-        </button>
-      })}
-    </div> : null}
+    {items.length ? <section className="m2-favorites-primary" aria-labelledby="m2-favorites-primary-title">
+      <div className="m2-favorites-section-head">
+        <strong id="m2-favorites-primary-title">{t.favorites}</strong>
+        <span aria-label={String(items.length)}>{items.length}</span>
+      </div>
+      <div className="m2-collection__list m2-favorite-cards">
+        {items.map((item) => {
+          const isSelected = selected.has(item.id)
+          return <button
+            type="button"
+            key={item.id}
+            className={cn('m2-favorite-card', selecting && 'm2-favorite-item--selecting', isSelected && 'm2-favorite-item--selected')}
+            aria-pressed={selecting ? isSelected : undefined}
+            aria-label={selecting ? (isSelected ? actionCopy.deselectListing(item.title) : actionCopy.selectListing(item.title)) : undefined}
+            onClick={selecting ? () => toggleSelected(item.id) : item.onOpen}
+          >
+            <span className="m2-favorite-card__media" aria-hidden="true">
+              {item.image ? <MediaImage src={item.image} variant="thumb" alt="" loading="lazy" /> : <ImageIcon />}
+            </span>
+            <span className="m2-favorite-card__copy"><strong>{item.title}</strong><small>{item.meta}</small></span>
+            {selecting ? <span className="m2-favorites-select-indicator" aria-hidden="true">{isSelected ? <Check /> : null}</span> : <ChevronRight />}
+          </button>
+        })}
+      </div>
+    </section> : null}
     <section className="m2-recent-history" aria-labelledby="m2-recent-history-title">
       <div className="m2-recent-history__head">
         <strong id="m2-recent-history-title">{t.recentlyViewed}</strong>
@@ -756,7 +766,7 @@ export function MobileAppV2() {
     ? { lat: cameraLat, lng: cameraLng, zoom: cameraZoom } : undefined
   const { listings: favoriteListings } = useFavoriteListings()
   const { listings: recentlyViewedListings, clear: clearRecentHistory, mark: markRecent } = useRecentlyViewedListings()
-  const favoriteItems = useMemo<MobileCollectionItem[]>(() => favoriteListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, onOpen: () => navigate(`/habitacion/${listing.id}`) })), [favoriteListings, navigate])
+  const favoriteItems = useMemo<MobileCollectionItem[]>(() => favoriteListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, image: listing.images[0], onOpen: () => navigate(`/habitacion/${listing.id}`) })), [favoriteListings, navigate])
   const recentItems = useMemo<MobileCollectionItem[]>(() => recentlyViewedListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, onOpen: () => {
     markRecent(listing.id)
     if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
