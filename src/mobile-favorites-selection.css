@@ -47,6 +47,7 @@
 .m2-favorite-cards {
   gap: .65rem;
   margin-top: 0;
+  margin-inline: calc(-1rem + .12rem);
 }
 
 .m2-collection__list > button.m2-favorite-card {
