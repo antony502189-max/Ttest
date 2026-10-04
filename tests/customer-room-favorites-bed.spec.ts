@@ -54,6 +54,42 @@ test('favorites trash action enters selection mode and removes only selected car
   await expect(page.locator('.favorite-card__selector')).toHaveCount(0)
 })
 
+
+test('favorites includes a deduplicated recently viewed history that can be cleared', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+
+  const cards = page.locator('.property-card')
+  await expect(cards.nth(1)).toBeVisible()
+  const firstId = await cards.nth(0).getAttribute('data-listing-id')
+  const secondId = await cards.nth(1).getAttribute('data-listing-id')
+  expect(firstId).toBeTruthy()
+  expect(secondId).toBeTruthy()
+
+  await page.goto(`/#/habitacion/${firstId}`)
+  await expect(page.locator('.listing-page')).toBeVisible()
+  await page.goto(`/#/habitacion/${secondId}`)
+  await expect(page.locator('.listing-page')).toBeVisible()
+  await page.goto(`/#/habitacion/${firstId}`)
+  await expect(page.locator('.listing-page')).toBeVisible()
+
+  await page.goto('/#/favoritos')
+  const history = page.locator('.favorites-recent')
+  await expect(history.getByRole('heading', { name: 'Vistos recientemente' })).toBeVisible()
+
+  const recentCards = history.locator('.property-card')
+  await expect(recentCards).toHaveCount(2)
+  await expect(recentCards.nth(0)).toHaveAttribute('data-listing-id', firstId!)
+  await expect(recentCards.nth(1)).toHaveAttribute('data-listing-id', secondId!)
+
+  await history.getByRole('button', { name: 'Borrar historial' }).click()
+  await expect(recentCards).toHaveCount(0)
+  await expect(history.getByText('Los anuncios que abras aparecerán aquí.', { exact: true })).toBeVisible()
+
+  const stored = await page.evaluate(() => localStorage.getItem('112233:recently-viewed:v1:guest'))
+  expect(stored).toBeNull()
+})
+
 test('favorites selection mode is localized and functional in Russian on mobile', async ({ page }) => {
   // Seed one favorite with the existing desktop result control, then open the
   // dedicated mobile Favorites shell where the customer-facing trash workflow lives.
