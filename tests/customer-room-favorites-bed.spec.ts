@@ -109,12 +109,20 @@ test('favorites selection mode is localized and functional in Russian on mobile'
   await page.goto('/#/favoritos')
 
   await expect(page.getByText('Избранное и списки', { exact: true })).toBeVisible()
+  await expect(page.locator('.m2-favorites-primary')).toBeVisible()
+  await expect(page.locator('#m2-favorites-primary-title')).toHaveText('Избранное')
+  const favoriteCard = page.locator('.m2-favorite-card').first()
+  await expect(favoriteCard).toBeVisible()
+  await expect(favoriteCard.locator('.m2-favorite-card__media img')).toBeVisible()
+  await expect(page.locator('.m2-recent-history')).toBeVisible()
+  await expect(page.getByText('Недавно просмотренные', { exact: true })).toBeVisible()
+
   const startDelete = page.getByRole('button', { name: 'Выбрать избранное для удаления' })
   await expect(startDelete).toBeVisible()
   await startDelete.click()
 
   await expect(page.getByText('Выбрано: 0', { exact: true })).toBeVisible()
-  const favoriteRow = page.locator('.m2-collection__list > button').first()
+  const favoriteRow = page.locator('.m2-favorite-card').first()
   await expect(favoriteRow).toHaveAttribute('aria-pressed', 'false')
   await favoriteRow.click()
   await expect(favoriteRow).toHaveAttribute('aria-pressed', 'true')
