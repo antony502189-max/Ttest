@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Check, Trash2, X } from 'lucide-react'
+import { Check, Clock3, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { EmptyState, PropertyCard } from '@/components/marketplace'
 import { useApp } from '@/contexts/app-context'
 import { useFavoriteListings } from '@/hooks/use-favorite-listings'
+import { useRecentlyViewedListings } from '@/hooks/use-recently-viewed-listings'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import '@/favorites-selection.css'
 
@@ -23,6 +24,12 @@ type FavoritesCopy = {
   selectListing: (title: string) => string
   deselectListing: (title: string) => string
   deleted: (count: number) => string
+  recentlyViewed: string
+  clearHistory: string
+  historyEmpty: string
+  historyLoading: string
+  historyLoadError: string
+  retry: string
 }
 
 const copyByLanguage: Record<Language, FavoritesCopy> = {
@@ -40,6 +47,12 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
     selectListing: (title) => `Seleccionar ${title} para eliminar`,
     deselectListing: (title) => `Quitar ${title} de la selección`,
     deleted: (count) => `${count} ${count === 1 ? 'favorito eliminado' : 'favoritos eliminados'}`,
+    recentlyViewed: 'Vistos recientemente',
+    clearHistory: 'Borrar historial',
+    historyEmpty: 'Los anuncios que abras aparecerán aquí.',
+    historyLoading: 'Cargando historial…',
+    historyLoadError: 'No se pudo cargar el historial.',
+    retry: 'Reintentar',
   },
   ru: {
     eyebrow: 'Ваш выбор',
@@ -55,6 +68,12 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
     selectListing: (title) => `Выбрать «${title}» для удаления`,
     deselectListing: (title) => `Снять выбор с «${title}»`,
     deleted: (count) => `Удалено из избранного: ${count}`,
+    recentlyViewed: 'Недавно просмотренные',
+    clearHistory: 'Очистить историю',
+    historyEmpty: 'Открытые вами объявления появятся здесь.',
+    historyLoading: 'Загрузка истории…',
+    historyLoadError: 'Не удалось загрузить историю.',
+    retry: 'Повторить',
   },
   en: {
     eyebrow: 'Your selection',
@@ -70,12 +89,19 @@ const copyByLanguage: Record<Language, FavoritesCopy> = {
     selectListing: (title) => `Select ${title} for removal`,
     deselectListing: (title) => `Deselect ${title}`,
     deleted: (count) => `${count} ${count === 1 ? 'favorite removed' : 'favorites removed'}`,
+    recentlyViewed: 'Recently viewed',
+    clearHistory: 'Clear history',
+    historyEmpty: 'Listings you open will appear here.',
+    historyLoading: 'Loading history…',
+    historyLoadError: 'Could not load history.',
+    retry: 'Retry',
   },
 }
 
 export function FavoritesPage() {
   const { favorites, toggleFavorite } = useApp()
   const { listings: saved, loading, error, retry } = useFavoriteListings()
+  const { listings: recentlyViewed, loading: recentLoading, error: recentError, retry: retryRecent, clear: clearRecent } = useRecentlyViewedListings()
   const { language } = useI18n()
   const copy = copyByLanguage[language]
   const [selecting, setSelecting] = useState(false)
@@ -205,6 +231,20 @@ export function FavoritesPage() {
       ) : (
         <EmptyState favorites />
       )}
+
+      <section className="favorites-recent" aria-labelledby="recently-viewed-title">
+        <div className="account-section-head">
+          <h2 id="recently-viewed-title"><Clock3 aria-hidden="true" />{copy.recentlyViewed}</h2>
+          {recentlyViewed.length ? <button type="button" onClick={clearRecent}>{copy.clearHistory}</button> : null}
+        </div>
+        {recentLoading ? <p role="status">{copy.historyLoading}</p> : recentError ? (
+          <div role="alert">{copy.historyLoadError} <Button variant="outline" size="sm" onClick={retryRecent}>{copy.retry}</Button></div>
+        ) : recentlyViewed.length ? (
+          <div className="property-grid favorites-recent__grid">
+            {recentlyViewed.map((listing) => <PropertyCard key={listing.id} listing={listing} compact />)}
+          </div>
+        ) : <p className="favorites-recent__empty">{copy.historyEmpty}</p>}
+      </section>
     </div>
   )
 }

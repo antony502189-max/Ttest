@@ -125,6 +125,7 @@ import type {
 } from "@/types";
 import { useApp } from "@/contexts/app-context";
 import { useI18n } from "@/contexts/i18n-context";
+import { useRecentlyViewedTracker } from "@/hooks/use-recently-viewed-listings";
 
 const LazyGoogleMap = lazy(() =>
   import("@/components/map-view").then((module) => ({
@@ -512,9 +513,9 @@ export function PriceBlock({
   );
 }
 
-function ListingDestination({ listing, className, ariaLabel, children }: { listing: Listing; className?: string; ariaLabel?: string; children: ReactNode }) {
-  if (listing.isExternal && listing.sourceUrl) return <a className={className} href={listing.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel}>{children}</a>
-  return <Link className={className} to={`/habitacion/${listing.id}`} aria-label={ariaLabel}>{children}</Link>
+function ListingDestination({ listing, className, ariaLabel, onOpen, children }: { listing: Listing; className?: string; ariaLabel?: string; onOpen?: () => void; children: ReactNode }) {
+  if (listing.isExternal && listing.sourceUrl) return <a className={className} href={listing.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} onClick={onOpen}>{children}</a>
+  return <Link className={className} to={`/habitacion/${listing.id}`} aria-label={ariaLabel} onClick={onOpen}>{children}</Link>
 }
 
 export function PropertyCard({
@@ -530,6 +531,7 @@ export function PropertyCard({
 }) {
   const { discardListing } = useApp();
   const { t, locale } = useI18n();
+  const markRecentlyViewed = useRecentlyViewedTracker();
   const [imageIndex, setImageIndex] = useState(0);
   const availability = listing.availableFrom ? t(`Disponible desde ${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${listing.availableFrom}T12:00:00`))}`) : t(listing.available);
   const share = async () => {
@@ -559,7 +561,7 @@ export function PropertyCard({
       data-listing-id={listing.id}
     >
       <div className="property-card__media">
-        <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`}>
+        <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`} onOpen={() => markRecentlyViewed(listing.id)}>
           <MediaImage
             src={cardImages[imageIndex] || fallbackImage}
             variant="card"
@@ -604,7 +606,7 @@ export function PropertyCard({
         ) : null}
       </div>
       <div className="property-card__content">
-        <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`}>
+        <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`} onOpen={() => markRecentlyViewed(listing.id)}>
           <h3 data-i18n-exempt>{listing.title}</h3>
           <div className="card-topline">
             <PriceBlock listing={listing} />

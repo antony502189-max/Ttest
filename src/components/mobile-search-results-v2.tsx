@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent 
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppBack } from '@/hooks/use-app-back'
+import { useRecentlyViewedTracker } from '@/hooks/use-recently-viewed-listings'
 import { searchPublicListings } from '@/api/listings'
 import {
   ArrowDownUp,
@@ -167,6 +168,7 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
 
 export function MobileSearchResults() {
   const goBack = useAppBack('/')
+  const markRecentlyViewed = useRecentlyViewedTracker()
   const { allListings, discarded, discardListing, favorites, toggleFavorite, rentalMode, setRentalMode, filters: appFilters, setFilters: setAppFilters, mapPolygon, query: appQuery } = useApp()
   const { language } = useI18n()
   const location = useLocation()
@@ -531,6 +533,7 @@ export function MobileSearchResults() {
     {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount)}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
+        markRecentlyViewed(listing.id)
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
       }} />) : <div className="m2-results__empty">{t.empty}</div>}{!mockMode && !serverLoading && !serverError && nextCursor ? <div ref={loadMoreSentinelRef} className="m2-results__load-more" data-testid="mobile-results-load-more">{serverLoadingMore ? <span role="status">{t.loadingMore}</span> : serverLoadMoreError ? <><span role="alert">{t.loadMoreError}</span><button type="button" onClick={loadMore}>{t.retryMore}</button></> : <span aria-hidden="true" />}</div> : null}{!mockMode && !serverLoading && !serverError && !nextCursor && serverItems && serverItems.length > 20 ? <div className="m2-results__all-loaded" role="status">{t.allLoaded(resultCount)}</div> : null}</div></> : null}

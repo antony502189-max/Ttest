@@ -12,6 +12,7 @@ import { ListingLocationSection } from '@/components/listing-location-section'
 import { UserReportDialog } from '@/components/user-report-dialog'
 import { useApp } from '@/contexts/app-context'
 import { useAppBack } from '@/hooks/use-app-back'
+import { useRecentlyViewedTracker } from '@/hooks/use-recently-viewed-listings'
 import { useI18n } from '@/contexts/i18n-context'
 import { getPublicListing, getSimilarListings } from '@/api/listings'
 import { formatPublishedAt } from '@/lib/search'
@@ -35,6 +36,7 @@ export function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const goBack = useAppBack('/buscar')
+  const markRecentlyViewed = useRecentlyViewedTracker()
   const { allListings, acceptListingSnapshot, favorites, toggleFavorite, discardListing, localComments, addLocalComment, updateLocalComment, deleteLocalComment } = useApp()
   const [reportOpen, setReportOpen] = useState(false)
   const [userReportOpen, setUserReportOpen] = useState(false)
@@ -46,6 +48,12 @@ export function ListingPage() {
   const [detailLoading, setDetailLoading] = useState(true)
   const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [compactContact, setCompactContact] = useState(() => window.matchMedia(COMPACT_CONTACT_QUERY).matches)
+
+  const listing = serverListing ?? allListings.find((item) => item.id === id && isPublicListing(item))
+
+  useEffect(() => {
+    if (listing?.id) markRecentlyViewed(listing.id)
+  }, [listing?.id, markRecentlyViewed])
 
   useEffect(() => {
     if (!id || mockMode) { setDetailLoading(false); return }
@@ -82,7 +90,6 @@ export function ListingPage() {
     return () => media.removeEventListener('change', update)
   }, [])
 
-  const listing = serverListing ?? allListings.find((item) => item.id === id && isPublicListing(item))
   if (!listing && detailLoading) return null
   if (!listing) return <Navigate to="/buscar" replace />
   if (listing.isExternal && listing.sourceUrl) return <ExternalListingRedirect sourceUrl={listing.sourceUrl} />

@@ -256,6 +256,12 @@ html.mobile-v2-active #main-content > :not(.m2-app) { display: none !important; 
 .m2-collection__list strong { font-size: .8rem; }
 .m2-collection__list small { color: #aaa; font-size: .66rem; }
 .m2-collection__list svg { flex: 0 0 auto; width: 1rem; color: var(--m2-lime); }
+.m2-recent-history { margin-top: 1.35rem; padding-top: 1rem; border-top: 1px solid #303030; }
+.m2-recent-history__head { min-height: 2rem; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.m2-recent-history__head > strong { font-size: .8rem; }
+.m2-recent-history__head > button { border: 0; background: transparent; color: var(--m2-lime); font-size: .66rem; }
+.m2-recent-history__list { margin-top: .25rem; }
+.m2-recent-history__empty { margin: .6rem 0 0; color: #aaa; font-size: .7rem; line-height: 1.45; }
 .m2-menu { padding: 0 .75rem 1.5rem; }
 .m2-menu > header { margin-inline: -.75rem; padding-inline: .75rem; }
 .m2-menu-login { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .65rem; padding-top: 1rem; }
