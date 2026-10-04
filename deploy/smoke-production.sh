@@ -15,13 +15,17 @@ compose=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 # The frontend starts after the backend health gate; give Traefik and Nginx a
 # bounded window to publish the configured public origin. The verifier checks
 # an application fingerprint plus exact health/catalog/admin status codes.
+current_release="$(readlink -f "$ROOT/current")"
+expected_sha="$(basename "$current_release")"
+[[ "$expected_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "current release is not a commit SHA: $current_release" >&2; exit 65; }
+
 for _ in $(seq 1 30); do
-  if APP_DOMAIN="$domain" "$ROOT/current/deploy/verify-public-origin.sh" >/dev/null 2>&1; then
+  if APP_DOMAIN="$domain" EXPECTED_SHA="$expected_sha" "$ROOT/current/deploy/verify-public-origin.sh" >/dev/null 2>&1; then
     break
   fi
   sleep 2
 done
-APP_DOMAIN="$domain" "$ROOT/current/deploy/verify-public-origin.sh"
+APP_DOMAIN="$domain" EXPECTED_SHA="$expected_sha" "$ROOT/current/deploy/verify-public-origin.sh"
 curl --fail --silent --show-error "https://$domain/privacidad" >/dev/null
 curl --fail --silent --show-error "https://$domain/terminos" >/dev/null
 

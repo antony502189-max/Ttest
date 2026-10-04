@@ -91,14 +91,18 @@ test('favorites includes a deduplicated recently viewed history that can be clea
   expect(stored).toBeNull()
 })
 
-test('mobile favorites render the direct full source image with uncropped inline fit', () => {
+test('mobile favorites isolate photo framing from global img object-fit rules', () => {
   const component = readFileSync('src/components/mobile-app-v2.tsx', 'utf8')
+  const css = readFileSync('src/mobile-favorites-selection.css', 'utf8')
 
   expect(component).toContain('data-testid="favorite-full-photo"')
-  expect(component).toContain('src={item.image}')
-  expect(component).toContain("objectFit: 'contain'")
+  expect(component).toContain('backgroundImage:')
   expect(component).not.toContain('<MediaImage src={item.image} variant="card"')
   expect(component).not.toContain('<MediaImage src={item.image} variant="full"')
+  expect(component).not.toContain('<img data-testid="favorite-full-photo"')
+  expect(css).toContain('.m2-favorite-card__photo')
+  expect(css).toContain('background-size: contain;')
+  expect(css).toContain('background-repeat: no-repeat;')
 })
 
 test('favorites selection mode is localized and functional in Russian on mobile', async ({ page }) => {
@@ -126,8 +130,11 @@ test('favorites selection mode is localized and functional in Russian on mobile'
   await expect(favoriteCard).toBeVisible()
   const favoritePhoto = favoriteCard.getByTestId('favorite-full-photo')
   await expect(favoritePhoto).toBeVisible()
-  await expect(favoritePhoto).toHaveCSS('object-fit', 'contain')
-  expect(await favoritePhoto.getAttribute('src')).not.toContain('variant=')
+  await expect(favoritePhoto).toHaveCSS('background-size', 'contain')
+  await expect(favoritePhoto).toHaveCSS('background-repeat', 'no-repeat')
+  const backgroundImage = await favoritePhoto.evaluate((element) => getComputedStyle(element).backgroundImage)
+  expect(backgroundImage).not.toBe('none')
+  expect(backgroundImage).not.toContain('variant=')
   const favoriteMediaLayout = await favoriteCard.evaluate((card) => {
     const media = card.querySelector<HTMLElement>('.m2-favorite-card__media')
     if (!media) return null

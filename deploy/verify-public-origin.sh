@@ -37,6 +37,16 @@ grep -Fq '/assets/' "$work_dir/body" || {
   exit 65
 }
 
+expected_sha="${EXPECTED_SHA:-}"
+if [[ -n "$expected_sha" ]]; then
+  request /build-info.json 200
+  grep -Fq "\"commit\":\"$expected_sha\"" "$work_dir/body" || {
+    echo "public origin frontend build does not match expected commit $expected_sha" >&2
+    cat "$work_dir/body" >&2
+    exit 65
+  }
+fi
+
 request /api/health/live 200
 grep -Fq '"status":"ok"' "$work_dir/body" || {
   echo "live endpoint did not return the expected application health payload" >&2
