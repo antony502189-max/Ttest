@@ -664,7 +664,14 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 exclude_listing_id=listing.id,
                 rental_mode=item.rental_mode,
             )
-            if active_duplicate_id is not None:
+            same_source_duplicate = None
+            if active_duplicate_id is None:
+                same_source_duplicate = await same_source_canonical_for(
+                    session,
+                    item,
+                    current_fingerprints,
+                )
+            if active_duplicate_id is not None or same_source_duplicate is not None:
                 await session.commit()
                 return "unchanged"
 
