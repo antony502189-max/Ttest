@@ -20,6 +20,7 @@ from .listing_deduplication import (
     galleries_are_duplicates,
     phash_band_neighbors,
     same_source_external_duplicates,
+    same_source_external_metadata_matches,
 )
 from .media_processing import perceptual_hash
 
@@ -102,6 +103,18 @@ def _listing_duplicate_metadata(listing: Listing) -> ExternalDuplicateMetadata:
     )
 
 
+def _same_source_external_repost_identity_matches(left: Listing, right: Listing) -> bool:
+    """Return whether two parser listings describe the same provider-side offer."""
+    return (
+        left.is_external
+        and right.is_external
+        and same_source_external_metadata_matches(
+            _listing_duplicate_metadata(left),
+            _listing_duplicate_metadata(right),
+        )
+    )
+
+
 def _listings_are_duplicates(
     left: Listing,
     right: Listing,
@@ -177,7 +190,7 @@ def _direct_duplicate_batches(
     galleries: dict[UUID, list[ImageFingerprint]],
     listings: dict[UUID, Listing],
 ) -> list[tuple[Listing, list[Listing]]]:
-    """Split a transitive candidate component into direct canonical matches."""
+    """Split candidate components while allowing safe parser-repost chain collapse."""
     remaining = [listings[listing_id] for listing_id in group if listing_id in listings]
     batches: list[tuple[Listing, list[Listing]]] = []
     while len(remaining) > 1:
@@ -193,6 +206,45 @@ def _direct_duplicate_batches(
                 galleries[listing.id],
             )
         ]
+
+        # Generic gallery similarity is deliberately non-transitive because
+        # neighbouring rooms can share property photos. Parser reposts are a
+        # narrower case: once the provider, normalized title/description,
+        # location, price and room identity all match the canonical listing,
+        # follow direct duplicate edges through the repost chain. This catches
+        # A≈B≈C crawl history where A and C have drifted below the direct photo
+        # threshold while still representing the exact same provider offer.
+        if canonical.is_external and losers:
+            matched_external = [canonical]
+            matched_ids = {canonical.id}
+            for listing in losers:
+                if _same_source_external_repost_identity_matches(canonical, listing):
+                    matched_external.append(listing)
+                    matched_ids.add(listing.id)
+
+            expanded = True
+            while expanded:
+                expanded = False
+                for listing in remaining:
+                    if listing.id in matched_ids or listing.id == canonical.id:
+                        continue
+                    if not _same_source_external_repost_identity_matches(canonical, listing):
+                        continue
+                    if not any(
+                        _listings_are_duplicates(
+                            anchor,
+                            listing,
+                            galleries[anchor.id],
+                            galleries[listing.id],
+                        )
+                        for anchor in matched_external
+                    ):
+                        continue
+                    losers.append(listing)
+                    matched_external.append(listing)
+                    matched_ids.add(listing.id)
+                    expanded = True
+
         if not losers:
             remaining = [listing for listing in remaining if listing.id != canonical.id]
             continue
