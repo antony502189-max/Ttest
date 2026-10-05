@@ -2,7 +2,7 @@ from hashlib import sha256
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
-from app.services.duplicate_cleanup import _direct_duplicate_batches
+from app.services.duplicate_cleanup import _direct_duplicate_batches, _duplicate_groups
 from app.services.listing_deduplication import (
     ImageFingerprint,
     external_gallery_is_reconciled,
@@ -167,3 +167,106 @@ def test_cleanup_keeps_identical_long_and_holiday_listings_separate():
 
     assert galleries_are_duplicates(galleries[long_id], galleries[holiday_id])
     assert _direct_duplicate_batches(galleries.keys(), galleries, listings) == []  # type: ignore[arg-type]
+
+def external_listing(
+    listing_id: UUID,
+    *,
+    source: str = "Pisos",
+    rental_mode: str = "long",
+    title: str = "Habitación Individual en Calle de las Lagunetas 8",
+    description: str = "Habitación amueblada en piso compartido con cocina y baño compartidos.",
+    city: str = "San Cristóbal de La Laguna",
+    area: str = "La Laguna",
+    address: str = "Calle de las Lagunetas 8",
+    price: int = 370,
+):
+    return SimpleNamespace(
+        id=listing_id,
+        is_external=True,
+        primary_source=source,
+        rental_mode=rental_mode,
+        title=title,
+        description=description,
+        city=city,
+        area=area,
+        approximate_address=address,
+        monthly_price=price if rental_mode == "long" else None,
+        nightly_price=price if rental_mode == "holiday" else None,
+        room_type="Habitación individual",
+        advertiser_name="Proveedor",
+        published_at=None,
+        created_at=None,
+    )
+
+
+def test_same_source_repost_with_four_of_five_matching_photos_is_collapsed():
+    shared = [image(index) for index in range(4)]
+    first_id = UUID(int=201)
+    repost_id = UUID(int=202)
+    galleries = {
+        first_id: [*shared, image(10)],
+        repost_id: [*shared, image(20)],
+    }
+    listings = {
+        first_id: external_listing(first_id),
+        repost_id: external_listing(repost_id),
+    }
+
+    assert not galleries_are_duplicates(galleries[first_id], galleries[repost_id])
+    assert _duplicate_groups(galleries, listings) == [{first_id, repost_id}]  # type: ignore[arg-type]
+    batches = _direct_duplicate_batches({first_id, repost_id}, galleries, listings)  # type: ignore[arg-type]
+    assert [(batch[0].id, [item.id for item in batch[1]]) for batch in batches] == [
+        (first_id, [repost_id])
+    ]
+
+
+def test_same_property_different_room_is_not_collapsed_by_relaxed_external_rule():
+    shared = [image(index) for index in range(4)]
+    first_id = UUID(int=211)
+    second_id = UUID(int=212)
+    galleries = {
+        first_id: [*shared, image(30)],
+        second_id: [*shared, image(40)],
+    }
+    listings = {
+        first_id: external_listing(
+            first_id,
+            title="Habitación exterior con cama doble",
+            description="Habitación exterior grande con cama doble y escritorio.",
+        ),
+        second_id: external_listing(
+            second_id,
+            title="Habitación interior individual",
+            description="Habitación interior individual con armario y ventana al patio.",
+        ),
+    }
+
+    assert _duplicate_groups(galleries, listings) == []  # type: ignore[arg-type]
+    assert _direct_duplicate_batches({first_id, second_id}, galleries, listings) == []  # type: ignore[arg-type]
+
+
+def test_relaxed_external_repost_rule_stays_scoped_to_same_provider_and_rental_mode():
+    shared = [image(index) for index in range(4)]
+    base_id = UUID(int=221)
+    other_source_id = UUID(int=222)
+    holiday_id = UUID(int=223)
+    galleries = {
+        base_id: [*shared, image(50)],
+        other_source_id: [*shared, image(60)],
+        holiday_id: [*shared, image(70)],
+    }
+
+    base = external_listing(base_id)
+    other_source = external_listing(other_source_id, source="PisoCompartido")
+    holiday = external_listing(holiday_id, rental_mode="holiday")
+    assert _direct_duplicate_batches(
+        {base_id, other_source_id},
+        galleries,
+        {base_id: base, other_source_id: other_source},
+    ) == []  # type: ignore[arg-type]
+    assert _direct_duplicate_batches(
+        {base_id, holiday_id},
+        galleries,
+        {base_id: base, holiday_id: holiday},
+    ) == []  # type: ignore[arg-type]
+
