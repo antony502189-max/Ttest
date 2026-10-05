@@ -125,6 +125,7 @@ def _listings_are_duplicates(
 def _duplicate_groups(
     galleries: dict[UUID, list[ImageFingerprint]],
     listings: dict[UUID, Listing],
+    candidate_pairs: set[tuple[UUID, UUID]] | None = None,
 ) -> list[set[UUID]]:
     parent: dict[UUID, UUID] = {listing_id: listing_id for listing_id in galleries}
 
@@ -143,7 +144,8 @@ def _duplicate_groups(
         if left_root != right_root:
             parent[right_root] = left_root
 
-    for left_id, right_id in _candidate_pairs(galleries):
+    pairs = candidate_pairs if candidate_pairs is not None else _candidate_pairs(galleries)
+    for left_id, right_id in pairs:
         left_listing, right_listing = listings.get(left_id), listings.get(right_id)
         if (
             left_listing is not None
@@ -227,7 +229,12 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
         await session.rollback()
         return {"groups": [], "duplicates": 0, "changed": 0}
 
-    listing_ids = set(galleries)
+    candidate_pairs = _candidate_pairs(galleries)
+    if not candidate_pairs:
+        await session.rollback()
+        return {"groups": [], "duplicates": 0, "changed": 0}
+
+    listing_ids = {listing_id for pair in candidate_pairs for listing_id in pair}
     listings = {
         listing.id: listing
         for listing in (
@@ -236,7 +243,7 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
             )
         ).all()
     }
-    groups = _duplicate_groups(galleries, listings)
+    groups = _duplicate_groups(galleries, listings, candidate_pairs)
     if not groups:
         await session.rollback()
         return {"groups": [], "duplicates": 0, "changed": 0}
