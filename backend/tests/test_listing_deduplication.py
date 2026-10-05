@@ -220,6 +220,70 @@ def test_same_source_repost_with_four_of_five_matching_photos_is_collapsed():
     ]
 
 
+def test_same_source_repost_chain_like_customer_video_collapses_to_one_listing():
+    shared = [image(index) for index in range(3)]
+    first_id = UUID(int=231)
+    middle_id = UUID(int=232)
+    last_id = UUID(int=233)
+    galleries = {
+        first_id: [*shared, image(3), image(10)],
+        middle_id: [*shared, image(3), image(20)],
+        last_id: [*shared, image(20), image(30)],
+    }
+    listings = {
+        first_id: external_listing(first_id),
+        middle_id: external_listing(middle_id),
+        last_id: external_listing(last_id),
+    }
+
+    assert not galleries_are_duplicates(galleries[first_id], galleries[middle_id])
+    assert not galleries_are_duplicates(galleries[middle_id], galleries[last_id])
+    assert not galleries_are_duplicates(galleries[first_id], galleries[last_id])
+    assert _duplicate_groups(galleries, listings) == [{first_id, middle_id, last_id}]  # type: ignore[arg-type]
+
+    batches = _direct_duplicate_batches(
+        {first_id, middle_id, last_id},
+        galleries,
+        listings,
+    )  # type: ignore[arg-type]
+    assert len(batches) == 1
+    canonical, losers = batches[0]
+    assert canonical.id == first_id
+    assert {listing.id for listing in losers} == {middle_id, last_id}
+
+
+def test_external_repost_chain_does_not_absorb_a_different_room():
+    shared = [image(index) for index in range(3)]
+    first_id = UUID(int=241)
+    repost_id = UUID(int=242)
+    different_room_id = UUID(int=243)
+    repost_gallery = [*shared, image(3), image(20)]
+    galleries = {
+        first_id: [*shared, image(3), image(10)],
+        repost_id: repost_gallery,
+        different_room_id: list(repost_gallery),
+    }
+    listings = {
+        first_id: external_listing(first_id),
+        repost_id: external_listing(repost_id),
+        different_room_id: external_listing(
+            different_room_id,
+            title="Habitación exterior con balcón",
+            description="Otra habitación del mismo piso con balcón privado.",
+        ),
+    }
+
+    batches = _direct_duplicate_batches(
+        {first_id, repost_id, different_room_id},
+        galleries,
+        listings,
+    )  # type: ignore[arg-type]
+    assert len(batches) == 1
+    canonical, losers = batches[0]
+    assert canonical.id == first_id
+    assert {listing.id for listing in losers} == {repost_id}
+
+
 def test_same_property_different_room_is_not_collapsed_by_relaxed_external_rule():
     shared = [image(index) for index in range(4)]
     first_id = UUID(int=211)
