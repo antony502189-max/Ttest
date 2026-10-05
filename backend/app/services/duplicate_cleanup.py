@@ -13,11 +13,13 @@ from ..models import DiscardedListing, Favorite, Listing, ListingImage, MediaAss
 from ..storage import get_storage
 from .catalog import touch_catalog
 from .listing_deduplication import (
+    ExternalDuplicateMetadata,
     ImageFingerprint,
     acquire_duplicate_guard,
     all_active_galleries,
     galleries_are_duplicates,
     phash_band_neighbors,
+    same_source_external_duplicates,
 )
 from .media_processing import perceptual_hash
 
@@ -84,7 +86,46 @@ def _candidate_pairs(galleries: dict[UUID, list[ImageFingerprint]]) -> set[tuple
     return pairs
 
 
-def _duplicate_groups(galleries: dict[UUID, list[ImageFingerprint]]) -> list[set[UUID]]:
+def _listing_duplicate_metadata(listing: Listing) -> ExternalDuplicateMetadata:
+    price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
+    return ExternalDuplicateMetadata(
+        source=listing.primary_source,
+        rental_mode=listing.rental_mode,
+        title=listing.title,
+        description=listing.description,
+        city=listing.city,
+        area=listing.area,
+        address=listing.approximate_address,
+        price=price,
+        room_type=listing.room_type,
+        advertiser_name=listing.advertiser_name,
+    )
+
+
+def _listings_are_duplicates(
+    left: Listing,
+    right: Listing,
+    left_gallery: list[ImageFingerprint],
+    right_gallery: list[ImageFingerprint],
+) -> bool:
+    if left.rental_mode != right.rental_mode:
+        return False
+    if galleries_are_duplicates(left_gallery, right_gallery):
+        return True
+    if not left.is_external or not right.is_external:
+        return False
+    return same_source_external_duplicates(
+        _listing_duplicate_metadata(left),
+        _listing_duplicate_metadata(right),
+        left_gallery,
+        right_gallery,
+    )
+
+
+def _duplicate_groups(
+    galleries: dict[UUID, list[ImageFingerprint]],
+    listings: dict[UUID, Listing],
+) -> list[set[UUID]]:
     parent: dict[UUID, UUID] = {listing_id: listing_id for listing_id in galleries}
 
     def find(value: UUID) -> UUID:
@@ -103,7 +144,17 @@ def _duplicate_groups(galleries: dict[UUID, list[ImageFingerprint]]) -> list[set
             parent[right_root] = left_root
 
     for left_id, right_id in _candidate_pairs(galleries):
-        if galleries_are_duplicates(galleries[left_id], galleries[right_id]):
+        left_listing, right_listing = listings.get(left_id), listings.get(right_id)
+        if (
+            left_listing is not None
+            and right_listing is not None
+            and _listings_are_duplicates(
+                left_listing,
+                right_listing,
+                galleries[left_id],
+                galleries[right_id],
+            )
+        ):
             union(left_id, right_id)
 
     groups: dict[UUID, set[UUID]] = defaultdict(set)
@@ -133,8 +184,12 @@ def _direct_duplicate_batches(
             listing
             for listing in remaining
             if listing.id != canonical.id
-            and listing.rental_mode == canonical.rental_mode
-            and galleries_are_duplicates(galleries[canonical.id], galleries[listing.id])
+            and _listings_are_duplicates(
+                canonical,
+                listing,
+                galleries[canonical.id],
+                galleries[listing.id],
+            )
         ]
         if not losers:
             remaining = [listing for listing in remaining if listing.id != canonical.id]
@@ -168,12 +223,11 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
         # snapshot cannot race a newly published gallery.
         await acquire_duplicate_guard(session)
     galleries = await all_active_galleries(session)
-    groups = _duplicate_groups(galleries)
-    if not groups:
+    if not galleries:
         await session.rollback()
         return {"groups": [], "duplicates": 0, "changed": 0}
 
-    listing_ids = {listing_id for group in groups for listing_id in group}
+    listing_ids = set(galleries)
     listings = {
         listing.id: listing
         for listing in (
@@ -182,6 +236,10 @@ async def deduplicate_active_listings(session: AsyncSession, *, apply: bool) -> 
             )
         ).all()
     }
+    groups = _duplicate_groups(galleries, listings)
+    if not groups:
+        await session.rollback()
+        return {"groups": [], "duplicates": 0, "changed": 0}
 
     report_groups: list[dict[str, object]] = []
     duplicate_count = 0
