@@ -40,10 +40,15 @@ from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
 from .listing_deduplication import (
+    ACTIVE_DUPLICATE_STATUSES,
+    ExternalDuplicateMetadata,
     ImageFingerprint,
     acquire_duplicate_guard,
     duplicate_listing_id,
     external_gallery_is_reconciled,
+    listing_gallery,
+    listing_gallery_is_reconciled,
+    same_source_external_duplicates,
 )
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
@@ -492,6 +497,86 @@ async def canonical_for(
     return await session.get(Listing, duplicate_id) if duplicate_id is not None else None
 
 
+def _item_duplicate_metadata(item: NormalizedListing) -> ExternalDuplicateMetadata:
+    return ExternalDuplicateMetadata(
+        source=item.source_name,
+        rental_mode=item.rental_mode,
+        title=item.title,
+        description=item.description,
+        city=item.city,
+        area=item.area,
+        address=item.public_address or item.area,
+        price=item.price_amount,
+        room_type=item.room_type,
+        advertiser_name=item.advertiser_name,
+    )
+
+
+def _listing_duplicate_metadata(listing: Listing) -> ExternalDuplicateMetadata:
+    price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
+    return ExternalDuplicateMetadata(
+        source=listing.primary_source,
+        rental_mode=listing.rental_mode,
+        title=listing.title,
+        description=listing.description,
+        city=listing.city,
+        area=listing.area,
+        address=listing.approximate_address,
+        price=price,
+        room_type=listing.room_type,
+        advertiser_name=listing.advertiser_name,
+    )
+
+
+async def same_source_canonical_for(
+    session: AsyncSession,
+    item: NormalizedListing,
+    image_fingerprints: list[ImageFingerprint],
+) -> Listing | None:
+    """Find a same-provider repost that the global 0.90 gallery rule keeps separate.
+
+    This path is deliberately narrow: SQL first limits candidates to the same
+    provider, rental mode, city and price; the final decision also requires
+    exact normalized title/description/location metadata, a matching cover and
+    strong gallery overlap.
+    """
+    if len(image_fingerprints) < 4 or not item.description:
+        return None
+    price_column = Listing.nightly_price if item.rental_mode == "holiday" else Listing.monthly_price
+    candidates = list(
+        (
+            await session.scalars(
+                select(Listing).where(
+                    Listing.deleted_at.is_(None),
+                    Listing.status.in_(ACTIVE_DUPLICATE_STATUSES),
+                    Listing.is_external.is_(True),
+                    Listing.primary_source == item.source_name,
+                    Listing.rental_mode == item.rental_mode,
+                    Listing.city == item.city,
+                    price_column == item.price_amount,
+                )
+            )
+        ).all()
+    )
+    item_metadata = _item_duplicate_metadata(item)
+    for candidate in candidates:
+        candidate_gallery = await listing_gallery(session, candidate.id)
+        if not await listing_gallery_is_reconciled(
+            session,
+            candidate.id,
+            stored_image_count=len(candidate_gallery),
+        ):
+            continue
+        if same_source_external_duplicates(
+            item_metadata,
+            _listing_duplicate_metadata(candidate),
+            image_fingerprints,
+            candidate_gallery,
+        ):
+            return candidate
+    return None
+
+
 def normalized_snapshot(item: NormalizedListing) -> dict:
     return json.loads(json.dumps(asdict(item), default=str))
 
@@ -523,6 +608,8 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         image_fingerprints = await public_image_fingerprints(item.photos)
         await acquire_duplicate_guard(session)
         listing = await canonical_for(session, item, image_fingerprints)
+        if listing is None and image_fingerprints:
+            listing = await same_source_canonical_for(session, item, image_fingerprints)
         if listing is None and image_fingerprints:
             duplicate_id = await duplicate_listing_id(
                 session,
@@ -577,7 +664,14 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 exclude_listing_id=listing.id,
                 rental_mode=item.rental_mode,
             )
-            if active_duplicate_id is not None:
+            same_source_duplicate = None
+            if active_duplicate_id is None:
+                same_source_duplicate = await same_source_canonical_for(
+                    session,
+                    item,
+                    current_fingerprints,
+                )
+            if active_duplicate_id is not None or same_source_duplicate is not None:
                 await session.commit()
                 return "unchanged"
 

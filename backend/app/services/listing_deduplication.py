@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from uuid import UUID
@@ -19,6 +21,9 @@ ACTIVE_DUPLICATE_STATUSES = ("published", "pending", "hidden")
 PHASH_MATCH_DISTANCE = 4
 PHASH_ANCHOR_DISTANCE = 1
 GALLERY_DICE_THRESHOLD = 0.90
+SAME_SOURCE_MIN_MATCHES = 4
+SAME_SOURCE_MIN_SMALLER_COVERAGE = 0.80
+SAME_SOURCE_DICE_THRESHOLD = 0.75
 
 
 @dataclass(frozen=True)
@@ -28,6 +33,74 @@ class ImageFingerprint:
     perceptual_hash: str | None
     width: int
     height: int
+
+
+@dataclass(frozen=True)
+class ExternalDuplicateMetadata:
+    source: str | None
+    rental_mode: str | None
+    title: str | None
+    description: str | None
+    city: str | None
+    area: str | None
+    address: str | None
+    price: int | None
+    room_type: str | None
+    advertiser_name: str | None = None
+
+
+def _normalized_duplicate_text(value: str | None) -> str:
+    decomposed = unicodedata.normalize("NFKD", (value or "").casefold())
+    without_marks = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(re.findall(r"[a-z0-9]+", without_marks))
+
+
+def same_source_external_metadata_matches(
+    left: ExternalDuplicateMetadata,
+    right: ExternalDuplicateMetadata,
+) -> bool:
+    """Require strong same-provider content identity before relaxing gallery overlap.
+
+    Parser providers can legitimately publish several rooms in one dwelling.
+    Therefore the relaxed photo rule is available only when the two records
+    agree on provider, rental mode, price, normalized title, full description
+    and public location. Empty descriptions deliberately disable the relaxed
+    path instead of guessing that two sparse cards are one room.
+    """
+    if not left.source or not right.source or left.source.casefold() != right.source.casefold():
+        return False
+    if not left.rental_mode or left.rental_mode != right.rental_mode:
+        return False
+    if left.price is None or right.price is None or left.price != right.price:
+        return False
+
+    left_title = _normalized_duplicate_text(left.title)
+    right_title = _normalized_duplicate_text(right.title)
+    left_description = _normalized_duplicate_text(left.description)
+    right_description = _normalized_duplicate_text(right.description)
+    left_city = _normalized_duplicate_text(left.city)
+    right_city = _normalized_duplicate_text(right.city)
+    left_location = _normalized_duplicate_text(left.address) or _normalized_duplicate_text(left.area)
+    right_location = _normalized_duplicate_text(right.address) or _normalized_duplicate_text(right.area)
+
+    if not all((left_title, right_title, left_description, right_description, left_city, right_city, left_location, right_location)):
+        return False
+    if (
+        left_title != right_title
+        or left_description != right_description
+        or left_city != right_city
+        or left_location != right_location
+    ):
+        return False
+
+    left_room_type = _normalized_duplicate_text(left.room_type)
+    right_room_type = _normalized_duplicate_text(right.room_type)
+    if left_room_type and right_room_type and left_room_type != right_room_type:
+        return False
+
+    left_advertiser = _normalized_duplicate_text(left.advertiser_name)
+    right_advertiser = _normalized_duplicate_text(right.advertiser_name)
+    return not (left_advertiser and right_advertiser and left_advertiser != right_advertiser)
 
 
 def hamming_distance(left: str, right: str) -> int:
@@ -121,6 +194,42 @@ def _maximum_gallery_matches(left: list[ImageFingerprint], right: list[ImageFing
         return False
 
     return sum(augment(left_index, set()) for left_index in range(len(left)))
+
+
+def same_source_external_galleries_are_duplicates(
+    left: list[ImageFingerprint],
+    right: list[ImageFingerprint],
+) -> bool:
+    """Recognize a provider repost without weakening global room deduplication.
+
+    The ordinary 0.90 Dice rule protects distinct rooms that reuse shared-home
+    photos. Same-provider reposts get one narrowly-scoped exception: the cover
+    must still be the same visual image, at least four images must pair
+    one-to-one, and at least 80% of the smaller gallery plus 75% Dice overall
+    must match. Metadata identity is checked separately.
+    """
+    if min(len(left), len(right)) < SAME_SOURCE_MIN_MATCHES:
+        return False
+    if not fingerprints_match(left[0], right[0]):
+        return False
+    matches = _maximum_gallery_matches(left, right)
+    if matches < SAME_SOURCE_MIN_MATCHES:
+        return False
+    smaller_coverage = matches / min(len(left), len(right))
+    dice = (2 * matches) / (len(left) + len(right))
+    return smaller_coverage >= SAME_SOURCE_MIN_SMALLER_COVERAGE and dice >= SAME_SOURCE_DICE_THRESHOLD
+
+
+def same_source_external_duplicates(
+    left_metadata: ExternalDuplicateMetadata,
+    right_metadata: ExternalDuplicateMetadata,
+    left_gallery: list[ImageFingerprint],
+    right_gallery: list[ImageFingerprint],
+) -> bool:
+    return (
+        same_source_external_metadata_matches(left_metadata, right_metadata)
+        and same_source_external_galleries_are_duplicates(left_gallery, right_gallery)
+    )
 
 
 def galleries_are_duplicates(left: list[ImageFingerprint], right: list[ImageFingerprint]) -> bool:
