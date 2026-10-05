@@ -26,7 +26,7 @@ import { getBedroomCount } from '@/lib/listings'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
-import { filtersFromParams, filtersToParams } from '@/lib/search'
+import { filtersFromParams, filtersToParams, prioritizePromotedListings } from '@/lib/search'
 import { compareListingFloors } from '@/lib/floor'
 import type { Filters, Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
@@ -446,7 +446,7 @@ export function MobileSearchResults() {
     if (order === 'floor-low') return compareListingFloors(a, b, 'asc')
     return 0
   }) : filteredListings, [favorites, filteredListings, order])
-  const orderedListings = useMemo(() => focusListingId ? [...listings].sort((left, right) => Number(right.id === focusListingId) - Number(left.id === focusListingId)) : listings, [focusListingId, listings])
+  const orderedListings = useMemo(() => prioritizePromotedListings(listings, focusListingId), [focusListingId, listings])
   const resultCount = mockMode ? availableListings.length : serverTotal
 
 

@@ -31,6 +31,7 @@ import {
   filtersFromParams,
   filtersToParams,
   pointInPolygon,
+  prioritizePromotedListings,
   sortListings,
 } from "@/lib/search";
 import { filtersForRentalMode } from "@/lib/price-filter-controls";
@@ -277,7 +278,7 @@ export function SearchPage() {
       }) : filteredItems,
     [filteredItems, mapBounds, mapPolygon],
   );
-  const items = useMemo(() => mockMode ? sortListings(spatialItems, filters.sort) : spatialItems, [filters.sort, spatialItems]);
+  const items = useMemo(() => mockMode ? sortListings(spatialItems, filters.sort) : prioritizePromotedListings(spatialItems), [filters.sort, spatialItems]);
   const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items]);
   const totalPages = Math.max(1, Math.ceil((mockMode ? items.length : serverTotal) / PAGE_SIZE));
   const currentPage = mockMode ? Math.min(page, totalPages) : page;

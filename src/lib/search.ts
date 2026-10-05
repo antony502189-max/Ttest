@@ -119,6 +119,18 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
   })
 }
 
+export function prioritizePromotedListings(items: Listing[], focusListingId = '') {
+  return items.map((listing, index) => ({ listing, index })).sort((a, b) => {
+    const promotionPriority = Number(Boolean(b.listing.promoted)) - Number(Boolean(a.listing.promoted))
+    if (promotionPriority) return promotionPriority
+    if (focusListingId) {
+      const focusPriority = Number(b.listing.id === focusListingId) - Number(a.listing.id === focusListingId)
+      if (focusPriority) return focusPriority
+    }
+    return a.index - b.index
+  }).map(({ listing }) => listing)
+}
+
 export function sortListings(items: Listing[], sort: string) {
   return items.map((listing, index) => ({ listing, index })).sort((a, b) => {
     const promotionPriority = Number(Boolean(b.listing.promoted)) - Number(Boolean(a.listing.promoted))
