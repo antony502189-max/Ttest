@@ -46,3 +46,27 @@ test('mobile results keep a promoted listing first without showing a TOP badge',
   await expect(cards.nth(1)).toHaveAttribute('data-listing-id', ordinaryId)
   await expect(page.locator('.m2-result-card__top')).toHaveCount(0)
 })
+
+
+test('stable production guard keeps TOP above a newly inserted ordinary listing', async ({ page }) => {
+  await page.goto('/')
+  const ids = await page.evaluate(async () => {
+    const { prioritizePromotedListings } = await import('/src/lib/search.ts')
+    const top = { id: 'top', promoted: true }
+    const newlyPublished = { id: 'new', promoted: false }
+    return prioritizePromotedListings([newlyPublished, top] as never).map((listing) => listing.id)
+  })
+
+  expect(ids).toEqual(['top', 'new'])
+})
+
+test('mobile focus never lifts a normal listing above an active TOP', async ({ page }) => {
+  const { promotedId, ordinaryId } = await seedStickyPromotion(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/?sticky-promotion=1#/buscar?q=Tenerife&alquiler=long&anuncio=${ordinaryId}`)
+
+  const cards = page.locator('.m2-result-card')
+  await expect(cards).toHaveCount(2)
+  await expect(cards.first()).toHaveAttribute('data-listing-id', promotedId)
+  await expect(cards.nth(1)).toHaveAttribute('data-listing-id', ordinaryId)
+})
