@@ -101,7 +101,7 @@ test('mobile favorites isolate photo framing from global img object-fit rules', 
   expect(component).not.toContain('<MediaImage src={item.image} variant="full"')
   expect(component).not.toContain('<img data-testid="favorite-full-photo"')
   expect(css).toContain('.m2-favorite-card__photo')
-  expect(css).toContain('background-size: contain;')
+  expect(css).toContain('background-size: 100% 100%;')
   expect(css).toContain('background-repeat: no-repeat;')
 })
 
@@ -130,7 +130,7 @@ test('favorites selection mode is localized and functional in Russian on mobile'
   await expect(favoriteCard).toBeVisible()
   const favoritePhoto = favoriteCard.getByTestId('favorite-full-photo')
   await expect(favoritePhoto).toBeVisible()
-  await expect(favoritePhoto).toHaveCSS('background-size', 'contain')
+  await expect(favoritePhoto).toHaveCSS('background-size', '100% 100%')
   await expect(favoritePhoto).toHaveCSS('background-repeat', 'no-repeat')
   const backgroundImage = await favoritePhoto.evaluate((element) => getComputedStyle(element).backgroundImage)
   expect(backgroundImage).not.toBe('none')
