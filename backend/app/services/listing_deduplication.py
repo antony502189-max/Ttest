@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass
 import re
 import unicodedata
+from collections import defaultdict
+from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -100,9 +100,7 @@ def same_source_external_metadata_matches(
 
     left_advertiser = _normalized_duplicate_text(left.advertiser_name)
     right_advertiser = _normalized_duplicate_text(right.advertiser_name)
-    if left_advertiser and right_advertiser and left_advertiser != right_advertiser:
-        return False
-    return True
+    return not (left_advertiser and right_advertiser and left_advertiser != right_advertiser)
 
 
 def hamming_distance(left: str, right: str) -> int:
