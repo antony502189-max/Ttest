@@ -260,6 +260,10 @@
 .admin-listing-row > div:first-child,
 .admin-listing-state { min-width: 0; display: flex; flex-direction: column; }
 .admin-listing-state { align-items: flex-start; gap: .3rem; }
+.admin-listing-rental-badge {
+  align-self: flex-start;
+  margin-top: .35rem;
+}
 .admin-listing-reference {
   margin-top: .18rem;
   font-weight: 750;
