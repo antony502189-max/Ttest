@@ -66,6 +66,114 @@ async def seed(session):
     return row, await session.get(Listing, row.canonical_listing_id)
 
 
+async def seed_provider_batch(session, count):
+    row, listing = await seed(session)
+    for index in range(1, count):
+        session.add(ExternalListingSource(
+            source_name="Idealista", external_id=f"batch-{index}",
+            source_url=f"https://example.test/batch/{index}",
+            canonical_listing_id=listing.id, fingerprint="a" * 64,
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            normalized_payload=external_import.normalized_snapshot(external_item(
+                source="Idealista", external_id=f"batch-{index}", url=f"https://example.test/batch/{index}",
+            )),
+        ))
+    await session.commit()
+    return row, listing
+
+
+@pytest.mark.parametrize("count,removed,guarded", [(20, 2, False), (20, 20, True), (20, 17, True), (20, 10, False), (5, 5, True), (120, 120, True)])
+async def test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep(count, removed, guarded):
+    async with SessionLocal() as session:
+        await seed_provider_batch(session, count)
+        class Distribution(Probe):
+            async def check_listing_state(self, url):
+                assert not session.in_transaction()
+                self.calls.append(url)
+                return "not_found" if len(self.calls) <= removed else "active"
+        report = new_report()
+        await reconcile_source(session, Distribution(session), report=report)
+        assert report["source_rows_purged"] == (0 if guarded else removed)
+        assert report["removal_anomaly_batches"] == int(guarded)
+        assert report["result"] == ("partial" if guarded else "success")
+        assert await session.scalar(select(func.count()).select_from(ExternalListingSource)) == (count if guarded else count - removed)
+        await session.commit()
+        if guarded:
+            assert report["deferred_by_removal_anomaly"] == count
+            assert "removal_anomaly" in report["removal_anomaly_reason"]
+            assert await session.scalar(select(func.count()).select_from(ExternalListingSource).where(
+                ExternalListingSource.last_state_check_at.is_not(None)
+            )) == 0
+            await session.commit()
+            repeated = new_report()
+            await reconcile_source(session, Probe(session, "not_found"), report=repeated)
+            assert repeated["source_rows_purged"] == 0 and repeated["removal_anomaly_batches"] == 1
+            reset = new_report()
+            await reconcile_source(session, Probe(session), report=reset)
+            assert reset["checked"] == count and reset["removal_anomaly_batches"] == 0
+
+
+async def test_disabled_removal_also_blocks_importer_hard_purge(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.services import external_removal
+    async with SessionLocal() as session:
+        row, listing = await seed(session)
+        monkeypatch.setattr(external_removal, "get_settings", lambda: SimpleNamespace(external_removal_check_enabled=False))
+        assert await external_import.archive_confirmed_not_found(session, "Idealista", row.source_url) == 0
+        await session.commit()
+        assert await session.get(Listing, listing.id) is not None
+        assert await session.get(ExternalListingSource, row.id) is not None
+
+
+async def test_provider_anomaly_does_not_stop_other_provider():
+    async with SessionLocal() as session:
+        _row, listing = await seed_provider_batch(session, 5)
+        session.add(ExternalListingSource(
+            source_name="Fotocasa", external_id="healthy", source_url="https://example.test/healthy",
+            canonical_listing_id=listing.id, fingerprint="b" * 64,
+        ))
+        await session.commit()
+    async with SessionLocal() as first, SessionLocal() as second:
+        reports = [new_report(), new_report()]
+        healthy = Probe(second)
+        healthy.name = "Fotocasa"
+        limit = asyncio.Semaphore(4)
+        await asyncio.gather(
+            reconcile_source(first, Probe(first, "not_found"), report=reports[0], global_limit=limit),
+            reconcile_source(second, healthy, report=reports[1], global_limit=limit),
+        )
+        assert reports[0]["removal_anomaly_batches"] == 1 and reports[0]["source_rows_purged"] == 0
+        assert reports[1]["result"] == "success" and reports[1]["active"] == 1
+
+
+@pytest.mark.parametrize("path", ["missing", "discovered"])
+async def test_full_import_confirmations_cannot_bypass_batch_guard(path):
+    from app.external_sources import DiscoveryResult
+    async with SessionLocal() as session:
+        await seed_provider_batch(session, 5)
+        urls = set((await session.scalars(select(ExternalListingSource.source_url))).all())
+        await session.commit()
+        class Source(Probe):
+            blocked_diagnostic = None
+            def __init__(self, session, state):
+                super().__init__(session, state)
+                self.not_found_urls = set()
+                self.removed_urls = set()
+            async def discover_listing_urls(self):
+                assert not session.in_transaction()
+                return DiscoveryResult(urls=urls if path == "discovered" else set(), complete=True, visited_pages=1, reached_last_page=True)
+            async def fetch_listing(self, url):
+                assert not session.in_transaction()
+                self.not_found_urls.add(url)
+            async def close(self):
+                pass
+        report = await external_import.run_source(session, Source(session, "not_found"), str(uuid4()))
+        assert report.result == "partial" and report["removal_anomaly_batches"] == 1
+        assert report["archived"] == 0
+        assert await session.scalar(select(func.count()).select_from(ExternalListingSource)) == 5
+
+
 @pytest.mark.parametrize(
     "state", ["active", "removed", "expired", "not_found", "blocked", "temporary_error", "unknown"]
 )

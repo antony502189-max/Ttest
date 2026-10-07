@@ -1013,11 +1013,24 @@ async def retire_source_records(session: AsyncSession, source_names: set[str]) -
     return retired
 
 
-async def archive_missing(session: AsyncSession, source: ExternalListingSource | str, started_at: datetime) -> int:
+async def archive_missing(
+    session: AsyncSession, source: ExternalListingSource | str, started_at: datetime,
+    *, report: dict[str, int] | None = None,
+) -> int:
     # Keep the public adapter protocol duck-typed: test adapters and future
     # sources need only expose ``name`` and ``check_listing_state``.
     source_name = source if isinstance(source, str) else source.name
     scope_key = "santa_cruz" if isinstance(source, str) else getattr(source, "scope_key", "santa_cruz")
+    from .external_removal import log_removal_anomaly, removal_anomaly_reason
+    candidate_count = int(await session.scalar(
+        select(func.count()).select_from(SourceRecord).where(
+            SourceRecord.source_name == source_name,
+            SourceRecord.scope_key == scope_key,
+            SourceRecord.current_status == "active",
+            SourceRecord.last_seen_at < started_at,
+        )
+    ) or 0)
+    await session.commit()
     async def candidate_ids():
         last_id = None
         while True:
@@ -1035,13 +1048,22 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
             if not batch:
                 break
             last_id = batch[-1][0]
-            for row in batch:
-                yield row
+            states = []
+            for _row_id, source_url in batch:
+                require_no_active_transaction(session, "external listing state check")
+                states.append("unknown" if isinstance(source, str) else await source.check_listing_state(source_url))
+            reason = removal_anomaly_reason(states, candidate_count)
+            if reason:
+                log_removal_anomaly(source_name, reason)
+                if report is not None:
+                    report["removal_anomaly_batches"] += 1
+                    report["removal_anomaly_records"] += sum(state in {"removed", "expired", "not_found"} for state in states)
+                return
+            for (row_id, _source_url), state in zip(batch, states):
+                yield row_id, state
 
     archived = 0
-    async for row_id, source_url in candidate_ids():
-        require_no_active_transaction(session, "external listing state check")
-        state = "unknown" if isinstance(source, str) else await source.check_listing_state(source_url)
+    async for row_id, state in candidate_ids():
         row = await session.get(SourceRecord, row_id)
         if not row or row.current_status != "active":
             await session.commit()
@@ -1188,6 +1210,8 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "archived",
             "failed",
             "failed_details",
+            "removal_anomaly_batches",
+            "removal_anomaly_records",
             "rejected_invalid_price",
         )
     })
@@ -1312,6 +1336,20 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 results = await asyncio.gather(
                     *(fetch(url) for url in ordered_urls[start:start + 100]), return_exceptions=True
                 )
+                from .external_removal import log_removal_anomaly, removal_anomaly_reason
+                states = [
+                    "temporary_error" if isinstance(result, BaseException) else
+                    "not_found" if result[0] in source.not_found_urls else
+                    "removed" if result[0] in getattr(source, "removed_urls", set()) else
+                    "active" if result[1] else "unknown"
+                    for result in results
+                ]
+                reason = removal_anomaly_reason(states, len(ordered_urls))
+                if reason:
+                    counters["removal_anomaly_batches"] += 1
+                    counters["removal_anomaly_records"] += sum(state in {"removed", "expired", "not_found"} for state in states)
+                    log_removal_anomaly(source.name, reason)
+                    return
                 for result in results:
                     yield result
 
@@ -1374,8 +1412,10 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             if outcome == "imported":
                 counters["created"] += 1
         await session.commit()
+        partial = partial or bool(counters["removal_anomaly_batches"])
         if discovery.complete and not partial:
-            counters["archived"] += await archive_missing(session, source, started_at)
+            counters["archived"] += await archive_missing(session, source, started_at, report=counters)
+            partial = partial or bool(counters["removal_anomaly_batches"])
         completed_contract = completed_source_contract(counters)
         if discovery.complete and not partial and completed_contract:
             run.result = "success"

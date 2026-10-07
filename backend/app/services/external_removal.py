@@ -43,6 +43,9 @@ COUNTERS = (
     "media_assets_orphaned",
     "storage_deletions_enqueued",
     "deferred_by_circuit_breaker",
+    "removal_anomaly_batches",
+    "removal_anomaly_records",
+    "deferred_by_removal_anomaly",
     "failed",
     "batches",
 )
@@ -50,6 +53,24 @@ COUNTERS = (
 
 def new_report() -> dict:
     return dict.fromkeys(COUNTERS, 0)
+
+
+def removal_anomaly_reason(states: list[str], candidate_count: int) -> str | None:
+    """Evaluate the complete HTTP batch before permitting any destructive write.
+
+    A single isolated offer is not a provider-wide sample. Small providers with
+    two or more candidates must still prove a non-anomalous distribution.
+    """
+    checked = [state for state in states if state != "deferred"]
+    removed = sum(state in {"removed", "expired", "not_found"} for state in checked)
+    sample = max(2, min(10, candidate_count))
+    if len(checked) >= sample and removed * 5 >= len(checked) * 4:
+        return f"removal_anomaly: {removed}/{len(checked)} confirmed removals; sample={sample}; threshold=80%"
+    return None
+
+
+def log_removal_anomaly(source_name: str, reason: str) -> None:
+    logger.error("external_removal_anomaly source=%s reason=%s", source_name, reason)
 
 
 async def purge_confirmed_removed_source(session: AsyncSession, source_id: UUID, state: str) -> dict[str, int]:
@@ -66,6 +87,9 @@ async def purge_confirmed_removed_source(session: AsyncSession, source_id: UUID,
         ),
         0,
     )
+    # The rollout kill switch must also cover confirmations from full imports.
+    if not get_settings().external_removal_check_enabled:
+        return outcome
     canonical_id = await session.scalar(select(SourceRecord.canonical_listing_id).where(SourceRecord.id == source_id))
     if canonical_id is None:
         return outcome
@@ -187,7 +211,7 @@ async def reconcile_source(
         cursor = batch[-1].id
         report["batches"] += 1
         states = await asyncio.gather(*(probe(row.source_url) for row in batch))
-        for candidate, state in zip(batch, states):
+        for state in states:
             if state == "deferred":
                 report["deferred_by_circuit_breaker"] += 1
                 continue
@@ -198,6 +222,21 @@ async def reconcile_source(
                     report[state] += 1
             else:
                 report[state] += 1
+        reason = removal_anomaly_reason(states, report["candidate_records"])
+        if reason:
+            remaining = int(await session.scalar(
+                select(func.count()).select_from(SourceRecord).where(*eligible, SourceRecord.id > cursor)
+            ) or 0)
+            await session.commit()
+            report["removal_anomaly_batches"] += 1
+            report["removal_anomaly_records"] += sum(state in {"removed", "expired", "not_found"} for state in states)
+            report["deferred_by_removal_anomaly"] += sum(state != "deferred" for state in states) + remaining
+            report["removal_anomaly_reason"] = reason
+            log_removal_anomaly(source.name, reason)
+            break
+        for candidate, state in zip(batch, states):
+            if state == "deferred":
+                continue
             canonical_id = await session.scalar(
                 select(SourceRecord.canonical_listing_id).where(SourceRecord.id == candidate.id)
             )
@@ -255,7 +294,7 @@ async def reconcile_source(
     report["result"] = (
         "partial"
         if any(
-            report[key] for key in ("blocked", "temporary_error", "unknown", "failed", "deferred_by_circuit_breaker")
+            report[key] for key in ("blocked", "temporary_error", "unknown", "failed", "deferred_by_circuit_breaker", "removal_anomaly_batches")
         )
         else "success"
     )

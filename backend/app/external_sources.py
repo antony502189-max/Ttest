@@ -890,7 +890,9 @@ class ExternalListingSource(ABC):
         return paths
 
     def _raise_if_challenged(self, url: str, document: str) -> None:
-        challenge = "geetest" in document.casefold() or "pardon our interruption" in document.casefold()
+        challenge = any(marker in document.casefold() for marker in (
+            "geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human",
+        ))
         if challenge:
             diagnostic = self.discovery_diagnostics.get(url, {})
             self.blocked_diagnostic = {"challenge_type": "geetest", **diagnostic, "paths": self._save_discovery_artifacts(url, document)}
@@ -904,7 +906,9 @@ class ExternalListingSource(ABC):
                 if response.status_code == 202 and not response.text.strip():
                     self.blocked_diagnostic = {"challenge_type": "empty_http_202", **self.discovery_diagnostics[url]}
                     raise SourceBlocked("public source returned no anonymous content (HTTP 202)")
-                if "geetest" in response.text.casefold() or "pardon our interruption" in response.text.casefold():
+                if any(marker in response.text.casefold() for marker in (
+                    "geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human",
+                )):
                     # Capture the equivalent public Chromium response and screenshot once;
                     # do not attempt to solve or interact with the challenge.
                     if get_settings().external_import_playwright_enabled:
@@ -937,10 +941,15 @@ class ExternalListingSource(ABC):
                         raise RuntimeError(f"HTTP {response.status_code}")
                     await asyncio.sleep(2**attempt)
                     continue
-                if self.is_listing_url(url) and not self.is_listing_url(str(response.url)):
-                    if any(marker in clean(response.text).casefold() for marker in self.removed_markers):
+                if self.is_listing_url(url) and 200 <= response.status_code < 300:
+                    corpus = clean(response.text).casefold()
+                    if not self.has_current_detail(response.text) and (
+                        any(marker in corpus for marker in self.removed_markers) or "listing expired" in corpus
+                    ):
                         self.removed_urls.add(url)
-                    return None
+                        return None
+                    if not self.is_listing_url(str(response.url)):
+                        return None
                 response.raise_for_status()
                 return response.text
             except httpx.HTTPError as exc:
@@ -1132,6 +1141,13 @@ class ExternalListingSource(ABC):
         expected_total = next(iter(evidence.values()))["expected_total"] if len(evidence) == 1 else None
         return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked, evidence)
 
+    @staticmethod
+    def has_current_detail(document: str) -> bool:
+        return detail_document_has_listing_signals(document) or bool(
+            re.search(r"<h1\b[^>]*>.+?</h1>", document, re.IGNORECASE | re.DOTALL)
+            and re.search(r"\d[\d.,]*\s*€", clean(document))
+        )
+
     async def check_listing_state(self, source_url: str) -> str:
         """Check a missing detail URL without treating access errors as removal."""
         try:
@@ -1155,15 +1171,13 @@ class ExternalListingSource(ABC):
             return "unknown"
         final_url = str(response.url)
         corpus = clean(document).casefold()
+        if 200 <= response.status_code < 300 and self.is_listing_url(final_url) and self.has_current_detail(document):
+            return "active"
         if "anuncio caducado" in corpus or "listing expired" in corpus:
             return "expired"
         if any(marker in corpus for marker in self.removed_markers):
             return "removed"
-        has_detail = detail_document_has_listing_signals(document) or bool(
-            re.search(r"<h1\b[^>]*>.+?</h1>", document, re.IGNORECASE | re.DOTALL)
-            and re.search(r"\d[\d.,]*\s*€", corpus)
-        )
-        return "active" if self.is_listing_url(final_url) and has_detail else "unknown"
+        return "unknown"
 
     async def fetch_listing(self, url: str) -> str | None:
         document = await self.request(url)

@@ -550,6 +550,30 @@ def test_detail_request_marks_410_but_not_ambiguous_catalog_redirect_as_removal(
     asyncio.run(verify())
 
 
+@pytest.mark.parametrize("marker", ["Anuncio eliminado", "Ya no está disponible", "Anuncio caducado", "listing expired"])
+def test_live_detail_beats_generic_removal_footer_in_both_confirmation_paths(marker):
+    async def verify():
+        source = IdealistaSource()
+        await source.client.aclose()
+        url = "https://www.idealista.com/inmueble/123456/"
+        live = f"<h1>Habitación individual en alquiler</h1><p>700 €/mes</p><footer>Ayuda: {marker}</footer>"
+        source.client = httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, text=live, request=request)
+        ))
+        assert await source.check_listing_state(url) == "active"
+        assert await source.fetch_listing(url) == live
+        assert not source.removed_urls and not source.not_found_urls
+        await source.client.aclose()
+        source.client = httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, text=f"<h1>{marker}</h1>", request=request)
+        ))
+        assert await source.check_listing_state(url) == ("expired" if marker in {"Anuncio caducado", "listing expired"} else "removed")
+        assert await source.fetch_listing(url) is None
+        assert source.removed_urls == {url}
+        await source.close()
+    asyncio.run(verify())
+
+
 def test_discovery_is_partial_when_pagination_limit_prevents_reaching_end():
     class PagedSource(ExternalListingSource):
         name = "Paged"
