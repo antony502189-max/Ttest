@@ -25,18 +25,29 @@ export async function uploadMediaReference(reference: string) {
   return api<MediaAssetDto>('/uploads', { method: 'POST', body, timeoutMs: 45_000 })
 }
 
+export async function uploadVideoFile(file: File) {
+  const body = new FormData()
+  body.append('file', file, file.name || 'listing-video')
+  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 900_000 })
+}
+
 export async function uploadVideoReference(reference: string) {
   const blob = await getMediaBlob(reference)
   if (!blob) throw new Error('No se encontró el vídeo local.')
-  const body = new FormData()
-  const type = blob.type || 'video/mp4'
-  const extension = type === 'video/quicktime' ? 'mov' : 'mp4'
-  body.append('file', new File([blob], `listing-video.${extension}`, { type }))
-  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 300_000 })
+  const file = blob instanceof File
+    ? blob
+    : new File([blob], 'listing-video', { type: blob.type || 'application/octet-stream' })
+  return uploadVideoFile(file)
 }
 
 async function deleteUploadedAsset(assetId: string) {
   await api<void>(`/uploads/${assetId}`, { method: 'DELETE' })
+}
+
+export async function cleanupUploadedMediaReference(reference: string) {
+  const assetId = assetIdFromUrl(reference)
+  if (!assetId) return
+  await deleteUploadedAsset(assetId)
 }
 
 export async function cleanupPreparedListingImages(prepared: PreparedListingImages) {

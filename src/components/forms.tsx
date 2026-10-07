@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, GripVertical, ImagePlus, RotateCw, Trash2, UploadCloud, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiBlob } from "@/api/client";
+import { apiBlob, resolveApiUrl } from "@/api/client";
+import { uploadVideoFile } from "@/api/media";
 import {
   Field,
   FieldDescription,
@@ -30,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { acceptedImageTypes, acceptedVideoTypes, getMediaBlob, isMediaReference, MAX_LISTING_PHOTOS, MAX_LISTING_VIDEO_BYTES, MAX_LISTING_VIDEO_SECONDS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile } from "@/lib/media-storage";
+import { acceptedImageTypes, getMediaBlob, isAcceptedVideoFile, isMediaReference, MAX_LISTING_PHOTOS, MAX_LISTING_VIDEO_BYTES, MAX_LISTING_VIDEO_SECONDS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile, validateVideoFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 import "@/listing-edit-comfort.css";
@@ -983,11 +984,19 @@ export function VideoUploader({
     setBusy(true);
     onProcessingChange?.(true);
     try {
-      if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
-        throw new MediaStorageError("type", "Formato de vídeo no compatible. Usa MP4 o MOV.");
+      if (!isAcceptedVideoFile(file)) {
+        throw new MediaStorageError("type", "Selecciona un archivo de vídeo válido.");
       }
+      await validateVideoFile(file);
       const previous = video;
-      const reference = await saveVideoFile(file);
+      let reference: string;
+      try {
+        reference = await saveVideoFile(file);
+      } catch (storageError) {
+        if (!(storageError instanceof MediaStorageError) || storageError.code === "type") throw storageError;
+        const uploaded = await uploadVideoFile(file);
+        reference = resolveApiUrl(uploaded.url);
+      }
       onChange(reference);
       if (previous && previous !== reference) onRemove?.(previous);
     } catch (uploadError) {
@@ -1012,7 +1021,7 @@ export function VideoUploader({
       <div className="listing-video-uploader__head">
         <div>
           <strong>Vídeo del anuncio</strong>
-          <span>Opcional · 1 vídeo · máximo {MAX_LISTING_VIDEO_SECONDS} segundos · MP4/MOV · hasta {MAX_LISTING_VIDEO_BYTES / (1024 * 1024)} MB</span>
+          <span>Opcional · 1 vídeo · máximo {MAX_LISTING_VIDEO_SECONDS} segundos · hasta {MAX_LISTING_VIDEO_BYTES / (1024 * 1024)} MB</span>
         </div>
         {!video ? (
           <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={busy}>
@@ -1026,7 +1035,7 @@ export function VideoUploader({
         className="sr-only"
         type="file"
         aria-label="Añadir vídeo del anuncio"
-        accept="video/mp4,video/quicktime,video/x-m4v,.mp4,.mov,.m4v"
+        accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.3gp,.3g2,.mpeg,.mpg,.ogv,.mts,.m2ts,.ts,.wmv,.flv,.f4v,.asf,.vob,.mxf"
         onChange={(event) => void chooseVideo(event.target.files)}
       />
       {video ? (

@@ -23,9 +23,9 @@ def test_video_over_sixty_seconds_is_rejected_before_transcode(monkeypatch):
     assert "60 seconds" in str(error.value.detail)
 
 
-def test_video_mime_type_is_restricted():
+def test_non_video_without_video_extension_is_rejected():
     with pytest.raises(HTTPException) as error:
-        video_processing.prepare_video(b"video", "video/webm")
+        video_processing.prepare_video(b"video", "application/octet-stream", "notes.txt")
 
     assert error.value.status_code == 415
 
@@ -41,7 +41,7 @@ def test_corrupt_video_is_rejected_by_probe(monkeypatch):
     assert error.value.status_code == 415
 
 
-def test_valid_video_in_unsupported_container_is_rejected(monkeypatch):
+def test_probe_accepts_decodable_webm_container(monkeypatch, tmp_path):
     monkeypatch.setattr(
         video_processing.subprocess,
         "run",
@@ -51,9 +51,25 @@ def test_valid_video_in_unsupported_container_is_rejected(monkeypatch):
             stderr="",
         ),
     )
-    with pytest.raises(HTTPException) as error:
-        video_processing.prepare_video(b"unsupported container", "video/mp4")
-    assert error.value.status_code == 415
+
+    assert video_processing._probe(tmp_path / "video.webm") == (640, 360, 10.0)
+
+
+def test_empty_phone_mime_is_accepted_by_video_extension(monkeypatch):
+    probes = iter([(1920, 1080, 10.0), (1920, 1080, 10.0)])
+    monkeypatch.setattr(video_processing, "_probe", lambda _path: next(probes))
+
+    def fake_run(command, **kwargs):
+        assert kwargs["timeout"] == video_processing.VIDEO_TRANSCODE_TIMEOUT_SECONDS
+        Path(command[-1]).write_bytes(b"normalized-mp4")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(video_processing.subprocess, "run", fake_run)
+
+    prepared = video_processing.prepare_video(b"phone-video", "", "camera.MOV")
+
+    assert prepared.content == b"normalized-mp4"
+    assert prepared.duration_seconds == 10.0
 
 
 def test_video_is_normalized_to_browser_mp4(monkeypatch):
@@ -84,6 +100,31 @@ def test_video_is_normalized_to_browser_mp4(monkeypatch):
     assert "+faststart" in seen_command
     assert seen_command[seen_command.index("-maxrate") + 1] == "4M"
     assert seen_command[seen_command.index("-threads") + 1] == "2"
+
+
+def test_video_input_accepts_exact_configured_size_boundary(monkeypatch):
+    monkeypatch.setattr(
+        video_processing,
+        "get_settings",
+        lambda: Settings(
+            max_video_upload_bytes=5,
+            max_video_duration_seconds=60,
+            max_video_dimension=1920,
+            max_video_output_bytes=1024,
+        ),
+    )
+    probes = iter([(640, 360, 10.0), (640, 360, 10.0)])
+    monkeypatch.setattr(video_processing, "_probe", lambda _path: next(probes))
+
+    def fake_run(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"ok")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(video_processing.subprocess, "run", fake_run)
+
+    prepared = video_processing.prepare_video(b"12345", "video/mp4", "boundary.mp4")
+
+    assert prepared.content == b"ok"
 
 
 def test_video_input_over_100_mib_is_rejected_before_probe(monkeypatch):

@@ -50,9 +50,9 @@ def test_image_above_pixel_budget_is_rejected(monkeypatch):
     assert error.value.status_code == 422
 
 
-def test_listing_video_rejects_unsupported_format():
+def test_listing_video_rejects_non_video_upload():
     with pytest.raises(HTTPException) as error:
-        prepare_video(b"not-a-video", "video/webm")
+        prepare_video(b"not-a-video", "application/octet-stream", "notes.txt")
 
     assert error.value.status_code == 415
 

@@ -45,6 +45,7 @@ import { containsBlockedListingLink, listingLinkBlockedMessage } from '@/lib/lis
 import { bedTypeOptionLabel } from '@/lib/bed-type-label'
 import { municipalityAreaError, municipalities, municipalitySet } from '@/lib/tenerife-address'
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from '@/api/auth'
+import { cleanupUploadedMediaReference } from '@/api/media'
 import { useI18n } from '@/contexts/i18n-context'
 import type { AcceptedTenantType, DemoUser, Listing, ListingDraft, TenantRequirement } from '@/types'
 import '@/listing-edit-long-form.css'
@@ -500,7 +501,7 @@ export function ListingCreatePage() {
 
       <Section id="publish-photos" title="Fotografías" hint={`Entre ${MIN_LISTING_PHOTOS} y ${MAX_LISTING_PHOTOS} fotos y, opcionalmente, un vídeo de hasta 1 minuto. La primera foto será la portada.`}>
         <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
-        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined) }} error={errors.video} />
+        <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { if (isMediaReference(video)) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined); else void cleanupUploadedMediaReference(video).catch(() => undefined) }} error={errors.video} />
       </Section>
 
       <Section disabled={recoveringImages} id="publish-description" title="Título y descripción">

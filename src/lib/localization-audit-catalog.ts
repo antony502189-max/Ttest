@@ -211,6 +211,7 @@ export const localizationAuditCatalog: Record<string, { ru: string; en: string }
   'Recorrido de hasta 1 minuto': { ru: 'Обзор до 1 минуты', en: 'Tour of up to 1 minute' },
   'Opcional · 1 vídeo · máximo': { ru: 'Необязательно · 1 видео · максимум', en: 'Optional · 1 video · maximum' },
   'segundos · MP4/MOV · hasta': { ru: 'секунд · MP4/MOV · до', en: 'seconds · MP4/MOV · up to' },
+  'segundos · hasta': { ru: 'секунд · до', en: 'seconds · up to' },
   'Preparando…': { ru: 'Подготовка…', en: 'Preparing…' },
   'Añadir vídeo': { ru: 'Добавить видео', en: 'Add video' },
   'Añadir vídeo del anuncio': { ru: 'Добавить видео объявления', en: 'Add listing video' },

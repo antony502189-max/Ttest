@@ -22,7 +22,7 @@ from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ...services.media_processing import PreparedImage, prepare_image, render_variant
 from ...services.moderation import active_window, enforce_listing_view_access, is_admin
 from ...services.storage_deletions import enqueue_storage_deletion
-from ...services.video_processing import SUPPORTED_VIDEO_MIME_TYPES, prepare_video
+from ...services.video_processing import is_supported_video_upload, prepare_video
 from ...storage import Storage, get_storage
 from ..dependencies import current_user, optional_user
 
@@ -209,18 +209,13 @@ async def upload_video(
 ):
     settings = get_settings()
     content_type = file.content_type or ""
-    if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
-        filename = (file.filename or "").casefold()
-        if filename.endswith(".mov"):
-            content_type = "video/quicktime"
-        elif filename.endswith((".mp4", ".m4v")):
-            content_type = "video/mp4"
-        else:
-            raise HTTPException(415, "Only MP4 and MOV videos are supported")
+    filename = file.filename or ""
+    if not is_supported_video_upload(content_type, filename):
+        raise HTTPException(415, "A valid video file is required")
     async with video_processing_slots:
         await file.seek(0)
         try:
-            prepared = await asyncio.to_thread(prepare_video, file.file, content_type)
+            prepared = await asyncio.to_thread(prepare_video, file.file, content_type, filename)
         finally:
             await file.close()
 

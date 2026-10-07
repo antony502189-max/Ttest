@@ -6,7 +6,14 @@ const DRAFT_KEYS = new Set(['112233:listing-draft:v3', '112233:listing-draft:v2'
 const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
-export const acceptedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-m4v'] as const
+const acceptedVideoExtensions = ['.3g2', '.3gp', '.asf', '.avi', '.f4v', '.flv', '.m2ts', '.m4v', '.mkv', '.mov', '.mp4', '.mpeg', '.mpg', '.mts', '.mxf', '.ogv', '.ts', '.vob', '.webm', '.wmv'] as const
+
+export function isAcceptedVideoFile(file: Pick<File, 'name' | 'type'>) {
+  const type = (file.type || '').trim().toLowerCase()
+  if (type.startsWith('video/')) return true
+  const name = (file.name || '').trim().toLowerCase()
+  return acceptedVideoExtensions.some((extension) => name.endsWith(extension))
+}
 
 export const MIN_LISTING_PHOTOS = 5
 export const MAX_LISTING_PHOTOS = 15
@@ -188,17 +195,21 @@ export async function saveMediaFile(file: File) {
   return storeMediaBlob(await optimizeMediaFile(file))
 }
 
-export async function saveVideoFile(file: File) {
-  if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) {
-    throw new MediaStorageError('type', 'Formato de vídeo no compatible. Usa MP4 o MOV.')
+export async function validateVideoFile(file: File) {
+  if (!isAcceptedVideoFile(file)) {
+    throw new MediaStorageError('type', 'Selecciona un archivo de vídeo válido.')
   }
-  if (file.size > MAX_LISTING_VIDEO_BYTES) {
+  if (!file.size || file.size > MAX_LISTING_VIDEO_BYTES) {
     throw new MediaStorageError('quota', 'El vídeo no puede superar 100 MB.')
   }
   const duration = await browserVideoDuration(file)
   if (duration !== null && duration > MAX_LISTING_VIDEO_SECONDS) {
     throw new MediaStorageError('type', 'El vídeo no puede durar más de 1 minuto.')
   }
+}
+
+export async function saveVideoFile(file: File) {
+  await validateVideoFile(file)
   return storeMediaBlob(file)
 }
 
