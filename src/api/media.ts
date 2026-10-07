@@ -28,7 +28,7 @@ export async function uploadMediaReference(reference: string) {
 export async function uploadVideoFile(file: File) {
   const body = new FormData()
   body.append('file', file, file.name || 'listing-video')
-  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 300_000 })
+  return api<MediaAssetDto>('/uploads/video', { method: 'POST', body, timeoutMs: 900_000 })
 }
 
 export async function uploadVideoReference(reference: string) {
