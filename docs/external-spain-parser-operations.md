@@ -169,13 +169,28 @@ route was fabricated into a province manifest. The 500–1,000 holiday target is
 | ThinkSpain | empty anonymous HTTP 202, blocked | 0 | 0 / 0 |
 | AlquilerDocenteCanarias | valid limited-geography sample | 17 | 1 / 0 |
 | Flatio | rejected sample: required structured contract | 76 | 0 / 0 |
-| Habitaclia | HTTP 200 shell, discovery incomplete | 0 | 0 / 0 |
+| Habitaclia (initial final audit) | HTTP 200, obsolete detail-route recognition | 0 | 0 / 0 |
 
 Defaults audited at two pages/up to three details, source budget 45s/detail
 12s; Habitaclia separately at one page with the same detail/budget caps. Most
 discovered detail URLs do not encode rental mode; these counts are `unknown`,
 not invented long/holiday discovery totals. Mode is resolved from fetched
 details. None of these counts prove 2,000–3,000 unique active canonicals.
+
+The first live Habitaclia CI exposed a public route change: current cards use
+`/alquiler/.../<uuid>/d` rather than only `/i<numeric>.htm`. The adapter now
+recognizes both, decodes public Next-flight `JSON.parse` payloads without
+executing JavaScript, matches the primary listing's UUID/legacy ID, and reads
+its own unit/rooms/municipality/province and gallery. It preserves the provider's
+legacyNumericId for historical identity and still suppresses map coordinates
+and contacts. The audit probe recognizes the same actual public routes.
+`accepted_rentals` covers allowed units; `accepted_rooms` remains genuine rooms.
+Repeated URL sets terminate as partial. Sanitized UUID/flight fixture tests
+cover actual fields, wrong-ID isolation and multi-bedroom rejection.
+The subsequent bounded public audit (one page/three details, 45s/12s caps)
+discovered eight target routes and accepted three long one-bedroom rentals with
+images. Discovery remained partial under the one-page cap; this does not
+replace the CI requirement for complete discovery and valid image-bearing units.
 
 ## Future production steps — not executed
 

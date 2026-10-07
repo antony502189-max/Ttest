@@ -292,6 +292,13 @@ def test_residential_text_prohibiting_tourist_use_is_not_holiday():
     assert price and price.mode == "long"
 
 
+def test_one_bedroom_with_garage_amenity_remains_an_apartment():
+    assert (
+        property_type({"title": "Apartamento con garaje", "property_type": "flat", "bedroom_count": 1}, "Habitaclia")
+        == ONE_BEDROOM
+    )
+
+
 @pytest.mark.parametrize("redirect,accepted", [("vizcaya", True), ("madrid", False)])
 def test_provider_alias_redirect_must_keep_the_same_province(redirect, accepted):
     class Source(PisoCompartidoSource):

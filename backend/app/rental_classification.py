@@ -63,7 +63,7 @@ def property_type(data: dict[str, Any], source_name: str) -> str | None:
     # An amenity such as parking does not change the offered unit. Identity
     # negatives apply to title and provider type/category, not the whole page.
     structured = folded(data.get("property_type")).strip()
-    unit_identity = re.sub(r"\b(?:con parking|parking incluido|garaje incluido)\b", "", title)
+    unit_identity = re.sub(r"\b(?:con (?:parking|garaje)|parking incluido|garaje incluido)\b", "", title)
     if _SALES.search(f"{title} {category} {operation}") or _UNITS.search(f"{unit_identity} {structured}"):
         return None
     if _WANTED.search(title) or (
