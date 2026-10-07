@@ -12,7 +12,6 @@ from fastapi import HTTPException
 
 from ..core.config import get_settings
 
-SUPPORTED_VIDEO_MIME_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v"}
 SUPPORTED_VIDEO_EXTENSIONS = {
     ".3g2",
     ".3gp",
@@ -29,7 +28,7 @@ SUPPORTED_VIDEO_EXTENSIONS = {
     ".ts",
     ".webm",
 }
-VIDEO_TRANSCODE_TIMEOUT_SECONDS = 240
+VIDEO_TRANSCODE_TIMEOUT_SECONDS = 480
 
 
 def is_supported_video_upload(content_type: str, filename: str = "") -> bool:
@@ -56,7 +55,7 @@ def _probe(path: Path) -> tuple[int, int, float]:
                 "-select_streams",
                 "v:0",
                 "-show_entries",
-                "stream=width,height,duration:format=duration,format_name",
+                "stream=width,height,duration:format=duration",
                 "-of",
                 "json",
                 str(path),
