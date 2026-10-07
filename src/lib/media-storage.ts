@@ -6,8 +6,7 @@ const DRAFT_KEYS = new Set(['112233:listing-draft:v3', '112233:listing-draft:v2'
 const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
 export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
-export const acceptedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-m4v'] as const
-const acceptedVideoExtensions = ['.3g2', '.3gp', '.avi', '.m2ts', '.m4v', '.mkv', '.mov', '.mp4', '.mpeg', '.mpg', '.mts', '.ogv', '.ts', '.webm'] as const
+const acceptedVideoExtensions = ['.3g2', '.3gp', '.asf', '.avi', '.f4v', '.flv', '.m2ts', '.m4v', '.mkv', '.mov', '.mp4', '.mpeg', '.mpg', '.mts', '.mxf', '.ogv', '.ts', '.vob', '.webm', '.wmv'] as const
 
 export function isAcceptedVideoFile(file: Pick<File, 'name' | 'type'>) {
   const type = (file.type || '').trim().toLowerCase()
