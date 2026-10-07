@@ -72,9 +72,7 @@ class CoordinateLessSource(HealthySource):
 
 
 def test_contract_audit_checks_discovery_detail_parse_and_normalize():
-    result = asyncio.run(
-        audit_source(HealthySource(), max_pages=2, max_details=2, source_timeout=15, detail_timeout=5)
-    )
+    result = asyncio.run(audit_source(HealthySource(), max_pages=2, max_details=2, source_timeout=15, detail_timeout=5))
     assert result.status == "healthy"
     assert result.discovered_urls == 1
     assert result.fetched_details == 1
@@ -97,12 +95,25 @@ def test_contract_audit_accepts_normalized_list_only_details_without_a_public_ma
 
 
 def test_contract_audit_isolates_a_blocked_source():
-    result = asyncio.run(
-        audit_source(BlockedSource(), max_pages=1, max_details=1, source_timeout=15, detail_timeout=5)
-    )
+    result = asyncio.run(audit_source(BlockedSource(), max_pages=1, max_details=1, source_timeout=15, detail_timeout=5))
     assert result.status == "blocked"
     assert result.blocked is True
     assert "SourceBlocked" in (result.error or "")
+
+
+def test_contract_audit_does_not_hide_a_block_after_one_valid_detail():
+    class PartlyBlocked(HealthySource):
+        async def discover_listing_urls(self):
+            return DiscoveryResult(urls={"https://example.test/room/1", "https://example.test/room/2"}, complete=True)
+
+        async def fetch_listing(self, url):
+            if url.endswith("/2"):
+                raise SourceBlocked("challenge")
+            return "detail"
+
+    result = asyncio.run(audit_source(PartlyBlocked(), max_pages=1, max_details=2, source_timeout=15, detail_timeout=5))
+    assert result.normalized_details == 1
+    assert result.status == "blocked" and result.blocked
 
 
 def test_global_sale_navigation_does_not_poison_room_rental_classification():
@@ -182,7 +193,7 @@ def test_detail_shell_uses_anonymous_browser_fallback(monkeypatch):
 
         async def render_public_page(self, _url):
             self.rendered = True
-            return '<h1>Habitación en Arona</h1><p>Se alquila habitación</p><strong>650 €/mes</strong>'
+            return "<h1>Habitación en Arona</h1><p>Se alquila habitación</p><strong>650 €/mes</strong>"
 
     from types import SimpleNamespace
 
@@ -199,7 +210,7 @@ def test_detail_shell_uses_anonymous_browser_fallback(monkeypatch):
 def test_fotocasa_reads_the_nested_listing_object_itself():
     from app.external_sources import FotocasaSource
 
-    document = '''
+    document = """
     <script id="__NEXT_DATA__" type="application/json">
       {"props":{"pageProps":{"property":{
         "title":"Habitación en Arona",
@@ -208,7 +219,7 @@ def test_fotocasa_reads_the_nested_listing_object_itself():
         "municipality":"Arona"
       }}}}
     </script>
-    '''
+    """
     source = FotocasaSource()
     url = "https://www.fotocasa.es/es/compartir/vivienda/arona/amueblado/123456789/d"
     parsed = source.parse_listing(document, url)

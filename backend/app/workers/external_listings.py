@@ -6,7 +6,6 @@ import logging
 import signal
 from datetime import UTC, datetime, timedelta
 from time import monotonic
-from urllib.parse import urlparse
 from uuid import uuid4
 
 from redis.asyncio import from_url
@@ -20,6 +19,7 @@ from ..external_sources import configured_sources, retired_source_names
 from ..models import ExternalImportScope, ExternalWorkerState
 from ..services.duplicate_cleanup import deduplicate_active_listings
 from ..services.external_import import completed_source_contract, retire_source_records, run_removal_check, run_source
+from ..services.external_scopes import ScopeDefinition, validate_scope
 
 logger = logging.getLogger(__name__)
 local_import_lock = asyncio.Lock()
@@ -323,12 +323,12 @@ async def run_once() -> dict[str, dict[str, int]]:
             source_types = {type(source).name: type(source) for source in sources}
             for scope_id, source_name, scope_key, discovery_urls, interval_seconds in scope_tasks:
                 source_type = source_types.get(source_name)
-                if (source_type is None or not scope_key.startswith("province:") or not discovery_urls
-                        or not 3_600 <= interval_seconds <= 2_592_000
-                        or any(urlparse(url).scheme != "https" or not (
-                            urlparse(url).hostname == source_type.domain
-                            or (urlparse(url).hostname or "").endswith("." + source_type.domain)
-                        ) for url in discovery_urls)):
+                try:
+                    validate_scope(ScopeDefinition(source_name, scope_key, tuple(discovery_urls)))
+                    valid = source_type is not None and 3_600 <= interval_seconds <= 2_592_000
+                except ValueError:
+                    valid = False
+                if not valid or source_type is None:
                     logger.error("external_import_scope_invalid", extra={"source": source_name, "scope": scope_key})
                     continue
                 scoped_source = source_type()
