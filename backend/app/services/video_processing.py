@@ -13,6 +13,29 @@ from fastapi import HTTPException
 from ..core.config import get_settings
 
 SUPPORTED_VIDEO_MIME_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v"}
+SUPPORTED_VIDEO_EXTENSIONS = {
+    ".3g2",
+    ".3gp",
+    ".avi",
+    ".m2ts",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp4",
+    ".mpeg",
+    ".mpg",
+    ".mts",
+    ".ogv",
+    ".ts",
+    ".webm",
+}
+VIDEO_TRANSCODE_TIMEOUT_SECONDS = 240
+
+
+def is_supported_video_upload(content_type: str, filename: str = "") -> bool:
+    normalized_type = (content_type or "").split(";", 1)[0].strip().casefold()
+    suffix = Path(filename or "").suffix.casefold()
+    return normalized_type.startswith("video/") or suffix in SUPPORTED_VIDEO_EXTENSIONS
 
 
 @dataclass(frozen=True)
@@ -50,9 +73,6 @@ def _probe(path: Path) -> tuple[int, int, float]:
     try:
         payload = json.loads(result.stdout)
         stream = (payload.get("streams") or [])[0]
-        format_names = set((payload.get("format") or {}).get("format_name", "").split(","))
-        if not format_names.intersection({"mov", "mp4", "m4v"}):
-            raise ValueError("unsupported video container")
         width = int(stream["width"])
         height = int(stream["height"])
         raw_duration = stream.get("duration") or (payload.get("format") or {}).get("duration")
@@ -66,12 +86,14 @@ def _probe(path: Path) -> tuple[int, int, float]:
     return width, height, duration
 
 
-def prepare_video(content: bytes | BinaryIO, content_type: str) -> PreparedVideo:
+def prepare_video(content: bytes | BinaryIO, content_type: str, filename: str = "") -> PreparedVideo:
     settings = get_settings()
-    if content_type not in SUPPORTED_VIDEO_MIME_TYPES:
-        raise HTTPException(415, "Only MP4 and MOV videos are supported")
+    if not is_supported_video_upload(content_type, filename):
+        raise HTTPException(415, "A valid video file is required")
 
-    suffix = ".mov" if content_type == "video/quicktime" else ".mp4"
+    suffix = Path(filename or "").suffix.casefold()
+    if suffix not in SUPPORTED_VIDEO_EXTENSIONS:
+        suffix = ".video"
     with tempfile.TemporaryDirectory(prefix="listing-video-") as temp_dir:
         source = Path(temp_dir) / f"source{suffix}"
         target = Path(temp_dir) / "normalized.mp4"
@@ -149,7 +171,7 @@ def prepare_video(content: bytes | BinaryIO, content_type: str) -> PreparedVideo
                 ],
                 capture_output=True,
                 text=True,
-                timeout=90,
+                timeout=VIDEO_TRANSCODE_TIMEOUT_SECONDS,
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
