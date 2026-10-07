@@ -732,6 +732,64 @@ async def test_alquiler_docente_lifecycle_is_idempotent_and_updates_its_stable_p
         assert record.normalized_payload["price_amount"] == 475
 
 
+@pytest.mark.parametrize(
+    ("old_id", "new_id"),
+    [("75140", "77332"), (None, "77332"), ("77332", None)],
+)
+async def test_alquiler_docente_reuses_source_url_when_property_id_changes(old_id, new_id):
+    # Production reused this URL with property 77332 after importing 75140.
+    # A missing ID also exercises the adapter's URL-hash fallback in both directions.
+    url = (
+        "https://alquilerdocentecanarias.com/estate_property/"
+        "habitacion-en-san-cristobal-de-la-laguna-tenerife-2/"
+    )
+    fixture = (
+        Path(__file__).parents[1] / "fixtures" / "external_sources" / "alquiler_docente_canarias" / "room.html"
+    ).read_text(encoding="utf-8")
+    fixture = fixture.replace(
+        '    <meta property="og:image" content="https://images.example.test/alquiler-docente-room.jpg">\n', ""
+    )
+    sitemap = f"<urlset><url><loc><![CDATA[{url}]]></loc></url></urlset>"
+
+    async def run(property_id, price, run_id):
+        document = fixture.replace("450 € /mes + gastos", f"{price} € /mes + gastos")
+        document = document.replace(
+            "<p>ID de Inmueble: 74795</p>",
+            f"<p>ID de Inmueble: {property_id}</p>" if property_id else "",
+        )
+        source = AlquilerDocenteCanariasSource()
+
+        async def request(request_url):
+            return sitemap if request_url.endswith("estate_property-sitemap.xml") else document
+
+        source.request = request  # type: ignore[method-assign]
+        async with SessionLocal() as session:
+            return await run_source(session, source, run_id)
+
+    first = await run(old_id, 450, "source-url-create")
+    assert first.result == "success" and first["imported"] == 1
+    async with SessionLocal() as session:
+        record = await session.scalar(select(ExternalListingSource))
+        source_id, listing_id, persisted_external_id = record.id, record.canonical_listing_id, record.external_id
+
+    updated = await run(new_id, 475, "source-url-id-change")
+    assert updated.result == "success"
+    assert updated["updated"] == 1 and updated["imported"] == 0
+    repeated = await run(new_id, 475, "source-url-repeat")
+    assert repeated.result == "success" and repeated["unchanged"] == 1
+
+    async with SessionLocal() as session:
+        assert await session.scalar(select(func.count()).select_from(ExternalListingSource)) == 1
+        assert await session.scalar(select(func.count()).select_from(Listing)) == 1
+        record = await session.get(ExternalListingSource, source_id)
+        listing = await session.get(Listing, listing_id)
+        assert record.canonical_listing_id == listing_id
+        assert record.external_id == persisted_external_id
+        assert record.source_url == url
+        assert record.normalized_payload["price_amount"] == 475
+        assert listing.monthly_price == 475 and listing.status == "published"
+
+
 async def test_detail_error_is_partial_and_blocked_source_records_diagnostics():
     async with SessionLocal() as session:
         partial = await run_source(session, PartiallyFailingSource(), "test-partial")  # type: ignore[arg-type]

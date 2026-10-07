@@ -597,6 +597,16 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             SourceRecord.source_name == item.source_name, SourceRecord.external_id == item.external_id
         )
     )
+    if source is None:
+        # Providers can replace a property ID at the same URL, or temporarily
+        # omit it and make the adapter fall back to a URL hash. Reuse the URL's
+        # durable source/listing identity before entering photo deduplication
+        # or INSERT; source_url is independently unique in the database.
+        source = await session.scalar(
+            select(SourceRecord).where(
+                SourceRecord.source_name == item.source_name, SourceRecord.source_url == item.source_url
+            )
+        )
     suppress_new_duplicate = False
     if source:
         listing = await session.get(Listing, source.canonical_listing_id)
