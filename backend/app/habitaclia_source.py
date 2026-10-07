@@ -11,6 +11,7 @@ bedroom. Multi-bedroom whole homes remain excluded.
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 from urllib.parse import unquote, urljoin, urlparse
@@ -23,7 +24,9 @@ from .external_sources import (
     NormalizedListing,
     SourceBlocked,
     clean,
+    public_mapping,
 )
+from .rental_classification import property_type
 
 _HREF = re.compile(r"""href=["']([^"']+)["']""", re.IGNORECASE)
 _LEGACY_LISTING_VALUE = re.compile(
@@ -31,7 +34,7 @@ _LEGACY_LISTING_VALUE = re.compile(
     re.IGNORECASE,
 )
 _NAVIGATION_VALUE = re.compile(
-    r'"navigationUrl"\s*:\s*"(?P<url>/i\d+(?:\.htm)?(?:\?[^"< >]*)?)"',
+    r'"navigationUrl"\s*:\s*"(?P<url>/(?:i\d+(?:\.htm)?|alquiler/[^"< >]+/d)(?:\?[^"< >]*)?)"',
     re.IGNORECASE,
 )
 _UNICODE_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
@@ -64,7 +67,7 @@ class HabitacliaSource(ExternalListingSource):
     domain = "habitaclia.com"
     url_tokens = ("/i", "/alquiler-")
     listing_url_pattern = re.compile(
-        r"^/(?:i\d+(?:\.htm)?|alquiler-[^/?#]+-i\d+\.htm)$",
+        r"^/(?:i\d+(?:\.htm)?|alquiler-[^/?#]+-i\d+\.htm|alquiler/(?:[^/?#]+/)+[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/d)$",
         re.IGNORECASE,
     )
     discovery_selectors = (
@@ -73,9 +76,7 @@ class HabitacliaSource(ExternalListingSource):
         '[data-url^="/i"]',
         'a[href*="-i"][href$=".htm"]',
     )
-    discovery_urls = (
-        "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s",
-    )
+    discovery_urls = ("https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/s",)
     removed_markers = ExternalListingSource.removed_markers + (
         "anuncio no disponible",
         "inmueble no disponible",
@@ -205,9 +206,7 @@ class HabitacliaSource(ExternalListingSource):
         segments: list[str] = []
         if external_id:
             for match in re.finditer(re.escape(external_id), normalized):
-                segments.append(
-                    normalized[max(0, match.start() - 20_000) : min(len(normalized), match.end() + 60_000)]
-                )
+                segments.append(normalized[max(0, match.start() - 20_000) : min(len(normalized), match.end() + 60_000)])
         if not segments:
             segments.append(normalized)
 
@@ -262,7 +261,7 @@ class HabitacliaSource(ExternalListingSource):
         # is outside this marketplace's target whole-unit scope.
         if _MULTI_BEDROOM.search(corpus):
             return None
-        if _STUDIO_HOME.search(corpus):
+        if re.search(r"\b(?:estudio|studio)\b", corpus):
             return "Estudio"
         if _SINGLE_BEDROOM.search(corpus):
             return "Apartamento de 1 dormitorio"
@@ -301,9 +300,7 @@ class HabitacliaSource(ExternalListingSource):
                 continue
             all_urls.add(canonical)
             next_start = (
-                navigation_matches[index + 1].start()
-                if index + 1 < len(navigation_matches)
-                else len(normalized)
+                navigation_matches[index + 1].start() if index + 1 < len(navigation_matches) else len(normalized)
             )
             card_state = normalized[match.end() : min(next_start, match.end() + 20000)]
             card_images = self._extract_image_urls(card_state)
@@ -322,6 +319,39 @@ class HabitacliaSource(ExternalListingSource):
 
         return all_urls, target_urls
 
+    @staticmethod
+    def _public_listing_state(document: str, expected_id: str | None) -> dict:
+        """Decode the public Next flight JSON without evaluating JavaScript.
+
+        Only the primary listing matching the requested route ID is returned;
+        recommended properties and contacts never become the offered unit.
+        """
+        if not expected_id:
+            return {}
+        decoder = json.JSONDecoder()
+        chunks = [document]
+        for match in re.finditer(r"self\.__next_f\.push\(\s*", document):
+            try:
+                value, _ = decoder.raw_decode(document, match.end())
+                if isinstance(value, list):
+                    chunks.extend(item for item in value if isinstance(item, str))
+            except ValueError:
+                continue
+        for chunk in chunks:
+            for match in re.finditer(r"JSON\.parse\(\s*", chunk):
+                try:
+                    encoded, _ = decoder.raw_decode(chunk, match.end())
+                    payload = json.loads(encoded) if isinstance(encoded, str) else {}
+                    listing = payload.get("listing", {}) if isinstance(payload, dict) else {}
+                    if isinstance(listing, dict) and expected_id in {
+                        str(listing.get("id")),
+                        str(listing.get("legacyNumericId")),
+                    }:
+                        return listing
+                except (ValueError, TypeError):
+                    continue
+        return {}
+
     def _page_links(self, document: str, page: str) -> set[str]:
         return {
             absolute
@@ -335,6 +365,7 @@ class HabitacliaSource(ExternalListingSource):
         target_urls: set[str] = set()
         failed_pages: list[str] = []
         blocked = False
+        page_signatures: set[frozenset[str]] = set()
 
         while queue and len(visited) < self.max_discovery_pages:
             page = queue.pop(0)
@@ -369,6 +400,11 @@ class HabitacliaSource(ExternalListingSource):
             if not page_urls:
                 failed_pages.append(page)
                 continue
+            signature = frozenset(page_urls)
+            if signature in page_signatures:
+                failed_pages.append(page)
+                break
+            page_signatures.add(signature)
             target_urls.update(page_targets)
 
         complete = not blocked and not failed_pages and not queue
@@ -386,21 +422,45 @@ class HabitacliaSource(ExternalListingSource):
         data = super().parse_listing(document, url)
         heading = re.search(r"<h1[^>]*>(.*?)</h1>", document, re.IGNORECASE | re.DOTALL)
         description = re.search(
-            r'<(?:div|section)[^>]*(?:description|descripcion|detail)[^>]*>(.*?)</(?:div|section)>',
+            r"<(?:div|section)[^>]*(?:description|descripcion|detail)[^>]*>(.*?)</(?:div|section)>",
             document,
             re.IGNORECASE | re.DOTALL,
         )
         external_id = re.search(r"(?:-i|/i)(\d+)(?:\.htm)?(?:$|[?#])", url, re.IGNORECASE)
+        uuid_id = re.search(r"/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})/d(?:$|[?#])", url, re.IGNORECASE)
+        route_id = external_id.group(1) if external_id else uuid_id.group(1) if uuid_id else None
+        state = self._public_listing_state(document, route_id)
 
         if heading:
             data["title"] = clean(heading.group(1)) or data["title"]
         if description:
             data["description"] = clean(description.group(1)) or data["description"]
+        if state:
+            summary = public_mapping(state.get("summary"))
+            location = public_mapping(summary.get("location"))
+            unit = public_mapping(state.get("property"))
+            transaction = public_mapping(state.get("transaction"))
+            data.update(
+                {
+                    "title": clean(summary.get("title")) or data["title"],
+                    "description": clean(summary.get("description")) or data["description"],
+                    "city": clean(location.get("municipality")),
+                    "province": clean(location.get("province")),
+                    "area": clean(location.get("district")),
+                    "property_type": "studio" if unit.get("propertySubtype") == "studio" else unit.get("propertyType"),
+                    "bedroom_count": unit.get("rooms"),
+                    "operation": transaction.get("type"),
+                }
+            )
+            # Do not turn approximate public map/viewport state into a pin.
+            # The primary displayed price still supplies the advertised cadence.
 
         existing_images = [
             value for value in data.get("images", []) if isinstance(value, str) and value.startswith("http")
         ]
-        detail_images = self._extract_detail_images(document, external_id.group(1) if external_id else None)
+        detail_images = (
+            self._extract_image_urls(json.dumps(state)) if state else self._extract_detail_images(document, route_id)
+        )
         images = list(dict.fromkeys([*existing_images, *detail_images]))
         if not images:
             canonical_url = self._canonical_detail_url(url, url)
@@ -424,7 +484,7 @@ class HabitacliaSource(ExternalListingSource):
         data["longitude"] = None
 
         data["category"] = f"habitaclia alquiler {data['category']}"
-        data["external_id"] = external_id.group(1) if external_id else None
+        data["external_id"] = str(state.get("legacyNumericId") or route_id) if route_id else None
         data["phone"] = None
         data["whatsapp"] = None
         data["email"] = None
@@ -439,28 +499,11 @@ class HabitacliaSource(ExternalListingSource):
         return data
 
     def normalize_listing(self, data: dict[str, object], url: str) -> NormalizedListing | None:
-        corpus = clean(
-            " ".join(
-                str(data.get(key, ""))
-                for key in ("title", "description", "category", "breadcrumbs")
-            )
-        ).casefold()
-        target_type = self._target_unit_type(corpus)
+        target_type = property_type(data, self.name)
         if target_type is None:
             return None
 
-        # The shared external-source normalizer predates whole-unit support and
-        # intentionally rejects ``estudio`` plus non-room homes. Feed it a
-        # classification-only proxy identity so its existing rental, price,
-        # province, city and coordinate checks can still be reused. Restore the
-        # real public identity immediately afterwards.
-        normalized_data = dict(data)
-        if target_type in {"Estudio", "Apartamento de 1 dormitorio"}:
-            normalized_data["title"] = "Habitación en alquiler"
-            normalized_data["category"] = "alquiler habitación"
-            normalized_data["breadcrumbs"] = ""
-
-        item = super().normalize_listing(normalized_data, url)
+        item = super().normalize_listing(data, url)
         if item is None:
             return None
 

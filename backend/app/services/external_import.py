@@ -28,14 +28,13 @@ from ..external_sources import (
     NormalizedListing,
     SourceBlocked,
     is_in_import_scope,
-    is_rental,
-    is_room_offer,
     parse_optional_date,
     parse_optional_datetime,
 )
 from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
 from ..models.room_details import ListingRoomDetails
+from ..rental_classification import ROOM_TYPES, property_type
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
@@ -71,11 +70,12 @@ class SourceRunCounters(dict[str, int]):
 
 
 def completed_source_contract(counters: dict[str, int]) -> bool:
-    """Require at least one valid room that can remain in the public catalog."""
+    """Require at least one valid rental detail and a publishable outcome."""
     reached_valid_detail = all(
         counters.get(key, 0) > 0
-        for key in ("discovered_urls", "fetched_details", "accepted_rooms")
+        for key in ("discovered_urls", "fetched_details")
     )
+    reached_valid_detail = reached_valid_detail and counters.get("accepted_rentals", counters.get("accepted_rooms", 0)) > 0
     publishable = any(
         counters.get(key, 0) > 0
         for key in ("imported", "updated", "unchanged", "restored")
@@ -589,6 +589,66 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
     return NormalizedListing(**value)
 
 
+async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing, item: NormalizedListing) -> None:
+    """Apply existing primary metadata without network I/O or a transaction commit."""
+    now = datetime.now(UTC)
+    room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
+    coordinates = public_location(item)
+    room_details = await session.get(ListingRoomDetails, listing.id)
+    if room_details is None and room_capacity is not None:
+        room_details = ListingRoomDetails(listing_id=listing.id)
+        session.add(room_details)
+    if room_details is not None:
+        room_details.room_capacity_v2 = room_capacity
+    listing.title = item.title
+    listing.description = item.description
+    listing.home_description = item.description
+    listing.city = item.city
+    listing.area = item.area
+    listing.approximate_address = item.public_address or item.area
+    listing.rental_mode = item.rental_mode
+    listing.room_type = item.room_type
+    listing.bedroom_count = item.bedroom_count if item.bedroom_count else None
+    listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
+    listing.nightly_price = item.price_amount if item.rental_mode == "holiday" else None
+    listing.weekly_price = item.weekly_price_amount
+    listing.minimum_stay_months = item.minimum_stay_months
+    listing.minimum_nights = item.minimum_nights
+    listing.deposit_amount = item.deposit_amount
+    listing.deposit_text = item.deposit_text
+    listing.bills_included = item.bills_included
+    listing.bills_text = item.bills_text
+    listing.furnished = item.furnished
+    listing.bathroom = item.bathroom
+    listing.kitchen = item.kitchen
+    listing.room_size_m2 = item.room_size_m2
+    listing.room_capacity = min(room_capacity, 2) if room_capacity is not None else None
+    listing.tenant_requirement = item.tenant_requirement
+    listing.pets_allowed = item.pets_allowed
+    listing.children_allowed = item.children_allowed
+    listing.smoking_allowed = item.smoking_allowed
+    listing.empadronamiento_allowed = item.empadronamiento_allowed
+    listing.amenities = item.amenities
+    listing.restrictions = item.restrictions
+    listing.advertiser_name = item.advertiser_name
+    listing.advertiser_type = item.advertiser_type
+    listing.available_from = item.available_from
+    if item.published_at:
+        listing.published_at = item.published_at
+    listing.external_image_urls = item.photos
+    listing.primary_source = item.source_name
+    listing.primary_source_url = item.source_url
+    listing.source_price_text = item.source_price_text
+    listing.source_price_currency = item.price_currency
+    listing.source_price_period = item.price_period
+    listing.source_price_is_from = item.price_is_from
+    listing.external_contact_phone = item.phone
+    listing.external_contact_whatsapp = item.whatsapp
+    listing.external_contact_email = item.email
+    listing.last_synced_at = now
+    listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
+
+
 async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False, scope_key: str = "santa_cruz") -> str:
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
@@ -604,7 +664,9 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         # or INSERT; source_url is independently unique in the database.
         source = await session.scalar(
             select(SourceRecord).where(
-                SourceRecord.source_name == item.source_name, SourceRecord.source_url == item.source_url
+                SourceRecord.source_name == item.source_name,
+                func.rtrim(func.split_part(func.split_part(SourceRecord.source_url, '#', 1), '?', 1), '/')
+                == item.source_url.split('#', 1)[0].split('?', 1)[0].rstrip('/'),
             )
         )
     suppress_new_duplicate = False
@@ -758,7 +820,10 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             rental_mode=item.rental_mode,
             monthly_price=item.price_amount if item.rental_mode == "long" else None,
             nightly_price=item.price_amount if item.rental_mode == "holiday" else None,
-            weekly_price=item.price_amount if item.price_period == "week" else None,
+            weekly_price=item.weekly_price_amount,
+            # Existing canonical constraint permits 1..99 or NULL. Studio
+            # zero is retained in the source snapshot and Estudio taxonomy.
+            bedroom_count=item.bedroom_count if item.bedroom_count else None,
             minimum_stay_months=item.minimum_stay_months,
             minimum_nights=item.minimum_nights,
             deposit_amount=item.deposit_amount,
@@ -804,57 +869,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         )
     )
     if replace_primary:
-        room_details = await session.get(ListingRoomDetails, listing.id)
-        if room_details is None and room_capacity is not None:
-            room_details = ListingRoomDetails(listing_id=listing.id)
-            session.add(room_details)
-        if room_details is not None:
-            room_details.room_capacity_v2 = room_capacity
-        listing.title = item.title
-        listing.description = item.description
-        listing.home_description = item.description
-        listing.city = item.city
-        listing.area = item.area
-        listing.approximate_address = item.public_address or item.area
-        listing.rental_mode = item.rental_mode
-        listing.room_type = item.room_type
-        listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
-        listing.nightly_price = item.price_amount if item.rental_mode == "holiday" else None
-        listing.weekly_price = item.price_amount if item.price_period == "week" else None
-        listing.minimum_stay_months = item.minimum_stay_months
-        listing.minimum_nights = item.minimum_nights
-        listing.deposit_amount = item.deposit_amount
-        listing.deposit_text = item.deposit_text
-        listing.bills_included = item.bills_included
-        listing.bills_text = item.bills_text
-        listing.furnished = item.furnished
-        listing.bathroom = item.bathroom
-        listing.kitchen = item.kitchen
-        listing.room_size_m2 = item.room_size_m2
-        listing.room_capacity = min(room_capacity, 2) if room_capacity is not None else None
-        listing.tenant_requirement = item.tenant_requirement
-        listing.pets_allowed = item.pets_allowed
-        listing.children_allowed = item.children_allowed
-        listing.smoking_allowed = item.smoking_allowed
-        listing.empadronamiento_allowed = item.empadronamiento_allowed
-        listing.amenities = item.amenities
-        listing.restrictions = item.restrictions
-        listing.advertiser_name = item.advertiser_name
-        listing.advertiser_type = item.advertiser_type
-        listing.available_from = item.available_from
-        if item.published_at:
-            listing.published_at = item.published_at
-        listing.external_image_urls = item.photos
-        listing.primary_source = item.source_name
-        listing.primary_source_url = item.source_url
-        listing.source_price_text = item.source_price_text
-        listing.source_price_currency = item.price_currency
-        listing.source_price_period = item.price_period
-        listing.source_price_is_from = item.price_is_from
-        listing.external_contact_phone = item.phone
-        listing.external_contact_whatsapp = item.whatsapp
-        listing.external_contact_email = item.email
-        listing.last_synced_at = now
+        await apply_primary_source_snapshot(session, listing, item)
         if suppress_new_duplicate:
             listing.status = "closed"
             listing.closed_reason = "duplicate"
@@ -914,6 +929,7 @@ async def promote_best_active_source(
     canonical_listing_id,
     *,
     require_location: bool = False,
+    lifecycle_only: bool = False,
 ) -> bool:
     rows = (
         await session.scalars(
@@ -937,6 +953,15 @@ async def promote_best_active_source(
         candidates,
         key=lambda candidate: (public_location(candidate) is not None, completeness_score(candidate)),
     )
+    if lifecycle_only:
+        listing = await session.get(Listing, canonical_listing_id)
+        if listing is None or not listing.is_external:
+            raise ValueError("Primary promotion requires an external canonical listing")
+        await apply_primary_source_snapshot(session, listing, best)
+        if listing.closed_reason != "duplicate":
+            listing.status, listing.closed_reason = "published", None
+        await touch_catalog(session)
+        return True
     outcome = await upsert(session, best, force_primary=True)
     return outcome in {"imported", "updated", "unchanged", "restored"}
 
@@ -988,11 +1013,24 @@ async def retire_source_records(session: AsyncSession, source_names: set[str]) -
     return retired
 
 
-async def archive_missing(session: AsyncSession, source: ExternalListingSource | str, started_at: datetime) -> int:
+async def archive_missing(
+    session: AsyncSession, source: ExternalListingSource | str, started_at: datetime,
+    *, report: dict[str, int] | None = None,
+) -> int:
     # Keep the public adapter protocol duck-typed: test adapters and future
     # sources need only expose ``name`` and ``check_listing_state``.
     source_name = source if isinstance(source, str) else source.name
     scope_key = "santa_cruz" if isinstance(source, str) else getattr(source, "scope_key", "santa_cruz")
+    from .external_removal import log_removal_anomaly, removal_anomaly_reason
+    candidate_count = int(await session.scalar(
+        select(func.count()).select_from(SourceRecord).where(
+            SourceRecord.source_name == source_name,
+            SourceRecord.scope_key == scope_key,
+            SourceRecord.current_status == "active",
+            SourceRecord.last_seen_at < started_at,
+        )
+    ) or 0)
+    await session.commit()
     async def candidate_ids():
         last_id = None
         while True:
@@ -1010,13 +1048,22 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
             if not batch:
                 break
             last_id = batch[-1][0]
-            for row in batch:
-                yield row
+            states = []
+            for _row_id, source_url in batch:
+                require_no_active_transaction(session, "external listing state check")
+                states.append("unknown" if isinstance(source, str) else await source.check_listing_state(source_url))
+            reason = removal_anomaly_reason(states, candidate_count)
+            if reason:
+                log_removal_anomaly(source_name, reason)
+                if report is not None:
+                    report["removal_anomaly_batches"] += 1
+                    report["removal_anomaly_records"] += sum(state in {"removed", "expired", "not_found"} for state in states)
+                return
+            for (row_id, _source_url), state in zip(batch, states):
+                yield row_id, state
 
     archived = 0
-    async for row_id, source_url in candidate_ids():
-        require_no_active_transaction(session, "external listing state check")
-        state = "unknown" if isinstance(source, str) else await source.check_listing_state(source_url)
+    async for row_id, state in candidate_ids():
         row = await session.get(SourceRecord, row_id)
         if not row or row.current_status != "active":
             await session.commit()
@@ -1024,8 +1071,9 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
         row.last_state_check_at = datetime.now(UTC)
         row.last_state_check_result = state
         if state in {"removed", "expired", "not_found"}:
-            reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
-            archived += await deactivate_source_record(session, row, reason)
+            from .external_removal import purge_confirmed_removed_source
+            outcome = await purge_confirmed_removed_source(session, row.id, state)
+            archived += outcome["canonical_listings_purged"]
         elif state == "active":
             row.last_seen_at = datetime.now(UTC)
             row.consecutive_missing_runs = 0
@@ -1037,59 +1085,15 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
             # fallback counter so blocked/temporary outcomes never poison
             # normal reconciliation diagnostics.
             row.consecutive_unknown_state_runs += 1
-            if row.consecutive_unknown_state_runs >= 2:
-                archived += await deactivate_source_record(session, row, "source_removed")
+
         await session.commit()
     return archived
 
 
-async def run_removal_check(session: AsyncSession, source: ExternalListingSource) -> int:
-    """Lightweight safety check; it never performs discovery or image imports."""
-    cutoff = datetime.now(UTC) - timedelta(seconds=get_settings().external_removal_check_interval_seconds)
-    candidates = (
-        await session.execute(
-            select(SourceRecord.id, SourceRecord.source_url).where(
-                SourceRecord.source_name == source.name,
-                SourceRecord.current_status.in_(("active", "missing")),
-                SourceRecord.last_checked_at < cutoff,
-            ).limit(50)
-        )
-    ).all()
-    await session.commit()
-
-    archived = 0
-    for row_id, source_url in candidates:
-        require_no_active_transaction(session, "external removal state check")
-        state = await source.check_listing_state(source_url)
-        row = await session.get(SourceRecord, row_id)
-        if not row or row.source_name != source.name or row.current_status not in {"active", "missing"}:
-            await session.commit()
-            continue
-        row.last_checked_at = datetime.now(UTC)
-        row.last_state_check_at = row.last_checked_at
-        row.last_state_check_result = state
-        if state in {"removed", "expired", "not_found"}:
-            reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
-            archived += await deactivate_source_record(session, row, reason)
-        elif state == "active":
-            was_missing = row.current_status != "active"
-            row.current_status = "active"
-            row.last_seen_at = datetime.now(UTC)
-            row.last_success_at = datetime.now(UTC)
-            row.consecutive_missing_runs = 0
-            row.consecutive_unknown_state_runs = 0
-            row.removed_at = None
-            row.removed_reason = None
-            row.last_error = None
-            if was_missing:
-                # Reuse the stored normalized source snapshot: a lightweight
-                # removal probe must not re-fetch images merely to restore a
-                # reappearing detail page.
-                await promote_best_active_source(session, row.canonical_listing_id)
-        elif state in {"blocked", "temporary_error"}:
-            row.last_error = state
-        await session.commit()
-    return archived
+async def run_removal_check(session: AsyncSession, source: ExternalListingSource, **kwargs) -> int:
+    """Sweep active operational rows; historical soft-missing rows remain untouched."""
+    from .external_removal import reconcile_source
+    return await reconcile_source(session, source, **kwargs)
 
 
 async def archive_confirmed_not_found(session: AsyncSession, source_name: str, source_url: str) -> int:
@@ -1101,7 +1105,9 @@ async def archive_confirmed_not_found(session: AsyncSession, source_name: str, s
         return 0
     row.last_state_check_at = datetime.now(UTC)
     row.last_state_check_result = "not_found"
-    return await deactivate_source_record(session, row, "not_found")
+    from .external_removal import purge_confirmed_removed_source
+    outcome = await purge_confirmed_removed_source(session, row.id, "not_found")
+    return outcome["canonical_listings_purged"]
 
 
 async def deactivate_rejected_source(session: AsyncSession, source_name: str, source_url: str) -> None:
@@ -1174,7 +1180,7 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
     return changed
 
 
-async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> SourceRunCounters:
+async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str, *, max_details: int | None = None) -> SourceRunCounters:
     started = perf_counter()
     scope_key = getattr(source, "scope_key", "santa_cruz")
     counters = SourceRunCounters({
@@ -1192,12 +1198,20 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "restored",
             "filtered_not_room",
             "rejected_not_room",
+            "rejected_unsupported_property_type",
             "filtered_wrong_location",
             "rejected_wrong_location",
             "accepted_rooms",
+            "accepted_rentals",
+            "accepted_long",
+            "accepted_holiday",
+            "accepted_studios",
+            "accepted_one_bedroom",
             "archived",
             "failed",
             "failed_details",
+            "removal_anomaly_batches",
+            "removal_anomaly_records",
             "rejected_invalid_price",
         )
     })
@@ -1247,6 +1261,10 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         if isinstance(discovery, list):
             discovery = DiscoveryResult(urls=set(discovery), complete=True, visited_pages=1, reached_last_page=True)
         urls = discovery.urls
+        if max_details is not None and len(urls) > max_details:
+            # Bootstrap sampling must never reconcile unseen offers as absent.
+            discovery.complete = False
+            discovery.failed_pages.append("bootstrap_detail_budget")
         previous_success = await session.scalar(
             select(ExternalImportRun)
             .where(
@@ -1312,15 +1330,33 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         require_no_active_transaction(session, "external detail fetch")
         async def fetch_batches():
             ordered_urls = sorted(urls)
+            if max_details is not None:
+                ordered_urls = ordered_urls[:max_details]
             for start in range(0, len(ordered_urls), 100):
                 results = await asyncio.gather(
                     *(fetch(url) for url in ordered_urls[start:start + 100]), return_exceptions=True
                 )
+                from .external_removal import log_removal_anomaly, removal_anomaly_reason
+                states = [
+                    "temporary_error" if isinstance(result, BaseException) else
+                    "not_found" if result[0] in source.not_found_urls else
+                    "removed" if result[0] in getattr(source, "removed_urls", set()) else
+                    "active" if result[1] else "unknown"
+                    for result in results
+                ]
+                reason = removal_anomaly_reason(states, len(ordered_urls))
+                if reason:
+                    counters["removal_anomaly_batches"] += 1
+                    counters["removal_anomaly_records"] += sum(state in {"removed", "expired", "not_found"} for state in states)
+                    log_removal_anomaly(source.name, reason)
+                    return
                 for result in results:
                     yield result
 
         partial = False
         async for result in fetch_batches():
+            if isinstance(result, SourceBlocked):
+                raise result
             if isinstance(result, BaseException):
                 counters["failed_details"] += 1
                 partial = True
@@ -1340,19 +1376,23 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                     if removed_record:
                         removed_record.last_state_check_at = datetime.now(UTC)
                         removed_record.last_state_check_result = "removed"
-                        counters["archived"] += await deactivate_source_record(session, removed_record, "deleted")
+                        from .external_removal import purge_confirmed_removed_source
+                        purge_outcome = await purge_confirmed_removed_source(session, removed_record.id, "removed")
+                        counters["archived"] += purge_outcome["canonical_listings_purged"]
                 await session.commit()
                 continue
             counters["fetched"] += 1
             counters["fetched_details"] += 1
             parsed = source.parse_listing(document, url)
-            if not (is_room_offer(parsed) and is_rental(parsed)):
+            if property_type(parsed, source.name) is None:
+                counters["rejected_unsupported_property_type"] += 1
+                # Retain historical observability consumers during transition.
                 counters["filtered_not_room"] += 1
                 counters["rejected_not_room"] += 1
                 await deactivate_rejected_source(session, source.name, url)
                 await session.commit()
                 continue
-            if not is_in_import_scope(parsed, scope_key):
+            if not (source.accepts_location(parsed) if hasattr(source, "accepts_location") else is_in_import_scope(parsed, scope_key)):
                 counters["filtered_wrong_location"] += 1
                 counters["rejected_wrong_location"] += 1
                 await deactivate_rejected_source(session, source.name, url)
@@ -1364,21 +1404,25 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 await deactivate_rejected_source(session, source.name, url)
                 await session.commit()
                 continue
-            counters["accepted_rooms"] += 1
+            counters["accepted_rentals"] += 1
+            counters[f"accepted_{item.rental_mode}"] += 1
+            counters["accepted_rooms" if item.room_type in ROOM_TYPES else "accepted_studios" if item.room_type == "Estudio" else "accepted_one_bedroom"] += 1
             outcome = await upsert(session, item, scope_key=scope_key)
             counters[outcome] += 1
             if outcome == "imported":
                 counters["created"] += 1
         await session.commit()
+        partial = partial or bool(counters["removal_anomaly_batches"])
         if discovery.complete and not partial:
-            counters["archived"] += await archive_missing(session, source, started_at)
+            counters["archived"] += await archive_missing(session, source, started_at, report=counters)
+            partial = partial or bool(counters["removal_anomaly_batches"])
         completed_contract = completed_source_contract(counters)
         if discovery.complete and not partial and completed_contract:
             run.result = "success"
         else:
             run.result = "partial"
             if not completed_contract:
-                run.last_error = "No valid room detail completed the external import contract"
+                run.last_error = "No valid rental detail completed the external import contract"
     except SourceBlocked as exc:
         run.result = "blocked"
         run.last_error = str(exc)

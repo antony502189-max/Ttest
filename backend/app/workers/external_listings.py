@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import signal
 from datetime import UTC, datetime, timedelta
 from time import monotonic
-from urllib.parse import urlparse
 from uuid import uuid4
 
 from redis.asyncio import from_url
 from redis.exceptions import RedisError
 from sqlalchemy import or_, select
 
+from .. import external_sources
 from ..core.config import get_settings
 from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
@@ -20,6 +21,8 @@ from ..external_sources import configured_sources, retired_source_names
 from ..models import ExternalImportScope, ExternalWorkerState
 from ..services.duplicate_cleanup import deduplicate_active_listings
 from ..services.external_import import completed_source_contract, retire_source_records, run_removal_check, run_source
+from ..services.external_removal import COUNTERS, GLOBAL_CONCURRENCY, LOCK_TTL_SECONDS, new_report
+from ..services.external_scopes import ScopeDefinition, validate_scope
 
 logger = logging.getLogger(__name__)
 local_import_lock = asyncio.Lock()
@@ -39,12 +42,16 @@ return 0
 """
 
 
-async def _acquire_distributed_lock(redis, lock_key: str, token: str, ttl_seconds: int) -> bool:
+async def _acquire_distributed_lock(
+    redis, lock_key: str, token: str, ttl_seconds: int, *, strict: bool = False,
+) -> bool:
     """Acquire the one shared import/removal lock without masking Redis failures."""
     try:
         return bool(await redis.set(lock_key, token, ex=ttl_seconds, nx=True))
     except RedisError:
         logger.exception("external_import_lock_unavailable")
+        if strict:
+            raise
         return False
 
 
@@ -124,6 +131,7 @@ async def _run_removal_probe_with_lease(
             await worker_state()
         except Exception:
             logger.exception("external_removal_heartbeat_failed")
+            raise
         if redis is None:
             return
         try:
@@ -323,12 +331,12 @@ async def run_once() -> dict[str, dict[str, int]]:
             source_types = {type(source).name: type(source) for source in sources}
             for scope_id, source_name, scope_key, discovery_urls, interval_seconds in scope_tasks:
                 source_type = source_types.get(source_name)
-                if (source_type is None or not scope_key.startswith("province:") or not discovery_urls
-                        or not 3_600 <= interval_seconds <= 2_592_000
-                        or any(urlparse(url).scheme != "https" or not (
-                            urlparse(url).hostname == source_type.domain
-                            or (urlparse(url).hostname or "").endswith("." + source_type.domain)
-                        ) for url in discovery_urls)):
+                try:
+                    validate_scope(ScopeDefinition(source_name, scope_key, tuple(discovery_urls)))
+                    valid = source_type is not None and 3_600 <= interval_seconds <= 2_592_000
+                except ValueError:
+                    valid = False
+                if not valid or source_type is None:
                     logger.error("external_import_scope_invalid", extra={"source": source_name, "scope": scope_key})
                     continue
                 scoped_source = source_type()
@@ -374,49 +382,80 @@ async def run_once() -> dict[str, dict[str, int]]:
         local_import_lock.release()
 
 
-async def run_removal_once() -> int:
+async def run_removal_once() -> int | None:
     """Run lightweight checks under the same local and Redis lock as full syncs."""
     settings = get_settings()
     if not settings.external_import_enabled or not settings.external_removal_check_enabled:
-        return 0
+        return None
     if local_import_lock.locked():
         logger.info("external_removal_check_already_running")
-        return 0
+        return None
     await local_import_lock.acquire()
     redis = None
     token = str(uuid4())
     lock_key = "ttest:external-listings-import"
-    lock_ttl = max(1_800, settings.external_removal_check_interval_seconds * 2)
+    lock_ttl = LOCK_TTL_SECONDS
+    sources = []
+    started_at = datetime.now(UTC)
+    started = monotonic()
+    reports: dict = {}
+    result = "failed"
     try:
         if settings.redis_url:
             redis = from_url(settings.redis_url)
-            if not await _acquire_distributed_lock(redis, lock_key, token, lock_ttl):
-                return 0
+            if not await _acquire_distributed_lock(redis, lock_key, token, lock_ttl, strict=True):
+                result = "skipped"
+                return None
         # The removal cycle owns the shared lease, so it is responsible for
         # keeping the heartbeat fresh while remote state checks are in flight.
         await worker_state()
-        archived = 0
-        for source in configured_sources():
-            async with SessionLocal() as session:
-                archived += await _run_removal_probe_with_lease(
-                    run_removal_check(session, source),
-                    redis=redis,
-                    lock_key=lock_key,
-                    token=token,
-                    lock_ttl=lock_ttl,
-                )
-                await session.commit()
-            # A removal probe is not a full import run. It still supplies a
-            # heartbeat but must not change last_started_at/health to running.
-            await worker_state()
-        return archived
-    finally:
-        if redis:
+        sources = external_sources.configured_sources()
+        reports = {source.name: new_report() for source in sources}
+        global_limit, provider_slots = asyncio.Semaphore(GLOBAL_CONCURRENCY), asyncio.Semaphore(2)
+
+        async def provider(source):
+            async with provider_slots, SessionLocal() as session:
+                await run_removal_check(session, source, report=reports[source.name], started_at=started_at,
+                                        global_limit=global_limit)
+
+        async def sweep():
+            tasks = [asyncio.create_task(provider(source)) for source in sources]
             try:
-                await _release_distributed_lock(redis, lock_key, token)
+                await asyncio.gather(*tasks)
+            except BaseException:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
+
+        await _run_removal_probe_with_lease(sweep(), redis=redis, lock_key=lock_key, token=token, lock_ttl=lock_ttl)
+        result = "partial" if any(report.get("result") == "partial" for report in reports.values()) else "success"
+        return sum(report["canonical_listings_purged"] for report in reports.values())
+    except Exception as exc:
+        await worker_state(health="failed", error=f"Removal sweep failed: {exc}")
+        raise
+    finally:
+        summary = {key: sum(report[key] for report in reports.values()) for key in COUNTERS}
+        summary.update(sweep_id=token, started_at=started_at.isoformat(), finished_at=datetime.now(UTC).isoformat(),
+                           duration_seconds=round(monotonic() - started, 3), sources=reports, result=result)
+        if result == "failed":
+            summary["failed"] = max(1, summary["failed"])
+        logger.info("external_removal_sweep_summary %s", json.dumps(summary))
+        try:
+            for source in sources:
+                try:
+                    await source.close()
+                except Exception:
+                    logger.exception("external_removal_client_close_failed", extra={"source": source.name})
+        finally:
+            try:
+                if redis:
+                    try:
+                        await _release_distributed_lock(redis, lock_key, token)
+                    finally:
+                        await redis.aclose()
             finally:
-                await redis.aclose()
-        local_import_lock.release()
+                local_import_lock.release()
 
 
 async def loop() -> None:
@@ -442,10 +481,17 @@ async def loop() -> None:
         now = datetime.now(UTC)
         if next_removal_check is not None and now >= next_removal_check:
             try:
-                await run_removal_once()
+                outcome = await run_removal_once()
             except Exception:
                 logger.exception("external_removal_check_failed")
-            next_removal_check = datetime.now(UTC) + timedelta(seconds=settings.external_removal_check_interval_seconds)
+                outcome = None
+            finished = datetime.now(UTC)
+            if outcome is None:
+                next_removal_check = finished + timedelta(seconds=60)
+            else:
+                interval = settings.external_removal_check_interval_seconds
+                elapsed = max(0, (finished - next_removal_check).total_seconds())
+                next_removal_check += timedelta(seconds=(int(elapsed // interval) + 1) * interval)
         deadlines = [next_full_sync]
         if next_removal_check is not None:
             deadlines.append(next_removal_check)

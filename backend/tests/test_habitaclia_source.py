@@ -1,11 +1,57 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import replace
+from pathlib import Path
 
 import app.habitaclia_source as habitaclia_module
 from app import external_sources
 from app.habitaclia_source import HabitacliaSource, install_habitaclia_source
+
+
+def test_public_uuid_detail_uses_primary_structured_unit_and_preserves_legacy_id():
+    source = HabitacliaSource()
+    url = "https://www.habitaclia.com/alquiler/apartamento/calle-asturias/costa-adeje/adeje/40910a17-9d4d-40f8-ad52-db8e7f9165f2/d"
+    document = Path(__file__).with_name("fixtures").joinpath("habitaclia_uuid_rental.html").read_text(encoding="utf-8")
+    try:
+        assert source.is_listing_url(url)
+        assert not source.is_listing_url(url.replace("habitaclia.com", "evil.test"))
+        parsed = source.parse_listing(document, url)
+        assert parsed["property_type"] == "flat" and parsed["bedroom_count"] == 1
+        item = source.normalize_listing(parsed, url)
+        assert item and (item.city, item.province, item.external_id, item.rental_mode) == (
+            "Adeje",
+            "Santa Cruz de Tenerife",
+            "34745000000014",
+            "long",
+        )
+        assert item.latitude is None and item.longitude is None
+        assert item.photos == ["https://static.fotocasa.es/images/ads/sanitized-primary.webp"]
+        assert source._public_listing_state(document, "wrong-id") == {}
+        assert source.normalize_listing({**parsed, "bedroom_count": 2}, url) is None
+    finally:
+        asyncio.run(source.close())
+
+
+def test_uuid_hydration_routes_are_discovered_without_cross_card_classification():
+    source = HabitacliaSource()
+    first = "/alquiler/apartamento/adeje/40910a17-9d4d-40f8-ad52-db8e7f9165f2/d"
+    second = "/alquiler/apartamento/madrid/d08d89e6-e063-49b0-af82-3f060b9445aa/d"
+    cards = [
+        {"navigationUrl": first, "summary": {"title": "Apartamento de 1 dormitorio"}},
+        {"navigationUrl": second, "summary": {"title": "Apartamento de 3 dormitorios"}},
+    ]
+    doc = "<script>self.__next_f.push(" + json.dumps([1, json.dumps(cards)]) + ")</script>"
+    try:
+        all_urls, targets = source._extract_page_listings(doc, source.discovery_urls[0])
+        assert len(all_urls) == 2 and targets == {"https://www.habitaclia.com" + first}
+        from app.commands.audit_habitaclia_source import _catalog_probe
+
+        probe = _catalog_probe(source, f'<a href="{first}">Apartamento</a>', source.discovery_urls[0])
+        assert probe["recognized_route_samples"] == ["https://www.habitaclia.com" + first]
+    finally:
+        asyncio.run(source.close())
 
 
 def room_document() -> str:
@@ -55,7 +101,7 @@ def one_bedroom_whole_home_document() -> str:
     </script></head><body>
       <h1>Piso de una habitación en alquiler por temporadas en Garachico</h1>
       <div class="description">Apartamento completo de una habitación, salón, cocina y baño.</div>
-      <strong>780 €</strong>
+      <strong>780 €/mes</strong>
     </body></html>
     """
 
@@ -108,7 +154,7 @@ def el_medano_location_document() -> str:
 
 
 def hydration_image_document() -> str:
-    return r'''
+    return r"""
     <html><head>
       <script type="application/ld+json">
       {
@@ -129,7 +175,7 @@ def hydration_image_document() -> str:
       <div class="description">Apartamento completo de una habitación para alquiler de larga estancia.</div>
       <strong>1.250 €</strong>
     </body></html>
-    '''
+    """
 
 
 def test_habitaclia_accepts_explicit_room_offer_and_preserves_source_id() -> None:
@@ -253,11 +299,11 @@ def test_habitaclia_extracts_modern_hydration_cards_without_cross_card_leakage()
     source = HabitacliaSource()
     try:
         page = source.discovery_urls[0]
-        document = r'''
+        document = r"""
         <script>
         self.__next_f.push([1,"{\"legacyNumericId\":\"500004551704\",\"navigationUrl\":\"/i500004551704.htm?from=list\",\"summary\":{\"title\":\"ALQUILER HABITACIÓN SOLO CHICA\",\"description\":\"Se alquila habitaci\u00F3n amueblada para estudiante.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/room.webp\"},{\"legacyNumericId\":\"500004551705\",\"navigationUrl\":\"/i500004551705.htm?from=list\",\"summary\":{\"title\":\"Estudio amueblado en Puerto de la Cruz\",\"description\":\"Estudio completo con cocina y ba\u00F1o.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/studio.webp\"},{\"legacyNumericId\":\"500004551706\",\"navigationUrl\":\"/i500004551706.htm?from=list\",\"summary\":{\"title\":\"Piso de 1 dormitorio en Garachico\",\"description\":\"Apartamento completo con un dormitorio, sal\u00F3n, cocina y ba\u00F1o.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/one-bed.webp\"},{\"legacyNumericId\":\"500004551707\",\"navigationUrl\":\"/i500004551707.htm?from=list\",\"summary\":{\"title\":\"Piso de 3 habitaciones en alquiler\",\"description\":\"Vivienda completa con tres habitaciones, sal\u00F3n, cocina y ba\u00F1o.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/three-bed.webp\"}}"])
         </script>
-        '''
+        """
         all_urls, target_urls = source._extract_page_listings(document, page)
         room_url = "https://www.habitaclia.com/i500004551704.htm"
         studio_url = "https://www.habitaclia.com/i500004551705.htm"
@@ -277,11 +323,11 @@ def test_habitaclia_falls_back_to_same_card_image_when_detail_has_no_gallery() -
     try:
         page = source.discovery_urls[0]
         detail_url = "https://www.habitaclia.com/i500004551706.htm"
-        card = r'''
+        card = r"""
         <script>
         self.__next_f.push([1,"{\"navigationUrl\":\"/i500004551706.htm?from=list\",\"summary\":{\"title\":\"Piso de 1 dormitorio en Garachico\",\"description\":\"Apartamento completo con un dormitorio.\"},\"imageUrl\":\"https:\\/\\/static.fotocasa.es\\/images\\/ads\\/one-bed-card.webp\"}"])
         </script>
-        '''
+        """
         source._extract_page_listings(card, page)
         data = source.parse_listing(one_bedroom_whole_home_document(), detail_url)
         assert data["images"] == ["https://static.fotocasa.es/images/ads/one-bed-card.webp"]
@@ -336,9 +382,7 @@ def test_habitaclia_url_and_pagination_contract() -> None:
         assert not source.is_pagination_url(
             "https://www.habitaclia.com/alquiler/viviendas/santa-cruz-de-tenerife-provincia/tenerife/sm/2"
         )
-        assert not source.is_pagination_url(
-            "https://www.habitaclia.com/alquiler/viviendas/madrid-provincia/s/2"
-        )
+        assert not source.is_pagination_url("https://www.habitaclia.com/alquiler/viviendas/madrid-provincia/s/2")
     finally:
         asyncio.run(source.close())
 

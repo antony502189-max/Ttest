@@ -605,13 +605,24 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         await session.commit()
         await session.refresh(listing)
         assert listing.status == "published"
-        assert listing.primary_source == "Idealista"
+        assert listing.primary_source == "Fotocasa"
+        unknown_record = await session.scalar(select(ExternalListingSource).where(
+            ExternalListingSource.source_name == "Fotocasa"))
+        assert unknown_record is not None and unknown_record.consecutive_unknown_state_runs == 2
 
-        assert await archive_missing(session, "Idealista", future_run) == 0
-        assert await archive_missing(session, "Idealista", future_run) == 1
-        await session.commit()
+        # Unknown discovery absence cannot drive promotion/purge. Supply direct
+        # authoritative evidence before exercising primary failover instead.
+        assert await archive_missing(session, MissingDetailSource("Fotocasa", "not_found"), future_run) == 0
         await session.refresh(listing)
-        assert listing.status == "closed"
+        assert listing.primary_source == "Idealista"
+        assert await session.scalar(select(ExternalListingSource).where(
+            ExternalListingSource.source_name == "Fotocasa")) is None
+
+        listing_id = listing.id
+        assert await archive_missing(session, MissingDetailSource("Idealista", "removed"), future_run) == 1
+        await session.commit()
+        session.expunge_all()
+        assert await session.get(Listing, listing_id) is None
 
         closed_catalog = await client.get("/api/v1/listings/catalog-version")
         assert closed_catalog.status_code == 200, closed_catalog.text
@@ -619,7 +630,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
 
         hidden = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
         assert hidden.status_code == 200, hidden.text
-        assert all(item["id"] != str(listing.id) for item in hidden.json()["items"])
+        assert all(item["id"] != str(listing_id) for item in hidden.json()["items"])
 
 
 async def test_complete_source_failure_does_not_mark_existing_external_listing_missing():
@@ -851,37 +862,36 @@ async def test_sudden_drop_to_zero_urls_is_partial_and_never_archives_existing_s
 
 
 @pytest.mark.parametrize("state", ["not_found", "removed", "expired"])
-async def test_confirmed_missing_detail_hides_listing_in_same_complete_cycle(client: AsyncClient, state: str):
+async def test_confirmed_missing_detail_purges_listing_in_same_complete_cycle(client: AsyncClient, state: str):
     async with SessionLocal() as session:
         item = external_item(source="PisoCompartido", external_id=f"removed-{state}", url=f"https://example.test/{state}")
         assert await upsert(session, item) == "imported"
         await session.commit()
 
+        canonical_id = await session.scalar(select(ExternalListingSource.canonical_listing_id).where(ExternalListingSource.source_url == item.source_url))
         counters = await run_source(session, MissingDetailSource("PisoCompartido", state), f"removed-{state}")  # type: ignore[arg-type]
         assert counters["archived"] == 1
         record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == f"removed-{state}"))
-        listing = await session.get(Listing, record.canonical_listing_id) if record else None
-        expected_reason = "deleted" if state == "removed" else state
-        assert record is not None and record.current_status == "missing" and record.removed_reason == expected_reason
-        assert listing is not None and listing.status == "closed"
+        assert record is None
+        assert await session.get(Listing, canonical_id) is None
 
         public = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
-        assert all(row["id"] != str(listing.id) for row in public.json()["items"])
+        assert all(row["id"] != str(canonical_id) for row in public.json()["items"])
 
 
-async def test_410_returned_while_fetching_discovered_detail_closes_listing_immediately():
+async def test_410_returned_while_fetching_discovered_detail_purges_listing_immediately():
     async with SessionLocal() as session:
         url = "https://example.test/direct-410"
         item = external_item(source="Idealista", external_id="direct-410", url=url)
         assert await upsert(session, item) == "imported"
         await session.commit()
 
+        canonical_id = await session.scalar(select(ExternalListingSource.canonical_listing_id).where(ExternalListingSource.source_url == item.source_url))
         counters = await run_source(session, DirectlyRemovedDetailSource("Idealista", url), "direct-410")  # type: ignore[arg-type]
         record = await session.scalar(select(ExternalListingSource).where(ExternalListingSource.external_id == "direct-410"))
-        listing = await session.get(Listing, record.canonical_listing_id) if record else None
         assert counters["archived"] == 1
-        assert record is not None and record.current_status == "missing" and record.removed_reason == "deleted"
-        assert listing is not None and listing.status == "closed"
+        assert record is None
+        assert await session.get(Listing, canonical_id) is None
 
 
 @pytest.mark.parametrize("state", ["blocked", "temporary_error", "unknown"])
@@ -972,7 +982,7 @@ async def test_primary_removal_promotes_full_alternative_snapshot_and_restores_r
         assert listing.status == "published"
 
 
-async def test_removal_checker_restores_previously_missing_source():
+async def test_removal_checker_leaves_historical_missing_source_untouched():
     async with SessionLocal() as session:
         item = external_item(source="PisoCompartido", external_id="checker-restore", url="https://example.test/checker-restore")
         assert await upsert(session, item) == "imported"
@@ -990,8 +1000,8 @@ async def test_removal_checker_restores_previously_missing_source():
         await session.commit()
         await session.refresh(record)
         listing = await session.get(Listing, record.canonical_listing_id)
-        assert record.current_status == "active"
-        assert listing is not None and listing.status == "published"
+        assert record.current_status == "missing"
+        assert listing is not None and listing.status == "closed"
 
 
 async def test_catalog_version_changes_for_create_close_and_restore(client: AsyncClient):

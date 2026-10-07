@@ -1,4 +1,4 @@
-"""Anonymous, public-page adapters for room offers."""
+"""Anonymous, public-page adapters for supported small rental units."""
 
 from __future__ import annotations
 
@@ -23,6 +23,8 @@ from .core.browser_network import (
 )
 from .core.config import get_settings
 from .core.media_limits import MAX_LISTING_PHOTOS
+from .rental_classification import bedroom_count, property_type, rental_price
+from .spain_provinces import canonical_province, coordinates_in_spain, spain_country
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ class DiscoveryResult:
     failed_pages: list[str] = field(default_factory=list)
     reached_last_page: bool = False
     blocked: bool = False
+    roots: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def __iter__(self):
         return iter(self.urls)
@@ -409,13 +412,14 @@ def is_in_import_scope(data: dict[str, Any], scope_key: str) -> bool:
     title, page chrome and broad coordinate boxes are insufficient proof.
     """
     if scope_key == "santa_cruz":
-        return is_in_target_province(data)
+        province = canonical_province(data.get("province"))
+        return (spain_country(data.get("country")) and province in {None, 'Santa Cruz de Tenerife'}
+                and (province == 'Santa Cruz de Tenerife' or is_in_target_province(data)))
     if not scope_key.startswith("province:"):
         return False
-    expected = scope_key.removeprefix("province:").strip().casefold()
-    country = clean(data.get("country")).casefold()
-    province = clean(data.get("province")).casefold()
-    return bool(expected and province == expected and country in {"", "es", "españa", "espana", "spain"})
+    expected = canonical_province(scope_key.removeprefix("province:"))
+    province = canonical_province(data.get("province"))
+    return bool(expected and province == expected and spain_country(data.get("country")))
 
 
 def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
@@ -428,15 +432,18 @@ def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
 def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
     value = clean(value)
     found = re.search(r"(?:desde\s*)?([\d.]+(?:,\d{1,2})?)\s*€", value, re.IGNORECASE)
-    amount = int(float(found.group(1).replace(".", "").replace(",", "."))) if found else None
-    lower = value.casefold()
+    number = found.group(1) if found else ''
+    if number and not (',' not in number and re.search(r'\.\d{1,2}$', number)):
+        number = number.replace('.', '').replace(',', '.')
+    amount = int(float(number)) if number else None
+    lower = re.sub(r'/\s+', '/', value.casefold())
     period = (
         "month"
-        if any(x in lower for x in ("/mes", " al mes", "por mes", "mensual"))
+        if any(x in lower for x in ("/mes", " al mes", "por mes", "mensual", "/month", "per month", "monthly"))
         else "night"
-        if any(x in lower for x in ("/noche", "por noche"))
+        if any(x in lower for x in ("/noche", "por noche", "/night", "per night", "nightly", "/día", "/dia"))
         else "week"
-        if any(x in lower for x in ("/semana", "por semana"))
+        if any(x in lower for x in ("/semana", "/sem", "por semana", "/week", "per week"))
         else None
     )
     return amount, "EUR" if "€" in value else None, period, lower.startswith("desde")
@@ -448,7 +455,10 @@ def json_ld(document: str) -> list[dict[str, Any]]:
         r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', document, re.IGNORECASE | re.DOTALL
     ):
         try:
-            loaded = json.loads(html.unescape(raw))
+            # Public templates sometimes emit literal newlines inside JSON
+            # descriptions. Do not HTML-unescape before decoding: &quot; can
+            # otherwise corrupt the JSON string boundaries.
+            loaded = json.loads(raw, strict=False)
             values = (
                 loaded
                 if isinstance(loaded, list)
@@ -547,12 +557,17 @@ def structured_classification(structured_items: list[dict[str, Any]]) -> tuple[s
         "typology",
     )
     for item in structured_items:
-        for key in category_keys:
-            add(categories, item.get(key))
-        item_type = clean(item.get("@type")).casefold()
-        if item_type == "breadcrumblist":
+        raw_types = item.get("@type", [])
+        item_types = {clean(value).casefold() for value in (raw_types if isinstance(raw_types, list) else [raw_types])}
+        if item_types & {"organization", "website", "person"}:
+            continue
+        if "breadcrumblist" in item_types:
+            add(categories, item.get("category"))
             for element in item.get("itemListElement", []):
                 add(breadcrumbs, element)
+            continue
+        for key in category_keys:
+            add(categories, item.get(key))
 
     return " | ".join(categories)[:1200], " | ".join(breadcrumbs)[:1800]
 
@@ -747,6 +762,10 @@ class NormalizedListing:
     available_from: date | None = None
     published_at: datetime | None = None
     public_address: str | None = None
+    bedroom_count: int | None = None
+    province: str | None = None
+    country: str | None = None
+    weekly_price_amount: int | None = None
 
     def __post_init__(self) -> None:
         self.photos = bounded_photo_urls(self.photos)
@@ -765,6 +784,10 @@ class NormalizedListing:
                     self.public_address or "",
                     self.source_price_text,
                     self.room_type,
+                    self.rental_mode,
+                    str(self.bedroom_count),
+                    self.province or "",
+                    self.price_period or "",
                     str(self.latitude or ""),
                     str(self.longitude or ""),
                     "|".join(self.photos),
@@ -804,11 +827,11 @@ class ExternalListingSource(ABC):
             timeout=settings.external_import_request_timeout_seconds,
             headers={"User-Agent": settings.external_import_user_agent, "Accept-Language": "es-ES,es;q=0.9"},
             follow_redirects=True,
+            event_hooks={"request": [self._validate_provider_request]},
         )
         self.not_found_urls: set[str] = set()
-        # A 410 or a detail URL redirected to a non-detail page is a
-        # confirmed removal just like a 404, but keeping the reason lets the
-        # lifecycle record a useful diagnostic.
+        # A 410 or explicit removed page proves removal. A bare redirect to
+        # a catalogue does not; retaining the reason supports diagnostics.
         self.removed_urls: set[str] = set()
         self.discovery_diagnostics: dict[str, dict[str, Any]] = {}
         self.blocked_diagnostic: dict[str, Any] | None = None
@@ -816,6 +839,12 @@ class ExternalListingSource(ABC):
         self._browser: Any = None
         self._browser_context: Any = None
         self._browser_lock = asyncio.Lock()
+
+    async def _validate_provider_request(self, request: httpx.Request) -> None:
+        # The global public-network guard also checks every redirect's DNS
+        # and peer address. This additional guard keeps navigation on-provider.
+        if not hostname_matches_domain(str(request.url), self.domain) or request.url.username or request.url.password:
+            raise httpx.InvalidURL("External source request escaped its provider")
 
     async def close(self) -> None:
         await self.client.aclose()
@@ -861,7 +890,9 @@ class ExternalListingSource(ABC):
         return paths
 
     def _raise_if_challenged(self, url: str, document: str) -> None:
-        challenge = "geetest" in document.casefold() or "pardon our interruption" in document.casefold()
+        challenge = any(marker in document.casefold() for marker in (
+            "geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human",
+        ))
         if challenge:
             diagnostic = self.discovery_diagnostics.get(url, {})
             self.blocked_diagnostic = {"challenge_type": "geetest", **diagnostic, "paths": self._save_discovery_artifacts(url, document)}
@@ -872,7 +903,12 @@ class ExternalListingSource(ABC):
             try:
                 response = await self.client.get(url)
                 self._record_page(url, response.text, status=response.status_code, final_url=str(response.url))
-                if "geetest" in response.text.casefold() or "pardon our interruption" in response.text.casefold():
+                if response.status_code == 202 and not response.text.strip():
+                    self.blocked_diagnostic = {"challenge_type": "empty_http_202", **self.discovery_diagnostics[url]}
+                    raise SourceBlocked("public source returned no anonymous content (HTTP 202)")
+                if any(marker in response.text.casefold() for marker in (
+                    "geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human",
+                )):
                     # Capture the equivalent public Chromium response and screenshot once;
                     # do not attempt to solve or interact with the challenge.
                     if get_settings().external_import_playwright_enabled:
@@ -905,9 +941,15 @@ class ExternalListingSource(ABC):
                         raise RuntimeError(f"HTTP {response.status_code}")
                     await asyncio.sleep(2**attempt)
                     continue
-                if self.is_listing_url(url) and not self.is_listing_url(str(response.url)):
-                    self.removed_urls.add(url)
-                    return None
+                if self.is_listing_url(url) and 200 <= response.status_code < 300:
+                    corpus = clean(response.text).casefold()
+                    if not self.has_current_detail(response.text) and (
+                        any(marker in corpus for marker in self.removed_markers) or "listing expired" in corpus
+                    ):
+                        self.removed_urls.add(url)
+                        return None
+                    if not self.is_listing_url(str(response.url)):
+                        return None
                 response.raise_for_status()
                 return response.text
             except httpx.HTTPError as exc:
@@ -989,6 +1031,13 @@ class ExternalListingSource(ABC):
             and bool(self.listing_url_pattern.search(parsed.path))
         )
 
+    def accepts_location(self, data: dict[str, Any]) -> bool:
+        return is_in_import_scope(data, self.scope_key)
+
+    def accepts_coordinates(self, latitude: float, longitude: float) -> bool:
+        check = coordinates_in_target_province if self.scope_key == "santa_cruz" else coordinates_in_spain
+        return check(latitude, longitude)
+
     def is_pagination_url(self, url: str) -> bool:
         parsed = urlparse(url)
         location = parsed.path + (f"?{parsed.query}" if parsed.query else "")
@@ -1006,30 +1055,39 @@ class ExternalListingSource(ABC):
 
     async def discover_listing_urls(self) -> DiscoveryResult:
         seen: set[str] = set()
-        visited: set[str] = set()
-        queue = list(self.discovery_urls)
+        visited: set[tuple[str, str]] = set()
+        queue = [(url, url) for url in dict.fromkeys(self.discovery_urls)]
         failed_pages: list[str] = []
-        expected_total: int | None = None
         blocked = False
+        roots: dict[str, dict[str, Any]] = {
+            root: {"urls": set(), "signatures": set(), "expected_total": None, "visited_pages": 0,
+                   "failed_pages": [], "budget_limited": False}
+            for _, root in queue
+        }
         while queue and len(visited) < self.max_discovery_pages:
-            page = queue.pop(0)
-            if page in visited:
+            page, root = queue.pop(0)
+            state = roots[root]
+            if (page, root) in visited:
                 continue
-            visited.add(page)
+            visited.add((page, root))
+            state["visited_pages"] += 1
             try:
                 document = await self.request(page)
             except SourceBlocked:
                 blocked = True
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 break
             except (httpx.HTTPError, RuntimeError):
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
             if not document:
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
-            if expected_total is None:
-                expected_total = self.visible_result_count(document)
+            if state["expected_total"] is None:
+                state["expected_total"] = self.visible_result_count(document)
             static_links = LINK.findall(document)
             embedded_links = embedded_link_values(document)
             has_listing_link = any(
@@ -1040,26 +1098,55 @@ class ExternalListingSource(ABC):
                 if rendered:
                     static_links = LINK.findall(rendered)
                     embedded_links = embedded_link_values(rendered)
+            page_urls: set[str] = set()
             for href in [*static_links, *embedded_links]:
                 url = urljoin(page, html.unescape(href).split("#", 1)[0])
                 if self.is_listing_url(url):
                     # Gallery/map variants on a card are the same public listing.
-                    seen.add(url.split("?", 1)[0])
+                    page_urls.add(url.split("?", 1)[0])
+            signature = frozenset(page_urls)
+            if signature and signature in state["signatures"] and page != root:
+                state["failed_pages"].append(page)
+                failed_pages.append(page)
+                continue
+            state["signatures"].add(signature)
+            state["urls"].update(page_urls)
+            seen.update(page_urls)
             for href in static_links:
                 url = urljoin(page, html.unescape(href).split("#", 1)[0])
-                if self.is_pagination_url(url):
-                    queue.append(url)
-            if not seen and not has_listing_link and re.search(
+                if (not self.is_listing_url(url) and self.is_pagination_url(url)
+                        and (url, root) not in visited and (url, root) not in queue):
+                    if len(queue) < self.max_discovery_pages:
+                        queue.append((url, root))
+                    else:
+                        state["budget_limited"] = True
+            if not state["urls"] and not has_listing_link and re.search(
                 r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE
             ):
                 self._save_discovery_artifacts(page, document)
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
-                self._save_discovery_artifacts(page, document)
-        reached_last_page = not queue
-        complete = not blocked and not failed_pages and reached_last_page
-        if expected_total is not None and len(seen) < expected_total:
-            complete = False
-        return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked)
+        reached_last_page = not queue and not any(state["budget_limited"] for state in roots.values())
+        evidence = {}
+        for root, state in roots.items():
+            last_page = bool(state["visited_pages"]) and not state["budget_limited"] and not any(r == root for _, r in queue)
+            expected = state["expected_total"]
+            evidence[root] = {
+                "visited_pages": state["visited_pages"], "expected_total": expected,
+                "seen": len(state["urls"]), "failed_pages": state["failed_pages"], "reached_last_page": last_page,
+                "complete": last_page and not state["failed_pages"] and (expected is None or len(state["urls"]) >= expected),
+            }
+        complete = bool(evidence) and not blocked and not failed_pages and all(r["complete"] for r in evidence.values())
+        # Totals from overlapping roots are not a unique inventory count.
+        expected_total = next(iter(evidence.values()))["expected_total"] if len(evidence) == 1 else None
+        return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked, evidence)
+
+    @staticmethod
+    def has_current_detail(document: str) -> bool:
+        return detail_document_has_listing_signals(document) or bool(
+            re.search(r"<h1\b[^>]*>.+?</h1>", document, re.IGNORECASE | re.DOTALL)
+            and re.search(r"\d[\d.,]*\s*€", clean(document))
+        )
 
     async def check_listing_state(self, source_url: str) -> str:
         """Check a missing detail URL without treating access errors as removal."""
@@ -1070,24 +1157,27 @@ class ExternalListingSource(ABC):
         except httpx.HTTPError:
             return "temporary_error"
         document = response.text
-        self._record_page(source_url, document, status=response.status_code, final_url=str(response.url))
-        if "geetest" in document.casefold() or "pardon our interruption" in document.casefold():
+        if response.status_code == 403 or (response.status_code == 202 and not document.strip()) or any(
+            marker in document.casefold() for marker in ("geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human")
+        ):
             return "blocked"
         if response.status_code == 404:
             return "not_found"
         if response.status_code == 410:
             return "removed"
-        if response.status_code in {403, 429} or response.status_code >= 500:
+        if response.status_code == 429 or response.status_code >= 500:
             return "temporary_error"
         if response.status_code >= 400:
             return "unknown"
         final_url = str(response.url)
-        if final_url.rstrip("/") != source_url.rstrip("/") and not self.is_listing_url(final_url):
-            return "removed"
         corpus = clean(document).casefold()
+        if 200 <= response.status_code < 300 and self.is_listing_url(final_url) and self.has_current_detail(document):
+            return "active"
+        if "anuncio caducado" in corpus or "listing expired" in corpus:
+            return "expired"
         if any(marker in corpus for marker in self.removed_markers):
             return "removed"
-        return "active" if self.is_listing_url(final_url) else "unknown"
+        return "unknown"
 
     async def fetch_listing(self, url: str) -> str | None:
         document = await self.request(url)
@@ -1102,7 +1192,14 @@ class ExternalListingSource(ABC):
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         ld = json_ld(document)
         state = embedded_json(document)
-        structured_items = [item for item in ld + state if isinstance(item, dict)]
+        all_structured_items = [item for item in ld + state if isinstance(item, dict)]
+        structured_items = []
+        for candidate in all_structured_items:
+            raw_types = candidate.get("@type", [])
+            candidate_types = raw_types if isinstance(raw_types, list) else [raw_types]
+            if not any(clean(value).casefold() in {"organization", "website", "breadcrumblist", "person"}
+                       for value in candidate_types):
+                structured_items.append(candidate)
         item = next(
             (
                 x
@@ -1134,7 +1231,7 @@ class ExternalListingSource(ABC):
             body,
             re.IGNORECASE,
         )
-        raw_geo = next(
+        raw_geo = item.get("geo") or item.get("coordinates") or next(
             (
                 structured.get("geo") or structured.get("coordinates")
                 for structured in structured_items
@@ -1143,7 +1240,7 @@ class ExternalListingSource(ABC):
             item.get("geo") or item.get("coordinates"),
         )
         geo: dict[str, Any] = raw_geo if isinstance(raw_geo, dict) else {}
-        raw_address = next(
+        raw_address = item.get("address") or next(
             (structured.get("address") for structured in structured_items if isinstance(structured.get("address"), dict)),
             item.get("address"),
         )
@@ -1196,7 +1293,7 @@ class ExternalListingSource(ABC):
                 ),
                 "",
             )
-        structured_category, structured_breadcrumbs = structured_classification(structured_items)
+        structured_category, structured_breadcrumbs = structured_classification(all_structured_items)
         breadcrumbs = " | ".join(
             value for value in (structured_breadcrumbs, html_breadcrumbs(document)) if value
         )[:1800]
@@ -1215,6 +1312,11 @@ class ExternalListingSource(ABC):
             "city": clean(address.get("addressLocality")),
             "municipality": clean(address.get("addressLocality")),
             "province": clean(address.get("addressRegion")),
+            "country": address.get("addressCountry"),
+            "property_type": item.get("propertyType") or item.get("property_type"),
+            "bedroom_count": item.get("numberOfBedrooms") if item.get("numberOfBedrooms") is not None else item.get("bedrooms"),
+            "rental_category": item.get("rentalCategory") or item.get("rental_mode"),
+            "operation": item.get("transactionType") or item.get("operation"),
             "area": area,
             "address": clean(address.get("streetAddress")),
             "postcode": clean(address.get("postalCode")),
@@ -1239,26 +1341,21 @@ class ExternalListingSource(ABC):
         }
 
     def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
+        data = {**data, "url": url.split("#", 1)[0].split("?", 1)[0]}
+        url = data["url"]
         if data.get("deleted") or clean(data.get("status")).casefold() in {"deleted", "removed", "not found"}:
             return None
         title = clean(data.get("title"))
-        if not title or not (is_room_offer(data) and is_rental(data) and is_in_import_scope(data, self.scope_key)):
+        target_type = property_type(data, self.name)
+        if not title or target_type is None or not self.accepts_location(data):
             return None
         amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
         corpus = clean(
             " ".join(str(data.get(x, "")) for x in ("title", "description", "category", "breadcrumbs", "url"))
         ).casefold()
-        long_hint = any(value in corpus for value in ("alquiler", "se alquila", "mensual", "al mes", "/compartir/"))
-        mode = "holiday" if period in {"night", "week"} else "long" if period == "month" or long_hint else None
-        # A source category can prove a long-room offer when it omits `/mes`,
-        # but it must not turn an obvious whole-property sale price into rent.
-        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
+        price = rental_price(data, self.name, amount, period)
+        if price is None or currency != "EUR":
             return None
-        room_type = (
-            "Habitación compartida"
-            if any(term in corpus for term in ("habitación compartida", "habitacion compartida", "shared room"))
-            else "Habitación individual"
-        )
         supplied_city = clean(data.get("city") or data.get("municipality"))
         city = supplied_city or next(
             (
@@ -1287,7 +1384,7 @@ class ExternalListingSource(ABC):
                 latitude = longitude = None
         except (TypeError, ValueError):
             latitude = longitude = None
-        if latitude is not None and longitude is not None and not coordinates_in_target_province(latitude, longitude):
+        if latitude is not None and longitude is not None and not self.accepts_coordinates(latitude, longitude):
             return None
         details = public_detail_fields(data)
         return NormalizedListing(
@@ -1298,13 +1395,13 @@ class ExternalListingSource(ABC):
             clean(data.get("description")),
             city,
             area,
-            mode,
+            price.mode,
             clean(data.get("price_text")),
-            amount,
+            price.amount,
             currency,
-            period,
+            price.period,
             price_is_from,
-            room_type,
+            target_type,
             latitude,
             longitude,
             photos,
@@ -1313,6 +1410,10 @@ class ExternalListingSource(ABC):
             data.get("email"),
             data.get("raw", data),
             public_address=public_address,
+            bedroom_count=bedroom_count(data) if target_type == "Apartamento de 1 dormitorio" else 0 if target_type == "Estudio" else None,
+            province=canonical_province(data.get("province")),
+            country="ES",
+            weekly_price_amount=price.weekly_amount,
             **details,
         )
 
@@ -1438,76 +1539,6 @@ class MilanunciosSource(ExternalListingSource):
     max_discovery_pages = 120
     removed_markers = ExternalListingSource.removed_markers + ("este anuncio ha caducado", "anuncio retirado")
 
-    _single_bedroom = re.compile(
-        r"\b(?:1|un|una)\s+(?:habitaci[oó]n|hab\.?|dormitorio)\b",
-        re.IGNORECASE,
-    )
-    _multi_bedroom = re.compile(
-        r"\b(?:[2-9]|1\d|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+"
-        r"(?:habitaciones?|hab\.?|dormitorios?)\b",
-        re.IGNORECASE,
-    )
-    _studio = re.compile(r"\b(?:estudio|tipo\s+estudio|studio|loft)\b", re.IGNORECASE)
-    _strong_room_markers = (
-        "se alquila habitación",
-        "se alquila habitacion",
-        "se alquilan habitaciones",
-        "alquilo habitación",
-        "alquilo habitacion",
-        "alquiler de habitación",
-        "alquiler de habitacion",
-        "alquiler habitación",
-        "alquiler habitacion",
-        "habitación en piso compartido",
-        "habitacion en piso compartido",
-        "habitación disponible",
-        "habitacion disponible",
-        "habitación libre",
-        "habitacion libre",
-        "room for rent",
-        "private room for rent",
-    )
-    _weak_room_markers = (
-        "habitación individual",
-        "habitacion individual",
-        "habitación privada",
-        "habitacion privada",
-        "habitación en alquiler",
-        "habitacion en alquiler",
-        "habitación amueblada",
-        "habitacion amueblada",
-    )
-    _wanted_markers = (
-        "busco habitación",
-        "busco habitacion",
-        "busco estudio",
-        "busco apartamento",
-        "busco piso",
-        "buscamos habitación",
-        "buscamos habitacion",
-        "buscamos estudio",
-        "buscamos apartamento",
-        "buscamos piso",
-        "necesito habitación",
-        "necesito habitacion",
-        "necesito estudio",
-        "necesito apartamento",
-        "necesito piso",
-        "se busca habitación",
-        "se busca habitacion",
-        "se busca estudio",
-        "se busca apartamento",
-        "se busca piso",
-    )
-    _offer_markers = (
-        "se alquila",
-        "se alquilan",
-        "alquilo",
-        "en alquiler",
-        "disponible",
-        "ofrecemos",
-        "se ofrece",
-    )
     _target_places = (
         # Tenerife
         "tenerife",
@@ -1634,59 +1665,6 @@ class MilanunciosSource(ExternalListingSource):
     )
 
     @classmethod
-    def _target_unit_type(cls, data: dict[str, Any]) -> str | None:
-        title = clean(data.get("title")).casefold()
-        description = clean(data.get("description")).casefold()
-        corpus = clean(
-            " ".join(
-                str(data.get(key, ""))
-                for key in ("title", "description", "category", "breadcrumbs", "url")
-            )
-        ).casefold()
-
-        opening = clean(f"{title} {description[:500]}").casefold()
-        if (
-            any(marker in title for marker in cls._wanted_markers)
-            or (
-                any(marker in opening for marker in cls._wanted_markers)
-                and not any(marker in opening for marker in cls._offer_markers)
-            )
-        ):
-            return None
-
-        # An offered room inside a multi-bedroom shared flat is valid, so room
-        # wording intentionally wins over the containing home's bedroom count.
-        if any(marker in corpus for marker in cls._strong_room_markers):
-            return (
-                "Habitación compartida"
-                if any(
-                    marker in corpus
-                    for marker in ("habitación compartida", "habitacion compartida", "shared room")
-                )
-                else "Habitación individual"
-            )
-
-        if cls._multi_bedroom.search(corpus):
-            return None
-        if cls._studio.search(corpus):
-            return "Estudio"
-        if cls._single_bedroom.search(corpus):
-            return "Apartamento de 1 dormitorio"
-
-        # Keep generic room wording behind whole-home classification so
-        # "piso de una habitación en alquiler" stays a one-bedroom home.
-        if any(marker in corpus for marker in cls._weak_room_markers):
-            return (
-                "Habitación compartida"
-                if any(
-                    marker in corpus
-                    for marker in ("habitación compartida", "habitacion compartida", "shared room")
-                )
-                else "Habitación individual"
-            )
-        return None
-
-    @classmethod
     def _is_target_island_listing(cls, data: dict[str, Any]) -> bool:
         latitude, longitude = data.get("latitude"), data.get("longitude")
         lat: float | None
@@ -1746,106 +1724,24 @@ class MilanunciosSource(ExternalListingSource):
         data["category"] = f"{source_category} {data['category']}"
         return data
 
+    def accepts_location(self, data: dict[str, Any]) -> bool:
+        if self.scope_key != "santa_cruz":
+            return super().accepts_location(data)
+        return spain_country(data.get("country")) and self._is_target_island_listing(data)
+
+    def accepts_coordinates(self, latitude: float, longitude: float) -> bool:
+        if self.scope_key != "santa_cruz":
+            return coordinates_in_spain(latitude, longitude)
+        return any(min_lat <= latitude <= max_lat and min_lng <= longitude <= max_lng
+                   for min_lat, max_lat, min_lng, max_lng in self._target_island_bounds)
+
     def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
-        if data.get("deleted") or clean(data.get("status")).casefold() in {"deleted", "removed", "not found"}:
-            return None
-
-        title = clean(data.get("title"))
-        if not title or not self._is_target_island_listing(data) or not is_rental(data):
-            return None
-
-        target_type = self._target_unit_type(data)
-        if target_type is None:
-            return None
-
-        amount, currency, period, price_is_from = parse_price(str(data.get("price_text", "")))
-        corpus = clean(
-            " ".join(
-                str(data.get(key, ""))
-                for key in ("title", "description", "category", "breadcrumbs", "url")
-            )
-        ).casefold()
-        long_hint = any(
-            marker in corpus
-            for marker in ("alquiler", "se alquila", "mensual", "al mes", "larga temporada")
-        )
-        mode = "holiday" if period in {"night", "week"} else "long" if period == "month" or long_hint else None
-        if amount is None or amount <= 0 or mode is None or (period is None and amount > 5_000):
-            return None
-
-        supplied_city = clean(data.get("city") or data.get("municipality"))
-        city = supplied_city or next(
-            (
-                place.title()
-                for place in sorted(self._target_places, key=len, reverse=True)
-                if place in corpus and place not in {"tenerife", "la palma", "la gomera", "el hierro", "gran canaria"}
-            ),
-            "",
-        )
-        if not city:
-            return None
-        area = clean(
-            data.get("area")
-            or data.get("neighborhood")
-            or data.get("district")
-            or data.get("suburb")
-        ) or city
-        public_address = clean(data.get("public_address")) or area
-
-        found = (
-            re.search(r"(?:inmueble|anuncio|ad|id)[=/_-](\d+)", url, re.IGNORECASE)
-            or re.search(r"(\d{5,})", url)
-        )
-        external_id = found.group(1) if found else hashlib.sha256(url.encode()).hexdigest()[:24]
-        photos = [
-            str(value)
-            for value in data.get("images", [])
-            if isinstance(value, str) and value.startswith("http")
-        ]
-
-        latitude_value, longitude_value = data.get("latitude"), data.get("longitude")
-        latitude: float | None
-        longitude: float | None
-        try:
-            latitude = float(str(latitude_value))
-            longitude = float(str(longitude_value))
-            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-                latitude = longitude = None
-        except (TypeError, ValueError):
-            latitude = longitude = None
-
-        if latitude is not None and longitude is not None and not any(
-            min_lat <= latitude <= max_lat and min_lng <= longitude <= max_lng
-            for min_lat, max_lat, min_lng, max_lng in self._target_island_bounds
-        ):
-            return None
-
-        details = public_detail_fields(data)
-        return NormalizedListing(
-            self.name,
-            external_id,
-            url,
-            title[:240],
-            clean(data.get("description")),
-            city,
-            area,
-            mode,
-            clean(data.get("price_text")),
-            amount,
-            currency,
-            period,
-            price_is_from,
-            target_type,
-            latitude,
-            longitude,
-            photos,
-            data.get("phone"),
-            data.get("whatsapp"),
-            data.get("email"),
-            data.get("raw", data),
-            public_address=public_address,
-            **details,
-        )
+        normalized = dict(data)
+        if not normalized.get("city"):
+            corpus = clean(f"{data.get('title', '')} {data.get('description', '')}").casefold()
+            normalized["city"] = next((place.title() for place in sorted(self._target_places, key=len, reverse=True)
+                                       if place in corpus and place not in {"tenerife", "la palma", "la gomera", "el hierro", "gran canaria"}), "")
+        return super().normalize_listing(normalized, url)
 
 
 class PisoCompartidoSource(ExternalListingSource):
@@ -1859,7 +1755,8 @@ class PisoCompartidoSource(ExternalListingSource):
 
     def is_pagination_url(self, url: str) -> bool:
         """Do not treat locale-switcher detail links ending in an ID as pages."""
-        return urlparse(url).path.startswith("/habitaciones_") and super().is_pagination_url(url)
+        path = urlparse(url).path
+        return any(path.startswith(urlparse(root).path.rstrip('/') + '/') for root in self.discovery_urls) and super().is_pagination_url(url)
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         """Extract PisoCompartido's server-rendered detail fields independently."""
@@ -1899,13 +1796,13 @@ class PisoCompartidoSource(ExternalListingSource):
 
 
 class PisosSource(ExternalListingSource):
-    """Public Pisos.com room routes, kept independent from the other adapters."""
+    """Public Pisos room, studio and one-bedroom routes."""
 
     name = "Pisos"
     domain = "pisos.com"
-    url_tokens = ("/alquilar/habitacion-",)
-    listing_url_pattern = re.compile(r"/alquilar/habitacion-[^/?#]+/?$", re.IGNORECASE)
-    discovery_selectors = ('a[href*="/alquilar/habitacion-"]',)
+    url_tokens = ("/alquilar/habitacion-", "/alquilar/piso-", "/alquilar/estudio-", "/alquilar/apartamento-")
+    listing_url_pattern = re.compile(r"/alquilar/(?:habitacion|piso|estudio|apartamento)-[^/?#]+/?$", re.IGNORECASE)
+    discovery_selectors = ('a[href*="/alquilar/"]',)
     discovery_urls = (
         "https://www.pisos.com/alquiler/habitaciones-tenerife/",
         "https://www.pisos.com/alquiler_habitaciones/santa_cruz_de_tenerife",
@@ -1913,7 +1810,41 @@ class PisosSource(ExternalListingSource):
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)
-        data["category"] = f"pisos.com alquiler habitacion {data['category']}"
+        path = urlparse(url).path
+        label = "habitacion" if path.startswith('/alquilar/habitacion-') else "vivienda"
+        data["category"] = f"pisos.com alquiler {label} {data['category']}"
+        # Public detail fields, not card summaries or global navigation.
+        price = re.search(r'<div[^>]*class=["\'][^"\']*jsPriceValue[^"\']*["\'][^>]*>(.*?)</div>', document, re.IGNORECASE | re.DOTALL)
+        if price:
+            data['price_text'] = clean(price.group(1))
+        facts = re.search(r'''<span\b[^>]*\bid=["']vtmExtraVars["'][^>]*\bdata-var=(?P<quote>["'])(?P<value>.*?)(?P=quote)''', document, re.IGNORECASE | re.DOTALL)
+        if facts:
+            try:
+                metadata = json.loads(html.unescape(facts.group('value')))
+                data['bedroom_count'] = metadata.get('nHabitaciones')
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        if path.startswith('/alquilar/estudio-'):
+            data['property_type'] = 'studio'
+        elif path.startswith('/alquilar/habitacion-'):
+            data['property_type'] = 'room'
+        elif path.startswith(('/alquilar/piso-', '/alquilar/apartamento-')):
+            data['property_type'] = data.get('property_type') or 'apartment'
+        crumbs = re.findall(r'''<div[^>]*class=["'][^"']*breadcrumb__item[^"']*["'][^>]*>(.*?)</div>''', document, re.IGNORECASE | re.DOTALL)
+        locations = []
+        for crumb in crumbs:
+            anchor = re.search(r'''<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>''', crumb, re.IGNORECASE | re.DOTALL)
+            if anchor and re.search(r'/alquiler(?:-vacacional|-temporada)?_viviendas/', anchor.group(1)):
+                locations.append(clean(anchor.group(2)))
+        if locations:
+            data['province'] = data.get('province') or canonical_province(locations[0])
+            capital = next((location.removesuffix(' Capital') for location in locations if location.endswith(' Capital')), '')
+            data['city'] = data.get('city') or capital or locations[-1]
+            data['country'] = data.get('country') or 'ES'
+        if 'alquiler vacacional' in clean(' '.join(crumbs)).casefold():
+            data['rental_category'] = 'holiday'
+        elif any('/alquiler-temporada_viviendas/' in crumb for crumb in crumbs):
+            data['rental_category'] = 'temporada'
         # Pisos detail URLs carry the public municipality slug even when the
         # structured address omits it.  Treat it as source metadata, not a
         # guessed geocode.
@@ -1930,14 +1861,18 @@ class PisosSource(ExternalListingSource):
             data["area"] = municipality.title()
         return data
 
+    def is_pagination_url(self, url: str) -> bool:
+        path = urlparse(url).path
+        return any(path.startswith(urlparse(root).path.rstrip('/') + '/') for root in self.discovery_urls) and super().is_pagination_url(url)
+
 
 class ThinkSpainSource(ExternalListingSource):
-    """ThinkSpain has no room search category: the detail classifier stays strict."""
+    """Opt-in ThinkSpain long/holiday routes; never enabled from audit evidence alone."""
 
     name = "ThinkSpain"
     domain = "thinkspain.com"
-    url_tokens = ("/property-to-rent-long-term/",)
-    listing_url_pattern = re.compile(r"/property-to-rent-long-term/\d+/?$", re.IGNORECASE)
+    url_tokens = ("/property-to-rent-long-term/", "/holiday-rentals/")
+    listing_url_pattern = re.compile(r"/(?:property-to-rent-long-term|holiday-rentals)/\d+/?$", re.IGNORECASE)
     discovery_selectors = ('a[href*="/property-to-rent-long-term/"]',)
     discovery_urls = ("https://www.thinkspain.com/property-to-rent-long-term/tenerife",)
 
@@ -1945,8 +1880,9 @@ class ThinkSpainSource(ExternalListingSource):
         data = super().parse_listing(document, url)
         # Do not confer room status through a category: normalize_listing's
         # strict text classifier must find an explicit room phrase.
-        data["category"] = f"thinkspain long term rental {data['category']}"
-        corpus = clean(f"{data.get('title', '')} {data.get('description', '')} {document}").casefold()
+        data["rental_category"] = "holiday" if '/holiday-rentals/' in urlparse(url).path else "long"
+        data["category"] = f"thinkspain rental {data['category']}"
+        corpus = clean(f"{data.get('title', '')} {data.get('description', '')} {data.get('breadcrumbs', '')}").casefold()
         municipality = next(
             (name for name in sorted(SANTA_CRUZ, key=len, reverse=True) if name not in PROVINCE_ONLY and name in corpus),
             "",
@@ -1957,18 +1893,6 @@ class ThinkSpainSource(ExternalListingSource):
             data["province"] = "Santa Cruz de Tenerife"
         return data
 
-    def normalize_listing(self, data: dict[str, Any], url: str) -> NormalizedListing | None:
-        corpus = clean(" ".join(str(data.get(key, "")) for key in ("title", "description", "category", "breadcrumbs"))).casefold()
-        explicit_room = (
-            "private room" in corpus
-            or "rooms available for rent" in corpus
-            or "room for rent" in corpus
-            or "habitación privada" in corpus
-            or "habitacion privada" in corpus
-            or "alquiler de habitación" in corpus
-            or "alquiler de habitacion" in corpus
-        )
-        return super().normalize_listing(data, url) if explicit_room else None
 
 
 class AlquilerDocenteCanariasSource(ExternalListingSource):
@@ -2101,8 +2025,8 @@ class FlatioSource(ExternalListingSource):
 
     name = "Flatio"
     domain = "flatio.com"
-    url_tokens = ("/rent/room/",)
-    listing_url_pattern = re.compile(r"^/rent/room/\d+(?:-[^/?#]+)?/?$", re.IGNORECASE)
+    url_tokens = ("/rent/room/", "/rent/apartment/")
+    listing_url_pattern = re.compile(r"^/rent/(?:room|apartment)/\d+(?:-[^/?#]+)?/?$", re.IGNORECASE)
     discovery_urls = (
         "https://www.flatio.com/cdn/export/sitemap/en/offer-listings-sitemap-1.xml",
         "https://www.flatio.com/cdn/export/sitemap/en/offer-listings-sitemap-2.xml",
@@ -2113,9 +2037,12 @@ class FlatioSource(ExternalListingSource):
     def _target_room_sitemap_url(self, url: str) -> bool:
         path = unquote(urlparse(url).path).replace("_", " ").replace("-", " ").casefold()
         if self.scope_key != "santa_cruz":
-            return "/rent/room/" in urlparse(url).path.casefold() and self.scope_key.removeprefix("province:") in path
+            # Only province-name slugs are a bounded discovery prefilter, not
+            # geographic proof. Detail admission still needs addressRegion.
+            province = canonical_province(self.scope_key.removeprefix("province:"))
+            return bool(province and province.casefold().replace(' ', '_') in url.casefold())
         return (
-            "/rent/room/" in urlparse(url).path.casefold()
+            any(token in urlparse(url).path.casefold() for token in self.url_tokens)
             and not any(place in path for place in LAS_PALMAS)
             and any(place in path for place in SANTA_CRUZ)
         )
@@ -2123,7 +2050,8 @@ class FlatioSource(ExternalListingSource):
     async def discover_listing_urls(self) -> DiscoveryResult:
         urls: set[str] = set()
         failed_pages: list[str] = []
-        for sitemap_url in self.discovery_urls:
+        selected_urls = self.discovery_urls[:self.max_discovery_pages]
+        for sitemap_url in selected_urls:
             document = await self.request(sitemap_url)
             if not document or "<urlset" not in document.casefold():
                 failed_pages.append(sitemap_url)
@@ -2137,16 +2065,17 @@ class FlatioSource(ExternalListingSource):
             )
         return DiscoveryResult(
             urls=urls,
-            complete=not failed_pages,
-            visited_pages=len(self.discovery_urls),
+            complete=not failed_pages and len(selected_urls) == len(self.discovery_urls),
+            visited_pages=len(selected_urls),
             expected_total=len(urls) if not failed_pages else None,
             failed_pages=failed_pages,
-            reached_last_page=not failed_pages,
+            reached_last_page=not failed_pages and len(selected_urls) == len(self.discovery_urls),
         )
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         room: dict[str, Any] = next(
-            (item for item in json_ld(document) if "room" in str(item.get("@type", "")).casefold()),
+            (item for item in json_ld(document) if any(kind in str(item.get("@type", "")).casefold()
+                                                     for kind in ("room", "apartment"))),
             {},
         )
         offer = public_mapping(room.get("offers"))
@@ -2157,7 +2086,7 @@ class FlatioSource(ExternalListingSource):
         image_values: list[Any] = room.get("image") or []
         if not isinstance(image_values, list):
             image_values = [image_values]
-        external_id_match = re.search(r"/rent/room/(\d+)(?:-|/|$)", url, re.IGNORECASE)
+        external_id_match = re.search(r"/rent/(?:room|apartment)/(\d+)(?:-|/|$)", url, re.IGNORECASE)
         price = offer.get("price") or price_specification.get("price")
         currency = clean(offer.get("priceCurrency") or price_specification.get("priceCurrency")).upper()
         monthly_price = price is not None and currency == "EUR" and reference_quantity.get("unitCode") == "MON"
@@ -2171,10 +2100,16 @@ class FlatioSource(ExternalListingSource):
                 # structured offer.  Keep a canonical text form for the
                 # shared price parser instead of guessing from page chrome.
                 "price_text": f"{price} €/mes" if monthly_price else "",
-                "category": "flatio alquiler habitacion monthly room rental",
+                "category": "flatio monthly residential rental",
+                "property_type": "room" if '/rent/room/' in url else "studio" if clean(room.get('accommodationCategory')).casefold() == 'studio' else "apartment",
+                # Flatio labels sleeping space as a bedroom even for public
+                # accommodationCategory=Studio. The unit category is primary.
+                "bedroom_count": 0 if clean(room.get('accommodationCategory')).casefold() == 'studio' else room.get('numberOfBedrooms'),
+                "rental_category": "long",
                 "city": clean(address.get("addressLocality")) or data["city"],
                 "municipality": clean(address.get("addressLocality")) or data.get("municipality"),
                 "province": clean(address.get("addressRegion")) or data.get("province"),
+                "country": address.get("addressCountry"),
                 "area": first_text(address, "addressSubLocality", "addressDistrict", "neighborhood", "district", "suburb", "area") or data.get("area"),
                 "address": clean(address.get("streetAddress")) or data.get("address"),
                 "latitude": geo.get("latitude") or data.get("latitude"),

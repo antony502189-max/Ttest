@@ -34,7 +34,10 @@ from ..external_sources import (
     is_in_target_province,
     is_rental,
     is_room_offer,
+    parse_price,
 )
+from ..habitaclia_source import HabitacliaSource
+from ..rental_classification import property_type, rental_price
 
 SOURCE_TYPES = (
     IdealistaSource,
@@ -45,6 +48,7 @@ SOURCE_TYPES = (
     ThinkSpainSource,
     AlquilerDocenteCanariasSource,
     FlatioSource,
+    HabitacliaSource,
 )
 
 
@@ -71,6 +75,8 @@ class DetailAudit:
     h1_count: int = 0
     embedded_json_objects: int = 0
     error: str | None = None
+    property_type: str | None = None
+    rental_mode: str | None = None
 
 
 @dataclass
@@ -82,6 +88,7 @@ class SourceAudit:
     discovery_complete: bool = False
     visited_pages: int = 0
     expected_total: int | None = None
+    discovery_roots: dict[str, dict[str, Any]] = field(default_factory=dict)
     failed_pages: int = 0
     blocked: bool = False
     fetched_details: int = 0
@@ -90,6 +97,10 @@ class SourceAudit:
     details: list[DetailAudit] = field(default_factory=list)
     page_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
+    discovered_by_mode: dict[str, int] = field(default_factory=lambda: {"long": 0, "holiday": 0, "unknown": 0})
+    classified_sample_by_mode: dict[str, int] = field(default_factory=lambda: {"long": 0, "holiday": 0})
+    accepted_by_mode: dict[str, int] = field(default_factory=lambda: {"long": 0, "holiday": 0})
+    accepted_by_property: dict[str, int] = field(default_factory=dict)
 
 
 def _safe_error(exc: BaseException) -> str:
@@ -127,6 +138,7 @@ async def audit_source(
             result.discovery_complete = discovery.complete
             result.visited_pages = discovery.visited_pages
             result.expected_total = discovery.expected_total
+            result.discovery_roots = discovery.roots
             result.failed_pages = len(discovery.failed_pages)
             result.blocked = discovery.blocked
         else:
@@ -135,6 +147,9 @@ async def audit_source(
             result.visited_pages = 1
 
         result.discovered_urls = len(urls)
+        for url in urls:
+            mode = "holiday" if "/holiday-rentals/" in url else "long" if "/property-to-rent-long-term/" in url else "unknown"
+            result.discovered_by_mode[mode] += 1
         result.page_diagnostics = [
             {
                 "method": diagnostic.get("method"),
@@ -171,10 +186,18 @@ async def audit_source(
                 detail.room_offer = is_room_offer(data)
                 detail.rental = is_rental(data)
                 detail.target_province = is_in_target_province(data)
+                detail.property_type = property_type(data, source.name)
+                amount, _, period, _ = parse_price(str(data.get("price_text", "")))
+                price = rental_price(data, source.name, amount, period)
+                if price:
+                    detail.rental_mode = price.mode
+                    result.classified_sample_by_mode[price.mode] += 1
                 normalized = source.normalize_listing(data, url)
                 if normalized is not None:
                     detail.normalized = True
                     result.normalized_details += 1
+                    result.accepted_by_mode[normalized.rental_mode] += 1
+                    result.accepted_by_property[normalized.room_type] = result.accepted_by_property.get(normalized.room_type, 0) + 1
                     detail.title = normalized.title[:160]
                     detail.city = normalized.city[:100]
                     detail.source_price_text = normalized.source_price_text[:80]
@@ -189,13 +212,13 @@ async def audit_source(
             except (httpx.HTTPError, RuntimeError, ValueError, OSError, TimeoutError) as exc:
                 detail.error = _safe_error(exc)
 
-        if result.normalized_details:
+        if result.blocked:
+            result.status = "blocked"
+        elif result.normalized_details:
             # A valid source may intentionally withhold a precise map point.
             # Keep map coverage as a diagnostic while treating its list cards
             # as healthy public catalog results.
             result.status = "healthy"
-        elif result.blocked:
-            result.status = "blocked"
         elif not result.discovered_urls:
             result.status = "empty" if result.discovery_complete else "discovery_failed"
         elif not result.fetched_details:

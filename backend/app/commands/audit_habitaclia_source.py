@@ -17,6 +17,7 @@ from urllib.parse import urljoin
 import httpx
 
 from ..habitaclia_source import HabitacliaSource
+from ..rental_classification import ROOM_TYPES
 
 
 def _diagnostics(source: HabitacliaSource) -> list[dict[str, Any]]:
@@ -63,7 +64,9 @@ def _catalog_probe(source: HabitacliaSource, document: str, base_url: str) -> di
         for value in attribute_values
         if re.search(r"(?:-i\d{8,}\.htm|(?:^|/)i\d{8,}(?:$|[?#]))", value, re.IGNORECASE)
     ]
-    routes = list(dict.fromkeys([*route_values, *attribute_routes]))
+    # Recognize the provider's current UUID routes as well as legacy IDs.
+    public_detail_routes = [value for value in attribute_values if source.is_listing_url(urljoin(base_url, value))]
+    routes = list(dict.fromkeys([*route_values, *attribute_routes, *public_detail_routes]))
     absolute_routes = [urljoin(base_url, value.replace("&amp;", "&")) for value in routes]
     recognized = [url for url in absolute_routes if source.is_listing_url(url)]
 
@@ -99,6 +102,7 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
         "candidate_urls": 0,
         "details_checked": 0,
         "accepted_rooms": 0,
+        "accepted_rentals": 0,
         "accepted_with_images": 0,
         "accepted_without_images": 0,
         "total_images": 0,
@@ -157,7 +161,9 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                 if item is None:
                     report["rejected"].append(url)
                     continue
-                report["accepted_rooms"] += 1
+                report["accepted_rentals"] += 1
+                if item.room_type in ROOM_TYPES:
+                    report["accepted_rooms"] += 1
                 photo_count = len(item.photos)
                 report["total_images"] += photo_count
                 report["accepted_with_images" if photo_count else "accepted_without_images"] += 1
@@ -169,6 +175,8 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                         "city": item.city,
                         "price_amount": item.price_amount,
                         "price_period": item.price_period,
+                        "property_type": item.room_type,
+                        "rental_mode": item.rental_mode,
                         "photo_count": photo_count,
                         "image_samples": item.photos[:3],
                     }
@@ -177,8 +185,8 @@ async def audit(*, max_pages: int, max_details: int, detail_timeout: int) -> tup
                 report["errors"].append(f"{url}: {type(exc).__name__}: {exc}")
 
         report["discovery_diagnostics"] = _diagnostics(source)
-        if not report["accepted_rooms"]:
-            report["errors"].append("No checked Habitaclia candidate normalized as a current room rental")
+        if not report["accepted_rentals"]:
+            report["errors"].append("No checked Habitaclia candidate normalized as a current allowed rental")
             return report, 5
         if not report["accepted_with_images"]:
             report["errors"].append("Accepted Habitaclia listings contained no extractable listing images")
