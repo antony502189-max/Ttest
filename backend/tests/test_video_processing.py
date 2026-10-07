@@ -102,6 +102,31 @@ def test_video_is_normalized_to_browser_mp4(monkeypatch):
     assert seen_command[seen_command.index("-threads") + 1] == "2"
 
 
+def test_video_input_accepts_exact_configured_size_boundary(monkeypatch):
+    monkeypatch.setattr(
+        video_processing,
+        "get_settings",
+        lambda: Settings(
+            max_video_upload_bytes=5,
+            max_video_duration_seconds=60,
+            max_video_dimension=1920,
+            max_video_output_bytes=1024,
+        ),
+    )
+    probes = iter([(640, 360, 10.0), (640, 360, 10.0)])
+    monkeypatch.setattr(video_processing, "_probe", lambda _path: next(probes))
+
+    def fake_run(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"ok")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(video_processing.subprocess, "run", fake_run)
+
+    prepared = video_processing.prepare_video(b"12345", "video/mp4", "boundary.mp4")
+
+    assert prepared.content == b"ok"
+
+
 def test_video_input_over_100_mib_is_rejected_before_probe(monkeypatch):
     monkeypatch.setattr(
         video_processing,
