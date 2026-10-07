@@ -28,14 +28,13 @@ from ..external_sources import (
     NormalizedListing,
     SourceBlocked,
     is_in_import_scope,
-    is_rental,
-    is_room_offer,
     parse_optional_date,
     parse_optional_datetime,
 )
 from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
 from ..models.room_details import ListingRoomDetails
+from ..rental_classification import ROOM_TYPES, property_type
 from ..repositories.listings import point
 from ..storage import get_storage
 from .catalog import touch_catalog
@@ -71,11 +70,12 @@ class SourceRunCounters(dict[str, int]):
 
 
 def completed_source_contract(counters: dict[str, int]) -> bool:
-    """Require at least one valid room that can remain in the public catalog."""
+    """Require at least one valid rental detail and a publishable outcome."""
     reached_valid_detail = all(
         counters.get(key, 0) > 0
-        for key in ("discovered_urls", "fetched_details", "accepted_rooms")
+        for key in ("discovered_urls", "fetched_details")
     )
+    reached_valid_detail = reached_valid_detail and counters.get("accepted_rentals", counters.get("accepted_rooms", 0)) > 0
     publishable = any(
         counters.get(key, 0) > 0
         for key in ("imported", "updated", "unchanged", "restored")
@@ -604,7 +604,9 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         # or INSERT; source_url is independently unique in the database.
         source = await session.scalar(
             select(SourceRecord).where(
-                SourceRecord.source_name == item.source_name, SourceRecord.source_url == item.source_url
+                SourceRecord.source_name == item.source_name,
+                func.rtrim(func.split_part(func.split_part(SourceRecord.source_url, '#', 1), '?', 1), '/')
+                == item.source_url.split('#', 1)[0].split('?', 1)[0].rstrip('/'),
             )
         )
     suppress_new_duplicate = False
@@ -758,7 +760,10 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             rental_mode=item.rental_mode,
             monthly_price=item.price_amount if item.rental_mode == "long" else None,
             nightly_price=item.price_amount if item.rental_mode == "holiday" else None,
-            weekly_price=item.price_amount if item.price_period == "week" else None,
+            weekly_price=item.weekly_price_amount,
+            # Existing canonical constraint permits 1..99 or NULL. Studio
+            # zero is retained in the source snapshot and Estudio taxonomy.
+            bedroom_count=item.bedroom_count if item.bedroom_count else None,
             minimum_stay_months=item.minimum_stay_months,
             minimum_nights=item.minimum_nights,
             deposit_amount=item.deposit_amount,
@@ -818,9 +823,10 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         listing.approximate_address = item.public_address or item.area
         listing.rental_mode = item.rental_mode
         listing.room_type = item.room_type
+        listing.bedroom_count = item.bedroom_count if item.bedroom_count else None
         listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
         listing.nightly_price = item.price_amount if item.rental_mode == "holiday" else None
-        listing.weekly_price = item.price_amount if item.price_period == "week" else None
+        listing.weekly_price = item.weekly_price_amount
         listing.minimum_stay_months = item.minimum_stay_months
         listing.minimum_nights = item.minimum_nights
         listing.deposit_amount = item.deposit_amount
@@ -1174,7 +1180,7 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
     return changed
 
 
-async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str) -> SourceRunCounters:
+async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str, *, max_details: int | None = None) -> SourceRunCounters:
     started = perf_counter()
     scope_key = getattr(source, "scope_key", "santa_cruz")
     counters = SourceRunCounters({
@@ -1195,6 +1201,11 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "filtered_wrong_location",
             "rejected_wrong_location",
             "accepted_rooms",
+            "accepted_rentals",
+            "accepted_long",
+            "accepted_holiday",
+            "accepted_studios",
+            "accepted_one_bedroom",
             "archived",
             "failed",
             "failed_details",
@@ -1247,6 +1258,10 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         if isinstance(discovery, list):
             discovery = DiscoveryResult(urls=set(discovery), complete=True, visited_pages=1, reached_last_page=True)
         urls = discovery.urls
+        if max_details is not None and len(urls) > max_details:
+            # Bootstrap sampling must never reconcile unseen offers as absent.
+            discovery.complete = False
+            discovery.failed_pages.append("bootstrap_detail_budget")
         previous_success = await session.scalar(
             select(ExternalImportRun)
             .where(
@@ -1312,6 +1327,8 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         require_no_active_transaction(session, "external detail fetch")
         async def fetch_batches():
             ordered_urls = sorted(urls)
+            if max_details is not None:
+                ordered_urls = ordered_urls[:max_details]
             for start in range(0, len(ordered_urls), 100):
                 results = await asyncio.gather(
                     *(fetch(url) for url in ordered_urls[start:start + 100]), return_exceptions=True
@@ -1321,6 +1338,8 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
 
         partial = False
         async for result in fetch_batches():
+            if isinstance(result, SourceBlocked):
+                raise result
             if isinstance(result, BaseException):
                 counters["failed_details"] += 1
                 partial = True
@@ -1346,13 +1365,13 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             counters["fetched"] += 1
             counters["fetched_details"] += 1
             parsed = source.parse_listing(document, url)
-            if not (is_room_offer(parsed) and is_rental(parsed)):
+            if property_type(parsed, source.name) is None:
                 counters["filtered_not_room"] += 1
                 counters["rejected_not_room"] += 1
                 await deactivate_rejected_source(session, source.name, url)
                 await session.commit()
                 continue
-            if not is_in_import_scope(parsed, scope_key):
+            if not (source.accepts_location(parsed) if hasattr(source, "accepts_location") else is_in_import_scope(parsed, scope_key)):
                 counters["filtered_wrong_location"] += 1
                 counters["rejected_wrong_location"] += 1
                 await deactivate_rejected_source(session, source.name, url)
@@ -1364,7 +1383,9 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 await deactivate_rejected_source(session, source.name, url)
                 await session.commit()
                 continue
-            counters["accepted_rooms"] += 1
+            counters["accepted_rentals"] += 1
+            counters[f"accepted_{item.rental_mode}"] += 1
+            counters["accepted_rooms" if item.room_type in ROOM_TYPES else "accepted_studios" if item.room_type == "Estudio" else "accepted_one_bedroom"] += 1
             outcome = await upsert(session, item, scope_key=scope_key)
             counters[outcome] += 1
             if outcome == "imported":
@@ -1378,7 +1399,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
         else:
             run.result = "partial"
             if not completed_contract:
-                run.last_error = "No valid room detail completed the external import contract"
+                run.last_error = "No valid rental detail completed the external import contract"
     except SourceBlocked as exc:
         run.result = "blocked"
         run.last_error = str(exc)

@@ -24,6 +24,7 @@ from .external_sources import (
     SourceBlocked,
     clean,
 )
+from .rental_classification import property_type
 
 _HREF = re.compile(r"""href=["']([^"']+)["']""", re.IGNORECASE)
 _LEGACY_LISTING_VALUE = re.compile(
@@ -262,7 +263,7 @@ class HabitacliaSource(ExternalListingSource):
         # is outside this marketplace's target whole-unit scope.
         if _MULTI_BEDROOM.search(corpus):
             return None
-        if _STUDIO_HOME.search(corpus):
+        if re.search(r"\b(?:estudio|studio)\b", corpus):
             return "Estudio"
         if _SINGLE_BEDROOM.search(corpus):
             return "Apartamento de 1 dormitorio"
@@ -439,28 +440,11 @@ class HabitacliaSource(ExternalListingSource):
         return data
 
     def normalize_listing(self, data: dict[str, object], url: str) -> NormalizedListing | None:
-        corpus = clean(
-            " ".join(
-                str(data.get(key, ""))
-                for key in ("title", "description", "category", "breadcrumbs")
-            )
-        ).casefold()
-        target_type = self._target_unit_type(corpus)
+        target_type = property_type(data, self.name)
         if target_type is None:
             return None
 
-        # The shared external-source normalizer predates whole-unit support and
-        # intentionally rejects ``estudio`` plus non-room homes. Feed it a
-        # classification-only proxy identity so its existing rental, price,
-        # province, city and coordinate checks can still be reused. Restore the
-        # real public identity immediately afterwards.
-        normalized_data = dict(data)
-        if target_type in {"Estudio", "Apartamento de 1 dormitorio"}:
-            normalized_data["title"] = "Habitación en alquiler"
-            normalized_data["category"] = "alquiler habitación"
-            normalized_data["breadcrumbs"] = ""
-
-        item = super().normalize_listing(normalized_data, url)
+        item = super().normalize_listing(data, url)
         if item is None:
             return None
 

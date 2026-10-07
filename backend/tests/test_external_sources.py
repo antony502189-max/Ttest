@@ -404,10 +404,10 @@ def test_flatio_accepts_only_in_stock_target_room_from_public_structured_data():
     assert source.normalize_listing(parsed, url) is None
 
 
-def test_flatio_sitemap_filter_rejects_whole_homes_and_outside_province_urls():
+def test_flatio_sitemap_filter_accepts_apartments_but_rejects_outside_province_urls():
     source = FlatioSource()
     assert source._target_room_sitemap_url("https://www.flatio.com/rent/room/119561-santa_cruz_de_tenerife")
-    assert not source._target_room_sitemap_url("https://www.flatio.com/rent/apartment/119561-santa_cruz_de_tenerife")
+    assert source._target_room_sitemap_url("https://www.flatio.com/rent/apartment/119561-santa_cruz_de_tenerife")
     assert not source._target_room_sitemap_url("https://www.flatio.com/rent/room/119561-las_palmas_de_gran_canaria")
 
 
@@ -422,11 +422,11 @@ def test_pisos_detail_url_and_public_municipality_slug_are_normalized():
     assert parsed["province"] == "Santa Cruz de Tenerife"
 
 
-def test_thinkspain_requires_an_explicit_room_phrase_not_a_one_bedroom_flat():
+def test_thinkspain_accepts_one_bedroom_flat_and_explicit_room():
     source = ThinkSpainSource()
     url = "https://www.thinkspain.com/property-to-rent-long-term/8247202"
     assert source.is_listing_url(url)
-    assert source.normalize_listing(room_offer(title="1 bedroom apartment for rent", description="Santa Cruz de Tenerife"), url) is None
+    assert source.normalize_listing(room_offer(title="1 bedroom apartment for rent", description="Santa Cruz de Tenerife"), url).room_type == "Apartamento de 1 dormitorio"
     accepted = source.normalize_listing(
         room_offer(title="Private room for rent", description="Private room for rent in Santa Cruz de Tenerife"), url
     )

@@ -55,7 +55,7 @@ def one_bedroom_whole_home_document() -> str:
     </script></head><body>
       <h1>Piso de una habitación en alquiler por temporadas en Garachico</h1>
       <div class="description">Apartamento completo de una habitación, salón, cocina y baño.</div>
-      <strong>780 €</strong>
+      <strong>780 €/mes</strong>
     </body></html>
     """
 
