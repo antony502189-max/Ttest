@@ -500,25 +500,34 @@ def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
                 return httpx.Response(200, text="Ya no disponible", request=request)
             if path.endswith("/100003/"):
                 return httpx.Response(302, headers={"location": "/alquiler-habitacion/"}, request=request)
-            return httpx.Response(200, text="HabitaciГіn individual en alquiler", request=request)
+            if path.endswith("/100expired/"):
+                return httpx.Response(200, text="Anuncio caducado", request=request)
+            if path.endswith("/100captcha/"):
+                return httpx.Response(200, text="Verify you are human CAPTCHA", request=request)
+            if path.endswith("/100shell/"):
+                return httpx.Response(200, text="<div id=app></div>", request=request)
+            return httpx.Response(200, text="<h1>Habitación individual en alquiler</h1><p>700 €/mes</p>", request=request)
 
         source.client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100404/") == "not_found"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100410/") == "removed"
-        assert await source.check_listing_state("https://www.idealista.com/inmueble/100403/") == "temporary_error"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100403/") == "blocked"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100429/") == "temporary_error"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100500/") == "temporary_error"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100timeout/") == "temporary_error"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100002/") == "removed"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/100004/") == "removed"
-        assert await source.check_listing_state("https://www.idealista.com/inmueble/100003/") == "removed"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100003/") == "unknown"
         assert await source.check_listing_state("https://www.idealista.com/inmueble/123456/") == "active"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100expired/") == "expired"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100captcha/") == "blocked"
+        assert await source.check_listing_state("https://www.idealista.com/inmueble/100shell/") == "unknown"
         await source.close()
 
     asyncio.run(verify())
 
 
-def test_detail_request_marks_410_and_catalog_redirect_as_confirmed_removals():
+def test_detail_request_marks_410_but_not_ambiguous_catalog_redirect_as_removal():
     async def verify() -> None:
         source = IdealistaSource()
         await source.client.aclose()
@@ -535,7 +544,7 @@ def test_detail_request_marks_410_and_catalog_redirect_as_confirmed_removals():
         redirected = "https://www.idealista.com/inmueble/100003/"
         assert await source.fetch_listing(gone) is None
         assert await source.fetch_listing(redirected) is None
-        assert source.removed_urls == {gone, redirected}
+        assert source.removed_urls == {gone}
         await source.close()
 
     asyncio.run(verify())

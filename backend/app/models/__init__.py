@@ -2,7 +2,20 @@ from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geography
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -189,6 +202,7 @@ class ExternalListingSource(Base):
     __table_args__ = (
         UniqueConstraint("source_name", "external_id", name="uq_external_listing_source_external_id"),
         UniqueConstraint("source_url", name="uq_external_listing_source_url"),
+        Index("ix_external_removal_source_cursor", "source_name", "id", postgresql_where=text("current_status = 'active'")),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     source_name: Mapped[str] = mapped_column(String(64), index=True)

@@ -589,6 +589,66 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
     return NormalizedListing(**value)
 
 
+async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing, item: NormalizedListing) -> None:
+    """Apply existing primary metadata without network I/O or a transaction commit."""
+    now = datetime.now(UTC)
+    room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
+    coordinates = public_location(item)
+    room_details = await session.get(ListingRoomDetails, listing.id)
+    if room_details is None and room_capacity is not None:
+        room_details = ListingRoomDetails(listing_id=listing.id)
+        session.add(room_details)
+    if room_details is not None:
+        room_details.room_capacity_v2 = room_capacity
+    listing.title = item.title
+    listing.description = item.description
+    listing.home_description = item.description
+    listing.city = item.city
+    listing.area = item.area
+    listing.approximate_address = item.public_address or item.area
+    listing.rental_mode = item.rental_mode
+    listing.room_type = item.room_type
+    listing.bedroom_count = item.bedroom_count if item.bedroom_count else None
+    listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
+    listing.nightly_price = item.price_amount if item.rental_mode == "holiday" else None
+    listing.weekly_price = item.weekly_price_amount
+    listing.minimum_stay_months = item.minimum_stay_months
+    listing.minimum_nights = item.minimum_nights
+    listing.deposit_amount = item.deposit_amount
+    listing.deposit_text = item.deposit_text
+    listing.bills_included = item.bills_included
+    listing.bills_text = item.bills_text
+    listing.furnished = item.furnished
+    listing.bathroom = item.bathroom
+    listing.kitchen = item.kitchen
+    listing.room_size_m2 = item.room_size_m2
+    listing.room_capacity = min(room_capacity, 2) if room_capacity is not None else None
+    listing.tenant_requirement = item.tenant_requirement
+    listing.pets_allowed = item.pets_allowed
+    listing.children_allowed = item.children_allowed
+    listing.smoking_allowed = item.smoking_allowed
+    listing.empadronamiento_allowed = item.empadronamiento_allowed
+    listing.amenities = item.amenities
+    listing.restrictions = item.restrictions
+    listing.advertiser_name = item.advertiser_name
+    listing.advertiser_type = item.advertiser_type
+    listing.available_from = item.available_from
+    if item.published_at:
+        listing.published_at = item.published_at
+    listing.external_image_urls = item.photos
+    listing.primary_source = item.source_name
+    listing.primary_source_url = item.source_url
+    listing.source_price_text = item.source_price_text
+    listing.source_price_currency = item.price_currency
+    listing.source_price_period = item.price_period
+    listing.source_price_is_from = item.price_is_from
+    listing.external_contact_phone = item.phone
+    listing.external_contact_whatsapp = item.whatsapp
+    listing.external_contact_email = item.email
+    listing.last_synced_at = now
+    listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
+
+
 async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False, scope_key: str = "santa_cruz") -> str:
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
@@ -809,58 +869,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         )
     )
     if replace_primary:
-        room_details = await session.get(ListingRoomDetails, listing.id)
-        if room_details is None and room_capacity is not None:
-            room_details = ListingRoomDetails(listing_id=listing.id)
-            session.add(room_details)
-        if room_details is not None:
-            room_details.room_capacity_v2 = room_capacity
-        listing.title = item.title
-        listing.description = item.description
-        listing.home_description = item.description
-        listing.city = item.city
-        listing.area = item.area
-        listing.approximate_address = item.public_address or item.area
-        listing.rental_mode = item.rental_mode
-        listing.room_type = item.room_type
-        listing.bedroom_count = item.bedroom_count if item.bedroom_count else None
-        listing.monthly_price = item.price_amount if item.rental_mode == "long" else None
-        listing.nightly_price = item.price_amount if item.rental_mode == "holiday" else None
-        listing.weekly_price = item.weekly_price_amount
-        listing.minimum_stay_months = item.minimum_stay_months
-        listing.minimum_nights = item.minimum_nights
-        listing.deposit_amount = item.deposit_amount
-        listing.deposit_text = item.deposit_text
-        listing.bills_included = item.bills_included
-        listing.bills_text = item.bills_text
-        listing.furnished = item.furnished
-        listing.bathroom = item.bathroom
-        listing.kitchen = item.kitchen
-        listing.room_size_m2 = item.room_size_m2
-        listing.room_capacity = min(room_capacity, 2) if room_capacity is not None else None
-        listing.tenant_requirement = item.tenant_requirement
-        listing.pets_allowed = item.pets_allowed
-        listing.children_allowed = item.children_allowed
-        listing.smoking_allowed = item.smoking_allowed
-        listing.empadronamiento_allowed = item.empadronamiento_allowed
-        listing.amenities = item.amenities
-        listing.restrictions = item.restrictions
-        listing.advertiser_name = item.advertiser_name
-        listing.advertiser_type = item.advertiser_type
-        listing.available_from = item.available_from
-        if item.published_at:
-            listing.published_at = item.published_at
-        listing.external_image_urls = item.photos
-        listing.primary_source = item.source_name
-        listing.primary_source_url = item.source_url
-        listing.source_price_text = item.source_price_text
-        listing.source_price_currency = item.price_currency
-        listing.source_price_period = item.price_period
-        listing.source_price_is_from = item.price_is_from
-        listing.external_contact_phone = item.phone
-        listing.external_contact_whatsapp = item.whatsapp
-        listing.external_contact_email = item.email
-        listing.last_synced_at = now
+        await apply_primary_source_snapshot(session, listing, item)
         if suppress_new_duplicate:
             listing.status = "closed"
             listing.closed_reason = "duplicate"
@@ -920,6 +929,7 @@ async def promote_best_active_source(
     canonical_listing_id,
     *,
     require_location: bool = False,
+    lifecycle_only: bool = False,
 ) -> bool:
     rows = (
         await session.scalars(
@@ -943,6 +953,15 @@ async def promote_best_active_source(
         candidates,
         key=lambda candidate: (public_location(candidate) is not None, completeness_score(candidate)),
     )
+    if lifecycle_only:
+        listing = await session.get(Listing, canonical_listing_id)
+        if listing is None or not listing.is_external:
+            raise ValueError("Primary promotion requires an external canonical listing")
+        await apply_primary_source_snapshot(session, listing, best)
+        if listing.closed_reason != "duplicate":
+            listing.status, listing.closed_reason = "published", None
+        await touch_catalog(session)
+        return True
     outcome = await upsert(session, best, force_primary=True)
     return outcome in {"imported", "updated", "unchanged", "restored"}
 
@@ -1030,8 +1049,9 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
         row.last_state_check_at = datetime.now(UTC)
         row.last_state_check_result = state
         if state in {"removed", "expired", "not_found"}:
-            reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
-            archived += await deactivate_source_record(session, row, reason)
+            from .external_removal import purge_confirmed_removed_source
+            outcome = await purge_confirmed_removed_source(session, row.id, state)
+            archived += outcome["canonical_listings_purged"]
         elif state == "active":
             row.last_seen_at = datetime.now(UTC)
             row.consecutive_missing_runs = 0
@@ -1043,59 +1063,15 @@ async def archive_missing(session: AsyncSession, source: ExternalListingSource |
             # fallback counter so blocked/temporary outcomes never poison
             # normal reconciliation diagnostics.
             row.consecutive_unknown_state_runs += 1
-            if row.consecutive_unknown_state_runs >= 2:
-                archived += await deactivate_source_record(session, row, "source_removed")
+
         await session.commit()
     return archived
 
 
-async def run_removal_check(session: AsyncSession, source: ExternalListingSource) -> int:
-    """Lightweight safety check; it never performs discovery or image imports."""
-    cutoff = datetime.now(UTC) - timedelta(seconds=get_settings().external_removal_check_interval_seconds)
-    candidates = (
-        await session.execute(
-            select(SourceRecord.id, SourceRecord.source_url).where(
-                SourceRecord.source_name == source.name,
-                SourceRecord.current_status.in_(("active", "missing")),
-                SourceRecord.last_checked_at < cutoff,
-            ).limit(50)
-        )
-    ).all()
-    await session.commit()
-
-    archived = 0
-    for row_id, source_url in candidates:
-        require_no_active_transaction(session, "external removal state check")
-        state = await source.check_listing_state(source_url)
-        row = await session.get(SourceRecord, row_id)
-        if not row or row.source_name != source.name or row.current_status not in {"active", "missing"}:
-            await session.commit()
-            continue
-        row.last_checked_at = datetime.now(UTC)
-        row.last_state_check_at = row.last_checked_at
-        row.last_state_check_result = state
-        if state in {"removed", "expired", "not_found"}:
-            reason = "not_found" if state == "not_found" else "deleted" if state == "removed" else state
-            archived += await deactivate_source_record(session, row, reason)
-        elif state == "active":
-            was_missing = row.current_status != "active"
-            row.current_status = "active"
-            row.last_seen_at = datetime.now(UTC)
-            row.last_success_at = datetime.now(UTC)
-            row.consecutive_missing_runs = 0
-            row.consecutive_unknown_state_runs = 0
-            row.removed_at = None
-            row.removed_reason = None
-            row.last_error = None
-            if was_missing:
-                # Reuse the stored normalized source snapshot: a lightweight
-                # removal probe must not re-fetch images merely to restore a
-                # reappearing detail page.
-                await promote_best_active_source(session, row.canonical_listing_id)
-        elif state in {"blocked", "temporary_error"}:
-            row.last_error = state
-        await session.commit()
-    return archived
+async def run_removal_check(session: AsyncSession, source: ExternalListingSource, **kwargs) -> int:
+    """Sweep active operational rows; historical soft-missing rows remain untouched."""
+    from .external_removal import reconcile_source
+    return await reconcile_source(session, source, **kwargs)
 
 
 async def archive_confirmed_not_found(session: AsyncSession, source_name: str, source_url: str) -> int:
@@ -1107,7 +1083,9 @@ async def archive_confirmed_not_found(session: AsyncSession, source_name: str, s
         return 0
     row.last_state_check_at = datetime.now(UTC)
     row.last_state_check_result = "not_found"
-    return await deactivate_source_record(session, row, "not_found")
+    from .external_removal import purge_confirmed_removed_source
+    outcome = await purge_confirmed_removed_source(session, row.id, "not_found")
+    return outcome["canonical_listings_purged"]
 
 
 async def deactivate_rejected_source(session: AsyncSession, source_name: str, source_url: str) -> None:
@@ -1360,7 +1338,9 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                     if removed_record:
                         removed_record.last_state_check_at = datetime.now(UTC)
                         removed_record.last_state_check_result = "removed"
-                        counters["archived"] += await deactivate_source_record(session, removed_record, "deleted")
+                        from .external_removal import purge_confirmed_removed_source
+                        purge_outcome = await purge_confirmed_removed_source(session, removed_record.id, "removed")
+                        counters["archived"] += purge_outcome["canonical_listings_purged"]
                 await session.commit()
                 continue
             counters["fetched"] += 1

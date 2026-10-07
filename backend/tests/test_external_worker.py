@@ -29,7 +29,7 @@ def worker_settings(**overrides):
         "external_removal_check_enabled": True,
         "external_import_interval_seconds": 7200,
         "external_import_min_healthy_sources": 1,
-        "external_removal_check_interval_seconds": 900,
+        "external_removal_check_interval_seconds": 21600,
         "external_import_run_on_start": True,
         "external_worker_stale_after_seconds": 300,
         "redis_url": "redis://test",
@@ -60,7 +60,7 @@ def test_removal_probe_does_not_overlap_a_running_full_import(monkeypatch):
         monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(redis_url=""))
         await worker.local_import_lock.acquire()
         try:
-            assert await worker.run_removal_once() == 0
+            assert await worker.run_removal_once() is None
         finally:
             worker.local_import_lock.release()
 

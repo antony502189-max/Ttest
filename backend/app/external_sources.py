@@ -939,7 +939,8 @@ class ExternalListingSource(ABC):
                     await asyncio.sleep(2**attempt)
                     continue
                 if self.is_listing_url(url) and not self.is_listing_url(str(response.url)):
-                    self.removed_urls.add(url)
+                    if any(marker in clean(response.text).casefold() for marker in self.removed_markers):
+                        self.removed_urls.add(url)
                     return None
                 response.raise_for_status()
                 return response.text
@@ -1141,24 +1142,29 @@ class ExternalListingSource(ABC):
         except httpx.HTTPError:
             return "temporary_error"
         document = response.text
-        self._record_page(source_url, document, status=response.status_code, final_url=str(response.url))
-        if "geetest" in document.casefold() or "pardon our interruption" in document.casefold():
+        if response.status_code == 403 or (response.status_code == 202 and not document.strip()) or any(
+            marker in document.casefold() for marker in ("geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human")
+        ):
             return "blocked"
         if response.status_code == 404:
             return "not_found"
         if response.status_code == 410:
             return "removed"
-        if response.status_code in {403, 429} or response.status_code >= 500:
+        if response.status_code == 429 or response.status_code >= 500:
             return "temporary_error"
         if response.status_code >= 400:
             return "unknown"
         final_url = str(response.url)
-        if final_url.rstrip("/") != source_url.rstrip("/") and not self.is_listing_url(final_url):
-            return "removed"
         corpus = clean(document).casefold()
+        if "anuncio caducado" in corpus or "listing expired" in corpus:
+            return "expired"
         if any(marker in corpus for marker in self.removed_markers):
             return "removed"
-        return "active" if self.is_listing_url(final_url) else "unknown"
+        has_detail = detail_document_has_listing_signals(document) or bool(
+            re.search(r"<h1\b[^>]*>.+?</h1>", document, re.IGNORECASE | re.DOTALL)
+            and re.search(r"\d[\d.,]*\s*€", corpus)
+        )
+        return "active" if self.is_listing_url(final_url) and has_detail else "unknown"
 
     async def fetch_listing(self, url: str) -> str | None:
         document = await self.request(url)
