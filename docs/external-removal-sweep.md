@@ -53,7 +53,7 @@ for providers (at most two concurrently):
     probe direct URLs using existing persistent client, global <= 4, provider <= 3
     for each result:
         lock/re-read canonical then source; reject native, changed URL/status,
-        or last_seen_at newer than sweep snapshot
+        changed canonical relation, or last_seen_at newer than sweep snapshot
         apply state/purge in a short transaction; commit
     advance cursor to last fetched id; repeat until empty or provider circuit opens
 log JSON summary; close clients; release only the owned lease
@@ -102,7 +102,8 @@ lifecycle reasons. Direct confirmation during ordinary import/reconciliation
 also uses the dedicated purge so it cannot strand newly removed rows outside
 the active sweep. Historical missing/closed records are not mass-deleted.
 
-Lock canonical before source, require `is_external`, then delete the confirmed
+Lock canonical before source with populate_existing refresh (never trust cached ORM
+fields), require `is_external`, then delete the confirmed
 source. If an active alternative remains, preserve canonical and, when the
 primary was removed, select the existing best snapshot by location/completeness.
 The shared metadata helper applies it without upsert, network or intermediate
@@ -179,7 +180,7 @@ favorites/FKs/audit/media queue/shared native assets, partial discovery, no DB
 transaction during HTTP, effective production Habitaclia, six-hour scheduling
 separate from full import, TTL/renewal/ownership loss and cleanup after failure.
 The 150-row fake-network run measured 150 checks, two batches, three batch SELECTs
-including the terminal empty read, maximum provider concurrency three, and 3.202
+including the terminal empty read, maximum provider concurrency three, and 3.021
 seconds on the development machine. A two-provider test saturates global four.
 These are architecture checks, not production timing estimates.
 

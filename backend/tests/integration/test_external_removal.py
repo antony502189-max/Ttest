@@ -6,7 +6,7 @@ from time import perf_counter
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import event, func, select
+from sqlalchemy import event, func, select, update
 
 from app.db.session import SessionLocal, engine
 from app.external_sources import NormalizedListing
@@ -335,3 +335,36 @@ async def test_shared_http_limit_and_isolated_adapter_failure():
         assert maximum == 4
         assert reports[0]["checked"] == 7 and reports[0]["failed"] == 1
         assert reports[1]["checked"] == 6 and reports[1]["result"] == "success"
+
+
+@pytest.mark.parametrize("changed_field", ["native", "url"])
+async def test_probe_reloads_cached_rows_before_mutation(changed_field):
+    async with SessionLocal() as session:
+        row, listing = await seed(session)
+        source_id, canonical_id = row.id, listing.id
+        await session.commit()
+
+        class ConcurrentChange(Probe):
+            async def check_listing_state(self, url):
+                assert not session.in_transaction()
+                async with SessionLocal() as writer:
+                    if changed_field == "native":
+                        await writer.execute(
+                            update(Listing).where(Listing.id == canonical_id).values(is_external=False)
+                        )
+                    else:
+                        await writer.execute(
+                            update(ExternalListingSource)
+                            .where(ExternalListingSource.id == source_id)
+                            .values(source_url="https://example.test/newer-url")
+                        )
+                    await writer.commit()
+                return "removed"
+
+        report = new_report()
+        await reconcile_source(session, ConcurrentChange(session), report=report)
+        assert report["source_rows_purged"] == report["canonical_listings_purged"] == 0
+        assert report["failed"] == (1 if changed_field == "native" else 0)
+        session.expunge_all()
+        assert await session.get(ExternalListingSource, source_id) is not None
+        assert await session.get(Listing, canonical_id) is not None

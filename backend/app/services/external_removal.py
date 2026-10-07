@@ -69,12 +69,19 @@ async def purge_confirmed_removed_source(session: AsyncSession, source_id: UUID,
     canonical_id = await session.scalar(select(SourceRecord.canonical_listing_id).where(SourceRecord.id == source_id))
     if canonical_id is None:
         return outcome
-    listing = await session.scalar(select(Listing).where(Listing.id == canonical_id).with_for_update())
+    listing = await session.scalar(
+        select(Listing).where(Listing.id == canonical_id).with_for_update().execution_options(populate_existing=True)
+    )
     if listing is None or not listing.is_external:
         logger.error("external_removal_native_relation_refused source_record_id=%s", source_id)
         raise ValueError("Confirmed removal cannot mutate a native canonical listing")
-    row = await session.scalar(select(SourceRecord).where(SourceRecord.id == source_id).with_for_update())
-    if row is None or row.current_status != "active":
+    row = await session.scalar(
+        select(SourceRecord)
+        .where(SourceRecord.id == source_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if row is None or row.current_status != "active" or row.canonical_listing_id != canonical_id:
         return outcome
     primary_removed = listing.primary_source == row.source_name and listing.primary_source_url == row.source_url
     await session.execute(delete(SourceRecord).where(SourceRecord.id == source_id))
@@ -194,11 +201,22 @@ async def reconcile_source(
             canonical_id = await session.scalar(
                 select(SourceRecord.canonical_listing_id).where(SourceRecord.id == candidate.id)
             )
-            listing = await session.scalar(select(Listing).where(Listing.id == canonical_id).with_for_update())
-            row = await session.scalar(select(SourceRecord).where(SourceRecord.id == candidate.id).with_for_update())
+            listing = await session.scalar(
+                select(Listing)
+                .where(Listing.id == canonical_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            row = await session.scalar(
+                select(SourceRecord)
+                .where(SourceRecord.id == candidate.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
             if (
                 row is None
                 or row.current_status != "active"
+                or row.canonical_listing_id != canonical_id
                 or row.source_url != candidate.source_url
                 or (row.last_seen_at is not None and row.last_seen_at > started_at)
             ):
