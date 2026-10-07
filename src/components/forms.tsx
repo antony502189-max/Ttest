@@ -1035,7 +1035,7 @@ export function VideoUploader({
         className="sr-only"
         type="file"
         aria-label="Añadir vídeo del anuncio"
-        accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.3gp,.3g2,.mpeg,.mpg,.ogv,.mts,.m2ts,.ts"
+        accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.3gp,.3g2,.mpeg,.mpg,.ogv,.mts,.m2ts,.ts,.wmv,.flv,.f4v,.asf,.vob,.mxf"
         onChange={(event) => void chooseVideo(event.target.files)}
       />
       {video ? (
