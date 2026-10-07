@@ -110,6 +110,7 @@ async def canonical_totals(session) -> dict:
     await session.commit()
     return {
         "total": sum(row[2] for row in grouped),
+        "by_mode": {mode: sum(row[2] for row in grouped if row[0] == mode) for mode in ("long", "holiday")},
         "by_mode_property": [{"mode": row[0], "property": row[1], "count": row[2]} for row in grouped],
         "by_primary_source": dict(sources),
         "by_scope_distinct_canonicals": dict(provinces),
@@ -121,6 +122,31 @@ def save_checkpoint(path: Path, state: dict) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def effective_budgets(max_pages: int, max_details: int) -> list[tuple[int, int]]:
+    return list(
+        dict.fromkeys(
+            (min(pages, max_pages), min(details, max_details))
+            for pages, details in ((1, 25), (5, 100), (max_pages, max_details))
+        )
+    )
+
+
+def inventory_objective(totals: dict, args: argparse.Namespace) -> dict:
+    modes = totals["by_mode"]
+    total_met = totals["total"] >= args.target_total
+    holiday_met = modes["holiday"] >= args.target_holiday_min
+    return {
+        "total": totals["total"],
+        "long": modes["long"],
+        "holiday": modes["holiday"],
+        "target_total": args.target_total,
+        "target_holiday_min": args.target_holiday_min,
+        "total_target_satisfied": total_met,
+        "holiday_min_satisfied": holiday_met,
+        "satisfied": total_met and holiday_met,
+    }
 
 
 async def execute(args: argparse.Namespace) -> dict:
@@ -176,12 +202,14 @@ async def execute(args: argparse.Namespace) -> dict:
             )
         if any(value.source_name not in enabled_names for _, value, _ in tasks):
             raise RuntimeError("Enabled scope references an adapter not enabled in current source configuration")
+        budgets = effective_budgets(args.max_pages, args.max_details)
         config = hashlib.sha256(
             json.dumps(
                 {
                     "tasks": [(str(row_id), asdict(value)) for row_id, value, _ in tasks],
                     "max_pages": args.max_pages,
                     "max_details": args.max_details,
+                    "effective_budgets": budgets,
                 },
                 sort_keys=True,
             ).encode()
@@ -195,16 +223,21 @@ async def execute(args: argparse.Namespace) -> dict:
         total = await canonical_totals(session)
         # Breadth first: every supported province receives a small sample
         # before productive scopes are revisited with deeper budgets.
-        budgets = ((1, 25), (5, 100), (args.max_pages, args.max_details))
         for round_index, (pages, details) in enumerate(budgets):
-            pages, details = min(pages, args.max_pages), min(details, args.max_details)
             for row_id, definition, interval in tasks:
                 key = f"{round_index}:{row_id}"
                 if key in state["completed"]:
                     continue
-                if total["total"] >= args.target or len(results) >= args.max_scopes:
+                objective = inventory_objective(total, args)
+                if objective["satisfied"] or len(results) >= args.max_scopes:
                     save_checkpoint(args.checkpoint, state)
-                    return {"dry_run": False, "stop": "target_or_scope_budget", "totals": total, "results": results}
+                    return {
+                        "dry_run": False,
+                        "stop": "inventory_target_reached" if objective["satisfied"] else "scope_budget_reached",
+                        "objective": objective,
+                        "totals": total,
+                        "results": results,
+                    }
                 source = SOURCE_TYPES[definition.source_name]()
                 source.scope_key, source.discovery_urls = definition.scope_key, definition.discovery_urls
                 source.max_discovery_pages = pages
@@ -232,7 +265,14 @@ async def execute(args: argparse.Namespace) -> dict:
                 total = await canonical_totals(session)
                 state["completed"].append(key)
                 save_checkpoint(args.checkpoint, state)
-        return {"dry_run": False, "stop": "bounded_passes_completed", "totals": total, "results": results}
+        objective = inventory_objective(total, args)
+        return {
+            "dry_run": False,
+            "stop": "inventory_target_reached" if objective["satisfied"] else "reviewed_scope_rounds_exhausted",
+            "objective": objective,
+            "totals": total,
+            "results": results,
+        }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -240,7 +280,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--worker-paused", action="store_true")
-    parser.add_argument("--target", type=int, default=2500)
+    parser.add_argument("--target-total", "--target", dest="target_total", type=int, default=2500)
+    parser.add_argument("--target-holiday-min", type=int, default=500)
     parser.add_argument("--max-pages", type=int, default=30)
     parser.add_argument("--max-details", type=int, default=500)
     parser.add_argument("--max-scopes", type=int, default=156)
@@ -249,7 +290,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--restart", action="store_true")
     args = parser.parse_args(argv)
     if not (
-        1 <= args.target <= 10000
+        1 <= args.target_total <= 10000
+        and 0 <= args.target_holiday_min <= 10000
         and 1 <= args.max_pages <= 300
         and 1 <= args.max_details <= 1000
         and 1 <= args.max_scopes <= 1404
@@ -259,8 +301,9 @@ def main(argv: list[str] | None = None) -> int:
     # A dry run samples, never fetches 500 details per province by default.
     if not args.apply:
         args.max_details = min(args.max_details, 5)
-    print(json.dumps(asyncio.run(execute(args)), ensure_ascii=False, indent=2))
-    return 0
+    report = asyncio.run(execute(args))
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report["dry_run"] or report["objective"]["satisfied"] else 2
 
 
 if __name__ == "__main__":

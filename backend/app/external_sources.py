@@ -892,7 +892,7 @@ class ExternalListingSource(ABC):
             raise SourceBlocked("public source access challenge")
 
     async def request(self, url: str) -> str | None:
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 response = await self.client.get(url)
                 self._record_page(url, response.text, status=response.status_code, final_url=str(response.url))
@@ -920,7 +920,7 @@ class ExternalListingSource(ABC):
                         rendered = await self.render_public_page(url)
                         if rendered:
                             return rendered
-                    if response.status_code == 403 and attempt == 1:
+                    if response.status_code == 403 and attempt == 2:
                         diagnostic = self.discovery_diagnostics.get(url, {})
                         self.blocked_diagnostic = {
                             "challenge_type": "http_403",
@@ -928,7 +928,7 @@ class ExternalListingSource(ABC):
                             "paths": self._save_discovery_artifacts(url, response.text),
                         }
                         raise SourceBlocked("public source denied anonymous access")
-                    if attempt == 1:
+                    if attempt == 2:
                         raise RuntimeError(f"HTTP {response.status_code}")
                     await asyncio.sleep(2**attempt)
                     continue
@@ -944,7 +944,7 @@ class ExternalListingSource(ABC):
                     rendered = await self.render_public_page(url)
                     if rendered:
                         return rendered
-                if attempt == 1:
+                if attempt == 2:
                     raise
                 await asyncio.sleep(2**attempt)
         return None
@@ -1145,7 +1145,8 @@ class ExternalListingSource(ABC):
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         ld = json_ld(document)
         state = embedded_json(document)
-        structured_items = [item for item in ld + state if isinstance(item, dict) and clean(item.get("@type")).casefold()
+        all_structured_items = [item for item in ld + state if isinstance(item, dict)]
+        structured_items = [item for item in all_structured_items if clean(item.get("@type")).casefold()
                             not in {"organization", "website", "breadcrumblist", "person"}]
         item = next(
             (
@@ -1240,7 +1241,7 @@ class ExternalListingSource(ABC):
                 ),
                 "",
             )
-        structured_category, structured_breadcrumbs = structured_classification(structured_items)
+        structured_category, structured_breadcrumbs = structured_classification(all_structured_items)
         breadcrumbs = " | ".join(
             value for value in (structured_breadcrumbs, html_breadcrumbs(document)) if value
         )[:1800]

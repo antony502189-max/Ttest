@@ -213,9 +213,12 @@ async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budg
     from app.commands import bootstrap_external_spain as command
     from app.services.external_import import SourceRunCounters
 
-    definition = ScopeDefinition("Pisos", "province:Madrid", ("https://www.pisos.com/alquiler/pisos-madrid/",))
+    definitions = [
+        ScopeDefinition("Pisos", "province:" + province, (f"https://www.pisos.com/alquiler/pisos-{province.lower()}/",))
+        for province in ("Madrid", "Barcelona")
+    ]
     async with SessionLocal() as session:
-        await provision_scopes(session, [definition], enable=True)
+        await provision_scopes(session, definitions, enable=True)
     monkeypatch.setattr(
         command,
         "get_settings",
@@ -237,6 +240,11 @@ async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budg
         return counters
 
     monkeypatch.setattr(command, "run_source", bounded_import)
+
+    async def long_only_totals(session):
+        return {"total": 2600, "by_mode": {"long": 2600, "holiday": 0}}
+
+    monkeypatch.setattr(command, "canonical_totals", long_only_totals)
     args = Namespace(
         apply=True,
         manifest=None,
@@ -244,14 +252,16 @@ async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budg
         max_pages=1,
         max_details=2,
         max_scopes=1,
-        target=2500,
+        target_total=2500,
+        target_holiday_min=500,
         checkpoint=tmp_path / "checkpoint.json",
         restart=False,
     )
     first = await command.execute(args)
-    assert first["stop"] == "target_or_scope_budget" and len(attempts) == 1
+    assert first["stop"] == "scope_budget_reached" and len(attempts) == 1
+    assert first["objective"]["total_target_satisfied"] and not first["objective"]["holiday_min_satisfied"]
     args.max_scopes = 3
     resumed = await command.execute(args)
-    assert resumed["stop"] == "bounded_passes_completed"
-    assert attempts == [(1, 2), (1, 2), (1, 2)]
+    assert resumed["stop"] == "reviewed_scope_rounds_exhausted" and not resumed["objective"]["satisfied"]
+    assert attempts == [(1, 2), (1, 2)]
     assert (await command.execute(args))["results"] == []

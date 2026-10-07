@@ -1198,6 +1198,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "restored",
             "filtered_not_room",
             "rejected_not_room",
+            "rejected_unsupported_property_type",
             "filtered_wrong_location",
             "rejected_wrong_location",
             "accepted_rooms",
@@ -1366,6 +1367,8 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             counters["fetched_details"] += 1
             parsed = source.parse_listing(document, url)
             if property_type(parsed, source.name) is None:
+                counters["rejected_unsupported_property_type"] += 1
+                # Retain historical observability consumers during transition.
                 counters["filtered_not_room"] += 1
                 counters["rejected_not_room"] += 1
                 await deactivate_rejected_source(session, source.name, url)

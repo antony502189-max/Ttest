@@ -44,6 +44,11 @@ PUBLISHED_GEOGRAPHY = {
     "PisoCompartido": "https://www.pisocompartido.com/zonas/",
     "Pisos": "https://www.pisos.com/alquiler_viviendas/",
 }
+# Published province catalogue audited with two pages and three real details
+# on 2026-10-07. Provisioning revalidates it live; no slug-based expansion.
+AUDITED_HOLIDAY_ROUTES = {
+    ("Pisos", "province:Málaga"): ("https://www.pisos.com/alquiler-vacacional/pisos-malaga/",),
+}
 
 
 @dataclass(frozen=True)
@@ -87,7 +92,12 @@ def published_scope_definitions(source_name: str, document: str, index_url: str)
         match = re.fullmatch(pattern, urlparse(url).path)
         province = canonical_province(match.group(1)) if match else None
         if province:
-            definition = validate_scope(ScopeDefinition(source_name, "province:" + province, (url,)))
+            scope_key = "province:" + province
+            definition = validate_scope(
+                ScopeDefinition(
+                    source_name, scope_key, (url, *AUDITED_HOLIDAY_ROUTES.get((source_name, scope_key), ()))
+                )
+            )
             definitions[definition.scope_key] = definition
     return sorted(definitions.values(), key=lambda value: value.scope_key)
 

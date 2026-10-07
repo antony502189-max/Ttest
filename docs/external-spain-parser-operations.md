@@ -83,7 +83,7 @@ deactivates an existing row. `--enable` requires `--apply`.
 ```bash
 EXTERNAL_IMPORT_ENABLED=1 EXTERNAL_IMPORT_NATIONWIDE_ENABLED=1 \
 python -m app.commands.bootstrap_external_spain --apply \
-  --target 2500 --max-pages 30 --max-details 500 --max-scopes 156 \
+  --target-total 2500 --target-holiday-min 500 --max-pages 30 --max-details 500 --max-scopes 156 \
   --checkpoint ../output/spain-bootstrap-checkpoint.json
 ```
 
@@ -97,30 +97,45 @@ for a failed Redis connection. Keep the normal worker health threshold unchanged
 
 Three breadth-first rounds visit the enabled scopes in province/source order:
 1 page/25 details, 5 pages/100 details, then configured page/detail limits.
-Every round is capped by the configured maximums. Each scope reuses `run_source`;
+Every round is capped by the configured maximums; identical effective rounds
+are removed before execution. For 1 page/2 details the sequence is [(1,2)],
+for 3/50 it is [(1,25),(3,50)], and for 30/500 it is [(1,25),(5,100),(30,500)].
+Each scope reuses `run_source`;
 detail requests retain the configured semaphore (default three), batches of
 100 and discovery lookups of 250. No second ingestion pipeline exists. HTTP
-requests have bounded timeouts and two attempts; page budgets, repeated URL-set
+requests retain the baseline bounded three attempts; page budgets, repeated URL-set
 detection and provider challenges prevent infinite traversal. Apply does not
 use the dry-run `--source-timeout`: its bounds are page/detail/request budgets.
 
-The target counts all active canonical external listings, including legacy
-inventory. It is checked between scope runs and can overshoot by one scope.
-It is not a holiday quota or a guarantee of nationwide distribution. If the
-target is already reached, no new scope is imported. Inspect coverage and modes
-before declaring success; increase the target or use a controlled next phase
-only when warranted by quality and real accessible inventory.
+The objective counts all active canonical external listings, including legacy
+inventory, and requires BOTH total >= `--target-total` (default 2500) AND
+holiday >= `--target-holiday-min` (default 500). `--target` remains an alias for
+the total target. Explicit `--target-holiday-min 0` opts out of the holiday
+minimum for an intentionally total-only operation, never by default.
+The check runs between scopes and can overshoot by one scope. It does not
+guarantee geographic distribution or permit relabelling monthly offers.
+2600 long / 0 holiday cannot satisfy the default objective: reviewed scopes
+continue until objective reached or another bounded stop. The final `objective`
+reports total/long/holiday, both configured targets, individual satisfaction
+and combined `satisfied`. Stop reasons distinguish `inventory_target_reached`,
+`scope_budget_reached`, and `reviewed_scope_rounds_exhausted`. An apply invocation
+with an unmet objective exits **2**, even after exhausting all reviewed rounds;
+dry runs and satisfied objectives exit 0. Inspect provider results separately.
 
 Progress prints one JSON line per scope, then a totals report. `result` can be
 success/partial/blocked/failed; a completed operator process is not proof of
 healthy sources. Existing provider backoff remains active. Counters include
 discovered/fetched/accepted/rejected/created/updated/unchanged/failed and mode/
-unit counts. Legacy `accepted_rooms` remains rooms only. Duration and failed
+unit counts. Legacy `accepted_rooms` remains rooms only. Unsupported units use
+`rejected_unsupported_property_type`; legacy `filtered_not_room` /
+`rejected_not_room` remain incremented for compatibility. Duration and failed
 pages remain on `ExternalImportRun`. A detail budget marks discovery partial
 with `bootstrap_detail_budget`; it cannot archive unseen source records.
 
 Atomic checkpoint writes record completed scope/round attempts, run ID and a
-hash of scope IDs/routes plus page/detail budgets. Resume uses the same command
+hash of scope IDs/routes plus page/detail and effective round budgets. Old
+checkpoints from before round deduplication require a new checkpoint or an
+explicit `--restart`; changed configurations fail closed. Resume uses the same command
 and persistent checkpoint. A crash can replay the current scope, safely through
 existing idempotent upsert. Configuration changes require a fresh checkpoint
 or deliberate `--restart`. Completed failed/blocked attempts remain recorded;
@@ -235,7 +250,7 @@ For a one-off explicit bootstrap, pass the flag to that container only:
 ```bash
 "${compose[@]}" run --rm --no-deps -e EXTERNAL_IMPORT_NATIONWIDE_ENABLED=1 \
   -v /srv/112233.es/shared/parser:/operator external-listings-worker \
-  python -m app.commands.bootstrap_external_spain --apply --target 2500 \
+  python -m app.commands.bootstrap_external_spain --apply --target-total 2500 --target-holiday-min 500 \
   --max-pages 1 --max-details 25 --max-scopes 4 \
   --checkpoint /operator/pilot-checkpoint.json
 ```

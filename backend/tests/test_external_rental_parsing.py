@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import re
+from argparse import Namespace
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from app.commands.bootstrap_external_spain import import_lease
+from app.commands.bootstrap_external_spain import effective_budgets, import_lease, inventory_objective
 from app.external_sources import (
     ExternalListingSource,
     FlatioSource,
@@ -324,3 +325,102 @@ def test_provider_alias_redirect_must_keep_the_same_province(redirect, accepted)
             await source.close()
 
     asyncio.run(run())
+
+
+def test_jsonld_breadcrumbs_survive_while_company_address_cannot_be_the_listing():
+    source = PisosSource()
+    document = """<script type="application/ld+json">[
+      {"@type":"Organization","name":"Company","description":"Company profile",
+       "address":{"addressLocality":"Brno","addressRegion":"Brno","addressCountry":"CZ"}},
+      {"@type":"Apartment","name":"Piso de 1 dormitorio","description":"Oferta disponible",
+       "propertyType":"apartment","numberOfBedrooms":1,
+       "address":{"addressLocality":"Madrid","addressRegion":"Madrid","addressCountry":"ES"}},
+      {"@type":"BreadcrumbList","category":"alquiler vacacional","itemListElement":[
+        {"@type":"ListItem","position":1,"name":"Madrid"},
+        {"@type":"ListItem","position":2,"name":"Alquiler vacacional"}]}]
+      </script><p>80 €/noche</p>"""
+    try:
+        data = ExternalListingSource.parse_listing(
+            source, document, "https://www.pisos.com/alquilar/piso-madrid-123456/"
+        )
+        assert data["title"] == "Piso de 1 dormitorio"
+        assert (data["city"], data["province"], data["country"]) == ("Madrid", "Madrid", "ES")
+        assert "Madrid" in data["breadcrumbs"] and "Alquiler vacacional" in data["breadcrumbs"]
+        assert "alquiler vacacional" in data["category"]
+    finally:
+        asyncio.run(source.close())
+
+
+@pytest.mark.parametrize(
+    "pages,details,expected", [(1, 2, [(1, 2)]), (3, 50, [(1, 25), (3, 50)]), (30, 500, [(1, 25), (5, 100), (30, 500)])]
+)
+def test_bootstrap_effective_rounds_are_unique(pages, details, expected):
+    assert effective_budgets(pages, details) == expected
+
+
+@pytest.mark.parametrize("total,holiday,satisfied", [(2600, 0, False), (2600, 500, True), (2200, 600, False)])
+def test_bootstrap_inventory_requires_both_total_and_holiday(total, holiday, satisfied):
+    report = inventory_objective(
+        {"total": total, "by_mode": {"long": total - holiday, "holiday": holiday}},
+        Namespace(target_total=2500, target_holiday_min=500),
+    )
+    assert report["satisfied"] is satisfied
+    assert report["long"] == total - holiday and report["holiday_min_satisfied"] == (holiday >= 500)
+
+
+@pytest.mark.parametrize("satisfied,exit_code", [(True, 0), (False, 2)])
+def test_bootstrap_cli_target_alias_and_unmet_objective_exit(monkeypatch, satisfied, exit_code):
+    from app.commands import bootstrap_external_spain as command
+
+    async def execute(args):
+        assert args.target_total == 2600 and args.target_holiday_min == 500
+        return {"dry_run": False, "objective": {"satisfied": satisfied}}
+
+    monkeypatch.setattr(command, "execute", execute)
+    assert command.main(["--apply", "--target", "2600"]) == exit_code
+
+
+@pytest.mark.parametrize("recover", [True, False])
+def test_generic_request_preserves_three_bounded_attempts(monkeypatch, recover):
+    import httpx
+
+    async def no_sleep(seconds):
+        pass
+
+    monkeypatch.setattr("app.external_sources.asyncio.sleep", no_sleep)
+
+    async def run():
+        source = PisosSource()
+        await source.client.aclose()
+        attempts = []
+
+        def handler(request):
+            attempts.append(request.url)
+            return httpx.Response(200 if recover and len(attempts) == 3 else 500, text="catalog", request=request)
+
+        source.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            if recover:
+                assert await source.request("https://www.pisos.com/alquiler/pisos-madrid/") == "catalog"
+            else:
+                with pytest.raises(RuntimeError, match="HTTP 500"):
+                    await source.request("https://www.pisos.com/alquiler/pisos-madrid/")
+            assert len(attempts) == 3
+        finally:
+            await source.close()
+
+    asyncio.run(run())
+
+
+def test_only_audited_malaga_holiday_route_is_added_to_province_provisioning():
+    definitions = published_scope_definitions(
+        "Pisos",
+        '<a href="/alquiler/pisos-malaga/">Málaga</a><a href="/alquiler/pisos-madrid/">Madrid</a>',
+        PUBLISHED_GEOGRAPHY["Pisos"],
+    )
+    routes = {value.scope_key: value.discovery_urls for value in definitions}
+    assert routes["province:Málaga"] == (
+        "https://www.pisos.com/alquiler/pisos-malaga/",
+        "https://www.pisos.com/alquiler-vacacional/pisos-malaga/",
+    )
+    assert routes["province:Madrid"] == ("https://www.pisos.com/alquiler/pisos-madrid/",)
