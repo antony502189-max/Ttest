@@ -8,12 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from app.commands.bootstrap_external_spain import effective_budgets, import_lease, inventory_objective
+from app.commands.bootstrap_external_spain import effective_budgets, import_lease, inventory_objective, inventory_stop
 from app.external_sources import (
     ExternalListingSource,
     FlatioSource,
     PisoCompartidoSource,
     PisosSource,
+    SourceBlocked,
     is_in_import_scope,
 )
 from app.rental_classification import ONE_BEDROOM, ROOM, SHARED_ROOM, STUDIO, property_type, rental_price
@@ -330,8 +331,9 @@ def test_provider_alias_redirect_must_keep_the_same_province(redirect, accepted)
 def test_jsonld_breadcrumbs_survive_while_company_address_cannot_be_the_listing():
     source = PisosSource()
     document = """<script type="application/ld+json">[
-      {"@type":"Organization","name":"Company","description":"Company profile",
+      {"@type":"Organization","category":"Venta de inmuebles","name":"Company","description":"Company profile",
        "address":{"addressLocality":"Brno","addressRegion":"Brno","addressCountry":"CZ"}},
+      {"@type":["WebSite","Thing"],"operation":"venta"}, {"@type":"Person","offerType":"venta"},
       {"@type":"Apartment","name":"Piso de 1 dormitorio","description":"Oferta disponible",
        "propertyType":"apartment","numberOfBedrooms":1,
        "address":{"addressLocality":"Madrid","addressRegion":"Madrid","addressCountry":"ES"}},
@@ -347,6 +349,10 @@ def test_jsonld_breadcrumbs_survive_while_company_address_cannot_be_the_listing(
         assert (data["city"], data["province"], data["country"]) == ("Madrid", "Madrid", "ES")
         assert "Madrid" in data["breadcrumbs"] and "Alquiler vacacional" in data["breadcrumbs"]
         assert "alquiler vacacional" in data["category"]
+        assert "venta" not in data["category"].lower()
+        assert property_type(data, source.name) == ONE_BEDROOM
+        price = rental_price(data, source.name, 80, "night")
+        assert price is not None and price.mode == "holiday"
     finally:
         asyncio.run(source.close())
 
@@ -358,13 +364,18 @@ def test_bootstrap_effective_rounds_are_unique(pages, details, expected):
     assert effective_budgets(pages, details) == expected
 
 
-@pytest.mark.parametrize("total,holiday,satisfied", [(2600, 0, False), (2600, 500, True), (2200, 600, False)])
-def test_bootstrap_inventory_requires_both_total_and_holiday(total, holiday, satisfied):
+@pytest.mark.parametrize("total,holiday,stop", [
+    (2499, 600, None), (2500, 500, "inventory_target_reached"), (2600, 100, None),
+    (3000, 100, "max_total_reached_holiday_unmet"), (3100, 600, "inventory_target_reached"),
+])
+def test_bootstrap_inventory_requires_both_total_and_holiday(total, holiday, stop):
     report = inventory_objective(
         {"total": total, "by_mode": {"long": total - holiday, "holiday": holiday}},
-        Namespace(target_total=2500, target_holiday_min=500),
+        Namespace(target_total=2500, target_holiday_min=500, max_total=3000),
     )
-    assert report["satisfied"] is satisfied
+    assert inventory_stop(report) == stop
+    assert report["satisfied"] is (stop == "inventory_target_reached")
+    assert report["max_total_reached"] is (total >= 3000)
     assert report["long"] == total - holiday and report["holiday_min_satisfied"] == (holiday >= 500)
 
 
@@ -378,6 +389,12 @@ def test_bootstrap_cli_target_alias_and_unmet_objective_exit(monkeypatch, satisf
 
     monkeypatch.setattr(command, "execute", execute)
     assert command.main(["--apply", "--target", "2600"]) == exit_code
+
+
+def test_bootstrap_rejects_target_above_hard_ceiling():
+    from app.commands import bootstrap_external_spain as command
+    with pytest.raises(SystemExit, match="2"):
+        command.main(["--target-total", "3001", "--max-total", "3000"])
 
 
 @pytest.mark.parametrize("recover", [True, False])
@@ -424,3 +441,77 @@ def test_only_audited_malaga_holiday_route_is_added_to_province_provisioning():
         "https://www.pisos.com/alquiler-vacacional/pisos-malaga/",
     )
     assert routes["province:Madrid"] == ("https://www.pisos.com/alquiler/pisos-madrid/",)
+
+
+@pytest.mark.parametrize("valid", [(True, True), (True, False), (False, True), (False, False)])
+def test_multiroute_provisioning_retains_only_independently_validated_routes(monkeypatch, tmp_path, valid):
+    import json
+
+    from app.commands import provision_external_spain as command
+    routes = ("https://www.pisos.com/alquiler/pisos-malaga/", "https://www.pisos.com/alquiler-vacacional/pisos-malaga/")
+    manifest = tmp_path / "input.json"
+    manifest.write_text(json.dumps([{"source_name": "Pisos", "scope_key": "province:Málaga", "discovery_urls": routes}]), encoding="utf-8")
+    output = tmp_path / "validated.json"
+
+    async def request(self, url):
+        return '<a href="/alquilar/piso-malaga-100001/">offer</a>' if valid[routes.index(url)] else None
+
+    monkeypatch.setattr(PisosSource, "request", request)
+    report = asyncio.run(command.execute(Namespace(manifest=manifest, output=output, apply=False, enable=False)))
+    retained = [url for url, accepted in zip(routes, valid) if accepted]
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert [row["discovery_urls"] for row in saved] == ([retained] if retained else [])
+    assert report["validated_scopes"] == bool(retained)
+    assert [entry["validated"] for entry in report["evidence"]] == list(valid)
+    assert [entry["url"] for entry in report["failures"]] == [url for url, accepted in zip(routes, valid) if not accepted]
+
+
+@pytest.mark.parametrize("second,complete,count", [
+    ("short", False, 3), ("full", True, 4), ("fail", False, 2),
+    ("repeat", False, 4), ("blocked", False, 2), ("duplicate", True, 3),
+])
+def test_multiroot_discovery_checks_each_count_and_unions_identity(second, complete, count):
+    async def run():
+        source = PisosSource()
+        long, holiday = "https://www.pisos.com/alquiler/pisos-malaga/", "https://www.pisos.com/alquiler-vacacional/pisos-malaga/"
+        source.discovery_urls = (long, holiday)
+        source.max_discovery_pages = 4
+
+        async def request(url):
+            if url == holiday and second in {"fail", "blocked"}:
+                raise SourceBlocked("challenge") if second == "blocked" else RuntimeError("HTTP 500")
+            ids = [1, 2] if url == long else [3] if second == "short" else [2, 3] if second == "duplicate" else [3, 4]
+            return '2 resultados' + ''.join(f'<a href="/alquilar/piso-malaga-10000{i}/">offer</a>' for i in ids) + (f'<a href="{holiday}2/">next</a>' if second == "repeat" and url != long else '')
+
+        source.request = request
+        try:
+            result = await source.discover_listing_urls()
+            assert result.complete is complete and len(result.urls) == count
+            assert result.roots[long]["seen"] == 2
+            assert result.roots[holiday]["complete"] is complete
+            assert result.blocked is (second == "blocked")
+        finally:
+            await source.close()
+    asyncio.run(run())
+
+
+def test_malaga_holiday_pilot_two_pages_visit_both_roots_before_long_pagination():
+    async def run():
+        source = PisosSource()
+        source.discovery_urls = ("https://www.pisos.com/alquiler/pisos-malaga/", "https://www.pisos.com/alquiler-vacacional/pisos-malaga/")
+        source.max_discovery_pages = 2
+        visited = []
+
+        async def request(url):
+            visited.append(url)
+            return f'<a href="/alquilar/piso-malaga-100001/">offer</a><a href="{url}2/">next</a>'
+
+        source.request = request
+        try:
+            result = await source.discover_listing_urls()
+            assert visited == list(source.discovery_urls)
+            assert all(root["visited_pages"] == 1 for root in result.roots.values())
+            assert not result.complete
+        finally:
+            await source.close()
+    asyncio.run(run())

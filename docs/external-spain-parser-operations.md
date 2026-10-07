@@ -42,7 +42,7 @@ python -m app.commands.provision_external_spain \
   --output ../output/spain-scopes.json
 python -m app.commands.bootstrap_external_spain \
   --manifest ../output/spain-scopes.json \
-  --max-pages 1 --max-details 3 --source-timeout 45
+  --max-pages 2 --max-details 3 --source-timeout 45
 ```
 
 Provisioning defaults to live validation without DB access. It extracts actual
@@ -55,12 +55,45 @@ Only successfully validated routes are saved. Nonzero exit reports failures;
 the successful subset can still be reviewed. A supplied manifest receives the
 same validation. It can contain at most 468 unique source/province scopes, each
 with 1..6 routes, using only known adapters and the 52 recognized territories.
+Multi-route scopes validate each URL independently. Failed URLs remain in both
+`evidence` (`validated: false`) and `failures`, with source/scope/URL/error;
+the command exits nonzero but saves the verified subset. Either valid Málaga
+route survives the other failing. If both fail, no scope is saved.
 
 The bootstrap dry run is a bounded public discovery/detail audit without DB
 reads or writes. Details default to at most five per scope. Its source timeout
 applies to each sampled scope. Use a small reviewed manifest for first audits.
 Raw public pages are not production import records and sample counts must not
 be extrapolated into canonical inventory.
+
+### Dedicated Málaga holiday pilot (future authorization only)
+
+Review this SMALL manifest as `../output/malaga-holiday-pilot.json`:
+
+```json
+[{"source_name":"Pisos","scope_key":"province:Málaga","discovery_urls":[
+  "https://www.pisos.com/alquiler/pisos-malaga/",
+  "https://www.pisos.com/alquiler-vacacional/pisos-malaga/"
+]}]
+```
+
+```bash
+python -m app.commands.provision_external_spain \
+  --manifest ../output/malaga-holiday-pilot.json --output ../output/malaga-holiday-validated.json
+python -m app.commands.bootstrap_external_spain \
+  --manifest ../output/malaga-holiday-validated.json \
+  --max-pages 2 --max-details 3 --source-timeout 90
+```
+
+Proceed only if validation retains BOTH routes without failures. This pilot is
+read-only, without DB access or production activation. FIFO traversal visits
+the two initial roots before any appended long pagination; one page is
+insufficient. Require `discovery_roots` to show `visited_pages >= 1` for BOTH
+URLs, otherwise holiday traversal failed. Two pages prove root visitation,
+not catalogue completeness or 500 accepted holiday offers. Each root checks its
+own expected count/unique URLs; the importer receives their unique union.
+Any incomplete/failed/repeated/blocked root keeps the scope partial and forbids
+missing-listing reconciliation.
 
 ```bash
 # Creates disabled rows. Rerun preserves an existing row's enabled flag.
@@ -83,7 +116,7 @@ deactivates an existing row. `--enable` requires `--apply`.
 ```bash
 EXTERNAL_IMPORT_ENABLED=1 EXTERNAL_IMPORT_NATIONWIDE_ENABLED=1 \
 python -m app.commands.bootstrap_external_spain --apply \
-  --target-total 2500 --target-holiday-min 500 --max-pages 30 --max-details 500 --max-scopes 156 \
+  --target-total 2500 --target-holiday-min 500 --max-total 3000 --max-pages 30 --max-details 500 --max-scopes 156 \
   --checkpoint ../output/spain-bootstrap-checkpoint.json
 ```
 
@@ -118,9 +151,16 @@ guarantee geographic distribution or permit relabelling monthly offers.
 continue until objective reached or another bounded stop. The final `objective`
 reports total/long/holiday, both configured targets, individual satisfaction
 and combined `satisfied`. Stop reasons distinguish `inventory_target_reached`,
-`scope_budget_reached`, and `reviewed_scope_rounds_exhausted`. An apply invocation
+`max_total_reached_holiday_unmet`, `scope_budget_reached`, and `reviewed_scope_rounds_exhausted`. An apply invocation
 with an unmet objective exits **2**, even after exhausting all reviewed rounds;
 dry runs and satisfied objectives exit 0. Inspect provider results separately.
+`--max-total` defaults to 3000; require 1 <= target-total <= max-total <= 10000.
+Success wins first; otherwise total >= max-total stops with the explicit unmet
+holiday reason and exit 2. Each import's detail budget is capped by remaining
+capacity (`max-total - current total`), preventing this bootstrap from crossing
+the ceiling in one scope. The Redis lease excludes the normal importer worker;
+unrelated writers/pre-existing inventory are outside this command's ceiling.
+The objective also reports `max_total` and `max_total_reached`.
 
 Progress prints one JSON line per scope, then a totals report. `result` can be
 success/partial/blocked/failed; a completed operator process is not proof of
@@ -133,8 +173,8 @@ pages remain on `ExternalImportRun`. A detail budget marks discovery partial
 with `bootstrap_detail_budget`; it cannot archive unseen source records.
 
 Atomic checkpoint writes record completed scope/round attempts, run ID and a
-hash of scope IDs/routes plus page/detail and effective round budgets. Old
-checkpoints from before round deduplication require a new checkpoint or an
+hash of scope IDs/routes plus page/detail, effective round budgets and max-total. Old
+checkpoints without the max-total/unique-round contract require a new checkpoint or an
 explicit `--restart`; changed configurations fail closed. Resume uses the same command
 and persistent checkpoint. A crash can replay the current scope, safely through
 existing idempotent upsert. Configuration changes require a fresh checkpoint
@@ -246,11 +286,14 @@ using `--apply --enable`. Set no retired source active merely to fill a quota.
 The baseline production Compose does **not** forward
 `EXTERNAL_IMPORT_NATIONWIDE_ENABLED`. Setting production.env alone is insufficient.
 For a one-off explicit bootstrap, pass the flag to that container only:
+Perform the dedicated read-only Málaga holiday pilot above before this bounded
+inventory import. An apply breadth-first first round uses one page and cannot
+by itself validate both holiday/long roots.
 
 ```bash
 "${compose[@]}" run --rm --no-deps -e EXTERNAL_IMPORT_NATIONWIDE_ENABLED=1 \
   -v /srv/112233.es/shared/parser:/operator external-listings-worker \
-  python -m app.commands.bootstrap_external_spain --apply --target-total 2500 --target-holiday-min 500 \
+  python -m app.commands.bootstrap_external_spain --apply --target-total 2500 --target-holiday-min 500 --max-total 3000 \
   --max-pages 1 --max-details 25 --max-scopes 4 \
   --checkpoint /operator/pilot-checkpoint.json
 ```

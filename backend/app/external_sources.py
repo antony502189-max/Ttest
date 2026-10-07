@@ -42,6 +42,7 @@ class DiscoveryResult:
     failed_pages: list[str] = field(default_factory=list)
     reached_last_page: bool = False
     blocked: bool = False
+    roots: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def __iter__(self):
         return iter(self.urls)
@@ -556,12 +557,17 @@ def structured_classification(structured_items: list[dict[str, Any]]) -> tuple[s
         "typology",
     )
     for item in structured_items:
-        for key in category_keys:
-            add(categories, item.get(key))
-        item_type = clean(item.get("@type")).casefold()
-        if item_type == "breadcrumblist":
+        raw_types = item.get("@type", [])
+        item_types = {clean(value).casefold() for value in (raw_types if isinstance(raw_types, list) else [raw_types])}
+        if item_types & {"organization", "website", "person"}:
+            continue
+        if "breadcrumblist" in item_types:
+            add(categories, item.get("category"))
             for element in item.get("itemListElement", []):
                 add(breadcrumbs, element)
+            continue
+        for key in category_keys:
+            add(categories, item.get(key))
 
     return " | ".join(categories)[:1200], " | ".join(breadcrumbs)[:1800]
 
@@ -1040,31 +1046,39 @@ class ExternalListingSource(ABC):
 
     async def discover_listing_urls(self) -> DiscoveryResult:
         seen: set[str] = set()
-        visited: set[str] = set()
-        queue = list(self.discovery_urls)
+        visited: set[tuple[str, str]] = set()
+        queue = [(url, url) for url in dict.fromkeys(self.discovery_urls)]
         failed_pages: list[str] = []
-        expected_total: int | None = None
         blocked = False
-        page_signatures: set[frozenset[str]] = set()
+        roots: dict[str, dict[str, Any]] = {
+            root: {"urls": set(), "signatures": set(), "expected_total": None, "visited_pages": 0,
+                   "failed_pages": [], "budget_limited": False}
+            for _, root in queue
+        }
         while queue and len(visited) < self.max_discovery_pages:
-            page = queue.pop(0)
-            if page in visited:
+            page, root = queue.pop(0)
+            state = roots[root]
+            if (page, root) in visited:
                 continue
-            visited.add(page)
+            visited.add((page, root))
+            state["visited_pages"] += 1
             try:
                 document = await self.request(page)
             except SourceBlocked:
                 blocked = True
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 break
             except (httpx.HTTPError, RuntimeError):
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
             if not document:
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
-            if expected_total is None:
-                expected_total = self.visible_result_count(document)
+            if state["expected_total"] is None:
+                state["expected_total"] = self.visible_result_count(document)
             static_links = LINK.findall(document)
             embedded_links = embedded_link_values(document)
             has_listing_link = any(
@@ -1082,27 +1096,41 @@ class ExternalListingSource(ABC):
                     # Gallery/map variants on a card are the same public listing.
                     page_urls.add(url.split("?", 1)[0])
             signature = frozenset(page_urls)
-            if signature and signature in page_signatures and page not in self.discovery_urls:
+            if signature and signature in state["signatures"] and page != root:
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
-            page_signatures.add(signature)
+            state["signatures"].add(signature)
+            state["urls"].update(page_urls)
             seen.update(page_urls)
             for href in static_links:
                 url = urljoin(page, html.unescape(href).split("#", 1)[0])
                 if (not self.is_listing_url(url) and self.is_pagination_url(url)
-                        and url not in visited and url not in queue and len(queue) < self.max_discovery_pages):
-                    queue.append(url)
-            if not seen and not has_listing_link and re.search(
+                        and (url, root) not in visited and (url, root) not in queue):
+                    if len(queue) < self.max_discovery_pages:
+                        queue.append((url, root))
+                    else:
+                        state["budget_limited"] = True
+            if not state["urls"] and not has_listing_link and re.search(
                 r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE
             ):
                 self._save_discovery_artifacts(page, document)
+                state["failed_pages"].append(page)
                 failed_pages.append(page)
-                self._save_discovery_artifacts(page, document)
-        reached_last_page = not queue
-        complete = not blocked and not failed_pages and reached_last_page
-        if expected_total is not None and len(seen) < expected_total:
-            complete = False
-        return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked)
+        reached_last_page = not queue and not any(state["budget_limited"] for state in roots.values())
+        evidence = {}
+        for root, state in roots.items():
+            last_page = bool(state["visited_pages"]) and not state["budget_limited"] and not any(r == root for _, r in queue)
+            expected = state["expected_total"]
+            evidence[root] = {
+                "visited_pages": state["visited_pages"], "expected_total": expected,
+                "seen": len(state["urls"]), "failed_pages": state["failed_pages"], "reached_last_page": last_page,
+                "complete": last_page and not state["failed_pages"] and (expected is None or len(state["urls"]) >= expected),
+            }
+        complete = bool(evidence) and not blocked and not failed_pages and all(r["complete"] for r in evidence.values())
+        # Totals from overlapping roots are not a unique inventory count.
+        expected_total = next(iter(evidence.values()))["expected_total"] if len(evidence) == 1 else None
+        return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked, evidence)
 
     async def check_listing_state(self, source_url: str) -> str:
         """Check a missing detail URL without treating access errors as removal."""
@@ -1146,8 +1174,13 @@ class ExternalListingSource(ABC):
         ld = json_ld(document)
         state = embedded_json(document)
         all_structured_items = [item for item in ld + state if isinstance(item, dict)]
-        structured_items = [item for item in all_structured_items if clean(item.get("@type")).casefold()
-                            not in {"organization", "website", "breadcrumblist", "person"}]
+        structured_items = []
+        for candidate in all_structured_items:
+            raw_types = candidate.get("@type", [])
+            candidate_types = raw_types if isinstance(raw_types, list) else [raw_types]
+            if not any(clean(value).casefold() in {"organization", "website", "breadcrumblist", "person"}
+                       for value in candidate_types):
+                structured_items.append(candidate)
         item = next(
             (
                 x

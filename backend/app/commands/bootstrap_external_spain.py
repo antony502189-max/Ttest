@@ -143,10 +143,20 @@ def inventory_objective(totals: dict, args: argparse.Namespace) -> dict:
         "holiday": modes["holiday"],
         "target_total": args.target_total,
         "target_holiday_min": args.target_holiday_min,
+        "max_total": args.max_total,
+        "max_total_reached": totals["total"] >= args.max_total,
         "total_target_satisfied": total_met,
         "holiday_min_satisfied": holiday_met,
         "satisfied": total_met and holiday_met,
     }
+
+
+def inventory_stop(objective: dict) -> str | None:
+    if objective["satisfied"]:
+        return "inventory_target_reached"
+    if objective["max_total_reached"]:
+        return "max_total_reached_holiday_unmet"
+    return None
 
 
 async def execute(args: argparse.Namespace) -> dict:
@@ -210,6 +220,7 @@ async def execute(args: argparse.Namespace) -> dict:
                     "max_pages": args.max_pages,
                     "max_details": args.max_details,
                     "effective_budgets": budgets,
+                    "max_total": args.max_total,
                 },
                 sort_keys=True,
             ).encode()
@@ -229,11 +240,12 @@ async def execute(args: argparse.Namespace) -> dict:
                 if key in state["completed"]:
                     continue
                 objective = inventory_objective(total, args)
-                if objective["satisfied"] or len(results) >= args.max_scopes:
+                stop = inventory_stop(objective)
+                if stop or len(results) >= args.max_scopes:
                     save_checkpoint(args.checkpoint, state)
                     return {
                         "dry_run": False,
-                        "stop": "inventory_target_reached" if objective["satisfied"] else "scope_budget_reached",
+                        "stop": stop or "scope_budget_reached",
                         "objective": objective,
                         "totals": total,
                         "results": results,
@@ -243,7 +255,9 @@ async def execute(args: argparse.Namespace) -> dict:
                 source.max_discovery_pages = pages
                 # Existing importer validates discovery and provider backoff.
                 try:
-                    outcome = await run_source(session, source, state["run_id"], max_details=details)
+                    outcome = await run_source(
+                        session, source, state["run_id"], max_details=min(details, args.max_total - total["total"])
+                    )
                 finally:
                     await source.close()
                 row = await session.get(ExternalImportScope, row_id)
@@ -268,7 +282,7 @@ async def execute(args: argparse.Namespace) -> dict:
         objective = inventory_objective(total, args)
         return {
             "dry_run": False,
-            "stop": "inventory_target_reached" if objective["satisfied"] else "reviewed_scope_rounds_exhausted",
+            "stop": inventory_stop(objective) or "reviewed_scope_rounds_exhausted",
             "objective": objective,
             "totals": total,
             "results": results,
@@ -282,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--worker-paused", action="store_true")
     parser.add_argument("--target-total", "--target", dest="target_total", type=int, default=2500)
     parser.add_argument("--target-holiday-min", type=int, default=500)
+    parser.add_argument("--max-total", type=int, default=3000)
     parser.add_argument("--max-pages", type=int, default=30)
     parser.add_argument("--max-details", type=int, default=500)
     parser.add_argument("--max-scopes", type=int, default=156)
@@ -290,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--restart", action="store_true")
     args = parser.parse_args(argv)
     if not (
-        1 <= args.target_total <= 10000
+        1 <= args.target_total <= args.max_total <= 10000
         and 0 <= args.target_holiday_min <= 10000
         and 1 <= args.max_pages <= 300
         and 1 <= args.max_details <= 1000

@@ -63,14 +63,18 @@ async def execute(args: argparse.Namespace) -> dict:
         try:
             canonical_urls: list[str] = []
             for url in definition.discovery_urls:
-                route = await validate_discovery_route(source, url)
-                evidence.append({"source": source.name, "scope": source.scope_key, **route})
+                context = {"source": source.name, "scope": source.scope_key, "url": url}
+                try:
+                    route = await validate_discovery_route(source, url)
+                except (SourceBlocked, RuntimeError, ValueError, httpx.HTTPError, OSError) as exc:
+                    failure = {**context, "validated": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
+                    failures.append(failure)
+                    evidence.append(failure)
+                    continue
+                evidence.append({**context, **route, "validated": True})
                 canonical_urls.append(route["final_url"])
-            validated.append(validate_scope(ScopeDefinition(source.name, source.scope_key, tuple(canonical_urls))))
-        except (SourceBlocked, RuntimeError, ValueError, httpx.HTTPError, OSError) as exc:
-            failures.append(
-                {"source": source.name, "scope": source.scope_key, "error": f"{type(exc).__name__}: {exc}"[:300]}
-            )
+            if canonical_urls:
+                validated.append(validate_scope(ScopeDefinition(source.name, source.scope_key, tuple(canonical_urls))))
         finally:
             await source.close()
     # Save only validated routes. The default never connects to the DB.

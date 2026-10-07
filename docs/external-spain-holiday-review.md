@@ -43,6 +43,24 @@ and return apply exit code 2. There is no inference that 2600 long / 0 holiday
 satisfies the inventory goal. `--target-holiday-min 0` is an explicit operator
 opt-out, not a default. Source health remains a separate existing contract.
 
+Final bounded navigation check: provider [homepage](https://www.pisos.com/),
+[published site map](https://www.pisos.com/mapaweb/) and the existing Málaga
+holiday page were inspected. The site map exposes ordinary rental province
+links; Málaga exposes local municipality/comarca links, unit filters and
+pagination. No scalable provider-published Pisos holiday province index
+confirmed. No additional holiday route/index parser was added. Direct local
+HTTP encountered a TLS record error; the public web reader supplied these
+pages (its Málaga snapshot was two days old), so this is bounded navigation
+evidence, not a new live inventory/count validation. No guessed paths or
+search-engine routes were used, and no blocked provider was re-researched.
+
+Final corrections preserve only individually validated routes, report per-root
+completeness and keep any incomplete root from triggering archive_missing.
+The dedicated read-only pilot uses the two-root Málaga manifest and two pages.
+Apply now stops at max-total (default 3000) if holiday remains below minimum;
+success takes precedence when both targets are already satisfied. Remaining
+canonical capacity caps each detail budget; 500 holiday remains unproven.
+
 Only Pisos/PisoCompartido retain automatic scalable province provisioning.
 Pisos Málaga now has a verified holiday entry as well as long discovery; no
 additional provider gained nationwide holiday provisioning. The 500 holiday

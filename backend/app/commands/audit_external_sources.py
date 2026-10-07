@@ -88,6 +88,7 @@ class SourceAudit:
     discovery_complete: bool = False
     visited_pages: int = 0
     expected_total: int | None = None
+    discovery_roots: dict[str, dict[str, Any]] = field(default_factory=dict)
     failed_pages: int = 0
     blocked: bool = False
     fetched_details: int = 0
@@ -137,6 +138,7 @@ async def audit_source(
             result.discovery_complete = discovery.complete
             result.visited_pages = discovery.visited_pages
             result.expected_total = discovery.expected_total
+            result.discovery_roots = discovery.roots
             result.failed_pages = len(discovery.failed_pages)
             result.blocked = discovery.blocked
         else:

@@ -112,13 +112,23 @@ async def test_whole_units_reach_run_source_and_canonical_prices(monkeypatch, ro
         assert source.scope_key == "province:Madrid" and source.normalized_payload["country"] == "ES"
 
 
-async def test_bootstrap_detail_budget_remains_partial_and_does_not_archive_missing_source(monkeypatch):
+@pytest.mark.parametrize("incomplete_root", [False, True])
+async def test_bootstrap_detail_budget_remains_partial_and_does_not_archive_missing_source(monkeypatch, incomplete_root):
     monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
 
     class Source(PisosSource):
         scope_key = "province:Madrid"
+        discovery_urls = ("https://www.pisos.com/alquiler/pisos-madrid/", "https://www.pisos.com/alquiler-vacacional/pisos-madrid/")
+
+        async def request(self, url):
+            links = [item().source_url, "https://www.pisos.com/alquilar/piso-madrid-999999/"]
+            if url == self.discovery_urls[1]:
+                links = links[:1]
+            return "2 resultados" + "".join(f'<a href="{link}">offer</a>' for link in links)
 
         async def discover_listing_urls(self):
+            if incomplete_root:
+                return await super().discover_listing_urls()
             return DiscoveryResult(
                 urls={item().source_url, "https://www.pisos.com/alquilar/piso-madrid-999999/"},
                 complete=True,
@@ -144,14 +154,19 @@ async def test_bootstrap_detail_budget_remains_partial_and_does_not_archive_miss
     async with SessionLocal() as session:
         existing = item(external_id="outside-budget", source_url="https://www.pisos.com/alquilar/piso-madrid-000000/")
         await upsert(session, existing, scope_key="province:Madrid")
-        counters = await run_source(session, Source(), str(uuid4()), max_details=1)
+        async def forbidden_archive(*args):
+            pytest.fail("Partial root/detail discovery must never call archive_missing")
+        monkeypatch.setattr(external_import, "archive_missing", forbidden_archive)
+        counters = await run_source(session, Source(), str(uuid4()), max_details=None if incomplete_root else 1)
         assert counters.result == "partial"
         record = await session.scalar(
             select(ExternalListingSource).where(ExternalListingSource.external_id == "outside-budget")
         )
         assert record.current_status == "active" and record.consecutive_missing_runs == 0
         run = await session.scalar(select(ExternalImportRun))
-        assert not run.discovery_complete and "bootstrap_detail_budget" in run.discovery_failed_pages
+        assert not run.discovery_complete
+        if not incomplete_root:
+            assert "bootstrap_detail_budget" in run.discovery_failed_pages
 
 
 async def test_identical_gallery_deduplicates_same_mode_but_preserves_holiday_offer(monkeypatch):
@@ -209,7 +224,8 @@ async def test_identical_gallery_deduplicates_same_mode_but_preserves_holiday_of
         assert await session.scalar(select(func.count(ExternalListingSource.id))) == 3
 
 
-async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budgets(monkeypatch, tmp_path):
+@pytest.mark.parametrize("ceiling", [False, True])
+async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budgets(monkeypatch, tmp_path, ceiling):
     from app.commands import bootstrap_external_spain as command
     from app.services.external_import import SourceRunCounters
 
@@ -232,9 +248,14 @@ async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budg
 
     monkeypatch.setattr(command, "import_lease", lease)
     attempts = []
+    current_total = 2999 if ceiling else 2600
 
     async def bounded_import(session, source, run_id, *, max_details):
+        nonlocal current_total
         attempts.append((source.max_discovery_pages, max_details))
+        if ceiling:
+            assert max_details == 1
+            current_total += max_details
         counters = SourceRunCounters({"accepted_rentals": 1})
         counters.result = "partial"
         return counters
@@ -242,7 +263,7 @@ async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budg
     monkeypatch.setattr(command, "run_source", bounded_import)
 
     async def long_only_totals(session):
-        return {"total": 2600, "by_mode": {"long": 2600, "holiday": 0}}
+        return {"total": current_total, "by_mode": {"long": current_total, "holiday": 0}}
 
     monkeypatch.setattr(command, "canonical_totals", long_only_totals)
     args = Namespace(
@@ -254,14 +275,16 @@ async def test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budg
         max_scopes=1,
         target_total=2500,
         target_holiday_min=500,
+        max_total=3000,
         checkpoint=tmp_path / "checkpoint.json",
         restart=False,
     )
     first = await command.execute(args)
-    assert first["stop"] == "scope_budget_reached" and len(attempts) == 1
+    stop = "max_total_reached_holiday_unmet" if ceiling else "scope_budget_reached"
+    assert first["stop"] == stop and len(attempts) == 1
     assert first["objective"]["total_target_satisfied"] and not first["objective"]["holiday_min_satisfied"]
     args.max_scopes = 3
     resumed = await command.execute(args)
-    assert resumed["stop"] == "reviewed_scope_rounds_exhausted" and not resumed["objective"]["satisfied"]
-    assert attempts == [(1, 2), (1, 2)]
+    assert resumed["stop"] == (stop if ceiling else "reviewed_scope_rounds_exhausted") and not resumed["objective"]["satisfied"]
+    assert attempts == ([(1, 1)] if ceiling else [(1, 2), (1, 2)])
     assert (await command.execute(args))["results"] == []
