@@ -830,9 +830,8 @@ class ExternalListingSource(ABC):
             event_hooks={"request": [self._validate_provider_request]},
         )
         self.not_found_urls: set[str] = set()
-        # A 410 or a detail URL redirected to a non-detail page is a
-        # confirmed removal just like a 404, but keeping the reason lets the
-        # lifecycle record a useful diagnostic.
+        # A 410 or explicit removed page proves removal. A bare redirect to
+        # a catalogue does not; retaining the reason supports diagnostics.
         self.removed_urls: set[str] = set()
         self.discovery_diagnostics: dict[str, dict[str, Any]] = {}
         self.blocked_diagnostic: dict[str, Any] | None = None

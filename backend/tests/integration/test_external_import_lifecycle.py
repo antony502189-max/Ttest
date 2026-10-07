@@ -605,13 +605,24 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
         await session.commit()
         await session.refresh(listing)
         assert listing.status == "published"
-        assert listing.primary_source == "Idealista"
+        assert listing.primary_source == "Fotocasa"
+        unknown_record = await session.scalar(select(ExternalListingSource).where(
+            ExternalListingSource.source_name == "Fotocasa"))
+        assert unknown_record is not None and unknown_record.consecutive_unknown_state_runs == 2
 
-        assert await archive_missing(session, "Idealista", future_run) == 0
-        assert await archive_missing(session, "Idealista", future_run) == 1
-        await session.commit()
+        # Unknown discovery absence cannot drive promotion/purge. Supply direct
+        # authoritative evidence before exercising primary failover instead.
+        assert await archive_missing(session, MissingDetailSource("Fotocasa", "not_found"), future_run) == 0
         await session.refresh(listing)
-        assert listing.status == "closed"
+        assert listing.primary_source == "Idealista"
+        assert await session.scalar(select(ExternalListingSource).where(
+            ExternalListingSource.source_name == "Fotocasa")) is None
+
+        listing_id = listing.id
+        assert await archive_missing(session, MissingDetailSource("Idealista", "removed"), future_run) == 1
+        await session.commit()
+        session.expunge_all()
+        assert await session.get(Listing, listing_id) is None
 
         closed_catalog = await client.get("/api/v1/listings/catalog-version")
         assert closed_catalog.status_code == 200, closed_catalog.text
@@ -619,7 +630,7 @@ async def test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary
 
         hidden = await client.post("/api/v1/listings/search", json={"city": "Adeje", "limit": 20})
         assert hidden.status_code == 200, hidden.text
-        assert all(item["id"] != str(listing.id) for item in hidden.json()["items"])
+        assert all(item["id"] != str(listing_id) for item in hidden.json()["items"])
 
 
 async def test_complete_source_failure_does_not_mark_existing_external_listing_missing():
