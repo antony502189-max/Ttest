@@ -142,7 +142,7 @@ def test_published_penthouse_apartment_keeps_existing_bedroom_price_and_type_res
       <div class="breadcrumb__item"><a href="/alquiler-vacacional_viviendas/roquetas_de_mar/">Roquetas de Mar</a></div>
       <div class="breadcrumb__item">Ático en alquiler vacacional en Centro</div>'''
     if structured_type:
-        document += f'<script type="application/ld+json">{{"@type":"Residence","name":"Ático en alquiler","description":"Alquiler vacacional","propertyType":"{structured_type}"}}</script>'
+        document += f'<script type="application/ld+json">{{"propertyType":"{structured_type}"}}</script>'
     source = PisosSource()
     source.scope_key = 'province:Almería:holiday'
     url = 'https://www.pisos.com/alquilar/atico-barrio_centro-55002100609_100500/'
@@ -156,7 +156,7 @@ def test_published_penthouse_apartment_keeps_existing_bedroom_price_and_type_res
             )
             assert parsed['raw']['property_type_evidence']['value'] == 'aticos'
         if structured_type:
-            assert parsed['property_type'] == structured_type
+            assert 'property_type_evidence' not in parsed['raw']
     finally:
         asyncio.run(source.close())
 

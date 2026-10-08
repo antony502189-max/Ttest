@@ -42,6 +42,11 @@ verified against one-bedroom public details in Roquetas de Mar and Torrox;
 two-bedroom, monthly, missing-price and unknown-type examples remain excluded.
 Residential discovery and the product taxonomy are unchanged.
 
+Pisos's photo counter can count a repeated cover as a second primary-gallery
+entry. Completeness therefore also accepts all advertised, trusted primary
+entries when they yield fewer unique photos. The stored gallery stays unique;
+a genuinely missing entry still defers replacement of existing media.
+
 Do not replace a residential scope with vacation routes. Do not clear an existing
 residential checkpoint to make room for vacation discovery. Existing automatic
 scope scheduling resumes the separate vacation checkpoint across restarts;

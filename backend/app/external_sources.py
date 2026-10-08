@@ -1911,6 +1911,7 @@ class _PisosGalleryParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.div_classes: list[set[str]] = []
         self.photos: dict[str, str] = {}
+        self.published_entries = 0
 
     @staticmethod
     def image_identity(url: str) -> str | None:
@@ -1935,6 +1936,7 @@ class _PisosGalleryParser(HTMLParser):
         url = attributes.get("data-src") or attributes.get("src") or ""
         identity = self.image_identity(url)
         if identity is not None:
+            self.published_entries += 1
             self.photos.setdefault(identity, url)
 
     def handle_endtag(self, tag: str) -> None:
@@ -1989,7 +1991,7 @@ class PisosSource(ExternalListingSource):
         # An absent gallery or fewer photos than explicitly advertised is a
         # partial response, not evidence that existing photos were removed.
         data["photos_complete"] = bool(data["images"]) and (
-            len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS)
+            len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS) or gallery.published_entries >= expected
             if expected is not None else bool(gallery.photos) or len(data["images"]) != 1
         )
         path = urlparse(url).path
@@ -2039,7 +2041,13 @@ class PisosSource(ExternalListingSource):
                 r'''<span\b[^>]*\bid=["']gaCusVar["'][^>]*\bdata-var=(?P<quote>["'])(?P<value>.*?)(?P=quote)''',
                 document, re.IGNORECASE | re.DOTALL,
             )
-            if provider_type and re.search(r"\btipoInmueble\s*:\s*'aticos'", html.unescape(provider_type.group('value'))):
+            declared_type = any(
+                item.get('propertyType') or item.get('property_type')
+                for item in data['raw']['jsonLd'] + data['raw']['embeddedJson'] if isinstance(item, dict)
+            )
+            if not declared_type and provider_type and re.search(
+                r"\btipoInmueble\s*:\s*'aticos'", html.unescape(provider_type.group('value')),
+            ):
                 data['property_type'] = 'apartment'
                 data['raw']['property_type_evidence'] = {'provider_field': 'gaCusVar.tipoInmueble', 'value': 'aticos'}
         crumbs = re.findall(r'''<div[^>]*class=["'][^"']*breadcrumb__item[^"']*["'][^>]*>(.*?)</div>''', document, re.IGNORECASE | re.DOTALL)
