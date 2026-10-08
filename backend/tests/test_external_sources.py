@@ -583,8 +583,10 @@ def test_passive_captcha_library_without_detail_is_unknown_not_access_denied():
     [
         "<html><title>CAPTCHA verification required</title></html>",
         "<html><h1>Complete the CAPTCHA</h1></html>",
-        "<html><p>Verify you are human CAPTCHA</p>"
-        "<h1>Habitación individual en alquiler</h1><p>700 €/mes</p></html>",
+        (
+            "<html><p>Verify you are human CAPTCHA</p>"
+            "<h1>Habitación individual en alquiler</h1><p>700 €/mes</p></html>"
+        ),
     ],
 )
 def test_real_challenge_gate_is_still_blocked(challenge_html):
