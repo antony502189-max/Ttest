@@ -81,3 +81,21 @@ def test_pisos_partial_gallery_is_marked_and_snapshot_retains_incompleteness():
     assert normalized.photos_complete is False
     assert listing_from_snapshot(normalized_snapshot(normalized)).photos_complete is False
     asyncio.run(source.close())
+
+
+@pytest.mark.parametrize('document', ['', gallery_document([]), gallery_document([], expected=0)])
+def test_pisos_empty_photo_response_is_partial_in_normalized_and_persisted_snapshots(document):
+    source = PisosSource()
+    source.scope_key = 'province:Madrid'
+    url = 'https://www.pisos.com/alquilar/apartamento-madrid-123456/'
+    parsed = source.parse_listing(document, url)
+    assert parsed['images'] == []
+    assert parsed['photos_complete'] is False
+    normalized = source.normalize_listing({**parsed, 'title': 'Apartamento en alquiler',
+        'description': 'Apartamento de un dormitorio', 'property_type': 'apartment', 'bedroom_count': 1,
+        'price_text': '900 €/mes', 'city': 'Madrid', 'province': 'Madrid', 'country': 'ES'}, url)
+    assert normalized is not None
+    assert normalized.photos == []
+    assert normalized.photos_complete is False
+    assert listing_from_snapshot(normalized_snapshot(normalized)).photos_complete is False
+    asyncio.run(source.close())
