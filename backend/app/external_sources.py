@@ -1842,7 +1842,7 @@ class PisosSource(ExternalListingSource):
     discovery_selectors = ('a[href*="/alquilar/"]',)
     discovery_urls = (
         "https://www.pisos.com/alquiler/habitaciones-tenerife/",
-        "https://www.pisos.com/alquiler_habitaciones/santa_cruz_de_tenerife",
+        "https://www.pisos.com/alquiler/habitaciones-santa_cruz_de_tenerife/",
     )
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:

@@ -700,6 +700,42 @@ def test_discovery_is_partial_when_a_pagination_page_fails():
     asyncio.run(verify())
 
 
+@pytest.mark.parametrize("province_page_fails", [False, True])
+def test_pisos_published_province_root_is_traversed_and_failure_stays_partial(monkeypatch, province_page_fails):
+    async def verify() -> None:
+        source = PisosSource()
+        visited = []
+        tenerife, province = source.discovery_urls
+        assert province == "https://www.pisos.com/alquiler/habitaciones-santa_cruz_de_tenerife/"
+        second_page = province + "2/"
+        first = "/alquilar/habitacion-la_laguna-111111/"
+        second = "/alquilar/habitacion-santa_cruz_de_tenerife_capital-222222/"
+
+        async def request(url):
+            visited.append(url)
+            if url == second_page:
+                if province_page_fails:
+                    return None
+                return f'2 habitaciones<a href="{second}">room</a>'
+            if url == province:
+                return f'2 habitaciones<a href="{first}">room</a><a href="{second_page}">next</a>'
+            assert url == tenerife
+            return f'1 habitaciones<a href="{first}">room</a>'
+
+        monkeypatch.setattr(source, "request", request)
+        try:
+            result = await source.discover_listing_urls()
+            assert visited == [tenerife, province, second_page]
+            assert result.complete is (not province_page_fails)
+            assert result.failed_pages == ([second_page] if province_page_fails else [])
+            assert result.roots[province]["complete"] is (not province_page_fails)
+            assert len(result.urls) == (1 if province_page_fails else 2)
+        finally:
+            await source.close()
+
+    asyncio.run(verify())
+
+
 def test_pisocompartido_discovery_ignores_locale_switcher_detail_links_as_pagination():
     async def verify() -> None:
         source = PisoCompartidoSource()

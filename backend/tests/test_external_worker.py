@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.external_sources import PisosSource
+from app.services.external_import import SourceRunCounters
 from app.workers import external_listings as worker
 
 
@@ -203,6 +205,66 @@ def test_healthy_full_sync_runs_post_reconciliation_duplicate_cleanup(monkeypatc
         await worker.run_once()
         assert cleanup_calls == [True]
         assert states[-1]["health"] == "healthy"
+
+    asyncio.run(verify())
+
+
+def test_nationwide_refresh_bounds_scoped_requests_and_preserves_partial_result(monkeypatch):
+    async def verify() -> None:
+        states, attempts = [], []
+        scope = SimpleNamespace(
+            id="scope-id", source_name="Pisos", scope_key="province:Madrid",
+            discovery_urls=["https://www.pisos.com/alquiler/pisos-madrid/"],
+            interval_seconds=7200, last_result=None,
+        )
+
+        class Session:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                pass
+
+            async def scalars(self, _query):
+                return SimpleNamespace(all=lambda: [scope])
+
+            async def get(self, *_args):
+                return scope
+
+            async def commit(self):
+                pass
+
+        async def record_state(**kwargs):
+            states.append(kwargs)
+
+        async def source_run(_session, source, _run_id, **kwargs):
+            attempts.append((source.scope_key, source.max_discovery_pages, kwargs))
+            result = SourceRunCounters({"discovered_urls": 1, "fetched_details": 1,
+                                        "accepted_rentals": 1, "updated": 1})
+            result.result = "partial" if source.scope_key.startswith("province:") else "success"
+            return result
+
+        source = PisosSource()
+        monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(
+            redis_url="", external_import_nationwide_enabled=True,
+            external_import_scope_max_pages=2, external_import_scope_max_details=50,
+        ))
+        monkeypatch.setattr(worker, "configured_sources", lambda: [source])
+        monkeypatch.setattr(worker, "SessionLocal", Session)
+        monkeypatch.setattr(worker, "run_source", source_run)
+        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
+        monkeypatch.setattr(worker, "deduplicate_active_listings", lambda *_args, **_kwargs: asyncio.sleep(
+            0, result={"changed": 0}
+        ))
+        monkeypatch.setattr(worker, "worker_state", record_state)
+        try:
+            await worker.run_once()
+            assert attempts == [("santa_cruz", 30, {}), ("province:Madrid", 2, {"max_details": 50})]
+            assert scope.last_result == "partial"
+            assert scope.next_run_at - scope.last_run_at == timedelta(seconds=3600)
+            assert states[-1]["health"] == "healthy"
+        finally:
+            await source.close()
 
     asyncio.run(verify())
 
