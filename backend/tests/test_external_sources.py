@@ -527,6 +527,84 @@ def test_detail_state_distinguishes_removed_pages_and_transient_access_errors():
     asyncio.run(verify())
 
 
+@pytest.mark.parametrize(
+    ("source_class", "url"),
+    [
+        (
+            AlquilerDocenteCanariasSource,
+            "https://alquilerdocentecanarias.com/estate_property/habitacion-en-san-cristobal-de-la-laguna-tenerife/",
+        ),
+        (PisoCompartidoSource, "https://www.pisocompartido.com/habitacion/123456/"),
+    ],
+)
+def test_passive_captcha_assets_do_not_block_live_rental_details(source_class, url):
+    async def verify() -> None:
+        source = source_class()
+        await source.client.aclose()
+        document = (
+            "<h1>Habitación individual en alquiler</h1><p>700 €/mes</p>"
+            '<script src="/assets/recaptcha.js"></script>'
+            "<script>window.captchaEnabled = true;</script>"
+            '<footer>Complete the CAPTCHA before contacting the owner</footer>'
+        )
+        source.client = httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, text=document, request=request)
+            )
+        )
+        assert await source.check_listing_state(url) == "active"
+        assert await source.request(url) == document
+        assert not source.removed_urls and not source.not_found_urls
+        await source.close()
+
+    asyncio.run(verify())
+
+
+def test_passive_captcha_library_without_detail_is_unknown_not_access_denied():
+    async def verify() -> None:
+        source = IdealistaSource()
+        await source.client.aclose()
+        document = '<html><script src="/assets/captcha.js"></script><div id="app"></div></html>'
+        source.client = httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, text=document, request=request)
+            )
+        )
+        url = "https://www.idealista.com/inmueble/123456/"
+        assert await source.check_listing_state(url) == "unknown"
+        assert await source.request(url) == document
+        await source.close()
+
+    asyncio.run(verify())
+
+
+@pytest.mark.parametrize(
+    "challenge_html",
+    [
+        "<html><title>CAPTCHA verification required</title></html>",
+        "<html><h1>Complete the CAPTCHA</h1></html>",
+        (
+            "<html><p>Verify you are human CAPTCHA</p>"
+            "<h1>Habitación individual en alquiler</h1><p>700 €/mes</p></html>"
+        ),
+    ],
+)
+def test_real_challenge_gate_is_still_blocked(challenge_html):
+    async def verify() -> None:
+        source = IdealistaSource()
+        await source.client.aclose()
+        source.client = httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, text=challenge_html, request=request)
+            )
+        )
+        url = "https://www.idealista.com/inmueble/123456/"
+        assert await source.check_listing_state(url) == "blocked"
+        await source.close()
+
+    asyncio.run(verify())
+
+
 def test_detail_request_marks_410_but_not_ambiguous_catalog_redirect_as_removal():
     async def verify() -> None:
         source = IdealistaSource()
