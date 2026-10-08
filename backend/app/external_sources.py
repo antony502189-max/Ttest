@@ -1915,7 +1915,7 @@ class PisosSource(ExternalListingSource):
         # partial response, not evidence that existing photos were removed.
         data["photos_complete"] = (
             len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS)
-            if expected is not None else bool(gallery.photos)
+            if expected is not None else bool(gallery.photos) or len(data["images"]) != 1
         )
         path = urlparse(url).path
         label = "habitacion" if path.startswith('/alquilar/habitacion-') else "vivienda"
