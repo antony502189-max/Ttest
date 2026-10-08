@@ -58,6 +58,47 @@ async def test_provision_disabled_scopes_upserts_without_duplicate_or_implicit_a
         assert rows[0].enabled
 
 
+async def test_scope_checkpoint_drains_detail_tail_then_next_page_and_never_archives_unseen(monkeypatch):
+    monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
+    root = "https://www.pisos.com/alquiler/pisos-madrid/"
+    pages, details = [], []
+
+    class Source(PisosSource):
+        scope_key = "province:Madrid"
+        discovery_urls = (root,)
+        max_discovery_pages = 1
+
+        async def request(self, url):
+            pages.append(url)
+            assert not session.in_transaction()
+            ids = (100101, 100102, 100103) if url == root else (100201,)
+            links = ''.join(f'<a href="/alquilar/piso-madrid-{value}/">detail</a>' for value in ids)
+            return links + f'<a href="{root}2/">next</a>'
+
+        async def fetch_listing(self, url):
+            details.append(url)
+            assert not session.in_transaction()
+            return '''<script type="application/ld+json">{"@type":"Apartment","propertyType":"apartment",
+              "numberOfBedrooms":1,"name":"Piso en alquiler","description":"Oferta disponible",
+              "address":{"addressLocality":"Madrid","addressRegion":"Madrid","addressCountry":"ES"},
+              "geo":{"latitude":40.4,"longitude":-3.7}}</script><p>900 €/mes</p>'''
+
+    async with SessionLocal() as session:
+        await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid", (root,))])
+        assert await upsert(session, item(external_id="unseen-in-window"), scope_key="province:Madrid") == "imported"
+        for _ in range(4):
+            counters = await run_source(session, Source(), str(uuid4()), max_details=1)
+            assert counters.result == "partial"
+            assert counters["archived"] == 0
+        row = await session.scalar(select(ExternalImportScope))
+        assert row.discovery_checkpoint is None
+        unseen = await session.scalar(select(ExternalListingSource).where(
+            ExternalListingSource.external_id == "unseen-in-window"))
+        assert unseen.current_status == "active" and unseen.consecutive_missing_runs == 0
+        assert len(details) == len(set(details)) == 4
+        assert pages == [root, root + '2/']
+
+
 async def test_normalized_url_changed_id_retains_source_and_canonical(monkeypatch):
     monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
     async with SessionLocal() as session:

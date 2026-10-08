@@ -315,6 +315,29 @@ Budget-limited refresh remains `partial`, schedules a bounded retry and never
 archives unseen listings. It does not prove complete coverage of a province.
 The independent direct-state removal sweep checks already imported sources.
 
+Bounded apply/refresh operations now store their continuation in the existing
+scope row's optional `discovery_checkpoint` (migration
+`0056_external_scope_checkpoint`). A detail tail is drained before requesting
+more catalogue pages. Subsequent page windows resume actual provider-published
+links and skip previously visited pages; the checkpoint is capped at 10,000
+page references and 10,000 detail URLs. No pagination URLs are generated.
+The final continued window stays `partial`: it is not a complete inventory
+snapshot and cannot archive unseen source rows. When the traversal and detail
+tail end, the cursor clears so the next scheduled pass starts fresh and can
+discover new offers and update existing details.
+
+Temporary page failures remain pending for a later bounded retry. A challenge,
+failed operation or removal anomaly does not advance the durable cursor.
+Checkpoint URLs are revalidated against the provider and configured routes;
+changed routes and capacity exhaustion fail closed for operator review.
+After reviewing changed routes, clear only that scope's checkpoint to restart.
+Never-run due scopes sort first; continued scopes retain their normal retry
+schedule and cannot indefinitely prevent newly enabled provinces from running.
+The bootstrap's existing invocation checkpoint still bounds scope/round attempts;
+the scope cursor additionally continues actual pages and detail tails between
+invocations and worker restarts. Gates, eight-scope cycle cap and the minimum
+healthy-source requirement are unchanged.
+
 The legacy Pisos Santa Cruz room route timed out in production on 2026-10-08.
 The adapter now uses the provider-published
 `/alquiler/habitaciones-santa_cruz_de_tenerife/` route linked from the live

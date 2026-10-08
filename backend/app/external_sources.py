@@ -44,6 +44,7 @@ class DiscoveryResult:
     reached_last_page: bool = False
     blocked: bool = False
     roots: dict[str, dict[str, Any]] = field(default_factory=dict)
+    continuation: dict[str, Any] | None = None
 
     def __iter__(self):
         return iter(self.urls)
@@ -843,6 +844,8 @@ class ExternalListingSource(ABC):
         self.removed_urls: set[str] = set()
         self.discovery_diagnostics: dict[str, dict[str, Any]] = {}
         self.blocked_diagnostic: dict[str, Any] | None = None
+        self.discovery_checkpoint: dict[str, Any] | None = None
+        self.resumable_discovery = False
         self._playwright: Any = None
         self._browser: Any = None
         self._browser_context: Any = None
@@ -1104,32 +1107,68 @@ class ExternalListingSource(ABC):
         seen: set[str] = set()
         visited: set[tuple[str, str]] = set()
         queue = [(url, url) for url in dict.fromkeys(self.discovery_urls)]
+        checkpoint = self.discovery_checkpoint if self.resumable_discovery else None
+        resumed = bool(checkpoint)
+        if checkpoint:
+            if checkpoint.get("routes") != list(self.discovery_urls) or checkpoint.get("version") != 1:
+                raise ValueError("Scope routes changed; review and clear the discovery checkpoint")
+            for key in ("pending", "visited"):
+                entries = checkpoint.get(key)
+                if not isinstance(entries, list) or len(entries) > 10_000:
+                    raise ValueError("Invalid bounded discovery checkpoint")
+                for entry in entries:
+                    if not isinstance(entry, list) or len(entry) != 2:
+                        raise ValueError("Invalid discovery checkpoint page")
+                    page, root = entry
+                    parsed = urlparse(page)
+                    if (root not in self.discovery_urls or parsed.scheme != "https"
+                            or parsed.hostname not in {self.domain, "www." + self.domain}
+                            or parsed.username or parsed.password or parsed.port not in {None, 443}
+                            or (page != root and not self.is_pagination_url(page))):
+                        raise ValueError("Discovery checkpoint escaped its published provider routes")
+            queue = [(entry[0], entry[1]) for entry in checkpoint["pending"]]
+            visited = {(entry[0], entry[1]) for entry in checkpoint["visited"]}
+        visited_this_run = 0
         failed_pages: list[str] = []
+        retry_pages: list[tuple[str, str]] = []
         blocked = False
         roots: dict[str, dict[str, Any]] = {
             root: {"urls": set(), "signatures": set(), "expected_total": None, "visited_pages": 0,
                    "failed_pages": [], "budget_limited": False}
-            for _, root in queue
+            for root in self.discovery_urls
         }
-        while queue and len(visited) < self.max_discovery_pages:
+        previous_signatures = checkpoint.get("signatures", {}) if checkpoint else {}
+        if not isinstance(previous_signatures, dict):
+            raise TypeError("Invalid discovery checkpoint signatures")
+        for root, state in roots.items():
+            signatures = previous_signatures.get(root, [])
+            if (not isinstance(signatures, list) or len(signatures) > 10_000
+                    or any(not isinstance(s, str) or not re.fullmatch(r"[a-f0-9]{64}", s) for s in signatures)):
+                raise ValueError("Invalid bounded discovery signatures")
+            state["signatures"].update(signatures)
+        while queue and visited_this_run < self.max_discovery_pages:
             page, root = queue.pop(0)
             state = roots[root]
             if (page, root) in visited:
                 continue
             visited.add((page, root))
+            visited_this_run += 1
             state["visited_pages"] += 1
             try:
                 document = await self.request(page)
             except SourceBlocked:
+                retry_pages.append((page, root))
                 blocked = True
                 state["failed_pages"].append(page)
                 failed_pages.append(page)
                 break
             except (httpx.HTTPError, RuntimeError):
+                retry_pages.append((page, root))
                 state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
             if not document:
+                retry_pages.append((page, root))
                 state["failed_pages"].append(page)
                 failed_pages.append(page)
                 continue
@@ -1151,7 +1190,7 @@ class ExternalListingSource(ABC):
                 if self.is_listing_url(url):
                     # Gallery/map variants on a card are the same public listing.
                     page_urls.add(url.split("?", 1)[0])
-            signature = frozenset(page_urls)
+            signature = hashlib.sha256("\n".join(sorted(page_urls)).encode()).hexdigest() if page_urls else ""
             if signature and signature in state["signatures"] and page != root:
                 state["failed_pages"].append(page)
                 failed_pages.append(page)
@@ -1163,7 +1202,7 @@ class ExternalListingSource(ABC):
                 url = urljoin(page, html.unescape(href).split("#", 1)[0])
                 if (not self.is_listing_url(url) and self.is_pagination_url(url)
                         and (url, root) not in visited and (url, root) not in queue):
-                    if len(queue) < self.max_discovery_pages:
+                    if len(queue) < (10_000 if self.resumable_discovery else self.max_discovery_pages):
                         queue.append((url, root))
                     else:
                         state["budget_limited"] = True
@@ -1171,6 +1210,7 @@ class ExternalListingSource(ABC):
                 r"\b[1-9]\d*\s+(?:anuncios|resultados|viviendas|habitaciones)\b", document, re.IGNORECASE
             ):
                 self._save_discovery_artifacts(page, document)
+                retry_pages.append((page, root))
                 state["failed_pages"].append(page)
                 failed_pages.append(page)
         reached_last_page = not queue and not any(state["budget_limited"] for state in roots.values())
@@ -1184,9 +1224,29 @@ class ExternalListingSource(ABC):
                 "complete": last_page and not state["failed_pages"] and (expected is None or len(state["urls"]) >= expected),
             }
         complete = bool(evidence) and not blocked and not failed_pages and all(r["complete"] for r in evidence.values())
+        continuation = None
+        if self.resumable_discovery:
+            for retry in retry_pages:
+                visited.discard(retry)
+            pending = list(dict.fromkeys([*queue, *retry_pages]))
+            if len(visited) + len(pending) > 10_000 or any(s["budget_limited"] for s in roots.values()):
+                raise ValueError("Discovery checkpoint capacity reached; operator review required")
+            if pending:
+                continuation = {
+                    "version": 1, "routes": list(self.discovery_urls),
+                    "pending": [list(entry) for entry in pending],
+                    "visited": [list(entry) for entry in sorted(visited)],
+                    "signatures": {root: sorted(state["signatures"]) for root, state in roots.items()},
+                }
+            # Each continued window contains only part of the catalogue. Even
+            # the final window cannot reconcile unseen rows as absent.
+            complete = complete and not resumed
+            if resumed:
+                failed_pages.append("continued_discovery_window")
         # Totals from overlapping roots are not a unique inventory count.
         expected_total = next(iter(evidence.values()))["expected_total"] if len(evidence) == 1 else None
-        return DiscoveryResult(seen, complete, len(visited), expected_total, failed_pages, reached_last_page, blocked, evidence)
+        return DiscoveryResult(seen, complete, visited_this_run, expected_total, failed_pages,
+                               reached_last_page, blocked, evidence, continuation)
 
     @staticmethod
     def has_current_detail(document: str) -> bool:

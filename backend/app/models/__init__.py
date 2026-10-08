@@ -265,6 +265,7 @@ class ExternalImportScope(Base):
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_result: Mapped[str | None] = mapped_column(String(32))
+    discovery_checkpoint: Mapped[dict | None] = mapped_column(JSONB)
 
 
 class ExternalWorkerState(Base):

@@ -9,6 +9,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import httpx
@@ -31,7 +32,7 @@ from ..external_sources import (
     parse_optional_date,
     parse_optional_datetime,
 )
-from ..models import ExternalImportRun, Listing, ListingImage, MediaAsset, User
+from ..models import ExternalImportRun, ExternalImportScope, Listing, ListingImage, MediaAsset, User
 from ..models import ExternalListingSource as SourceRecord
 from ..models.room_details import ListingRoomDetails
 from ..rental_classification import ROOM_TYPES, property_type
@@ -1257,12 +1258,43 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     # The backoff lookup starts an implicit transaction. Discovery may involve
     # many pages and browser fallbacks, so close the transaction first.
     await session.commit()
+    scope = None
+    checkpoint: dict = {}
+    ordered_urls: list[str] = []
     try:
+        if scope_key.startswith("province:") and max_details is not None:
+            scope = await session.scalar(select(ExternalImportScope).where(
+                ExternalImportScope.source_name == source.name, ExternalImportScope.scope_key == scope_key,
+            ))
+            if scope is not None:
+                checkpoint = scope.discovery_checkpoint or {}
+                if checkpoint and checkpoint.get("routes") != list(source.discovery_urls):
+                    raise ValueError("Scope routes changed; review and clear the checkpoint")
+                source.resumable_discovery = True
+                source.discovery_checkpoint = checkpoint.get("discovery")
+        # Scope reads must release the DB connection before public requests.
+        await session.commit()
         require_no_active_transaction(session, "external source discovery")
-        discovery = await source.discover_listing_urls()
+        pending_details = checkpoint.get("details", [])
+        if not isinstance(pending_details, list) or len(pending_details) > 10_000:
+            raise ValueError("Invalid bounded scope detail checkpoint")
+        if pending_details:
+            for url in pending_details:
+                parsed_url = urlparse(url)
+                if (parsed_url.scheme != "https" or parsed_url.hostname not in {source.domain, "www." + source.domain}
+                        or parsed_url.username or parsed_url.password or parsed_url.port not in {None, 443}
+                        or not source.is_listing_url(url)):
+                    raise ValueError("Detail checkpoint escaped its provider")
+            discovery = DiscoveryResult(urls=set(pending_details), complete=False,
+                failed_pages=["continued_detail_window"], continuation=checkpoint.get("discovery"))
+        else:
+            discovery = await source.discover_listing_urls()
         if isinstance(discovery, list):
             discovery = DiscoveryResult(urls=set(discovery), complete=True, visited_pages=1, reached_last_page=True)
         urls = discovery.urls
+        if scope is not None and len(urls) > 10_000:
+            raise ValueError("Scope detail checkpoint capacity reached; operator review required")
+        ordered_urls = sorted(urls)
         if max_details is not None and len(urls) > max_details:
             # Bootstrap sampling must never reconcile unseen offers as absent.
             discovery.complete = False
@@ -1331,12 +1363,12 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
 
         require_no_active_transaction(session, "external detail fetch")
         async def fetch_batches():
-            ordered_urls = sorted(urls)
+            batch_urls = ordered_urls
             if max_details is not None:
-                ordered_urls = ordered_urls[:max_details]
-            for start in range(0, len(ordered_urls), 100):
+                batch_urls = batch_urls[:max_details]
+            for start in range(0, len(batch_urls), 100):
                 results = await asyncio.gather(
-                    *(fetch(url) for url in ordered_urls[start:start + 100]), return_exceptions=True
+                    *(fetch(url) for url in batch_urls[start:start + 100]), return_exceptions=True
                 )
                 from .external_removal import log_removal_anomaly, removal_anomaly_reason
                 states = [
@@ -1346,7 +1378,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                     "active" if result[1] else "unknown"
                     for result in results
                 ]
-                reason = removal_anomaly_reason(states, len(ordered_urls))
+                reason = removal_anomaly_reason(states, len(batch_urls))
                 if reason:
                     counters["removal_anomaly_batches"] += 1
                     counters["removal_anomaly_records"] += sum(state in {"removed", "expired", "not_found"} for state in states)
@@ -1428,6 +1460,12 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             run.result = "partial"
             if not completed_contract:
                 run.last_error = "No valid rental detail completed the external import contract"
+        if scope is not None and not counters["removal_anomaly_batches"]:
+            remaining = ordered_urls[max_details:] if max_details is not None else []
+            scope.discovery_checkpoint = {
+                "routes": list(source.discovery_urls), "details": remaining,
+                "discovery": discovery.continuation,
+            } if remaining or discovery.continuation else None
     except SourceBlocked as exc:
         run.result = "blocked"
         run.last_error = str(exc)

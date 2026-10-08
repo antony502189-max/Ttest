@@ -324,7 +324,7 @@ async def run_once() -> dict[str, dict[str, int]]:
                         select(ExternalImportScope).where(
                             ExternalImportScope.enabled.is_(True),
                             or_(ExternalImportScope.next_run_at.is_(None), ExternalImportScope.next_run_at <= datetime.now(UTC)),
-                        ).order_by(ExternalImportScope.next_run_at, ExternalImportScope.id).limit(8)
+                        ).order_by(ExternalImportScope.next_run_at.asc().nulls_first(), ExternalImportScope.id).limit(8)
                     )
                 ).all()
                 scope_tasks = [(row.id, row.source_name, row.scope_key, list(row.discovery_urls or []), row.interval_seconds) for row in due_scopes]
