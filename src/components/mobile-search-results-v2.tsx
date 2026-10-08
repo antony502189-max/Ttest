@@ -258,7 +258,12 @@ export function MobileSearchResults() {
     setServerLoadingMore(false)
     setServerError(false)
     setServerLoadMoreError(false)
-    void searchPublicListings(serverSearchRequest, request.signal, undefined, 20).then((page) => {
+    void searchPublicListings(serverSearchRequest, request.signal, undefined, 20, (recovered) => {
+      if (request.signal.aborted) return
+      setServerItems((current) => current?.map((card) =>
+        card.id === recovered.id ? { ...card, images: recovered.images } : card
+      ) ?? null)
+    }).then((page) => {
       if (!request.signal.aborted) {
         setServerItems(page.items)
         setServerTotal(page.total)
@@ -280,7 +285,12 @@ export function MobileSearchResults() {
     loadingMoreCursorRef.current = cursor
     setServerLoadingMore(true)
     setServerLoadMoreError(false)
-    void searchPublicListings(serverSearchRequest, request.signal, cursor, 20).then((page) => {
+    void searchPublicListings(serverSearchRequest, request.signal, cursor, 20, (recovered) => {
+      if (request.signal.aborted) return
+      setServerItems((current) => current?.map((card) =>
+        card.id === recovered.id ? { ...card, images: recovered.images } : card
+      ) ?? null)
+    }).then((page) => {
       if (request.signal.aborted) return
       setServerItems((current) => {
         const existing = current ?? []
