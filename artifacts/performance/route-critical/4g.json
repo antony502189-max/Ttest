@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-08T23:18:41.894Z",
+  "measurementKind": "local synthetic browser measurement",
+  "profile": "4g",
+  "runsPerTarget": 3,
+  "conditions": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "mobile": true,
+    "network": {
+      "offline": false,
+      "latency": 150,
+      "downloadThroughput": 1600000,
+      "uploadThroughput": 750000,
+      "connectionType": "cellular4g"
+    },
+    "cpu": 4
+  },
+  "targets": {
+    "baseline": "http://127.0.0.1:4174",
+    "candidate": "http://127.0.0.1:4175"
+  },
+  "results": [
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 1,
+      "wallMs": 2063,
+      "fcpMs": 1724,
+      "lcpMs": 1724,
+      "cls": 0,
+      "ttfbMs": 14.5,
+      "domContentLoadedMs": 1139.1999999955297,
+      "loadMs": 1147.6000000014901,
+      "requestCount": 28,
+      "transferredBytes": 381054,
+      "jsBytes": 315152,
+      "cssBytes": 65600,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 1,
+      "wallMs": 3637,
+      "fcpMs": 976,
+      "lcpMs": 2352,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 4.100000001490116,
+      "domContentLoadedMs": 772,
+      "loadMs": 777.3000000044703,
+      "requestCount": 40,
+      "transferredBytes": 514028,
+      "jsBytes": 333687,
+      "cssBytes": 66987,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 1,
+      "wallMs": 1998,
+      "fcpMs": 1660,
+      "lcpMs": 1660,
+      "cls": 0,
+      "ttfbMs": 7.700000002980232,
+      "domContentLoadedMs": 1052.7000000029802,
+      "loadMs": 1062.6000000014901,
+      "requestCount": 29,
+      "transferredBytes": 368207,
+      "jsBytes": 303237,
+      "cssBytes": 64668,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 1,
+      "wallMs": 3657,
+      "fcpMs": 1012,
+      "lcpMs": 2368,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 4.700000002980232,
+      "domContentLoadedMs": 733.2000000029802,
+      "loadMs": 743.5,
+      "requestCount": 41,
+      "transferredBytes": 500839,
+      "jsBytes": 321430,
+      "cssBytes": 66055,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 2,
+      "wallMs": 2019,
+      "fcpMs": 1860,
+      "lcpMs": 1860,
+      "cls": 0,
+      "ttfbMs": 6.5,
+      "domContentLoadedMs": 1105.3999999985099,
+      "loadMs": 1114.7999999970198,
+      "requestCount": 23,
+      "transferredBytes": 362702,
+      "jsBytes": 297732,
+      "cssBytes": 64668,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 2,
+      "wallMs": 3801,
+      "fcpMs": 1088,
+      "lcpMs": 2504,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 110.29999999701977,
+      "domContentLoadedMs": 852.5,
+      "loadMs": 863.2999999970198,
+      "requestCount": 41,
+      "transferredBytes": 500839,
+      "jsBytes": 321430,
+      "cssBytes": 66055,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 2,
+      "wallMs": 1978,
+      "fcpMs": 1656,
+      "lcpMs": 1656,
+      "cls": 0,
+      "ttfbMs": 5.600000001490116,
+      "domContentLoadedMs": 958.5,
+      "loadMs": 965.6000000014901,
+      "requestCount": 28,
+      "transferredBytes": 381054,
+      "jsBytes": 315152,
+      "cssBytes": 65600,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 2,
+      "wallMs": 3590,
+      "fcpMs": 892,
+      "lcpMs": 2312,
+      "cls": 0,
+      "ttfbMs": 5.4000000059604645,
+      "domContentLoadedMs": 710.9000000059605,
+      "loadMs": 714.4000000059605,
+      "requestCount": 40,
+      "transferredBytes": 514028,
+      "jsBytes": 333687,
+      "cssBytes": 66987,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 3,
+      "wallMs": 1983,
+      "fcpMs": 1824,
+      "lcpMs": 1824,
+      "cls": 0,
+      "ttfbMs": 5.4000000059604645,
+      "domContentLoadedMs": 1047.2000000029802,
+      "loadMs": 1057.9000000059605,
+      "requestCount": 22,
+      "transferredBytes": 375256,
+      "jsBytes": 309354,
+      "cssBytes": 65600,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 3,
+      "wallMs": 3587,
+      "fcpMs": 1048,
+      "lcpMs": 2292,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 95.30000000447035,
+      "domContentLoadedMs": 840.7000000029802,
+      "loadMs": 844.7000000029802,
+      "requestCount": 40,
+      "transferredBytes": 514028,
+      "jsBytes": 333687,
+      "cssBytes": 66987,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 3,
+      "wallMs": 1993,
+      "fcpMs": 1680,
+      "lcpMs": 1680,
+      "cls": 0,
+      "ttfbMs": 4.100000001490116,
+      "domContentLoadedMs": 1035,
+      "loadMs": 1043.5,
+      "requestCount": 29,
+      "transferredBytes": 368207,
+      "jsBytes": 303237,
+      "cssBytes": 64668,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 3,
+      "wallMs": 3665,
+      "fcpMs": 1000,
+      "lcpMs": 2380,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 4.800000004470348,
+      "domContentLoadedMs": 758.2000000029802,
+      "loadMs": 761.1000000014901,
+      "requestCount": 41,
+      "transferredBytes": 500839,
+      "jsBytes": 321430,
+      "cssBytes": 66055,
+      "cacheMode": "repeat-cache-enabled"
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 1724,
+          "min": 1656,
+          "max": 1824
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 1724,
+          "min": 1656,
+          "max": 1824
+        },
+        "cls": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5.600000001490116,
+          "min": 5.4000000059604645,
+          "max": 14.5
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 28,
+          "min": 22,
+          "max": 28
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 381054,
+          "min": 375256,
+          "max": 381054
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 315152,
+          "min": 309354,
+          "max": 315152
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 65600,
+          "min": 65600,
+          "max": 65600
+        }
+      },
+      "repeat-cache-enabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 976,
+          "min": 892,
+          "max": 1048
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 2312,
+          "min": 2292,
+          "max": 2352
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.8179983708530806,
+          "min": 0,
+          "max": 0.8179983708530806
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5.4000000059604645,
+          "min": 4.100000001490116,
+          "max": 95.30000000447035
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 40,
+          "min": 40,
+          "max": 40
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 514028,
+          "min": 514028,
+          "max": 514028
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 333687,
+          "min": 333687,
+          "max": 333687
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 66987,
+          "min": 66987,
+          "max": 66987
+        }
+      }
+    },
+    "candidate": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 1680,
+          "min": 1660,
+          "max": 1860
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 1680,
+          "min": 1660,
+          "max": 1860
+        },
+        "cls": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 6.5,
+          "min": 4.100000001490116,
+          "max": 7.700000002980232
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 29,
+          "min": 23,
+          "max": 29
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 368207,
+          "min": 362702,
+          "max": 368207
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 303237,
+          "min": 297732,
+          "max": 303237
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 64668,
+          "min": 64668,
+          "max": 64668
+        }
+      },
+      "repeat-cache-enabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 1012,
+          "min": 1000,
+          "max": 1088
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 2380,
+          "min": 2368,
+          "max": 2504
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.8179983708530806,
+          "min": 0.8179983708530806,
+          "max": 0.8179983708530806
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 4.800000004470348,
+          "min": 4.700000002980232,
+          "max": 110.29999999701977
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 41,
+          "min": 41,
+          "max": 41
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 500839,
+          "min": 500839,
+          "max": 500839
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 321430,
+          "min": 321430,
+          "max": 321430
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 66055,
+          "min": 66055,
+          "max": 66055
+        }
+      }
+    }
+  }
+}

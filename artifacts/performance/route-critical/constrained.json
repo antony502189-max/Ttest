@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-08T23:19:36.323Z",
+  "measurementKind": "local synthetic browser measurement",
+  "profile": "constrained",
+  "runsPerTarget": 3,
+  "conditions": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "mobile": true,
+    "network": {
+      "offline": false,
+      "latency": 300,
+      "downloadThroughput": 400000,
+      "uploadThroughput": 200000,
+      "connectionType": "cellular3g"
+    },
+    "cpu": 4
+  },
+  "targets": {
+    "baseline": "http://127.0.0.1:4174",
+    "candidate": "http://127.0.0.1:4175"
+  },
+  "results": [
+    {
+      "target": "baseline",
+      "profile": "constrained",
+      "run": 1,
+      "wallMs": 2992,
+      "fcpMs": 2692,
+      "lcpMs": 2692,
+      "cls": 0,
+      "ttfbMs": 10.900000005960464,
+      "domContentLoadedMs": 1954.7000000029802,
+      "loadMs": 1965.4000000059605,
+      "requestCount": 16,
+      "transferredBytes": 369908,
+      "jsBytes": 305304,
+      "cssBytes": 64302,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "constrained",
+      "run": 1,
+      "wallMs": 5601,
+      "fcpMs": 1972,
+      "lcpMs": 4304,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 111.10000000149012,
+      "domContentLoadedMs": 1776.8999999985099,
+      "loadMs": 1780.2000000029802,
+      "requestCount": 40,
+      "transferredBytes": 514028,
+      "jsBytes": 333687,
+      "cssBytes": 66987,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "constrained",
+      "run": 1,
+      "wallMs": 2928,
+      "fcpMs": 2656,
+      "lcpMs": 2656,
+      "cls": 0,
+      "ttfbMs": 5.600000001490116,
+      "domContentLoadedMs": 1917.1000000014901,
+      "loadMs": 1925.7000000029802,
+      "requestCount": 17,
+      "transferredBytes": 357530,
+      "jsBytes": 293858,
+      "cssBytes": 63370,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "constrained",
+      "run": 1,
+      "wallMs": 5451,
+      "fcpMs": 1912,
+      "lcpMs": 4152,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 36.399999998509884,
+      "domContentLoadedMs": 1691.6000000014901,
+      "loadMs": 1696.7000000029802,
+      "requestCount": 41,
+      "transferredBytes": 500839,
+      "jsBytes": 321430,
+      "cssBytes": 66055,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "constrained",
+      "run": 2,
+      "wallMs": 2931,
+      "fcpMs": 2588,
+      "lcpMs": 2588,
+      "cls": 0,
+      "ttfbMs": 5.899999998509884,
+      "domContentLoadedMs": 1893.8999999985099,
+      "loadMs": 1906.7000000029802,
+      "requestCount": 17,
+      "transferredBytes": 357530,
+      "jsBytes": 293858,
+      "cssBytes": 63370,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "constrained",
+      "run": 2,
+      "wallMs": 5455,
+      "fcpMs": 1920,
+      "lcpMs": 4152,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 74.19999999552965,
+      "domContentLoadedMs": 1721.1000000014901,
+      "loadMs": 1727.5,
+      "requestCount": 41,
+      "transferredBytes": 500839,
+      "jsBytes": 321430,
+      "cssBytes": 66055,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "constrained",
+      "run": 2,
+      "wallMs": 2950,
+      "fcpMs": 2712,
+      "lcpMs": 2712,
+      "cls": 0,
+      "ttfbMs": 4.5,
+      "domContentLoadedMs": 1986,
+      "loadMs": 1998,
+      "requestCount": 16,
+      "transferredBytes": 369908,
+      "jsBytes": 305304,
+      "cssBytes": 64302,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "constrained",
+      "run": 2,
+      "wallMs": 5542,
+      "fcpMs": 1948,
+      "lcpMs": 4244,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 73.60000000149012,
+      "domContentLoadedMs": 1752,
+      "loadMs": 1756.7000000029802,
+      "requestCount": 40,
+      "transferredBytes": 514028,
+      "jsBytes": 333687,
+      "cssBytes": 66987,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "constrained",
+      "run": 3,
+      "wallMs": 2960,
+      "fcpMs": 1476,
+      "lcpMs": null,
+      "cls": 0,
+      "ttfbMs": 5,
+      "domContentLoadedMs": 2092.7000000029802,
+      "loadMs": 2101.4000000059605,
+      "requestCount": 10,
+      "transferredBytes": 348599,
+      "jsBytes": 283995,
+      "cssBytes": 64302,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "constrained",
+      "run": 3,
+      "wallMs": 5517,
+      "fcpMs": 2020,
+      "lcpMs": 4236,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 43.399999998509884,
+      "domContentLoadedMs": 1712.7999999970198,
+      "loadMs": 1719,
+      "requestCount": 40,
+      "transferredBytes": 514028,
+      "jsBytes": 333687,
+      "cssBytes": 66987,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "constrained",
+      "run": 3,
+      "wallMs": 2901,
+      "fcpMs": 2588,
+      "lcpMs": 2588,
+      "cls": 0,
+      "ttfbMs": 5.899999998509884,
+      "domContentLoadedMs": 1911.3999999985099,
+      "loadMs": 1916.2999999970198,
+      "requestCount": 17,
+      "transferredBytes": 357530,
+      "jsBytes": 293858,
+      "cssBytes": 63370,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "constrained",
+      "run": 3,
+      "wallMs": 5602,
+      "fcpMs": 2000,
+      "lcpMs": 4304,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 119.5,
+      "domContentLoadedMs": 1801.8999999985099,
+      "loadMs": 1806,
+      "requestCount": 41,
+      "transferredBytes": 500839,
+      "jsBytes": 321430,
+      "cssBytes": 66055,
+      "cacheMode": "repeat-cache-enabled"
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 2692,
+          "min": 1476,
+          "max": 2712
+        },
+        "lcpMs": {
+          "n": 2,
+          "median": 2712,
+          "min": 2692,
+          "max": 2712
+        },
+        "cls": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5,
+          "min": 4.5,
+          "max": 10.900000005960464
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 16,
+          "min": 10,
+          "max": 16
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 369908,
+          "min": 348599,
+          "max": 369908
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 305304,
+          "min": 283995,
+          "max": 305304
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 64302,
+          "min": 64302,
+          "max": 64302
+        }
+      },
+      "repeat-cache-enabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 1972,
+          "min": 1948,
+          "max": 2020
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 4244,
+          "min": 4236,
+          "max": 4304
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.8179983708530806,
+          "min": 0.8179983708530806,
+          "max": 0.8179983708530806
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 73.60000000149012,
+          "min": 43.399999998509884,
+          "max": 111.10000000149012
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 40,
+          "min": 40,
+          "max": 40
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 514028,
+          "min": 514028,
+          "max": 514028
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 333687,
+          "min": 333687,
+          "max": 333687
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 66987,
+          "min": 66987,
+          "max": 66987
+        }
+      }
+    },
+    "candidate": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 2588,
+          "min": 2588,
+          "max": 2656
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 2588,
+          "min": 2588,
+          "max": 2656
+        },
+        "cls": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5.899999998509884,
+          "min": 5.600000001490116,
+          "max": 5.899999998509884
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 17,
+          "min": 17,
+          "max": 17
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 357530,
+          "min": 357530,
+          "max": 357530
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 293858,
+          "min": 293858,
+          "max": 293858
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 63370,
+          "min": 63370,
+          "max": 63370
+        }
+      },
+      "repeat-cache-enabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 1920,
+          "min": 1912,
+          "max": 2000
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 4152,
+          "min": 4152,
+          "max": 4304
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.8179983708530806,
+          "min": 0.8179983708530806,
+          "max": 0.8179983708530806
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 74.19999999552965,
+          "min": 36.399999998509884,
+          "max": 119.5
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 41,
+          "min": 41,
+          "max": 41
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 500839,
+          "min": 500839,
+          "max": 500839
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 321430,
+          "min": 321430,
+          "max": 321430
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 66055,
+          "min": 66055,
+          "max": 66055
+        }
+      }
+    }
+  }
+}

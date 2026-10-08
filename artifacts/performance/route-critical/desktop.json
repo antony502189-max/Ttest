@@ -1,0 +1,432 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-08T23:17:36.612Z",
+  "measurementKind": "local synthetic browser measurement",
+  "profile": "desktop",
+  "runsPerTarget": 3,
+  "conditions": {
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "mobile": false,
+    "network": null,
+    "cpu": 1
+  },
+  "targets": {
+    "baseline": "http://127.0.0.1:4174",
+    "candidate": "http://127.0.0.1:4175"
+  },
+  "results": [
+    {
+      "target": "baseline",
+      "profile": "desktop",
+      "run": 1,
+      "wallMs": 1953,
+      "fcpMs": 348,
+      "lcpMs": 660,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 26.80000000447035,
+      "domContentLoadedMs": 174.70000000298023,
+      "loadMs": 176,
+      "requestCount": 44,
+      "transferredBytes": 438496,
+      "jsBytes": 339628,
+      "cssBytes": 68262,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "desktop",
+      "run": 1,
+      "wallMs": 1870,
+      "fcpMs": 180,
+      "lcpMs": 564,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 7.600000001490116,
+      "domContentLoadedMs": 114.10000000149012,
+      "loadMs": 114.70000000298023,
+      "requestCount": 44,
+      "transferredBytes": 438496,
+      "jsBytes": 339628,
+      "cssBytes": 68262,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "desktop",
+      "run": 1,
+      "wallMs": 2036,
+      "fcpMs": 400,
+      "lcpMs": 740,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 15.600000001490116,
+      "domContentLoadedMs": 196,
+      "loadMs": 197.5,
+      "requestCount": 45,
+      "transferredBytes": 425338,
+      "jsBytes": 327402,
+      "cssBytes": 67330,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "desktop",
+      "run": 1,
+      "wallMs": 1781,
+      "fcpMs": 128,
+      "lcpMs": 476,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 5.899999998509884,
+      "domContentLoadedMs": 84.89999999850988,
+      "loadMs": 85.60000000149012,
+      "requestCount": 45,
+      "transferredBytes": 425338,
+      "jsBytes": 327402,
+      "cssBytes": 67330,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "desktop",
+      "run": 2,
+      "wallMs": 1902,
+      "fcpMs": 256,
+      "lcpMs": 592,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 5.299999997019768,
+      "domContentLoadedMs": 119.10000000149012,
+      "loadMs": 119.79999999701977,
+      "requestCount": 45,
+      "transferredBytes": 425338,
+      "jsBytes": 327402,
+      "cssBytes": 67330,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "desktop",
+      "run": 2,
+      "wallMs": 1788,
+      "fcpMs": 128,
+      "lcpMs": 484,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 4.0999999940395355,
+      "domContentLoadedMs": 86.69999999552965,
+      "loadMs": 87.39999999850988,
+      "requestCount": 45,
+      "transferredBytes": 425338,
+      "jsBytes": 327402,
+      "cssBytes": 67330,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "desktop",
+      "run": 2,
+      "wallMs": 1923,
+      "fcpMs": 296,
+      "lcpMs": 616,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 6,
+      "domContentLoadedMs": 135.29999999701977,
+      "loadMs": 136.5,
+      "requestCount": 44,
+      "transferredBytes": 438496,
+      "jsBytes": 339628,
+      "cssBytes": 68262,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "desktop",
+      "run": 2,
+      "wallMs": 1804,
+      "fcpMs": 132,
+      "lcpMs": 492,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 5.5,
+      "domContentLoadedMs": 86.5,
+      "loadMs": 86.70000000298023,
+      "requestCount": 44,
+      "transferredBytes": 438496,
+      "jsBytes": 339628,
+      "cssBytes": 68262,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "desktop",
+      "run": 3,
+      "wallMs": 1929,
+      "fcpMs": 316,
+      "lcpMs": 636,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 5.899999998509884,
+      "domContentLoadedMs": 143.60000000149012,
+      "loadMs": 145.39999999850988,
+      "requestCount": 44,
+      "transferredBytes": 438496,
+      "jsBytes": 339628,
+      "cssBytes": 68262,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "baseline",
+      "profile": "desktop",
+      "run": 3,
+      "wallMs": 1803,
+      "fcpMs": 132,
+      "lcpMs": 484,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 4.600000001490116,
+      "domContentLoadedMs": 84,
+      "loadMs": 84.70000000298023,
+      "requestCount": 44,
+      "transferredBytes": 438496,
+      "jsBytes": 339628,
+      "cssBytes": 68262,
+      "cacheMode": "repeat-cache-enabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "desktop",
+      "run": 3,
+      "wallMs": 1947,
+      "fcpMs": 372,
+      "lcpMs": 652,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 5.899999998509884,
+      "domContentLoadedMs": 158.20000000298023,
+      "loadMs": 163.5,
+      "requestCount": 45,
+      "transferredBytes": 425338,
+      "jsBytes": 327402,
+      "cssBytes": 67330,
+      "cacheMode": "cold-cache-disabled"
+    },
+    {
+      "target": "candidate",
+      "profile": "desktop",
+      "run": 3,
+      "wallMs": 1782,
+      "fcpMs": 124,
+      "lcpMs": 476,
+      "cls": 0.40247744506902144,
+      "ttfbMs": 5.200000002980232,
+      "domContentLoadedMs": 80.79999999701977,
+      "loadMs": 81.29999999701977,
+      "requestCount": 45,
+      "transferredBytes": 425338,
+      "jsBytes": 327402,
+      "cssBytes": 67330,
+      "cacheMode": "repeat-cache-enabled"
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 316,
+          "min": 296,
+          "max": 348
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 636,
+          "min": 616,
+          "max": 660
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.40247744506902144,
+          "min": 0.40247744506902144,
+          "max": 0.40247744506902144
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 6,
+          "min": 5.899999998509884,
+          "max": 26.80000000447035
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 44,
+          "min": 44,
+          "max": 44
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 438496,
+          "min": 438496,
+          "max": 438496
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 339628,
+          "min": 339628,
+          "max": 339628
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 68262,
+          "min": 68262,
+          "max": 68262
+        }
+      },
+      "repeat-cache-enabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 132,
+          "min": 132,
+          "max": 180
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 492,
+          "min": 484,
+          "max": 564
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.40247744506902144,
+          "min": 0.40247744506902144,
+          "max": 0.40247744506902144
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5.5,
+          "min": 4.600000001490116,
+          "max": 7.600000001490116
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 44,
+          "min": 44,
+          "max": 44
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 438496,
+          "min": 438496,
+          "max": 438496
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 339628,
+          "min": 339628,
+          "max": 339628
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 68262,
+          "min": 68262,
+          "max": 68262
+        }
+      }
+    },
+    "candidate": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 372,
+          "min": 256,
+          "max": 400
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 652,
+          "min": 592,
+          "max": 740
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.40247744506902144,
+          "min": 0.40247744506902144,
+          "max": 0.40247744506902144
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5.899999998509884,
+          "min": 5.299999997019768,
+          "max": 15.600000001490116
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 45,
+          "min": 45,
+          "max": 45
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 425338,
+          "min": 425338,
+          "max": 425338
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 327402,
+          "min": 327402,
+          "max": 327402
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 67330,
+          "min": 67330,
+          "max": 67330
+        }
+      },
+      "repeat-cache-enabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 128,
+          "min": 124,
+          "max": 128
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 476,
+          "min": 476,
+          "max": 484
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.40247744506902144,
+          "min": 0.40247744506902144,
+          "max": 0.40247744506902144
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 5.200000002980232,
+          "min": 4.0999999940395355,
+          "max": 5.899999998509884
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 45,
+          "min": 45,
+          "max": 45
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 425338,
+          "min": 425338,
+          "max": 425338
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 327402,
+          "min": 327402,
+          "max": 327402
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 67330,
+          "min": 67330,
+          "max": 67330
+        }
+      }
+    }
+  }
+}
