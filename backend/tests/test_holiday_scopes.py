@@ -117,3 +117,61 @@ def test_pisos_selector_never_guesses_from_unselected_mismatched_or_ambiguous_op
         assert "price_cadence_evidence" not in data["raw"]
     finally:
         asyncio.run(source.close())
+
+
+@pytest.mark.parametrize('bedrooms,price,provider_type,structured_type,accepted', [
+    (1, '120 €/día', 'aticos', None, True),
+    (2, '120 €/día', 'aticos', None, False),
+    (1, '1200 €/mes', 'aticos', None, False),
+    (1, '120 €', 'aticos', None, False),
+    (1, '120 €/día', 'casas', None, False),
+    (1, '120 €/día', '', None, False),
+    (1, '120 €/día', 'aticos', 'house', False),
+    (1, '120 €/día', 'aticos', 'hotel', False),
+])
+def test_published_penthouse_apartment_keeps_existing_bedroom_price_and_type_restrictions(
+    bedrooms, price, provider_type, structured_type, accepted,
+):
+    # Public fields captured from the Roquetas de Mar holiday detail: the
+    # headline says "Ático", the provider's own type is "aticos".
+    document = f'''<meta property="og:title" content="Ático en alquiler en Centro">
+      <div class="jsPriceValue">{price}</div>
+      <span id="vtmExtraVars" data-var='{{"nHabitaciones":"{bedrooms}"}}'></span>
+      <span id="gaCusVar" data-var="({{tipoOperacion:'alquiler',tipoInmueble:'{provider_type}'}})"></span>
+      <div class="breadcrumb__item"><a href="/alquiler-vacacional_viviendas/almeria/">Almería</a></div>
+      <div class="breadcrumb__item"><a href="/alquiler-vacacional_viviendas/roquetas_de_mar/">Roquetas de Mar</a></div>
+      <div class="breadcrumb__item">Ático en alquiler vacacional en Centro</div>'''
+    if structured_type:
+        document += f'<script type="application/ld+json">{{"@type":"Residence","name":"Ático en alquiler","description":"Alquiler vacacional","propertyType":"{structured_type}"}}</script>'
+    source = PisosSource()
+    source.scope_key = 'province:Almería:holiday'
+    url = 'https://www.pisos.com/alquilar/atico-barrio_centro-55002100609_100500/'
+    try:
+        parsed = source.parse_listing(document, url)
+        item = source.normalize_listing(parsed, url)
+        assert bool(item) is accepted
+        if item:
+            assert (item.room_type, item.rental_mode, item.price_amount, item.price_period) == (
+                'Apartamento de 1 dormitorio', 'holiday', 120, 'night',
+            )
+            assert parsed['raw']['property_type_evidence']['value'] == 'aticos'
+        if structured_type:
+            assert parsed['property_type'] == structured_type
+    finally:
+        asyncio.run(source.close())
+
+
+def test_penthouse_discovery_requires_holiday_scope_and_provider_https_host():
+    source = PisosSource()
+    url = 'https://www.pisos.com/alquilar/atico-torrox_torrox_costa-45091123400_108500/'
+    try:
+        assert not source.is_listing_url(url)
+        source.scope_key = 'province:Málaga:holiday'
+        assert source.is_listing_url(url)
+        assert not source.is_listing_url(url.replace('https:', 'http:'))
+        assert not source.is_listing_url(url.replace('www.pisos.com', 'www.pisos.com.evil.test'))
+        assert not source.is_listing_url(url.replace('/atico-', '/casa-'))
+        source.scope_key = 'province:Málaga'
+        assert not source.is_listing_url(url)
+    finally:
+        asyncio.run(source.close())

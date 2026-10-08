@@ -34,6 +34,14 @@ are rejected without modifying source records belonging to a residential scope.
 Unsupported types, ambiguous cadence and missing location/bedroom evidence remain
 rejections. Weekly conversion and original source price provenance are unchanged.
 
+Holiday discovery also follows published `/alquilar/atico-` detail links. A
+penthouse becomes an apartment candidate only when its own `gaCusVar` field
+explicitly declares `tipoInmueble:'aticos'` and no conflicting structured type
+exists. The existing bedroom and price rules still decide admission. This was
+verified against one-bedroom public details in Roquetas de Mar and Torrox;
+two-bedroom, monthly, missing-price and unknown-type examples remain excluded.
+Residential discovery and the product taxonomy are unchanged.
+
 Do not replace a residential scope with vacation routes. Do not clear an existing
 residential checkpoint to make room for vacation discovery. Existing automatic
 scope scheduling resumes the separate vacation checkpoint across restarts;
