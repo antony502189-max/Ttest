@@ -34,7 +34,8 @@ _ROOM = re.compile(
 _WANTED = re.compile(r"\b(?:busco|buscamos|buscando|necesito|necesitamos|se busca|looking for|wanted)\b")
 _UNITS = re.compile(
     r"\b(?:garaje|garage|parking|oficina|office|local comercial|parcela|terreno|trastero|"
-    r"storage|plot|land|cama en habitacion|plaza en habitacion|bed space|bedspace)\b"
+    r"storage|plot|land|cama en habitacion|plaza en habitacion|bed space|bedspace|"
+    r"bed(?:\s+\d+(?:[.-]\d+)*)?\s+in\s+(?:a\s+)?(?:shared\s+)?room)\b"
 )
 _SALES = re.compile(r"\b(?:venta|comprar|se vende|for sale|sale)\b")
 

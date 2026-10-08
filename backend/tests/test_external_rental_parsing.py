@@ -72,6 +72,24 @@ def test_property_admission(data, expected):
     assert property_type(data, "Pisos") == expected
 
 
+@pytest.mark.parametrize("title", [
+    "Bed 1.1 in Shared room by Gato Azul Coliving",
+    "Bed in a shared room",
+    "Bed 2 in room for rent",
+    "Cama en habitación compartida",
+])
+def test_explicit_bedspace_is_rejected_even_with_structured_room_category(title):
+    assert property_type({"title": title, "property_type": "room"}, "Flatio") is None
+
+
+def test_bed_amenities_do_not_reject_a_private_room():
+    assert property_type({
+        "title": "Private room with double bed",
+        "property_type": "room",
+        "description": "Bed linen included in a shared apartment.",
+    }, "Flatio") == ROOM
+
+
 @pytest.mark.parametrize(
     ("data", "period", "expected"),
     [
