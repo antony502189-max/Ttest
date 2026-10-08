@@ -389,16 +389,40 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
   return body
 }
 
-export async function searchPublicListings(input: ListingSearchInput, signal?: AbortSignal, cursor?: string, limit = 20): Promise<ListingCardPage> {
+export async function searchPublicListings(
+  input: ListingSearchInput,
+  signal?: AbortSignal,
+  cursor?: string,
+  limit = 20,
+  onGalleryRecovered?: (listing: Listing) => void,
+): Promise<ListingCardPage> {
   const response = await api<{ items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }>('/listings/search/cards', {
     method: 'POST', body: JSON.stringify({ ...buildListingSearchBody(input), cursor, limit }), signal,
   })
-  // The card endpoint already returns its complete gallery (up to 15 assets).
-  // Do not delay the entire results page by issuing a per-card recovery GET
-  // for native listings with fewer than five photos. Those are not missing
-  // data, and Promise.all used to hold the first page until the slowest GET.
+  const cards = response.items.map(toCardListing)
+  if (onGalleryRecovered) {
+    // Render search cards immediately, then recover a legacy/truncated native
+    // gallery without waiting for the slowest /listings/:id/images request.
+    // The callback updates only the matching visible card; cancellation
+    // prevents previous-query recoveries from overwriting new results.
+    for (const card of cards) {
+      if (card.isExternal || card.images.length >= MIN_LISTING_PHOTOS) continue
+      void hydrateIncompleteInternalGallery(card, signal).then((recovered) => {
+        if (!signal?.aborted && recovered.images.length > card.images.length) onGalleryRecovered(recovered)
+      }).catch(() => undefined)
+    }
+  } else {
+    // Preserve the old synchronous hydration contract for other consumers
+    // that do not support progressive gallery updates.
+    return {
+      items: await hydrateIncompleteInternalGalleries(cards, signal),
+      total: response.total,
+      nextCursor: response.nextCursor,
+      previousCursor: response.previousCursor,
+    }
+  }
   return {
-    items: response.items.map(toCardListing),
+    items: cards,
     total: response.total,
     nextCursor: response.nextCursor,
     previousCursor: response.previousCursor,
