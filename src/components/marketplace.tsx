@@ -267,17 +267,14 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
         ];
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const location = resolveTenerifeLocation(query.trim() || "Tenerife");
-    if (!location) {
-      setLocationError("En esta versión solo puedes buscar habitaciones en Tenerife.");
-      return;
-    }
+    const requestedQuery = query.trim() || "Tenerife";
+    const location = resolveTenerifeLocation(requestedQuery);
     setLocationError("");
-    const normalized = location.normalizedValue;
-    const exactArea = location.type === "area" || location.type === "district" ? location.normalizedValue : undefined;
+    const normalized = location?.normalizedValue ?? requestedQuery;
+    const exactArea = location?.type === "area" || location?.type === "district" ? normalized : undefined;
     const nextFilters = {
       ...filters,
-      areas: exactArea ? [exactArea] : location.type === "island" && filters.areas.length > 1 ? filters.areas : [],
+      areas: exactArea ? [exactArea] : location?.type === "island" && filters.areas.length > 1 ? filters.areas : [],
     };
     setQuery(normalized);
     setFilters(nextFilters);
