@@ -393,8 +393,16 @@ export async function searchPublicListings(input: ListingSearchInput, signal?: A
   const response = await api<{ items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }>('/listings/search/cards', {
     method: 'POST', body: JSON.stringify({ ...buildListingSearchBody(input), cursor, limit }), signal,
   })
-  const items = await hydrateIncompleteInternalGalleries(response.items.map(toCardListing), signal)
-  return { items, total: response.total, nextCursor: response.nextCursor, previousCursor: response.previousCursor }
+  // The card endpoint already returns its complete gallery (up to 15 assets).
+  // Do not delay the entire results page by issuing a per-card recovery GET
+  // for native listings with fewer than five photos. Those are not missing
+  // data, and Promise.all used to hold the first page until the slowest GET.
+  return {
+    items: response.items.map(toCardListing),
+    total: response.total,
+    nextCursor: response.nextCursor,
+    previousCursor: response.previousCursor,
+  }
 }
 
 async function syncContactProfile(listing: Listing) {
