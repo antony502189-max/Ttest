@@ -315,7 +315,7 @@ export function MobileSearchResults() {
     const root = sentinel.closest<HTMLElement>('.m2-results')
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) loadMore()
-    }, { root, rootMargin: '700px 0px 700px 0px' })
+    }, { root, rootMargin: '1600px 0px 1600px 0px' })
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [loadMore, nextCursor, open, panel, serverError, serverLoadMoreError, serverLoading])
