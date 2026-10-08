@@ -275,3 +275,46 @@ export function formatPublishedAt(value: string) {
   if (days === 1) return 'Publicado ayer'
   return `Publicado hace ${days} días`
 }
+
+type UpdateItems = (update: (current: Listing[] | null) => Listing[] | null) => void
+
+// A page owns the exact card snapshots it returned, within a search generation.
+// Buffer fast recovery until cards commit; never authorize an update by ID alone.
+export function createProgressiveGalleryPage(isCurrent: () => boolean, updateItems: UpdateItems) {
+  let originals: Map<string, Listing> | null = null
+  const earlyRecoveries = new Map<string, Listing>()
+
+  const recover = (recovered: Listing) => {
+    if (!isCurrent()) return
+    if (!originals) {
+      earlyRecoveries.set(recovered.id, recovered)
+      return
+    }
+    const original = originals.get(recovered.id)
+    if (!original) return
+    updateItems((current) => {
+      if (!isCurrent()) return current
+      return current?.map((card) => card.id === original.id && card.images === original.images
+        ? { ...card, images: recovered.images }
+        : card) ?? null
+    })
+  }
+
+  const accept = (items: Listing[]) => {
+    const seen = new Set<string>()
+    const unique = items.filter((item) => {
+      if (seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+    originals = new Map(unique.map((item) => [item.id, item]))
+    const accepted = unique.map((item) => {
+      const recovered = earlyRecoveries.get(item.id)
+      return recovered ? { ...item, images: recovered.images } : item
+    })
+    earlyRecoveries.clear()
+    return accepted
+  }
+
+  return { recover, accept }
+}

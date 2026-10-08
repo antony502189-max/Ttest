@@ -114,7 +114,10 @@ async function hydrateIncompleteInternalGallery(listing: Listing, signal?: Abort
   try {
     const rows = await api<ListingImageDto[]>(`/listings/${listing.id}/images`, { signal })
     const images = orderedGalleryUrls(rows)
-    return images.length > listing.images.length ? { ...listing, images } : listing
+    // A successful nonempty response is authoritative, including legitimate
+    // deletions. Failure/empty recovery retains the usable original cover.
+    return images.length && (images.length !== listing.images.length
+      || images.some((image, index) => image !== listing.images[index])) ? { ...listing, images } : listing
   } catch (error) {
     if (error instanceof ApiError && error.code === 'REQUEST_ABORTED') throw error
     // Search/detail must remain usable if the recovery endpoint is temporarily
@@ -389,12 +392,49 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
   return body
 }
 
-export async function searchPublicListings(input: ListingSearchInput, signal?: AbortSignal, cursor?: string, limit = 20): Promise<ListingCardPage> {
+export async function searchPublicListings(
+  input: ListingSearchInput,
+  signal?: AbortSignal,
+  cursor?: string,
+  limit = 20,
+  onGalleryRecovered?: (listing: Listing) => void,
+): Promise<ListingCardPage> {
   const response = await api<{ items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }>('/listings/search/cards', {
     method: 'POST', body: JSON.stringify({ ...buildListingSearchBody(input), cursor, limit }), signal,
   })
-  const items = await hydrateIncompleteInternalGalleries(response.items.map(toCardListing), signal)
-  return { items, total: response.total, nextCursor: response.nextCursor, previousCursor: response.previousCursor }
+  const seen = new Set<string>()
+  const cards = response.items.filter((item) => {
+    if (seen.has(item.id)) return false
+    seen.add(item.id)
+    return true
+  }).map(toCardListing)
+  if (onGalleryRecovered) {
+    // Render search cards immediately, then recover a legacy/truncated native
+    // gallery without waiting for the slowest /listings/:id/images request.
+    // The callback updates only the matching visible card; cancellation
+    // prevents previous-query recoveries from overwriting new results.
+    for (const card of cards) {
+      if (card.isExternal || card.images.length >= MIN_LISTING_PHOTOS) continue
+      void hydrateIncompleteInternalGallery(card, signal).then((recovered) => {
+        if (!signal?.aborted && recovered !== card) onGalleryRecovered(recovered)
+      }).catch(() => undefined)
+    }
+  } else {
+    // Preserve the old synchronous hydration contract for other consumers
+    // that do not support progressive gallery updates.
+    return {
+      items: await hydrateIncompleteInternalGalleries(cards, signal),
+      total: response.total,
+      nextCursor: response.nextCursor,
+      previousCursor: response.previousCursor,
+    }
+  }
+  return {
+    items: cards,
+    total: response.total,
+    nextCursor: response.nextCursor,
+    previousCursor: response.previousCursor,
+  }
 }
 
 async function syncContactProfile(listing: Listing) {

@@ -66,7 +66,7 @@ function NotificationLink({ mobile = false }: { mobile?: boolean }) {
 
 export function Header() {
   const { currentUser } = useApp()
-  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser ? <NotificationLink /> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar" onPointerEnter={preloadListingCreatePage} onFocus={preloadListingCreatePage} onPointerDown={preloadListingCreatePage}><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
+  return <header className="site-header"><div className="site-header__inner"><Logo /><LanguageSwitcher /><div className="header-actions"><Button asChild variant="ghost" className="desktop-only"><Link to="/favoritos"><Heart data-icon="inline-start" />Favoritos</Link></Button>{currentUser ? <NotificationLink /> : null}<Button asChild variant="ghost" className="desktop-only"><Link to={currentUser ? '/perfil' : '/acceso'}>{currentUser ? currentUser.name.split(' ')[0] : 'Acceder'}</Link></Button><Button asChild className="publish-header-button"><Link to="/publicar" onFocus={preloadListingCreatePage} onPointerDown={preloadListingCreatePage}><Plus data-icon="inline-start" />Publicar anuncio gratis</Link></Button></div></div></header>
 }
 
 export function MobileHeader() {

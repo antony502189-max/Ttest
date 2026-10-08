@@ -60,12 +60,15 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --config playwright.publication.config.ts
       - run: npx playwright test --config playwright.google-auth.config.ts
+      - run: npx playwright test --config playwright.search-lifecycle.config.ts
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-publication-and-auth
-          path: test-results
+          path: |
+            test-results
+            output/playwright/search-lifecycle
           if-no-files-found: ignore
 
   validate:

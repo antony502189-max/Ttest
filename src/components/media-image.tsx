@@ -34,31 +34,32 @@ export function preloadMediaImages(sources: Array<string | undefined>, variant: 
 }
 
 export function useMediaUrl(source?: string, variant: MediaVariant = 'full') {
-  const [url, setUrl] = useState(() => isMediaReference(source) ? '' : mediaVariantUrl(source, variant))
+  const [localMedia, setLocalMedia] = useState<{ reference: string; url: string } | null>(null)
 
   useEffect(() => {
-    if (!isMediaReference(source)) {
-      setUrl(mediaVariantUrl(source, variant))
-      return
-    }
+    if (!isMediaReference(source)) return
     let active = true
     let objectUrl = ''
     void getMediaBlob(source)
       .then((blob) => {
         if (!active || !blob) return
         objectUrl = URL.createObjectURL(blob)
-        setUrl(objectUrl)
+        setLocalMedia({ reference: source, url: objectUrl })
       })
       .catch(() => {
-        if (active) setUrl('')
+        if (active) setLocalMedia(null)
       })
     return () => {
       active = false
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [source, variant])
+  }, [source])
 
-  return url
+  // Public/remote gallery changes must update the rendered src in the *same*
+  // render as the image counter. Keeping them in effect-driven state briefly
+  // shows the previous photo when users rapidly swipe through a card.
+  if (!isMediaReference(source)) return mediaVariantUrl(source, variant)
+  return localMedia?.reference === source ? localMedia.url : ''
 }
 
 type MediaImageProps = ImgHTMLAttributes<HTMLImageElement> & {

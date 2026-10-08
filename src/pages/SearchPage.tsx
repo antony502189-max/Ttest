@@ -27,6 +27,7 @@ import { getMunicipalityLabel, getRootMunicipalityId, getZoneLabel, isDetailedZo
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
 import { ListMapSwitcher } from "@/components/map/list-map-switcher";
 import {
+  createProgressiveGalleryPage,
   filterListings,
   filtersFromParams,
   filtersToParams,
@@ -216,7 +217,7 @@ export function SearchPage() {
   }, [filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
   const mapQuery = useMemo(() => buildListingSearchBody(searchInput), [searchInput]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mockMode) {
       setServerItems(null);
       setServerLoading(false);
@@ -225,12 +226,15 @@ export function SearchPage() {
     }
     let cancelled = false;
     const request = new AbortController();
+    const isCurrent = () => !cancelled && !request.signal.aborted;
+    const galleryPage = createProgressiveGalleryPage(isCurrent, setServerItems);
     setServerLoading(true);
     setServerError(false);
     setServerItems(null);
-    void searchPublicListings(searchInput, request.signal, pageCursor, PAGE_SIZE).then((result) => {
+    void searchPublicListings(searchInput, request.signal, pageCursor, PAGE_SIZE, galleryPage.recover).then((result) => {
       if (!cancelled) {
-        setServerItems(result.items);
+        const items = galleryPage.accept(result.items);
+        setServerItems((current) => isCurrent() ? items : current);
         setServerTotal(result.total);
         setNextCursor(result.nextCursor);
         setPreviousCursor(result.previousCursor);

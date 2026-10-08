@@ -147,7 +147,11 @@ test('production mobile holiday card recovers its full internal gallery when bou
   await page.route('**/api/v1/listings/search/cards', async (route) => {
     await route.fulfill({ json: { items: [truncated], total: 1, nextCursor: null, previousCursor: null } })
   })
+  let releaseGallery: () => void = () => undefined
+  const galleryGate = new Promise<void>((resolve) => { releaseGallery = resolve })
   await page.route(`**/api/v1/listings/${item.id}/images`, async (route) => {
+    // A slow legacy-gallery endpoint must not hold the entire search page.
+    await galleryGate
     await route.fulfill({
       json: gallery.map((url, index) => ({
         assetId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
@@ -161,6 +165,8 @@ test('production mobile holiday card recovers its full internal gallery when bou
   await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
   const resultCard = page.getByTestId('mobile-results').locator('.m2-result-card').first()
   await expect(resultCard).toBeVisible()
+  await expect(resultCard.locator('.m2-result-card__counter')).toContainText('1/1')
+  releaseGallery()
   await expect(resultCard.locator('.m2-result-card__counter')).toContainText('1/5')
   await resultCard.locator('.m2-result-card__next').click()
   await expect(resultCard.locator('.m2-result-card__counter')).toContainText('2/5')
