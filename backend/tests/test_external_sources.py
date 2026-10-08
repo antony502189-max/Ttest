@@ -545,7 +545,7 @@ def test_passive_captcha_assets_do_not_block_live_rental_details(source_class, u
             "<h1>Habitación individual en alquiler</h1><p>700 €/mes</p>"
             '<script src="/assets/recaptcha.js"></script>'
             "<script>window.captchaEnabled = true;</script>"
-            '<footer>Contact form supports CAPTCHA verification</footer>'
+            '<footer>Complete the CAPTCHA before contacting the owner</footer>'
         )
         source.client = httpx.AsyncClient(
             transport=httpx.MockTransport(
