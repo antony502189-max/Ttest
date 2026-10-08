@@ -905,20 +905,20 @@ class ExternalListingSource(ABC):
         if "captcha" not in body:
             return None
         if re.search(
-            r"<(?:title|h1|h2)\\b[^>]*>[^<]{0,160}\\b(?:captcha|recaptcha)\\b",
+            r"<(?:title|h1|h2)\b[^>]*>[^<]{0,160}\b(?:captcha|recaptcha)\b",
             document,
             re.IGNORECASE,
         ):
             return "captcha_gate"
         visible = re.sub(
-            r"<(?:script|style)\\b[^>]*>.*?</(?:script|style)\\s*>",
+            r"<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>",
             " ",
             document,
             flags=re.IGNORECASE | re.DOTALL,
         )
         if re.search(
-            r"\\b(?:solve|complete|enter|introduce|resuelve|completa)\\s+"
-            r"(?:(?:the|el|un)\\s+)?(?:captcha|recaptcha)\\b",
+            r"\b(?:solve|complete|enter|introduce|resuelve|completa)\s+"
+            r"(?:(?:the|el|un)\s+)?(?:captcha|recaptcha)\b",
             clean(visible),
             re.IGNORECASE,
         ):
