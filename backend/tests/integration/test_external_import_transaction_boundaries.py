@@ -369,6 +369,49 @@ async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypa
         assert attempts == 2
 
 
+async def test_partial_provider_gallery_preserves_existing_media_and_urls_while_updating_price(monkeypatch):
+    storage = RecordingStorage()
+    calls: list[str] = []
+
+    async def no_hashes(urls):
+        return []
+
+    async def prepared_image(client, url):
+        calls.append(url)
+        content = url.encode()
+        return importer.PreparedExternalImage(content=content, width=64, height=48,
+            checksum=hashlib.sha256(content).hexdigest(), perceptual_hash="3" * 16)
+
+    monkeypatch.setattr(importer, "public_image_fingerprints", no_hashes)
+    monkeypatch.setattr(importer, "download_external_image", prepared_image)
+    monkeypatch.setattr(importer, "get_storage", lambda: storage)
+    photos = [f"https://images.example.test/complete-{index}.webp" for index in range(3)]
+    item = external_item(source="Pisos", external_id="partial-gallery-guard",
+        url="https://www.pisos.com/alquilar/habitacion-partial-gallery-guard/", photos=photos)
+    async with SessionLocal() as session:
+        assert await importer.upsert(session, item) == "imported"
+        record = await session.scalar(select(ExternalListingSource).where(
+            ExternalListingSource.external_id == item.external_id))
+        listing = await session.get(Listing, record.canonical_listing_id)
+        original_ids = list((await session.scalars(select(ListingImage.media_asset_id)
+            .where(ListingImage.listing_id == listing.id).order_by(ListingImage.sort_order))).all())
+        assert len(original_ids) == 3
+        calls.clear()
+        item.photos = photos[:1]
+        item.raw_payload = {"photos_complete": False}
+        item.price_amount = 730
+        item.source_price_text = "730 €/mes"
+        assert await importer.upsert(session, item) == "updated"
+        await session.refresh(listing)
+        current_ids = list((await session.scalars(select(ListingImage.media_asset_id)
+            .where(ListingImage.listing_id == listing.id).order_by(ListingImage.sort_order))).all())
+        assert current_ids == original_ids
+        assert listing.external_image_urls == photos
+        assert listing.monthly_price == 730
+        assert calls == []
+        assert record.normalized_payload["raw_payload"]["photos_complete"] is False
+
+
 async def test_external_gallery_reconciliation_caps_and_replaces_stale_images(monkeypatch):
     storage = RecordingStorage()
     calls: list[str] = []

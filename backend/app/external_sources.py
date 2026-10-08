@@ -11,6 +11,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from html.parser import HTMLParser
 from typing import Any, cast
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
@@ -772,6 +773,12 @@ class NormalizedListing:
         self.photos = bounded_photo_urls(self.photos)
 
     @property
+    def photos_complete(self) -> bool:
+        # Keep snapshot shape compatible with previous releases. The existing
+        # raw-payload mapping carries additive provider evidence.
+        return self.raw_payload.get("photos_complete", True) is True
+
+    @property
     def fingerprint(self) -> str:
         return hashlib.sha256(
             "|".join(
@@ -802,6 +809,7 @@ class NormalizedListing:
                     self.bills_text or "",
                     "|".join(self.amenities),
                     "|".join(self.restrictions),
+                    *(() if self.photos_complete else ("partial_gallery",)),
                 )
             ).encode()
         ).hexdigest()
@@ -1505,7 +1513,7 @@ class ExternalListingSource(ABC):
             data.get("phone"),
             data.get("whatsapp"),
             data.get("email"),
-            data.get("raw", data),
+            {**data.get("raw", data), "photos_complete": data.get("photos_complete", True) is True},
             public_address=public_address,
             bedroom_count=bedroom_count(data) if target_type == "Apartamento de 1 dormitorio" else 0 if target_type == "Estudio" else None,
             province=canonical_province(data.get("province")),
@@ -1892,6 +1900,52 @@ class PisoCompartidoSource(ExternalListingSource):
         return data
 
 
+class _PisosGalleryParser(HTMLParser):
+    """Read only the primary detail gallery, in its published order."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.div_classes: list[set[str]] = []
+        self.photos: dict[str, str] = {}
+
+    @staticmethod
+    def image_identity(url: str) -> str | None:
+        parsed = urlparse(url)
+        if (parsed.scheme != "https" or parsed.hostname != "fotos.imghs.net"
+                or parsed.username or parsed.password or parsed.port not in {None, 443}):
+            return None
+        match = re.fullmatch(
+            r"/(?:xl|apps(?:wm)?|fchm?)-wp/(.+\.(?:jpg|jpeg|webp|png))", parsed.path, re.IGNORECASE
+        )
+        return match.group(1) if match else None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "div":
+            self.div_classes.append(set((attributes.get("class") or "").split()))
+        if tag != "img":
+            return
+        classes = set().union(*self.div_classes) if self.div_classes else set()
+        if not {"details__col-left", "masonry__list", "media-thumbnail"} <= classes:
+            return
+        url = attributes.get("data-src") or attributes.get("src") or ""
+        identity = self.image_identity(url)
+        if identity is not None:
+            self.photos.setdefault(identity, url)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "div" and self.div_classes:
+            self.div_classes.pop()
+
+    def published_photos(self, cover: str) -> list[str]:
+        # Prefer the published high-resolution cover only when it is the same
+        # image as a primary-gallery member. Never manufacture resized URLs.
+        identity = self.image_identity(cover)
+        if identity in self.photos and urlparse(cover).path.startswith("/xl-wp/"):
+            self.photos[identity] = cover
+        return bounded_photo_urls(list(self.photos.values()))
+
+
 class PisosSource(ExternalListingSource):
     """Public Pisos room, studio and one-bedroom routes."""
 
@@ -1907,6 +1961,22 @@ class PisosSource(ExternalListingSource):
 
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)
+        gallery = _PisosGalleryParser()
+        gallery.feed(document)
+        gallery.close()
+        if gallery.photos:
+            data["images"] = gallery.published_photos(meta_content(document, "og:image"))
+        counter = re.search(
+            r'<span\b[^>]*class=["\'][^"\']*js-photosCounter[^"\']*["\'][^>]*>\s*\d+\s*</span>\s*/\s*(\d+)',
+            document, re.IGNORECASE,
+        )
+        expected = int(counter.group(1)) if counter else None
+        # An absent gallery or fewer photos than explicitly advertised is a
+        # partial response, not evidence that existing photos were removed.
+        data["photos_complete"] = (
+            len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS)
+            if expected is not None else bool(gallery.photos) or len(data["images"]) != 1
+        )
         path = urlparse(url).path
         label = "habitacion" if path.startswith('/alquilar/habitacion-') else "vivienda"
         data["category"] = f"pisos.com alquiler {label} {data['category']}"
