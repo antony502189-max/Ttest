@@ -9,6 +9,24 @@ FastAPI -> PostgreSQL/PostGIS | Redis | private MinIO | SMTP
 workers -> PostgreSQL/PostGIS | Redis | private MinIO | SMTP
 ```
 
+## Frontend compression and cache policy
+
+The Nginx frontend compresses HTML and local static text assets with gzip,
+including CSS, JavaScript, JSON build metadata, XML and SVG. `Vary:
+Accept-Encoding` keeps encoded and identity representations distinct.
+Already-compressed media and font formats are not included. Proxied API
+responses remain uncompressed: the API defaults to `Cache-Control: no-store`
+and includes bearer/refresh-token and token-issuing responses, so broad dynamic
+JSON compression has a larger security surface than the critical static asset
+gain. An endpoint-specific API compression change needs its own review.
+
+Vite output under `/assets/` is content-fingerprinted and receives a one-year
+immutable browser cache. The HTML entry document and stable public URLs such as
+`/favicon.svg`, `/legal.css`, public images and `build-info.json` use
+`Cache-Control: no-cache, must-revalidate`; browsers may retain them but must
+revalidate before reuse. APIs and protected media remain outside shared proxy
+caches, so the backend continues to check current authorization and visibility.
+
 ## Server layout and secrets
 
 - checkout cache: `/srv/112233.es/repo`
