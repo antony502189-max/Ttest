@@ -889,13 +889,51 @@ class ExternalListingSource(ABC):
             paths["screenshot"] = str(screenshot_path)
         return paths
 
+    @staticmethod
+    def _challenge_type(document: str) -> str | None:
+        """A CAPTCHA script/contact-widget reference is not an access challenge.
+
+        Only explicit challenge pages or strong anti-bot responses should block
+        anonymous parsing. A page with ambiguous content remains subject to the
+        normal detail/discovery contract; it is never evidence for deletion.
+        """
+        body = document.casefold()
+        if any(marker in body for marker in (
+            "geetest", "pardon our interruption", "cf-chl-", "verify you are human",
+        )):
+            return "access_challenge"
+        if "captcha" not in body:
+            return None
+        if re.search(
+            r"<(?:title|h1|h2)\\b[^>]*>[^<]{0,160}\\b(?:captcha|recaptcha)\\b",
+            document,
+            re.IGNORECASE,
+        ):
+            return "captcha_gate"
+        visible = re.sub(
+            r"<(?:script|style)\\b[^>]*>.*?</(?:script|style)\\s*>",
+            " ",
+            document,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if re.search(
+            r"\\b(?:solve|complete|enter|introduce|resuelve|completa)\\s+"
+            r"(?:(?:the|el|un)\\s+)?(?:captcha|recaptcha)\\b",
+            clean(visible),
+            re.IGNORECASE,
+        ):
+            return "captcha_gate"
+        return None
+
     def _raise_if_challenged(self, url: str, document: str) -> None:
-        challenge = any(marker in document.casefold() for marker in (
-            "geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human",
-        ))
-        if challenge:
+        challenge_type = self._challenge_type(document)
+        if challenge_type:
             diagnostic = self.discovery_diagnostics.get(url, {})
-            self.blocked_diagnostic = {"challenge_type": "geetest", **diagnostic, "paths": self._save_discovery_artifacts(url, document)}
+            self.blocked_diagnostic = {
+                "challenge_type": challenge_type,
+                **diagnostic,
+                "paths": self._save_discovery_artifacts(url, document),
+            }
             raise SourceBlocked("public source access challenge")
 
     async def request(self, url: str) -> str | None:
@@ -906,9 +944,7 @@ class ExternalListingSource(ABC):
                 if response.status_code == 202 and not response.text.strip():
                     self.blocked_diagnostic = {"challenge_type": "empty_http_202", **self.discovery_diagnostics[url]}
                     raise SourceBlocked("public source returned no anonymous content (HTTP 202)")
-                if any(marker in response.text.casefold() for marker in (
-                    "geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human",
-                )):
+                if self._challenge_type(response.text):
                     # Capture the equivalent public Chromium response and screenshot once;
                     # do not attempt to solve or interact with the challenge.
                     if get_settings().external_import_playwright_enabled:
@@ -1157,9 +1193,7 @@ class ExternalListingSource(ABC):
         except httpx.HTTPError:
             return "temporary_error"
         document = response.text
-        if response.status_code == 403 or (response.status_code == 202 and not document.strip()) or any(
-            marker in document.casefold() for marker in ("geetest", "pardon our interruption", "captcha", "cf-chl-", "verify you are human")
-        ):
+        if response.status_code == 403 or (response.status_code == 202 and not document.strip()) or self._challenge_type(document):
             return "blocked"
         if response.status_code == 404:
             return "not_found"
