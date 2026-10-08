@@ -102,17 +102,13 @@ export function HomeMandatorySearch() {
       return
     }
 
-    const location = resolveTenerifeLocation(query.trim() || 'Tenerife')
-    if (!location) {
-      setError('En esta versión solo puedes buscar habitaciones en Tenerife.')
-      return
-    }
-
-    const normalized = location.normalizedValue
-    const exactArea = location.type === 'area' || location.type === 'district' ? normalized : undefined
+    const requestedQuery = query.trim() || 'Tenerife'
+    const location = resolveTenerifeLocation(requestedQuery)
+    const normalized = location?.normalizedValue ?? requestedQuery
+    const exactArea = location?.type === 'area' || location?.type === 'district' ? normalized : undefined
     const nextFilters = applyListingAccessProfile({
       ...filtersForRentalMode(filters, rentalMode),
-      areas: exactArea ? [exactArea] : location.type === 'island' ? filters.areas : [],
+      areas: exactArea ? [exactArea] : location?.type === 'island' ? filters.areas : [],
     }, profile)
 
     persistListingAccessProfile(profile)
