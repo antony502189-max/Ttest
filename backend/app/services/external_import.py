@@ -635,7 +635,8 @@ async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing,
     listing.available_from = item.available_from
     if item.published_at:
         listing.published_at = item.published_at
-    listing.external_image_urls = item.photos
+    if item.photos_complete or not listing.external_image_urls:
+        listing.external_image_urls = item.photos
     listing.primary_source = item.source_name
     listing.primary_source_url = item.source_url
     listing.source_price_text = item.source_price_text
@@ -915,7 +916,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     result = "restored" if restored else action
     listing_id = listing.id
     owner_id = owner.id
-    should_import_images = replace_primary and not force_primary and bool(item.photos)
+    should_import_images = replace_primary and not force_primary and bool(item.photos) and item.photos_complete
     # Make the listing/source state durable before any remote image or object
     # storage I/O. Image failures are deliberately non-fatal fallbacks.
     await session.commit()
@@ -1210,6 +1211,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "archived",
             "failed",
             "failed_details",
+            "incomplete_galleries",
             "removal_anomaly_batches",
             "removal_anomaly_records",
             "rejected_invalid_price",
@@ -1405,6 +1407,9 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 await session.commit()
                 continue
             counters["accepted_rentals"] += 1
+            if not item.photos_complete:
+                counters["incomplete_galleries"] += 1
+                partial = True
             counters[f"accepted_{item.rental_mode}"] += 1
             counters["accepted_rooms" if item.room_type in ROOM_TYPES else "accepted_studios" if item.room_type == "Estudio" else "accepted_one_bedroom"] += 1
             outcome = await upsert(session, item, scope_key=scope_key)
