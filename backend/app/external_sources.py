@@ -25,7 +25,7 @@ from .core.browser_network import (
 from .core.config import get_settings
 from .core.media_limits import MAX_LISTING_PHOTOS
 from .rental_classification import bedroom_count, property_type, rental_price
-from .spain_provinces import canonical_province, coordinates_in_spain, spain_country
+from .spain_provinces import canonical_province, coordinates_in_spain, scope_province, spain_country
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +419,7 @@ def is_in_import_scope(data: dict[str, Any], scope_key: str) -> bool:
                 and (province == 'Santa Cruz de Tenerife' or is_in_target_province(data)))
     if not scope_key.startswith("province:"):
         return False
-    expected = canonical_province(scope_key.removeprefix("province:"))
+    expected = scope_province(scope_key)
     province = canonical_province(data.get("province"))
     return bool(expected and province == expected and spain_country(data.get("country")))
 
@@ -1461,6 +1461,10 @@ class ExternalListingSource(ABC):
         price = rental_price(data, self.name, amount, period)
         if price is None or currency != "EUR":
             return None
+        if self.scope_key.endswith(":holiday") and price.mode != "holiday":
+            return None
+        if self.scope_key.endswith(":holiday") and target_type == "Habitación compartida":
+            return None
         supplied_city = clean(data.get("city") or data.get("municipality"))
         city = supplied_city or next(
             (
@@ -1984,6 +1988,25 @@ class PisosSource(ExternalListingSource):
         price = re.search(r'<div[^>]*class=["\'][^"\']*jsPriceValue[^"\']*["\'][^>]*>(.*?)</div>', document, re.IGNORECASE | re.DOTALL)
         if price:
             data['price_text'] = clean(price.group(1))
+        selector = re.search(
+            r'<select\b[^>]*class=["\'][^"\']*jsPriceSelector[^"\']*["\'][^>]*>(.*?)</select>',
+            document, re.IGNORECASE | re.DOTALL,
+        )
+        if selector and parse_price(data['price_text'])[2] is None:
+            for attributes, label in re.findall(r'<option\b([^>]*)>(.*?)</option>', selector.group(1), re.DOTALL | re.IGNORECASE):
+                selected = re.search(r'(?:^|\s)selected(?:\s*=|\s|$)', attributes, re.IGNORECASE)
+                value = re.search(r'''\bdata-value=["']([^"']+)["']''', attributes, re.IGNORECASE)
+                if not selected or not value:
+                    continue
+                candidate = f"{clean(value.group(1))}/{clean(label)}"
+                amount, currency, period, _ = parse_price(candidate)
+                primary_amount, primary_currency, _, _ = parse_price(data['price_text'])
+                if amount == primary_amount and currency == primary_currency == "EUR" and period is not None:
+                    data['raw']['price_cadence_evidence'] = {
+                        'primary_text': data['price_text'], 'selected_option': candidate,
+                    }
+                    data['price_text'] = candidate
+                break
         facts = re.search(r'''<span\b[^>]*\bid=["']vtmExtraVars["'][^>]*\bdata-var=(?P<quote>["'])(?P<value>.*?)(?P=quote)''', document, re.IGNORECASE | re.DOTALL)
         if facts:
             try:

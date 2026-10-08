@@ -58,6 +58,69 @@ async def test_provision_disabled_scopes_upserts_without_duplicate_or_implicit_a
         assert rows[0].enabled
 
 
+async def test_holiday_scopes_keep_independent_cursors_and_rejected_recommendations_do_not_close_long(monkeypatch):
+    monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
+    long_root = "https://www.pisos.com/alquiler/pisos-madrid/"
+    holiday_root = "https://www.pisos.com/alquiler-vacacional/pisos-madrid/"
+
+    class Source(PisosSource):
+        scope_key = "province:Madrid:holiday"
+        discovery_urls = (holiday_root,)
+
+        async def discover_listing_urls(self):
+            return DiscoveryResult(urls={item().source_url}, complete=False, visited_pages=1)
+
+        async def fetch_listing(self, url):
+            return '''<script type="application/ld+json">{"@type":"Apartment","propertyType":"apartment",
+              "numberOfBedrooms":1,"name":"Apartamento","description":"Larga estancia","rentalCategory":"residential",
+              "address":{"addressLocality":"Madrid","addressRegion":"Madrid","addressCountry":"ES"}}
+              </script><p>950 €/mes</p>'''
+
+    async with SessionLocal() as session:
+        await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid", (long_root,)),
+                                        ScopeDefinition("Pisos", "province:Madrid:holiday", (holiday_root,))])
+        assert await upsert(session, item(), scope_key="province:Madrid") == "imported"
+        before = await session.scalar(select(ExternalListingSource))
+        listing_id = before.canonical_listing_id
+        counters = await run_source(session, Source(), str(uuid4()), max_details=1)
+        assert counters["accepted_long"] == counters["accepted_holiday"] == counters["archived"] == 0
+        source = await session.scalar(select(ExternalListingSource))
+        listing = await session.get(Listing, listing_id)
+        assert source.current_status == "active" and source.scope_key == "province:Madrid"
+        assert listing.status == "published" and listing.rental_mode == "long" and listing.monthly_price == 900
+        assert await session.scalar(select(func.count(ExternalImportScope.id))) == 2
+
+
+async def test_selected_holiday_weekly_price_reaches_canonical_and_retains_provenance(monkeypatch):
+    monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
+    root = "https://www.pisos.com/alquiler-vacacional/pisos-madrid/"
+
+    class Source(PisosSource):
+        scope_key = "province:Madrid:holiday"
+        discovery_urls = (root,)
+
+        async def discover_listing_urls(self):
+            return DiscoveryResult(urls={item().source_url}, complete=False, visited_pages=1)
+
+        async def fetch_listing(self, url):
+            return '''<script type="application/ld+json">{"@type":"Apartment","propertyType":"apartment",
+              "numberOfBedrooms":1,"name":"Apartamento","description":"Vacacional","rentalCategory":"holiday",
+              "address":{"addressLocality":"Madrid","addressRegion":"Madrid","addressCountry":"ES"}}
+              </script><div class="jsPriceValue">490 €</div><select class="jsPriceSelector">
+              <option data-value="70 €">día</option><option selected data-value="490 €">sem</option></select>'''
+
+    async with SessionLocal() as session:
+        await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid:holiday", (root,))])
+        counters = await run_source(session, Source(), str(uuid4()), max_details=1)
+        assert counters["accepted_holiday"] == counters["created"] == 1
+        listing = await session.scalar(select(Listing))
+        source = await session.scalar(select(ExternalListingSource))
+        assert listing.rental_mode == "holiday" and listing.nightly_price == 70 and listing.monthly_price is None
+        assert listing.source_price_period == "week" and listing.source_price_text == "490 €/sem"
+        assert source.normalized_payload["weekly_price_amount"] == 490
+        assert source.normalized_payload["raw_payload"]["price_cadence_evidence"]["primary_text"] == "490 €"
+
+
 async def test_scope_checkpoint_drains_detail_tail_then_next_page_and_never_archives_unseen(monkeypatch):
     monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
     root = "https://www.pisos.com/alquiler/pisos-madrid/"

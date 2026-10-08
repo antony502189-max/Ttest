@@ -100,6 +100,13 @@ def canonical_province(value: Any) -> str | None:
     return ALIASES.get(province_token(value))
 
 
+def scope_province(scope_key: str) -> str | None:
+    """Holiday slices share province evidence, but retain independent cursors."""
+    if not scope_key.startswith("province:"):
+        return None
+    return canonical_province(scope_key.removeprefix("province:").removesuffix(":holiday"))
+
+
 def spain_country(value: Any) -> bool:
     if isinstance(value, dict):
         value = value.get("name") or value.get("identifier")

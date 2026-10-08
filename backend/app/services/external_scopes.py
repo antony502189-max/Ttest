@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlencode, urljoin, urlparse
 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +25,7 @@ from ..external_sources import (
 )
 from ..habitaclia_source import HabitacliaSource
 from ..models import ExternalImportScope
-from ..spain_provinces import canonical_province
+from ..spain_provinces import canonical_province, scope_province
 
 SOURCE_TYPES: dict[str, type[ExternalListingSource]] = {
     source.name: source
@@ -49,6 +50,8 @@ PUBLISHED_GEOGRAPHY = {
 AUDITED_HOLIDAY_ROUTES = {
     ("Pisos", "province:Málaga"): ("https://www.pisos.com/alquiler-vacacional/pisos-malaga/",),
 }
+PISOS_HOLIDAY_SEED = AUDITED_HOLIDAY_ROUTES[("Pisos", "province:Málaga")][0]
+PISOS_HOLIDAY_NAVIGATION = "https://www.pisos.com/FilterGeo/GetChildren"
 
 
 @dataclass(frozen=True)
@@ -60,7 +63,7 @@ class ScopeDefinition:
 
 def validate_scope(definition: ScopeDefinition) -> ScopeDefinition:
     source = SOURCE_TYPES.get(definition.source_name)
-    province = canonical_province(definition.scope_key.removeprefix("province:"))
+    province = scope_province(definition.scope_key)
     if source is None or not definition.scope_key.startswith("province:") or province is None:
         raise ValueError("Unknown source or Spanish province")
     if not 1 <= len(definition.discovery_urls) <= 6:
@@ -76,9 +79,59 @@ def validate_scope(definition: ScopeDefinition) -> ScopeDefinition:
             or parsed.fragment
         ):
             raise ValueError("Scope URL must use HTTPS on the exact public provider host")
+        if definition.scope_key.endswith(":holiday") and not (
+            definition.source_name == "Pisos" and parsed.path.startswith("/alquiler-vacacional/")
+            or definition.source_name == "ThinkSpain" and parsed.path.startswith("/holiday-rentals")
+        ):
+            raise ValueError("Holiday scopes require a provider holiday catalogue")
     return ScopeDefinition(
-        definition.source_name, "province:" + province, tuple(dict.fromkeys(definition.discovery_urls))
+        definition.source_name, "province:" + province + (":holiday" if definition.scope_key.endswith(":holiday") else ""),
+        tuple(dict.fromkeys(definition.discovery_urls))
     )
+
+
+def published_holiday_scope_definitions(document: str) -> list[ScopeDefinition]:
+    """Read the public widget's province destinations verbatim; never build slugs."""
+    payload = json.loads(document)
+    rows = payload.get("SelectableGeos") if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or len(rows) > 100:
+        raise ValueError("Invalid bounded provider province navigation")
+    definitions = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("LevelTypeForAnalytics") != "provincia":
+            continue
+        province = canonical_province(row.get("Name"))
+        route = row.get("DestinationUrl")
+        if not province or not isinstance(route, str) or not route or not str(row.get("AdsNumber", "")).isdigit():
+            continue
+        if int(row["AdsNumber"]) <= 0:
+            continue
+        url = urljoin(PISOS_HOLIDAY_NAVIGATION, route)
+        match = re.fullmatch(r"/alquiler-vacacional/pisos-([^/]+)/?", urlparse(url).path)
+        if not match or canonical_province(match.group(1)) != province:
+            raise ValueError("Holiday navigation destination disagrees with its province")
+        definition = validate_scope(ScopeDefinition("Pisos", f"province:{province}:holiday", (url,)))
+        definitions[definition.scope_key] = definition
+    return sorted(definitions.values(), key=lambda value: value.scope_key)
+
+
+async def discover_published_holiday_scopes(source: ExternalListingSource) -> list[ScopeDefinition]:
+    if source.name != "Pisos":
+        raise ValueError("No audited public holiday navigation for this provider")
+    document = await source.request(PISOS_HOLIDAY_SEED)
+    context = re.search(r'id=["\']hdnSearchContext["\'][^>]*value=["\']([^"\']+)', document or "")
+    if not context or not context.group(1).startswith("0.0101.F002."):
+        raise ValueError("Missing provider holiday search context")
+    # Same anonymous endpoint/parameters used by the published search widget
+    # when clearing its first ancestor. The empty geoId requests all provinces.
+    url = PISOS_HOLIDAY_NAVIGATION + "?" + urlencode({
+        "geoId": "", "serializedSearchContext": html.unescape(context.group(1)),
+        "withAncestors": "false", "isSearchResultsView": "false", "keywords": "",
+    })
+    navigation = await source.request(url)
+    if not navigation:
+        raise ValueError("Provider holiday navigation returned no document")
+    return published_holiday_scope_definitions(navigation)
 
 
 def published_scope_definitions(source_name: str, document: str, index_url: str) -> list[ScopeDefinition]:
