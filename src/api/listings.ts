@@ -143,7 +143,7 @@ function dateOnly(value: string | null, fallback: string) {
 }
 
 export function toListing(dto: ListingDto): Listing {
-  const availableFrom = dateOnly(dto.availableFrom, new Date().toISOString().slice(0, 10))
+  const availableFrom = dateOnly(dto.availableFrom, dto.isExternal ? '' : new Date().toISOString().slice(0, 10))
   const price = dto.price ?? (dto.rentalMode === 'holiday' ? dto.nightlyPrice : dto.monthlyPrice) ?? 0
   return {
     id: dto.id,
@@ -248,7 +248,7 @@ export function toListing(dto: ListingDto): Listing {
 }
 
 export function toCardListing(dto: ListingCardDto): Listing {
-  const availableFrom = dateOnly(dto.availableFrom, new Date().toISOString().slice(0, 10))
+  const availableFrom = dateOnly(dto.availableFrom, dto.isExternal ? '' : new Date().toISOString().slice(0, 10))
   return {
     id: dto.id, title: dto.title, city: dto.city, area: dto.area,
     approximateAddress: dto.approximateAddress, rentalMode: dto.rentalMode,
