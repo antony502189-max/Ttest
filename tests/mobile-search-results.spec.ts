@@ -118,8 +118,14 @@ test('sorting, photo carousel and favorites work without a delete-like guest aff
 
   const firstCard = results.locator('.m2-result-card').first()
   await expect(firstCard.locator('.m2-result-card__counter')).toContainText('1/6')
+  const firstPhoto = firstCard.locator('.m2-result-card__media img')
+  const initialImageUrl = await firstPhoto.getAttribute('src')
   await firstCard.locator('.m2-result-card__next').click()
   await expect(firstCard.locator('.m2-result-card__counter')).toContainText('2/6')
+  // The rendered URL must advance with the counter even if image decoding or
+  // fetching the next network frame is still in progress.
+  expect(initialImageUrl).toBeTruthy()
+  await expect(firstPhoto).not.toHaveAttribute('src', initialImageUrl!)
 
   const favorite = firstCard.locator('.m2-result-card__favorite')
   await favorite.click()
