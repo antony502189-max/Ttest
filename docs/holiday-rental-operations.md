@@ -34,6 +34,39 @@ are rejected without modifying source records belonging to a residential scope.
 Unsupported types, ambiguous cadence and missing location/bedroom evidence remain
 rejections. Weekly conversion and original source price provenance are unchanged.
 
+Holiday discovery also follows published `/alquilar/atico-` detail links. A
+penthouse becomes an apartment candidate only when its own `gaCusVar` field
+explicitly declares `tipoInmueble:'aticos'` and no conflicting structured type
+exists. The existing bedroom and price rules still decide admission. This was
+verified against one-bedroom public details in Roquetas de Mar and Torrox;
+two-bedroom, monthly, missing-price and unknown-type examples remain excluded.
+Residential discovery and the product taxonomy are unchanged.
+
+Pisos's photo counter can count a repeated cover as a second primary-gallery
+entry. Completeness therefore also accepts all advertised, trusted primary
+entries when they yield fewer unique photos. The stored gallery stays unique;
+a genuinely missing entry still defers replacement of existing media.
+
+### Existing residential offer seen in a holiday catalogue
+
+The provider may advertise the same URL in residential and holiday search results.
+`SourceRecord` identity is global to the provider URL/external ID, not scoped
+to a route. If the incoming rental mode conflicts with the existing canonical,
+or a holiday scope attempts to take ownership of a residential source (or vice
+versa), the importer now records a `scope_conflict`, leaves the existing source
+and canonical unchanged, and treats that source run as partial. Such overlaps
+require explicit operator review; do not force an in-place conversion of a
+published monthly listing into a nightly listing. Ordinary monthly price
+refreshes in the original residential scope remain permitted.
+
+A changed aggregate long-term inventory checksum is a **stop-and-diagnose**
+signal, not proof of corruption. Compare changed listing IDs and individual
+fields against the pre-import snapshot, the normal two-hour worker's run log,
+and audit timestamps. Separate expected background updates (prices, photos,
+availability) from any holiday-triggered mode/scope changes. Do not resume
+further holiday bootstrap tranches until unexpected cross-mode writes are
+ruled out, and do not roll back legitimate unrelated residential updates.
+
 Do not replace a residential scope with vacation routes. Do not clear an existing
 residential checkpoint to make room for vacation discovery. Existing automatic
 scope scheduling resumes the separate vacation checkpoint across restarts;

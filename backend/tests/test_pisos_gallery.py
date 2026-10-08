@@ -83,6 +83,49 @@ def test_pisos_partial_gallery_is_marked_and_snapshot_retains_incompleteness():
     asyncio.run(source.close())
 
 
+@pytest.mark.parametrize('expected,complete', [(9, True), (10, False)])
+def test_published_counter_can_include_a_repeated_cover_without_losing_unique_photos(expected, complete):
+    source = PisosSource()
+    source.scope_key = 'province:Alicante:holiday'
+    # Torrevieja's own masonry contains eight photos plus its repeated cover;
+    # the displayed counter counts all nine entries. Missing entries must
+    # still keep reconciliation deferred.
+    photos = [f'https://fotos.imghs.net/fchm-wp/524316/date/own-{index}.jpg' for index in range(8)]
+    document = gallery_document([*photos, photos[0].replace('/fchm-wp/', '/apps-wp/')], expected=expected)
+    try:
+        parsed = source.parse_listing(document, 'https://www.pisos.com/alquilar/apartamento-playa_del_cura-123456/')
+        assert parsed['images'] == photos
+        assert parsed['photos_complete'] is complete
+        normalized = source.normalize_listing({**parsed, 'title': 'Apartamento en alquiler vacacional',
+            'description': 'Apartamento de un dormitorio', 'property_type': 'apartment', 'bedroom_count': 1,
+            'price_text': '700 €/sem', 'city': 'Torrevieja', 'province': 'Alicante', 'country': 'ES'}, parsed['url'])
+        assert normalized and normalized.photos_complete is complete
+        assert listing_from_snapshot(normalized_snapshot(normalized)).photos_complete is complete
+    finally:
+        asyncio.run(source.close())
+
+
+def test_multiple_repeated_cover_entries_cannot_hide_missing_gallery_photos():
+    source = PisosSource()
+    source.scope_key = 'province:Alicante:holiday'
+    photos = [f'https://fotos.imghs.net/fchm-wp/524316/date/own-{index}.jpg' for index in range(7)]
+    # Nine published entries with just seven distinct photos cannot be
+    # accepted as a complete nine-photo gallery: only one repeated cover is
+    # tolerated by the provider-specific duplicate-cover exception.
+    document = gallery_document(
+        [*photos, photos[0].replace('/fchm-wp/', '/apps-wp/'), photos[0]],
+        expected=9,
+    )
+    try:
+        parsed = source.parse_listing(
+            document, 'https://www.pisos.com/alquilar/apartamento-playa_del_cura-123456/'
+        )
+        assert parsed['images'] == photos
+        assert parsed['photos_complete'] is False
+    finally:
+        asyncio.run(source.close())
+
+
 @pytest.mark.parametrize('document', ['', gallery_document([]), gallery_document([], expected=0)])
 def test_pisos_empty_photo_response_is_partial_in_normalized_and_persisted_snapshots(document):
     source = PisosSource()

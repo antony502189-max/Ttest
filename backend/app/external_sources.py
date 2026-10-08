@@ -1911,6 +1911,7 @@ class _PisosGalleryParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.div_classes: list[set[str]] = []
         self.photos: dict[str, str] = {}
+        self.published_entries = 0
 
     @staticmethod
     def image_identity(url: str) -> str | None:
@@ -1935,6 +1936,7 @@ class _PisosGalleryParser(HTMLParser):
         url = attributes.get("data-src") or attributes.get("src") or ""
         identity = self.image_identity(url)
         if identity is not None:
+            self.published_entries += 1
             self.photos.setdefault(identity, url)
 
     def handle_endtag(self, tag: str) -> None:
@@ -1963,6 +1965,17 @@ class PisosSource(ExternalListingSource):
         "https://www.pisos.com/alquiler/habitaciones-santa_cruz_de_tenerife/",
     )
 
+    def is_listing_url(self, url: str) -> bool:
+        if super().is_listing_url(url):
+            return True
+        parsed = urlparse(url)
+        return (
+            self.scope_key.endswith(':holiday')
+            and parsed.scheme == 'https'
+            and hostname_matches_domain(url, self.domain)
+            and bool(re.fullmatch(r'/alquilar/atico-[^/?#]+/?', parsed.path, re.IGNORECASE))
+        )
+
     def parse_listing(self, document: str, url: str) -> dict[str, Any]:
         data = super().parse_listing(document, url)
         gallery = _PisosGalleryParser()
@@ -1979,6 +1992,10 @@ class PisosSource(ExternalListingSource):
         # partial response, not evidence that existing photos were removed.
         data["photos_complete"] = bool(data["images"]) and (
             len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS)
+            or (
+                gallery.published_entries >= expected
+                and len(gallery.photos) >= max(1, expected - 1)
+            )
             if expected is not None else bool(gallery.photos) or len(data["images"]) != 1
         )
         path = urlparse(url).path
@@ -2020,6 +2037,23 @@ class PisosSource(ExternalListingSource):
             data['property_type'] = 'room'
         elif path.startswith(('/alquilar/piso-', '/alquilar/apartamento-')):
             data['property_type'] = data.get('property_type') or 'apartment'
+        elif self.scope_key.endswith(':holiday') and path.startswith('/alquilar/atico-') and not data.get('property_type'):
+            # A published penthouse apartment is eligible only through the
+            # existing apartment/bedroom admission rules. Do not infer its
+            # type from the headline or overwrite a structured house/hotel.
+            provider_type = re.search(
+                r'''<span\b[^>]*\bid=["']gaCusVar["'][^>]*\bdata-var=(?P<quote>["'])(?P<value>.*?)(?P=quote)''',
+                document, re.IGNORECASE | re.DOTALL,
+            )
+            declared_type = any(
+                item.get('propertyType') or item.get('property_type')
+                for item in data['raw']['jsonLd'] + data['raw']['embeddedJson'] if isinstance(item, dict)
+            )
+            if not declared_type and provider_type and re.search(
+                r"\btipoInmueble\s*:\s*'aticos'", html.unescape(provider_type.group('value')),
+            ):
+                data['property_type'] = 'apartment'
+                data['raw']['property_type_evidence'] = {'provider_field': 'gaCusVar.tipoInmueble', 'value': 'aticos'}
         crumbs = re.findall(r'''<div[^>]*class=["'][^"']*breadcrumb__item[^"']*["'][^>]*>(.*?)</div>''', document, re.IGNORECASE | re.DOTALL)
         locations = []
         for crumb in crumbs:

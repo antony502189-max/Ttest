@@ -91,6 +91,65 @@ async def test_holiday_scopes_keep_independent_cursors_and_rejected_recommendati
         assert await session.scalar(select(func.count(ExternalImportScope.id))) == 2
 
 
+async def test_holiday_catalogue_overlap_preserves_long_term_canonical_and_its_scope(monkeypatch):
+    monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
+    async with SessionLocal() as session:
+        original = item()
+        assert await upsert(session, original, scope_key="province:Madrid") == "imported"
+        source = await session.scalar(select(ExternalListingSource))
+        listing = await session.get(Listing, source.canonical_listing_id)
+        original_source_id = source.id
+        original_listing_id = listing.id
+
+        holiday = item(
+            rental_mode="holiday",
+            source_price_text="490 €/sem",
+            price_amount=70,
+            price_period="week",
+            weekly_price_amount=490,
+        )
+        result = await upsert(session, holiday, scope_key="province:Madrid:holiday")
+        assert result == "scope_conflict"
+        await session.refresh(source)
+        await session.refresh(listing)
+        assert source.id == original_source_id
+        assert source.scope_key == "province:Madrid"
+        assert listing.id == original_listing_id
+        assert listing.rental_mode == "long"
+        assert listing.monthly_price == 900 and listing.nightly_price is None
+        assert listing.status == "published"
+        assert await session.scalar(select(func.count(ExternalListingSource.id))) == 1
+        assert await session.scalar(select(func.count(Listing.id))) == 1
+
+        # Ordinary price refreshes from the owning residential scope remain
+        # permitted: a changed aggregate checksum is not itself data loss.
+        updated = item(price_amount=925, source_price_text="925 €/mes")
+        assert await upsert(session, updated, scope_key="province:Madrid") == "updated"
+        await session.refresh(listing)
+        assert listing.rental_mode == "long" and listing.monthly_price == 925
+
+
+async def test_residential_import_cannot_take_over_existing_holiday_source(monkeypatch):
+    monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
+    holiday = item(
+        rental_mode="holiday",
+        source_price_text="490 €/sem",
+        price_amount=70,
+        price_period="week",
+        weekly_price_amount=490,
+    )
+    async with SessionLocal() as session:
+        assert await upsert(session, holiday, scope_key="province:Madrid:holiday") == "imported"
+        source = await session.scalar(select(ExternalListingSource))
+        listing = await session.get(Listing, source.canonical_listing_id)
+        assert await upsert(session, item(), scope_key="province:Madrid") == "scope_conflict"
+        await session.refresh(source)
+        await session.refresh(listing)
+        assert source.scope_key == "province:Madrid:holiday"
+        assert listing.rental_mode == "holiday"
+        assert listing.nightly_price == 70 and listing.monthly_price is None
+
+
 async def test_selected_holiday_weekly_price_reaches_canonical_and_retains_provenance(monkeypatch):
     monkeypatch.setattr(external_import.get_settings(), "external_import_download_images", False)
     root = "https://www.pisos.com/alquiler-vacacional/pisos-madrid/"

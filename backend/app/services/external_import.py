@@ -695,6 +695,32 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 duplicate = await session.get(Listing, duplicate_id)
                 suppress_new_duplicate = bool(duplicate is not None and not duplicate.is_external)
 
+    # A property URL can be advertised in both the residential and vacation
+    # discovery catalogues. Source identity is unique across scopes. A holiday
+    # import must not reassign a residential source or rewrite its monthly
+    # canonical as nightly (and vice versa). Genuine recategorization requires
+    # explicit operator review, not an incidental discovery run.
+    if listing is not None and (
+        listing.rental_mode != item.rental_mode
+        or (
+            source is not None
+            and source.scope_key.endswith(":holiday") != scope_key.endswith(":holiday")
+        )
+    ):
+        logger.warning(
+            "external_import_scope_mode_conflict",
+            extra={
+                "source": item.source_name,
+                "scope": scope_key,
+                "existing_scope": source.scope_key if source else None,
+                "incoming_mode": item.rental_mode,
+                "existing_mode": listing.rental_mode,
+                "listing_id": str(listing.id),
+            },
+        )
+        await session.commit()
+        return "scope_conflict"
+
     coordinates = public_location(item)
     source_location_verified = coordinates is not None
     previous_fingerprint = source.fingerprint if source else None
@@ -1201,6 +1227,7 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "created",
             "updated",
             "unchanged",
+            "scope_conflict",
             "restored",
             "filtered_not_room",
             "rejected_not_room",
@@ -1450,6 +1477,9 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             counters["accepted_rooms" if item.room_type in ROOM_TYPES else "accepted_studios" if item.room_type == "Estudio" else "accepted_one_bedroom"] += 1
             outcome = await upsert(session, item, scope_key=scope_key)
             counters[outcome] += 1
+            if outcome == "scope_conflict":
+                # Never infer missing rows from an ambiguous overlapping scope.
+                partial = True
             if outcome == "imported":
                 counters["created"] += 1
         await session.commit()
