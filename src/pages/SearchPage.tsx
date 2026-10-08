@@ -228,7 +228,12 @@ export function SearchPage() {
     setServerLoading(true);
     setServerError(false);
     setServerItems(null);
-    void searchPublicListings(searchInput, request.signal, pageCursor, PAGE_SIZE).then((result) => {
+    void searchPublicListings(searchInput, request.signal, pageCursor, PAGE_SIZE, (recovered) => {
+      if (cancelled) return
+      setServerItems((current) => current?.map((card) =>
+        card.id === recovered.id ? { ...card, images: recovered.images } : card
+      ) ?? null)
+    }).then((result) => {
       if (!cancelled) {
         setServerItems(result.items);
         setServerTotal(result.total);
