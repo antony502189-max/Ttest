@@ -142,7 +142,8 @@ async def test_whole_units_reach_run_source_and_canonical_prices(monkeypatch, ro
 
     async with SessionLocal() as session:
         counters = await run_source(session, Source(), str(uuid4()))
-        assert counters.result == "success"
+        assert counters.result == "partial"
+        assert counters["incomplete_galleries"] == 1
         assert counters["accepted_rentals"] == counters[f"accepted_{mode}"] == 1
         assert counters["accepted_rooms"] == 0
         listing = await session.scalar(select(Listing))
