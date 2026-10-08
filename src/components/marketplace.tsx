@@ -529,7 +529,7 @@ export function PropertyCard({
   const { discardListing } = useApp();
   const { t, locale } = useI18n();
   const markRecentlyViewed = useRecentlyViewedTracker();
-  const [imageIndex, setImageIndex] = useState(0);
+  const [selectedImageIndex, setImageIndex] = useState(0);
   const availability = listing.availableFrom ? t(`Disponible desde ${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${listing.availableFrom}T12:00:00`))}`) : t(listing.available);
   const share = async () => {
     const url = `${location.origin}${location.pathname}#/habitacion/${listing.id}`;
@@ -546,6 +546,8 @@ export function PropertyCard({
   const criticalRestrictions = getCriticalRestrictions(listing);
   const visibleRestrictions = criticalRestrictions.slice(0, compact ? 2 : 3);
   const cardImages = listing.images.length ? listing.images : [fallbackImage];
+  const imageIndex = Math.min(selectedImageIndex, cardImages.length - 1);
+  if (imageIndex !== selectedImageIndex) setImageIndex(imageIndex);
   return (
     <article
       className={cn(
@@ -1204,7 +1206,9 @@ export function MapView(props: {
 }
 
 export function PropertyGallery({ listing }: { listing: Listing }) {
-  const [index, setIndex] = useState(0);
+  const [selectedIndex, setIndex] = useState(0);
+  const index = Math.min(selectedIndex, Math.max(0, listing.images.length - 1));
+  if (index !== selectedIndex) setIndex(index);
   const [open, setOpen] = useState(false);
   const next = () => setIndex((value) => (value + 1) % listing.images.length);
   const previous = () =>

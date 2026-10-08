@@ -167,7 +167,9 @@ test('owner routes preload on intent without a second owner API request', () => 
   const moderation = readFileSync('src/components/moderation-gate.tsx', 'utf8')
 
   expect(layout).not.toContain('requestIdleCallback')
-  expect(layout).toContain('onPointerEnter={preloadListingCreatePage}')
+  expect(layout).not.toContain('onPointerEnter={preloadListingCreatePage}')
+  expect(layout).toContain('onFocus={preloadListingCreatePage}')
+  expect(layout).toContain('onPointerDown={preloadListingCreatePage}')
   expect(mobile).toContain('preloadAccountPages()')
   expect(preload).toContain("import('@/pages/AccountPages')")
   expect(preload).toContain("import('@/pages/ListingCreatePage')")

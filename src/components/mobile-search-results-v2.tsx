@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppBack } from '@/hooks/use-app-back'
 import { useRecentlyViewedTracker } from '@/hooks/use-recently-viewed-listings'
-import { searchPublicListings } from '@/api/listings'
+import { searchPublicListings, type ListingSearchInput } from '@/api/listings'
 import {
   ArrowDownUp,
   ArrowLeft,
@@ -26,7 +26,7 @@ import { getBedroomCount } from '@/lib/listings'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
-import { filtersFromParams, filtersToParams, prioritizePromotedListings } from '@/lib/search'
+import { createProgressiveGalleryPage, filtersFromParams, filtersToParams, prioritizePromotedListings } from '@/lib/search'
 import { compareListingFloors } from '@/lib/floor'
 import type { Filters, Listing, RentalMode } from '@/types'
 import { cn } from '@/lib/utils'
@@ -106,6 +106,15 @@ const resultsCopy = {
 
 type ResultsCopy = typeof resultsCopy.es
 
+type MobileSearchSession = {
+  key: string
+  epoch: number
+  retry: number
+  input: ListingSearchInput
+  controller: AbortController
+  status: 'pending' | 'loaded' | 'failed'
+}
+
 const fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560"%3E%3Crect width="800" height="560" fill="%23282828"/%3E%3Cpath d="M260 360l90-95 62 65 48-44 92 96H260z" fill="%235d655f"/%3E%3Ccircle cx="505" cy="190" r="34" fill="%23727b74"/%3E%3C/svg%3E'
 
 function imageFallback(event: SyntheticEvent<HTMLImageElement>) {
@@ -155,8 +164,11 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
   listing: Listing; language: ResultsLanguage; favorite: boolean; onFavorite: () => void; onDiscard: () => void; onContact: () => void; onOpen: () => void
 }) {
   const t = resultsCopy[language] as ResultsCopy
-  const [imageIndex, setImageIndex] = useState(0)
+  const [selectedImageIndex, setImageIndex] = useState(0)
   const images = listing.images.length ? listing.images : [fallbackImage]
+  const imageIndex = Math.min(selectedImageIndex, images.length - 1)
+  // Correct a removed frame in the same render as its URL and counter.
+  if (imageIndex !== selectedImageIndex) setImageIndex(imageIndex)
   const nextImage = () => {
     const next = (imageIndex + 1) % images.length
     setImageIndex(next)
@@ -195,12 +207,10 @@ export function MobileSearchResults() {
   const [serverLoadMoreError, setServerLoadMoreError] = useState(false)
   const [retry, setRetry] = useState(0)
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
-  const loadMoreRequestRef = useRef<AbortController | null>(null)
-  const loadingMoreCursorRef = useRef<string | null>(null)
+  const loadingMoreSessionRef = useRef<MobileSearchSession | null>(null)
   const resultsRootRef = useRef<HTMLElement>(null)
   const savedScrollTopRef = useRef(0)
-  const loadedSearchKeyRef = useRef('')
-  const loadedCatalogEpochRef = useRef(-1)
+  const searchSessionRef = useRef<MobileSearchSession | null>(null)
   const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
 
@@ -210,6 +220,9 @@ export function MobileSearchResults() {
     return () => window.removeEventListener('catalog:updated', refresh)
   }, [])
 
+  const favoriteOrder = new URLSearchParams(location.search).get('mobileOrden')
+  const favoriteSearchIds = favoriteOrder === 'saved-new' || favoriteOrder === 'saved-old'
+    ? JSON.stringify([...favorites].slice(0, 1000)) : ''
   const serverSearchRequest = useMemo(() => {
     if (mockMode) return null
     const params = new URLSearchParams(location.search)
@@ -233,82 +246,86 @@ export function MobileSearchResults() {
       maxPrice: canonical.maxPrice,
       roomTypes,
       sort,
-      favoriteIds: sort.startsWith('saved_') ? [...favorites].slice(0, 1000) : undefined,
+      favoriteIds: favoriteSearchIds ? JSON.parse(favoriteSearchIds) as string[] : undefined,
     }
-  }, [favorites, location.search])
+  }, [favoriteSearchIds, location.search])
   const serverSearchKey = useMemo(() => serverSearchRequest ? JSON.stringify(serverSearchRequest) : '', [serverSearchRequest])
+  const searchRouteActive = mobileViewport && location.pathname === '/buscar'
+    && new URLSearchParams(location.search).get('vista') !== 'mapa'
 
-  useEffect(() => {
-    if (mockMode || !open || !serverSearchRequest) return
-    if (
-      loadedSearchKeyRef.current === serverSearchKey
-      && loadedCatalogEpochRef.current === catalogEpoch
-    ) return
-    const params = new URLSearchParams(location.search)
-    if (params.get('vista') === 'mapa') return
-    const request = new AbortController()
-    loadMoreRequestRef.current?.abort()
-    loadMoreRequestRef.current = null
-    loadingMoreCursorRef.current = null
-    if (loadedSearchKeyRef.current !== serverSearchKey || loadedCatalogEpochRef.current !== catalogEpoch) {
-      savedScrollTopRef.current = 0
+  useLayoutEffect(() => {
+    if (mockMode || !open || !searchRouteActive || !serverSearchKey) return
+    const previous = searchSessionRef.current
+    if (previous?.key === serverSearchKey && previous.epoch === catalogEpoch
+      && previous.retry === retry && previous.status !== 'failed') return
+    previous?.controller.abort()
+    const session: MobileSearchSession = {
+      key: serverSearchKey, epoch: catalogEpoch, retry,
+      input: JSON.parse(serverSearchKey) as ListingSearchInput,
+      controller: new AbortController(), status: 'pending',
     }
+    searchSessionRef.current = session
+    loadingMoreSessionRef.current = null
+    const isCurrent = () => searchSessionRef.current === session && !session.controller.signal.aborted
+    const galleryPage = createProgressiveGalleryPage(isCurrent, setServerItems)
+    savedScrollTopRef.current = 0
     setServerItems(null)
+    setServerTotal(0)
+    setNextCursor(null)
     setServerLoading(true)
     setServerLoadingMore(false)
     setServerError(false)
     setServerLoadMoreError(false)
-    void searchPublicListings(serverSearchRequest, request.signal, undefined, 20, (recovered) => {
-      if (request.signal.aborted) return
-      setServerItems((current) => current?.map((card) =>
-        card.id === recovered.id ? { ...card, images: recovered.images } : card
-      ) ?? null)
-    }).then((page) => {
-      if (!request.signal.aborted) {
-        setServerItems(page.items)
+    void searchPublicListings(session.input, session.controller.signal, undefined, 20, galleryPage.recover).then((page) => {
+      if (isCurrent()) {
+        const items = galleryPage.accept(page.items)
+        setServerItems((current) => isCurrent() ? items : current)
         setServerTotal(page.total)
         setNextCursor(page.nextCursor)
-        loadedSearchKeyRef.current = serverSearchKey
-        loadedCatalogEpochRef.current = catalogEpoch
+        session.status = 'loaded'
       }
-    }).catch(() => { if (!request.signal.aborted) setServerError(true) }).finally(() => {
-      if (!request.signal.aborted) setServerLoading(false)
+    }).catch(() => { if (isCurrent()) { session.status = 'failed'; setServerError(true) } }).finally(() => {
+      if (isCurrent()) setServerLoading(false)
     })
-    return () => request.abort()
-  }, [catalogEpoch, location.search, open, retry, serverSearchKey, serverSearchRequest])
+    // The session survives overlays and detail/Back. Only a replacement search
+    // or unmount owns cancellation, including recovery from completed pages.
+  }, [catalogEpoch, open, retry, searchRouteActive, serverSearchKey])
 
   const loadMore = useCallback(() => {
     const cursor = nextCursor
-    if (mockMode || !open || !serverSearchRequest || !cursor || serverLoading || loadingMoreCursorRef.current) return
-    const request = new AbortController()
-    loadMoreRequestRef.current = request
-    loadingMoreCursorRef.current = cursor
+    const session = searchSessionRef.current
+    if (mockMode || !searchRouteActive || !session || session.key !== serverSearchKey
+      || session.status !== 'loaded' || !cursor || serverLoading || loadingMoreSessionRef.current) return
+    loadingMoreSessionRef.current = session
+    const isCurrent = () => searchSessionRef.current === session && !session.controller.signal.aborted
+    const galleryPage = createProgressiveGalleryPage(isCurrent, setServerItems)
     setServerLoadingMore(true)
     setServerLoadMoreError(false)
-    void searchPublicListings(serverSearchRequest, request.signal, cursor, 20, (recovered) => {
-      if (request.signal.aborted) return
-      setServerItems((current) => current?.map((card) =>
-        card.id === recovered.id ? { ...card, images: recovered.images } : card
-      ) ?? null)
-    }).then((page) => {
-      if (request.signal.aborted) return
+    void searchPublicListings(session.input, session.controller.signal, cursor, 20, galleryPage.recover).then((page) => {
+      if (!isCurrent()) return
+      const items = galleryPage.accept(page.items)
       setServerItems((current) => {
+        if (!isCurrent()) return current
         const existing = current ?? []
         const seen = new Set(existing.map((item) => item.id))
-        return [...existing, ...page.items.filter((item) => !seen.has(item.id))]
+        return [...existing, ...items.filter((item) => !seen.has(item.id))]
       })
       setServerTotal(page.total)
       setNextCursor(page.nextCursor)
     }).catch(() => {
-      if (!request.signal.aborted) setServerLoadMoreError(true)
+      if (isCurrent()) setServerLoadMoreError(true)
     }).finally(() => {
-      if (loadMoreRequestRef.current === request) loadMoreRequestRef.current = null
-      if (loadingMoreCursorRef.current === cursor) loadingMoreCursorRef.current = null
-      if (!request.signal.aborted) setServerLoadingMore(false)
+      if (isCurrent()) {
+        loadingMoreSessionRef.current = null
+        setServerLoadingMore(false)
+      }
     })
-  }, [nextCursor, open, serverLoading, serverSearchRequest])
+  }, [nextCursor, searchRouteActive, serverLoading, serverSearchKey])
 
-  useEffect(() => () => loadMoreRequestRef.current?.abort(), [])
+  useLayoutEffect(() => () => {
+    searchSessionRef.current?.controller.abort()
+    searchSessionRef.current = null
+  }, [])
 
   useEffect(() => {
     if (!open) return
