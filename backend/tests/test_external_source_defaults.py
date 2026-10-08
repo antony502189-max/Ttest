@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from app.core.config import SUPPORTED_EXTERNAL_IMPORT_SOURCES, Settings
 
 
@@ -40,3 +42,15 @@ def test_external_import_source_defaults_stay_aligned() -> None:
     )
     assert monitor_match is not None
     assert _csv(monitor_match.group(1)) == expected
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("external_import_scope_max_pages", 0),
+    ("external_import_scope_max_pages", 31),
+    ("external_import_scope_max_details", 0),
+    ("external_import_scope_max_details", 501),
+])
+def test_invalid_scoped_refresh_limits_fail_runtime_validation(field, value):
+    settings = Settings(_env_file=None, app_env="test", **{field: value})
+    with pytest.raises(RuntimeError, match="External import limits are invalid"):
+        settings.validate_runtime()

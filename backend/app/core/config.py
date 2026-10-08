@@ -136,6 +136,8 @@ class Settings(BaseSettings):
     # Scope rows remain inert until operators explicitly enable this after
     # the larger-server migration and source-specific geographic validation.
     external_import_nationwide_enabled: bool = False
+    external_import_scope_max_pages: int = 2
+    external_import_scope_max_details: int = 50
     external_import_user_agent: str = "112233.es room aggregator"
     external_import_playwright_enabled: bool = False
     external_removal_check_enabled: bool = True
@@ -253,6 +255,8 @@ class Settings(BaseSettings):
             or self.external_import_max_concurrency_per_source < 1
             or self.external_removal_check_interval_seconds < 1
             or not 1 <= self.external_import_max_images <= 15
+            or not 1 <= self.external_import_scope_max_pages <= 30
+            or not 1 <= self.external_import_scope_max_details <= 500
             or self.external_worker_stale_after_seconds < 120
         ):
             problems.append("External import limits are invalid")

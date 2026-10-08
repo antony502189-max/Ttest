@@ -283,8 +283,8 @@ Choose a pilot containing mainland/island territories and a **validated actual
 holiday route** if one becomes available. Enable only that reviewed manifest
 using `--apply --enable`. Set no retired source active merely to fill a quota.
 
-The baseline production Compose does **not** forward
-`EXTERNAL_IMPORT_NATIONWIDE_ENABLED`. Setting production.env alone is insufficient.
+Production Compose forwards `EXTERNAL_IMPORT_NATIONWIDE_ENABLED`, defaulting to
+`0`. Leave it disabled while auditing and doing the first controlled bootstrap.
 For a one-off explicit bootstrap, pass the flag to that container only:
 Perform the dedicated read-only Málaga holiday pilot above before this bounded
 inventory import. An apply breadth-first first round uses one page and cannot
@@ -303,21 +303,24 @@ reviewed groups, then invoke the same command with 30 pages/500 details/156 scop
 attempts and a **new** persistent checkpoint. Check totals, actual geography,
 duplicate suppression, source results and price cadence after every phase.
 
-For scheduled nationwide refresh, a separately authorized operator may persist
-this narrowly scoped Compose override outside the immutable release:
+After importing and verifying a small curated enabled scope set, an authorized
+operator can set the flag to `1` in production.env and recreate the worker with
+the base Compose. Check that its effective environment receives the flag.
+Only enabled, due rows are refreshed, at most eight per full cycle, after the
+unchanged useful-source health gate. Scoped refresh defaults to two discovery
+pages and 50 details per scope (`EXTERNAL_IMPORT_SCOPE_MAX_PAGES`, 1..30, and
+`EXTERNAL_IMPORT_SCOPE_MAX_DETAILS`, 1..500). It retains each adapter's smaller
+page cap. These limits do not affect the existing Santa Cruz full imports.
+Budget-limited refresh remains `partial`, schedules a bounded retry and never
+archives unseen listings. It does not prove complete coverage of a province.
+The independent direct-state removal sweep checks already imported sources.
 
-```yaml
-services:
-  external-listings-worker:
-    environment:
-      EXTERNAL_IMPORT_NATIONWIDE_ENABLED: "1"
-```
-
-Apply it with the existing base Compose plus `-f <operator-override.yml>` and
-`up -d --no-deps external-listings-worker`; include that override after future
-deploys if continued activation is intended. The normal worker still limits
-due scopes to eight and requires the existing minimum healthy source threshold.
-No repository deployment/Compose file was changed by this parser PR.
+The legacy Pisos Santa Cruz room route timed out in production on 2026-10-08.
+The adapter now uses the provider-published
+`/alquiler/habitaciones-santa_cruz_de_tenerife/` route linked from the live
+Tenerife catalogue, alongside the existing Tenerife root. Both roots and their
+pagination must still satisfy completeness independently; failures remain
+partial and preserve existing inventory.
 
 ```sql
 SELECT source_name, scope_key, enabled, last_result, next_run_at
@@ -342,7 +345,7 @@ geographic coverage and full completed source contracts are verified.
 ## Rollback
 
 Stop the operator bootstrap cleanly and preserve its checkpoint. Remove the
-nationwide override (or set its flag to `0`) and recreate the worker from the
+nationwide flag (set it to `0`) and recreate the worker from the
 base Compose. Restore **only recorded changed scope IDs** to their prior enabled
 states using a reviewed DB transaction; never blanket-disable historical scopes.
 Use the existing `deploy/rollback-release.sh [recorded-previous-release-sha]`

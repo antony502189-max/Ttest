@@ -342,8 +342,13 @@ async def run_once() -> dict[str, dict[str, int]]:
                 scoped_source = source_type()
                 scoped_source.scope_key = scope_key
                 scoped_source.discovery_urls = tuple(discovery_urls)
+                scoped_source.max_discovery_pages = min(
+                    scoped_source.max_discovery_pages, settings.external_import_scope_max_pages
+                )
                 async with SessionLocal() as session:
-                    outcome = await run_source(session, scoped_source, run_id)
+                    outcome = await run_source(
+                        session, scoped_source, run_id, max_details=settings.external_import_scope_max_details
+                    )
                     row = await session.get(ExternalImportScope, scope_id)
                     if row is not None:
                         row.last_run_at = datetime.now(UTC)

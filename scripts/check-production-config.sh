@@ -24,6 +24,9 @@ export DEPLOY_SHA=0123456789abcdef0123456789abcdef01234567
 export TRAEFIK_NETWORK=traefik-public
 export TRAEFIK_ENTRYPOINT=websecure
 export TRAEFIK_CERT_RESOLVER=letsencrypt
+export EXTERNAL_IMPORT_NATIONWIDE_ENABLED=1
+export EXTERNAL_IMPORT_SCOPE_MAX_PAGES=2
+export EXTERNAL_IMPORT_SCOPE_MAX_DETAILS=50
 export BACKUP_ENCRYPTION_KEY=ci-encryption-secret-with-at-least-32-characters
 export BACKUP_AUTHENTICATION_KEY=ci-authentication-secret-with-at-least-32-characters
 
@@ -142,6 +145,14 @@ if backend_env.get("MAX_LISTING_COLLECTION_ITEMS_PER_USER") != "500":
     raise SystemExit("backend must receive the per-user listing collection quota")
 if backend_env.get("EXTERNAL_IMPORT_MIN_HEALTHY_SOURCES") != "3":
     raise SystemExit("external worker must require three healthy production sources")
+scope_env = services["external-listings-worker"].get("environment", {})
+for key, expected in {
+    "EXTERNAL_IMPORT_NATIONWIDE_ENABLED": "1",
+    "EXTERNAL_IMPORT_SCOPE_MAX_PAGES": "2",
+    "EXTERNAL_IMPORT_SCOPE_MAX_DETAILS": "50",
+}.items():
+    if scope_env.get(key) != expected:
+        raise SystemExit(f"external worker must receive {key}")
 if backend_env.get("SENTRY_DSN") != "https://ci-public@example.invalid/1":
     raise SystemExit("backend must receive the VPS-only Sentry DSN")
 if backend_env.get("SENTRY_TRACES_SAMPLE_RATE") != "0.05":
