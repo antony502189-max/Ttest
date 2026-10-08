@@ -369,7 +369,8 @@ async def test_unchanged_source_retries_deferred_gallery_reconciliation(monkeypa
         assert attempts == 2
 
 
-async def test_partial_provider_gallery_preserves_existing_media_and_urls_while_updating_price(monkeypatch):
+@pytest.mark.parametrize("returned_photos", [0, 1])
+async def test_partial_provider_gallery_preserves_existing_media_and_urls_while_updating_price(monkeypatch, returned_photos):
     storage = RecordingStorage()
     calls: list[str] = []
 
@@ -397,7 +398,7 @@ async def test_partial_provider_gallery_preserves_existing_media_and_urls_while_
             .where(ListingImage.listing_id == listing.id).order_by(ListingImage.sort_order))).all())
         assert len(original_ids) == 3
         calls.clear()
-        item.photos = photos[:1]
+        item.photos = photos[:returned_photos]
         item.raw_payload = {"photos_complete": False}
         item.price_amount = 730
         item.source_price_text = "730 €/mes"

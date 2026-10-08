@@ -1973,7 +1973,7 @@ class PisosSource(ExternalListingSource):
         expected = int(counter.group(1)) if counter else None
         # An absent gallery or fewer photos than explicitly advertised is a
         # partial response, not evidence that existing photos were removed.
-        data["photos_complete"] = (
+        data["photos_complete"] = bool(data["images"]) and (
             len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS)
             if expected is not None else bool(gallery.photos) or len(data["images"]) != 1
         )
