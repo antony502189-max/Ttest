@@ -1991,7 +1991,11 @@ class PisosSource(ExternalListingSource):
         # An absent gallery or fewer photos than explicitly advertised is a
         # partial response, not evidence that existing photos were removed.
         data["photos_complete"] = bool(data["images"]) and (
-            len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS) or gallery.published_entries >= expected
+            len(data["images"]) >= min(expected, MAX_LISTING_PHOTOS)
+            or (
+                gallery.published_entries >= expected
+                and len(gallery.photos) >= max(1, expected - 1)
+            )
             if expected is not None else bool(gallery.photos) or len(data["images"]) != 1
         )
         path = urlparse(url).path
