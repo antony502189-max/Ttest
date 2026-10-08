@@ -889,8 +889,7 @@ class ExternalListingSource(ABC):
             paths["screenshot"] = str(screenshot_path)
         return paths
 
-    @staticmethod
-    def _challenge_type(document: str) -> str | None:
+    def _challenge_type(self, document: str) -> str | None:
         """A CAPTCHA script/contact-widget reference is not an access challenge.
 
         Only explicit challenge pages or strong anti-bot responses should block
@@ -903,6 +902,10 @@ class ExternalListingSource(ABC):
         )):
             return "access_challenge"
         if "captcha" not in body:
+            return None
+        # A contact-form CAPTCHA prompt is not a page-level access gate when
+        # the actual rental detail is already available anonymously.
+        if self.has_current_detail(document):
             return None
         if re.search(
             r"<(?:title|h1|h2)\b[^>]*>[^<]{0,160}\b(?:captcha|recaptcha)\b",
