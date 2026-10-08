@@ -16,6 +16,7 @@ from ..services.external_scopes import (
     PUBLISHED_GEOGRAPHY,
     SOURCE_TYPES,
     ScopeDefinition,
+    discover_published_holiday_scopes,
     provision_scopes,
     published_scope_definitions,
     validate_discovery_route,
@@ -44,6 +45,15 @@ async def execute(args: argparse.Namespace) -> dict:
         definitions = read_manifest(args.manifest)
     else:
         for name in args.sources.split(","):
+            if getattr(args, "rental_mode", "all") == "holiday":
+                source = SOURCE_TYPES[name]()
+                try:
+                    definitions.extend(await discover_published_holiday_scopes(source))
+                except (SourceBlocked, RuntimeError, ValueError, httpx.HTTPError, OSError) as exc:
+                    failures.append({"source": name, "error": str(exc)})
+                finally:
+                    await source.close()
+                continue
             if name not in PUBLISHED_GEOGRAPHY:
                 raise ValueError("Automatic route discovery supports Pisos and PisoCompartido")
             source = SOURCE_TYPES[name]()
@@ -86,7 +96,7 @@ async def execute(args: argparse.Namespace) -> dict:
     if args.apply:
         async with SessionLocal() as session:
             count = await provision_scopes(session, validated, enable=args.enable)
-    covered = {value.scope_key.removeprefix("province:") for value in validated}
+    covered = {value.scope_key.removeprefix("province:").removesuffix(":holiday") for value in validated}
     return {
         "dry_run": not args.apply,
         "validated_scopes": len(validated),
@@ -102,6 +112,7 @@ async def execute(args: argparse.Namespace) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources", default="Pisos,PisoCompartido")
+    parser.add_argument("--rental-mode", choices=("all", "holiday"), default="all")
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--apply", action="store_true")

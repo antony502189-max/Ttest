@@ -37,7 +37,7 @@ from ..external_sources import (
     parse_price,
 )
 from ..habitaclia_source import HabitacliaSource
-from ..rental_classification import property_type, rental_price
+from ..rental_classification import bedroom_count, property_type, rental_price
 
 SOURCE_TYPES = (
     IdealistaSource,
@@ -76,7 +76,15 @@ class DetailAudit:
     embedded_json_objects: int = 0
     error: str | None = None
     property_type: str | None = None
+    source_property_type: str = ""
     rental_mode: str | None = None
+    province: str = ""
+    bedroom_count: int | None = None
+    source_rental_category: str = ""
+    parsed_price_amount: int | None = None
+    parsed_price_period: str | None = None
+    rejection_reason: str | None = None
+    photos: int = 0
 
 
 @dataclass
@@ -187,12 +195,30 @@ async def audit_source(
                 detail.rental = is_rental(data)
                 detail.target_province = is_in_target_province(data)
                 detail.property_type = property_type(data, source.name)
+                detail.source_property_type = clean(data.get("property_type"))
+                detail.province = clean(data.get("province"))
+                detail.bedroom_count = bedroom_count(data)
+                detail.source_rental_category = clean(data.get("rental_category"))
+                detail.photos = len(data.get("images") or [])
                 amount, _, period, _ = parse_price(str(data.get("price_text", "")))
+                detail.parsed_price_amount, detail.parsed_price_period = amount, period
                 price = rental_price(data, source.name, amount, period)
                 if price:
                     detail.rental_mode = price.mode
                     result.classified_sample_by_mode[price.mode] += 1
                 normalized = source.normalize_listing(data, url)
+                if normalized is None:
+                    detail.rejection_reason = (
+                        "missing_bedroom_evidence" if detail.property_type is None and detail.bedroom_count is None
+                        and detail.source_property_type in {"apartment", "flat", "piso", "apartamento"}
+                        else "unsupported_property_type" if detail.property_type is None
+                        else "missing_or_wrong_location" if not source.accepts_location(data) or not detail.city
+                        else "invalid_price" if amount is None or amount <= 0
+                        else "ambiguous_price_period" if period is None
+                        else "invalid_rental_classification" if price is None
+                        else "non_holiday_rental" if source.scope_key.endswith(":holiday") and price.mode != "holiday"
+                        else "normalization_failed"
+                    )
                 if normalized is not None:
                     detail.normalized = True
                     result.normalized_details += 1
@@ -201,6 +227,7 @@ async def audit_source(
                     detail.title = normalized.title[:160]
                     detail.city = normalized.city[:100]
                     detail.source_price_text = normalized.source_price_text[:80]
+                    detail.photos = len(normalized.photos)
                     detail.latitude = normalized.latitude
                     detail.longitude = normalized.longitude
                     detail.map_point = normalized.latitude is not None and normalized.longitude is not None

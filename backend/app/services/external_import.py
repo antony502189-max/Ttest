@@ -1112,11 +1112,14 @@ async def archive_confirmed_not_found(session: AsyncSession, source_name: str, s
     return outcome["canonical_listings_purged"]
 
 
-async def deactivate_rejected_source(session: AsyncSession, source_name: str, source_url: str) -> None:
+async def deactivate_rejected_source(
+    session: AsyncSession, source_name: str, source_url: str, *, scope_key: str | None = None,
+) -> None:
     """Do not keep an already imported record visible after strict room validation rejects it."""
-    row = await session.scalar(
-        select(SourceRecord).where(SourceRecord.source_name == source_name, SourceRecord.source_url == source_url)
-    )
+    query = select(SourceRecord).where(SourceRecord.source_name == source_name, SourceRecord.source_url == source_url)
+    if scope_key is not None:
+        query = query.where(SourceRecord.scope_key == scope_key)
+    row = await session.scalar(query)
     if not row:
         return
     await deactivate_source_record(session, row, "rejected")
@@ -1185,6 +1188,7 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str, *, max_details: int | None = None) -> SourceRunCounters:
     started = perf_counter()
     scope_key = getattr(source, "scope_key", "santa_cruz")
+    rejection_scope = scope_key if scope_key.endswith(":holiday") else None
     counters = SourceRunCounters({
         key: 0
         for key in (
@@ -1423,19 +1427,19 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 # Retain historical observability consumers during transition.
                 counters["filtered_not_room"] += 1
                 counters["rejected_not_room"] += 1
-                await deactivate_rejected_source(session, source.name, url)
+                await deactivate_rejected_source(session, source.name, url, scope_key=rejection_scope)
                 await session.commit()
                 continue
             if not (source.accepts_location(parsed) if hasattr(source, "accepts_location") else is_in_import_scope(parsed, scope_key)):
                 counters["filtered_wrong_location"] += 1
                 counters["rejected_wrong_location"] += 1
-                await deactivate_rejected_source(session, source.name, url)
+                await deactivate_rejected_source(session, source.name, url, scope_key=rejection_scope)
                 await session.commit()
                 continue
             item = source.normalize_listing(parsed, url)
             if not item:
                 counters["rejected_invalid_price"] += 1
-                await deactivate_rejected_source(session, source.name, url)
+                await deactivate_rejected_source(session, source.name, url, scope_key=rejection_scope)
                 await session.commit()
                 continue
             counters["accepted_rentals"] += 1
