@@ -10,7 +10,7 @@ from app.services.external_scopes import SOURCE_TYPES, ScopeDefinition, validate
 @pytest.mark.parametrize("price,category,accepted", [
     ("999 €/mes", "long", True), ("1.000 €/mes", "long", True),
     ("1.001 €/mes", "long", False), ("800 €", "long", False),
-    ("50 €/noche", "holiday", False), ("800 €/mes", "holiday", False),
+    ("50 €/noche", "holiday", False), ("800 €/mes", "holiday", True),
     ("desde 800 €/mes", "long", False), ("800–950 €/mes", "long", False),
     ("1000.01 €/mes", "long", False), ("800 USD/month", "long", False),
 ])
@@ -72,13 +72,18 @@ def test_provider_price_cannot_drop_thousands_or_cents(price, amount):
 @pytest.mark.parametrize("description,period,category,expected", [
     ("Se prefieren trabajadores de temporada. Alquiler de 6 a 11 meses", "month", "", True),
     ("Contrato temporal. Duración mínima del alquiler: 6 meses con prórroga", "month", "", True),
-    ("Alquiler de temporada por meses", "month", "", False),
-    ("Alquiler temporal de 3 a 5 meses", "month", "", False),
-    ("Alquiler de 6 a 11 meses, turístico vacacional", "month", "", False),
+    ("Alquiler de temporada por meses", "month", "", True),
+    ("Alquiler temporal de 3 a 5 meses", "month", "", True),
+    ("Alquiler de 6 a 11 meses, turístico vacacional", "month", "", True),
+    ("Estancia mínima: 1 mes", "month", "temporary", True),
+    ("Alquiler por meses, contrato 2 meses", "month", "seasonal", True),
+    ("Alojamiento para 3 meses", "month", "vacacional", True),
+    ("Contrato de 12 meses", "week", "holiday", False),
+    ("Alquiler por noche para estancia de 12 meses", "night", "long", False),
     ("Alquiler de 6 a 11 meses", "night", "", False),
-    ("Contrato de 6 meses", "month", "holiday", False),
+    ("Contrato de 6 meses", "month", "holiday", True),
 ])
-def test_explicit_residential_term_is_admitted_without_tourism_or_ambiguous_seasonal_price(
+def test_fixed_monthly_price_is_eligible_independently_of_advertised_stay_length_or_category(
     description, period, category, expected,
 ):
     from app.rental_classification import rental_price
