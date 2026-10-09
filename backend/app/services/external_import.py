@@ -399,6 +399,10 @@ async def import_images(
             ).all()
         )
         desired_ids = [asset.id for asset in desired_assets]
+        if current_ids and getattr(settings, "external_import_preserve_existing_data", False):
+            # Recheck under the listing/gallery locks: an administrator may
+            # have attached photos while remote downloads were in flight.
+            raise RuntimeError("Existing gallery appeared during preserved import")
         if current_ids != desired_ids:
             await session.execute(delete(ListingImage).where(ListingImage.listing_id == listing_id))
             for sort_order, asset in enumerate(desired_assets):

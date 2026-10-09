@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -87,3 +88,36 @@ def test_price_rejection_does_not_rewrite_existing_source_in_preservation_mode(m
     monkeypatch.setattr(external_import, "imported_price_allowed", lambda _: False)
     assert asyncio.run(external_import.upsert(Session(), item)) == "rejected_invalid_price"
     assert vars(row) == before
+
+
+def test_preservation_rechecks_gallery_after_download_before_any_delete(monkeypatch):
+    asset = SimpleNamespace(id=uuid4(), checksum="checksum")
+    listing = SimpleNamespace(external_image_urls=["https://example.test/old.jpg"])
+    session = SimpleNamespace(
+        scalar=AsyncMock(side_effect=[0, listing]),
+        scalars=AsyncMock(side_effect=[
+            SimpleNamespace(all=lambda: [asset]),
+            SimpleNamespace(all=lambda: [uuid4()]),
+        ]),
+        commit=AsyncMock(), rollback=AsyncMock(), execute=AsyncMock(),
+        in_transaction=lambda: False,
+    )
+    client = MagicMock()
+    client.__aenter__ = AsyncMock(return_value=object())
+    client.__aexit__ = AsyncMock(return_value=False)
+    cleanup = AsyncMock()
+    monkeypatch.setattr(external_import, "get_settings", lambda: SimpleNamespace(
+        external_import_preserve_existing_data=True,
+        external_import_download_images=True,
+        external_import_max_concurrency_per_source=1,
+        external_import_request_timeout_seconds=1,
+    ))
+    monkeypatch.setattr(external_import.httpx, "AsyncClient", lambda **_: client)
+    monkeypatch.setattr(external_import, "get_storage", object)
+    monkeypatch.setattr(external_import, "download_external_image", AsyncMock(return_value=
+        external_import.PreparedExternalImage(b"image", 1, 1, "checksum", "phash")))
+    monkeypatch.setattr(external_import, "_delete_external_objects", cleanup)
+    asyncio.run(external_import.import_images(session, uuid4(), uuid4(), ["https://example.test/new.jpg"]))
+    session.rollback.assert_awaited_once()
+    session.execute.assert_not_awaited()
+    assert cleanup.await_args.args[1] == set()
