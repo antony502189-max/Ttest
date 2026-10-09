@@ -59,7 +59,7 @@ test('restored out-of-policy draft remains editable and is never silently clampe
   await page.goto('/#/publicar')
   await expect(page.getByText('Alquiler vacacional', { exact: true })).toHaveCount(0)
   // Desktop publish uses a long form, not the mobile multi-step wizard.
-  const price = page.locator('#publish-price')
+  const price = page.locator('#publish-monthly-price')
   await expect(price).toBeVisible()
   await expect(price).toHaveValue('1001')
   await expect(price).toHaveAttribute('max', '1000')
