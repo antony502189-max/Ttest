@@ -54,3 +54,5 @@ openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY -in "$ARCHIV
       fi
       printf "verified_objects=%s\n" "$actual"
     '
+
+write_recovery_receipt minio "$ARCHIVE"

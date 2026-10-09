@@ -96,3 +96,32 @@ PY
     return 65
   fi
 }
+
+# Optional machine-verifiable receipt, written only after the restore drill succeeds.
+write_recovery_receipt() {
+  local kind="$1" backup="$2"
+  [[ -n "${RECOVERY_RECEIPT:-}" ]] || return 0
+  python3 - "$kind" "$backup" "$RECOVERY_RECEIPT" "$ROOT" <<'PY'
+import hashlib, json, os, pathlib, sys
+from datetime import datetime, timezone
+kind, backup_name, output_name, root_name = sys.argv[1:]
+root = pathlib.Path(root_name).resolve()
+backup = pathlib.Path(backup_name).resolve(strict=True)
+output = pathlib.Path(output_name)
+if backup.parent != root / "backups" or output.parent.resolve() != root / "shared" / "rental-policy":
+    raise SystemExit("Recovery receipt and backup must use the private production directories")
+output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+os.chmod(output.parent, 0o700)
+h = hashlib.sha256()
+with backup.open("rb") as stream:
+    for chunk in iter(lambda: stream.read(1024*1024), b""):
+        h.update(chunk)
+value = dict(kind=kind, backup=str(backup), sha256=h.hexdigest(), restored=True,
+             verified_at=datetime.now(timezone.utc).isoformat())
+# Never overwrite a proof, follow a symlink, or reuse a failed drill's receipt.
+with os.fdopen(os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
+    json.dump(value, stream, sort_keys=True)
+    stream.write("\n")
+PY
+  write_backup_hmac "$RECOVERY_RECEIPT"
+}

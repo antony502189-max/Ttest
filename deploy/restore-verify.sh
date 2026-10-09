@@ -36,3 +36,5 @@ openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY -in "$DUMP" 
       -U "$user" -d "$db" --no-owner --no-privileges --exit-on-error --single-transaction
 "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U "$user" -d "$db" \
   -tAc 'SELECT PostGIS_Version(), count(*) FROM users;'
+
+write_recovery_receipt postgres "$DUMP"
