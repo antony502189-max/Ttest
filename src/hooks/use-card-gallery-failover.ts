@@ -13,18 +13,37 @@ function nextUsableIndex(images: string[], failed: Set<string>, from: number, di
 
 export function useCardGalleryFailover(listingId: string, sources: string[], fallback: string) {
   const images = sources.length ? sources : [fallback]
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [failureState, setFailureState] = useState<{ listingId: string; urls: string[] }>({
-    listingId, urls: [],
-  })
-  // A card may be reused for a different listing or an updated gallery.
-  const failed = new Set(failureState.listingId === listingId ? failureState.urls : [])
+  const galleryKey = JSON.stringify(sources)
+  const [galleryState, setGalleryState] = useState<{
+    listingId: string
+    galleryKey: string
+    selectedIndex: number
+    failedUrls: string[]
+  }>({ listingId, galleryKey, selectedIndex: 0, failedUrls: [] })
+  // A card may be reused for another listing or a refreshed gallery. Neither
+  // its selected frame nor URL failures should leak into that new view.
+  const stateMatchesGallery = galleryState.listingId === listingId && galleryState.galleryKey === galleryKey
+  const currentState = stateMatchesGallery
+    ? galleryState
+    : { listingId, galleryKey, selectedIndex: 0, failedUrls: [] }
+  if (!stateMatchesGallery) setGalleryState(currentState)
+  const failed = new Set(currentState.failedUrls)
+  const selectedIndex = currentState.selectedIndex
   const imageIndex = Math.min(selectedIndex, images.length - 1)
-  if (imageIndex !== selectedIndex) setSelectedIndex(imageIndex)
+  if (imageIndex !== selectedIndex) setGalleryState({ ...currentState, selectedIndex: imageIndex })
+
+  const selectIndex = (index: number) => {
+    setGalleryState((previous) => {
+      const base = previous.listingId === listingId && previous.galleryKey === galleryKey
+        ? previous
+        : { listingId, galleryKey, selectedIndex: 0, failedUrls: [] }
+      return { ...base, selectedIndex: index }
+    })
+  }
 
   const move = (direction: 1 | -1) => {
     const index = nextUsableIndex(images, failed, imageIndex, direction)
-    if (index !== null) setSelectedIndex(index)
+    if (index !== null) selectIndex(index)
     return index
   }
 
@@ -33,11 +52,19 @@ export function useCardGalleryFailover(listingId: string, sources: string[], fal
     // Do not interpret a late failure from a previous carousel frame as
     // failure of the newly selected image. Do not retry the fallback itself.
     if (!url || url === fallback || event.currentTarget.getAttribute('src') !== mediaVariantUrl(url, 'card')) return
-    const rejected = new Set(failed)
-    rejected.add(url)
-    setFailureState({ listingId, urls: [...rejected] })
-    const next = nextUsableIndex(images, rejected, imageIndex, 1)
-    if (next !== null) setSelectedIndex(next)
+    setGalleryState((previous) => {
+      // Ignore errors dispatched by an image from a listing or gallery that
+      // has already been replaced while the browser was still loading it.
+      if (previous.listingId !== listingId || previous.galleryKey !== galleryKey) return previous
+      const rejected = new Set(previous.failedUrls)
+      rejected.add(url)
+      const next = nextUsableIndex(images, rejected, imageIndex, 1)
+      return {
+        ...previous,
+        failedUrls: [...rejected],
+        selectedIndex: next ?? imageIndex,
+      }
+    })
     // If all gallery frames fail, the render below displays the fallback.
     // Never repeatedly request the failing URL or create an error loop.
   }

@@ -313,3 +313,31 @@ test('mobile gallery uses its fallback only if all images are broken, without re
   expect(attempts.get(urls[1])).toBe(1)
   expect(errors).toEqual([])
 })
+
+test('a refreshed gallery resets failures and selection when a card keeps the same listing ID', async ({ page }) => {
+  const refreshed = card(5)
+  refreshed.imageUrls = urls.slice(5, 10)
+  refreshed.coverImageUrl = urls[5]
+  let searches = 0
+  const errors = await fixtures(page, async (_, route) => {
+    searches++
+    await route.fulfill({ json: result([searches === 1 ? card(5) : refreshed]) })
+  })
+  await page.route('**/api/v1/media/**', (route) => {
+    if (new URL(route.request().url()).pathname === urls[0]) {
+      return route.fulfill({ status: 404, body: 'stale cover' })
+    }
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><rect width="960" height="640" fill="#789"/></svg>',
+    })
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  const first = page.locator(cardSelector).first()
+  await expect(first.locator('.m2-result-card__counter')).toHaveText('2/5')
+  await changeSearch(page, 'q=Arona&alquiler=holiday')
+  await expect(first.locator('.m2-result-card__counter')).toHaveText('1/5')
+  await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[5]}\\?variant=card$`))
+  expect(searches).toBe(2)
+  expect(errors).toEqual([])
+})
