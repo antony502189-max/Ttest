@@ -69,5 +69,6 @@ test('restored out-of-policy draft remains editable and is never silently clampe
   await expect(price).toHaveAttribute('aria-invalid', 'true')
   await price.fill('1000')
   await expect(price).toHaveValue('1000')
-  await expect(price).toHaveAttribute('aria-invalid', 'false')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByRole('heading', { name: 'Disponibilidad' })).toBeVisible()
 })
