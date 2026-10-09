@@ -67,3 +67,24 @@ was not attributed to a specific element; do not treat its median change as an
 acceptance claim. The media fixture is a small SVG, so first-photo time measures
 app scheduling and rendering, not production image transport or decode. Vite
 preview does not apply production Nginx compression, TLS, or CDN behavior.
+
+### Renderer execution measurement
+
+A separate matched run used the same route, one-listing/API and SVG media
+fixtures, viewport, network, and CPU profile. Each fresh context had browser
+cache disabled. CDP `Performance.getMetrics` was sampled after the first
+fixture photo loaded and 200 ms of settling. The ranges below are the three
+individual samples, not confidence intervals.
+
+| Cumulative renderer metric | Main median (range) | PR #300 median (range) | Change |
+| --- | ---: | ---: | ---: |
+| JavaScript `ScriptDuration` | 1.399 s (1.330–1.403) | 1.243 s (1.186–1.251) | −0.156 s |
+| `TaskDuration` | 2.887 s (2.872–2.897) | 2.278 s (2.253–2.353) | −0.609 s |
+
+Both metrics were lower in each of the three paired PR runs. `ScriptDuration`
+is cumulative renderer JS execution, not parse/compile time; `TaskDuration`
+also includes non-JS renderer work. These are local synthetic measurements,
+not production RUM or a per-module profile. They support the finding that
+skipping the obscured HomeScreen removes work on this route, but should not be
+read as a guaranteed user-facing latency reduction. Raw samples:
+`script-execution-mobile-search.json` are retained in the task audit workspace.
