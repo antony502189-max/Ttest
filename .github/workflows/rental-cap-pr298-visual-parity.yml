@@ -1,0 +1,83 @@
+name: PR298 UI parity for monthly rent cap
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/capture-phase2-release-visuals.mjs'
+      - 'scripts/compare-phase2-release-visuals.py'
+      - '.github/workflows/rental-cap-pr298-visual-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preserve-approved-ui:
+    if: ${{ github.head_ref == 'codex/rental-price-cap' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout monthly-rent candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: candidate
+          persist-credentials: false
+      - name: Checkout PR298-containing main visual reference
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install matching browser and Python runtimes
+        run: |
+          npm ci --prefix baseline
+          npm ci --prefix candidate
+          (cd candidate && npx playwright install --with-deps chromium)
+          python -m pip install --disable-pip-version-check -r candidate/requirements-ci.txt
+      - name: Build baseline and candidate identically
+        run: |
+          (cd baseline && VITE_ENABLE_MOCK_MODE=1 VITE_GOOGLE_MAPS_TEST_SDK=1 npm run build)
+          (cd candidate && VITE_ENABLE_MOCK_MODE=1 VITE_GOOGLE_MAPS_TEST_SDK=1 npm run build)
+      - name: Assert visual parity of six core mobile and desktop states
+        shell: bash
+        run: |
+          set -euo pipefail
+          node candidate/scripts/serve-build-for-measurement.mjs --root="$PWD/baseline/dist" --port=4174 >baseline-server.log 2>&1 &
+          pid1=$!
+          node candidate/scripts/serve-build-for-measurement.mjs --root="$PWD/candidate/dist" --port=4175 >candidate-server.log 2>&1 &
+          pid2=$!
+          trap 'kill "$pid1" "$pid2" 2>/dev/null || true' EXIT
+          for port in 4174 4175; do
+            ready=0
+            for attempt in $(seq 1 40); do
+              if curl --fail --silent "http://127.0.0.1:${port}/" >/dev/null; then ready=1; break; fi
+              sleep 1
+            done
+            test "$ready" = 1
+          done
+          node candidate/scripts/capture-phase2-release-visuals.mjs \
+            --baseline=http://127.0.0.1:4174 \
+            --candidate=http://127.0.0.1:4175 \
+            --output="$PWD/visual-artifacts"
+          python candidate/scripts/compare-phase2-release-visuals.py "$PWD/visual-artifacts" 0.0005
+      - name: Preserve baseline/candidate screenshots and diff report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pr298-visual-parity-rental-price-cap
+          path: |
+            visual-artifacts/**
+            baseline-server.log
+            candidate-server.log
+          if-no-files-found: ignore
+          retention-days: 14
