@@ -278,12 +278,12 @@ async def test_listing_and_media_ownership_boundaries(client, register_user):
         "/api/v1/listings",
         headers=publication_headers(attacker_token),
         json=customer_listing(
-            title="Holiday attacker listing",
-            rentalMode="holiday",
-            monthlyPrice=None,
-            nightlyPrice=75,
-            minimumStayMonths=0,
-            minimumNights=2,
+            title="Residential attacker listing",
+            rentalMode="long",
+            monthlyPrice=750,
+            nightlyPrice=None,
+            minimumStayMonths=1,
+            minimumNights=None,
         ),
     )
     assert owner_listing.status_code == attacker_listing.status_code == 201
@@ -374,7 +374,7 @@ async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(
             assetIds=second_assets,
             title="Texto completamente distinto",
             description="Otra descripción que no participa en la detección.",
-            monthlyPrice=1999,
+            monthlyPrice=999,
             street="Otra calle distinta",
             postcode="38001",
             approximateAddress="Otra zona",
@@ -411,7 +411,7 @@ async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_secon
         json=customer_listing(
             assetIds=duplicate_assets,
             title="Повторное объявление с другими данными",
-            monthlyPrice=1777,
+            monthlyPrice=977,
             street="Completely different street",
             postcode="38002",
         ),
@@ -439,7 +439,7 @@ async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_secon
         json=customer_listing(
             assetIds=replacement_assets,
             title="Новая галерея после отказа",
-            monthlyPrice=1777,
+            monthlyPrice=977,
             street="Completely different street",
             postcode="38002",
         ),
