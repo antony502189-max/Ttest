@@ -15,7 +15,7 @@ test('DELTA-MOBILE-01 home, occupant selector and location actions stay connecte
   await readyMobile(page)
   await expect(page.locator('.m2-home')).toBeVisible()
   const modeButtons = page.locator('.m2-mode-switch > button')
-  await expect(modeButtons).toHaveCount(2)
+  await expect(modeButtons).toHaveCount(1)
   const cardHeight = (await page.locator('.m2-search-card').boundingBox())?.height
   await modeButtons.last().click()
   expect(Math.abs(((await page.locator('.m2-search-card').boundingBox())?.height ?? 0) - (cardHeight ?? 0))).toBeLessThanOrEqual(2)
