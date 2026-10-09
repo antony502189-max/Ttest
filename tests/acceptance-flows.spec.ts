@@ -90,7 +90,7 @@ test.afterEach(async ({ page }) =>
 test("01–03 rental mode, búsqueda por fecha y selección de varias zonas", async ({
   page,
 }) => {
-  await page.getByRole("radio", { name: "Turismo, corta estancia" }).click();
+  await expect(page.getByRole("radio", { name: /Turismo/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Sin restricción" }).click();
   await page.getByPlaceholder("Municipio, barrio o zona de Tenerife").fill("Tenerife");
   await page.getByRole("button", { name: /abrir selección de ubicación/i }).click();
@@ -100,13 +100,13 @@ test("01–03 rental mode, búsqueda por fecha y selección de varias zonas", as
   await page.getByRole("button", { name: /ver \d+ habitaciones/i }).click();
   await page.getByRole("button", { name: /^ver habitaciones$/i }).click();
   await page.getByLabel("Disponible para esta fecha").fill("2026-08-10");
-  await expect(page).toHaveURL(/alquiler=holiday/);
+  await expect(page).toHaveURL(/alquiler=long/);
   await expect(page).not.toHaveURL(/precioMax=350/);
   await expect(page).toHaveURL(/zonas=/);
   await expect(page).toHaveURL(/fecha=2026-08-10/);
   await expect(
     page.locator(".results-list .price-block").first(),
-  ).toContainText("/noche");
+  ).toContainText("/mes");
 });
 
 test("04 every visible filter is wired to data and URL", async ({ page }) => {
