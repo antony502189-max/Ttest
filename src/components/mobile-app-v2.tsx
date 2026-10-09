@@ -331,6 +331,11 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         const mapId = googleMapsConfig.mapId
         const { initialCenter: center, initialCamera: camera } = startingView.current
         const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? FIRST_MAP_VIEWPORT, zoom: camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 2, maxZoom: 19 })
+        const startingCenter = camera ?? center ?? FIRST_MAP_VIEWPORT
+        // Apply the camera to the map instance as well as its UI metadata.
+        // The lightweight test Maps SDK does not honor constructor options.
+        map.setCenter({ lat: startingCenter.lat, lng: startingCenter.lng })
+        map.setZoom(camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom))
         mapRef.current = map
         if (camera) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
