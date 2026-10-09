@@ -58,7 +58,7 @@ def test_patch_cannot_invert_existing_availability_interval():
 
 
 def test_patch_cannot_switch_to_holiday_without_nightly_price():
-    assert_rejected({"rentalMode": "holiday"}, "nightlyPrice is required")
+    assert_rejected({"rentalMode": "holiday"}, "unsupported_rental_mode")
 
 
 def test_consistent_multi_field_room_patch_is_accepted():

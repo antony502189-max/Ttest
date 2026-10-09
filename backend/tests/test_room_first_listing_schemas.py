@@ -146,12 +146,8 @@ def test_holiday_room_for_two_with_double_bed_is_valid():
         "acceptedTenantTypes": ["man", "woman", "couple"],
     }
 
-    listing = ListingWrite.model_validate(payload)
-
-    assert listing.nightlyPrice == 55
-    assert listing.minimumNights == 3
-    assert listing.roomCapacity == 2
-    assert listing.bedType == "double"
+    with pytest.raises(ValidationError, match="unsupported_rental_mode"):
+        ListingWrite.model_validate(payload)
 
 
 def test_bed_space_cannot_be_published_as_private_room():

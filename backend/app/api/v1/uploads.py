@@ -21,6 +21,7 @@ from ...schemas.media import MediaAssetResponse
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ...services.media_processing import PreparedImage, prepare_image, render_variant
 from ...services.moderation import active_window, enforce_listing_view_access, is_admin
+from ...services.rental_policy import public_eligibility_clause
 from ...services.storage_deletions import enqueue_storage_deletion
 from ...services.video_processing import is_supported_video_upload, prepare_video
 from ...storage import Storage, get_storage
@@ -339,6 +340,7 @@ async def get_media(
             .where(
                 ListingImage.media_asset_id == MediaAsset.id,
                 Listing.status == "published",
+                public_eligibility_clause(),
                 Listing.deleted_at.is_(None),
                 User.deleted_at.is_(None),
                 User.blocked.is_(False),
@@ -354,6 +356,7 @@ async def get_media(
             .where(
                 Listing.video_asset_id == MediaAsset.id,
                 Listing.status == "published",
+                public_eligibility_clause(),
                 Listing.deleted_at.is_(None),
                 User.deleted_at.is_(None),
                 User.blocked.is_(False),
@@ -427,6 +430,7 @@ async def get_media(
                     .where(
                         Listing.video_asset_id == asset.id,
                         Listing.status == "published",
+                public_eligibility_clause(),
                         Listing.deleted_at.is_(None),
                         User.deleted_at.is_(None),
                         User.blocked.is_(False),
@@ -449,6 +453,7 @@ async def get_media(
                     .where(
                         ListingImage.media_asset_id == asset.id,
                         Listing.status == "published",
+                public_eligibility_clause(),
                         Listing.deleted_at.is_(None),
                         User.deleted_at.is_(None),
                         User.blocked.is_(False),

@@ -16,6 +16,7 @@ from ..schemas.listings import ListingResponse
 from .admin import _actionable_listing, audit
 from .catalog import touch_catalog
 from .moderation import active_listing_restriction, active_user_restriction
+from .rental_policy import require_eligible
 
 HOMEPAGE_HERO_SINGLETON_ID = 1
 DEFAULT_HOMEPAGE_HERO_DAYS = 7
@@ -60,6 +61,7 @@ async def configure_homepage_hero(
     ends_at: datetime | None = None,
 ) -> HomepageHeroPromotionResponse:
     listing, owner = await _actionable_listing(listing_id, session)
+    require_eligible(listing)
     if listing.status != "published":
         raise HTTPException(409, "Only published listings can be featured on the homepage")
     if await active_listing_restriction(listing.id, session) or await active_user_restriction(owner.id, session):

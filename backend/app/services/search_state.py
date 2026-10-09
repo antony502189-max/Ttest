@@ -12,6 +12,7 @@ from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHis
 from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
 from .moderation import active_window, enforce_listing_view_access
+from .rental_policy import public_eligibility_clause
 
 MAX_HISTORY = 20
 
@@ -39,6 +40,7 @@ def visible_listing_conditions():
     )
     return (
         Listing.status == "published",
+        public_eligibility_clause(),
         Listing.deleted_at.is_(None),
         User.deleted_at.is_(None),
         User.blocked.is_(False),

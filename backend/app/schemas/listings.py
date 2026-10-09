@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..content_safety import contains_listing_link
 from ..core.media_limits import MAX_LISTING_PHOTOS
+from ..services.rental_policy import MAX_MONTHLY_RENT_EUR, evaluate
 
 ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
@@ -67,7 +68,7 @@ class ListingWrite(BaseModel):
     postcode: str = Field(default="", max_length=32)
     approximateAddress: str = Field(min_length=2, max_length=240)
     rentalMode: str
-    monthlyPrice: int | None = Field(default=None, ge=0)
+    monthlyPrice: int | None = Field(default=None, gt=0, le=MAX_MONTHLY_RENT_EUR)
     nightlyPrice: int | None = Field(default=None, ge=0)
     weeklyPrice: int | None = Field(default=None, ge=0)
     roomType: str = Field(default="Habitación individual", max_length=64)
@@ -128,12 +129,12 @@ class ListingWrite(BaseModel):
 
     @model_validator(mode="after")
     def validate_write(self):
-        if self.rentalMode not in {"long", "holiday"}:
-            raise ValueError("rentalMode must be long or holiday")
-        if self.rentalMode == "long" and self.monthlyPrice is None:
-            raise ValueError("monthlyPrice is required for long rentals")
-        if self.rentalMode == "holiday" and self.nightlyPrice is None:
-            raise ValueError("nightlyPrice is required for holiday rentals")
+        eligibility = evaluate(mode=self.rentalMode, amount=self.monthlyPrice,
+                               bills_included=self.billsIncluded, bills_text=self.billsText)
+        if not eligibility.eligible:
+            raise ValueError(f"RENTAL_POLICY_REJECTED: {eligibility.reason}")
+        if self.nightlyPrice is not None or self.weeklyPrice is not None:
+            raise ValueError("Nightly and weekly publication is unsupported")
         if self.roomType not in ALLOWED_ROOM_TYPES:
             raise ValueError("roomType contains an unsupported value")
         if self.rentalUnit is not None and self.rentalUnit not in ALLOWED_RENTAL_UNITS:
@@ -196,7 +197,7 @@ class ListingPatch(BaseModel):
     postcode: str | None = Field(default=None, max_length=32)
     approximateAddress: str | None = Field(default=None, min_length=2, max_length=240)
     rentalMode: str | None = None
-    monthlyPrice: int | None = Field(default=None, ge=0)
+    monthlyPrice: int | None = Field(default=None, gt=0, le=MAX_MONTHLY_RENT_EUR)
     nightlyPrice: int | None = Field(default=None, ge=0)
     weeklyPrice: int | None = Field(default=None, ge=0)
     roomType: str | None = Field(default=None, max_length=64)
@@ -285,8 +286,10 @@ class ListingPatch(BaseModel):
         for field in self.model_fields_set:
             if field not in nullable_fields and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
-        if "rentalMode" in self.model_fields_set and self.rentalMode not in {"long", "holiday"}:
-            raise ValueError("rentalMode must be long or holiday")
+        if "rentalMode" in self.model_fields_set and self.rentalMode != "long":
+            raise ValueError("Only long-term rentals are supported")
+        if self.nightlyPrice is not None or self.weeklyPrice is not None:
+            raise ValueError("Nightly and weekly publication is unsupported")
         if "roomType" in self.model_fields_set and self.roomType not in ALLOWED_ROOM_TYPES:
             raise ValueError("roomType contains an unsupported value")
         if "status" in self.model_fields_set and self.status not in ALLOWED_LISTING_STATUSES:

@@ -18,7 +18,7 @@ def make_payload(**overrides):
         "minimumStayMonths": 3,
         "depositAmount": 100,
         "billsIncluded": False,
-        "billsText": "Gastos aparte: aprox. 45 €/mes",
+        "billsText": "Gastos según consumo",
         "roomSizeM2": 14,
         "roomCapacity": 1,
         "shower": "Ducha compartida",
@@ -34,14 +34,14 @@ def test_open_ended_listing_and_bills_text_are_accepted_and_written():
     payload = make_payload()
 
     assert payload.availableUntil is None
-    assert payload.billsText == "Gastos aparte: aprox. 45 €/mes"
+    assert payload.billsText == "Gastos según consumo"
 
     target = SimpleNamespace()
     apply_write(target, payload)
 
     assert target.available_until is None
     assert target.bills_included is False
-    assert target.bills_text == "Gastos aparte: aprox. 45 €/mes"
+    assert target.bills_text == "Gastos según consumo"
     assert "Wi-Fi" in target.amenities
 
 

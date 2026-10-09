@@ -33,6 +33,7 @@ from .moderation import (
     viable_admin_count,
 )
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
+from .rental_policy import require_eligible
 
 PROMOTION_DAILY_PRICE_CENTS = 100
 DEFAULT_PROMOTION_DAYS = 7
@@ -207,6 +208,8 @@ async def change_listing_status(
     if new_status != listing.status and new_status not in ADMIN_STATUS_TRANSITIONS[listing.status]:
         raise HTTPException(409, "Listing status transition is not permitted")
     previous = listing.status
+    if new_status in {"pending", "published"}:
+        require_eligible(listing)
     if new_status == "published" and not owner.email_verified:
         raise HTTPException(
             409,
@@ -290,6 +293,7 @@ async def promote_listing(
     ends_at: datetime | None = None,
 ) -> AdminListingResponse:
     listing, owner = await _actionable_listing(listing_id, session)
+    require_eligible(listing)
     if listing.status != "published":
         raise HTTPException(409, "Only published listings can be promoted")
     await assert_existing_listing_photo_count(session, listing.id)

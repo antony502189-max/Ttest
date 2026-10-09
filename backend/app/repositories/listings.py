@@ -45,6 +45,7 @@ from ..schemas.listings import (
     ListingSearchResponse,
     OwnedListingResponse,
 )
+from ..services.rental_policy import public_eligibility_clause
 
 
 def point(longitude: float, latitude: float):
@@ -291,6 +292,7 @@ def visible_query() -> Select:
         .outerjoin(ListingRoomDetails, ListingRoomDetails.listing_id == Listing.id)
         .where(
             Listing.status == "published",
+            public_eligibility_clause(),
             Listing.deleted_at.is_(None),
             User.deleted_at.is_(None),
             User.blocked.is_(False),

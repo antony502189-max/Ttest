@@ -37,6 +37,7 @@ from .listing_gallery_integrity import assert_existing_listing_photo_count
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
+from .rental_policy import require_eligible
 from .storage_deletions import enqueue_storage_deletions
 from .users import apply_profile_fields
 
@@ -338,9 +339,6 @@ def _validate_effective_patch_state(
     )
     room_capacity = effective("roomCapacity", stored_capacity)
     room_size = effective("roomSizeM2", listing.room_size_m2)
-    rental_mode = effective("rentalMode", listing.rental_mode)
-    monthly_price = effective("monthlyPrice", listing.monthly_price)
-    nightly_price = effective("nightlyPrice", listing.nightly_price)
     available_from = effective("availableFrom", listing.available_from)
     available_until = effective("availableUntil", listing.available_until)
 
@@ -352,10 +350,10 @@ def _validate_effective_patch_state(
     )
     home_size = effective("homeSizeM2", details.home_size_m2 if details else None)
 
-    if rental_mode == "long" and monthly_price is None:
-        raise HTTPException(422, "monthlyPrice is required for long rentals")
-    if rental_mode == "holiday" and nightly_price is None:
-        raise HTTPException(422, "nightlyPrice is required for holiday rentals")
+    # Validate effective state, including unchanged legacy fields on PATCH.
+    # Pure withdrawal remains possible even when an old row violates policy.
+    if changes.get("status") not in {"hidden", "closed"} or set(changes) != {"status"}:
+        require_eligible(listing, changes)
     if rental_unit == "bed" and room_type != "Habitación compartida":
         raise HTTPException(422, "rentalUnit=bed is only valid for shared rooms")
     if rental_unit == "bed" and bed_type not in {None, "single", "bunk"}:
@@ -517,6 +515,7 @@ async def create_listing(
         location=point(0, 0),
     )
     apply_write(listing, payload)
+    require_eligible(listing)
     listing.status = initial_status
     listing.published_at = now if initial_status == "published" else None
     session.add(listing)
@@ -720,6 +719,7 @@ async def update_listing(
 async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> OwnedListingResponse:
     listing, owner = await _lock_mutable_listing(listing_id, session)
     await ensure_owner_or_admin(listing, user, session)
+    require_eligible(listing)
     now = datetime.now(UTC)
     listing.expires_at = None
     previous_status = listing.status

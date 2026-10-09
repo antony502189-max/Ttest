@@ -242,6 +242,9 @@ def _listing_matches_saved_areas(listing: Listing, filters: dict[object, object]
 
 async def notify_saved_search_matches(session: AsyncSession, listing: Listing) -> None:
     """Create one durable alert per saved-search/listing pair after publication."""
+    from .rental_policy import listing_eligibility
+    if not listing_eligibility(listing).eligible:
+        return
     rows = (await session.execute(
         select(SavedSearch, User)
         .join(User, User.id == SavedSearch.user_id)

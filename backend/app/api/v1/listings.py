@@ -59,6 +59,7 @@ from ...services.moderation import (
     enforce_publish_access,
     is_admin,
 )
+from ...services.rental_policy import listing_eligibility
 from ..dependencies import current_user, optional_user
 
 router = APIRouter(prefix="/listings", tags=["listings"])
@@ -169,6 +170,13 @@ async def search_listings(
 ):
     await enforce_listing_view_access(user, session)
     return await search_public(session, payload)
+
+
+@router.get("/rental-policy")
+def rental_policy_contract():
+    from ...services.rental_policy import MAX_MONTHLY_RENT_EUR, POLICY_VERSION, SUPPORTED_RENTAL_MODE
+    return {"version": POLICY_VERSION, "rentalMode": SUPPORTED_RENTAL_MODE,
+            "maxMonthlyRentEur": MAX_MONTHLY_RENT_EUR, "currency": "EUR", "period": "month"}
 
 
 @router.post("/search/cards", response_model=ListingCardSearchResponse)
@@ -488,6 +496,7 @@ async def list_listing_images(
     moderated = await listing_hidden_by_moderation(listing.id, listing.owner_user_id, session)
     public_visible = bool(
         listing.status == "published"
+        and listing_eligibility(listing).eligible
         and owner
         and owner.deleted_at is None
         and not owner.blocked
