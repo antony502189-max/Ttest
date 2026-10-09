@@ -22,42 +22,38 @@ async function openLongStayResults(page: Page) {
   return results
 }
 
-test('closing filters discards draft changes instead of silently changing results', async ({ page }) => {
+test('closing filters discards an unapplied long-term price change', async ({ page }) => {
   const results = await openLongStayResults(page)
   const before = page.url()
-
   await results.getByRole('button', { name: 'Filtros' }).click()
-  await results.getByRole('button', { name: 'Turismo', exact: true }).click()
-  await expect(results.getByRole('button', { name: /Ver anuncios · 9/ })).toBeVisible()
+  await results.getByLabel('Precio Máx').fill('500')
+  await expect(results.getByRole('button', { name: /Ver anuncios/ })).toBeVisible()
   await results.getByRole('button', { name: 'Cerrar' }).click()
-
   await expect(page).toHaveURL(before)
   await expect(results.locator('.m2-result-card')).toHaveCount(23)
-  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ mes')
-
   await results.getByRole('button', { name: 'Filtros' }).click()
+  await expect(results.getByLabel('Precio Máx')).toHaveValue('1000')
   await expect(results.getByRole('button', { name: 'Vivienda', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(results.getByRole('button', { name: 'Turismo', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await expect(results.getByRole('button', { name: 'Turismo', exact: true })).toHaveCount(0)
 })
 
-test('apply commits the draft to URL, results and reload', async ({ page }) => {
+test('applying a residential draft commits price to URL, results and reload', async ({ page }) => {
   const results = await openLongStayResults(page)
-
   await results.getByRole('button', { name: 'Filtros' }).click()
-  await results.getByRole('button', { name: 'Turismo', exact: true }).click()
-  await expect(results.getByRole('button', { name: /Ver anuncios · 9/ })).toBeVisible()
+  await results.getByLabel('Precio Máx').fill('500')
   await results.getByRole('button', { name: /Ver anuncios/ }).click()
-
-  await expect(page).toHaveURL(/alquiler=holiday/)
-  await expect(results.locator('.m2-result-card')).toHaveCount(9)
-  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ noche')
-
+  await expect(page).toHaveURL(/precioMax=500/)
+  await expect(results.locator('.m2-result-card').first()).toBeVisible()
+  const filteredCount = await results.locator('.m2-result-card').count()
+  expect(filteredCount).toBeGreaterThan(0)
+  expect(filteredCount).toBeLessThan(23)
   await page.reload()
   const restored = page.getByTestId('mobile-results')
   await expect(restored).toBeVisible()
-  await expect(restored.locator('.m2-result-card')).toHaveCount(9)
-  await expect(restored.locator('.m2-result-card__price').first()).toContainText('/ noche')
+  await expect(restored.locator('.m2-result-card')).toHaveCount(filteredCount)
+  await expect(restored.locator('.m2-result-card__price').first()).toContainText('/ mes')
 })
+
 
 test('clear is a draft action until View listings is pressed', async ({ page }) => {
   const results = await openLongStayResults(page)
