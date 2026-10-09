@@ -57,3 +57,4 @@ Use `--profile=mobile`, `--profile=4g`, or `--profile=constrained` for the other
 - Publication flow suite passed: 15 passed, 0 failed.
 - The broad `npm run test:e2e` run was stopped after more than 15 minutes without a reporter summary; it is not counted as a pass.
 - `tests/visual-parity.spec.ts` could not compare visuals because this checkout has no committed Playwright snapshot baselines. The spec wrote local actual screenshots and failed each comparison for the missing baseline; no baseline image was changed.
+- An independent paired screenshot comparison in mock mode found exact pixel equality against main for mobile home, mobile search, mobile publication, and desktop publication (`390×844` and `1440×900`). The generated images are retained outside the repository at `C:/Users/hamez/.codex/audits/phase2-route-critical/visual-pair/`; they are not substitutes for the full approved visual matrix.
