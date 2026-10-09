@@ -46,7 +46,9 @@ function detectModeLocale(buttons: HTMLElement[]): ModeLocale {
 
 function applyReferenceModeLabels() {
   const buttons = Array.from(document.querySelectorAll<HTMLElement>('.m2-mode-switch > button'))
-  if (buttons.length !== 2) return
+  // The long-term-only product renders exactly one mode button. Keep its
+  // reference headline/subtitle while retaining legacy two-card support.
+  if (buttons.length < 1 || buttons.length > 2) return
   const copy = modeCopy[detectModeLocale(buttons)]
   buttons.forEach((button, index) => {
     const labels = copy[index]
@@ -54,7 +56,9 @@ function applyReferenceModeLabels() {
     if (!labels || !labelTarget) return
     labelTarget.dataset.referenceTitle = labels.title
     labelTarget.dataset.referenceSubtitle = labels.subtitle
-    button.setAttribute('aria-label', `${labels.modeName} — ${labels.title} ${labels.subtitle}`)
+    // Preserve the semantic label assigned by React for the sole supported
+    // residential option; historical two-card layouts retain their copy.
+    if (buttons.length === 2) button.setAttribute('aria-label', `${labels.modeName} — ${labels.title} ${labels.subtitle}`)
   })
 }
 
