@@ -9,7 +9,7 @@ from test_room_first_listing_schemas import base_payload
 from app.external_sources import IdealistaSource, PisosSource
 from app.schemas.listings import ListingWrite
 from app.services.external_import import upsert
-from app.services.rental_price_limit import imported_price_allowed, long_term_price_allowed, require_listing_price
+from app.services.rental_price_limit import exact_euro_amount, imported_price_allowed, long_term_price_allowed, require_listing_price
 
 
 @pytest.mark.parametrize("amount,allowed", [(999, True), (1000, True), (1001, False), (1000.5, False), (None, False)])
@@ -96,3 +96,40 @@ async def test_upsert_rejects_over_limit_before_network_or_insert():
     assert await upsert(session, item) == "rejected_invalid_price"
     session.add.assert_not_called()
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("999 €/mes", 999),
+    ("1.000 €/mes", 1000),
+    ("1 000 €/mes", 1000),
+    ("1,000 €/month", 1000),
+    ("1000.01 €/mes", 1000.01),
+    ("1.000,50 €/mes", 1000.50),
+    ("1,000.50 €/month", 1000.50),
+    ("1 200 €/mes", 1200),
+    ("1.200 €/mes", 1200),
+    ("1,200 €/month", 1200),
+    ("1000,999 €/mes", None),
+    ("800 €/mes - 1500 €/mes", None),
+    ("sin precio", None),
+])
+def test_exact_euro_price_parsing_never_drops_thousands_or_cents(text, expected):
+    value = exact_euro_amount(text)
+    assert (float(value) if value is not None else None) == expected
+
+
+@pytest.mark.parametrize("text", [
+    "1 200 €/mes", "1,200 €/month", "1.200 €/mes",
+    "1000.01 €/mes", "1.000,50 €/mes", "1,000.50 €/month",
+    "1000,999 €/mes", "800 €/mes - 1500 €/mes",
+])
+def test_ambiguous_or_expensive_imports_fail_closed_even_after_legacy_integer_parse(text):
+    assert not imported_price_allowed(
+        SimpleNamespace(rental_mode="long", price_amount=800, source_price_text=text)
+    )
+
+
+def test_missing_raw_advertised_price_cannot_bypass_import_guard():
+    assert not imported_price_allowed(SimpleNamespace(
+        rental_mode="long", price_amount=750, source_price_text=""
+    ))
