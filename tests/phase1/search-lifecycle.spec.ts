@@ -57,7 +57,7 @@ for (const rentalMode of ['holiday', 'long']) for (const back of ['browser', 'ap
   test(`${rentalMode} detail and ${back} Back preserve session, delayed recovery, filters and scroll`, async ({ page }) => {
     const gate = deferred()
     const searches: SearchBody[] = []
-    await fixtures(page, async (body, route) => { searches.push(body); await route.fulfill({ json: result(Array.from({ length: 20 }, (_, i) => card(i === 0 ? 1 : 5, i === 0 ? id : `20000000-0000-4000-8000-${String(i + 2).padStart(12, '0')}`, rentalMode))) }) }, async route => {
+    await fixtures(page, async (body, route) => { searches.push(body); await route.fulfill({ json: result(Array.from({ length: 20 }, (_, i) => card(i === 0 ? 1 : 5, i === 0 ? id : `20000000-0000-4000-8000-${String(i + 2).padStart(12, '0')}`, 'long'))) }) }, async route => {
       await gate.promise
       await route.fulfill({ json: rows(5) })
     })
