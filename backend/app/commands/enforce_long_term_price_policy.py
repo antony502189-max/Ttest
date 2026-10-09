@@ -297,7 +297,7 @@ async def execute(args) -> dict:
             "digest": report["digest"], "summary": report["summary"],
             "selected": len(report["selected_ids"]), "invalid_by_source": report["invalid_by_source"],
             "invalid_by_status": report["invalid_by_status"], "assumptions": report["assumptions"],
-        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        }, ensure_ascii=False, indent=2) + "\n")
     return report
 
 
