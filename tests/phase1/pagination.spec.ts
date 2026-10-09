@@ -62,6 +62,6 @@ test('failed initial search and failed page retry retain coherent session state'
   await expect(page.locator('.m2-result-card')).toHaveCount(21)
   expect(initial).toBe(2)
   expect(pagination).toBe(2)
-  await changeSearch(page, 'q=Tenerife&alquiler=long')
+  await changeSearch(page, 'q=La Laguna&alquiler=long')
   await expect(page.locator('.m2-result-card')).toHaveCount(20)
 })
