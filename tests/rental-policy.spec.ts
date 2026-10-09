@@ -58,17 +58,14 @@ test('restored out-of-policy draft remains editable and is never silently clampe
   })
   await page.goto('/#/publicar')
   await expect(page.getByText('Alquiler vacacional', { exact: true })).toHaveCount(0)
-  for (let step = 0; step < 3; step += 1) {
-    await page.getByRole('button', { name: 'Continuar' }).click()
-  }
+  // Desktop publish uses a long form, not the mobile multi-step wizard.
   const price = page.locator('#publish-price')
   await expect(price).toBeVisible()
   await expect(price).toHaveValue('1001')
   await expect(price).toHaveAttribute('max', '1000')
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Publicar anuncio' }).click()
   await expect(price).toHaveAttribute('aria-invalid', 'true')
   await price.fill('1000')
   await expect(price).toHaveValue('1000')
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByRole('heading', { name: 'Disponibilidad' })).toBeVisible()
+  await expect(page.getByText('Alquiler vacacional', { exact: true })).toHaveCount(0)
 })
