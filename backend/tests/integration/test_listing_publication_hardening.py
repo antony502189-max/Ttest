@@ -374,7 +374,7 @@ async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(
             assetIds=second_assets,
             title="Texto completamente distinto",
             description="Otra descripción que no participa en la detección.",
-            monthlyPrice=1999,
+            monthlyPrice=999,
             street="Otra calle distinta",
             postcode="38001",
             approximateAddress="Otra zona",
@@ -411,7 +411,7 @@ async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_secon
         json=customer_listing(
             assetIds=duplicate_assets,
             title="Повторное объявление с другими данными",
-            monthlyPrice=1777,
+            monthlyPrice=977,
             street="Completely different street",
             postcode="38002",
         ),
@@ -439,7 +439,7 @@ async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_secon
         json=customer_listing(
             assetIds=replacement_assets,
             title="Новая галерея после отказа",
-            monthlyPrice=1777,
+            monthlyPrice=977,
             street="Completely different street",
             postcode="38002",
         ),

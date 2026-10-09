@@ -19,7 +19,8 @@ def test_public_uuid_detail_uses_primary_structured_unit_and_preserves_legacy_id
         assert not source.is_listing_url(url.replace("habitaclia.com", "evil.test"))
         parsed = source.parse_listing(document, url)
         assert parsed["property_type"] == "flat" and parsed["bedroom_count"] == 1
-        item = source.normalize_listing(parsed, url)
+        assert source.normalize_listing(parsed, url) is None  # Captured rent is 1,160 EUR/month.
+        item = source.normalize_listing({**parsed, "price_text": "1000 €/mes"}, url)
         assert item and (item.city, item.province, item.external_id, item.rental_mode) == (
             "Adeje",
             "Santa Cruz de Tenerife",
@@ -208,7 +209,8 @@ def test_habitaclia_preserves_public_address_without_promoting_static_map_center
         assert data["latitude"] is None
         assert data["longitude"] is None
 
-        item = source.normalize_listing(data, url)
+        assert source.normalize_listing(data, url) is None  # Captured long rent exceeds the ceiling.
+        item = source.normalize_listing({**data, "price_text": "1000 €/mes"}, url)
         assert item is not None
         assert item.city == "Granadilla de Abona"
         assert item.area == "El Médano"
@@ -231,7 +233,8 @@ def test_habitaclia_extracts_images_from_detail_hydration() -> None:
             "https://static.fotocasa.es/images/ads/sabandenos-1.webp",
             "https://static.fotocasa.es/images/ads/sabandenos-2.webp",
         ]
-        item = source.normalize_listing(data, url)
+        assert source.normalize_listing(data, url) is None  # Captured long rent exceeds the ceiling.
+        item = source.normalize_listing({**data, "price_text": "1000 €/mes"}, url)
         assert item is not None
         assert item.photos == data["images"]
         assert item.room_type == "Apartamento de 1 dormitorio"

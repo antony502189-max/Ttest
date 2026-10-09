@@ -52,6 +52,7 @@ from .listing_deduplication import (
 )
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
+from .rental_price_limit import imported_price_allowed, listing_price_allowed
 from .storage_deletions import enqueue_storage_deletions
 
 logger = logging.getLogger(__name__)
@@ -592,6 +593,8 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
 
 async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing, item: NormalizedListing) -> None:
     """Apply existing primary metadata without network I/O or a transaction commit."""
+    if not imported_price_allowed(item):
+        raise ValueError("Long-term monthly rent exceeds 1,000 EUR")
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
     coordinates = public_location(item)
@@ -671,6 +674,14 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 == item.source_url.split('#', 1)[0].split('?', 1)[0].rstrip('/'),
             )
         )
+    if not imported_price_allowed(item):
+        if source is not None and source.scope_key == scope_key:
+            source.normalized_payload = normalized_snapshot(item)
+            source.fingerprint = item.fingerprint
+            await deactivate_source_record(session, source, "rejected")
+            source.last_error = "long_term_price_exceeds_limit"
+        await session.commit()
+        return "rejected_invalid_price"
     suppress_new_duplicate = False
     if source:
         listing = await session.get(Listing, source.canonical_listing_id)
@@ -972,6 +983,8 @@ async def promote_best_active_source(
         if not row.normalized_payload:
             continue
         candidate = listing_from_snapshot(row.normalized_payload)
+        if not imported_price_allowed(candidate):
+            continue
         if require_location and public_location(candidate) is None:
             continue
         candidates.append(candidate)
@@ -1200,7 +1213,7 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
         )
         listing.location = None
         listing.last_synced_at = datetime.now(UTC)
-        if listing.closed_reason == "source_location_unverified":
+        if listing.closed_reason == "source_location_unverified" and listing_price_allowed(listing):
             listing.status = "published"
             listing.closed_reason = None
         if needs_catalog_touch:
@@ -1214,7 +1227,8 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str, *, max_details: int | None = None) -> SourceRunCounters:
     started = perf_counter()
     scope_key = getattr(source, "scope_key", "santa_cruz")
-    rejection_scope = scope_key if scope_key.endswith(":holiday") else None
+    # Never deactivate an active source record belonging to a different import scope.
+    rejection_scope = scope_key
     counters = SourceRunCounters({
         key: 0
         for key in (

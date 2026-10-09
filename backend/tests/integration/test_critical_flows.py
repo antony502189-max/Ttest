@@ -753,7 +753,7 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
             latitude=28.4821,
             longitude=-16.2721,
             bedrooms=2,
-            price=5000,
+            price=1000,
         ),
     )
     assert fresh_owner.status_code == fresh_import.status_code == 201

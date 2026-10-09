@@ -18,6 +18,7 @@ def listing(status: str):
         area="Centro",
         status=status,
         rental_mode="long",
+        monthly_price=700,
         views=0,
         created_at=datetime.now(UTC),
         deleted_at=None,

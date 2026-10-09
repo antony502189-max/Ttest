@@ -15,6 +15,7 @@ from ..repositories.listings import apply_search_filters, visible_query
 from ..schemas.listings import ListingSearchRequest
 from ..schemas.notifications import NotificationPage, NotificationResponse
 from .mail import enqueue_mail, frontend_link
+from .rental_price_limit import listing_price_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 # a saved search compared with the result set the customer actually saved.
 _SAVED_SEARCH_DEFAULTS: dict[str, object] = {
     "minPrice": 0,
-    "maxPrice": 1200,
+    "maxPrice": 1000,
     "homeSizeMin": 0,
     "homeSizeMax": 250,
 }
@@ -157,7 +158,12 @@ def _saved_search_payload(search: SavedSearch) -> ListingSearchRequest | None:
             "query": search.query or None,
             "rentalMode": search.rental_mode,
             "minPrice": _changed_filter(filters, "minPrice", _SAVED_SEARCH_DEFAULTS["minPrice"]),
-            "maxPrice": _changed_filter(filters, "maxPrice", _SAVED_SEARCH_DEFAULTS["maxPrice"]),
+            "maxPrice": (
+                None
+                if filters.get("minPrice", 0) == 0
+                and filters.get("maxPrice", _SAVED_SEARCH_DEFAULTS["maxPrice"]) in (1000, 1200)
+                else _changed_filter(filters, "maxPrice", _SAVED_SEARCH_DEFAULTS["maxPrice"])
+            ),
             "roomType": None if filters.get("roomType") in {None, "Cualquiera"} else filters.get("roomType"),
             "availableFrom": filters.get("available") or None,
             "availableUntil": filters.get("availableUntil") or None,
@@ -242,6 +248,8 @@ def _listing_matches_saved_areas(listing: Listing, filters: dict[object, object]
 
 async def notify_saved_search_matches(session: AsyncSession, listing: Listing) -> None:
     """Create one durable alert per saved-search/listing pair after publication."""
+    if not listing_price_allowed(listing):
+        return
     rows = (await session.execute(
         select(SavedSearch, User)
         .join(User, User.id == SavedSearch.user_id)

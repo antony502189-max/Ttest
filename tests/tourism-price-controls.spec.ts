@@ -28,15 +28,15 @@ test('both desktop filter panels share valid Tourism control values without chan
   const controls = await page.evaluate(async () => {
     const module = await import('/src/lib/price-filter-controls.ts')
     return {
-      unrestricted: module.priceControlValues({ minPrice: 0, maxPrice: 1200 }, 'holiday'),
-      staleLongStay: module.priceControlValues({ minPrice: 900, maxPrice: 1200 }, 'holiday'),
-      normalized: module.filtersForRentalMode({ minPrice: 900, maxPrice: 1200 }, 'holiday'),
+      unrestricted: module.priceControlValues({ minPrice: 0, maxPrice: 1000 }, 'holiday'),
+      staleLongStay: module.priceControlValues({ minPrice: 900, maxPrice: 1000 }, 'holiday'),
+      normalized: module.filtersForRentalMode({ minPrice: 900, maxPrice: 1000 }, 'holiday'),
     }
   })
 
   expect(controls.unrestricted).toMatchObject({ minimum: 0, maximum: 350, ceiling: 350, unrestricted: true })
   expect(controls.staleLongStay).toMatchObject({ minimum: 350, maximum: 350, ceiling: 350, unrestricted: false })
-  expect(controls.normalized).toMatchObject({ minPrice: 0, maxPrice: 1200 })
+  expect(controls.normalized).toMatchObject({ minPrice: 0, maxPrice: 1000 })
 })
 
 test('unrestricted Tourism renders valid price controls without serializing a hidden maximum', async ({ page }) => {

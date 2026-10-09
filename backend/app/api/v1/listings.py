@@ -59,6 +59,7 @@ from ...services.moderation import (
     enforce_publish_access,
     is_admin,
 )
+from ...services.rental_price_limit import listing_price_allowed
 from ..dependencies import current_user, optional_user
 
 router = APIRouter(prefix="/listings", tags=["listings"])
@@ -488,6 +489,7 @@ async def list_listing_images(
     moderated = await listing_hidden_by_moderation(listing.id, listing.owner_user_id, session)
     public_visible = bool(
         listing.status == "published"
+        and listing_price_allowed(listing)
         and owner
         and owner.deleted_at is None
         and not owner.blocked

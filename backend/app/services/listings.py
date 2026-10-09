@@ -37,6 +37,7 @@ from .listing_gallery_integrity import assert_existing_listing_photo_count
 from .media_lifecycle import lock_media_assets
 from .moderation import enforce_publish_access, is_admin
 from .notifications import create_notification, notify_favorited_listing_unavailable, notify_saved_search_matches
+from .rental_price_limit import require_listing_price
 from .storage_deletions import enqueue_storage_deletions
 from .users import apply_profile_fields
 
@@ -327,6 +328,9 @@ def apply_room_detail_write(details: ListingRoomDetails, payload: ListingWrite) 
 def _validate_effective_patch_state(
     listing: Listing, details: ListingRoomDetails | None, changes: dict[str, object]
 ) -> None:
+    if changes != {"status": "hidden"} and changes != {"status": "closed"}:
+        require_listing_price(listing, changes)
+
     def effective[T](api_name: str, current: T) -> T:
         return cast(T, changes.get(api_name, current))
 
@@ -517,6 +521,7 @@ async def create_listing(
         location=point(0, 0),
     )
     apply_write(listing, payload)
+    require_listing_price(listing)
     listing.status = initial_status
     listing.published_at = now if initial_status == "published" else None
     session.add(listing)
@@ -720,6 +725,7 @@ async def update_listing(
 async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> OwnedListingResponse:
     listing, owner = await _lock_mutable_listing(listing_id, session)
     await ensure_owner_or_admin(listing, user, session)
+    require_listing_price(listing)
     now = datetime.now(UTC)
     listing.expires_at = None
     previous_status = listing.status
