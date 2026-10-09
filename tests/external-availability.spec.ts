@@ -10,6 +10,7 @@ async function mappedListings(page: import('@playwright/test').Page) {
       imageUrls: [], amenities: [], restrictions: [], currentResidents: 0, bedroomCount: 0,
       owner: { name: '', initials: '', since: null, response: '', verified: false },
       status: 'published', isExternal: true, primarySource: 'Pisos',
+      sourcePriceCurrency: 'EUR', sourcePricePeriod: 'month', sourcePriceIsFrom: false,
       sourceUrl: 'https://www.pisos.com/alquilar/piso-ador_centro_urbano-67526936751_534221/',
     }
     return [toListing, toCardListing].map((map) => ({
