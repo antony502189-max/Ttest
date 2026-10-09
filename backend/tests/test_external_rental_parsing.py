@@ -103,7 +103,7 @@ def test_bed_amenities_do_not_reject_a_private_room():
         ({"title": "Alquiler de temporada"}, "month", "long"),
         ({"title": "Alquiler temporal 2 meses"}, "month", "long"),
         ({"title": "Vacacional con tarifa mensual", "rental_category": "holiday"}, "month", "long"),
-        ({"title": "Contrato de 12 meses"}, "night", None),
+        ({"title": "Contrato de 12 meses"}, "night", "holiday"),
         ({"title": "Alquiler de temporada"}, "week", None),
         ({"title": "Vacaciones"}, "week", "holiday"),
         ({"title": "Curso académico"}, "month", "long"),
