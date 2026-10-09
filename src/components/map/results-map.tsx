@@ -12,7 +12,8 @@ import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
-import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
+import { TENERIFE_BOUNDS } from '@/lib/tenerife'
+import { FIRST_MAP_VIEWPORT, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
@@ -300,9 +301,12 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       if (cancelled || !containerRef.current) return
       window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
+      const previousCamera = readLastMapViewport()
+      // Return to the last map position, otherwise show Spain + Tenerife.
+      const startingCamera = previousCamera ?? FIRST_MAP_VIEWPORT
       const map = new maps.Map(containerRef.current, {
-        center: TENERIFE_CENTER,
-        zoom: TENERIFE_DEFAULT_ZOOM,
+        center: { lat: startingCamera.lat, lng: startingCamera.lng },
+        zoom: startingCamera.zoom,
         minZoom: serverModeRef.current ? 2 : 8,
         maxZoom: 19,
         mapId: googleMapsConfig.mapId,
@@ -321,6 +325,8 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       })
       mapRef.current = map
       initializedMap = map
+      // Prevent initial marker fitting from resetting an existing camera.
+      if (previousCamera) skipNextResultsFitRef.current = true
       listeners.push(google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         if (containerRef.current) containerRef.current.dataset.mapInstance = 'google-ready'
       }))
@@ -335,6 +341,8 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         }
         if (manualMovePendingRef.current && !programmaticMoveRef.current) {
           manualMovePendingRef.current = false
+          const zoom = map.getZoom()
+          if (center && zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
           setBoundsDirty(true)
         }
       }
@@ -345,6 +353,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       }
       listeners.push(map.addListener('idle', updateBounds))
       listeners.push(map.addListener('dragstart', markManualMove))
+      listeners.push(map.addListener('zoom_changed', () => {
+        if (fittedResultsRef.current && !programmaticMoveRef.current) manualMovePendingRef.current = true
+      }))
       listeners.push(map.addListener('click', (event: google.maps.MapMouseEvent) => {
         if (!drawingRef.current || !event.latLng) return
         setDraftPolygon((current) => [...current, { lat: event.latLng!.lat(), lng: event.latLng!.lng() }])
@@ -359,7 +370,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       setMapError('')
       google.maps.event.addListenerOnce(map, 'idle', updateBounds)
       listeners.push(google.maps.event.addListenerOnce(map, 'idle', () => {
-        if (cancelled || !itemsRef.current.length) return
+        if (cancelled || !itemsRef.current.length || previousCamera) return
         programmaticMoveRef.current = true
         fitListings(map, itemsRef.current)
         google.maps.event.addListenerOnce(map, 'idle', () => {
