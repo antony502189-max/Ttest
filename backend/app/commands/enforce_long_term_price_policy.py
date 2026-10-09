@@ -266,15 +266,19 @@ async def apply_plan(session, reviewed: dict, *, confirmation: str, recovery_rec
     return result
 
 
-def save_private_text(path: Path, content: str) -> None:
-    """Atomically create, never overwrite, a private maintenance artifact.
+def reserve_private_output(path: Path) -> int:
+    """Reserve a new 0600 file before entering a maintenance transaction.
 
-    In particular, do not chmod an existing parent supplied by the operator:
-    changing /tmp or a shared directory would be a serious side effect.
+    O_EXCL and O_NOFOLLOW reject pre-existing destinations and symlinks.
+    Never chmod an arbitrary existing parent supplied by the operator.
     """
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-    fd = os.open(path, flags, 0o600)
+    return os.open(path, flags, 0o600)
+
+
+def save_private_text(path: Path, content: str) -> None:
+    fd = reserve_private_output(path)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         stream.write(content)
 
@@ -282,18 +286,39 @@ def save_private_text(path: Path, content: str) -> None:
 def save_report(path: Path, report: dict) -> None:
     save_private_text(path, json.dumps(report, ensure_ascii=False, indent=2) + "\n")
 
+
 async def execute(args) -> dict:
-    async with SessionLocal() as session, session.begin():
-        if args.apply:
-            if not args.manifest:
-                raise ValueError("Apply requires a previously reviewed manifest")
-            reviewed = json.loads(args.manifest.read_text(encoding="utf-8"))
-            report = await apply_plan(session, reviewed, confirmation=args.confirm,
-                                      recovery_receipts=args.recovery_receipt)
-        else:
-            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
-            report = await inventory(session, action=args.action, plan_limit=args.plan_limit)
-    save_report(args.output, report)
+    # Refuse unwritable/occupied output paths BEFORE any transactional mutation.
+    report_fd = reserve_private_output(args.output)
+    committed = False
+    try:
+        async with SessionLocal() as session, session.begin():
+            if args.apply:
+                if not args.manifest:
+                    raise ValueError("Apply requires a previously reviewed manifest")
+                reviewed = json.loads(args.manifest.read_text(encoding="utf-8"))
+                report = await apply_plan(session, reviewed, confirmation=args.confirm,
+                                          recovery_receipts=args.recovery_receipt)
+            else:
+                await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
+                report = await inventory(session, action=args.action, plan_limit=args.plan_limit)
+        committed = True
+        try:
+            with os.fdopen(report_fd, "w", encoding="utf-8") as stream:
+                report_fd = -1
+                json.dump(report, stream, ensure_ascii=False, indent=2)
+                stream.write("\n")
+        except OSError as exc:
+            raise RuntimeError(
+                "Database transaction may already be COMMITTED, but output writing failed. "
+                "Do not repeat cleanup without checking database state and manifest."
+            ) from exc
+    except BaseException:
+        if report_fd >= 0:
+            os.close(report_fd)
+        if not committed:
+            args.output.unlink(missing_ok=True)
+        raise
     if not args.apply:
         summary = args.output.with_suffix(".summary.md")
         save_private_text(summary, "# Rental policy inventory\n\n" + json.dumps({
