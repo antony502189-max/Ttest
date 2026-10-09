@@ -86,7 +86,7 @@ async def relationship_graph(session) -> list[dict]:
 
 def relationship_paths(graph: list[dict]) -> list[list[dict]]:
     paths = []
-    pending = [("listings", [])]
+    pending: list[tuple[str, list[dict]]] = [("listings", [])]
     while pending:
         parent, path = pending.pop()
         visited = {"listings", *(edge["table"] for edge in path)}
@@ -133,7 +133,10 @@ async def inventory(session, *, action: str = "withdraw", plan_limit: int = MAX_
         OR EXISTS (SELECT 1 FROM listings l WHERE l.video_asset_id = m.id) ORDER BY m.id::text"""))).all()
     database = (await session.execute(text("""SELECT current_database(), oid::text FROM pg_database
         WHERE datname = current_database()"""))).one()
-    summary, statuses, sources, cities = Counter(), Counter(), Counter(), Counter()
+    summary: Counter[str] = Counter()
+    statuses: Counter[str] = Counter()
+    sources: Counter[str] = Counter()
+    cities: Counter[str] = Counter()
     candidates = []
     for row in rows:
         result = listing_eligibility(SimpleNamespace(**row))
@@ -229,7 +232,7 @@ async def apply_plan(session, reviewed: dict, *, confirmation: str, recovery_rec
     fresh = await inventory(session, action=reviewed["plan_action"], plan_limit=reviewed["plan_limit"])
     if snapshot_digest(fresh) != snapshot_digest(reviewed):
         raise ValueError("Database or dependency snapshot changed; generate and review a new manifest")
-    counts = Counter()
+    counts: Counter[str] = Counter()
     for row in reviewed["candidates"]:
         if row["id"] not in reviewed["selected_ids"]:
             continue
