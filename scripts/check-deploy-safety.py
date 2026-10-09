@@ -1,10 +1,28 @@
 #!/usr/bin/env python3
 """Static fail-closed assertions for the production release transaction."""
 
+import ast
 from pathlib import Path
 
 SCRIPT = Path("deploy/deploy-release.sh")
 text = SCRIPT.read_text(encoding="utf-8")
+
+for command in ("deduplicate_listings", "repair_listing_galleries"):
+    if command in text:
+        raise SystemExit(f"ordinary code deploy must not invoke data maintenance: {command}")
+worker_tree = ast.parse(Path("backend/app/workers/external_listings.py").read_text(encoding="utf-8"))
+for node in ast.walk(worker_tree):
+    if isinstance(node, ast.Call):
+        name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", "")
+        if name in {"deduplicate_active_listings", "retire_source_records"}:
+            raise SystemExit(f"ordinary importer must not invoke historical bulk maintenance: {name}")
+production_compose = Path("docker-compose.production.yml").read_text(encoding="utf-8")
+for fragment in (
+    "EXTERNAL_REMOVAL_CHECK_ENABLED: ${EXTERNAL_REMOVAL_CHECK_ENABLED:-0}",
+    "EXTERNAL_IMPORT_PRESERVE_EXISTING_DATA: ${EXTERNAL_IMPORT_PRESERVE_EXISTING_DATA:-1}",
+):
+    if fragment not in production_compose:
+        raise SystemExit(f"production must preserve existing listings and galleries by default: {fragment}")
 
 worktree_requirements = (
     "verify_release_worktree()",

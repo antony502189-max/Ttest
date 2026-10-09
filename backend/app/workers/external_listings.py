@@ -19,8 +19,7 @@ from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
 from ..external_sources import configured_sources, retired_source_names
 from ..models import ExternalImportScope, ExternalWorkerState
-from ..services.duplicate_cleanup import deduplicate_active_listings
-from ..services.external_import import completed_source_contract, retire_source_records, run_removal_check, run_source
+from ..services.external_import import completed_source_contract, run_removal_check, run_source
 from ..services.external_removal import COUNTERS, GLOBAL_CONCURRENCY, LOCK_TTL_SECONDS, new_report
 from ..services.external_scopes import ScopeDefinition, validate_scope
 
@@ -288,10 +287,11 @@ async def run_once() -> dict[str, dict[str, int]]:
         sources = configured_sources()
         retired_names = retired_source_names({source.name.casefold() for source in sources})
         if retired_names:
-            async with SessionLocal() as session:
-                retired = await retire_source_records(session, retired_names)
-            if retired:
-                logger.info("external_import_retired_sources", extra={"run_id": run_id, "closed": retired})
+            # Source configuration controls future crawling, not historical
+            # records. Retirement needs a reviewed manifest and separate approval.
+            logger.info("external_import_retired_sources_review_required", extra={
+                "run_id": run_id, "sources": sorted(retired_names),
+            })
         for source in sources:
             async with SessionLocal() as session:
                 result[source.name] = await run_source(session, source, run_id)
@@ -358,18 +358,8 @@ async def run_once() -> dict[str, dict[str, int]]:
                         await session.commit()
                 logger.info("external_import_scope_finished", extra={"source": source_name, "scope": scope_key, "result": outcome.result, "counters": dict(outcome)})
                 await worker_state(health="running", run_id=run_id)
-        # Every source gallery has now had a chance to reconcile to its current
-        # bounded photo set. Re-run the same conservative photo-only cleanup so
-        # legacy append-only parser galleries cannot keep historical duplicates
-        # alive forever after deployment.
-        async with SessionLocal() as session:
-            dedupe_report = await deduplicate_active_listings(session, apply=True)
-        if dedupe_report["changed"]:
-            logger.info(
-                "external_import_post_sync_deduplicated",
-                extra={"run_id": run_id, **dedupe_report},
-            )
-
+        # Per-offer duplicate prevention remains in run_source/upsert. Historical
+        # bulk cleanup must never run implicitly at the end of a worker cycle.
         await worker_state(health="healthy", run_id=run_id)
         return result
     except Exception as exc:

@@ -39,7 +39,7 @@ caches, so the backend continues to check current authorization and visibility.
 
 Start with `deploy/production.env.example`; copy it only on the VPS, generate independent strong values for every marked secret (including `BACKUP_ENCRYPTION_KEY`), URL-encode the password included in `DATABASE_URL`, and run `chmod 600 /srv/112233.es/shared/production.env`. PostgreSQL dumps and MinIO object archives are AES-256-CBC/PBKDF2 encrypted on the VPS and checksummed. Never copy that file, dumps, Docker volumes, cookies, or logs containing secrets into Git.
 
-`APP_DOMAIN` must be `app.112233.es` and resolve directly to `31.97.185.84` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://app.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
+`APP_DOMAIN` must be `app.112233.es` and resolve directly to `169.58.147.65` before deployment so Traefik can complete its HTTP ACME challenge. Set the Google Maps browser key only after restricting it to `https://app.112233.es/*` and enabling only required Maps APIs. SMTP must be an actual configured provider; no Mailpit substitute is permitted in production.
 
 Bootstrap the server once after DNS and SMTP are ready. This creates directories and a source checkout only; it does not start application containers:
 
@@ -103,3 +103,7 @@ For a failed release, preserve logs, run the rollback script, then inspect the r
 To rotate JWT, database, or MinIO credentials: create a verified backup and restore test first; update only the VPS env file; apply the database/MinIO-side credential change using the vendor's supported procedure; then deploy a tested release and run the smoke check. Rotate one credential family at a time so a failure has a clear rollback path.
 
 Before a controlled reboot, record `docker compose ps`, confirm there are no unknown workloads and all application services use `unless-stopped`, then reboot. Reconnect over SSH and repeat `smoke-production.sh`; do not reboot while an unknown workload or failed service remains.
+
+## Historical data maintenance
+
+Ordinary code releases and importer cycles do not run global deduplication, source retirement, or legacy gallery repair. Production defaults preserve existing galleries and disable physical external removal. Keep EXTERNAL_IMPORT_PRESERVE_EXISTING_DATA=1 and EXTERNAL_REMOVAL_CHECK_ENABLED=0 unless a separate maintenance manifest has been reviewed and approved after successful PostgreSQL and MinIO restore drills. The maintenance commands remain available independently; their default dry-run is read-only. Application rollback does not undo listing closures, favorite transfers, added gallery relations, or removed media.

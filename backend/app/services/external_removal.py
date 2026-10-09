@@ -88,7 +88,11 @@ async def purge_confirmed_removed_source(session: AsyncSession, source_id: UUID,
         0,
     )
     # The rollout kill switch must also cover confirmations from full imports.
-    if not get_settings().external_removal_check_enabled:
+    settings = get_settings()
+    if (
+        not settings.external_removal_check_enabled
+        or getattr(settings, "external_import_preserve_existing_data", False)
+    ):
         return outcome
     canonical_id = await session.scalar(select(SourceRecord.canonical_listing_id).where(SourceRecord.id == source_id))
     if canonical_id is None:

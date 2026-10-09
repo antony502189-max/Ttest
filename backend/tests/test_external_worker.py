@@ -96,7 +96,6 @@ def test_all_failed_sources_mark_the_worker_unhealthy(monkeypatch):
         monkeypatch.setattr(worker, "configured_sources", lambda: [FailedSource()])
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "run_source", failed_run)
-        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
         monkeypatch.setattr(worker, "worker_state", record_state)
 
         await worker.run_once()
@@ -151,7 +150,6 @@ def test_worker_fails_when_only_two_of_three_required_sources_are_useful(monkeyp
         )
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "run_source", source_run)
-        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
         monkeypatch.setattr(worker, "worker_state", record_state)
 
         await worker.run_once()
@@ -161,13 +159,14 @@ def test_worker_fails_when_only_two_of_three_required_sources_are_useful(monkeyp
     asyncio.run(verify())
 
 
-def test_healthy_full_sync_runs_post_reconciliation_duplicate_cleanup(monkeypatch):
+@pytest.mark.parametrize("retired_names", [set(), {"idealista", "habitaclia"}])
+def test_healthy_full_sync_preserves_historical_records(monkeypatch, retired_names):
     class Source:
         name = "Fotocasa"
 
     async def verify() -> None:
         states: list[dict] = []
-        cleanup_calls: list[bool] = []
+        sessions: list[bool] = []
 
         async def record_state(**kwargs):
             states.append(kwargs)
@@ -175,6 +174,7 @@ def test_healthy_full_sync_runs_post_reconciliation_duplicate_cleanup(monkeypatc
 
         class EmptySession:
             async def __aenter__(self):
+                sessions.append(True)
                 return object()
 
             async def __aexit__(self, *args):
@@ -190,20 +190,17 @@ def test_healthy_full_sync_runs_post_reconciliation_duplicate_cleanup(monkeypatc
                 }
             )
 
-        async def dedupe(_session, *, apply: bool):
-            cleanup_calls.append(apply)
-            return {"groups": [], "duplicates": 0, "changed": 0}
-
         monkeypatch.setattr(worker, "get_settings", lambda: worker_settings(redis_url=""))
         monkeypatch.setattr(worker, "configured_sources", lambda: [Source()])
         monkeypatch.setattr(worker, "SessionLocal", EmptySession)
         monkeypatch.setattr(worker, "run_source", source_run)
-        monkeypatch.setattr(worker, "deduplicate_active_listings", dedupe)
-        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
+        monkeypatch.setattr(worker, "retired_source_names", lambda _: retired_names)
         monkeypatch.setattr(worker, "worker_state", record_state)
 
         await worker.run_once()
-        assert cleanup_calls == [True]
+        # Only the current source opens a session. Retirement and the former
+        # global deduplication must not open additional maintenance transactions.
+        assert sessions == [True]
         assert states[-1]["health"] == "healthy"
 
     asyncio.run(verify())
@@ -252,10 +249,6 @@ def test_nationwide_refresh_bounds_scoped_requests_and_preserves_partial_result(
         monkeypatch.setattr(worker, "configured_sources", lambda: [source])
         monkeypatch.setattr(worker, "SessionLocal", Session)
         monkeypatch.setattr(worker, "run_source", source_run)
-        monkeypatch.setattr(worker, "retire_source_records", lambda *_: asyncio.sleep(0, result=0))
-        monkeypatch.setattr(worker, "deduplicate_active_listings", lambda *_args, **_kwargs: asyncio.sleep(
-            0, result={"changed": 0}
-        ))
         monkeypatch.setattr(worker, "worker_state", record_state)
         try:
             await worker.run_once()
