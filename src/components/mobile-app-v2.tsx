@@ -703,6 +703,7 @@ export function MobileAppV2() {
   const navigate = useNavigate()
   const routeSearchRef = useRef(location.search)
   const pendingRouteSearchRef = useRef<string | null>(null)
+  const latestPendingCameraRef = useRef<MapCamera | null>(null)
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
@@ -881,7 +882,12 @@ export function MobileAppV2() {
     // Persist outside router history, so a completely new map visit recovers
     // the last position. URL camera remains authoritative for Back/deep links.
     rememberMapViewport(camera)
-    if (pendingRouteSearchRef.current) return
+    if (pendingRouteSearchRef.current) {
+      // Google Maps can emit a pan and zoom idle in the same render. Keep the
+      // newest camera rather than losing zoom while Router processes replace.
+      latestPendingCameraRef.current = camera
+      return
+    }
     const params = new URLSearchParams(routeSearchRef.current)
     const lat = camera.lat.toFixed(5)
     const lng = camera.lng.toFixed(5)
@@ -894,6 +900,20 @@ export function MobileAppV2() {
     pendingRouteSearchRef.current = routeSearchRef.current
     navigate(`${location.pathname}?${params.toString()}`, { replace: true })
   }
+  useEffect(() => {
+    if (pendingRouteSearchRef.current || !latestPendingCameraRef.current) return
+    if (location.pathname !== '/buscar' || new URLSearchParams(location.search).get('vista') !== 'mapa') {
+      latestPendingCameraRef.current = null
+      return
+    }
+    const latest = latestPendingCameraRef.current
+    latestPendingCameraRef.current = null
+    commitMapCamera(latest)
+    // The pending camera is flushed only when Router applies its previous URL
+    // update; commitMapCamera reads routeSearchRef.current synchronously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search])
+
   const navigateFromMap = (target: 'list' | 'filters' | 'area') => {
     const params = new URLSearchParams(location.search)
     params.delete('dibujar')
