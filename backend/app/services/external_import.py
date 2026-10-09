@@ -1227,7 +1227,8 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str, *, max_details: int | None = None) -> SourceRunCounters:
     started = perf_counter()
     scope_key = getattr(source, "scope_key", "santa_cruz")
-    rejection_scope = scope_key if scope_key.endswith(":holiday") else None
+    # Never deactivate an active source record belonging to a different import scope.
+    rejection_scope = scope_key
     counters = SourceRunCounters({
         key: 0
         for key in (
