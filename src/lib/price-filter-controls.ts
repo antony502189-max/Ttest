@@ -1,7 +1,7 @@
 import type { Filters, RentalMode } from '@/types'
 
 export const TOURISM_PRICE_CEILING = 350
-export const LONG_STAY_PRICE_CEILING = 1200
+export const LONG_STAY_PRICE_CEILING = 1000
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -9,7 +9,7 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 /**
  * Keeps semantic search values separate from their mode-specific control
- * representation. The unrestricted 0–1200 range must stay intact so Tourism
+ * representation. The unrestricted 0–1000 range must stay intact so Tourism
  * searches do not acquire an implicit 350 EUR maximum.
  */
 export function priceControlValues(filters: Pick<Filters, 'minPrice' | 'maxPrice'>, rentalMode: RentalMode) {
