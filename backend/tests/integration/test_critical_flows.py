@@ -765,6 +765,9 @@ async def test_admin_moderation_restrictions_invalidate_the_public_catalog(clien
         imported.is_external = True
         imported.primary_source = "test-parser"
         imported.primary_source_url = "https://example.invalid/fresh-import-below-top"
+        imported.source_price_currency = "EUR"
+        imported.source_price_period = "month"
+        imported.source_price_is_from = False
         await session.commit()
 
     public_after_promotion = await client.post("/api/v1/listings/search", json={"rentalMode": "long"})
