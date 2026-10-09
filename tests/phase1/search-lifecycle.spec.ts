@@ -285,7 +285,7 @@ for (const external of [false, true]) {
     await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
     const first = page.locator(cardSelector).first()
     await expect(first.locator('.m2-result-card__counter')).toHaveText('2/5')
-    await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[1]}\\\\?variant=card$`))
+    await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[1]}\\?variant=card$`))
     await expect.poll(() => first.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(960)
     for (const expected of ['3/5', '4/5', '5/5', '2/5']) {
       await first.locator('.m2-result-card__next').click()
