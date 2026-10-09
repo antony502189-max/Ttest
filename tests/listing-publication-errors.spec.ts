@@ -460,22 +460,22 @@ test('customer video: edit PATCH ignores stale global create draft and persists 
   await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0674, -16.7268')
 })
 
-test('customer video: an expired holiday listing can be edited without implicitly renewing its lifecycle', async ({ page }) => {
+test('customer video: an expired long-term listing can be edited without implicitly renewing its lifecycle', async ({ page }) => {
   const listingId = '77777777-7777-4777-8777-777777777777'
   const images = requiredServerImageUrls()
-  const expiredHoliday = {
+  const expiredLongTerm = {
     ...lifecycleListing('closed', listingId),
     title: 'Habitación privada con cocina y aseo propios',
-    rentalMode: 'holiday',
-    monthlyPrice: null,
-    nightlyPrice: 55,
-    weeklyPrice: 330,
-    price: 55,
-    cadence: 'noche',
+    rentalMode: 'long',
+    monthlyPrice: 550,
+    nightlyPrice: null,
+    weeklyPrice: null,
+    price: 550,
+    cadence: 'mes',
     availableFrom: '2026-08-15',
     availableUntil: null,
-    minimumStayMonths: 0,
-    minimumNights: 3,
+    minimumStayMonths: 3,
+    minimumNights: null,
     depositAmount: 100,
     tenantRequirement: 'single-man',
     acceptedTenantTypes: ['man'],
@@ -492,7 +492,7 @@ test('customer video: an expired holiday listing can be edited without implicitl
     posts: 0,
     profilePatches: 0,
     listingPatches: [],
-    mine: [expiredHoliday],
+    mine: [expiredLongTerm],
   }
   await mockPublicationApi(page, state)
   await page.route(`**/api/v1/listings/${listingId}`, async (route) => {
@@ -521,28 +521,27 @@ test('customer video: an expired holiday listing can be edited without implicitl
   await page.reload()
   await page.goto(`/#/mis-anuncios/${listingId}/editar`)
 
-  await expect(page.locator('#edit-nightly-price')).toHaveValue('55')
-  await page.locator('#edit-weekly-price').fill('1500')
+  await expect(page.locator('#edit-monthly-price')).toHaveValue('550')
+  await page.locator('#edit-monthly-price').fill('650')
   await page.locator('#edit-deposit').fill('300')
   await page.locator('#edit-from').fill('2026-10-01')
-  await page.locator('#edit-min-nights').fill('3')
+  await page.locator('#edit-min-months').fill('3')
   await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
 
   await expect(page).toHaveURL(/#\/mis-anuncios$/)
   const patch = state.listingPatches?.at(-1)
   expect(patch).toMatchObject({
-    rentalMode: 'holiday',
-    nightlyPrice: 55,
-    weeklyPrice: 1500,
+    rentalMode: 'long',
+    monthlyPrice: 650,
     depositAmount: 300,
     availableFrom: '2026-10-01',
-    minimumNights: 3,
+    minimumStayMonths: 3,
   })
   expect(patch).not.toHaveProperty('expiresAt')
   expect(state.mine?.[0]).toMatchObject({
     status: 'closed',
     expiresAt: '2026-09-01T00:00:00Z',
-    weeklyPrice: 1500,
+    monthlyPrice: 650,
     depositAmount: 300,
   })
 })
@@ -557,18 +556,18 @@ test('customer video: edit validation errors are localized instead of exposing t
     listingPatches: [],
     mine: [{
       ...lifecycleListing('published', listingId),
-      title: 'Habitación vacacional para validar errores',
-      rentalMode: 'holiday',
-      monthlyPrice: null,
-      nightlyPrice: 55,
-      weeklyPrice: 330,
-      price: 55,
-      cadence: 'noche',
-      minimumStayMonths: 0,
-      minimumNights: 3,
+      title: 'Habitación residencial para validar errores',
+      rentalMode: 'long',
+      monthlyPrice: 550,
+      nightlyPrice: null,
+      weeklyPrice: null,
+      price: 550,
+      cadence: 'mes',
+      minimumStayMonths: 3,
+      minimumNights: null,
       imageUrls: images,
       coverImageUrl: images[0],
-      description: 'Habitación vacacional de prueba con una descripción suficientemente larga para validar el editor.',
+      description: 'Habitación residencial de prueba con una descripción suficientemente larga para validar el editor.',
     }],
   }
   await mockPublicationApi(page, state)
@@ -580,7 +579,7 @@ test('customer video: edit validation errors are localized instead of exposing t
       body: JSON.stringify({
         code: 'VALIDATION_ERROR',
         message: 'One or more request fields are invalid.',
-        fieldErrors: { nightlyPrice: 'Input should be greater than 0' },
+        fieldErrors: { monthlyPrice: 'Input should be greater than 0' },
       }),
     })
   })
@@ -593,12 +592,12 @@ test('customer video: edit validation errors are localized instead of exposing t
   })
   await page.reload()
   await page.goto(`/#/mis-anuncios/${listingId}/editar`)
-  await page.locator('#edit-nightly-price').fill('56')
+  await page.locator('#edit-monthly-price').fill('560')
   await page.evaluate(() => localStorage.setItem('112233:language:v1', 'ru'))
   await page.locator('.listing-edit-final button').click()
 
   await expect(page).toHaveURL(new RegExp(`#/mis-anuncios/${listingId}/editar$`))
-  await expect(page.getByText('Проверьте поле «цена за ночь».')).toBeVisible()
+  await expect(page.getByText('Проверьте поле «цена за месяц».')).toBeVisible()
   await expect(page.getByText('One or more request fields are invalid.')).toHaveCount(0)
 })
 test('customer follow-up: changing one room address synchronizes sibling rooms from the same old dwelling', async ({ page }) => {
