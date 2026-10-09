@@ -14,7 +14,7 @@ function clamp(value: number, minimum: number, maximum: number) {
  */
 export function priceControlValues(filters: Pick<Filters, 'minPrice' | 'maxPrice'>, rentalMode: RentalMode) {
   const ceiling = rentalMode === 'holiday' ? TOURISM_PRICE_CEILING : LONG_STAY_PRICE_CEILING
-  const unrestricted = filters.minPrice === 0 && filters.maxPrice === LONG_STAY_PRICE_CEILING
+  const unrestricted = filters.minPrice === 0 && (filters.maxPrice === LONG_STAY_PRICE_CEILING || filters.maxPrice === 1200)
   const maximum = rentalMode === 'holiday' && unrestricted
     ? TOURISM_PRICE_CEILING
     : clamp(filters.maxPrice, 0, ceiling)
