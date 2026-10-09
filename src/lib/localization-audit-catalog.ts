@@ -160,6 +160,8 @@ export const localizationAuditCatalog: Record<string, { ru: string; en: string }
   'Precio semanal (€)': { ru: 'Цена за неделю (€)', en: 'Weekly price (€)' },
   'Fianza (€)': { ru: 'Депозит (€)', en: 'Deposit (€)' },
   'Gastos aproximados al mes (€)': { ru: 'Примерные расходы в месяц (€)', en: 'Approximate monthly bills (€)' },
+  'Gastos mensuales obligatorios (€)': { ru: 'Обязательные ежемесячные расходы (€)', en: 'Mandatory monthly charges (€)' },
+  'Gastos mensuales obligatorios (€/mes)': { ru: 'Обязательные ежемесячные расходы (€/мес.)', en: 'Mandatory monthly charges (€/month)' },
   'Gastos incluidos en el precio': { ru: 'Расходы включены в цену', en: 'Bills included in the price' },
   'Gastos aparte': { ru: 'Расходы отдельно', en: 'Bills extra' },
   'Convivencia y requisitos': { ru: 'Совместное проживание и требования', en: 'Household and requirements' },
