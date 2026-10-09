@@ -303,7 +303,7 @@ test('MAP-05 Google Maps loader errors expose the accessible map fallback', asyn
 
 test('WIZ-04 reset clears dirty state and short-height filter drawer remains usable', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
-  await page.getByText('Alquiler vacacional', { exact: true }).click()
+  await page.locator('#publish-monthly-price').fill('650')
   await expect(page.locator('.dirty-state')).toHaveText('Cambios sin guardar')
   await page.getByRole('button', { name: 'Restablecer' }).click()
   const resetDialog = page.getByRole('alertdialog', { name: '¿Restablecer el borrador?' })
