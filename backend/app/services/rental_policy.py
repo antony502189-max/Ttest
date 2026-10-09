@@ -20,6 +20,33 @@ FIXED_BILLS_PATTERN = r"^gastos mensuales obligatorios: ([0-9]+) €/mes$"
 USAGE_BILLS_PATTERN = r"^(seg[uú]n consumo|gastos seg[uú]n consumo|utilities according to usage|по потреблению)$"
 
 
+
+def exact_euro_amount(text: str) -> Decimal | None:
+    """Strictly decode an advertised EUR amount without dropping thousands or cents.
+
+    Examples: 1 200 €, 1.200 €, 1,200 €, 1.200,50 €, 1,200.50 €.
+    Multiple/ambiguous prices are not exact monthly-rent evidence.
+    """
+    amounts = list(re.finditer(r"(?<![\d.,])([0-9][0-9\s.,]*?)\s*€", text))
+    if len(amounts) != 1:
+        return None
+    number = re.sub(r"\s+", "", amounts[0].group(1))
+    if re.fullmatch(r"[0-9]+", number):
+        normalized = number
+    elif re.fullmatch(r"[0-9]+[.,][0-9]{1,2}", number):
+        normalized = number.replace(",", ".")
+    elif re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?", number):
+        normalized = number.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{1,2})?", number):
+        normalized = number.replace(",", "")
+    else:
+        return None
+    try:
+        return Decimal(normalized)
+    except InvalidOperation:
+        return None
+
+
 @dataclass(frozen=True)
 class Eligibility:
     eligible: bool
