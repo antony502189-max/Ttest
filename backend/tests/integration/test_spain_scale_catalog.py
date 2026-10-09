@@ -25,7 +25,7 @@ async def test_keyset_pages_and_viewport_clusters_remain_bounded():
             session.add(Listing(
                 owner_user_id=owner.id, title=f"Madrid room {number}",
                 city="Madrid", area="Centro", approximate_address="Centro",
-                rental_mode="long", monthly_price=600 + number,
+                rental_mode="long", monthly_price=400 + (number % 550),
                 location=point(-3.70 + number * 0.00001, 40.42),
                 status="published", published_at=now,
                 created_at=now - timedelta(minutes=number),
