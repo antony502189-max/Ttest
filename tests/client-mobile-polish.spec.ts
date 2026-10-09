@@ -23,15 +23,16 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(widths.body).toBeLessThanOrEqual(widths.viewport)
 }
 
-test('tourism home card stays contained without the obsolete left nudge', async ({ page }) => {
+test('single long-stay home card stays contained without horizontal overflow', async ({ page }) => {
   await finishOnboarding(page)
   const switcher = page.locator('.m2-mode-switch')
-  const tourism = switcher.locator(':scope > button').nth(1)
-  await expect(tourism).toBeVisible()
-  await expect(tourism).toHaveCSS('translate', 'none')
+  const housing = switcher.locator(':scope > button').first()
+  await expect(switcher.locator(':scope > button')).toHaveCount(1)
+  await expect(housing).toBeVisible()
+  await expect(housing).toHaveCSS('translate', 'none')
   const bounds = await switcher.evaluate((element) => {
     const container = element.getBoundingClientRect()
-    const card = element.children[1]?.getBoundingClientRect()
+    const card = element.children[0]?.getBoundingClientRect()
     return card ? { containerRight: container.right, cardRight: card.right } : null
   })
   expect(bounds).not.toBeNull()
@@ -39,7 +40,7 @@ test('tourism home card stays contained without the obsolete left nudge', async 
   await assertNoHorizontalOverflow(page)
 })
 
-test('filter rental-mode cards reuse the complete home copy and selection language', async ({ page }) => {
+test('filter rental-mode card keeps residential selection styling without Tourism', async ({ page }) => {
   await finishOnboarding(page)
   await page.locator('.m2-mode-switch > button').first().click()
   await page.getByTestId('open-location').click()
@@ -50,10 +51,9 @@ test('filter rental-mode cards reuse the complete home copy and selection langua
 
   const modeButtons = results.locator('.m2-results-filter__transaction > button')
   const vivienda = modeButtons.nth(0)
-  const turismo = modeButtons.nth(1)
-  await expect(modeButtons).toHaveCount(2)
+  await expect(modeButtons).toHaveCount(1)
   await expect(vivienda).toHaveText('Vivienda')
-  await expect(turismo).toHaveText('Turismo')
+  await expect(results.getByRole('button', { name: 'Turismo', exact: true })).toHaveCount(0)
 
   await expect(vivienda).toHaveCSS('border-top-color', 'rgb(116, 185, 0)')
   expect(await vivienda.evaluate((node) => getComputedStyle(node).boxShadow)).toContain('rgb(116, 185, 0)')
@@ -61,14 +61,7 @@ test('filter rental-mode cards reuse the complete home copy and selection langua
   expect(await vivienda.evaluate((node) => getComputedStyle(node, '::before').content)).toContain('HABITACIONES')
   expect(await vivienda.evaluate((node) => getComputedStyle(node, '::after').content)).toContain('LARGA ESTANCIA')
 
-  await expect(turismo).toHaveCSS('border-top-color', 'rgba(198, 0, 131, 0.34)')
-  expect(await turismo.evaluate((node) => getComputedStyle(node).backgroundImage)).toContain('rgb(255, 245, 251)')
-  expect(await turismo.evaluate((node) => getComputedStyle(node, '::before').content)).toContain('HABITACIONES')
-  expect(await turismo.evaluate((node) => getComputedStyle(node, '::after').content)).toContain('TURÍSTICAS')
-
-  await turismo.click()
-  await expect(turismo).toHaveCSS('border-top-color', 'rgb(198, 0, 131)')
-  expect(await turismo.evaluate((node) => getComputedStyle(node).boxShadow)).toContain('rgb(198, 0, 131)')
+  await expect(vivienda).toHaveAttribute('aria-pressed', 'true')
   await assertNoHorizontalOverflow(page)
 })
 
