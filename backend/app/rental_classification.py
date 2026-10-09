@@ -135,6 +135,13 @@ def rental_price(data: dict[str, Any], source_name: str, amount: int | None, per
     identity = folded(f"{data.get('title', '')} {data.get('category', '')} {data.get('operation', '')}")
     if _SALES.search(identity):
         return None
+    # CUSTOMER POLICY: "long-term" means an explicitly advertised fixed
+    # EUR/month rent, NOT a tenancy of six or more months. The normalized
+    # price period is authoritative over words such as temporal, temporada,
+    # holiday or vacacional. Currency and the EUR 1,000 cap are enforced by
+    # the separate strict price parser and evaluate() admission gate.
+    if period == "month":
+        return RentalPrice("long", amount, "month")
     structured = folded(data.get("rental_category")).strip()
     long_categories = {"long", "long_stay", "long term", "residential", "residencial", "academic", "larga estancia"}
     holiday_categories = {"holiday", "vacacional", "holiday rental", "short stay", "tourist", "short_stay"}
@@ -165,33 +172,9 @@ def rental_price(data: dict[str, Any], source_name: str, amount: int | None, per
         mode = "holiday" if holiday else "long" if residential else None
     if mode is None:
         mode = "holiday" if period == "night" else "long" if period == "month" else None
-    # A residential category does not prove billing cadence. Seasonal offers
-    # need independent residential/academic evidence, even when month-priced.
-    holiday_evidence = re.search(r"\b(?:vacacional|vacaciones|holiday|tourist|turistico|short stay|nightly)\b", corpus)
-    residential_evidence = structured in long_categories or re.search(
-        r"\b(?:larga estancia|larga duracion|larga temporada|residencial|curso academico|academic year)\b", corpus)
-    seasonal = structured in {"temporada", "temporary", "seasonal"} or re.search(
-        r"\b(?:temporada|temporal|temporary|seasonal)\b", corpus)
-    # A fixed-term residential room is not automatically tourist accommodation.
-    # However a bare "alquiler temporal" or merely monthly rate is NOT enough:
-    # require the provider to state a concrete 6+ month residential tenancy.
-    # These patterns match duration facts, not incidental numbers or deposits.
-    tenure = folded(str(data.get("description") or ""))
-    duration = re.search(
-        r"\b(?:alquiler\s+de|duracion\s+minima\s+del\s+alquiler\s*:?|"
-        r"estancia\s+minima\s*(?:de)?\s*:?|contrato\s+de)\s*"
-        r"(\d{1,2})\s*(?:a\s*\d{1,2}\s*)?meses?\b",
-        tenure,
-    )
-    verified_residential_term = (
-        period == "month" and duration is not None and 6 <= int(duration.group(1)) <= 36
-        and not holiday_evidence
-    )
-    if mode == "long" and (holiday_evidence or (seasonal and not residential_evidence
-                                               and not verified_residential_term)):
-        return None
-    if mode == "long" and period == "month":
-        return RentalPrice(mode, amount, period)
+    # Nightly and weekly rates remain classified for diagnostics only.
+    # The authoritative public/import policy rejects both, regardless of
+    # the category or any advertised minimum-stay duration.
     if mode == "holiday" and period == "night":
         return RentalPrice(mode, amount, period)
     if mode == "holiday" and period == "week":
