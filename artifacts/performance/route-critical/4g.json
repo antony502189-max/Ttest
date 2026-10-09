@@ -1,0 +1,547 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-09T06:16:39.051Z",
+  "measurementKind": "local synthetic browser measurement using a local static server with immutable hashed assets",
+  "warmMethod": "A separate cache-enabled browser context first visits the target to prime HTTP cache; the measured navigation then reloads in the same context.",
+  "profile": "4g",
+  "runsPerTarget": 3,
+  "conditions": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "mobile": true,
+    "network": {
+      "offline": false,
+      "latency": 150,
+      "downloadThroughput": 1600000,
+      "uploadThroughput": 750000,
+      "connectionType": "cellular4g"
+    },
+    "cpu": 4
+  },
+  "targets": {
+    "baseline": "http://127.0.0.1:4174",
+    "candidate": "http://127.0.0.1:4175"
+  },
+  "results": [
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 1,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 2893,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 2240,
+      "lcpMs": 2240,
+      "cls": 0.7061611374407583,
+      "ttfbMs": 6.399999991059303,
+      "domContentLoadedMs": 1526.5999999940395,
+      "loadMs": 1532.3999999910593,
+      "requestCount": 57,
+      "transferredBytes": 1441435,
+      "cacheTransferBytes": 0,
+      "jsBytes": 952290,
+      "cssBytes": 376697
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 1,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 2712,
+      "cacheHitCount": 58,
+      "cachedAssetCount": 57,
+      "fcpMs": 644,
+      "lcpMs": 1192,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 2.2000000029802322,
+      "domContentLoadedMs": 323.90000000596046,
+      "loadMs": 329.1000000089407,
+      "requestCount": 60,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1424335,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 1,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 2896,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 2196,
+      "lcpMs": 2196,
+      "cls": 0.7061611374407583,
+      "ttfbMs": 2.7000000029802322,
+      "domContentLoadedMs": 1504.8999999910593,
+      "loadMs": 1510.3999999910593,
+      "requestCount": 58,
+      "transferredBytes": 1403124,
+      "cacheTransferBytes": 0,
+      "jsBytes": 918671,
+      "cssBytes": 372005
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 1,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 2649,
+      "cacheHitCount": 59,
+      "cachedAssetCount": 58,
+      "fcpMs": 644,
+      "lcpMs": 1136,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.7999999970197678,
+      "domContentLoadedMs": 326.40000000596046,
+      "loadMs": 329.5,
+      "requestCount": 61,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1385724,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 2,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 2813,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 2140,
+      "lcpMs": 2140,
+      "cls": 0.7061611374407583,
+      "ttfbMs": 3.2999999970197678,
+      "domContentLoadedMs": 1495.2999999970198,
+      "loadMs": 1502.0999999940395,
+      "requestCount": 58,
+      "transferredBytes": 1403124,
+      "cacheTransferBytes": 0,
+      "jsBytes": 918671,
+      "cssBytes": 372005
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 2,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 2427,
+      "cacheHitCount": 59,
+      "cachedAssetCount": 58,
+      "fcpMs": 608,
+      "lcpMs": 928,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.800000011920929,
+      "domContentLoadedMs": 315.1000000089407,
+      "loadMs": 317.80000001192093,
+      "requestCount": 61,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1385724,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 2,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 2944,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 2276,
+      "lcpMs": 2276,
+      "cls": 0.7061611374407583,
+      "ttfbMs": 3.7999999970197678,
+      "domContentLoadedMs": 1561.5,
+      "loadMs": 1567.3999999910593,
+      "requestCount": 57,
+      "transferredBytes": 1441435,
+      "cacheTransferBytes": 0,
+      "jsBytes": 952290,
+      "cssBytes": 376697
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 2,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 2927,
+      "cacheHitCount": 58,
+      "cachedAssetCount": 57,
+      "fcpMs": 1020,
+      "lcpMs": 1432,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.9000000059604645,
+      "domContentLoadedMs": 601,
+      "loadMs": 608.4000000059605,
+      "requestCount": 60,
+      "transferredBytes": 5908,
+      "cacheTransferBytes": 1424335,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 3,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 2990,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 2144,
+      "lcpMs": 2144,
+      "cls": 0.7061611374407583,
+      "ttfbMs": 2.8999999910593033,
+      "domContentLoadedMs": 1544.0999999940395,
+      "loadMs": 1553.7000000029802,
+      "requestCount": 57,
+      "transferredBytes": 1441435,
+      "cacheTransferBytes": 0,
+      "jsBytes": 952290,
+      "cssBytes": 376697
+    },
+    {
+      "target": "baseline",
+      "profile": "4g",
+      "run": 3,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 2652,
+      "cacheHitCount": 58,
+      "cachedAssetCount": 57,
+      "fcpMs": 668,
+      "lcpMs": 1148,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.699999988079071,
+      "domContentLoadedMs": 332.59999999403954,
+      "loadMs": 335,
+      "requestCount": 60,
+      "transferredBytes": 3254,
+      "cacheTransferBytes": 1424335,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 3,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 3061,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 2384,
+      "lcpMs": 2384,
+      "cls": 0.7061611374407583,
+      "ttfbMs": 3,
+      "domContentLoadedMs": 1587.199999988079,
+      "loadMs": 1593.699999988079,
+      "requestCount": 58,
+      "transferredBytes": 1403124,
+      "cacheTransferBytes": 0,
+      "jsBytes": 918671,
+      "cssBytes": 372005
+    },
+    {
+      "target": "candidate",
+      "profile": "4g",
+      "run": 3,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 2771,
+      "cacheHitCount": 59,
+      "cachedAssetCount": 58,
+      "fcpMs": 700,
+      "lcpMs": 1252,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.699999988079071,
+      "domContentLoadedMs": 328.29999999701977,
+      "loadMs": 331.69999998807907,
+      "requestCount": 61,
+      "transferredBytes": 3341,
+      "cacheTransferBytes": 1385724,
+      "jsBytes": 0,
+      "cssBytes": 0
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 2240,
+          "min": 2144,
+          "max": 2276
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 2240,
+          "min": 2144,
+          "max": 2276
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.7061611374407583,
+          "min": 0.7061611374407583,
+          "max": 0.7061611374407583
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 3.7999999970197678,
+          "min": 2.8999999910593033,
+          "max": 6.399999991059303
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 57,
+          "min": 57,
+          "max": 57
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 1,
+          "min": 1,
+          "max": 1
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 1441435,
+          "min": 1441435,
+          "max": 1441435
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 952290,
+          "min": 952290,
+          "max": 952290
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 376697,
+          "min": 376697,
+          "max": 376697
+        }
+      },
+      "warm-after-cache-prime": {
+        "fcpMs": {
+          "n": 3,
+          "median": 668,
+          "min": 644,
+          "max": 1020
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 1192,
+          "min": 1148,
+          "max": 1432
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.8179983708530806,
+          "min": 0.8179983708530806,
+          "max": 0.8179983708530806
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 1.9000000059604645,
+          "min": 1.699999988079071,
+          "max": 2.2000000029802322
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 60,
+          "min": 60,
+          "max": 60
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 58,
+          "min": 58,
+          "max": 58
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 57,
+          "min": 57,
+          "max": 57
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 3254,
+          "min": 600,
+          "max": 5908
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 1424335,
+          "min": 1424335,
+          "max": 1424335
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    "candidate": {
+      "cold-cache-disabled": {
+        "fcpMs": {
+          "n": 3,
+          "median": 2196,
+          "min": 2140,
+          "max": 2384
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 2196,
+          "min": 2140,
+          "max": 2384
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.7061611374407583,
+          "min": 0.7061611374407583,
+          "max": 0.7061611374407583
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 3,
+          "min": 2.7000000029802322,
+          "max": 3.2999999970197678
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 58,
+          "min": 58,
+          "max": 58
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 1,
+          "min": 1,
+          "max": 1
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 1403124,
+          "min": 1403124,
+          "max": 1403124
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 918671,
+          "min": 918671,
+          "max": 918671
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 372005,
+          "min": 372005,
+          "max": 372005
+        }
+      },
+      "warm-after-cache-prime": {
+        "fcpMs": {
+          "n": 3,
+          "median": 644,
+          "min": 608,
+          "max": 700
+        },
+        "lcpMs": {
+          "n": 3,
+          "median": 1136,
+          "min": 928,
+          "max": 1252
+        },
+        "cls": {
+          "n": 3,
+          "median": 0.8179983708530806,
+          "min": 0.8179983708530806,
+          "max": 0.8179983708530806
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 1.7999999970197678,
+          "min": 1.699999988079071,
+          "max": 1.800000011920929
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 61,
+          "min": 61,
+          "max": 61
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 59,
+          "min": 59,
+          "max": 59
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 58,
+          "min": 58,
+          "max": 58
+        },
+        "transferredBytes": {
+          "n": 3,
+          "median": 600,
+          "min": 600,
+          "max": 3341
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 1385724,
+          "min": 1385724,
+          "max": 1385724
+        },
+        "jsBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "cssBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    }
+  }
+}
