@@ -267,3 +267,77 @@ test('CPU constrained mobile still renders cards before delayed recovery and pre
   await expect(page.locator('.m2-result-card__counter')).toHaveText('1/15')
   await expect(page.locator('.m2-result-card__favorite')).toHaveAttribute('aria-pressed', 'true')
 })
+
+
+for (const external of [false, true]) {
+  test(`mobile ${external ? 'external' : 'native'} gallery skips a broken cover but retains all working photos`, async ({ page }) => {
+    const errors = await fixtures(page, (_, route) =>
+      route.fulfill({ json: result([card(5, id, 'holiday', external)]) }))
+    await page.route('**/api/v1/media/**', (route) => {
+      if (new URL(route.request().url()).pathname === urls[0]) {
+        return route.fulfill({ status: 404, body: 'missing cover' })
+      }
+      return route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><rect width="960" height="640" fill="#789"/></svg>',
+      })
+    })
+    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+    const first = page.locator(cardSelector).first()
+    await expect(first.locator('.m2-result-card__counter')).toHaveText('2/5')
+    await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[1]}\\?variant=card$`))
+    await expect.poll(() => first.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(960)
+    for (const expected of ['3/5', '4/5', '5/5', '2/5']) {
+      await first.locator('.m2-result-card__next').click()
+      await expect(first.locator('.m2-result-card__counter')).toHaveText(expected)
+    }
+    expect(errors).toEqual([])
+  })
+}
+
+test('mobile gallery uses its fallback only if all images are broken, without retry loops', async ({ page }) => {
+  const errors = await fixtures(page, (_, route) =>
+    route.fulfill({ json: result([card(2, id, 'holiday', true)]) }))
+  const attempts = new Map<string, number>()
+  await page.route('**/api/v1/media/**', (route) => {
+    const url = new URL(route.request().url()).pathname
+    attempts.set(url, (attempts.get(url) ?? 0) + 1)
+    return route.fulfill({ status: 404, body: '' })
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  const first = page.locator(cardSelector).first()
+  await expect(first.locator('img')).toHaveAttribute('src', /^data:image\/svg\+xml/)
+  await first.locator('.m2-result-card__next').click()
+  await expect(first.locator('img')).toHaveAttribute('src', /^data:image\/svg\+xml/)
+  expect(attempts.get(urls[0])).toBe(1)
+  expect(attempts.get(urls[1])).toBe(1)
+  expect(errors).toEqual([])
+})
+
+test('a refreshed gallery resets failures and selection when a card keeps the same listing ID', async ({ page }) => {
+  const refreshed = card(5)
+  refreshed.imageUrls = urls.slice(5, 10)
+  refreshed.coverImageUrl = urls[5]
+  let searches = 0
+  const errors = await fixtures(page, async (_, route) => {
+    searches++
+    await route.fulfill({ json: result([searches === 1 ? card(5) : refreshed]) })
+  })
+  await page.route('**/api/v1/media/**', (route) => {
+    if (new URL(route.request().url()).pathname === urls[0]) {
+      return route.fulfill({ status: 404, body: 'stale cover' })
+    }
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><rect width="960" height="640" fill="#789"/></svg>',
+    })
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  const first = page.locator(cardSelector).first()
+  await expect(first.locator('.m2-result-card__counter')).toHaveText('2/5')
+  await changeSearch(page, 'q=Arona&alquiler=holiday')
+  await expect(first.locator('.m2-result-card__counter')).toHaveText('1/5')
+  await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[5]}\\?variant=card$`))
+  expect(searches).toBe(2)
+  expect(errors).toEqual([])
+})

@@ -1,4 +1,4 @@
-FROM busybox:1.37.0-musl@sha256:fc6dddc4c44b1bfe37f41cae8e67d1693828e8f42a91862816d7953e2c9d3f23 AS downloader
+FROM mirror.gcr.io/library/busybox:1.37.0-musl@sha256:fc6dddc4c44b1bfe37f41cae8e67d1693828e8f42a91862816d7953e2c9d3f23 AS downloader
 
 ARG TARGETARCH
 ARG MINIO_RELEASE=RELEASE.2025-04-22T22-12-26Z
@@ -13,7 +13,7 @@ RUN set -eu; \
     echo "$minio_sha256  /minio" | sha256sum -c -; \
     chmod 0755 /minio
 
-FROM busybox:1.37.0-musl@sha256:fc6dddc4c44b1bfe37f41cae8e67d1693828e8f42a91862816d7953e2c9d3f23
+FROM mirror.gcr.io/library/busybox:1.37.0-musl@sha256:fc6dddc4c44b1bfe37f41cae8e67d1693828e8f42a91862816d7953e2c9d3f23
 
 COPY --from=downloader /minio /usr/bin/minio
 RUN mkdir -p /data

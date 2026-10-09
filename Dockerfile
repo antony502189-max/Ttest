@@ -1,4 +1,4 @@
-FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS frontend-build
+FROM mirror.gcr.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS frontend-build
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -27,7 +27,7 @@ RUN npm run build \
     && find dist -type d -exec chmod 755 {} + \
     && find dist -type f -exec chmod 644 {} +
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
+FROM mirror.gcr.io/nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.revision=$VCS_REF
 # Git worktrees may be checked out under a restrictive umask.  The pinned

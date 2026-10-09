@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
+    image: mirror.gcr.io/postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
     environment:
       POSTGRES_DB: ttest
       POSTGRES_USER: ttest
@@ -14,7 +14,7 @@ services:
       retries: 20
 
   redis:
-    image: redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    image: mirror.gcr.io/library/redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     command: ["redis-server", "--appendonly", "yes"]
     restart: unless-stopped
     ports: ["6379:6379"]
@@ -52,7 +52,7 @@ services:
         mc anonymous set none local/ttest-media
 
   mailpit:
-    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    image: mirror.gcr.io/axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
     ports: ["1025:1025", "8025:8025"]
 
   migrate:
@@ -145,7 +145,7 @@ services:
       migrate: { condition: service_completed_successfully }
 
   db-backup:
-    image: postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
+    image: mirror.gcr.io/postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
     profiles: ["tools"]
     environment:
       PGPASSWORD: ttest

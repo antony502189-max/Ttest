@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 const gallery = Array.from({ length: 5 }, (_, index) =>
   `/api/v1/media/00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
 )
+const validGalleryImage = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><rect width="8" height="8" fill="#ddd"/></svg>'
 
 function card(rentalMode: 'long' | 'holiday') {
   return {
@@ -116,6 +117,9 @@ test('production mobile cards and detail keep photo carousel for long and holida
     await page.route(`**/api/v1/listings/similar/${item.id}`, async (route) => {
       await route.fulfill({ json: [] })
     })
+    await page.route('**/api/v1/media/**', async (route) => {
+      await route.fulfill({ contentType: 'image/svg+xml', body: validGalleryImage })
+    })
 
     await page.goto(`/#/buscar?q=Tenerife&alquiler=${rentalMode}`)
     const results = page.getByTestId('mobile-results')
@@ -134,6 +138,7 @@ test('production mobile cards and detail keep photo carousel for long and holida
     await page.unroute('**/api/v1/listings/search/cards')
     await page.unroute(`**/api/v1/listings/${item.id}`)
     await page.unroute(`**/api/v1/listings/similar/${item.id}`)
+    await page.unroute('**/api/v1/media/**')
   }
 })
 
@@ -146,6 +151,9 @@ test('production mobile holiday card recovers its full internal gallery when bou
 
   await page.route('**/api/v1/listings/search/cards', async (route) => {
     await route.fulfill({ json: { items: [truncated], total: 1, nextCursor: null, previousCursor: null } })
+  })
+  await page.route('**/api/v1/media/**', async (route) => {
+    await route.fulfill({ contentType: 'image/svg+xml', body: validGalleryImage })
   })
   let releaseGallery: () => void = () => undefined
   const galleryGate = new Promise<void>((resolve) => { releaseGallery = resolve })
