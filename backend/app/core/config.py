@@ -133,7 +133,7 @@ class Settings(BaseSettings):
     external_import_download_images: bool = True
     # Production Compose enables preservation; controlled gallery maintenance
     # may opt out only after a reviewed inventory and verified restore drill.
-    external_import_preserve_existing_galleries: bool = False
+    external_import_preserve_existing_data: bool = False
     # External and native listings share the same product gallery ceiling.
     external_import_max_images: int = 15
     # Scope rows remain inert until operators explicitly enable this after

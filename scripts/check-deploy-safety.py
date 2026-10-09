@@ -19,7 +19,7 @@ for node in ast.walk(worker_tree):
 production_compose = Path("docker-compose.production.yml").read_text(encoding="utf-8")
 for fragment in (
     "EXTERNAL_REMOVAL_CHECK_ENABLED: ${EXTERNAL_REMOVAL_CHECK_ENABLED:-0}",
-    "EXTERNAL_IMPORT_PRESERVE_EXISTING_GALLERIES: ${EXTERNAL_IMPORT_PRESERVE_EXISTING_GALLERIES:-1}",
+    "EXTERNAL_IMPORT_PRESERVE_EXISTING_DATA: ${EXTERNAL_IMPORT_PRESERVE_EXISTING_DATA:-1}",
 ):
     if fragment not in production_compose:
         raise SystemExit(f"production must preserve existing listings and galleries by default: {fragment}")

@@ -251,7 +251,7 @@ async def import_images(
     detached and truly orphaned media is queued for storage deletion.
     """
     settings = get_settings()
-    if getattr(settings, "external_import_preserve_existing_galleries", False):
+    if getattr(settings, "external_import_preserve_existing_data", False):
         existing_count = await session.scalar(
             select(func.count()).select_from(ListingImage).where(ListingImage.listing_id == listing_id)
         )
@@ -683,7 +683,10 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             )
         )
     if not imported_price_allowed(item):
-        if source is not None and source.scope_key == scope_key:
+        if (
+            source is not None and source.scope_key == scope_key
+            and not getattr(get_settings(), "external_import_preserve_existing_data", False)
+        ):
             source.normalized_payload = normalized_snapshot(item)
             source.fingerprint = item.fingerprint
             await deactivate_source_record(session, source, "rejected")
@@ -1017,6 +1020,9 @@ async def promote_best_active_source(
 
 async def deactivate_source_record(session: AsyncSession, row: SourceRecord, reason: str) -> int:
     """Deactivate one source and atomically promote an active duplicate or close the listing."""
+    if getattr(get_settings(), "external_import_preserve_existing_data", False):
+        logger.info("external_source_deactivation_review_required", extra={"reason": reason})
+        return 0
     if row.current_status != "active":
         return 0
     row.current_status = "missing" if reason in {"deleted", "removed", "expired", "not_found", "source_removed"} else reason
