@@ -59,7 +59,7 @@ test('desktop listing card advances past an unavailable cover while previous/nex
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   const first = page.locator('.property-card').first()
   await expect(first.locator('.image-counter')).toHaveText('2/5')
-  await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[1]}\\\\?variant=card$`))
+  await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[1]}\\?variant=card$`))
   await expect.poll(() => first.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(960)
   await first.locator('.card-gallery-arrow--previous').click()
   await expect(first.locator('.image-counter')).toHaveText('5/5')
