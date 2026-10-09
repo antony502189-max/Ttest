@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from test_room_first_listing_schemas import base_payload
 
-from app.external_sources import IdealistaSource, PisosSource
+from app.external_sources import IdealistaSource, PisosSource, parse_price
 from app.schemas.listings import ListingWrite
 from app.services.external_import import upsert
 from app.services.rental_price_limit import exact_euro_amount, imported_price_allowed, long_term_price_allowed, require_listing_price
@@ -133,3 +133,19 @@ def test_missing_raw_advertised_price_cannot_bypass_import_guard():
     assert not imported_price_allowed(SimpleNamespace(
         rental_mode="long", price_amount=750, source_price_text=""
     ))
+
+
+@pytest.mark.parametrize("text,price", [
+    ("1 200 €/mes", 1200),
+    ("1.200 €/mes", 1200),
+    ("1,200 €/month", 1200),
+    ("1.000 €/mes", 1000),
+    ("1 000 €/mes", 1000),
+    ("1000,99 €/mes", 1000),
+    ("800 €/mes - 1200 €/mes", None),
+])
+def test_provider_parser_and_price_guard_share_unambiguous_amount(text, price):
+    parsed_amount, currency, cadence, _ = parse_price(text)
+    assert parsed_amount == price
+    assert cadence == "month"
+    assert currency == ("EUR" if price is not None else None)
