@@ -171,7 +171,7 @@ def rental_price(data: dict[str, Any], source_name: str, amount: int | None, per
     residential_evidence = structured in long_categories or re.search(
         r"\b(?:larga estancia|larga duracion|larga temporada|residencial|curso academico|academic year)\b", corpus)
     seasonal = structured in {"temporada", "temporary", "seasonal"} or re.search(
-        r"\b(?:temporada|temporary|seasonal)\b", corpus)
+        r"\b(?:temporada|temporal|temporary|seasonal)\b", corpus)
     # A fixed-term residential room is not automatically tourist accommodation.
     # However a bare "alquiler temporal" or merely monthly rate is NOT enough:
     # require the provider to state a concrete 6+ month residential tenancy.
