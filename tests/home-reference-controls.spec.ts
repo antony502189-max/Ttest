@@ -16,36 +16,27 @@ test.describe('restored home reference controls', () => {
     await page.goto('/')
 
     const modeButtons = page.locator('.m2-mode-switch > button')
-    await expect(modeButtons).toHaveCount(2)
+    await expect(modeButtons).toHaveCount(1)
     await expect(modeButtons.first()).toBeVisible()
-    await expect(modeButtons.last()).toBeVisible()
     await expect(modeButtons.first()).toHaveAccessibleName(/Vivienda.*HABITACIONES LARGA ESTANCIA/)
-    await expect(modeButtons.last()).toHaveAccessibleName(/Turismo.*HABITACIONES TURÍSTICAS/)
+    await expect(page.getByRole('button', { name: /Turismo/ })).toHaveCount(0)
 
     const longStayLabel = modeButtons.first().locator('span').last()
-    const tourismLabel = modeButtons.last().locator('span').last()
     await expect(longStayLabel).toHaveAttribute('data-reference-title', 'HABITACIONES')
     await expect(longStayLabel).toHaveAttribute('data-reference-subtitle', 'LARGA ESTANCIA')
-    await expect(tourismLabel).toHaveAttribute('data-reference-title', 'HABITACIONES')
-    await expect(tourismLabel).toHaveAttribute('data-reference-subtitle', 'TURÍSTICAS')
 
     const cardHeight = await modeButtons.first().evaluate((element) => element.getBoundingClientRect().height)
     expect(cardHeight).toBeGreaterThanOrEqual(180)
 
     const longStayTitle = await longStayLabel.evaluate((element) => getComputedStyle(element, '::before').content)
     const longStaySubtitle = await longStayLabel.evaluate((element) => getComputedStyle(element, '::after').content)
-    const tourismTitle = await tourismLabel.evaluate((element) => getComputedStyle(element, '::before').content)
-    const tourismSubtitle = await tourismLabel.evaluate((element) => getComputedStyle(element, '::after').content)
 
     expect(longStayTitle).toContain('HABITACIONES')
     expect(longStaySubtitle).toContain('LARGA ESTANCIA')
-    expect(tourismTitle).toContain('HABITACIONES')
-    expect(tourismSubtitle).toContain('TURÍSTICAS')
 
-    await modeButtons.last().click()
-    await expect(modeButtons.last()).toHaveClass(/is-active/)
-    await expect.poll(() => modeButtons.last().evaluate((element) => getComputedStyle(element, '::after').content)).toContain('✓')
-    await expect.poll(() => modeButtons.last().evaluate((element) => getComputedStyle(element).opacity)).toBe('1')
+    await expect(modeButtons.first()).toHaveClass(/is-active/)
+    await expect.poll(() => modeButtons.first().evaluate((element) => getComputedStyle(element, '::after').content)).toContain('✓')
+    await expect.poll(() => modeButtons.first().evaluate((element) => getComputedStyle(element).opacity)).toBe('1')
 
     const occupantTrigger = page.locator('.m2-occupant-trigger')
     await expect(occupantTrigger).toBeVisible()
@@ -96,7 +87,7 @@ test.describe('restored home reference controls', () => {
     expect(params.get('requisito')).toBeNull()
   })
 
-  test('landscape keeps both reference cards above the fixed navigation', async ({ page }) => {
+  test('landscape keeps the sole reference card above the fixed navigation', async ({ page }) => {
     await page.setViewportSize({ width: 844, height: 390 })
     await page.addInitScript(() => {
       localStorage.setItem('112233:mobile-onboarding:v1', 'done')
