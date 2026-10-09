@@ -112,7 +112,7 @@ async def execute(args: argparse.Namespace) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources", default="Pisos,PisoCompartido")
-    parser.add_argument("--rental-mode", choices=("all", "holiday"), default="all")
+    parser.add_argument("--rental-mode", choices=("all", "long"), default="all")
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--apply", action="store_true")

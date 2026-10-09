@@ -25,6 +25,8 @@ def test_mandatory_fees_and_deposit_semantics():
     assert not evaluate(mode="long", amount=750, mandatory_monthly_fees=251).eligible
     assert not evaluate(mode="long", amount=950, bills_text="Gastos adicionales: 100 €/mes").eligible
     assert evaluate(mode="long", amount=1000, bills_text="Gastos según consumo").eligible
+    assert evaluate(mode="long", amount=950, bills_text="Gastos mensuales obligatorios: 50 €/mes").eligible
+    assert not evaluate(mode="long", amount=950, bills_text="Gastos mensuales obligatorios: 51 €/mes").eligible
     assert evaluate(mode="long", amount=1000, bills_included=True, bills_text="Incluidos 100 €/mes").eligible
 
 

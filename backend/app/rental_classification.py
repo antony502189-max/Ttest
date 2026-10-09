@@ -158,28 +158,22 @@ def rental_price(data: dict[str, Any], source_name: str, amount: int | None, per
     if mode is None:
         holiday = re.search(r"\b(?:vacacional|vacaciones|holiday|tourist|turistico|short stay|nightly)\b", corpus)
         residential = re.search(
-            r"\b(?:larga estancia|larga duracion|residencial|curso academico|academic year)\b", corpus
+            r"\b(?:larga estancia|larga duracion|larga temporada|residencial|curso academico|academic year)\b", corpus
         )
         if holiday and residential:
             return None
         mode = "holiday" if holiday else "long" if residential else None
     if mode is None:
         mode = "holiday" if period == "night" else "long" if period == "month" else None
-    # Only verified residential provider categories can supply omitted
-    # cadence. Ordinary "alquiler" alone proves neither mode nor cadence.
-    if (
-        mode is None
-        and period is None
-        and not re.search(r"\b(?:temporada|temporary|seasonal)\b", corpus)
-        and source_name in {"PisoCompartido", "Pisos", "Fotocasa", "AlquilerDocenteCanarias"}
-        and ("alquiler habitacion" in identity or "/compartir/" in path)
-        and amount <= 5000
-    ):
-        mode, period = "long", "month"
-    if mode == "long" and period is None and amount <= 5000:
-        # Explicit residential/academic category or larga estancia proves a
-        # monthly offer when a provider omits its repeated /mes label.
-        period = "month"
+    # A residential category does not prove billing cadence. Seasonal offers
+    # need independent residential/academic evidence, even when month-priced.
+    holiday_evidence = re.search(r"\b(?:vacacional|vacaciones|holiday|tourist|turistico|short stay|nightly)\b", corpus)
+    residential_evidence = structured in long_categories or re.search(
+        r"\b(?:larga estancia|larga duracion|larga temporada|residencial|curso academico|academic year)\b", corpus)
+    seasonal = structured in {"temporada", "temporary", "seasonal"} or re.search(
+        r"\b(?:temporada|temporary|seasonal)\b", corpus)
+    if mode == "long" and (holiday_evidence or (seasonal and not residential_evidence)):
+        return None
     if mode == "long" and period == "month":
         return RentalPrice(mode, amount, period)
     if mode == "holiday" and period == "night":

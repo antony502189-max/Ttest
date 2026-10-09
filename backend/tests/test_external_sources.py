@@ -186,8 +186,7 @@ def test_source_adapters_normalize_a_long_and_holiday_room_without_inventing_dat
     )
     assert long_item is not None
     assert (long_item.rental_mode, long_item.price_amount, long_item.source_price_text) == ("long", 710, "710 €/mes")
-    assert holiday_item is not None
-    assert (holiday_item.rental_mode, holiday_item.price_amount, holiday_item.price_is_from) == ("holiday", 65, True)
+    assert holiday_item is None
     shared = IdealistaSource().normalize_listing(
         room_offer(title="Habitación compartida en alquiler"), "https://www.idealista.com/inmueble/123458/"
     )
@@ -1003,7 +1002,7 @@ def test_source_case_fixtures_keep_only_confirmed_room_offers(source, fixture, u
     adapter = source()
     assert adapter.normalize_listing(cases["long"], url) is not None
     holiday = adapter.normalize_listing(cases["holiday"], url)
-    assert holiday is not None and holiday.rental_mode == "holiday" and holiday.price_is_from
+    assert holiday is None
     changed = adapter.normalize_listing(cases["changed_price"], url)
     assert changed is not None and changed.source_price_text == "740 €/mes"
     assert all(

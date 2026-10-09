@@ -100,12 +100,12 @@ def test_bed_amenities_do_not_reject_a_private_room():
         ({"title": "Estudio vacacional"}, "night", "holiday"),
         ({"title": "Apartamento holiday rental"}, "night", "holiday"),
         ({"title": "Alquiler de temporada"}, None, None),
-        ({"title": "Alquiler de temporada"}, "month", "long"),
+        ({"title": "Alquiler de temporada"}, "month", None),
         ({"title": "Alquiler de temporada"}, "week", None),
         ({"title": "Vacaciones"}, "week", "holiday"),
         ({"title": "Curso académico"}, "month", "long"),
-        ({"title": "Estudio", "rental_category": "academic"}, None, "long"),
-        ({"title": "Estudio", "description": "Holiday district", "rental_category": "residential"}, "month", "long"),
+        ({"title": "Estudio", "rental_category": "academic"}, None, None),
+        ({"title": "Estudio", "description": "Holiday district", "rental_category": "residential"}, "month", None),
         ({"title": "Estudio vacacional"}, "month", None),
         ({"title": "Estudio", "rental_category": "long"}, "night", None),
         ({"title": "Estudio", "operation": "sale"}, "month", None),
@@ -142,6 +142,9 @@ def test_all_property_mode_combinations_reach_normalizer(unit, cadence, mode):
     }
     try:
         item = source.normalize_listing(data, "https://www.pisos.com/alquilar/piso-madrid-123456/")
+        if mode == "holiday":
+            assert item is None
+            return
         assert item is not None
         assert (item.room_type, item.rental_mode, item.latitude) == (unit[1], mode, 40.4)
         assert item.fingerprint != replace(item, rental_mode="holiday" if mode == "long" else "long").fingerprint
@@ -290,13 +293,8 @@ def test_pisos_real_holiday_detail_uses_primary_price_unit_and_structured_breadc
     try:
         parsed = source.parse_listing(document, url)
         item = source.normalize_listing(parsed, url)
-        assert item and (item.province, item.city, item.price_amount, item.rental_mode) == (
-            "Málaga",
-            "Arenas",
-            40,
-            "holiday",
-        )
-        assert item.bedroom_count == 0 and item.price_period == "night"
+        assert item is None  # Keep holiday classification evidence, never admit it.
+        assert "noche" in parsed["price_text"] or "día" in parsed["price_text"]
     finally:
         asyncio.run(source.close())
 
@@ -307,7 +305,7 @@ def test_invalid_structured_studio_bedrooms_fail_closed():
 
 def test_residential_text_prohibiting_tourist_use_is_not_holiday():
     price = rental_price(
-        {"title": "Estudio de temporada", "description": "No alquiler vacacional"}, "Pisos", 800, "month"
+        {"title": "Estudio de temporada", "description": "Larga estancia. No alquiler vacacional"}, "Pisos", 800, "month"
     )
     assert price and price.mode == "long"
 
@@ -402,7 +400,7 @@ def test_bootstrap_cli_target_alias_and_unmet_objective_exit(monkeypatch, satisf
     from app.commands import bootstrap_external_spain as command
 
     async def execute(args):
-        assert args.target_total == 2600 and args.target_holiday_min == 500
+        assert args.target_total == 2600 and args.target_holiday_min == 0
         return {"dry_run": False, "objective": {"satisfied": satisfied}}
 
     monkeypatch.setattr(command, "execute", execute)
@@ -456,7 +454,6 @@ def test_only_audited_malaga_holiday_route_is_added_to_province_provisioning():
     routes = {value.scope_key: value.discovery_urls for value in definitions}
     assert routes["province:Málaga"] == (
         "https://www.pisos.com/alquiler/pisos-malaga/",
-        "https://www.pisos.com/alquiler-vacacional/pisos-malaga/",
     )
     assert routes["province:Madrid"] == ("https://www.pisos.com/alquiler/pisos-madrid/",)
 
@@ -466,7 +463,7 @@ def test_multiroute_provisioning_retains_only_independently_validated_routes(mon
     import json
 
     from app.commands import provision_external_spain as command
-    routes = ("https://www.pisos.com/alquiler/pisos-malaga/", "https://www.pisos.com/alquiler-vacacional/pisos-malaga/")
+    routes = ("https://www.pisos.com/alquiler/pisos-malaga/", "https://www.pisos.com/alquiler/habitaciones-malaga/")
     manifest = tmp_path / "input.json"
     manifest.write_text(json.dumps([{"source_name": "Pisos", "scope_key": "province:Málaga", "discovery_urls": routes}]), encoding="utf-8")
     output = tmp_path / "validated.json"

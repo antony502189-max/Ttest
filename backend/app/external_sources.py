@@ -11,6 +11,7 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from html.parser import HTMLParser
 from typing import Any, cast
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
@@ -25,6 +26,7 @@ from .core.browser_network import (
 from .core.config import get_settings
 from .core.media_limits import MAX_LISTING_PHOTOS
 from .rental_classification import bedroom_count, property_type, rental_price
+from .services.rental_policy import evaluate
 from .spain_provinces import canonical_province, coordinates_in_spain, scope_province, spain_country
 
 logger = logging.getLogger(__name__)
@@ -437,7 +439,9 @@ def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
     number = found.group(1) if found else ''
     if number and not (',' not in number and re.search(r'\.\d{1,2}$', number)):
         number = number.replace('.', '').replace(',', '.')
-    amount = int(float(number)) if number else None
+    exact = Decimal(number) if number else None
+    # Integer schema: reject fractional offers rather than truncating cents.
+    amount = int(exact) if exact is not None and exact == exact.to_integral_value() else None
     lower = re.sub(r'/\s+', '/', value.casefold())
     period = (
         "month"
@@ -448,7 +452,11 @@ def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
         if any(x in lower for x in ("/semana", "/sem", "por semana", "/week", "per week"))
         else None
     )
-    return amount, "EUR" if "€" in value else None, period, lower.startswith("desde")
+    uncertain = bool(re.search(r"\b(?:desde|from|a partir|entre)\b|\d\s*[-–]\s*\d", lower))
+    currency = "EUR" if "€" in value and not re.search(r"\b(?:usd|gbp|dollars?|pounds?)\b|[$£]", lower) else None
+    if len(re.findall(r"\d[\d.,]*\s*€", value)) > 1:
+        uncertain = True
+    return amount, currency, period, uncertain
 
 
 def json_ld(document: str) -> list[dict[str, Any]]:
@@ -1459,7 +1467,8 @@ class ExternalListingSource(ABC):
             " ".join(str(data.get(x, "")) for x in ("title", "description", "category", "breadcrumbs", "url"))
         ).casefold()
         price = rental_price(data, self.name, amount, period)
-        if price is None or currency != "EUR":
+        if price is None or not evaluate(mode=price.mode, amount=price.amount,
+                currency=currency, period=price.period, is_from=price_is_from).eligible:
             return None
         if self.scope_key.endswith(":holiday") and price.mode != "holiday":
             return None
@@ -1496,6 +1505,10 @@ class ExternalListingSource(ABC):
         if latitude is not None and longitude is not None and not self.accepts_coordinates(latitude, longitude):
             return None
         details = public_detail_fields(data)
+        if not evaluate(mode=price.mode, amount=price.amount, currency=currency,
+                        period=price.period, is_from=price_is_from,
+                        bills_included=details.get("bills_included"), bills_text=details.get("bills_text")).eligible:
+            return None
         return NormalizedListing(
             self.name,
             external_id,
@@ -1597,7 +1610,7 @@ class FotocasaSource(ExternalListingSource):
         data.update({
             "title": first_text(candidate, "title", "headline") or (clean(heading.group(1)) if heading else data["title"]),
             "description": first_text(candidate, "description", "detail", "body") or (clean(description.group(1)) if description else data["description"]),
-            "price_text": first_text(candidate, "priceText", "price", "displayPrice") or (f"{price.group(1)} € /mes" if price else data["price_text"]),
+            "price_text": first_text(candidate, "priceText", "displayPrice") or data["price_text"] or (f"{price.group(1)} €" if price else ""),
             "images": list(dict.fromkeys([*data["images"], *[html.unescape(value) for value in image_urls]])),
             "city": first_text(candidate, "location", "municipality", "city", "address") or data["city"],
             "area": first_text(candidate, "neighborhood", "district", "zone", "area") or data.get("area"),

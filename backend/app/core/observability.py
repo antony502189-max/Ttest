@@ -29,6 +29,9 @@ EXTERNAL_IMPORTS = Counter(
     "External import source runs",
     ("source", "result"),
 )
+RENTAL_POLICY_EVENTS = Counter(
+    "ttest_rental_policy_events_total", "Rental admission decisions", ("source", "result"),
+)
 EXTERNAL_IMPORT_DURATION = Histogram(
     "ttest_external_import_duration_seconds",
     "External import source duration",

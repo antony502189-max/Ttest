@@ -45,7 +45,7 @@ from ..schemas.listings import (
     ListingSearchResponse,
     OwnedListingResponse,
 )
-from ..services.rental_policy import public_eligibility_clause
+from ..services.rental_policy import monthly_rent_expression, monthly_rent_total, public_eligibility_clause
 
 
 def point(longitude: float, latitude: float):
@@ -53,7 +53,7 @@ def point(longitude: float, latitude: float):
 
 
 def primary_price_expression():
-    return case((Listing.rental_mode == "holiday", Listing.nightly_price), else_=Listing.monthly_price)
+    return monthly_rent_expression()
 
 
 def bedroom_count_expression():
@@ -125,7 +125,7 @@ def promotion_ends_at_expression():
 def response_from(row: Any) -> ListingResponse:
     listing, longitude, latitude, owner, asset_ids, room_details, *promotion = row
     boosted_at = promotion[0] if promotion else None
-    price = listing.nightly_price if listing.rental_mode == "holiday" else listing.monthly_price
+    price = monthly_rent_total(listing) if listing.rental_mode == "long" else listing.nightly_price
     image_urls = [f"/api/v1/media/{asset_id}" for asset_id in (asset_ids or [])[:MAX_LISTING_PHOTOS]]
     if not image_urls:
         image_urls = list(listing.external_image_urls or [])[:MAX_LISTING_PHOTOS]

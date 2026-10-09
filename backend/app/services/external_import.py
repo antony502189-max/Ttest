@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.config import get_settings
 from ..core.media_keys import variant_storage_key
 from ..core.media_limits import MAX_LISTING_PHOTOS
-from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS
+from ..core.observability import EXTERNAL_IMPORT_DURATION, EXTERNAL_IMPORTS, RENTAL_POLICY_EVENTS
 from ..external_sources import (
     DiscoveryResult,
     ExternalListingSource,
@@ -52,6 +52,7 @@ from .listing_deduplication import (
 )
 from .media_processing import perceptual_hash, prepare_image, validate_and_normalize
 from .notifications import notify_favorited_listing_unavailable, notify_saved_search_matches
+from .rental_policy import evaluate
 from .storage_deletions import enqueue_storage_deletions
 
 logger = logging.getLogger(__name__)
@@ -592,6 +593,9 @@ def listing_from_snapshot(payload: dict) -> NormalizedListing:
 
 async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing, item: NormalizedListing) -> None:
     """Apply existing primary metadata without network I/O or a transaction commit."""
+    eligibility = item_eligibility(item)
+    if not eligibility.eligible:
+        raise ValueError(f"RENTAL_POLICY_REJECTED: {eligibility.reason}")
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
     coordinates = public_location(item)
@@ -651,6 +655,12 @@ async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing,
     listing.location = point(coordinates[1], coordinates[0]) if coordinates is not None else None
 
 
+def item_eligibility(item: NormalizedListing):
+    return evaluate(mode=item.rental_mode, amount=item.price_amount,
+                    currency=item.price_currency, period=item.price_period, is_from=item.price_is_from,
+                    bills_included=item.bills_included, bills_text=item.bills_text)
+
+
 async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False, scope_key: str = "santa_cruz") -> str:
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
@@ -671,6 +681,18 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
                 == item.source_url.split('#', 1)[0].split('?', 1)[0].rstrip('/'),
             )
         )
+    eligibility = item_eligibility(item)
+    if not eligibility.eligible:
+        if source is not None:
+            source.normalized_payload = normalized_snapshot(item)
+            source.fingerprint = item.fingerprint
+            source.last_checked_at = now
+            await deactivate_source_record(session, source, "policy_rejected")
+            source.last_error = eligibility.reason
+        await session.commit()
+        RENTAL_POLICY_EVENTS.labels(item.source_name, eligibility.reason).inc()
+        return "policy_rejected"
+    RENTAL_POLICY_EVENTS.labels(item.source_name, "eligible").inc()
     suppress_new_duplicate = False
     if source:
         listing = await session.get(Listing, source.canonical_listing_id)
@@ -972,6 +994,8 @@ async def promote_best_active_source(
         if not row.normalized_payload:
             continue
         candidate = listing_from_snapshot(row.normalized_payload)
+        if not item_eligibility(candidate).eligible:
+            continue
         if require_location and public_location(candidate) is None:
             continue
         candidates.append(candidate)
@@ -1200,7 +1224,7 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
         )
         listing.location = None
         listing.last_synced_at = datetime.now(UTC)
-        if listing.closed_reason == "source_location_unverified":
+        if listing.closed_reason == "source_location_unverified" and item_eligibility(listing_from_snapshot(payload)).eligible:
             listing.status = "published"
             listing.closed_reason = None
         if needs_catalog_touch:
@@ -1214,6 +1238,11 @@ async def reconcile_unverified_source_locations(session: AsyncSession, source_na
 async def run_source(session: AsyncSession, source: ExternalListingSource, run_id: str, *, max_details: int | None = None) -> SourceRunCounters:
     started = perf_counter()
     scope_key = getattr(source, "scope_key", "santa_cruz")
+    if scope_key.endswith(":holiday") or any(
+        "/alquiler-vacacional/" in url or "/holiday-rentals" in url for url in getattr(source, "discovery_urls", ())
+    ):
+        await source.close()
+        raise ValueError("Holiday import scopes are disabled")
     rejection_scope = scope_key if scope_key.endswith(":holiday") else None
     counters = SourceRunCounters({
         key: 0
@@ -1247,6 +1276,10 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
             "removal_anomaly_batches",
             "removal_anomaly_records",
             "rejected_invalid_price",
+            "policy_rejected",
+            "rejected_overpriced",
+            "rejected_holiday",
+            "rejected_uncertain_price",
         )
     })
     run = ExternalImportRun(run_id=run_id, source_name=source.name, scope_key=scope_key)
@@ -1465,6 +1498,14 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
                 continue
             item = source.normalize_listing(parsed, url)
             if not item:
+                from ..external_sources import parse_price
+                from ..rental_classification import rental_price
+                amount, _currency, period, _is_from = parse_price(str(parsed.get("price_text", "")))
+                classified = rental_price(parsed, source.name, amount, period)
+                reason = "rejected_holiday" if classified and classified.mode == "holiday" else (
+                    "rejected_overpriced" if amount is not None and amount > 1000 else "rejected_uncertain_price")
+                counters[reason] += 1
+                RENTAL_POLICY_EVENTS.labels(source.name, reason).inc()
                 counters["rejected_invalid_price"] += 1
                 await deactivate_rejected_source(session, source.name, url, scope_key=rejection_scope)
                 await session.commit()

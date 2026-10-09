@@ -18,15 +18,8 @@ FIXTURE = Path(__file__).with_name("fixtures") / "pisos_holiday_provinces.json"
 
 
 def test_real_provider_navigation_covers_all_productive_spain_provinces_without_guessed_slugs():
-    definitions = published_holiday_scope_definitions(FIXTURE.read_text(encoding="utf-8-sig"))
-    rows = {d.scope_key: d.discovery_urls for d in definitions}
-    assert len(rows) == 27
-    assert rows["province:Alicante:holiday"] == ("https://www.pisos.com/alquiler-vacacional/pisos-alicante/",)
-    assert "province:Santa Cruz de Tenerife:holiday" in rows
-    assert "province:Illes Balears:holiday" in rows
-    assert "province:A Coruña:holiday" in rows
-    assert not any("Andorra" in key or "Frances" in key for key in rows)
-    assert "province:Ceuta:holiday" not in rows  # Published zero, with no route.
+    with pytest.raises(ValueError, match="Holiday"):
+        published_holiday_scope_definitions(FIXTURE.read_text(encoding="utf-8-sig"))
 
 
 @pytest.mark.parametrize("route", ["https://evil.test/alquiler-vacacional/pisos-madrid/",
@@ -42,7 +35,7 @@ def test_holiday_scope_requires_holiday_catalogue_and_strict_province():
     assert is_in_import_scope({"province": "Alicante", "country": "ES"}, "province:Alicante:holiday")
     assert not is_in_import_scope({"province": "Murcia", "country": "ES"}, "province:Alicante:holiday")
     assert not is_in_import_scope({"province": "Alicante", "country": "PT"}, "province:Alicante:holiday")
-    with pytest.raises(ValueError, match="holiday catalogue"):
+    with pytest.raises(ValueError, match="Holiday"):
         validate_scope(ScopeDefinition("Pisos", "province:Madrid:holiday", ("https://www.pisos.com/alquiler/pisos-madrid/",)))
 
 
@@ -59,7 +52,8 @@ def test_discovery_uses_public_widget_context_and_empty_ancestor_without_constru
     async def run():
         source = Source()
         try:
-            assert len(await discover_published_holiday_scopes(source)) == 27
+            with pytest.raises(ValueError, match="Holiday"):
+                await discover_published_holiday_scopes(source)
         finally:
             await source.close()
     asyncio.run(run())
@@ -97,9 +91,7 @@ def test_pisos_price_selector_preserves_its_selected_cadence_even_when_title_dis
     try:
         parsed = source.parse_listing(document, "https://www.pisos.com/alquilar/piso-carino-9246773760_999170/")
         item = source.normalize_listing(parsed, parsed["url"])
-        assert item and (item.price_amount, item.price_period) == expected
-        assert item.rental_mode == "holiday"
-        assert item.weekly_price_amount == (490 if expected[1] == "week" else None)
+        assert item is None
         assert parsed["raw"]["price_cadence_evidence"]["primary_text"] == f"{amount} €"
     finally:
         asyncio.run(source.close())
@@ -120,7 +112,7 @@ def test_pisos_selector_never_guesses_from_unselected_mismatched_or_ambiguous_op
 
 
 @pytest.mark.parametrize('bedrooms,price,provider_type,structured_type,accepted', [
-    (1, '120 €/día', 'aticos', None, True),
+    (1, '120 €/día', 'aticos', None, False),
     (2, '120 €/día', 'aticos', None, False),
     (1, '1200 €/mes', 'aticos', None, False),
     (1, '120 €', 'aticos', None, False),

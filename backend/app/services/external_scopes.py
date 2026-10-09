@@ -62,6 +62,10 @@ class ScopeDefinition:
 
 
 def validate_scope(definition: ScopeDefinition) -> ScopeDefinition:
+    if definition.scope_key.endswith(":holiday") or any(
+        "/alquiler-vacacional/" in url or "/holiday-rentals" in url for url in definition.discovery_urls
+    ):
+        raise ValueError("Holiday import scopes are disabled by the long-term policy")
     source = SOURCE_TYPES.get(definition.source_name)
     province = scope_province(definition.scope_key)
     if source is None or not definition.scope_key.startswith("province:") or province is None:
@@ -116,22 +120,7 @@ def published_holiday_scope_definitions(document: str) -> list[ScopeDefinition]:
 
 
 async def discover_published_holiday_scopes(source: ExternalListingSource) -> list[ScopeDefinition]:
-    if source.name != "Pisos":
-        raise ValueError("No audited public holiday navigation for this provider")
-    document = await source.request(PISOS_HOLIDAY_SEED)
-    context = re.search(r'id=["\']hdnSearchContext["\'][^>]*value=["\']([^"\']+)', document or "")
-    if not context or not context.group(1).startswith("0.0101.F002."):
-        raise ValueError("Missing provider holiday search context")
-    # Same anonymous endpoint/parameters used by the published search widget
-    # when clearing its first ancestor. The empty geoId requests all provinces.
-    url = PISOS_HOLIDAY_NAVIGATION + "?" + urlencode({
-        "geoId": "", "serializedSearchContext": html.unescape(context.group(1)),
-        "withAncestors": "false", "isSearchResultsView": "false", "keywords": "",
-    })
-    navigation = await source.request(url)
-    if not navigation:
-        raise ValueError("Provider holiday navigation returned no document")
-    return published_holiday_scope_definitions(navigation)
+    raise ValueError("Holiday discovery is disabled by the long-term policy")
 
 
 def published_scope_definitions(source_name: str, document: str, index_url: str) -> list[ScopeDefinition]:
@@ -148,7 +137,7 @@ def published_scope_definitions(source_name: str, document: str, index_url: str)
             scope_key = "province:" + province
             definition = validate_scope(
                 ScopeDefinition(
-                    source_name, scope_key, (url, *AUDITED_HOLIDAY_ROUTES.get((source_name, scope_key), ()))
+                    source_name, scope_key, (url,)
                 )
             )
             definitions[definition.scope_key] = definition

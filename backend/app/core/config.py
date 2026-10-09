@@ -121,6 +121,7 @@ class Settings(BaseSettings):
     # SHA. It is neither a secret nor operator-managed application config.
     sentry_release: str = ""
     external_import_enabled: bool = True
+    external_import_policy_version: str = ""
     external_import_interval_seconds: int = 7200
     external_import_run_on_start: bool = True
     # Keep only public room routes that pass the production access and useful

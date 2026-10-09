@@ -23,6 +23,7 @@ from ..external_sources import configured_sources
 from ..models import ExternalImportScope, ExternalListingSource, Listing
 from ..services.external_import import run_source
 from ..services.external_scopes import SOURCE_TYPES, ScopeDefinition, validate_scope
+from ..services.rental_policy import public_eligibility_clause
 from ..workers.external_listings import (
     _acquire_distributed_lock,
     _refresh_distributed_lock_if_owned,
@@ -84,7 +85,7 @@ async def import_lease(*, worker_paused: bool):
 
 
 async def canonical_totals(session) -> dict:
-    active = (Listing.is_external.is_(True), Listing.status == "published", Listing.deleted_at.is_(None))
+    active = (Listing.is_external.is_(True), Listing.status == "published", Listing.deleted_at.is_(None), public_eligibility_clause())
     grouped = (
         await session.execute(
             select(Listing.rental_mode, Listing.room_type, func.count(Listing.id))
@@ -295,7 +296,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--worker-paused", action="store_true")
     parser.add_argument("--target-total", "--target", dest="target_total", type=int, default=2500)
-    parser.add_argument("--target-holiday-min", type=int, default=500)
+    parser.add_argument("--target-holiday-min", type=int, default=0)
     parser.add_argument("--max-total", type=int, default=3000)
     parser.add_argument("--max-pages", type=int, default=30)
     parser.add_argument("--max-details", type=int, default=500)
@@ -306,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not (
         1 <= args.target_total <= args.max_total <= 10000
-        and 0 <= args.target_holiday_min <= 10000
+        and args.target_holiday_min == 0
         and 1 <= args.max_pages <= 300
         and 1 <= args.max_details <= 1000
         and 1 <= args.max_scopes <= 1404

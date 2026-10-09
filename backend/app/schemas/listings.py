@@ -68,7 +68,7 @@ class ListingWrite(BaseModel):
     postcode: str = Field(default="", max_length=32)
     approximateAddress: str = Field(min_length=2, max_length=240)
     rentalMode: str
-    monthlyPrice: int | None = Field(default=None, gt=0, le=MAX_MONTHLY_RENT_EUR)
+    monthlyPrice: int = Field(gt=0, le=MAX_MONTHLY_RENT_EUR)
     nightlyPrice: int | None = Field(default=None, ge=0)
     weeklyPrice: int | None = Field(default=None, ge=0)
     roomType: str = Field(default="Habitación individual", max_length=64)

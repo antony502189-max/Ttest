@@ -252,6 +252,9 @@ def _successful_source_names(result: dict[str, dict[str, int]]) -> list[str]:
 
 async def run_once() -> dict[str, dict[str, int]]:
     settings = get_settings()
+    if getattr(settings, "is_production", False) and getattr(settings, "external_import_policy_version", "") != "long-eur-month-1000-v1":
+        logger.warning("external_import_policy_activation_required")
+        return {}
     if not settings.external_import_enabled:
         return {}
     if local_import_lock.locked():
@@ -323,6 +326,7 @@ async def run_once() -> dict[str, dict[str, int]]:
                     await session.scalars(
                         select(ExternalImportScope).where(
                             ExternalImportScope.enabled.is_(True),
+                            ~ExternalImportScope.scope_key.endswith(":holiday"),
                             or_(ExternalImportScope.next_run_at.is_(None), ExternalImportScope.next_run_at <= datetime.now(UTC)),
                         ).order_by(ExternalImportScope.next_run_at.asc().nulls_first(), ExternalImportScope.id).limit(8)
                     )
@@ -390,6 +394,8 @@ async def run_once() -> dict[str, dict[str, int]]:
 async def run_removal_once() -> int | None:
     """Run lightweight checks under the same local and Redis lock as full syncs."""
     settings = get_settings()
+    if getattr(settings, "is_production", False) and getattr(settings, "external_import_policy_version", "") != "long-eur-month-1000-v1":
+        return None
     if not settings.external_import_enabled or not settings.external_removal_check_enabled:
         return None
     if local_import_lock.locked():

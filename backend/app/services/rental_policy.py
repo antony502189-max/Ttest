@@ -4,17 +4,19 @@ Manual monthlyPrice is an exact EUR/month amount. Deposits and one-time fees
 are separate. Fixed additional bills must be verified before publication; a
 free-text bill amount is not sufficient evidence of its cadence/inclusion.
 Usage-based utilities are not a fixed residential rent component.
+Verified fixed charges use the explicit canonical monthly-cost contract.
 """
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, or_
+from sqlalchemy import Numeric, and_, case, cast, func, or_
 
 MAX_MONTHLY_RENT_EUR = 1000
 SUPPORTED_RENTAL_MODE = "long"
 POLICY_VERSION = "long-eur-month-1000-v1"
+FIXED_BILLS_PATTERN = r"^gastos mensuales obligatorios: ([0-9]+) €/mes$"
 USAGE_BILLS_PATTERN = r"^(seg[uú]n consumo|gastos seg[uú]n consumo|utilities according to usage|по потреблению)$"
 
 
@@ -41,10 +43,15 @@ def evaluate(*, mode, amount, currency="EUR", period="month", is_from=False,
         return Eligibility(False, "unverified_price")
     if not rent.is_finite() or rent <= 0 or not fees.is_finite() or fees < 0:
         return Eligibility(False, "invalid_price")
+    text = (bills_text or "").strip()
+    if text and not bills_included:
+        fixed = re.fullmatch(FIXED_BILLS_PATTERN, text, re.IGNORECASE)
+        if fixed:
+            fees += Decimal(fixed.group(1))
+        elif not re.fullmatch(USAGE_BILLS_PATTERN, text, re.IGNORECASE):
+            return Eligibility(False, "unverified_recurring_costs")
     if rent + fees > MAX_MONTHLY_RENT_EUR:
         return Eligibility(False, "monthly_price_exceeds_limit")
-    if bills_text and bills_text.strip() and not bills_included and not re.fullmatch(USAGE_BILLS_PATTERN, bills_text.strip(), re.IGNORECASE):
-        return Eligibility(False, "unverified_recurring_costs")
     return Eligibility(True)
 
 
@@ -79,7 +86,7 @@ def public_eligibility_clause():
     return and_(
         Listing.rental_mode == SUPPORTED_RENTAL_MODE,
         Listing.monthly_price > 0,
-        Listing.monthly_price <= MAX_MONTHLY_RENT_EUR,
+        monthly_rent_expression() <= MAX_MONTHLY_RENT_EUR,
         or_(Listing.is_external.is_(False), and_(
             Listing.source_price_currency == "EUR",
             Listing.source_price_period == "month",
@@ -87,5 +94,19 @@ def public_eligibility_clause():
         )),
         or_(Listing.bills_included.is_(True), Listing.bills_text.is_(None),
             func.btrim(Listing.bills_text) == "",
-            func.lower(func.btrim(Listing.bills_text)).op("~")(USAGE_BILLS_PATTERN)),
+            func.lower(func.btrim(Listing.bills_text)).op("~")(USAGE_BILLS_PATTERN),
+            func.lower(func.btrim(Listing.bills_text)).op("~")(FIXED_BILLS_PATTERN)),
     )
+
+
+def monthly_rent_expression():
+    from ..models import Listing
+    text = func.lower(func.btrim(Listing.bills_text))
+    fee = case((Listing.bills_included.is_(True), 0),
+               else_=func.coalesce(cast(func.substring(text, FIXED_BILLS_PATTERN), Numeric), 0))
+    return cast(Listing.monthly_price, Numeric) + fee
+
+
+def monthly_rent_total(listing):
+    fixed = re.fullmatch(FIXED_BILLS_PATTERN, (getattr(listing, "bills_text", None) or "").strip(), re.IGNORECASE)
+    return (listing.monthly_price or 0) + (int(fixed.group(1)) if fixed and not listing.bills_included else 0)

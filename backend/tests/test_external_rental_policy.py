@@ -1,0 +1,47 @@
+from pathlib import Path
+
+import pytest
+
+from app.external_sources import parse_price
+from app.services.external_scopes import SOURCE_TYPES, ScopeDefinition, validate_scope
+
+
+@pytest.mark.parametrize("name", list(SOURCE_TYPES))
+@pytest.mark.parametrize("price,category,accepted", [
+    ("999 €/mes", "long", True), ("1.000 €/mes", "long", True),
+    ("1.001 €/mes", "long", False), ("800 €", "long", False),
+    ("50 €/noche", "holiday", False), ("800 €/mes", "holiday", False),
+    ("desde 800 €/mes", "long", False), ("800–950 €/mes", "long", False),
+    ("1000.01 €/mes", "long", False), ("800 USD/month", "long", False),
+])
+def test_all_registered_adapters_use_authoritative_policy(name, price, category, accepted):
+    source = SOURCE_TYPES[name]()
+    # Flatio additionally requires explicit InStock and MON structured evidence.
+    data = {"title": "Habitación individual en alquiler", "property_type": "room",
+        "description": "Residencial larga estancia", "price_text": price,
+        "rental_category": category, "city": "Adeje", "province": "Santa Cruz de Tenerife", "country": "ES",
+        "monthly_price_confirmed": True, "availability": "instock"}
+    item = source.normalize_listing(data, f"https://www.{source.domain}/policy-fixture-123456")
+    assert (item is not None) is accepted
+
+
+def test_price_parsing_never_truncates_into_eligibility():
+    assert parse_price("1000.01 €/mes")[0] is None
+    assert parse_price("1.000,01 €/mes")[0] is None
+    assert parse_price("999,99 €/mes")[0] is None
+    assert parse_price("from 800 €/mes")[3]
+    assert parse_price("800 €/mes USD")[1] is None
+
+
+def test_legacy_holiday_scopes_fail_before_requests():
+    for urls in (("https://www.pisos.com/alquiler-vacacional/pisos-malaga/",),):
+        for key in ("province:Málaga:holiday", "province:Málaga"):
+            with pytest.raises(ValueError, match="Holiday"):
+                validate_scope(ScopeDefinition("Pisos", key, urls))
+
+
+def test_source_fixtures_exist_for_every_active_provider():
+    fixtures = Path(__file__).parent / "fixtures" / "external_sources"
+    for name in ("fotocasa", "milanuncios", "pisocompartido", "pisos", "alquiler_docente_canarias"):
+        assert (fixtures / name / "room.html").is_file()
+    assert (Path(__file__).parent / "fixtures" / "spain_rental_flatio.html").is_file()
