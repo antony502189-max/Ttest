@@ -158,7 +158,12 @@ def _saved_search_payload(search: SavedSearch) -> ListingSearchRequest | None:
             "query": search.query or None,
             "rentalMode": search.rental_mode,
             "minPrice": _changed_filter(filters, "minPrice", _SAVED_SEARCH_DEFAULTS["minPrice"]),
-            "maxPrice": _changed_filter(filters, "maxPrice", _SAVED_SEARCH_DEFAULTS["maxPrice"]),
+            "maxPrice": (
+                None
+                if filters.get("minPrice", 0) == 0
+                and filters.get("maxPrice", _SAVED_SEARCH_DEFAULTS["maxPrice"]) in (1000, 1200)
+                else _changed_filter(filters, "maxPrice", _SAVED_SEARCH_DEFAULTS["maxPrice"])
+            ),
             "roomType": None if filters.get("roomType") in {None, "Cualquiera"} else filters.get("roomType"),
             "availableFrom": filters.get("available") or None,
             "availableUntil": filters.get("availableUntil") or None,
