@@ -810,7 +810,7 @@ function FilterPanel({
 }) {
   const update = <K extends keyof Filters>(key: K, next: Filters[K]) =>
     onChange({ ...value, [key]: next });
-  const max = rentalMode === "holiday" ? 350 : 1200;
+  const max = rentalMode === "holiday" ? 350 : 1000;
   const priceControls = priceControlValues(value, rentalMode);
   const clampPriceControl = (next: number) => Math.min(max, Math.max(0, Number.isFinite(next) ? next : 0));
   return (
