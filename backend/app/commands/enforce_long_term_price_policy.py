@@ -150,7 +150,7 @@ async def inventory(session, *, action: str = "withdraw", plan_limit: int = MAX_
                 summary["exactly_1000_base_rent"] += 1
             continue
         summary["ineligible"] += 1
-        summary[result.reason] += 1
+        summary[result.reason or "unclassified_policy_rejection"] += 1
         origin = row["primary_source"] or ("external_unknown" if row["is_external"] else "owner_created")
         statuses[row["status"]] += 1
         sources[origin] += 1
