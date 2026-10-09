@@ -1,7 +1,9 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import app.commands.enforce_long_term_price_policy as cleanup
 from app.commands.enforce_long_term_price_policy import save_private_text
 
 
@@ -24,3 +26,17 @@ def test_private_cleanup_reports_are_created_with_restricted_permissions(tmp_pat
     save_private_text(target, '{"readOnly": true}')
     assert target.read_text(encoding="utf-8") == '{"readOnly": true}'
     assert target.stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.asyncio
+async def test_existing_apply_output_blocks_mutation_before_opening_database(monkeypatch, tmp_path: Path):
+    manifest = tmp_path / "existing-apply.json"
+    manifest.write_text('{"preserve":"old receipt"}', encoding="utf-8")
+
+    def forbidden_session_factory():
+        raise AssertionError("A pre-existing report must reject apply before opening the database")
+
+    monkeypatch.setattr(cleanup, "SessionLocal", forbidden_session_factory)
+    with pytest.raises(FileExistsError):
+        await cleanup.execute(SimpleNamespace(output=manifest, apply=True))
+    assert manifest.read_text(encoding="utf-8") == '{"preserve":"old receipt"}'
