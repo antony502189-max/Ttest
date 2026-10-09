@@ -45,3 +45,25 @@ def test_source_fixtures_exist_for_every_active_provider():
     for name in ("fotocasa", "milanuncios", "pisocompartido", "pisos", "alquiler_docente_canarias"):
         assert (fixtures / name / "room.html").is_file()
     assert (Path(__file__).parent / "fixtures" / "spain_rental_flatio.html").is_file()
+
+
+@pytest.mark.parametrize("price,amount", [
+    ("999 €/mes", 999),
+    ("1.000 €/mes", 1000),
+    ("1 000 €/mes", 1000),
+    ("1,000 €/month", 1000),
+    ("1.200 €/mes", 1200),
+    ("1 200 €/mes", 1200),
+    ("1,200 €/month", 1200),
+    ("1.000,50 €/mes", None),
+    ("1,000.50 €/month", None),
+    ("1000.01 €/mes", None),
+    ("800 €/mes - 1200 €/mes", None),
+    ("1000,999 €/mes", None),
+])
+def test_provider_price_cannot_drop_thousands_or_cents(price, amount):
+    parsed_amount, currency, period, uncertain = parse_price(price)
+    assert parsed_amount == amount
+    assert period == "month"
+    if amount is not None:
+        assert currency == "EUR"
