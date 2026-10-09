@@ -18,7 +18,7 @@ test.describe('restored home reference controls', () => {
     const modeButtons = page.locator('.m2-mode-switch > button')
     await expect(modeButtons).toHaveCount(1)
     await expect(modeButtons.first()).toBeVisible()
-    await expect(modeButtons.first()).toHaveAccessibleName(/Vivienda.*HABITACIONES LARGA ESTANCIA/)
+    await expect(modeButtons.first()).toHaveAccessibleName('Vivienda')
     await expect(page.getByRole('button', { name: /Turismo/ })).toHaveCount(0)
 
     const longStayLabel = modeButtons.first().locator('span').last()
