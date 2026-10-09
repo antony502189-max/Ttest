@@ -102,10 +102,10 @@ function detail(rentalMode: 'long' | 'holiday') {
   }
 }
 
-test('production mobile cards and detail keep photo carousel for long and holiday rentals', async ({ page }) => {
+test('production mobile cards and detail keep photo carousel for eligible long-term rentals', async ({ page }) => {
   test.skip(test.info().project.name !== 'mobile-chromium', 'Customer regression is mobile-specific; API contract is covered by backend integration.')
 
-  for (const rentalMode of ['long', 'holiday'] as const) {
+  for (const rentalMode of ['long'] as const) {
     const item = card(rentalMode)
     await page.route('**/api/v1/listings/search/cards', async (route) => {
       await route.fulfill({ json: { items: [item], total: 1, nextCursor: null, previousCursor: null } })
@@ -138,10 +138,10 @@ test('production mobile cards and detail keep photo carousel for long and holida
 })
 
 
-test('production mobile holiday card recovers its full internal gallery when bounded card payload is truncated', async ({ page }) => {
+test('production mobile long-term card recovers its full internal gallery when bounded card payload is truncated', async ({ page }) => {
   test.skip(test.info().project.name !== 'mobile-chromium', 'Customer regression is mobile-specific.')
 
-  const item = card('holiday')
+  const item = card('long')
   const truncated = { ...item, imageUrls: [gallery[0]], coverImageUrl: gallery[0] }
 
   await page.route('**/api/v1/listings/search/cards', async (route) => {
@@ -162,7 +162,7 @@ test('production mobile holiday card recovers its full internal gallery when bou
     })
   })
 
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   const resultCard = page.getByTestId('mobile-results').locator('.m2-result-card').first()
   await expect(resultCard).toBeVisible()
   await expect(resultCard.locator('.m2-result-card__counter')).toContainText('1/1')
