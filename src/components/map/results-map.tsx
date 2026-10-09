@@ -326,6 +326,13 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       })
       mapRef.current = map
       initializedMap = map
+      // Explicitly apply the starting camera: the Google Maps test SDK does
+      // not apply constructor center/zoom options, unlike the real SDK. This
+      // also keeps the read-back and the map position synchronized.
+      map.setCenter({ lat: startingCamera.lat, lng: startingCamera.lng })
+      map.setZoom(startingCamera.zoom)
+      containerRef.current.dataset.mapCenter = `${startingCamera.lat.toFixed(6)},${startingCamera.lng.toFixed(6)}`
+      containerRef.current.dataset.mapZoom = String(startingCamera.zoom)
       // Prevent initial marker fitting from resetting an existing camera.
       if (previousCamera) {
         skipNextResultsFitRef.current = true
