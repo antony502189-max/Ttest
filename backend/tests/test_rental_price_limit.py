@@ -149,3 +149,24 @@ def test_provider_parser_and_price_guard_share_unambiguous_amount(text, price):
     assert parsed_amount == price
     assert cadence == "month"
     assert currency == ("EUR" if price is not None else None)
+
+
+@pytest.mark.parametrize("text", ["Desde 750 €/mes", "desde 999 €/month"])
+async def test_importer_rejects_long_term_minimum_price_not_fixed_rent(text):
+    source = IdealistaSource()
+    try:
+        item = {
+            "title": "Habitación individual en alquiler",
+            "description": "Piso compartido amueblado",
+            "category": "alquiler habitación",
+            "city": "Adeje",
+            "breadcrumbs": "Santa Cruz de Tenerife",
+            "price_text": text,
+        }
+        assert source.normalize_listing(item, "https://www.idealista.com/inmueble/900012/") is None
+        assert not imported_price_allowed(SimpleNamespace(
+            rental_mode="long", price_amount=750,
+            source_price_text=text, price_is_from=True,
+        ))
+    finally:
+        await source.close()
