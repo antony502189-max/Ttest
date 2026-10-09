@@ -220,25 +220,21 @@ test('unrestricted search does not send a strict tenant requirement to the API',
   await expect(page.getByText(restrictedTitle, { exact: true }).first()).toBeVisible()
 })
 
-test('unrestricted tourism search omits default price and room-size bounds from the real API request', async ({ page }) => {
-  test.skip(test.info().project.name !== 'desktop-chromium', 'The responsive mobile control is covered by the mobile suite; this request-payload regression exercises the visible desktop mode control.')
+test('legacy holiday URL becomes unrestricted long-term search without phantom price bounds', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop-chromium', 'Desktop request path; responsive behavior has a separate mobile policy test.')
   const searches: Record<string, unknown>[] = []
   page.on('request', (request) => {
     if (request.method() !== 'POST' || !request.url().includes('/api/v1/listings/search')) return
     const body = request.postData()
-    if (!body) return
-    const parsed = JSON.parse(body) as Record<string, unknown>
-    if (parsed.rentalMode === 'holiday') searches.push(parsed)
+    if (body) searches.push(JSON.parse(body) as Record<string, unknown>)
   })
 
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
-  // Exercise the real mode control instead of depending on the direct
-  // holiday-route mount timing in the mobile project.
-  await page.getByRole('radio', { name: /Turismo/ }).click()
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday&precioMax=5000')
+  await expect(page).toHaveURL(/alquiler=long/)
+  await expect(page.getByRole('radio', { name: /Turismo/ })).toHaveCount(0)
   await expect.poll(() => searches.length).toBeGreaterThan(0)
-
-  const body = searches[0]
-  expect(body).toMatchObject({ rentalMode: 'holiday', query: 'Tenerife' })
+  const body = searches.at(-1)!
+  expect(body).toMatchObject({ rentalMode: 'long', query: 'Tenerife' })
   expect(body).not.toHaveProperty('minPrice')
   expect(body).not.toHaveProperty('maxPrice')
   expect(body).not.toHaveProperty('minRoomSizeM2')
@@ -247,8 +243,8 @@ test('unrestricted tourism search omits default price and room-size bounds from 
   await page.getByRole('button', { name: /Todos los filtros/ }).click()
   const drawer = page.locator('.filter-drawer')
   await expect(drawer.getByLabel('Precio mínimo')).toHaveValue('0')
-  await expect(drawer.getByLabel('Precio máximo')).toHaveValue('350')
-  await expect(drawer.getByLabel('Precio máximo')).toHaveAttribute('max', '350')
+  await expect(drawer.getByLabel('Precio máximo')).toHaveValue('1000')
+  await expect(drawer.getByLabel('Precio máximo')).toHaveAttribute('max', '1000')
 })
 
 test('browser search stays bounded instead of hydrating the full catalog', async ({ page }) => {
