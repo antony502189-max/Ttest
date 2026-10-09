@@ -131,7 +131,7 @@ def test_holiday_room_for_two_with_double_bed_is_valid():
     payload = base_payload() | {
         "title": "Habitación privada para dos huéspedes",
         "rentalMode": "holiday",
-        "monthlyPrice": None,
+        "monthlyPrice": 450,
         "nightlyPrice": 55,
         "minimumStayMonths": 0,
         "minimumNights": 3,
