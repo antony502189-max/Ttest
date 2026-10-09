@@ -1,4 +1,4 @@
-"""Read-only inventory of existing listings against the long-term-only <= EUR 1000 policy.
+"""Read-only inventory of long-term rent prices; existing Tourism listings are preserved.
 
 This tool NEVER changes or deletes rows. Run against PostgreSQL only after
 confirming the effective production database and a fresh backup. Its output
@@ -24,8 +24,10 @@ from ..services.rental_price_limit import MAX_LONG_TERM_RENT_EUR
 
 
 def classify(mode: str, monthly_price: int | None) -> str:
+    if mode == "holiday":
+        return "preserved_holiday"
     if mode != "long":
-        return "holiday_or_unsupported"
+        return "unsupported_mode_review_only"
     if monthly_price is None or monthly_price <= 0:
         return "missing_or_invalid_monthly_price"
     if monthly_price > MAX_LONG_TERM_RENT_EUR:
@@ -61,19 +63,24 @@ async def inventory(max_rows: int) -> dict:
                 "monthlyPrice": price,
             })
         await session.rollback()
-    candidates = [item for item in records if item["classification"] != "eligible_long_term"]
+    candidates = [item for item in records if item["classification"] in (
+        "missing_or_invalid_monthly_price", "long_term_above_ceiling"
+    )]
     canonical = json.dumps(candidates, sort_keys=True, separators=(",", ":")).encode()
     return {
         "schema": 1,
         "generatedAt": datetime.now(UTC).isoformat(),
         "policy": {"rentalMode": "long", "minMonthlyEur": 1, "maxMonthlyEur": MAX_LONG_TERM_RENT_EUR},
         "totalNonDeleted": len(records),
-        "eligibleCount": len(records) - len(candidates),
+        "eligibleCount": sum(item["classification"] == "eligible_long_term" for item in records),
+        "preservedHolidayCount": sum(item["classification"] == "preserved_holiday" for item in records),
+        "unsupportedModeReviewCount": sum(item["classification"] == "unsupported_mode_review_only" for item in records),
         "ineligibleCount": len(candidates),
         "candidatesSha256": hashlib.sha256(canonical).hexdigest(),
         "counts": dict(sorted(groups.items())),
         "ineligibleCandidates": candidates,
         "operation": "READ_ONLY_NO_DELETE",
+        "scope": "LONG_TERM_ONLY_KEEP_TOURISM",
     }
 
 
