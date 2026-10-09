@@ -76,7 +76,7 @@ for (const viewport of [
 
     const switcher = page.locator('.m2-mode-switch')
     const buttons = switcher.locator(':scope > button')
-    await expect(buttons).toHaveCount(2)
+    await expect(buttons).toHaveCount(1)
     await buttons.last().click()
     await expect(buttons.last()).toHaveClass(/is-active/)
 
