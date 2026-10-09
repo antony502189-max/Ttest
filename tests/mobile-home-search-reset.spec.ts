@@ -12,10 +12,10 @@ async function finishOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
-const homeMode = (page: Page, index: 0 | 1) => page.locator('.m2-mode-switch > button').nth(index)
+const homeMode = (page: Page) => page.locator('.m2-mode-switch > button').first()
 
-async function openHomeResults(page: Page, mode: 0 | 1) {
-  await homeMode(page, mode).click()
+async function openHomeResults(page: Page) {
+  await homeMode(page).click()
   await page.getByTestId('open-location').click()
   const results = page.getByTestId('mobile-results')
   await expect(results).toBeVisible()
@@ -25,7 +25,7 @@ async function openHomeResults(page: Page, mode: 0 | 1) {
 test('unrestricted home search restores the full mode catalog after stale advanced filters', async ({ page }) => {
   await finishOnboarding(page)
 
-  const narrowed = await openHomeResults(page, 0)
+  const narrowed = await openHomeResults(page)
   await narrowed.getByRole('button', { name: 'Filtros' }).click()
   await narrowed.getByLabel('Precio Máx').fill('500')
   await narrowed.getByLabel('Habitaciones individuales').check()
@@ -53,8 +53,9 @@ test('unrestricted home search restores the full mode catalog after stale advanc
   expect(longParams.get('alquiler')).toBe('long')
 
   await unrestrictedLong.getByRole('button', { name: 'Volver' }).click()
-  const unrestrictedHoliday = await openHomeResults(page, 1)
-  await expect(unrestrictedHoliday.locator('.m2-result-card')).toHaveCount(9)
-  const holidayParams = new URLSearchParams(new URL(page.url()).hash.split('?', 2)[1] ?? '')
-  expect(holidayParams.get('alquiler')).toBe('holiday')
+  await expect(page.locator('.m2-mode-switch > button')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: /Turismo/ })).toHaveCount(0)
+  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday&precioMax=5000')
+  await expect(page).toHaveURL(/alquiler=long/)
+  await expect(page.getByTestId('mobile-results')).toBeVisible()
 })
