@@ -12,15 +12,67 @@ async function finishOnboarding(page: Page) {
 test.describe('mobile history', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('fresh map opens on the Tenerife island overview before any listing is opened', async ({ page }) => {
+  test('fresh map starts between Spain and Tenerife before any listing is opened', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
     await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
-    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThanOrEqual(9)
-    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThanOrEqual(10)
-    await expect(page).toHaveURL(/mapZoom=10\.00/)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThanOrEqual(5)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThanOrEqual(6)
+    await expect(page).toHaveURL(/mapZoom=5\\.25/)
+    await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
+  })
+
+
+  test('a new visit restores the last map pan and zoom after leaving search and reopening', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await page.evaluate(() => {
+      window.__googleMapsTestLastMap?.panTo({ lat: 28.12, lng: -16.72 })
+      window.__googleMapsTestLastMap?.setZoom(11)
+    })
+    await expect(page).toHaveURL(/mapLat=28\\.12000.*mapLng=-16\\.72000.*mapZoom=11\\.00/)
+    await expect.poll(async () => page.evaluate(() => {
+      const record = JSON.parse(localStorage.getItem('112233:map-last-viewport:v1') ?? '{}')
+      return record.camera?.zoom
+    })).toBe(11)
+    await page.goto('/#/')
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+    await expect(map).toHaveAttribute('data-map-zoom', '11')
+    await expect(page).toHaveURL(/mapLat=28\\.12000.*mapLng=-16\\.72000.*mapZoom=11\\.00/)
+  })
+
+  test('explicit map deep link wins over remembered viewport and a new city search wins over history', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+      localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
+        camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+      }))
+    })
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-center', '28.463600,-16.251800')
+    await expect(map).toHaveAttribute('data-map-zoom', '13')
+    await page.goto('/#/buscar?q=Adeje&vista=mapa')
+    await expect(map).toHaveAttribute('data-map-center', '28.122700,-16.724400')
+    await expect(map).toHaveAttribute('data-map-zoom', '12')
+  })
+
+  test('corrupt map history cannot displace the safe first-visit overview', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+      localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
+        camera: { lat: 999, lng: -16, zoom: 12 }, savedAt: Date.now(),
+      }))
+    })
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
+    await expect(map).toHaveAttribute('data-map-zoom', '5.25')
   })
 
   test('Home → results → map → detail unwinds one visible screen at a time', async ({ page }) => {
