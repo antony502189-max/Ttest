@@ -12,6 +12,7 @@ from ..models import AuditLog, Listing, Report, User
 from ..models.moderation import ListingRestriction, UserReportTarget, UserRestriction
 from ..schemas.reports import CreateReportRequest, ReportResponse
 from .moderation import active_window
+from .rental_price_limit import public_price_limit_clause
 
 
 def public_report(
@@ -88,6 +89,7 @@ async def create_report(payload: CreateReportRequest, user: User | None, session
             .where(
                 Listing.id == payload.listingId,
                 Listing.status == "published",
+                public_price_limit_clause(),
                 Listing.deleted_at.is_(None),
                 User.deleted_at.is_(None),
                 User.blocked.is_(False),

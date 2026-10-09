@@ -1,3 +1,4 @@
+import { rentalPriceAllowed } from './rental-price-limit'
 import type { AcceptedTenantType, BedType, Coordinates, HeatingType, HouseholdGender, Listing, MappedListing, RentalUnit, TenantRequirement, ToiletType } from '@/types'
 
 export const tenantRequirementLabels: Record<TenantRequirement, string> = {
@@ -248,5 +249,5 @@ export function expireListing(listing: Listing): Listing {
 }
 
 export function isPublicListing(listing: Listing) {
-  return expireListing(listing).status === 'Publicado'
+  return expireListing(listing).status === 'Publicado' && rentalPriceAllowed(listing.rentalMode, listing.monthlyPrice ?? listing.price)
 }

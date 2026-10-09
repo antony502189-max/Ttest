@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..content_safety import contains_listing_link
 from ..core.media_limits import MAX_LISTING_PHOTOS
+from ..services.rental_price_limit import long_term_price_allowed
 
 ALLOWED_ROOM_TYPES = {"Habitación individual", "Habitación compartida", "Estudio"}
 ALLOWED_LISTING_STATUSES = {"draft", "pending", "published", "hidden", "closed", "rejected"}
@@ -132,6 +133,8 @@ class ListingWrite(BaseModel):
             raise ValueError("rentalMode must be long or holiday")
         if self.rentalMode == "long" and self.monthlyPrice is None:
             raise ValueError("monthlyPrice is required for long rentals")
+        if not long_term_price_allowed(self.rentalMode, self.monthlyPrice):
+            raise ValueError("Long-term monthly rent must be between 1 and 1,000 EUR")
         if self.rentalMode == "holiday" and self.nightlyPrice is None:
             raise ValueError("nightlyPrice is required for holiday rentals")
         if self.roomType not in ALLOWED_ROOM_TYPES:

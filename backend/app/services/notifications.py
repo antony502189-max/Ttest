@@ -15,6 +15,7 @@ from ..repositories.listings import apply_search_filters, visible_query
 from ..schemas.listings import ListingSearchRequest
 from ..schemas.notifications import NotificationPage, NotificationResponse
 from .mail import enqueue_mail, frontend_link
+from .rental_price_limit import listing_price_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +243,8 @@ def _listing_matches_saved_areas(listing: Listing, filters: dict[object, object]
 
 async def notify_saved_search_matches(session: AsyncSession, listing: Listing) -> None:
     """Create one durable alert per saved-search/listing pair after publication."""
+    if not listing_price_allowed(listing):
+        return
     rows = (await session.execute(
         select(SavedSearch, User)
         .join(User, User.id == SavedSearch.user_id)

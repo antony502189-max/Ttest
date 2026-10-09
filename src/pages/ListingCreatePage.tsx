@@ -1,3 +1,4 @@
+import { MAX_LONG_TERM_RENT_EUR, longTermPriceError } from '@/lib/rental-price-limit'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, RotateCcw, Save } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
@@ -317,6 +318,7 @@ export function ListingCreatePage() {
     if (!equipment.washingMachine) next.washingMachine = 'Selecciona una opción.'
     const price = draft.rentalMode === 'holiday' ? draft.nightlyPrice : draft.monthlyPrice
     if (!Number.isInteger(price) || price < 1) next.price = 'Indica un precio válido.'
+    if (draft.rentalMode === 'long' && price > MAX_LONG_TERM_RENT_EUR) next.price = longTermPriceError
     if (draft.weeklyPrice !== undefined && (!Number.isInteger(draft.weeklyPrice) || draft.weeklyPrice < 0)) next.weeklyPrice = 'El precio semanal debe ser válido.'
     if (!Number.isInteger(draft.depositAmount) || draft.depositAmount < 0) next.depositAmount = 'La fianza no puede ser negativa.'
     if (!draft.billsIncluded) { const billsAmount = Number(draft.billsNote); if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = 'Indica el gasto aproximado al mes.' }
@@ -473,7 +475,7 @@ export function ListingCreatePage() {
 
       <Section disabled={recoveringImages} id="publish-price" title="Precio, gastos y fianza">
         <div className="listing-edit-grid listing-edit-grid--3">
-          {draft.rentalMode === 'long' ? <FormField label="Alquiler mensual (€)" htmlFor="publish-monthly-price" error={errors.price}><Input id="publish-monthly-price" type="number" min="1" value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('monthlyPrice', Number(e.target.value))} /></FormField> : <FormField label="Precio por noche (€)" htmlFor="publish-nightly-price" error={errors.price}><Input id="publish-nightly-price" type="number" min="1" value={draft.nightlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('nightlyPrice', Number(e.target.value))} /></FormField>}
+          {draft.rentalMode === 'long' ? <FormField label="Alquiler mensual (€)" htmlFor="publish-monthly-price" error={errors.price}><Input id="publish-monthly-price" type="number" min="1" max={MAX_LONG_TERM_RENT_EUR} value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('monthlyPrice', Number(e.target.value))} /></FormField> : <FormField label="Precio por noche (€)" htmlFor="publish-nightly-price" error={errors.price}><Input id="publish-nightly-price" type="number" min="1" value={draft.nightlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('nightlyPrice', Number(e.target.value))} /></FormField>}
           {draft.rentalMode === 'holiday' ? <FormField label="Precio semanal (€)" htmlFor="publish-weekly-price"><Input id="publish-weekly-price" type="number" min="0" value={draft.weeklyPrice ?? ''} onChange={(e) => set('weeklyPrice', e.target.value ? Number(e.target.value) : undefined)} /></FormField> : null}
           <FormField label="Fianza (€)" htmlFor="publish-deposit" error={errors.depositAmount}><Input id="publish-deposit" type="number" min="0" value={draft.depositAmount} aria-invalid={Boolean(errors.depositAmount)} onChange={(e) => set('depositAmount', Number(e.target.value))} /></FormField>
         </div>

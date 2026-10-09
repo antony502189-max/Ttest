@@ -25,6 +25,7 @@ from .core.browser_network import (
 from .core.config import get_settings
 from .core.media_limits import MAX_LISTING_PHOTOS
 from .rental_classification import bedroom_count, property_type, rental_price
+from .services.rental_price_limit import exact_euro_amount, long_term_price_allowed
 from .spain_provinces import canonical_province, coordinates_in_spain, scope_province, spain_country
 
 logger = logging.getLogger(__name__)
@@ -1460,6 +1461,11 @@ class ExternalListingSource(ABC):
         ).casefold()
         price = rental_price(data, self.name, amount, period)
         if price is None or currency != "EUR":
+            return None
+        if not long_term_price_allowed(price.mode, price.amount) or (
+            price.mode == "long"
+            and not long_term_price_allowed("long", exact_euro_amount(str(data.get("price_text", ""))))
+        ):
             return None
         if self.scope_key.endswith(":holiday") and price.mode != "holiday":
             return None

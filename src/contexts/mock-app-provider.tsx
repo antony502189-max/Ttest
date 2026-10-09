@@ -1,3 +1,4 @@
+import { rentalPriceAllowed, longTermPriceError } from '@/lib/rental-price-limit'
 import {
   useCallback,
   useEffect,
@@ -305,6 +306,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
 
   const createListing = useCallback(async (listing: Listing) => {
     if (!currentUser || currentUser.role === 'tenant') { toast.error('Necesitas una cuenta de anfitrión para publicar.'); return false }
+    if (!rentalPriceAllowed(listing.rentalMode, listing.monthlyPrice ?? listing.price)) { toast.error(longTermPriceError); return false }
     const stored = { ...listing, ownerUserId: currentUser.id, userCreated: true }
     setAllListings((current) => [stored, ...current])
     toast.success('Anuncio publicado y guardado en Mis anuncios')
@@ -317,6 +319,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
       if (previous) toast.error('No puedes gestionar un anuncio de otra cuenta.')
       return false
     }
+    if (!rentalPriceAllowed(listing.rentalMode, listing.monthlyPrice ?? listing.price)) { toast.error(longTermPriceError); return false }
     const next = { ...listing, id: previous.id, ownerUserId: previous.ownerUserId, userCreated: true }
     const syncAddress = ownerListingLocationChanged(next, previous)
     const siblingIds = syncAddress
@@ -367,14 +370,18 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   }, [allListings, canManageListing, users])
 
   const setListingStatus = useCallback(async (id: string, status: ListingStatus): Promise<ListingStatus | null> => {
+    const listing = allListings.find((item) => item.id === id)
+    if (status === 'Publicado' && listing && !rentalPriceAllowed(listing.rentalMode, listing.monthlyPrice ?? listing.price)) { toast.error(longTermPriceError); return null }
     mutateOwned(id, (listing) => ({ ...listing, status, closedReason: status === 'Finalizado' ? listing.closedReason ?? 'owner' : undefined }))
     return status
-  }, [mutateOwned])
+  }, [allListings, mutateOwned])
 
   const renewListing = useCallback(async (id: string): Promise<ListingStatus | null> => {
+    const listing = allListings.find((item) => item.id === id)
+    if (listing && !rentalPriceAllowed(listing.rentalMode, listing.monthlyPrice ?? listing.price)) { toast.error(longTermPriceError); return null }
     mutateOwned(id, (listing) => ({ ...listing, status: 'Publicado', closedReason: undefined }))
     return 'Publicado'
-  }, [mutateOwned])
+  }, [allListings, mutateOwned])
 
   const closeListing = useCallback((id: string) => setListingStatus(id, 'Finalizado'), [setListingStatus])
   const refreshListingLifecycle = useCallback(() => setAllListings((current) => current.map((listing) => expireListing(listing))), [])
