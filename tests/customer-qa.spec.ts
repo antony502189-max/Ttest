@@ -7,6 +7,7 @@ test('mobile search filters are localized after customer filter simplification',
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
   })
   await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await expect(page).toHaveURL(/alquiler=long/)
 
   await page.getByTestId('mobile-results').getByRole('button', { name: 'Фильтры' }).click()
   const filters = page.locator('.m2-results-filter')
@@ -23,7 +24,7 @@ test('mobile search filters are localized after customer filter simplification',
   await numericInputs.nth(0).fill('-5')
   await expect(numericInputs.nth(0)).toHaveValue('0')
   await numericInputs.nth(1).fill('05555')
-  await expect(numericInputs.nth(1)).toHaveValue('5555')
+  await expect(numericInputs.nth(1)).toHaveValue('1000')
 
   await filters.locator('footer button').click()
   await expect(page.locator('.m2-results__list')).toBeVisible()
