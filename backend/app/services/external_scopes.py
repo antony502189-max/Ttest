@@ -7,7 +7,7 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
