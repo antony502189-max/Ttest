@@ -1,7 +1,9 @@
 """Conservative rental admission using listing metadata, never page navigation.
 
-Adapters translate their public fields into property_type, bedroom_count,
-rental_category and price_period. Unknown structured types fail closed.
+Adapters translate provider fields into property type and verified price period.
+A priced-per-month residential offer is the supported long-term mode regardless
+of the lease duration or labels like temporada; nightly/weekly results are only
+classified for diagnostics and cannot pass the public admission policy.
 """
 
 from __future__ import annotations
