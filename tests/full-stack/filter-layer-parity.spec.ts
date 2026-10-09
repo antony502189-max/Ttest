@@ -224,13 +224,16 @@ test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject no
 
   const primaryId = await createListing(api, token, baseListing(`Primary ${unique}`, city, area))
   const secondaryId = await createListing(api, token, { ...baseListing(`Secondary ${unique}`, city, area), monthlyPrice: 925, floor: '1', amenities: ['Wi-Fi'] })
-  // Tourism publication is now forbidden even through the direct API.
+  // Tourism publication is forbidden even with otherwise valid media and price fields.
+  const holidayAssetIds = await uploadRequiredListingPhotos(api, token, `Holiday ${unique}`)
   const holidayAttempt = await api.post(`${API_PREFIX}/listings`, {
     headers: { Authorization: `Bearer ${token}` },
     data: { ...baseListing(`Holiday ${unique}`, city, area),
-      rentalMode: 'holiday', monthlyPrice: 750, nightlyPrice: 80, minimumStayMonths: 0, minimumNights: 3 },
+      rentalMode: 'holiday', monthlyPrice: 750, nightlyPrice: 80,
+      minimumStayMonths: 0, minimumNights: 3, assetIds: holidayAssetIds },
   })
   expect(holidayAttempt.status()).toBe(422)
+  expect(await holidayAttempt.text()).toContain('unsupported_rental_mode')
 
   const isolation = { query: city, rentalMode: 'long' }
   const checks: Array<{ name: string; match: Record<string, unknown>; miss: Record<string, unknown> }> = [
