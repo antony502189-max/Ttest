@@ -62,7 +62,7 @@ def test_source_fixtures_exist_for_every_active_provider():
     ("1000,999 €/mes", None),
 ])
 def test_provider_price_cannot_drop_thousands_or_cents(price, amount):
-    parsed_amount, currency, period, uncertain = parse_price(price)
+    parsed_amount, currency, period, _uncertain = parse_price(price)
     assert parsed_amount == amount
     assert period == "month"
     if amount is not None:
