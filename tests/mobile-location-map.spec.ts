@@ -50,17 +50,12 @@ test('country selection contains only Tenerife and returns correctly from locati
   await expect(page.getByTestId('location-screen')).toBeVisible()
 })
 
-test('housing modes start inactive and occupant selector keeps one compatible primary choice', async ({ page }) => {
+test('single residential home mode is active and occupant selector keeps one compatible primary choice', async ({ page }) => {
   await finishOnboarding(page)
   const housing = page.getByRole('button', { name: /Vivienda/ })
-  const tourism = page.getByRole('button', { name: /Turismo/ })
-  await expect(housing).toHaveAttribute('aria-pressed', 'false')
-  await expect(tourism).toHaveAttribute('aria-pressed', 'false')
-  await housing.click()
+  await expect(page.locator('.m2-mode-switch > button')).toHaveCount(1)
   await expect(housing).toHaveAttribute('aria-pressed', 'true')
-  await expect(tourism).toHaveAttribute('aria-pressed', 'false')
-  await tourism.click()
-  await expect(tourism).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: /Turismo/ })).toHaveCount(0)
 
   await page.getByRole('button', { name: /¿Quién vivirá\?/ }).click()
   const man = page.locator('[data-m2-occupant-key="man"]')
