@@ -184,7 +184,7 @@ export const listings = initialListings
 
 export const defaultFilters: Filters = {
   minPrice: 0,
-  maxPrice: 1200,
+  maxPrice: 1000,
   areas: [],
   roomType: 'Cualquiera',
   available: '',
