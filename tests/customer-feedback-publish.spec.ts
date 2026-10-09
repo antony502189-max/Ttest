@@ -28,7 +28,7 @@ test('CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and monthly extra costs s
   await expect(page.getByText('Fibra', { exact: true })).toHaveCount(0)
 
   await page.getByLabel('Gastos incluidos en el precio').uncheck()
-  await page.getByLabel('Gastos aproximados al mes (€)').fill('45')
+  await page.getByLabel('Gastos mensuales obligatorios (€)').fill('45')
 
   const availableUntil = page.getByLabel('Disponible hasta')
   await expect(availableUntil).toHaveValue('')
@@ -72,13 +72,13 @@ test('CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and monthly extra costs s
   expect(listing?.id).toBeTruthy()
   expect(listing?.availableUntil ?? '').toBe('')
   expect(listing?.billsIncluded).toBe(false)
-  expect(listing?.bills).toBe('Gastos aparte: aprox. 45 €/mes')
+  expect(listing?.bills).toBe('Gastos mensuales obligatorios: 45 €/mes')
   expect(listing?.amenities).toContain('Wi-Fi')
   expect(listing?.amenities).not.toContain('Fibra')
 
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing?.id))}`)
   const priceDetails = page.getByRole('heading', { name: 'Precio y disponibilidad' }).locator('..')
-  await expect(priceDetails).toContainText('Gastos aparte: aprox. 45 €/mes')
+  await expect(priceDetails).toContainText('Gastos mensuales obligatorios: 45 €/mes')
   await expect(priceDetails).toContainText('Sin fecha final')
   await expect(page.getByText('Wi-Fi', { exact: true })).toBeVisible()
 })
