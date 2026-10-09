@@ -16,17 +16,17 @@ def exact_euro_amount(text: str) -> Decimal | None:
     '1 200 €' may otherwise be interpreted as 200, while 1000.50 loses cents.
     Both European and English grouping/decimal spellings are supported.
     """
-    amounts = list(re.finditer(r"(?<![\\d.,])([0-9][0-9\\s.,]*?)\\s*€", text))
+    amounts = list(re.finditer(r"(?<![\d.,])([0-9][0-9\s.,]*?)\s*€", text))
     if len(amounts) != 1:
         return None
-    number = re.sub(r"\\s+", "", amounts[0].group(1))
+    number = re.sub(r"\s+", "", amounts[0].group(1))
     if re.fullmatch(r"[0-9]+", number):
         normalized = number
     elif re.fullmatch(r"[0-9]+[.,][0-9]{1,2}", number):
         normalized = number.replace(",", ".")
-    elif re.fullmatch(r"[0-9]{1,3}(?:\\.[0-9]{3})+(?:,[0-9]{1,2})?", number):
+    elif re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?", number):
         normalized = number.replace(".", "").replace(",", ".")
-    elif re.fullmatch(r"[0-9]{1,3}(?:,[0-9]{3})+(?:\\.[0-9]{1,2})?", number):
+    elif re.fullmatch(r"[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{1,2})?", number):
         normalized = number.replace(",", "")
     else:
         return None
