@@ -9,7 +9,12 @@ from test_room_first_listing_schemas import base_payload
 from app.external_sources import IdealistaSource, PisosSource, parse_price
 from app.schemas.listings import ListingWrite
 from app.services.external_import import upsert
-from app.services.rental_price_limit import exact_euro_amount, imported_price_allowed, long_term_price_allowed, require_listing_price
+from app.services.rental_price_limit import (
+    exact_euro_amount,
+    imported_price_allowed,
+    long_term_price_allowed,
+    require_listing_price,
+)
 
 
 @pytest.mark.parametrize("amount,allowed", [(999, True), (1000, True), (1001, False), (1000.5, False), (None, False)])
