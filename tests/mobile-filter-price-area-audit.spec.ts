@@ -42,16 +42,17 @@ test('price range normalizes inverted bounds and survives reload', async ({ page
   expect(new URL(page.url()).hash).toContain('precioMax=700')
 })
 
-test('long-stay price never leaks into Tourism when cadence changes', async ({ page }) => {
+test('long-stay price persists and clearing restores the supported EUR 1000 range', async ({ page }) => {
   const results = await openFilters(page)
   await results.getByLabel('Precio Mín').fill('600')
   await results.getByRole('button', { name: /Ver anuncios/ }).click()
   await results.getByRole('button', { name: 'Filtros' }).click()
-  await results.getByRole('button', { name: 'Turismo', exact: true }).click()
+  await expect(results.getByLabel('Precio Mín')).toHaveValue('600')
+  await expect(results.getByRole('button', { name: 'Turismo', exact: true })).toHaveCount(0)
+  await results.getByRole('button', { name: 'Limpiar' }).click()
   await expect(results.getByLabel('Precio Mín')).toHaveValue('0')
-  await expect(results.getByLabel('Precio Máx')).toHaveValue('1200')
-  await expect(results.getByRole('button', { name: /Ver anuncios · 9$/ })).toBeVisible()
+  await expect(results.getByLabel('Precio Máx')).toHaveValue('1000')
   await results.getByRole('button', { name: /Ver anuncios/ }).click()
-  await expect(results.locator('.m2-result-card')).toHaveCount(9)
-  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ noche')
+  await expect(results.locator('.m2-result-card')).toHaveCount(23)
+  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ mes')
 })
