@@ -703,7 +703,7 @@ export function MobileAppV2() {
   const navigate = useNavigate()
   const routeSearchRef = useRef(location.search)
   const pendingRouteSearchRef = useRef<string | null>(null)
-  const latestPendingCameraRef = useRef<MapCamera | null>(null)
+  const latestPendingCameraRef = useRef<{ camera: MapCamera; query: string | null } | null>(null)
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
@@ -885,7 +885,7 @@ export function MobileAppV2() {
     if (pendingRouteSearchRef.current) {
       // Google Maps can emit a pan and zoom idle in the same render. Keep the
       // newest camera rather than losing zoom while Router processes replace.
-      latestPendingCameraRef.current = camera
+      latestPendingCameraRef.current = { camera, query: new URLSearchParams(routeSearchRef.current).get('q') }
       return
     }
     const params = new URLSearchParams(routeSearchRef.current)
@@ -908,7 +908,9 @@ export function MobileAppV2() {
     }
     const latest = latestPendingCameraRef.current
     latestPendingCameraRef.current = null
-    commitMapCamera(latest)
+    // A new search must not inherit delayed pan events from the old query.
+    if (latest.query !== new URLSearchParams(location.search).get('q')) return
+    commitMapCamera(latest.camera)
     // The pending camera is flushed only when Router applies its previous URL
     // update; commitMapCamera reads routeSearchRef.current synchronously.
     // eslint-disable-next-line react-hooks/exhaustive-deps
