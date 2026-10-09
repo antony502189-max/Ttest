@@ -77,8 +77,9 @@ async def test_holiday_scopes_keep_independent_cursors_and_rejected_recommendati
               </script><p>950 €/mes</p>'''
 
     async with SessionLocal() as session:
-        await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid", (long_root,)),
-                                        ScopeDefinition("Pisos", "province:Madrid:holiday", (holiday_root,))])
+        await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid", (long_root,))])
+        with pytest.raises(ValueError, match="Holiday import scopes are disabled"):
+            await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid:holiday", (holiday_root,))])
         assert await upsert(session, item(), scope_key="province:Madrid") == "imported"
         before = await session.scalar(select(ExternalListingSource))
         listing_id = before.canonical_listing_id
@@ -88,7 +89,7 @@ async def test_holiday_scopes_keep_independent_cursors_and_rejected_recommendati
         listing = await session.get(Listing, listing_id)
         assert source.current_status == "active" and source.scope_key == "province:Madrid"
         assert listing.status == "published" and listing.rental_mode == "long" and listing.monthly_price == 900
-        assert await session.scalar(select(func.count(ExternalImportScope.id))) == 2
+        assert await session.scalar(select(func.count(ExternalImportScope.id))) == 1
 
 
 async def test_holiday_catalogue_overlap_preserves_long_term_canonical_and_its_scope(monkeypatch):
@@ -169,7 +170,8 @@ async def test_selected_holiday_weekly_price_reaches_canonical_and_retains_prove
               <option data-value="70 €">día</option><option selected data-value="490 €">sem</option></select>'''
 
     async with SessionLocal() as session:
-        await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid:holiday", (root,))])
+        with pytest.raises(ValueError, match="Holiday import scopes are disabled"):
+            await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid:holiday", (root,))])
         with pytest.raises(ValueError, match="Holiday import scopes are disabled"):
             await run_source(session, Source(), str(uuid4()), max_details=1)
         assert await session.scalar(select(Listing)) is None
