@@ -308,7 +308,9 @@ async def execute(args) -> dict:
                 report_fd = -1
                 json.dump(report, stream, ensure_ascii=False, indent=2)
                 stream.write("\n")
-        except OSError as exc:
+        except Exception as exc:
+            # I/O errors and serialization failures both happen AFTER commit.
+            # Keep the reserved output and never encourage a blind retry.
             raise RuntimeError(
                 "Database transaction may already be COMMITTED, but output writing failed. "
                 "Do not repeat cleanup without checking database state and manifest."
