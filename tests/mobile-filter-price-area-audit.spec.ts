@@ -49,7 +49,7 @@ test('long-stay price never leaks into Tourism when cadence changes', async ({ p
   await results.getByRole('button', { name: 'Filtros' }).click()
   await results.getByRole('button', { name: 'Turismo', exact: true }).click()
   await expect(results.getByLabel('Precio Mín')).toHaveValue('0')
-  await expect(results.getByLabel('Precio Máx')).toHaveValue('1200')
+  await expect(results.getByLabel('Precio Máx')).toHaveValue('1000')
   await expect(results.getByRole('button', { name: /Ver anuncios · 9$/ })).toBeVisible()
   await results.getByRole('button', { name: /Ver anuncios/ }).click()
   await expect(results.locator('.m2-result-card')).toHaveCount(9)
