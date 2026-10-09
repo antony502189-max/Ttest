@@ -251,6 +251,14 @@ async def import_images(
     detached and truly orphaned media is queued for storage deletion.
     """
     settings = get_settings()
+    if getattr(settings, "external_import_preserve_existing_galleries", False):
+        existing_count = await session.scalar(
+            select(func.count()).select_from(ListingImage).where(ListingImage.listing_id == listing_id)
+        )
+        await session.commit()
+        if existing_count:
+            logger.info("external_gallery_preserved", extra={"listing_id": str(listing_id)})
+            return
     await session.commit()
     # Product galleries have one hard ceiling everywhere, including imports.
     # Legacy external rows above the limit are intentionally reconciled down
