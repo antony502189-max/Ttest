@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR, eligibleDraftPrice, rentalPriceError } from '@/lib/rental-policy'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertDialog,
@@ -40,7 +41,7 @@ import { PriceBlock, PropertyBadge, PropertyCard, PropertyGallery } from "@/comp
 import { ApproximateLocationMap } from "@/components/map-view";
 import { useApp } from "@/contexts/app-context";
 import { amenityOptions, areaCenters, createDefaultDraft } from "@/data/listings";
-import { getCriticalRestrictions, getPrimaryPrice } from "@/lib/listings";
+import { getCriticalRestrictions } from "@/lib/listings";
 import { approximatePublicCoordinates } from "@/lib/location-privacy";
 import type { ResolvedGoogleAddress } from "@/lib/google-maps/address";
 import { isMediaReference, removeUnusedMediaReferences } from "@/lib/media-storage";
@@ -225,7 +226,7 @@ const toListing = (draft: ListingDraft, previous?: Listing, ownerUserId?: string
     minimumNights: draft.rentalMode === "holiday" ? draft.minimumNights : undefined,
     deposit: draft.depositAmount ? `${draft.depositAmount} €` : "Sin fianza",
     depositAmount: draft.depositAmount,
-    bills: draft.billsIncluded ? "Gastos incluidos en el precio" : draft.billsNote ? `Gastos aparte: aprox. ${draft.billsNote} €/mes` : "Gastos aparte",
+    bills: draft.billsIncluded ? "Gastos incluidos en el precio" : draft.billsNote ? `Gastos mensuales obligatorios: ${draft.billsNote} €/mes` : "Gastos aparte",
     billsIncluded: draft.billsIncluded,
     bathroom: draft.bathroom,
     kitchen: draft.kitchen,
@@ -428,12 +429,12 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       if (!equipment.washingMachine) next.washingMachine = "Indica qué tipo de lavadora está disponible.";
     }
     if (targetStep === 3) {
-      if (!Number.isInteger(getPrimaryPrice(preview)) || getPrimaryPrice(preview) < 1) next.price = "El precio debe ser un número entero mayor que cero.";
+      if (!eligibleDraftPrice(draft)) next.price = rentalPriceError(language);
       if (draft.weeklyPrice !== undefined && (!Number.isInteger(draft.weeklyPrice) || draft.weeklyPrice < 0)) next.weeklyPrice = "El precio semanal debe ser un entero no negativo.";
       if (!Number.isInteger(draft.depositAmount) || draft.depositAmount < 0) next.depositAmount = "La fianza debe ser un entero no negativo.";
       if (!draft.billsIncluded) {
         const billsAmount = Number(draft.billsNote);
-        if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = "Indica el gasto adicional aproximado al mes.";
+        if (!draft.billsNote.trim() || !Number.isFinite(billsAmount) || billsAmount <= 0) next.billsAmount = "Indica el gasto obligatorio mensual verificado.";
       }
     }
     if (targetStep === 4) {
@@ -527,7 +528,6 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
         return <WizardSection title="¿Qué tipo de estancia ofreces?" description="El precio, las fechas y la duración se adaptan al tipo de alquiler.">
           {choice("rental-mode", draft.rentalMode, [
             { value: "long", title: "Larga estancia", text: "Precio mensual en euros." },
-            { value: "holiday", title: "Alquiler vacacional", text: "Precio por noche en euros." },
           ], (value) => set("rentalMode", value))}
           <Alert><Info /><AlertTitle>Especializado en habitaciones</AlertTitle><AlertDescription>Publica una habitación completa o, si es compartida, plazas/camas individuales. Las condiciones se muestran antes del contacto.</AlertDescription></Alert>
         </WizardSection>;
@@ -596,16 +596,12 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
       case 3:
         return <WizardSection title="Precio, gastos y fianza" description="Todos los importes se introducen y se muestran en euros (€).">
           <div className="form-grid">
-            {draft.rentalMode === "long" ? <FormField label="Alquiler mensual (€)" htmlFor="publish-price" error={errors.price}><Input id="publish-price" aria-label="Alquiler mensual" type="number" min="1" value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set("monthlyPrice", Number(e.target.value))} /></FormField> : <>
-              <FormField label="Precio por noche (€)" htmlFor="publish-price" error={errors.price}><Input id="publish-price" aria-label="Precio por noche" type="number" min="1" value={draft.nightlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set("nightlyPrice", Number(e.target.value))} /></FormField>
-              <FormField label="Precio por semana (€)" htmlFor="publish-weekly-price" error={errors.weeklyPrice}><Input id="publish-weekly-price" aria-label="Precio por semana" type="number" min="0" step="1" value={draft.weeklyPrice ?? ""} aria-invalid={Boolean(errors.weeklyPrice)} onChange={(e) => set("weeklyPrice", e.target.value ? Number(e.target.value) : undefined)} /></FormField>
-              <FormField label="Precio por mes (€)" htmlFor="publish-monthly-price"><Input id="publish-monthly-price" aria-label="Precio por mes" type="number" min="0" value={draft.monthlyPrice} onChange={(e) => set("monthlyPrice", Number(e.target.value))} /></FormField>
-            </>}
+            <FormField label="Alquiler mensual (€)" htmlFor="publish-price" error={errors.price}><Input id="publish-price" aria-label="Alquiler mensual" type="number" min="1" max={MAX_MONTHLY_RENT_EUR} value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set("monthlyPrice", Number(e.target.value))} /></FormField>
             <FormField label="Fianza / depósito (€)" htmlFor="publish-deposit" error={errors.depositAmount}><Input id="publish-deposit" type="number" min="0" step="1" value={draft.depositAmount} aria-invalid={Boolean(errors.depositAmount)} onChange={(e) => set("depositAmount", Number(e.target.value))} /></FormField>
           </div>
           <div className="form-grid">
             <FormField label="Gastos de suministros" htmlFor="publish-bills-included"><select id="publish-bills-included" value={draft.billsIncluded ? "included" : "extra"} onChange={(e) => setDraft((current) => ({ ...current, billsIncluded: e.target.value === "included", billsNote: e.target.value === "included" ? "" : current.billsNote }))}><option value="included">Incluidos en el precio</option><option value="extra">Se pagan aparte</option></select></FormField>
-            {!draft.billsIncluded ? <FormField label="Gastos adicionales aproximados (€/mes)" htmlFor="publish-bills" error={errors.billsAmount}><Input id="publish-bills" type="number" min="1" inputMode="decimal" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set("billsNote", e.target.value)} /></FormField> : null}
+            {!draft.billsIncluded ? <FormField label="Gastos mensuales obligatorios (€/mes)" htmlFor="publish-bills" error={errors.billsAmount}><Input id="publish-bills" type="number" min="1" inputMode="decimal" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set("billsNote", e.target.value)} /></FormField> : null}
           </div>
         </WizardSection>;
       case 4:
@@ -613,7 +609,7 @@ export function PublishPage({ editing = false }: { editing?: boolean }) {
           <div className="form-grid">
             <FormField label="Disponible desde" htmlFor="publish-available" error={errors.availableFrom}><Input id="publish-available" type="date" value={draft.availableFrom} aria-invalid={Boolean(errors.availableFrom)} onChange={(e) => set("availableFrom", e.target.value)} /></FormField>
             <FormField label="Disponible hasta (opcional)" htmlFor="publish-available-until" error={errors.availableUntil}><Input id="publish-available-until" type="date" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set("availableUntil", e.target.value)} /></FormField>
-            {draft.rentalMode === "long" ? <FormField label="Estancia mínima (meses)" htmlFor="publish-min-stay" error={errors.minimumStay}><Input id="publish-min-stay" type="number" min="1" value={draft.minimumStayMonths} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set("minimumStayMonths", Number(e.target.value))} /></FormField> : <FormField label="Estancia mínima (noches)" htmlFor="publish-min-nights" error={errors.minimumStay}><Input id="publish-min-nights" type="number" min="1" value={draft.minimumNights} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set("minimumNights", Number(e.target.value))} /></FormField>}
+            <FormField label="Estancia mínima (meses)" htmlFor="publish-min-stay" error={errors.minimumStay}><Input id="publish-min-stay" type="number" min="1" value={draft.minimumStayMonths} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set("minimumStayMonths", Number(e.target.value))} /></FormField>
           </div>
         </WizardSection>;
       case 5:

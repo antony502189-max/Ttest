@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Bath,
   BedDouble,
-  Briefcase,
   CalendarDays,
   Camera,
   ChevronLeft,
@@ -175,9 +174,7 @@ export function RentalTypeSwitch({
       <ToggleGroupItem value="long" aria-label={`${t("Vivienda")}, ${t("Larga estancia")}`}>
         {home ? <><span className="rental-switch__icon rental-switch__icon--home"><Home aria-hidden="true" /></span><span><strong>{t("Vivienda")}</strong><small>{t("Larga estancia")}</small></span></> : t("Habitaciones Vivienda")}
       </ToggleGroupItem>
-      <ToggleGroupItem value="holiday" aria-label={`${t("Turismo")}, ${t("Corta estancia")}`}>
-        {home ? <><span className="rental-switch__icon rental-switch__icon--tourism"><Briefcase aria-hidden="true" /></span><span><strong>{t("Turismo")}</strong><small>{t("Corta estancia")}</small></span></> : t("Habitaciones Turísticas")}
-      </ToggleGroupItem>
+
     </ToggleGroup>
   );
 }
@@ -810,7 +807,7 @@ function FilterPanel({
 }) {
   const update = <K extends keyof Filters>(key: K, next: Filters[K]) =>
     onChange({ ...value, [key]: next });
-  const max = rentalMode === "holiday" ? 350 : 1200;
+  const max = priceControlValues(value, rentalMode).ceiling;
   const priceControls = priceControlValues(value, rentalMode);
   const clampPriceControl = (next: number) => Math.min(max, Math.max(0, Number.isFinite(next) ? next : 0));
   return (

@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR } from '@/lib/rental-policy'
 import type { AcceptedTenantType, Filters, Listing, ListingDraft } from '@/types'
 
 const photos = [
@@ -184,7 +185,7 @@ export const listings = initialListings
 
 export const defaultFilters: Filters = {
   minPrice: 0,
-  maxPrice: 1200,
+  maxPrice: MAX_MONTHLY_RENT_EUR,
   areas: [],
   roomType: 'Cualquiera',
   available: '',

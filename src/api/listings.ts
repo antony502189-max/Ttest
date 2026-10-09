@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR } from '@/lib/rental-policy'
 import { api, ApiError, resolveApiUrl } from '@/api/client'
 import { defaultFilters } from '@/data/listings'
 import { ownerListingLocationChanged } from '@/lib/listing-address-group'
@@ -335,8 +336,9 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
   const publicationDays = filters.publicationDate === '24h' ? 1 : filters.publicationDate === '7d' ? 7 : filters.publicationDate === '30d' ? 30 : undefined
   const body = {
     ...payload,
+    rentalMode: 'long',
     ...(minPrice !== defaultFilters.minPrice ? { minPrice } : {}),
-    ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice } : {}),
+    ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice: Math.min(MAX_MONTHLY_RENT_EUR, Math.max(0, maxPrice ?? MAX_MONTHLY_RENT_EUR)) } : {}),
     query: input.query ?? 'Tenerife',
     roomTypes: input.roomTypes ?? [],
     center: input.center,

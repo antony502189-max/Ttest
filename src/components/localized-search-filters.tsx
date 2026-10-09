@@ -83,7 +83,7 @@ function FilterPanel({ value, onChange, rentalMode }: { value: Filters; onChange
   const { language, t } = useI18n();
   const text = (es: string, ru: string, en: string) => localize(language, es, ru, en);
   const update = <K extends keyof Filters>(key: K, next: Filters[K]) => onChange({ ...value, [key]: next });
-  const maxPrice = rentalMode === "holiday" ? 350 : 1200;
+  const maxPrice = priceControlValues(value, rentalMode).ceiling;
   const priceControls = priceControlValues(value, rentalMode);
   const anyLabel = text("Cualquiera", "Любой", "Any");
   const capacityOptions: SelectOption[] = [{ value: "Cualquiera", label: anyLabel }, ...Array.from({ length: 10 }, (_, index) => ({ value: String(index + 1), label: text(`${index + 1} ${index === 0 ? "persona" : "personas"}`, `${index + 1} чел.`, `${index + 1} ${index === 0 ? "person" : "people"}`) }))];

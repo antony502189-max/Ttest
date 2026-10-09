@@ -324,11 +324,11 @@ function readScopedLocalComments() {
 function readScopedSavedSearches() {
   const current = readVersioned('112233:saved-searches:v3', 3, {} as UserScopedState<SavedSearch[]>, isScopedSavedSearches)
   if (localStorage.getItem('112233:saved-searches:v3') && !current.failure) {
-    return Object.fromEntries(Object.entries(current.data).map(([scope, items]) => [scope, items.map((item) => ({ ...item, filters: normalizeFilters(item.filters) }))]))
+    return Object.fromEntries(Object.entries(current.data).map(([scope, items]) => [scope, items.map((item) => ({ ...item, rentalMode: "long" as const, filters: normalizeFilters(item.filters) }))]))
   }
   const legacy = readJson<unknown>('112233:saved-searches:v2', [])
   const items = Array.isArray(legacy.data) ? legacy.data.filter(isSavedSearch) : []
-  return items.length ? { guest: items.map((item) => ({ ...item, filters: normalizeFilters(item.filters) })) } : {}
+  return items.length ? { guest: items.map((item) => ({ ...item, rentalMode: "long" as const, filters: normalizeFilters(item.filters) })) } : {}
 }
 
 const storageMessage = (failure: StorageFailure) => failure === 'quota'
@@ -338,7 +338,8 @@ const storageMessage = (failure: StorageFailure) => failure === 'quota'
     : 'No se pudo guardar en este navegador. Revisa la privacidad o el espacio disponible.'
 
 function RemoteAppProvider({ children }: { children: ReactNode }) {
-  const [rentalMode, setRentalMode] = useState<RentalMode>('long')
+  const [rentalMode, setRentalModeState] = useState<RentalMode>('long')
+  const setRentalMode = useCallback((_mode: RentalMode) => setRentalModeState('long'), [])
   const [query, setQuery] = useState('Tenerife')
   const [favoriteScopes, setFavoriteScopes] = useState<UserScopedState<string[]>>(() => readScopedStrings('112233:favorites:v2', '112233:favorites:v1'))
   const [discardedScopes, setDiscardedScopes] = useState<UserScopedState<string[]>>(() => readScopedStrings('112233:discarded:v2', '112233:discarded:v1'))
@@ -495,7 +496,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     const guestSavedSearches = (savedSearchScopes.guest ?? []).map((search) => ({
       name: search.query,
       query: search.query,
-      rentalMode: search.rentalMode,
+      rentalMode: "long" as const,
       filters: search.filters as unknown as Record<string, unknown>,
       polygon: search.polygon,
       alertsEnabled: search.alerts,
@@ -510,7 +511,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         [currentUserId]: remoteSearches.map((search) => ({
           id: search.id,
           query: search.query,
-          rentalMode: search.rentalMode,
+          rentalMode: "long" as const,
           filters: normalizeFilters({ ...defaultFilters, ...search.filters }),
           alerts: search.alertsEnabled,
           createdAt: search.createdAt,
@@ -607,7 +608,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     const found = savedSearches.find((item) => item.id === id)
     if (found) { setQuery(found.query); setRentalMode(found.rentalMode); setFilters(normalizeFilters(found.filters)); setMapPolygonState(found.polygon ?? []) }
     return found
-  }, [savedSearches])
+  }, [savedSearches, setRentalMode])
   const removeSavedSearch = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => {
     if (currentUserId) void deleteSavedSearch(id).catch(() => toast.error('No se pudo eliminar la búsqueda guardada.'))
     return (current ?? []).filter((item) => item.id !== id)
@@ -985,7 +986,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role, users])
 
   const activeFilterCount = useMemo(() => getActiveFilterKeys(filters).length, [filters])
-  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, ownedListingsHydrationStatus, refreshOwnedListings: refreshOwnedConsumers, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, ownedListingsHydrationStatus, refreshOwnedConsumers, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
+  const value = useMemo<AppState>(() => ({ rentalMode, setRentalMode, query, setQuery, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, ownedListingsHydrationStatus, refreshOwnedListings: refreshOwnedConsumers, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError, clearStorageError: () => setStorageError(null) }), [rentalMode, setRentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, setFilters, resetFilters, activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch, restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, ownedListings, ownedListingsHydrationStatus, refreshOwnedConsumers, acceptListingSnapshot, partialPublication, createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle, canManageListing, reports, addReport, localComments, addLocalComment, updateLocalComment, deleteLocalComment, users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked, storageError])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

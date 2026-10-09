@@ -129,7 +129,7 @@ const translations: Record<string, Translation> = {
   'Los primeros anuncios de habitaciones son gratuitos.': { ru: 'Первые объявления о комнатах бесплатны.', en: 'Your first room listings are free.' },
   'Poner tu anuncio': { ru: 'Разместить объявление', en: 'Post your listing' },
   'Habitaciones destacadas en Tenerife': { ru: 'Рекомендуемые комнаты на Тенерифе', en: 'Featured rooms in Tenerife' },
-  'Anuncios recientes de larga estancia y alquiler vacacional.': { ru: 'Новые объявления для долгосрочной и краткосрочной аренды.', en: 'Recent long-term and holiday rental listings.' },
+  'Anuncios recientes de larga estancia hasta 1.000 €/mes.': { ru: 'Новые объявления долгосрочной аренды до 1 000 €/месяц.', en: 'Recent long-term rentals up to €1,000/month.' },
   'Alquiler de habitaciones por zona': { ru: 'Аренда комнат по районам', en: 'Rooms for rent by area' },
   'Encuentra una habitación cerca del trabajo, la universidad o la playa.': { ru: 'Найдите комнату рядом с работой, университетом или пляжем.', en: 'Find a room close to work, university or the beach.' },
   '¿Quieres enterarte antes?': { ru: 'Хотите узнавать раньше других?', en: 'Want to hear about new rooms first?' },

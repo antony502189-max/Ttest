@@ -120,7 +120,7 @@ export function SearchPage() {
   const invalidLocation = false;
   const query = location?.normalizedValue ?? requestedQuery;
   const rentalMode: RentalMode =
-    params.get("alquiler") === "holiday" ? "holiday" : "long";
+    "long";
   const filters = useMemo(() => {
     return filtersFromParams(new URLSearchParams(requestParamString));
     // paramString captures the complete serialized filter state.

@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR } from '@/lib/rental-policy'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
@@ -239,7 +240,7 @@ export function MobileSearchResults() {
     } as const
     const sort = sortByOrder[mobileOrder as ResultsOrder] ?? 'newest'
     return {
-      rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' as const : 'long' as const,
+      rentalMode: 'long' as const,
       query: params.get('q') ?? 'Tenerife',
       filters: canonical,
       minPrice: canonical.minPrice,
@@ -360,7 +361,7 @@ export function MobileSearchResults() {
     const shouldOpen = mobileViewport && location.pathname === '/buscar' && params.get('vista') !== 'mapa'
     setOpen(shouldOpen)
     if (!shouldOpen) return
-    const routeMode: RentalMode = params.get('alquiler') === 'holiday' ? 'holiday' : 'long'
+    const routeMode: RentalMode = 'long'
     const parsed = filtersFromParams(params)
     const canonicalParams = filtersToParams(parsed, new URLSearchParams(params))
     canonicalParams.delete('habitaciones')
@@ -575,8 +576,8 @@ export function MobileSearchResults() {
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{(mockMode ? orderKeys : productionOrderKeys).map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
     {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => { setDraftFilters(filters); setPanel('results') }} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
-      <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(draftFilters.rentalMode === 'long' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(draftFilters.rentalMode === 'holiday' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>
-      <fieldset><legend>{t.price}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.price} ${t.min}`} type="number" min="0" step="25" value={draftFilters.minPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, minPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.price} ${t.max}`} type="number" min="0" step="25" value={draftFilters.maxPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, maxPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
+      <div className="m2-results-filter__transaction" role="group" aria-label={t.vivienda}><button type="button" className={cn(draftFilters.rentalMode === 'long' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button></div>
+      <fieldset><legend>{t.price}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.price} ${t.min}`} type="number" min="0" max={MAX_MONTHLY_RENT_EUR} step="25" value={draftFilters.minPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, minPrice: Math.min(MAX_MONTHLY_RENT_EUR, Math.max(0, Number(event.target.value) || 0)) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.price} ${t.max}`} type="number" min="0" max={MAX_MONTHLY_RENT_EUR} step="25" value={draftFilters.maxPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, maxPrice: Math.min(MAX_MONTHLY_RENT_EUR, Math.max(0, Number(event.target.value) || 0)) }))} /></label></div></fieldset>
       <fieldset><legend>{t.moveIn}</legend><div className="m2-results-filter__pair m2-results-filter__pair--dates"><label><span>{t.moveIn}</span><input aria-label={t.moveIn} type="date" value={draftFilters.available} onChange={(event) => setDraftFilters((current) => ({ ...current, available: event.target.value }))} /></label><label><span>{t.moveOut}</span><input aria-label={t.moveOut} type="date" min={draftFilters.available || undefined} value={draftFilters.availableUntil} onChange={(event) => setDraftFilters((current) => ({ ...current, availableUntil: event.target.value }))} /></label></div></fieldset>
       <fieldset><legend>{t.priority}</legend><div className="m2-results-filter__checks m2-results-filter__checks--priority">
         <label><input type="checkbox" checked={draftFilters.shower === 'Ducha privada'} onChange={(event) => setDraftFilters((current) => ({ ...current, shower: event.target.checked ? 'Ducha privada' : 'Cualquiera' }))} /><span>{t.privateShower}</span></label>

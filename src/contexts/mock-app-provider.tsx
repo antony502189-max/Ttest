@@ -183,11 +183,11 @@ function readScopedLocalComments() {
 function readScopedSavedSearches() {
   const current = readVersioned('112233:saved-searches:v3', 3, {} as UserScopedState<SavedSearch[]>, isScopedSavedSearches)
   if (localStorage.getItem('112233:saved-searches:v3') && !current.failure) {
-    return Object.fromEntries(Object.entries(current.data).map(([scope, items]) => [scope, items.map((item) => ({ ...item, filters: normalizeFilters(item.filters) }))]))
+    return Object.fromEntries(Object.entries(current.data).map(([scope, items]) => [scope, items.map((item) => ({ ...item, rentalMode: "long" as const, filters: normalizeFilters(item.filters) }))]))
   }
   const legacy = readJson<unknown>('112233:saved-searches:v2', [])
   const items = Array.isArray(legacy.data) ? legacy.data.filter(isSavedSearch) : []
-  return items.length ? { guest: items.map((item) => ({ ...item, filters: normalizeFilters(item.filters) })) } : {}
+  return items.length ? { guest: items.map((item) => ({ ...item, rentalMode: "long" as const, filters: normalizeFilters(item.filters) })) } : {}
 }
 
 const storageMessage = (failure: StorageFailure) => failure === 'quota'
@@ -206,7 +206,8 @@ const makeInitials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(
 export function MockAppProvider({ children, context }: { children: ReactNode; context: Context<AppState | null> }) {
   const [listingLoad] = useState(readListings)
   const [initialUserLoad] = useState(readUsers)
-  const [rentalMode, setRentalMode] = useState<RentalMode>('long')
+  const [rentalMode, setRentalModeState] = useState<RentalMode>('long')
+  const setRentalMode = useCallback((_mode: RentalMode) => setRentalModeState('long'), [])
   const [query, setQuery] = useState('Tenerife')
   const [favoriteScopes, setFavoriteScopes] = useState<UserScopedState<string[]>>(() => readScopedStrings('112233:favorites:v2', '112233:favorites:v1'))
   const [discardedScopes, setDiscardedScopes] = useState<UserScopedState<string[]>>(() => readScopedStrings('112233:discarded:v2', '112233:discarded:v1'))
@@ -294,7 +295,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     const found = savedSearches.find((item) => item.id === id)
     if (found) { setQuery(found.query); setRentalMode(found.rentalMode); setFilters(normalizeFilters(found.filters)); setMapPolygonState(found.polygon ?? []) }
     return found
-  }, [savedSearches])
+  }, [savedSearches, setRentalMode])
 
   const removeSavedSearch = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => (current ?? []).filter((item) => item.id !== id)), [updateScope])
   const toggleSearchAlerts = useCallback((id: string) => updateScope(setSavedSearchScopes, (current) => (current ?? []).map((item) => item.id === id ? { ...item, alerts: !item.alerts } : item)), [updateScope])
@@ -514,7 +515,7 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
     users, currentUser, login, loginGoogle, selectGoogleRole, register, logout, updateProfile, deleteAccount, toggleUserBlocked,
     storageError, clearStorageError: () => setStorageError(null),
   }), [
-    rentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters,
+    rentalMode, setRentalMode, query, favorites, toggleFavorite, discarded, discardListing, restoreDiscarded, filters, resetFilters,
     activeFilterCount, searchHistory, addSearchHistory, clearSearchHistory, savedSearches, saveCurrentSearch,
     restoreSavedSearch, removeSavedSearch, toggleSearchAlerts, mapPolygon, setMapPolygon, clearMapPolygon, allListings, publicListings, refreshOwnedListings, acceptListingSnapshot,
     createListing, updateListing, deleteListing, setListingStatus, renewListing, closeListing, refreshListingLifecycle,

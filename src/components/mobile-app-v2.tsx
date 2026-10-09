@@ -2,8 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MutableRefOb
 import { useLocation, useNavigate } from 'react-router'
 import {
   Bell,
-  BriefcaseBusiness,
-  Check,
+    Check,
   ChevronDown,
   ArrowLeft,
   ChevronRight,
@@ -285,7 +284,7 @@ function HomeScreen({ t, mode, onMode, onLocation, onSearch, onSearchIntent, onP
   const navigate = useNavigate()
   const [heroAdOpen, setHeroAdOpen] = useState(false)
   useEffect(() => { setHeroAdOpen(false) }, [heroListing?.id])
-  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><MediaImage className="m2-hero__promotion-image" src={heroListing.images[0]} responsive sizes="100vw" alt="" loading="eager" fetchPriority="high" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{!heroAdOpen ? <button type="button" className="m2-hero-ad__cta" aria-label={`${t.heroAdView}: ${heroListing.title}`} onClick={() => navigate(`/habitacion/${heroListing.id}`)}><span>{t.heroAdView}</span><ChevronRight aria-hidden="true" /></button> : null}{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onFocus={onSearchIntent} onPointerDown={onSearchIntent} onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div><Suspense fallback={null}><CommercialAdvertisementPlacement mobile /></Suspense></section>
+  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><MediaImage className="m2-hero__promotion-image" src={heroListing.images[0]} responsive sizes="100vw" alt="" loading="eager" fetchPriority="high" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{!heroAdOpen ? <button type="button" className="m2-hero-ad__cta" aria-label={`${t.heroAdView}: ${heroListing.title}`} onClick={() => navigate(`/habitacion/${heroListing.id}`)}><span>{t.heroAdView}</span><ChevronRight aria-hidden="true" /></button> : null}{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={t.housingMode}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{t.searchTenerife}</span><MapPin /></button><PrimaryButton onFocus={onSearchIntent} onPointerDown={onSearchIntent} onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div><Suspense fallback={null}><CommercialAdvertisementPlacement mobile /></Suspense></section>
 }
 
 function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
@@ -731,7 +730,7 @@ export function MobileAppV2() {
   const [mapCenter, setMapCenter] = useState<MapPoint | undefined>()
   const [nearbyStatus, setNearbyStatus] = useState<LocationStatus>('idle')
   const [tab, setTab] = useState<MobileTab>(() => tabFromPath(location.pathname))
-  const [homeMode, setHomeMode] = useState<SearchMode>(null)
+  const [homeMode, setHomeMode] = useState<SearchMode>('vivienda')
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia('(max-width: 767px), (max-height: 480px) and (max-width: 900px)').matches)
   const shellActive = mobileViewport && ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu'].includes(location.pathname)
   const t: MobileCopy = copy[language]
@@ -818,7 +817,7 @@ export function MobileAppV2() {
   }, [location.pathname, location.search, setMapPolygon, shellActive])
   useEffect(() => {
     if (location.pathname !== '/buscar') return
-    setHomeMode(rentalMode === 'holiday' ? 'turismo' : 'vivienda')
+    setHomeMode('vivienda')
   }, [location.pathname, rentalMode])
   const persistOnboarding = () => { try { localStorage.setItem(ONBOARDING_KEY, 'done:refreshable') } catch { /* private mode */ } }
   const returnToApp = () => { persistOnboarding(); setStep('done'); setPage('tabs') }
@@ -831,7 +830,7 @@ export function MobileAppV2() {
   const handleCountryContinue = () => { if (origin === 'region-location') { setStep('done'); navigate('/?panel=ubicacion'); return }; if (origin === 'region-settings') { setStep('done'); navigate('/menu'); return }; setStep('privacy') }
   const authBack = () => { if (origin === 'startup') setStep('privacy'); else returnToApp() }
   const openMap = (mode: MapMode, query = '') => {
-    const searchMode = homeMode === 'turismo' ? 'holiday' : 'long'
+    const searchMode = 'long' as const
     const nextFilters = mobileHomeSearchFilters(filters, searchMode)
     setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
@@ -846,7 +845,7 @@ export function MobileAppV2() {
     setNearbyStatus('loading')
     const result = await requestCurrentLocation()
     if (!result.ok) { setNearbyStatus(result.reason); return }
-    const searchMode = homeMode === 'turismo' ? 'holiday' : 'long'
+    const searchMode = 'long' as const
     const nextFilters = mobileHomeSearchFilters(filters, searchMode)
     setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
@@ -908,7 +907,7 @@ export function MobileAppV2() {
     navigate(`/buscar?${params.toString()}`)
   }
   const runHomeSearch = () => {
-    const mode = homeMode === 'turismo' ? 'holiday' : 'long'
+    const mode = 'long' as const
     const nextFilters = mobileHomeSearchFilters(filters, mode)
     if (nextFilters !== filters) setFilters(nextFilters)
     const params = filtersToParams(nextFilters)

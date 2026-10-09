@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR, eligibleDraftPrice, rentalPriceError } from '@/lib/rental-policy'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Save } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
@@ -195,7 +196,7 @@ function toListing(draft: ListingDraft, previous: Listing, ownerUserId?: string)
     depositAmount: draft.depositAmount,
     deposit: draft.depositAmount ? `${draft.depositAmount} €` : 'Sin fianza',
     billsIncluded: draft.billsIncluded,
-    bills: draft.billsIncluded ? 'Gastos incluidos en el precio' : draft.billsNote ? `Gastos aparte: aprox. ${draft.billsNote} €/mes` : 'Gastos aparte',
+    bills: draft.billsIncluded ? 'Gastos incluidos en el precio' : draft.billsNote ? `Gastos mensuales obligatorios: ${draft.billsNote} €/mes` : 'Gastos aparte',
     availableFrom: draft.availableFrom,
     availableUntil: draft.availableUntil || undefined,
     available: `Disponible desde ${new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(`${draft.availableFrom}T12:00:00`))}`,
@@ -372,10 +373,9 @@ export function ListingEditPage() {
     if (!equipment.refrigerator) next.refrigerator = 'Selecciona una opción.'
     if (!equipment.balcony) next.balcony = 'Selecciona una opción.'
     if (!equipment.washingMachine) next.washingMachine = 'Selecciona una opción.'
-    const price = draft.rentalMode === 'holiday' ? draft.nightlyPrice : draft.monthlyPrice
-    if (!Number.isInteger(price) || price < 1) next.price = 'Indica un precio válido.'
+    if (!eligibleDraftPrice(draft)) next.price = rentalPriceError(language)
     if (!Number.isInteger(draft.depositAmount) || draft.depositAmount < 0) next.depositAmount = 'La fianza no puede ser negativa.'
-    if (!draft.billsIncluded && (!draft.billsNote.trim() || Number(draft.billsNote) <= 0)) next.billsAmount = 'Indica el gasto aproximado al mes.'
+    if (!draft.billsIncluded && (!draft.billsNote.trim() || Number(draft.billsNote) <= 0)) next.billsAmount = 'Indica el gasto obligatorio mensual verificado.'
     if (!draft.availableFrom) next.availableFrom = 'Selecciona una fecha.'
     if (draft.availableUntil && draft.availableUntil < draft.availableFrom) next.availableUntil = 'La fecha final debe ser posterior.'
     if (draft.rentalMode === 'long' && draft.minimumStayMonths < 1) next.minimumStay = 'Indica al menos 1 mes.'
@@ -438,7 +438,6 @@ export function ListingEditPage() {
       <Section id="edit-basic" title="Tipo de alquiler">
         {choice('edit-rental-mode', draft.rentalMode, [
           { value: 'long', title: 'Larga estancia', text: 'Precio mensual' },
-          { value: 'holiday', title: 'Alquiler vacacional', text: 'Precio por noche' },
         ], (value) => set('rentalMode', value))}
       </Section>
 
@@ -491,19 +490,19 @@ export function ListingEditPage() {
 
       <Section id="edit-price" title="Precio, gastos y fianza">
         <div className="listing-edit-grid listing-edit-grid--3">
-          {draft.rentalMode === 'long' ? <FormField label="Alquiler mensual (€)" htmlFor="edit-monthly-price" error={errors.price}><Input id="edit-monthly-price" type="number" min="1" value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('monthlyPrice', Number(e.target.value))} /></FormField> : <FormField label="Precio por noche (€)" htmlFor="edit-nightly-price" error={errors.price}><Input id="edit-nightly-price" type="number" min="1" value={draft.nightlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('nightlyPrice', Number(e.target.value))} /></FormField>}
-          {draft.rentalMode === 'holiday' ? <FormField label="Precio semanal (€)" htmlFor="edit-weekly-price"><Input id="edit-weekly-price" type="number" min="0" value={draft.weeklyPrice ?? ''} onChange={(e) => set('weeklyPrice', e.target.value ? Number(e.target.value) : undefined)} /></FormField> : null}
+          <FormField label="Alquiler mensual (€)" htmlFor="edit-monthly-price" error={errors.price}><Input id="edit-monthly-price" type="number" min="1" max={MAX_MONTHLY_RENT_EUR} value={draft.monthlyPrice} aria-invalid={Boolean(errors.price)} onChange={(e) => set('monthlyPrice', Number(e.target.value))} /></FormField>
+          
           <FormField label="Fianza (€)" htmlFor="edit-deposit" error={errors.depositAmount}><Input id="edit-deposit" type="number" min="0" value={draft.depositAmount} aria-invalid={Boolean(errors.depositAmount)} onChange={(e) => set('depositAmount', Number(e.target.value))} /></FormField>
         </div>
         <label className="listing-edit-inline-check"><Checkbox checked={draft.billsIncluded} onCheckedChange={(value) => set('billsIncluded', value === true)} />Gastos incluidos en el precio</label>
-        {!draft.billsIncluded ? <FormField label="Gastos aproximados al mes (€)" htmlFor="edit-bills" error={errors.billsAmount}><Input id="edit-bills" inputMode="decimal" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set('billsNote', e.target.value)} /></FormField> : null}
+        {!draft.billsIncluded ? <FormField label="Gastos mensuales obligatorios (€)" htmlFor="edit-bills" error={errors.billsAmount}><Input id="edit-bills" inputMode="decimal" value={draft.billsNote} aria-invalid={Boolean(errors.billsAmount)} onChange={(e) => set('billsNote', e.target.value)} /></FormField> : null}
       </Section>
 
       <Section id="edit-availability" title="Disponibilidad">
         <div className="listing-edit-grid listing-edit-grid--3">
           <FormField label="Disponible desde" htmlFor="edit-from" error={errors.availableFrom}><Input id="edit-from" type="date" value={draft.availableFrom} aria-invalid={Boolean(errors.availableFrom)} onChange={(e) => set('availableFrom', e.target.value)} /></FormField>
           <FormField label="Disponible hasta" htmlFor="edit-until" error={errors.availableUntil}><Input id="edit-until" type="date" value={draft.availableUntil} aria-invalid={Boolean(errors.availableUntil)} onChange={(e) => set('availableUntil', e.target.value)} /></FormField>
-          {draft.rentalMode === 'long' ? <FormField label="Estancia mínima (meses)" htmlFor="edit-min-months" error={errors.minimumStay}><Input id="edit-min-months" type="number" min="1" value={draft.minimumStayMonths} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set('minimumStayMonths', Number(e.target.value))} /></FormField> : <FormField label="Estancia mínima (noches)" htmlFor="edit-min-nights" error={errors.minimumStay}><Input id="edit-min-nights" type="number" min="1" value={draft.minimumNights} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set('minimumNights', Number(e.target.value))} /></FormField>}
+          <FormField label="Estancia mínima (meses)" htmlFor="edit-min-months" error={errors.minimumStay}><Input id="edit-min-months" type="number" min="1" value={draft.minimumStayMonths} aria-invalid={Boolean(errors.minimumStay)} onChange={(e) => set('minimumStayMonths', Number(e.target.value))} /></FormField>
         </div>
       </Section>
 

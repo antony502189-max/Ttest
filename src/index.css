@@ -1921,3 +1921,5 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
     max-height: 70dvh;
   }
 }
+
+.m2-mode-switch > button:only-child { grid-column: 1 / -1; }

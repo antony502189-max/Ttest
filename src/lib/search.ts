@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR } from '@/lib/rental-policy'
 import { defaultFilters } from '@/data/listings'
 import { getPrimaryPrice, isPublicListing } from '@/lib/listings'
 import { listingMatchesAmenityFilter } from '@/lib/listing-equipment'
@@ -30,6 +31,8 @@ export function normalizeFilters(value: unknown): Filters {
       ;(next as unknown as Record<string, unknown>)[key] = candidate
     }
   }
+  next.maxPrice = Number.isFinite(next.maxPrice) ? Math.min(MAX_MONTHLY_RENT_EUR, Math.max(0, next.maxPrice)) : MAX_MONTHLY_RENT_EUR
+  next.minPrice = Number.isFinite(next.minPrice) ? Math.min(next.maxPrice, Math.max(0, next.minPrice)) : 0
   next.tenantRequirements = normalizeTenantRequirements(next.tenantRequirements)
   if (next.tenantRequirement !== 'Cualquiera') next.tenantRequirements = []
   if (!source.tenantRequirement && !source.tenantRequirements) {
@@ -53,7 +56,7 @@ export function filterListings(items: Listing[], mode: RentalMode, filters: Filt
   const roomSizeFilterActive = filters.roomSizeMin !== defaultFilters.roomSizeMin || filters.roomSizeMax !== defaultFilters.roomSizeMax
   const homeSizeFilterActive = filters.homeSizeMin !== defaultFilters.homeSizeMin || filters.homeSizeMax !== defaultFilters.homeSizeMax
   return items.filter((listing) => {
-    if (!isPublicListing(listing) || listing.rentalMode !== mode) return false
+    if (!isPublicListing(listing) || listing.rentalMode !== "long") return false
     const primaryPrice = getPrimaryPrice(listing)
     if (priceFilterActive && (primaryPrice < filters.minPrice || primaryPrice > filters.maxPrice)) return false
     if (!listingMatchesSelectedAreas(listing, filters.areas, zoneCollection)) return false
@@ -238,6 +241,15 @@ export function filtersFromParams(params: URLSearchParams): Filters {
 
 export function filtersToParams(filters: Filters, params = new URLSearchParams()) {
   const normalized = normalizeFilters(filters)
+  if (params.get('alquiler') === 'holiday') {
+    normalized.minPrice = defaultFilters.minPrice
+    normalized.maxPrice = defaultFilters.maxPrice
+    normalized.minimumNights = defaultFilters.minimumNights
+    params.set('alquiler', 'long')
+    params.delete('precioMin')
+    params.delete('precioMax')
+    params.delete('nochesMin')
+  }
   if (normalized.tenantRequirement !== 'Cualquiera') normalized.tenantRequirements = []
   ;['genero', 'parejas', 'ocupantes'].forEach((name) => params.delete(name))
   ;(Object.keys(paramNames) as (keyof Filters)[]).forEach((key) => {
@@ -250,6 +262,15 @@ export function filtersToParams(filters: Filters, params = new URLSearchParams()
     else if (typeof value === 'boolean') params.set(name, value ? '1' : '0')
     else params.set(name, String(value))
   })
+  if (params.get('alquiler') === 'holiday') {
+    normalized.minPrice = defaultFilters.minPrice
+    normalized.maxPrice = defaultFilters.maxPrice
+    normalized.minimumNights = defaultFilters.minimumNights
+    params.set('alquiler', 'long')
+    params.delete('precioMin')
+    params.delete('precioMax')
+    params.delete('nochesMin')
+  }
   if (normalized.tenantRequirement !== 'Cualquiera') params.delete('requisitos')
   else if (normalized.tenantRequirements.length) params.delete('requisito')
   return params

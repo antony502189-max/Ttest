@@ -1,3 +1,4 @@
+import { MAX_MONTHLY_RENT_EUR } from '@/lib/rental-policy'
 import type { AcceptedTenantType, BedType, Coordinates, HeatingType, HouseholdGender, Listing, MappedListing, RentalUnit, TenantRequirement, ToiletType } from '@/types'
 
 export const tenantRequirementLabels: Record<TenantRequirement, string> = {
@@ -249,4 +250,10 @@ export function expireListing(listing: Listing): Listing {
 
 export function isPublicListing(listing: Listing) {
   return expireListing(listing).status === 'Publicado'
+    && listing.rentalMode === 'long'
+    && Number.isFinite(listing.monthlyPrice ?? listing.price)
+    && (listing.monthlyPrice ?? listing.price) > 0
+    && listing.price <= MAX_MONTHLY_RENT_EUR
+    && (listing.monthlyPrice ?? listing.price) <= MAX_MONTHLY_RENT_EUR
+    && (!listing.isExternal || (listing.pricePeriod === 'month' && listing.priceIsFrom === false))
 }
