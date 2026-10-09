@@ -11,7 +11,6 @@ import re
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from decimal import Decimal
 from html.parser import HTMLParser
 from typing import Any, cast
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
