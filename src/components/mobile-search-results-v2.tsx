@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppBack } from '@/hooks/use-app-back'
@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { MediaImage, preloadMediaImages } from '@/components/media-image'
+import { useCardGalleryFailover } from '@/hooks/use-card-gallery-failover'
 import { useApp } from '@/contexts/app-context'
 import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
@@ -117,10 +118,6 @@ type MobileSearchSession = {
 
 const fallbackImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560"%3E%3Crect width="800" height="560" fill="%23282828"/%3E%3Cpath d="M260 360l90-95 62 65 48-44 92 96H260z" fill="%235d655f"/%3E%3Ccircle cx="505" cy="190" r="34" fill="%23727b74"/%3E%3C/svg%3E'
 
-function imageFallback(event: SyntheticEvent<HTMLImageElement>) {
-  event.currentTarget.src = fallbackImage
-}
-
 function formatPrice(listing: Listing, language: ResultsLanguage) {
   const value = new Intl.NumberFormat(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-GB' : 'es-ES').format(listing.price)
   const cadence = listing.cadence === 'noche' ? language === 'ru' ? 'ночь' : language === 'en' ? 'night' : 'noche' : language === 'ru' ? 'месяц' : language === 'en' ? 'month' : 'mes'
@@ -164,21 +161,16 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
   listing: Listing; language: ResultsLanguage; favorite: boolean; onFavorite: () => void; onDiscard: () => void; onContact: () => void; onOpen: () => void
 }) {
   const t = resultsCopy[language] as ResultsCopy
-  const [selectedImageIndex, setImageIndex] = useState(0)
-  const images = listing.images.length ? listing.images : [fallbackImage]
-  const imageIndex = Math.min(selectedImageIndex, images.length - 1)
-  // Correct a removed frame in the same render as its URL and counter.
-  if (imageIndex !== selectedImageIndex) setImageIndex(imageIndex)
+  const { images, imageIndex, imageSrc, nextImage: selectNextImage, onImageError } =
+    useCardGalleryFailover(listing.id, listing.images, fallbackImage)
   const nextImage = () => {
-    const next = (imageIndex + 1) % images.length
-    setImageIndex(next)
-    // Only prefetch after a deliberate carousel interaction. Prefetching
-    // next frames for every lazy-loaded result card saturates mobile networks
-    // during fast scrolling.
-    if (images.length > 2) preloadMediaImages([images[(next + 1) % images.length]], 'card')
+    const next = selectNextImage()
+    // Only prefetch after a deliberate carousel interaction; no eager image
+    // downloads for the other search results on a slow mobile connection.
+    if (next !== null && images.length > 2) preloadMediaImages([images[(next + 1) % images.length]], 'card')
   }
   return <article className="m2-result-card" data-listing-id={listing.id} data-external-source-url={listing.isExternal ? listing.sourceUrl : undefined} data-primary-source={listing.primarySource ?? listing.source}>
-    <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={images[imageIndex]} variant="card" onError={imageFallback} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} width="720" height="480" loading="lazy" /></button><span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
+    <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={imageSrc} variant="card" onError={onImageError} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} width="720" height="480" loading="lazy" /></button><span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
     <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
