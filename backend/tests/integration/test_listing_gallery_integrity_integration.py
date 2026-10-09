@@ -89,7 +89,7 @@ async def test_renew_rejects_legacy_internal_listing_with_too_few_active_photos(
         listing = await add_listing(
             session,
             owner,
-            rental_mode="holiday",
+            rental_mode="long",
             status="closed",
             checksums=[checksum(1)],
         )
