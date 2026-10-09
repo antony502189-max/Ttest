@@ -30,28 +30,53 @@ const targets = [{ name: 'baseline', url: baselineUrl }, { name: 'candidate', ur
 try {
   for (let run = 1; run <= runs; run += 1) {
     for (const target of (run % 2 ? targets : targets.toReversed())) {
-      const context = await browser.newContext({ viewport: selectedProfile.viewport, isMobile: selectedProfile.mobile, deviceScaleFactor: 1 })
-      const page = await context.newPage()
-      const cdp = await context.newCDPSession(page)
-      await cdp.send('Network.enable')
-      await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
-      if (selectedProfile.network) await cdp.send('Network.emulateNetworkConditions', selectedProfile.network)
-      if (selectedProfile.cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: selectedProfile.cpu })
-      await page.addInitScript(() => {
+      const route = `${target.url.replace(/\/$/, '')}/#/`
+      async function createMeasurementContext(cacheDisabled) {
+        const context = await browser.newContext({ viewport: selectedProfile.viewport, isMobile: selectedProfile.mobile, deviceScaleFactor: 1 })
+        const page = await context.newPage()
+        const cdp = await context.newCDPSession(page)
+        const requestUrls = new Map()
+        const cacheHitUrls = new Set()
+        await cdp.send('Network.enable')
+        await cdp.send('Network.setCacheDisabled', { cacheDisabled })
+        if (selectedProfile.network) await cdp.send('Network.emulateNetworkConditions', selectedProfile.network)
+        if (selectedProfile.cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: selectedProfile.cpu })
+        cdp.on('Network.requestWillBeSent', (event) => requestUrls.set(event.requestId, event.request.url))
+        cdp.on('Network.requestServedFromCache', (event) => cacheHitUrls.add(requestUrls.get(event.requestId) ?? 'unknown'))
+        cdp.on('Network.responseReceived', (event) => {
+          if (event.response.fromDiskCache || event.response.fromServiceWorker || event.response.fromPrefetchCache) {
+            cacheHitUrls.add(event.response.url)
+          }
+        })
+        await page.addInitScript(() => {
         localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+        const imageFixture = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/%3E'
+        const originalSetAttribute = Element.prototype.setAttribute
+        Element.prototype.setAttribute = function (name, value) {
+          if (this instanceof HTMLImageElement && name.toLowerCase() === 'src' && String(value).includes('images.unsplash.com')) value = imageFixture
+          return originalSetAttribute.call(this, name, value)
+        }
+        const src = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')
+        if (src?.get && src.set) Object.defineProperty(HTMLImageElement.prototype, 'src', {
+          configurable: src.configurable,
+          enumerable: src.enumerable,
+          get: src.get,
+          set(value) { src.set.call(this, String(value).includes('images.unsplash.com') ? imageFixture : value) },
+        })
         const stats = { fcp: null, lcp: null, cls: 0 }
         Object.defineProperty(window, '__perfStats', { value: stats })
         new PerformanceObserver((list) => { const item = list.getEntries().at(-1); if (item) stats.fcp = item.startTime }).observe({ type: 'paint', buffered: true })
         new PerformanceObserver((list) => { const item = list.getEntries().at(-1); if (item) stats.lcp = item.startTime }).observe({ type: 'largest-contentful-paint', buffered: true })
         new PerformanceObserver((list) => { for (const item of list.getEntries()) if (!item.hadRecentInput) stats.cls += item.value }).observe({ type: 'layout-shift', buffered: true })
       })
-      await page.route('**/api/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
-      await page.route('https://images.unsplash.com/**', (route) => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>' }))
-      const route = `${target.url.replace(/\/$/, '')}/#/`
-      const started = Date.now()
-      await page.goto(route, { waitUntil: 'networkidle', timeout: 60_000 })
-      await page.waitForTimeout(800)
-      const sample = async () => page.evaluate(() => {
+        return { context, page, cdp, cacheHitUrls }
+      }
+      const sampleNavigation = async ({ page, cacheHitUrls }, cacheMode) => {
+        const started = Date.now()
+        if (cacheMode === 'warm-after-cache-prime') await page.reload({ waitUntil: 'networkidle', timeout: 60_000 })
+        else await page.goto(route, { waitUntil: 'networkidle', timeout: 60_000 })
+        await page.waitForTimeout(800)
+        const metrics = await page.evaluate(() => {
         const resources = performance.getEntriesByType('resource')
         const nav = performance.getEntriesByType('navigation')[0]
         const resourceBytes = resources.reduce((total, resource) => total + (resource.transferSize || 0), 0)
@@ -64,18 +89,25 @@ try {
           loadMs: nav?.loadEventEnd ?? null,
           requestCount: resources.length,
           transferredBytes: resourceBytes,
+          cacheTransferBytes: resources.filter((resource) => resource.transferSize === 0 && resource.decodedBodySize > 0).reduce((total, resource) => total + resource.decodedBodySize, 0),
           jsBytes: resources.filter((resource) => /\.js(?:\?|$)/.test(resource.name)).reduce((total, resource) => total + (resource.transferSize || 0), 0),
           cssBytes: resources.filter((resource) => /\.css(?:\?|$)/.test(resource.name)).reduce((total, resource) => total + (resource.transferSize || 0), 0),
         }
       })
-      results.push({ target: target.name, profile, run, cacheMode: 'cold-cache-disabled', wallMs: Date.now() - started, ...await sample() })
-      await cdp.send('Network.setCacheDisabled', { cacheDisabled: false })
-      await page.evaluate(() => performance.clearResourceTimings())
-      const warmStarted = Date.now()
-      await page.reload({ waitUntil: 'networkidle', timeout: 60_000 })
-      await page.waitForTimeout(800)
-      results.push({ target: target.name, profile, run, cacheMode: 'repeat-cache-enabled', wallMs: Date.now() - warmStarted, ...await sample() })
-      await context.close()
+        return { target: target.name, profile, run, cacheMode, wallMs: Date.now() - started, cacheHitCount: cacheHitUrls.size, cachedAssetCount: [...cacheHitUrls].filter((url) => url.includes('/assets/')).length, ...metrics }
+      }
+
+      const cold = await createMeasurementContext(true)
+      results.push(await sampleNavigation(cold, 'cold-cache-disabled'))
+      await cold.context.close()
+
+      const warm = await createMeasurementContext(false)
+      await warm.page.goto(route, { waitUntil: 'networkidle', timeout: 60_000 })
+      await warm.page.waitForTimeout(800)
+      await warm.page.evaluate(() => performance.clearResourceTimings())
+      warm.cacheHitUrls.clear()
+      results.push(await sampleNavigation(warm, 'warm-after-cache-prime'))
+      await warm.context.close()
     }
   }
 } finally {
@@ -87,8 +119,8 @@ function summarize(targetName, cacheMode, key) {
   if (!values.length) return { n: 0, median: null, min: null, max: null }
   return { n: values.length, median: values[Math.floor(values.length / 2)], min: values[0], max: values.at(-1) }
 }
-const summary = Object.fromEntries(targets.map(({ name }) => [name, Object.fromEntries(['cold-cache-disabled', 'repeat-cache-enabled'].map((cacheMode) => [cacheMode, Object.fromEntries(['fcpMs', 'lcpMs', 'cls', 'ttfbMs', 'requestCount', 'transferredBytes', 'jsBytes', 'cssBytes'].map((metric) => [metric, summarize(name, cacheMode, metric)]))]))]))
-const output = { schemaVersion: 1, generatedAt: new Date().toISOString(), measurementKind: 'local synthetic browser measurement', profile, runsPerTarget: runs, conditions: selectedProfile, targets: { baseline: baselineUrl, candidate: candidateUrl }, results, summary }
+const summary = Object.fromEntries(targets.map(({ name }) => [name, Object.fromEntries(['cold-cache-disabled', 'warm-after-cache-prime'].map((cacheMode) => [cacheMode, Object.fromEntries(['fcpMs', 'lcpMs', 'cls', 'ttfbMs', 'requestCount', 'cacheHitCount', 'cachedAssetCount', 'transferredBytes', 'cacheTransferBytes', 'jsBytes', 'cssBytes'].map((metric) => [metric, summarize(name, cacheMode, metric)]))]))]))
+const output = { schemaVersion: 1, generatedAt: new Date().toISOString(), measurementKind: 'local synthetic browser measurement using a local static server with immutable hashed assets', warmMethod: 'A separate cache-enabled browser context first visits the target to prime HTTP cache; the measured navigation then reloads in the same context.', profile, runsPerTarget: runs, conditions: selectedProfile, targets: { baseline: baselineUrl, candidate: candidateUrl }, results, summary }
 const serialized = `${JSON.stringify(output, null, 2)}\n`
 if (args.has('output')) await import('node:fs/promises').then((fs) => fs.writeFile(args.get('output'), serialized))
 process.stdout.write(serialized)

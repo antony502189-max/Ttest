@@ -24,35 +24,43 @@ The four enhancer modules move out of the entry chunk and into `publish-route-en
 
 ## Browser measurement
 
-`scripts/measure-route-performance.mjs` records three repeated cold-cache-disabled navigation samples against a main baseline build and this candidate under four deterministic local browser profiles. The raw samples are stored in `artifacts/performance/route-critical/`.
+`scripts/measure-route-performance.mjs` records three repeated cold-cache-disabled and cache-primed navigation samples against a main baseline build and this candidate under four deterministic local browser profiles. `scripts/serve-build-for-measurement.mjs` serves each build with immutable caching for fingerprinted files and ETag revalidation for stable files. The raw samples are stored in `artifacts/performance/route-critical/`.
 
-The app is served locally. API requests are stubbed to an empty JSON response and Unsplash images to a tiny SVG. This makes the comparison repeatable but does not represent catalog rendering, production images, server latency, or user traffic. There is no browser-visible evidence of a stable FCP/LCP improvement, so this change claims bundle transfer reduction only.
+Both builds use `VITE_ENABLE_MOCK_MODE=1`; the harness replaces external Unsplash image URLs with a tiny data URI before requests begin. This makes the comparison repeatable but does not represent production catalog/API traffic, production images, server latency, or user traffic. There is no browser-visible evidence of a stable FCP/LCP improvement, so this change claims bundle transfer reduction only.
 
-| Profile | Entry JS bytes, before → after | Entry CSS bytes, before → after | Total response bytes, before → after |
-| --- | ---: | ---: | ---: |
-| Desktop, cold | 339,628 → 327,402 | 68,262 → 67,330 | 438,496 → 425,338 |
-| Mobile, cold | 333,687 → 321,430 | 66,987 → 66,055 | 514,028 → 500,839 |
-| 4G, cold | 315,152 → 303,237 | 65,600 → 64,668 | 381,054 → 368,207 |
-| Constrained 4G + CPU ×4, cold | 305,304 → 293,858 | 64,302 → 63,370 | 369,908 → 357,530 |
+| Profile | Cold JS, before → after | Cold CSS, before → after | Cold total, before → after | Warm cache hits, before → after | Warm JS/CSS transfer, before → after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Desktop | 973,237 → 939,329 B | 382,862 → 378,170 B | 1,391,707 → 1,353,281 B | 61/62 → 62/63 (60/61 hashed assets) | 0/0 → 0/0 B |
+| Mobile | 952,290 → 918,671 B | 376,697 → 372,005 B | 1,447,343 → 1,409,206 B | 58/60 → 59/61 (57/58 hashed assets) | 0/0 → 0/0 B |
+| 4G | 952,290 → 918,671 B | 376,697 → 372,005 B | 1,441,435 → 1,403,124 B | 58/60 → 59/61 (57/58 hashed assets) | 0/0 → 0/0 B |
+| Constrained 4G + CPU ×4 | 898,655 → 864,875 B | 372,850 → 368,158 B | 1,271,505 → 1,233,033 B | 47/59 → 49/60 (46/48 hashed assets) | 44,969/3,847 → 44,314/3,847 B |
 
-The reported totals include the page's observed requests under the mock fixture; the exact transfer total can vary with whether an image or lazy resource was requested before the sample was taken. The static entry JS/CSS deltas are stable across runs. The cold FCP/LCP samples have wide timing ranges under throttling and are not used as acceptance claims.
+Browser cache hits are verified by CDP `requestServedFromCache`/disk-cache events. With the local server, HTML uses `no-cache` plus ETag: a direct conditional request returned 304. Warm JS/CSS response bytes were zero in the first three profiles; constrained emulation still transferred about 48 KB of script/style resources. Warm reused decoded resource bytes were 1.23–1.42 MB depending on the profile. Cold total response sizes include resources used on the home route, not only the entry. CSS/JS bytes are raw in this mock-mode experiment, not gzip. Cold FCP/LCP varies across profiles and is not an acceptance claim.
 
-The preview server does not apply the Nginx immutable cache headers. The harness performs a second navigation with browser cache enabled but the result is labeled `repeat-cache-enabled`, not a validated warm-cache measurement. Production warm-cache results require exercising the relevant Nginx headers and are not claimed here.
+The local static server reproduces the cache header semantics in PR #299 but does not perform compression or represent production network paths. These are synthetic browser-cache measurements; they do not claim production warm-visit latency.
 
 ## Reproduction
 
-Build main at `63ca366ca97f51558b3db4e1778ef24938d474ad` into one output directory and this branch into another, serve them on ports 4174 and 4175, then run:
+Build main at `63ca366ca97f51558b3db4e1778ef24938d474ad` and this branch with `VITE_ENABLE_MOCK_MODE=1` and `VITE_GOOGLE_MAPS_TEST_SDK=1`. Serve the two `dist` directories with `scripts/serve-build-for-measurement.mjs` on ports 4174 and 4175, then run:
+
+```powershell
+node scripts/serve-build-for-measurement.mjs --root=C:\path\to\main\dist --port=4174
+node scripts/serve-build-for-measurement.mjs --root=C:\path\to\candidate\dist --port=4175
+```
+
+In a third terminal, run:
 
 ```powershell
 node scripts/measure-route-performance.mjs --baseline=http://127.0.0.1:4174 --candidate=http://127.0.0.1:4175 --runs=3 --profile=desktop --output=desktop.json
 ```
 
-Use `--profile=mobile`, `--profile=4g`, or `--profile=constrained` for the other profiles. The script uses Chromium via Playwright; set `PLAYWRIGHT_EXECUTABLE_PATH` if the browser is installed outside Playwright's default cache.
+Use `--profile=mobile`, `--profile=4g`, or `--profile=constrained` for the other profiles. The script primes a separate browser context before measuring warm navigation and records cache hits. The server returns 304 for revalidated stable files and long-lived immutable headers only for fingerprinted files. The script uses Chromium via Playwright; set `PLAYWRIGHT_EXECUTABLE_PATH` if the browser is installed outside Playwright's default cache.
 
 ## Validation
 
 - Candidate production build, typecheck, and lint passed (lint has four existing warnings).
 - Dependency and production bundle security policies passed.
+- Warm-cache hit verification passed against the measurement server: fingerprinted assets were reused, and an ETag conditional request for the stable entry returned 304.
 - Production-preview lazy-load regression passed.
 - Publication flow suite passed: 15 passed, 0 failed.
 - The broad `npm run test:e2e` run was stopped after more than 15 minutes without a reporter summary; it is not counted as a pass.

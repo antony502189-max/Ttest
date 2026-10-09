@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-08T23:19:36.323Z",
-  "measurementKind": "local synthetic browser measurement",
+  "generatedAt": "2026-10-09T06:18:07.723Z",
+  "measurementKind": "local synthetic browser measurement using a local static server with immutable hashed assets",
+  "warmMethod": "A separate cache-enabled browser context first visits the target to prime HTTP cache; the measured navigation then reloads in the same context.",
   "profile": "constrained",
   "runsPerTarget": 3,
   "conditions": {
@@ -28,205 +29,241 @@
       "target": "baseline",
       "profile": "constrained",
       "run": 1,
-      "wallMs": 2992,
-      "fcpMs": 2692,
-      "lcpMs": 2692,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 5172,
+      "cacheHitCount": 0,
+      "cachedAssetCount": 0,
+      "fcpMs": 4648,
+      "lcpMs": 4648,
       "cls": 0,
-      "ttfbMs": 10.900000005960464,
-      "domContentLoadedMs": 1954.7000000029802,
-      "loadMs": 1965.4000000059605,
-      "requestCount": 16,
-      "transferredBytes": 369908,
-      "jsBytes": 305304,
-      "cssBytes": 64302,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 7,
+      "domContentLoadedMs": 3989.5999999940395,
+      "loadMs": 3996.5,
+      "requestCount": 37,
+      "transferredBytes": 1271505,
+      "cacheTransferBytes": 0,
+      "jsBytes": 898655,
+      "cssBytes": 372850
     },
     {
       "target": "baseline",
       "profile": "constrained",
       "run": 1,
-      "wallMs": 5601,
-      "fcpMs": 1972,
-      "lcpMs": 4304,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 3495,
+      "cacheHitCount": 47,
+      "cachedAssetCount": 46,
+      "fcpMs": 920,
+      "lcpMs": 1852,
       "cls": 0.8179983708530806,
-      "ttfbMs": 111.10000000149012,
-      "domContentLoadedMs": 1776.8999999985099,
-      "loadMs": 1780.2000000029802,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 99.3999999910593,
+      "domContentLoadedMs": 558.7999999970198,
+      "loadMs": 561.3999999910593,
+      "requestCount": 59,
+      "transferredBytes": 167172,
+      "cacheTransferBytes": 1266371,
+      "jsBytes": 44969,
+      "cssBytes": 3847
     },
     {
       "target": "candidate",
       "profile": "constrained",
       "run": 1,
-      "wallMs": 2928,
-      "fcpMs": 2656,
-      "lcpMs": 2656,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 5043,
+      "cacheHitCount": 0,
+      "cachedAssetCount": 0,
+      "fcpMs": 4592,
+      "lcpMs": 4592,
       "cls": 0,
-      "ttfbMs": 5.600000001490116,
-      "domContentLoadedMs": 1917.1000000014901,
-      "loadMs": 1925.7000000029802,
-      "requestCount": 17,
-      "transferredBytes": 357530,
-      "jsBytes": 293858,
-      "cssBytes": 63370,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 2.7000000029802322,
+      "domContentLoadedMs": 3937.9000000059605,
+      "loadMs": 3948.9000000059605,
+      "requestCount": 38,
+      "transferredBytes": 1233033,
+      "cacheTransferBytes": 0,
+      "jsBytes": 864875,
+      "cssBytes": 368158
     },
     {
       "target": "candidate",
       "profile": "constrained",
       "run": 1,
-      "wallMs": 5451,
-      "fcpMs": 1912,
-      "lcpMs": 4152,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 3183,
+      "cacheHitCount": 49,
+      "cachedAssetCount": 48,
+      "fcpMs": 768,
+      "lcpMs": 1664,
       "cls": 0.8179983708530806,
-      "ttfbMs": 36.399999998509884,
-      "domContentLoadedMs": 1691.6000000014901,
-      "loadMs": 1696.7000000029802,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 14.200000002980232,
+      "domContentLoadedMs": 474.90000000596046,
+      "loadMs": 478.70000000298023,
+      "requestCount": 60,
+      "transferredBytes": 166691,
+      "cacheTransferBytes": 1228115,
+      "jsBytes": 44314,
+      "cssBytes": 3847
     },
     {
       "target": "candidate",
       "profile": "constrained",
       "run": 2,
-      "wallMs": 2931,
-      "fcpMs": 2588,
-      "lcpMs": 2588,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 5026,
+      "cacheHitCount": 0,
+      "cachedAssetCount": 0,
+      "fcpMs": 4628,
+      "lcpMs": 4628,
       "cls": 0,
-      "ttfbMs": 5.899999998509884,
-      "domContentLoadedMs": 1893.8999999985099,
-      "loadMs": 1906.7000000029802,
-      "requestCount": 17,
-      "transferredBytes": 357530,
-      "jsBytes": 293858,
-      "cssBytes": 63370,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 3,
+      "domContentLoadedMs": 3915.800000011921,
+      "loadMs": 3923,
+      "requestCount": 38,
+      "transferredBytes": 1233033,
+      "cacheTransferBytes": 0,
+      "jsBytes": 864875,
+      "cssBytes": 368158
     },
     {
       "target": "candidate",
       "profile": "constrained",
       "run": 2,
-      "wallMs": 5455,
-      "fcpMs": 1920,
-      "lcpMs": 4152,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 3752,
+      "cacheHitCount": 46,
+      "cachedAssetCount": 45,
+      "fcpMs": 960,
+      "lcpMs": 2128,
       "cls": 0.8179983708530806,
-      "ttfbMs": 74.19999999552965,
-      "domContentLoadedMs": 1721.1000000014901,
-      "loadMs": 1727.5,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 109.29999999701977,
+      "domContentLoadedMs": 603.5,
+      "loadMs": 605.7999999970198,
+      "requestCount": 60,
+      "transferredBytes": 168872,
+      "cacheTransferBytes": 1226834,
+      "jsBytes": 46495,
+      "cssBytes": 3847
     },
     {
       "target": "baseline",
       "profile": "constrained",
       "run": 2,
-      "wallMs": 2950,
-      "fcpMs": 2712,
-      "lcpMs": 2712,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 5107,
+      "cacheHitCount": 0,
+      "cachedAssetCount": 0,
+      "fcpMs": 4616,
+      "lcpMs": 4616,
       "cls": 0,
-      "ttfbMs": 4.5,
-      "domContentLoadedMs": 1986,
-      "loadMs": 1998,
-      "requestCount": 16,
-      "transferredBytes": 369908,
-      "jsBytes": 305304,
-      "cssBytes": 64302,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 2.5,
+      "domContentLoadedMs": 4026,
+      "loadMs": 4032.1000000089407,
+      "requestCount": 37,
+      "transferredBytes": 1271505,
+      "cacheTransferBytes": 0,
+      "jsBytes": 898655,
+      "cssBytes": 372850
     },
     {
       "target": "baseline",
       "profile": "constrained",
       "run": 2,
-      "wallMs": 5542,
-      "fcpMs": 1948,
-      "lcpMs": 4244,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 3595,
+      "cacheHitCount": 46,
+      "cachedAssetCount": 45,
+      "fcpMs": 940,
+      "lcpMs": 1960,
       "cls": 0.8179983708530806,
-      "ttfbMs": 73.60000000149012,
-      "domContentLoadedMs": 1752,
-      "loadMs": 1756.7000000029802,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 86.30000001192093,
+      "domContentLoadedMs": 603.6000000089407,
+      "loadMs": 609.5,
+      "requestCount": 59,
+      "transferredBytes": 167854,
+      "cacheTransferBytes": 1265989,
+      "jsBytes": 45651,
+      "cssBytes": 3847
     },
     {
       "target": "baseline",
       "profile": "constrained",
       "run": 3,
-      "wallMs": 2960,
-      "fcpMs": 1476,
-      "lcpMs": null,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 5113,
+      "cacheHitCount": 0,
+      "cachedAssetCount": 0,
+      "fcpMs": 4760,
+      "lcpMs": 4760,
       "cls": 0,
-      "ttfbMs": 5,
-      "domContentLoadedMs": 2092.7000000029802,
-      "loadMs": 2101.4000000059605,
-      "requestCount": 10,
-      "transferredBytes": 348599,
-      "jsBytes": 283995,
-      "cssBytes": 64302,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 2.7999999970197678,
+      "domContentLoadedMs": 4083.5999999940395,
+      "loadMs": 4090.3999999910593,
+      "requestCount": 36,
+      "transferredBytes": 1270864,
+      "cacheTransferBytes": 0,
+      "jsBytes": 898014,
+      "cssBytes": 372850
     },
     {
       "target": "baseline",
       "profile": "constrained",
       "run": 3,
-      "wallMs": 5517,
-      "fcpMs": 2020,
-      "lcpMs": 4236,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 3491,
+      "cacheHitCount": 48,
+      "cachedAssetCount": 47,
+      "fcpMs": 900,
+      "lcpMs": 1852,
       "cls": 0.8179983708530806,
-      "ttfbMs": 43.399999998509884,
-      "domContentLoadedMs": 1712.7999999970198,
-      "loadMs": 1719,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 80.40000000596046,
+      "domContentLoadedMs": 568.4000000059605,
+      "loadMs": 571.0999999940395,
+      "requestCount": 59,
+      "transferredBytes": 166415,
+      "cacheTransferBytes": 1266828,
+      "jsBytes": 44212,
+      "cssBytes": 3847
     },
     {
       "target": "candidate",
       "profile": "constrained",
       "run": 3,
-      "wallMs": 2901,
-      "fcpMs": 2588,
-      "lcpMs": 2588,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 5048,
+      "cacheHitCount": 0,
+      "cachedAssetCount": 0,
+      "fcpMs": 4556,
+      "lcpMs": 4556,
       "cls": 0,
-      "ttfbMs": 5.899999998509884,
-      "domContentLoadedMs": 1911.3999999985099,
-      "loadMs": 1916.2999999970198,
-      "requestCount": 17,
-      "transferredBytes": 357530,
-      "jsBytes": 293858,
-      "cssBytes": 63370,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 2.9000000059604645,
+      "domContentLoadedMs": 3929.7999999970198,
+      "loadMs": 3937.4000000059605,
+      "requestCount": 38,
+      "transferredBytes": 1233033,
+      "cacheTransferBytes": 0,
+      "jsBytes": 864875,
+      "cssBytes": 368158
     },
     {
       "target": "candidate",
       "profile": "constrained",
       "run": 3,
-      "wallMs": 5602,
-      "fcpMs": 2000,
-      "lcpMs": 4304,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 3548,
+      "cacheHitCount": 49,
+      "cachedAssetCount": 48,
+      "fcpMs": 956,
+      "lcpMs": 1908,
       "cls": 0.8179983708530806,
-      "ttfbMs": 119.5,
-      "domContentLoadedMs": 1801.8999999985099,
-      "loadMs": 1806,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 111.79999999701977,
+      "domContentLoadedMs": 611.3999999910593,
+      "loadMs": 616.3999999910593,
+      "requestCount": 60,
+      "transferredBytes": 166691,
+      "cacheTransferBytes": 1228115,
+      "jsBytes": 44314,
+      "cssBytes": 3847
     }
   ],
   "summary": {
@@ -234,15 +271,15 @@
       "cold-cache-disabled": {
         "fcpMs": {
           "n": 3,
-          "median": 2692,
-          "min": 1476,
-          "max": 2712
+          "median": 4648,
+          "min": 4616,
+          "max": 4760
         },
         "lcpMs": {
-          "n": 2,
-          "median": 2712,
-          "min": 2692,
-          "max": 2712
+          "n": 3,
+          "median": 4648,
+          "min": 4616,
+          "max": 4760
         },
         "cls": {
           "n": 3,
@@ -252,47 +289,65 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 5,
-          "min": 4.5,
-          "max": 10.900000005960464
+          "median": 2.7999999970197678,
+          "min": 2.5,
+          "max": 7
         },
         "requestCount": {
           "n": 3,
-          "median": 16,
-          "min": 10,
-          "max": 16
+          "median": 37,
+          "min": 36,
+          "max": 37
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "transferredBytes": {
           "n": 3,
-          "median": 369908,
-          "min": 348599,
-          "max": 369908
+          "median": 1271505,
+          "min": 1270864,
+          "max": 1271505
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "jsBytes": {
           "n": 3,
-          "median": 305304,
-          "min": 283995,
-          "max": 305304
+          "median": 898655,
+          "min": 898014,
+          "max": 898655
         },
         "cssBytes": {
           "n": 3,
-          "median": 64302,
-          "min": 64302,
-          "max": 64302
+          "median": 372850,
+          "min": 372850,
+          "max": 372850
         }
       },
-      "repeat-cache-enabled": {
+      "warm-after-cache-prime": {
         "fcpMs": {
           "n": 3,
-          "median": 1972,
-          "min": 1948,
-          "max": 2020
+          "median": 920,
+          "min": 900,
+          "max": 940
         },
         "lcpMs": {
           "n": 3,
-          "median": 4244,
-          "min": 4236,
-          "max": 4304
+          "median": 1852,
+          "min": 1852,
+          "max": 1960
         },
         "cls": {
           "n": 3,
@@ -302,33 +357,51 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 73.60000000149012,
-          "min": 43.399999998509884,
-          "max": 111.10000000149012
+          "median": 86.30000001192093,
+          "min": 80.40000000596046,
+          "max": 99.3999999910593
         },
         "requestCount": {
           "n": 3,
-          "median": 40,
-          "min": 40,
-          "max": 40
+          "median": 59,
+          "min": 59,
+          "max": 59
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 47,
+          "min": 46,
+          "max": 48
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 46,
+          "min": 45,
+          "max": 47
         },
         "transferredBytes": {
           "n": 3,
-          "median": 514028,
-          "min": 514028,
-          "max": 514028
+          "median": 167172,
+          "min": 166415,
+          "max": 167854
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 1266371,
+          "min": 1265989,
+          "max": 1266828
         },
         "jsBytes": {
           "n": 3,
-          "median": 333687,
-          "min": 333687,
-          "max": 333687
+          "median": 44969,
+          "min": 44212,
+          "max": 45651
         },
         "cssBytes": {
           "n": 3,
-          "median": 66987,
-          "min": 66987,
-          "max": 66987
+          "median": 3847,
+          "min": 3847,
+          "max": 3847
         }
       }
     },
@@ -336,15 +409,15 @@
       "cold-cache-disabled": {
         "fcpMs": {
           "n": 3,
-          "median": 2588,
-          "min": 2588,
-          "max": 2656
+          "median": 4592,
+          "min": 4556,
+          "max": 4628
         },
         "lcpMs": {
           "n": 3,
-          "median": 2588,
-          "min": 2588,
-          "max": 2656
+          "median": 4592,
+          "min": 4556,
+          "max": 4628
         },
         "cls": {
           "n": 3,
@@ -354,47 +427,65 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 5.899999998509884,
-          "min": 5.600000001490116,
-          "max": 5.899999998509884
+          "median": 2.9000000059604645,
+          "min": 2.7000000029802322,
+          "max": 3
         },
         "requestCount": {
           "n": 3,
-          "median": 17,
-          "min": 17,
-          "max": 17
+          "median": 38,
+          "min": 38,
+          "max": 38
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "transferredBytes": {
           "n": 3,
-          "median": 357530,
-          "min": 357530,
-          "max": 357530
+          "median": 1233033,
+          "min": 1233033,
+          "max": 1233033
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "jsBytes": {
           "n": 3,
-          "median": 293858,
-          "min": 293858,
-          "max": 293858
+          "median": 864875,
+          "min": 864875,
+          "max": 864875
         },
         "cssBytes": {
           "n": 3,
-          "median": 63370,
-          "min": 63370,
-          "max": 63370
+          "median": 368158,
+          "min": 368158,
+          "max": 368158
         }
       },
-      "repeat-cache-enabled": {
+      "warm-after-cache-prime": {
         "fcpMs": {
           "n": 3,
-          "median": 1920,
-          "min": 1912,
-          "max": 2000
+          "median": 956,
+          "min": 768,
+          "max": 960
         },
         "lcpMs": {
           "n": 3,
-          "median": 4152,
-          "min": 4152,
-          "max": 4304
+          "median": 1908,
+          "min": 1664,
+          "max": 2128
         },
         "cls": {
           "n": 3,
@@ -404,33 +495,51 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 74.19999999552965,
-          "min": 36.399999998509884,
-          "max": 119.5
+          "median": 109.29999999701977,
+          "min": 14.200000002980232,
+          "max": 111.79999999701977
         },
         "requestCount": {
           "n": 3,
-          "median": 41,
-          "min": 41,
-          "max": 41
+          "median": 60,
+          "min": 60,
+          "max": 60
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 49,
+          "min": 46,
+          "max": 49
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 48,
+          "min": 45,
+          "max": 48
         },
         "transferredBytes": {
           "n": 3,
-          "median": 500839,
-          "min": 500839,
-          "max": 500839
+          "median": 166691,
+          "min": 166691,
+          "max": 168872
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 1228115,
+          "min": 1226834,
+          "max": 1228115
         },
         "jsBytes": {
           "n": 3,
-          "median": 321430,
-          "min": 321430,
-          "max": 321430
+          "median": 44314,
+          "min": 44314,
+          "max": 46495
         },
         "cssBytes": {
           "n": 3,
-          "median": 66055,
-          "min": 66055,
-          "max": 66055
+          "median": 3847,
+          "min": 3847,
+          "max": 3847
         }
       }
     }

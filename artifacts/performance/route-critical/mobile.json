@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-08T23:18:02.937Z",
-  "measurementKind": "local synthetic browser measurement",
+  "generatedAt": "2026-10-09T06:15:37.357Z",
+  "measurementKind": "local synthetic browser measurement using a local static server with immutable hashed assets",
+  "warmMethod": "A separate cache-enabled browser context first visits the target to prime HTTP cache; the measured navigation then reloads in the same context.",
   "profile": "mobile",
   "runsPerTarget": 3,
   "conditions": {
@@ -22,205 +23,241 @@
       "target": "baseline",
       "profile": "mobile",
       "run": 1,
-      "wallMs": 1871,
-      "fcpMs": 272,
-      "lcpMs": 580,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 1847,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 200,
+      "lcpMs": 524,
       "cls": 0,
-      "ttfbMs": 11.399999998509884,
-      "domContentLoadedMs": 144.20000000298023,
-      "loadMs": 144.70000000298023,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "cold-cache-disabled"
+      "ttfbMs": 6.199999988079071,
+      "domContentLoadedMs": 96.59999999403954,
+      "loadMs": 97.69999998807907,
+      "requestCount": 59,
+      "transferredBytes": 1447343,
+      "cacheTransferBytes": 0,
+      "jsBytes": 952290,
+      "cssBytes": 376697
     },
     {
       "target": "baseline",
       "profile": "mobile",
       "run": 1,
-      "wallMs": 1751,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 1699,
+      "cacheHitCount": 58,
+      "cachedAssetCount": 57,
+      "fcpMs": 76,
+      "lcpMs": 400,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.7999999970197678,
+      "domContentLoadedMs": 23.099999994039536,
+      "loadMs": 24.200000002980232,
+      "requestCount": 60,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1424335,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "candidate",
+      "profile": "mobile",
+      "run": 1,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 1857,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 208,
+      "lcpMs": 544,
+      "cls": 0,
+      "ttfbMs": 2.9000000059604645,
+      "domContentLoadedMs": 97.80000001192093,
+      "loadMs": 98.30000001192093,
+      "requestCount": 60,
+      "transferredBytes": 1409206,
+      "cacheTransferBytes": 0,
+      "jsBytes": 918671,
+      "cssBytes": 372005
+    },
+    {
+      "target": "candidate",
+      "profile": "mobile",
+      "run": 1,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 1729,
+      "cacheHitCount": 59,
+      "cachedAssetCount": 58,
+      "fcpMs": 84,
+      "lcpMs": 424,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.8999999910593033,
+      "domContentLoadedMs": 27,
+      "loadMs": 27.399999991059303,
+      "requestCount": 61,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1385724,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "candidate",
+      "profile": "mobile",
+      "run": 2,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 1924,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 296,
+      "lcpMs": 640,
+      "cls": 0.11183723341232228,
+      "ttfbMs": 3.3999999910593033,
+      "domContentLoadedMs": 132.09999999403954,
+      "loadMs": 133,
+      "requestCount": 60,
+      "transferredBytes": 1409206,
+      "cacheTransferBytes": 0,
+      "jsBytes": 918671,
+      "cssBytes": 372005
+    },
+    {
+      "target": "candidate",
+      "profile": "mobile",
+      "run": 2,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 1704,
+      "cacheHitCount": 59,
+      "cachedAssetCount": 58,
+      "fcpMs": 76,
+      "lcpMs": 400,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.8999999910593033,
+      "domContentLoadedMs": 25.599999994039536,
+      "loadMs": 26.099999994039536,
+      "requestCount": 61,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1385724,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "baseline",
+      "profile": "mobile",
+      "run": 2,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 1849,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 192,
+      "lcpMs": 544,
+      "cls": 0,
+      "ttfbMs": 2.9000000059604645,
+      "domContentLoadedMs": 89,
+      "loadMs": 89.5,
+      "requestCount": 59,
+      "transferredBytes": 1447343,
+      "cacheTransferBytes": 0,
+      "jsBytes": 952290,
+      "cssBytes": 376697
+    },
+    {
+      "target": "baseline",
+      "profile": "mobile",
+      "run": 2,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 1700,
+      "cacheHitCount": 58,
+      "cachedAssetCount": 57,
+      "fcpMs": 76,
+      "lcpMs": 388,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.8999999910593033,
+      "domContentLoadedMs": 25.599999994039536,
+      "loadMs": 26,
+      "requestCount": 60,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1424335,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "baseline",
+      "profile": "mobile",
+      "run": 3,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 1819,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 192,
+      "lcpMs": 520,
+      "cls": 0,
+      "ttfbMs": 2.800000011920929,
+      "domContentLoadedMs": 85.70000000298023,
+      "loadMs": 86.30000001192093,
+      "requestCount": 59,
+      "transferredBytes": 1447343,
+      "cacheTransferBytes": 0,
+      "jsBytes": 952290,
+      "cssBytes": 376697
+    },
+    {
+      "target": "baseline",
+      "profile": "mobile",
+      "run": 3,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 1715,
+      "cacheHitCount": 58,
+      "cachedAssetCount": 57,
+      "fcpMs": 84,
+      "lcpMs": 400,
+      "cls": 0.8179983708530806,
+      "ttfbMs": 1.7999999970197678,
+      "domContentLoadedMs": 28.200000002980232,
+      "loadMs": 28.599999994039536,
+      "requestCount": 60,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1424335,
+      "jsBytes": 0,
+      "cssBytes": 0
+    },
+    {
+      "target": "candidate",
+      "profile": "mobile",
+      "run": 3,
+      "cacheMode": "cold-cache-disabled",
+      "wallMs": 1928,
+      "cacheHitCount": 1,
+      "cachedAssetCount": 0,
+      "fcpMs": 296,
+      "lcpMs": 632,
+      "cls": 0.11183723341232228,
+      "ttfbMs": 2.9000000059604645,
+      "domContentLoadedMs": 127.70000000298023,
+      "loadMs": 129.70000000298023,
+      "requestCount": 60,
+      "transferredBytes": 1409206,
+      "cacheTransferBytes": 0,
+      "jsBytes": 918671,
+      "cssBytes": 372005
+    },
+    {
+      "target": "candidate",
+      "profile": "mobile",
+      "run": 3,
+      "cacheMode": "warm-after-cache-prime",
+      "wallMs": 1742,
+      "cacheHitCount": 59,
+      "cachedAssetCount": 58,
       "fcpMs": 112,
-      "lcpMs": 456,
-      "cls": 0.8179983708530806,
-      "ttfbMs": 5.5,
-      "domContentLoadedMs": 76.10000000149012,
-      "loadMs": 76.5,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "repeat-cache-enabled"
-    },
-    {
-      "target": "candidate",
-      "profile": "mobile",
-      "run": 1,
-      "wallMs": 1842,
-      "fcpMs": 232,
-      "lcpMs": 564,
-      "cls": 0,
-      "ttfbMs": 5.299999997019768,
-      "domContentLoadedMs": 117.79999999701977,
-      "loadMs": 118.39999999850988,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "cold-cache-disabled"
-    },
-    {
-      "target": "candidate",
-      "profile": "mobile",
-      "run": 1,
-      "wallMs": 1759,
-      "fcpMs": 124,
-      "lcpMs": 460,
-      "cls": 0.8179983708530806,
-      "ttfbMs": 9.800000004470348,
-      "domContentLoadedMs": 92.10000000149012,
-      "loadMs": 92.5,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "repeat-cache-enabled"
-    },
-    {
-      "target": "candidate",
-      "profile": "mobile",
-      "run": 2,
-      "wallMs": 1835,
-      "fcpMs": 224,
-      "lcpMs": 536,
-      "cls": 0,
-      "ttfbMs": 5.800000004470348,
-      "domContentLoadedMs": 109.70000000298023,
-      "loadMs": 110.10000000149012,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "cold-cache-disabled"
-    },
-    {
-      "target": "candidate",
-      "profile": "mobile",
-      "run": 2,
-      "wallMs": 1748,
-      "fcpMs": 112,
-      "lcpMs": 456,
-      "cls": 0.8179983708530806,
-      "ttfbMs": 4.799999997019768,
-      "domContentLoadedMs": 76,
-      "loadMs": 76.39999999850988,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "repeat-cache-enabled"
-    },
-    {
-      "target": "baseline",
-      "profile": "mobile",
-      "run": 2,
-      "wallMs": 1875,
-      "fcpMs": 244,
-      "lcpMs": 580,
-      "cls": 0,
-      "ttfbMs": 5.399999998509884,
-      "domContentLoadedMs": 129.20000000298023,
-      "loadMs": 130.20000000298023,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "cold-cache-disabled"
-    },
-    {
-      "target": "baseline",
-      "profile": "mobile",
-      "run": 2,
-      "wallMs": 1739,
-      "fcpMs": 108,
-      "lcpMs": 440,
-      "cls": 0.8179983708530806,
-      "ttfbMs": 5.100000001490116,
-      "domContentLoadedMs": 73.40000000596046,
-      "loadMs": 74,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "repeat-cache-enabled"
-    },
-    {
-      "target": "baseline",
-      "profile": "mobile",
-      "run": 3,
-      "wallMs": 1846,
-      "fcpMs": 224,
-      "lcpMs": 560,
-      "cls": 0,
-      "ttfbMs": 6.100000001490116,
-      "domContentLoadedMs": 114.70000000298023,
-      "loadMs": 115.30000000447035,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "cold-cache-disabled"
-    },
-    {
-      "target": "baseline",
-      "profile": "mobile",
-      "run": 3,
-      "wallMs": 1758,
-      "fcpMs": 116,
-      "lcpMs": 456,
-      "cls": 0.8179983708530806,
-      "ttfbMs": 7.100000001490116,
-      "domContentLoadedMs": 84.60000000149012,
-      "loadMs": 85,
-      "requestCount": 40,
-      "transferredBytes": 514028,
-      "jsBytes": 333687,
-      "cssBytes": 66987,
-      "cacheMode": "repeat-cache-enabled"
-    },
-    {
-      "target": "candidate",
-      "profile": "mobile",
-      "run": 3,
-      "wallMs": 1833,
-      "fcpMs": 220,
-      "lcpMs": 540,
-      "cls": 0,
-      "ttfbMs": 5.100000001490116,
-      "domContentLoadedMs": 109.40000000596046,
-      "loadMs": 110,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "cold-cache-disabled"
-    },
-    {
-      "target": "candidate",
-      "profile": "mobile",
-      "run": 3,
-      "wallMs": 1738,
-      "fcpMs": 108,
       "lcpMs": 436,
       "cls": 0.8179983708530806,
-      "ttfbMs": 4.799999997019768,
-      "domContentLoadedMs": 73.69999999552965,
-      "loadMs": 74.19999999552965,
-      "requestCount": 41,
-      "transferredBytes": 500839,
-      "jsBytes": 321430,
-      "cssBytes": 66055,
-      "cacheMode": "repeat-cache-enabled"
+      "ttfbMs": 2.8999999910593033,
+      "domContentLoadedMs": 53.69999998807907,
+      "loadMs": 54.19999998807907,
+      "requestCount": 61,
+      "transferredBytes": 600,
+      "cacheTransferBytes": 1385724,
+      "jsBytes": 0,
+      "cssBytes": 0
     }
   ],
   "summary": {
@@ -228,15 +265,15 @@
       "cold-cache-disabled": {
         "fcpMs": {
           "n": 3,
-          "median": 244,
-          "min": 224,
-          "max": 272
+          "median": 192,
+          "min": 192,
+          "max": 200
         },
         "lcpMs": {
           "n": 3,
-          "median": 580,
-          "min": 560,
-          "max": 580
+          "median": 524,
+          "min": 520,
+          "max": 544
         },
         "cls": {
           "n": 3,
@@ -246,47 +283,65 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 6.100000001490116,
-          "min": 5.399999998509884,
-          "max": 11.399999998509884
+          "median": 2.9000000059604645,
+          "min": 2.800000011920929,
+          "max": 6.199999988079071
         },
         "requestCount": {
           "n": 3,
-          "median": 40,
-          "min": 40,
-          "max": 40
+          "median": 59,
+          "min": 59,
+          "max": 59
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 1,
+          "min": 1,
+          "max": 1
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "transferredBytes": {
           "n": 3,
-          "median": 514028,
-          "min": 514028,
-          "max": 514028
+          "median": 1447343,
+          "min": 1447343,
+          "max": 1447343
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "jsBytes": {
           "n": 3,
-          "median": 333687,
-          "min": 333687,
-          "max": 333687
+          "median": 952290,
+          "min": 952290,
+          "max": 952290
         },
         "cssBytes": {
           "n": 3,
-          "median": 66987,
-          "min": 66987,
-          "max": 66987
+          "median": 376697,
+          "min": 376697,
+          "max": 376697
         }
       },
-      "repeat-cache-enabled": {
+      "warm-after-cache-prime": {
         "fcpMs": {
           "n": 3,
-          "median": 112,
-          "min": 108,
-          "max": 116
+          "median": 76,
+          "min": 76,
+          "max": 84
         },
         "lcpMs": {
           "n": 3,
-          "median": 456,
-          "min": 440,
-          "max": 456
+          "median": 400,
+          "min": 388,
+          "max": 400
         },
         "cls": {
           "n": 3,
@@ -296,33 +351,51 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 5.5,
-          "min": 5.100000001490116,
-          "max": 7.100000001490116
+          "median": 1.7999999970197678,
+          "min": 1.7999999970197678,
+          "max": 1.8999999910593033
         },
         "requestCount": {
           "n": 3,
-          "median": 40,
-          "min": 40,
-          "max": 40
+          "median": 60,
+          "min": 60,
+          "max": 60
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 58,
+          "min": 58,
+          "max": 58
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 57,
+          "min": 57,
+          "max": 57
         },
         "transferredBytes": {
           "n": 3,
-          "median": 514028,
-          "min": 514028,
-          "max": 514028
+          "median": 600,
+          "min": 600,
+          "max": 600
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 1424335,
+          "min": 1424335,
+          "max": 1424335
         },
         "jsBytes": {
           "n": 3,
-          "median": 333687,
-          "min": 333687,
-          "max": 333687
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "cssBytes": {
           "n": 3,
-          "median": 66987,
-          "min": 66987,
-          "max": 66987
+          "median": 0,
+          "min": 0,
+          "max": 0
         }
       }
     },
@@ -330,65 +403,83 @@
       "cold-cache-disabled": {
         "fcpMs": {
           "n": 3,
-          "median": 224,
-          "min": 220,
-          "max": 232
+          "median": 296,
+          "min": 208,
+          "max": 296
         },
         "lcpMs": {
           "n": 3,
-          "median": 540,
-          "min": 536,
-          "max": 564
+          "median": 632,
+          "min": 544,
+          "max": 640
         },
         "cls": {
+          "n": 3,
+          "median": 0.11183723341232228,
+          "min": 0,
+          "max": 0.11183723341232228
+        },
+        "ttfbMs": {
+          "n": 3,
+          "median": 2.9000000059604645,
+          "min": 2.9000000059604645,
+          "max": 3.3999999910593033
+        },
+        "requestCount": {
+          "n": 3,
+          "median": 60,
+          "min": 60,
+          "max": 60
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 1,
+          "min": 1,
+          "max": 1
+        },
+        "cachedAssetCount": {
           "n": 3,
           "median": 0,
           "min": 0,
           "max": 0
         },
-        "ttfbMs": {
-          "n": 3,
-          "median": 5.299999997019768,
-          "min": 5.100000001490116,
-          "max": 5.800000004470348
-        },
-        "requestCount": {
-          "n": 3,
-          "median": 41,
-          "min": 41,
-          "max": 41
-        },
         "transferredBytes": {
           "n": 3,
-          "median": 500839,
-          "min": 500839,
-          "max": 500839
+          "median": 1409206,
+          "min": 1409206,
+          "max": 1409206
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "jsBytes": {
           "n": 3,
-          "median": 321430,
-          "min": 321430,
-          "max": 321430
+          "median": 918671,
+          "min": 918671,
+          "max": 918671
         },
         "cssBytes": {
           "n": 3,
-          "median": 66055,
-          "min": 66055,
-          "max": 66055
+          "median": 372005,
+          "min": 372005,
+          "max": 372005
         }
       },
-      "repeat-cache-enabled": {
+      "warm-after-cache-prime": {
         "fcpMs": {
           "n": 3,
-          "median": 112,
-          "min": 108,
-          "max": 124
+          "median": 84,
+          "min": 76,
+          "max": 112
         },
         "lcpMs": {
           "n": 3,
-          "median": 456,
-          "min": 436,
-          "max": 460
+          "median": 424,
+          "min": 400,
+          "max": 436
         },
         "cls": {
           "n": 3,
@@ -398,33 +489,51 @@
         },
         "ttfbMs": {
           "n": 3,
-          "median": 4.799999997019768,
-          "min": 4.799999997019768,
-          "max": 9.800000004470348
+          "median": 1.8999999910593033,
+          "min": 1.8999999910593033,
+          "max": 2.8999999910593033
         },
         "requestCount": {
           "n": 3,
-          "median": 41,
-          "min": 41,
-          "max": 41
+          "median": 61,
+          "min": 61,
+          "max": 61
+        },
+        "cacheHitCount": {
+          "n": 3,
+          "median": 59,
+          "min": 59,
+          "max": 59
+        },
+        "cachedAssetCount": {
+          "n": 3,
+          "median": 58,
+          "min": 58,
+          "max": 58
         },
         "transferredBytes": {
           "n": 3,
-          "median": 500839,
-          "min": 500839,
-          "max": 500839
+          "median": 600,
+          "min": 600,
+          "max": 600
+        },
+        "cacheTransferBytes": {
+          "n": 3,
+          "median": 1385724,
+          "min": 1385724,
+          "max": 1385724
         },
         "jsBytes": {
           "n": 3,
-          "median": 321430,
-          "min": 321430,
-          "max": 321430
+          "median": 0,
+          "min": 0,
+          "max": 0
         },
         "cssBytes": {
           "n": 3,
-          "median": 66055,
-          "min": 66055,
-          "max": 66055
+          "median": 0,
+          "min": 0,
+          "max": 0
         }
       }
     }
