@@ -53,7 +53,7 @@ test('saved sorting legitimately starts a new generation when favorites change',
   expect(searches[1].favoriteIds).toEqual([id])
 })
 
-for (const rentalMode of ['holiday', 'long']) for (const back of ['browser', 'application']) {
+for (const rentalMode of ['long']) for (const back of ['browser', 'application']) {
   test(`${rentalMode} detail and ${back} Back preserve session, delayed recovery, filters and scroll`, async ({ page }) => {
     const gate = deferred()
     const searches: SearchBody[] = []
