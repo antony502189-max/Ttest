@@ -178,7 +178,7 @@ test('FILTER-LAYER desktop URL state serializes every active customer server-bac
     { params: { residentesHabitacion: '1' }, key: 'currentRoomResidents', expected: 1 },
     { params: { capacidad: '2' }, key: 'roomCapacity', expected: 2 },
     { params: { plazasMin: '1' }, key: 'minAvailableSpots', expected: 1 },
-    { mode: 'holiday', params: { nochesMin: '3' }, key: 'maxMinimumNights', expected: 3 },
+    
     { params: { fumar: 'Sí' }, key: 'smokingAllowed', expected: true },
     { params: { mascotas: 'No' }, key: 'petsAllowed', expected: false },
     { params: { ninos: 'Sí' }, key: 'childrenAllowed', expected: true },
@@ -224,10 +224,13 @@ test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject no
 
   const primaryId = await createListing(api, token, baseListing(`Primary ${unique}`, city, area))
   const secondaryId = await createListing(api, token, { ...baseListing(`Secondary ${unique}`, city, area), monthlyPrice: 925, floor: '1', amenities: ['Wi-Fi'] })
-  const holidayId = await createListing(api, token, {
-    ...baseListing(`Holiday ${unique}`, city, area),
-    rentalMode: 'holiday', monthlyPrice: null, nightlyPrice: 80, minimumStayMonths: 0, minimumNights: 3,
+  // Tourism publication is now forbidden even through the direct API.
+  const holidayAttempt = await api.post(`${API_PREFIX}/listings`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { ...baseListing(`Holiday ${unique}`, city, area),
+      rentalMode: 'holiday', monthlyPrice: 750, nightlyPrice: 80, minimumStayMonths: 0, minimumNights: 3 },
   })
+  expect(holidayAttempt.status()).toBe(422)
 
   const isolation = { query: city, rentalMode: 'long' }
   const checks: Array<{ name: string; match: Record<string, unknown>; miss: Record<string, unknown> }> = [
@@ -281,8 +284,8 @@ test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject no
 
   for (const item of checks) await expectFilter(api, primaryId, isolation, item.match, item.miss, item.name)
 
-  expect(await searchIds(api, { query: city, rentalMode: 'holiday', maxMinimumNights: 3 })).toContain(holidayId)
-  expect(await searchIds(api, { query: city, rentalMode: 'holiday', maxMinimumNights: 2 })).not.toContain(holidayId)
+  expect(await searchIds(api, { query: city, rentalMode: 'holiday', maxMinimumNights: 3 })).toEqual([])
+  expect(await searchIds(api, { query: city, rentalMode: 'holiday', maxMinimumNights: 2 })).toEqual([])
   expect(await searchIds(api, { query: city, rentalMode: 'long', publishedWithinDays: 1 })).toContain(primaryId)
 
   const ascending = await searchIds(api, { query: city, rentalMode: 'long', sort: 'price_asc' })
