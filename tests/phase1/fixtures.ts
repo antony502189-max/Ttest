@@ -8,13 +8,13 @@ export function deferred() {
   const promise = new Promise<void>((r) => { resolve = r })
   return { promise, resolve }
 }
-export function card(count = 1, listingId = id, rentalMode = 'holiday', external = false) {
+export function card(count = 1, listingId = id, rentalMode = 'long', external = false) {
   return { id: listingId, title: `Galería ${listingId}`, city: 'Adeje', area: 'Playa', approximateAddress: 'Ubicación aproximada', rentalMode,
-    price: 55, roomType: 'Habitación individual', currentResidents: 1, roomCapacity: 1, bedroomCount: 2, roomSizeM2: 14,
+    price: 725, roomType: 'Habitación individual', currentResidents: 1, roomCapacity: 1, bedroomCount: 2, roomSizeM2: 14,
     availableFrom: '2026-10-01', billsIncluded: true, restrictions: [], advertiserType: 'Particular', isExternal: external,
     sourceUrl: null, primarySource: null, publishedAt: '2026-09-30T00:00:00Z', promoted: false, coverImageUrl: urls[0], imageUrls: urls.slice(0, count), description: 'Galería fixture' }
 }
-export function detail(rentalMode = 'holiday') {
+export function detail(rentalMode = 'long') {
   return { ...card(5, id, rentalMode), ownerUserId: id, owner: { name: 'Fixture', initials: 'FX', since: null, response: '', verified: true }, amenities: [],
     status: 'published', cadence: rentalMode === 'holiday' ? 'noche' : 'mes', availableUntil: null, minimumStayMonths: 1, minimumNights: 1,
     expiresAt: '2099-01-01', views: 0, showPhone: false, showWhatsApp: false }
