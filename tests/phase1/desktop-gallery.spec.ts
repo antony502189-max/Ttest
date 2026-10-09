@@ -42,3 +42,28 @@ test('desktop authoritative removal clamps the card index synchronously', async 
   await expect(first.locator('.image-counter')).toHaveText('1/1')
   await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[0]}\\?variant=card$`))
 })
+
+
+test('desktop listing card advances past an unavailable cover while previous/next skip the broken URL', async ({ page }) => {
+  const errors = await fixtures(page, (_, route) =>
+    route.fulfill({ json: result([card(5, id, 'long', true)]) }))
+  await page.route('**/api/v1/media/**', (route) => {
+    if (new URL(route.request().url()).pathname === urls[0]) {
+      return route.fulfill({ status: 404, body: 'unavailable' })
+    }
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><rect width="960" height="640" fill="#789"/></svg>',
+    })
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  const first = page.locator('.property-card').first()
+  await expect(first.locator('.image-counter')).toHaveText('2/5')
+  await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[1]}\\\\?variant=card$`))
+  await expect.poll(() => first.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(960)
+  await first.locator('.card-gallery-arrow--previous').click()
+  await expect(first.locator('.image-counter')).toHaveText('5/5')
+  await first.locator('.card-gallery-arrow--next').click()
+  await expect(first.locator('.image-counter')).toHaveText('2/5')
+  expect(errors).toEqual([])
+})
