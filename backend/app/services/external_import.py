@@ -683,7 +683,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
         )
     eligibility = item_eligibility(item)
     if not eligibility.eligible:
-        if source is not None:
+        if source is not None and source.scope_key == scope_key:
             source.normalized_payload = normalized_snapshot(item)
             source.fingerprint = item.fingerprint
             source.last_checked_at = now
@@ -1243,7 +1243,8 @@ async def run_source(session: AsyncSession, source: ExternalListingSource, run_i
     ):
         await source.close()
         raise ValueError("Holiday import scopes are disabled")
-    rejection_scope = scope_key if scope_key.endswith(":holiday") else None
+    # Never withdraw a source record owned by an unrelated discovery scope.
+    rejection_scope = scope_key
     counters = SourceRunCounters({
         key: 0
         for key in (
