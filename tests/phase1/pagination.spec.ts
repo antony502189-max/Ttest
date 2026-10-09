@@ -16,7 +16,7 @@ test('one in-flight page, 20-card batches, within-page dedup, ordering and promo
     await route.fulfill({ json: body.cursor ? result(second, null, 40) : result(batch, 'next', 40) })
     inFlight--
   })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator('.m2-result-card')).toHaveCount(20)
   await expect(page.locator('.m2-result-card').first()).toHaveAttribute('data-listing-id', id)
   await page.getByTestId('mobile-results').evaluate(el => { el.scrollTop = el.scrollHeight })
@@ -40,7 +40,7 @@ test('duplicates in a malformed page do not produce duplicate cards or recovery 
   await fixtures(page, async (body, route) => {
     await route.fulfill({ json: body.cursor ? result([duplicate, card(5, '10000000-0000-4000-8000-000000000002'), card(5, '10000000-0000-4000-8000-000000000002')], null, 2) : result([duplicate, duplicate], 'next', 2) })
   })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator('.m2-result-card')).toHaveCount(2)
   expect(await page.locator('.m2-result-card').evaluateAll(cards => new Set(cards.map(card => card.getAttribute('data-listing-id'))).size)).toBe(2)
 })
@@ -54,7 +54,7 @@ test('failed initial search and failed page retry retain coherent session state'
     if (fail) return route.fulfill({ status: 503, json: {} })
     await route.fulfill({ json: body.cursor ? result([card(5)], null, 21) : result(batch, 'next', 21) })
   })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await page.getByRole('button', { name: 'Reintentar', exact: true }).click()
   await expect(page.locator('.m2-result-card')).toHaveCount(20)
   await page.getByTestId('mobile-results').evaluate(el => { el.scrollTop = el.scrollHeight })
