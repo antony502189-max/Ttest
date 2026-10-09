@@ -434,12 +434,11 @@ def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
 
 def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
     value = clean(value)
-    found = re.search(r"(?:desde\s*)?([\d.]+(?:,\d{1,2})?)\s*€", value, re.IGNORECASE)
-    number = found.group(1) if found else ''
-    if number and not (',' not in number and re.search(r'\.\d{1,2}$', number)):
-        number = number.replace('.', '').replace(',', '.')
-    amount = int(float(number)) if number else None
-    lower = re.sub(r'/\s+', '/', value.casefold())
+    # Use the same verified decimal interpretation as the import admission
+    # guard. The older regex could misread "1 200 €" as 200 EUR.
+    precise = exact_euro_amount(value)
+    amount = int(precise) if precise is not None else None
+    lower = re.sub(r'/\\s+', '/', value.casefold())
     period = (
         "month"
         if any(x in lower for x in ("/mes", " al mes", "por mes", "mensual", "/month", "per month", "monthly"))
@@ -449,8 +448,7 @@ def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
         if any(x in lower for x in ("/semana", "/sem", "por semana", "/week", "per week"))
         else None
     )
-    return amount, "EUR" if "€" in value else None, period, lower.startswith("desde")
-
+    return amount, "EUR" if precise is not None else None, period, lower.startswith("desde")
 
 def json_ld(document: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
