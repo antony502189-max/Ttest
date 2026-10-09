@@ -50,16 +50,24 @@ test('legacy filters and draft admission retain exact boundary semantics', async
   expect(new Set(result.translations).size).toBe(3)
 })
 
-test('restored invalid draft is editable and never silently capped', async ({ page }) => {
+test('restored out-of-policy draft remains editable and is never silently clamped', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 })
   await page.addInitScript(() => {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:listing-draft:v2', JSON.stringify({ monthlyPrice: 1001, rentalMode: 'long' }))
   })
   await page.goto('/#/publicar')
-  await expect(page.locator('#publish-monthly-price')).toHaveValue('1001')
-  await expect(page.locator('#publish-monthly-price')).toHaveAttribute('max', '1000')
   await expect(page.getByText('Alquiler vacacional', { exact: true })).toHaveCount(0)
-  await page.locator('#publish-monthly-price').fill('1000')
-  await expect(page.locator('#publish-monthly-price')).toHaveValue('1000')
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole('button', { name: 'Continuar' }).click()
+  }
+  const price = page.locator('#publish-price')
+  await expect(price).toBeVisible()
+  await expect(price).toHaveValue('1001')
+  await expect(price).toHaveAttribute('max', '1000')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(price).toHaveAttribute('aria-invalid', 'true')
+  await price.fill('1000')
+  await expect(price).toHaveValue('1000')
+  await expect(price).toHaveAttribute('aria-invalid', 'false')
 })
