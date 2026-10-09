@@ -42,6 +42,8 @@ import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
+import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport, type MapViewport } from '@/lib/map-visit-history'
+import { resolveTenerifeLocation } from '@/lib/tenerife'
 import type { Listing } from '@/types'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
@@ -55,7 +57,7 @@ type OccupantOption = 'anyone' | 'man' | 'woman' | 'person' | 'couple' | 'unrest
 type MapStatus = 'loading' | 'ready' | 'error'
 type LocationStatus = 'idle' | 'loading' | 'success' | GeolocationFailure | 'empty'
 type MapPoint = { lat: number; lng: number }
-type MapCamera = MapPoint & { zoom: number }
+type MapCamera = MapViewport
 type DrawingStroke = { pointerId: number; lastX: number; lastY: number; points: MapPoint[] }
 type MapInteractionState = {
   gestureHandling: google.maps.MapOptions['gestureHandling']
@@ -70,8 +72,6 @@ const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileMapListingsLayer })))
 const CommercialAdvertisementPlacement = lazy(() => import('@/components/commercial-advertisement-placement').then((module) => ({ default: module.CommercialAdvertisementPlacement })))
 const MobileServerMapLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileServerMapLayer })))
-const TENERIFE_CENTER = { lat: 28.2916, lng: -16.6291 }
-const MOBILE_TENERIFE_OVERVIEW_ZOOM = 10
 const GENERAL_OCCUPANTS = new Set<OccupantOption>(['anyone', 'unrestricted'])
 
 const languages: Array<{ value: AppLanguage; label: string }> = [
@@ -330,7 +330,7 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         if (cancelled || !containerRef.current) return
         const mapId = googleMapsConfig.mapId
         const { initialCenter: center, initialCamera: camera } = startingView.current
-        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? TENERIFE_CENTER, zoom: camera?.zoom ?? (center ? 14 : MOBILE_TENERIFE_OVERVIEW_ZOOM), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: mockMode ? 8 : 2, maxZoom: 19, restriction: mockMode ? { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } : undefined })
+        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? FIRST_MAP_VIEWPORT, zoom: camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 2, maxZoom: 19 })
         mapRef.current = map
         if (camera) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
@@ -757,13 +757,17 @@ export function MobileAppV2() {
     polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
   }), [filters, mapPolygon, mapQuery, query, rentalMode])
   const cameraParams = new URLSearchParams(location.search)
-  const cameraLat = Number(cameraParams.get('mapLat'))
-  const cameraLng = Number(cameraParams.get('mapLng'))
-  const cameraZoom = Number(cameraParams.get('mapZoom'))
-  const mapCamera = cameraParams.has('mapLat') && cameraParams.has('mapLng') && cameraParams.has('mapZoom')
-    && Number.isFinite(cameraLat) && Number.isFinite(cameraLng) && Number.isFinite(cameraZoom)
-    && cameraLat >= -90 && cameraLat <= 90 && cameraLng >= -180 && cameraLng <= 180 && cameraZoom >= 8 && cameraZoom <= 19
-    ? { lat: cameraLat, lng: cameraLng, zoom: cameraZoom } : undefined
+  // Explicit deep links and a new city search outrank previous map history.
+  // "Tenerife" is the generic search label, not a newly selected municipality.
+  const explicitCamera = mapViewportFromParams(cameraParams)
+  const hasNearbyCoordinates = cameraParams.has('lat') && cameraParams.has('lng')
+    && Number.isFinite(Number(cameraParams.get('lat'))) && Number.isFinite(Number(cameraParams.get('lng')))
+    && Math.abs(Number(cameraParams.get('lat'))) <= 85 && Math.abs(Number(cameraParams.get('lng'))) <= 180
+  const chosenLocation = resolveTenerifeLocation(cameraParams.get('q') ?? '')
+  const namedLocation = chosenLocation?.type !== 'island' ? chosenLocation?.coordinates : undefined
+  const mapCamera = explicitCamera ?? (hasNearbyCoordinates ? undefined
+    : namedLocation ? { ...namedLocation, zoom: 12 }
+      : readLastMapViewport() ?? FIRST_MAP_VIEWPORT)
   const { listings: favoriteListings } = useFavoriteListings()
   const { listings: recentlyViewedListings, clear: clearRecentHistory, mark: markRecent } = useRecentlyViewedListings()
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => favoriteListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, image: listing.images[0], onOpen: () => navigate(`/habitacion/${listing.id}`) })), [favoriteListings, navigate])
@@ -870,6 +874,9 @@ export function MobileAppV2() {
     navigate(`${location.pathname}?${params.toString()}`, { replace: true })
   }
   const commitMapCamera = (camera: MapCamera) => {
+    // Persist outside router history, so a completely new map visit recovers
+    // the last position. URL camera remains authoritative for Back/deep links.
+    rememberMapViewport(camera)
     if (pendingRouteSearchRef.current) return
     const params = new URLSearchParams(routeSearchRef.current)
     const lat = camera.lat.toFixed(5)
