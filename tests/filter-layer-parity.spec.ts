@@ -146,10 +146,11 @@ test('FILTER-LAYER local filter engine applies every public search filter with b
   }
 })
 
-test('FILTER-LAYER holiday minimum-night filter treats unknown minimum as non-match like backend SQL', () => {
-  expect(matches(holidayListing(3), 'holiday', { minimumNights: 3 })).toEqual(['filter-parity-holiday-3'])
-  expect(matches(holidayListing(4), 'holiday', { minimumNights: 3 })).toEqual([])
-  expect(matches(holidayListing(undefined), 'holiday', { minimumNights: 3 })).toEqual([])
+test('FILTER-LAYER rejects tourism inventory regardless of legacy minimum-night state', () => {
+  for (const nights of [3, 4, undefined]) {
+    expect(matches(holidayListing(nights), 'holiday', { minimumNights: 3 })).toEqual([])
+    expect(matches(holidayListing(nights), 'long', { minimumNights: 0 })).toEqual([])
+  }
 })
 
 test('FILTER-LAYER open-ended move-out date remains a match', () => {
