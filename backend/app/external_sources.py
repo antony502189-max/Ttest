@@ -1925,7 +1925,7 @@ class PisoCompartidoSource(ExternalListingSource):
         # amount to agree; otherwise fail closed on ambiguous price periods.
         if parse_price(str(data.get("price_text", "")))[2] is None:
             evidence = re.search(
-                r"\\balquiler mensual\\s*:?\\s*([0-9][0-9\\s.,]*)\\s*€",
+                r"\balquiler mensual\s*:?\s*([0-9][0-9\s.,]*)\s*€",
                 clean(document), re.IGNORECASE,
             )
             if evidence:
