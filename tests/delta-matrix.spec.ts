@@ -168,7 +168,7 @@ test('ROOM-01..04 MODE-01..03 monthly long-stay fields persist and remain search
   await page.getByLabel('Requisito para la persona inquilina').selectOption('couple')
   await continueWizard(page, 4)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page).toHaveURL(/#\\/mis-anuncios$/)
+  await expect(page).toHaveURL(/#\/mis-anuncios$/)
 
   const listing = (await storedListings(page))[0]
   expect(listing).toMatchObject({
