@@ -98,12 +98,12 @@ def one_bedroom_whole_home_document() -> str:
     <html><head><script type="application/ld+json">
     {
       "@type": "Apartment",
-      "name": "Piso de una habitación en alquiler por temporadas en Garachico",
-      "description": "Apartamento completo de una habitación, salón, cocina y baño para alquiler por temporadas.",
+      "name": "Piso de una habitación en alquiler de larga estancia en Garachico",
+      "description": "Apartamento completo de una habitación, salón, cocina y baño para alquiler de larga estancia.",
       "address": {"addressLocality": "Garachico", "addressRegion": "Santa Cruz de Tenerife"}
     }
     </script></head><body>
-      <h1>Piso de una habitación en alquiler por temporadas en Garachico</h1>
+      <h1>Piso de una habitación en alquiler de larga estancia en Garachico</h1>
       <div class="description">Apartamento completo de una habitación, salón, cocina y baño.</div>
       <strong>780 €/mes</strong>
     </body></html>
@@ -270,7 +270,7 @@ def test_habitaclia_accepts_one_bedroom_whole_home() -> None:
         assert item.room_type == "Apartamento de 1 dormitorio"
         card = (
             '"navigationUrl":"/i54975000000055.htm?from=list",'
-            '"summary":{"title":"Piso de una habitación en alquiler por temporadas en Garachico",'
+            '"summary":{"title":"Piso de una habitación en alquiler de larga estancia en Garachico",'
             '"description":"Apartamento completo de una habitación, salón, cocina y baño."}'
         )
         assert source._is_room_card(card)
