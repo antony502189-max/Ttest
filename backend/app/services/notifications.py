@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # a saved search compared with the result set the customer actually saved.
 _SAVED_SEARCH_DEFAULTS: dict[str, object] = {
     "minPrice": 0,
-    "maxPrice": 1200,
+    "maxPrice": 1000,
     "homeSizeMin": 0,
     "homeSizeMax": 250,
 }
