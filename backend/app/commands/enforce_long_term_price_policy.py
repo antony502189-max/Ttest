@@ -263,14 +263,21 @@ async def apply_plan(session, reviewed: dict, *, confirmation: str, recovery_rec
     return result
 
 
-def save_report(path: Path, report: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if os.name != "nt":
-        path.parent.chmod(0o700)
-    path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    if os.name != "nt":
-        path.chmod(0o600)
+def save_private_text(path: Path, content: str) -> None:
+    """Atomically create, never overwrite, a private maintenance artifact.
 
+    In particular, do not chmod an existing parent supplied by the operator:
+    changing /tmp or a shared directory would be a serious side effect.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.write(content)
+
+
+def save_report(path: Path, report: dict) -> None:
+    save_private_text(path, json.dumps(report, ensure_ascii=False, indent=2) + "\n")
 
 async def execute(args) -> dict:
     async with SessionLocal() as session, session.begin():
@@ -286,13 +293,11 @@ async def execute(args) -> dict:
     save_report(args.output, report)
     if not args.apply:
         summary = args.output.with_suffix(".summary.md")
-        summary.write_text("# Rental policy inventory\n\n" + json.dumps({
+        save_private_text(summary, "# Rental policy inventory\n\n" + json.dumps({
             "digest": report["digest"], "summary": report["summary"],
             "selected": len(report["selected_ids"]), "invalid_by_source": report["invalid_by_source"],
             "invalid_by_status": report["invalid_by_status"], "assumptions": report["assumptions"],
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        if os.name != "nt":
-            summary.chmod(0o600)
     return report
 
 
