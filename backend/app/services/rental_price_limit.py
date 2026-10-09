@@ -10,24 +10,36 @@ MAX_LONG_TERM_RENT_EUR = 1000
 
 
 def exact_euro_amount(text: str) -> Decimal | None:
-    """Read the advertised amount before the legacy importer truncates cents."""
-    found = re.search(r"(?:desde\s*)?([\d.]+(?:,\d{1,2})?)\s*€", text, re.IGNORECASE)
-    if not found:
+    """Extract exactly one EUR amount, rejecting ambiguous or truncated prices.
+
+    The source's legacy integer parser is not authoritative for the limit:
+    '1 200 €' may otherwise be interpreted as 200, while 1000.50 loses cents.
+    Both European and English grouping/decimal spellings are supported.
+    """
+    amounts = list(re.finditer(r"(?<![\\d.,])([0-9][0-9\\s.,]*?)\\s*€", text))
+    if len(amounts) != 1:
         return None
-    number = found.group(1)
-    if not ("," not in number and re.search(r"\.\d{1,2}$", number)):
-        number = number.replace(".", "").replace(",", ".")
+    number = re.sub(r"\\s+", "", amounts[0].group(1))
+    if re.fullmatch(r"[0-9]+", number):
+        normalized = number
+    elif re.fullmatch(r"[0-9]+[.,][0-9]{1,2}", number):
+        normalized = number.replace(",", ".")
+    elif re.fullmatch(r"[0-9]{1,3}(?:\\.[0-9]{3})+(?:,[0-9]{1,2})?", number):
+        normalized = number.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"[0-9]{1,3}(?:,[0-9]{3})+(?:\\.[0-9]{1,2})?", number):
+        normalized = number.replace(",", "")
+    else:
+        return None
     try:
-        return Decimal(number)
+        return Decimal(normalized)
     except InvalidOperation:
         return None
-
 
 def imported_price_allowed(item) -> bool:
     if not long_term_price_allowed(item.rental_mode, item.price_amount):
         return False
     exact = exact_euro_amount(item.source_price_text)
-    return item.rental_mode != "long" or exact is None or long_term_price_allowed("long", exact)
+    return item.rental_mode != "long" or (exact is not None and long_term_price_allowed("long", exact))
 
 
 def long_term_price_allowed(mode, amount) -> bool:
