@@ -178,9 +178,9 @@ def rental_price(data: dict[str, Any], source_name: str, amount: int | None, per
     # These patterns match duration facts, not incidental numbers or deposits.
     tenure = folded(str(data.get("description") or ""))
     duration = re.search(
-        r"\\b(?:alquiler\\s+de|duracion\\s+minima\\s+del\\s+alquiler\\s*:?|"
-        r"estancia\\s+minima\\s*(?:de)?\\s*:?|contrato\\s+de)\\s*"
-        r"(\\d{1,2})\\s*(?:a\\s*\\d{1,2}\\s*)?meses?\\b",
+        r"\b(?:alquiler\s+de|duracion\s+minima\s+del\s+alquiler\s*:?|"
+        r"estancia\s+minima\s*(?:de)?\s*:?|contrato\s+de)\s*"
+        r"(\d{1,2})\s*(?:a\s*\d{1,2}\s*)?meses?\b",
         tenure,
     )
     verified_residential_term = (
