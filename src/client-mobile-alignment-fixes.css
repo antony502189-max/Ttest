@@ -77,23 +77,23 @@
     content: 'LARGA ESTANCIA' / '';
   }
 
-  .m2-results-filter__transaction button:last-child {
+  .m2-results-filter__transaction button:last-child:not(:first-child) {
     border-left: 1.5px solid rgb(198 0 131 / .34);
     border-color: rgb(198 0 131 / .34);
     border-radius: .55rem !important;
     background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
   }
 
-  .m2-results-filter__transaction button:last-child::after {
+  .m2-results-filter__transaction button:last-child:not(:first-child)::after {
     content: 'TURÍSTICAS' / '';
   }
 
   html[lang='en'] .m2-results-filter__transaction button::before { content: 'ROOMS' / ''; }
   html[lang='en'] .m2-results-filter__transaction button:first-child::after { content: 'LONG STAY' / ''; }
-  html[lang='en'] .m2-results-filter__transaction button:last-child::after { content: 'TOURIST' / ''; }
+  html[lang='en'] .m2-results-filter__transaction button:last-child:not(:first-child)::after { content: 'TOURIST' / ''; }
   html[lang='ru'] .m2-results-filter__transaction button::before { content: 'КОМНАТЫ' / ''; }
   html[lang='ru'] .m2-results-filter__transaction button:first-child::after { content: 'ДОЛГОСРОЧНО' / ''; }
-  html[lang='ru'] .m2-results-filter__transaction button:last-child::after { content: 'ТУРИЗМ' / ''; }
+  html[lang='ru'] .m2-results-filter__transaction button:last-child:not(:first-child)::after { content: 'ТУРИЗМ' / ''; }
 
   .m2-results-filter__transaction button.is-active {
     border-color: #74b900;
@@ -104,7 +104,7 @@
     transform: translateY(-1px) scale(1.01);
   }
 
-  .m2-results-filter__transaction button:last-child.is-active {
+  .m2-results-filter__transaction button:last-child:not(:first-child).is-active {
     border-color: #c60083;
     background: linear-gradient(145deg, #fff5fb 0%, #f9dceb 100%);
     box-shadow: 0 .28rem .65rem rgb(98 0 65 / .18), inset 0 0 0 2px #c60083;
@@ -146,7 +146,7 @@ html.mobile-v2-active .m2-app {
     border: 2px solid #74b900;
   }
 
-  .m2-app .m2-mode-switch > button:last-child {
+  .m2-app .m2-mode-switch > button:last-child:not(:first-child) {
     border: 2px solid #c60083;
   }
 
