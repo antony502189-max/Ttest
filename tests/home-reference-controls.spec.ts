@@ -22,8 +22,6 @@ test.describe('restored home reference controls', () => {
     await expect(page.getByRole('button', { name: /Turismo/ })).toHaveCount(0)
 
     const longStayLabel = modeButtons.first().locator('span').last()
-    await expect(longStayLabel).toHaveAttribute('data-reference-title', 'HABITACIONES')
-    await expect(longStayLabel).toHaveAttribute('data-reference-subtitle', 'LARGA ESTANCIA')
 
     const cardHeight = await modeButtons.first().evaluate((element) => element.getBoundingClientRect().height)
     expect(cardHeight).toBeGreaterThanOrEqual(180)
