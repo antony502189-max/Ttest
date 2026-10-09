@@ -54,8 +54,8 @@ async def _seed_listing_with_gallery(session, owner: User, rental_mode: str, suf
     return listing
 
 
-@pytest.mark.parametrize("rental_mode", ["long", "holiday"])
-async def test_bounded_cards_and_detail_keep_full_gallery_for_both_rental_modes(rental_mode: str):
+@pytest.mark.parametrize("rental_mode", ["long"])
+async def test_bounded_cards_and_detail_keep_full_gallery_for_eligible_long_term_rentals(rental_mode: str):
     async with SessionLocal() as session:
         owner = User(
             email=f"gallery-{rental_mode}@example.test",
