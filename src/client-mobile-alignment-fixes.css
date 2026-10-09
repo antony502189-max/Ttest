@@ -157,3 +157,14 @@ html.mobile-v2-active .m2-app {
     overflow-wrap: normal;
   }
 }
+
+/* Residential-only mode: a sole button must not inherit the former tourist
+   last-child border/reset or occupy only half the filter grid. */
+@media (max-width: 900px) {
+  .m2-results-filter__transaction > button:only-child {
+    grid-column: 1 / -1;
+    border: 1.5px solid #74b900;
+    border-radius: .55rem !important;
+    background: linear-gradient(145deg, #fffffb 0%, #eef8dd 100%);
+  }
+}
