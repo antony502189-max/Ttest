@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
 import { getNotifications, NOTIFICATIONS_UPDATED_EVENT } from '@/api/notifications'
-import { PublishLocationEnhancer } from '@/components/publish-location-enhancer'
-import { PublishAddressLifecycle } from '@/components/publish-address-lifecycle'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
@@ -18,6 +16,7 @@ const ROUTE_LOADING_DELAY_MS = 300
 const MobileAppV2 = lazy(() => import('@/components/mobile-app-v2').then((module) => ({ default: module.MobileAppV2 })))
 const MobilePublicationGate = lazy(() => import('@/components/mobile-publication-gate').then((module) => ({ default: module.MobilePublicationGate })))
 const MobileSearchResults = lazy(() => import('@/components/mobile-search-results-v2').then((module) => ({ default: module.MobileSearchResults })))
+const PublishRouteEnhancers = lazy(() => import('@/components/publish-route-enhancers').then((module) => ({ default: module.PublishRouteEnhancers })))
 
 function DelayedRouteFallback() {
   const [visible, setVisible] = useState(false)
@@ -98,5 +97,5 @@ export function AppLayout() {
     return () => media.removeEventListener('change', update)
   }, [])
 
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <><PublishLocationEnhancer /><PublishAddressLifecycle /></> : null}<Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton containerAriaLabel={t('Notificaciones')} toastOptions={{ classNames: { toast: 'cn-toast' }, closeButtonAriaLabel: t('Cerrar notificación') }} /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <Suspense fallback={null}><PublishRouteEnhancers /></Suspense> : null}<Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileViewport ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}><Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton containerAriaLabel={t('Notificaciones')} toastOptions={{ classNames: { toast: 'cn-toast' }, closeButtonAriaLabel: t('Cerrar notificación') }} /></>
 }
