@@ -26,7 +26,7 @@ from .core.browser_network import (
 from .core.config import get_settings
 from .core.media_limits import MAX_LISTING_PHOTOS
 from .rental_classification import bedroom_count, property_type, rental_price
-from .services.rental_policy import evaluate
+from .services.rental_policy import evaluate, exact_euro_amount
 from .spain_provinces import canonical_province, coordinates_in_spain, scope_province, spain_country
 
 logger = logging.getLogger(__name__)
@@ -435,12 +435,8 @@ def coordinates_in_target_province(latitude: float, longitude: float) -> bool:
 
 def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
     value = clean(value)
-    found = re.search(r"(?:desde\s*)?([\d.]+(?:,\d{1,2})?)\s*€", value, re.IGNORECASE)
-    number = found.group(1) if found else ''
-    if number and not (',' not in number and re.search(r'\.\d{1,2}$', number)):
-        number = number.replace('.', '').replace(',', '.')
-    exact = Decimal(number) if number else None
-    # Integer schema: reject fractional offers rather than truncating cents.
+    exact = exact_euro_amount(value)
+    # Integer storage requires an exact whole-euro amount; never truncate.
     amount = int(exact) if exact is not None and exact == exact.to_integral_value() else None
     lower = re.sub(r'/\s+', '/', value.casefold())
     period = (
