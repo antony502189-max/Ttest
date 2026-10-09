@@ -82,8 +82,8 @@ async def test_holiday_scopes_keep_independent_cursors_and_rejected_recommendati
         assert await upsert(session, item(), scope_key="province:Madrid") == "imported"
         before = await session.scalar(select(ExternalListingSource))
         listing_id = before.canonical_listing_id
-        counters = await run_source(session, Source(), str(uuid4()), max_details=1)
-        assert counters["accepted_long"] == counters["accepted_holiday"] == counters["archived"] == 0
+        with pytest.raises(ValueError, match="Holiday import scopes are disabled"):
+            await run_source(session, Source(), str(uuid4()), max_details=1)
         source = await session.scalar(select(ExternalListingSource))
         listing = await session.get(Listing, listing_id)
         assert source.current_status == "active" and source.scope_key == "province:Madrid"
@@ -109,7 +109,7 @@ async def test_holiday_catalogue_overlap_preserves_long_term_canonical_and_its_s
             weekly_price_amount=490,
         )
         result = await upsert(session, holiday, scope_key="province:Madrid:holiday")
-        assert result == "scope_conflict"
+        assert result == "policy_rejected"
         await session.refresh(source)
         await session.refresh(listing)
         assert source.id == original_source_id
@@ -139,15 +139,15 @@ async def test_residential_import_cannot_take_over_existing_holiday_source(monke
         weekly_price_amount=490,
     )
     async with SessionLocal() as session:
-        assert await upsert(session, holiday, scope_key="province:Madrid:holiday") == "imported"
+        assert await upsert(session, holiday, scope_key="province:Madrid:holiday") == "policy_rejected"
+        assert await session.scalar(select(ExternalListingSource)) is None
+        assert await session.scalar(select(Listing)) is None
+        # Rejecting tourism must not poison the same property identity for a later valid residential offer.
+        assert await upsert(session, item(), scope_key="province:Madrid") == "imported"
         source = await session.scalar(select(ExternalListingSource))
         listing = await session.get(Listing, source.canonical_listing_id)
-        assert await upsert(session, item(), scope_key="province:Madrid") == "scope_conflict"
-        await session.refresh(source)
-        await session.refresh(listing)
-        assert source.scope_key == "province:Madrid:holiday"
-        assert listing.rental_mode == "holiday"
-        assert listing.nightly_price == 70 and listing.monthly_price is None
+        assert source.scope_key == "province:Madrid"
+        assert listing.rental_mode == "long" and listing.monthly_price == 900
 
 
 async def test_selected_holiday_weekly_price_reaches_canonical_and_retains_provenance(monkeypatch):
@@ -170,14 +170,10 @@ async def test_selected_holiday_weekly_price_reaches_canonical_and_retains_prove
 
     async with SessionLocal() as session:
         await provision_scopes(session, [ScopeDefinition("Pisos", "province:Madrid:holiday", (root,))])
-        counters = await run_source(session, Source(), str(uuid4()), max_details=1)
-        assert counters["accepted_holiday"] == counters["created"] == 1
-        listing = await session.scalar(select(Listing))
-        source = await session.scalar(select(ExternalListingSource))
-        assert listing.rental_mode == "holiday" and listing.nightly_price == 70 and listing.monthly_price is None
-        assert listing.source_price_period == "week" and listing.source_price_text == "490 €/sem"
-        assert source.normalized_payload["weekly_price_amount"] == 490
-        assert source.normalized_payload["raw_payload"]["price_cadence_evidence"]["primary_text"] == "490 €"
+        with pytest.raises(ValueError, match="Holiday import scopes are disabled"):
+            await run_source(session, Source(), str(uuid4()), max_details=1)
+        assert await session.scalar(select(Listing)) is None
+        assert await session.scalar(select(ExternalListingSource)) is None
 
 
 async def test_scope_checkpoint_drains_detail_tail_then_next_page_and_never_archives_unseen(monkeypatch):
@@ -242,8 +238,7 @@ async def test_normalized_url_changed_id_retains_source_and_canonical(monkeypatc
     [
         ("Estudio", 0, "long", "mes"),
         ("Apartamento de 1 dormitorio", 1, "long", "mes"),
-        ("Estudio", 0, "holiday", "noche"),
-        ("Apartamento de 1 dormitorio", 1, "holiday", "noche"),
+
     ],
 )
 async def test_whole_units_reach_run_source_and_canonical_prices(monkeypatch, room_type, count, mode, cadence):
@@ -282,7 +277,7 @@ async def test_bootstrap_detail_budget_remains_partial_and_does_not_archive_miss
 
     class Source(PisosSource):
         scope_key = "province:Madrid"
-        discovery_urls = ("https://www.pisos.com/alquiler/pisos-madrid/", "https://www.pisos.com/alquiler-vacacional/pisos-madrid/")
+        discovery_urls = ("https://www.pisos.com/alquiler/pisos-madrid/", "https://www.pisos.com/alquiler/pisos-madrid/2/")
 
         async def request(self, url):
             links = [item().source_url, "https://www.pisos.com/alquilar/piso-madrid-999999/"]
@@ -383,9 +378,9 @@ async def test_identical_gallery_deduplicates_same_mode_but_preserves_holiday_of
             price_amount=85,
             source_price_text="85 €/noche",
         )
-        await upsert(session, holiday, scope_key="province:Madrid")
-        assert await session.scalar(select(func.count(Listing.id))) == 2
-        assert await session.scalar(select(func.count(ExternalListingSource.id))) == 3
+        assert await upsert(session, holiday, scope_key="province:Madrid") == "policy_rejected"
+        assert await session.scalar(select(func.count(Listing.id))) == 1
+        assert await session.scalar(select(func.count(ExternalListingSource.id))) == 2
 
 
 @pytest.mark.parametrize("ceiling", [False, True])
