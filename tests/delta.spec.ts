@@ -279,7 +279,7 @@ test('WIZ-01..03 dirty state warns only after edits and save clears it', async (
   await page.getByRole('link', { name: 'Tus anuncios' }).click()
   await expect(page).toHaveURL(/mis-anuncios/)
   await page.goto('/#/publicar')
-  await page.getByText('Alquiler vacacional', { exact: true }).click()
+  await page.locator('#publish-monthly-price').fill('650')
   await expect(page.locator('.dirty-state')).toHaveText('Cambios sin guardar')
   await page.getByRole('link', { name: 'Tus anuncios' }).click()
   await expect(page.getByRole('alertdialog')).toBeVisible()
