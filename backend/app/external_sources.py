@@ -1614,6 +1614,16 @@ class FotocasaSource(ExternalListingSource):
             "available_from": candidate.get("availableFrom") or data.get("available_from"),
             "published_at": candidate.get("publishedAt") or data.get("published_at"),
         })
+        # The Fotocasa shared-room detail path explicitly carries the municipality.
+        # Only use a recognized Tenerife municipality and never override an
+        # independent city already parsed from the provider's actual detail.
+        route_parts = unquote(urlparse(url).path).strip("/").split("/")
+        if not data.get("city") and len(route_parts) >= 5 and route_parts[:3] == ["es", "compartir", "vivienda"]:
+            municipality = route_parts[3].replace("-", " ").casefold()
+            if municipality in SANTA_CRUZ and municipality not in PROVINCE_ONLY:
+                data["city"] = municipality.title()
+                data["municipality"] = data["city"]
+                data["province"] = data.get("province") or "Santa Cruz de Tenerife"
         data["category"] = f"compartir vivienda alquiler habitación {data['category']}"
         return data
 
@@ -1908,6 +1918,26 @@ class PisoCompartidoSource(ExternalListingSource):
             "advertiser_name": clean(advertiser.group(1)) if advertiser else data.get("advertiser_name"),
             "available_from": availability.group(1) if availability else data.get("available_from"),
         })
+        # PisoCompartido publishes an explicit "Alquiler mensual: X €"
+        # detail fact separately from its large price header. Do not infer
+        # monthly billing merely from the provider domain or room category.
+        # Require the displayed amount and the independently labeled monthly
+        # amount to agree; otherwise fail closed on ambiguous price periods.
+        if parse_price(str(data.get("price_text", "")))[2] is None:
+            evidence = re.search(
+                r"\\balquiler mensual\\s*:?\\s*([0-9][0-9\\s.,]*)\\s*€",
+                clean(document), re.IGNORECASE,
+            )
+            if evidence:
+                stated = f"{evidence.group(1).strip()} €/mes"
+                primary_amount, primary_currency, _, _ = parse_price(str(data.get("price_text", "")))
+                monthly_amount, monthly_currency, monthly_period, _ = parse_price(stated)
+                if (primary_amount is not None and primary_amount == monthly_amount
+                        and primary_currency == monthly_currency == "EUR" and monthly_period == "month"):
+                    data["price_text"] = stated
+                    data.setdefault("raw", {})["price_cadence_evidence"] = {
+                        "provider_field": "Alquiler mensual", "verified_monthly_amount": monthly_amount,
+                    }
         data["category"] = f"pisocompartido alquiler habitación {data['category']}"
         return data
 
