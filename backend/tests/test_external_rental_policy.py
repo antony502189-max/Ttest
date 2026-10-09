@@ -67,3 +67,23 @@ def test_provider_price_cannot_drop_thousands_or_cents(price, amount):
     assert period == "month"
     if amount is not None:
         assert currency == "EUR"
+
+
+@pytest.mark.parametrize("description,period,category,expected", [
+    ("Se prefieren trabajadores de temporada. Alquiler de 6 a 11 meses", "month", "", True),
+    ("Contrato temporal. Duración mínima del alquiler: 6 meses con prórroga", "month", "", True),
+    ("Alquiler de temporada por meses", "month", "", False),
+    ("Alquiler temporal de 3 a 5 meses", "month", "", False),
+    ("Alquiler de 6 a 11 meses, turístico vacacional", "month", "", False),
+    ("Alquiler de 6 a 11 meses", "night", "", False),
+    ("Contrato de 6 meses", "month", "holiday", False),
+])
+def test_explicit_residential_term_is_admitted_without_tourism_or_ambiguous_seasonal_price(
+    description, period, category, expected,
+):
+    from app.rental_classification import rental_price
+    data = {"title": "Habitación individual en alquiler",
+            "description": description, "rental_category": category,
+            "category": "compartir vivienda alquiler habitación"}
+    result = rental_price(data, "Fotocasa", 620, period)
+    assert (result is not None and result.mode == "long") is expected
