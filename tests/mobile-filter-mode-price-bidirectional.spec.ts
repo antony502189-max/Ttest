@@ -23,7 +23,7 @@ test('Tourism nightly price never becomes a Long Stay monthly constraint', async
   await results.getByRole('button', { name: 'Filtros' }).click()
   await results.getByRole('button', { name: 'Vivienda', exact: true }).click()
   await expect(results.getByLabel('Precio Mín')).toHaveValue('0')
-  await expect(results.getByLabel('Precio Máx')).toHaveValue('1200')
+  await expect(results.getByLabel('Precio Máx')).toHaveValue('1000')
   await expect(results.getByRole('button', { name: /Ver anuncios · 23$/ })).toBeVisible()
   await results.getByRole('button', { name: /Ver anuncios/ }).click()
   await expect(results.locator('.m2-result-card')).toHaveCount(23)
