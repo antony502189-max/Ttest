@@ -1029,3 +1029,41 @@ def test_live_public_source_discovery_is_opt_in_and_isolates_blocked_sources():
 
     results = asyncio.run(discover())
     assert set(results) == {"Idealista", "Fotocasa", "Milanuncios", "PisoCompartido"}
+
+
+def test_fotocasa_detail_uses_only_verified_tenerife_municipality_route_as_city_fallback():
+    source = FotocasaSource()
+    fragment = '<h1>Habitación en Calle Castillo, 13, Casco Urbano</h1><p>620 €/mes</p>'
+    parsed = source.parse_listing(
+        fragment,
+        'https://www.fotocasa.es/es/compartir/vivienda/adeje/amueblado-internet/189743737/d',
+    )
+    assert parsed["city"] == "Adeje"
+    assert parsed["province"] == "Santa Cruz de Tenerife"
+    invalid = source.parse_listing(
+        fragment,
+        'https://www.fotocasa.es/es/compartir/vivienda/not-a-real-municipality/room/189743737/d',
+    )
+    assert not invalid["city"]
+
+
+def test_pisocompartido_monthly_price_requires_matching_explicit_detail_label():
+    source = PisoCompartidoSource()
+    url = "https://www.pisocompartido.com/habitacion/1018581/"
+    fragment = (
+        '<h1>Habitación Individual en Calle de Juan de Aguilar 5</h1>'
+        '<p>Precio: 500 €</p><dl><dt>Alquiler mensual:</dt><dd>500 € /mes</dd></dl>'
+    )
+    parsed = source.parse_listing(fragment, url)
+    assert parsed["price_text"] == "500 €/mes"
+    assert parsed["raw"]["price_cadence_evidence"]["verified_monthly_amount"] == 500
+
+    conflicting = fragment.replace("<dd>500 € /mes</dd>", "<dd>1200 € /mes</dd>")
+    parsed_conflict = source.parse_listing(conflicting, url)
+    assert parsed_conflict["price_text"] != "500 €/mes"
+    assert "price_cadence_evidence" not in parsed_conflict["raw"]
+
+    ambiguous = source.parse_listing(
+        '<h1>Habitación Individual</h1><p>Precio: 500 €</p>', url,
+    )
+    assert "price_cadence_evidence" not in ambiguous["raw"]
