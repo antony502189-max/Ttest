@@ -20,7 +20,7 @@ test.describe('mobile history', () => {
     await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThanOrEqual(5)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThanOrEqual(6)
-    await expect(page).toHaveURL(/mapZoom=5\\.25/)
+    await expect(page).toHaveURL(/mapZoom=5\.25/)
     await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
   })
 
@@ -34,7 +34,7 @@ test.describe('mobile history', () => {
       window.__googleMapsTestLastMap?.panTo({ lat: 28.12, lng: -16.72 })
       window.__googleMapsTestLastMap?.setZoom(11)
     })
-    await expect(page).toHaveURL(/mapLat=28\\.12000.*mapLng=-16\\.72000.*mapZoom=11\\.00/)
+    await expect(page).toHaveURL(/mapLat=28\.12000.*mapLng=-16\.72000.*mapZoom=11\.00/)
     await expect.poll(async () => page.evaluate(() => {
       const record = JSON.parse(localStorage.getItem('112233:map-last-viewport:v1') ?? '{}')
       return record.camera?.zoom
@@ -43,7 +43,7 @@ test.describe('mobile history', () => {
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
     await expect(map).toHaveAttribute('data-map-zoom', '11')
-    await expect(page).toHaveURL(/mapLat=28\\.12000.*mapLng=-16\\.72000.*mapZoom=11\\.00/)
+    await expect(page).toHaveURL(/mapLat=28\.12000.*mapLng=-16\.72000.*mapZoom=11\.00/)
   })
 
   test('explicit map deep link wins over remembered viewport and a new city search wins over history', async ({ page }) => {
