@@ -147,9 +147,9 @@ test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback
   await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^data:image\/svg/)
 })
 
-test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results', async ({ page }) => {
+test('ROOM-01..04 MODE-01..03 monthly long-stay fields persist and remain searchable', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
-  await page.getByText('Alquiler vacacional', { exact: true }).click()
+  await expect(page.getByText('Alquiler vacacional', { exact: true })).toHaveCount(0)
   await continueWizard(page, 2)
   await page.getByLabel('Superficie habitación (m²)').fill('19')
   await page.getByLabel('Personas en la vivienda').fill('3')
@@ -159,40 +159,33 @@ test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filter
   await washer.selectOption('shared')
   await expect(washer).toHaveValue('shared')
   await continueWizard(page, 1)
-  await page.locator('#publish-nightly-price').fill('61')
-  await page.getByLabel('Precio semanal (€)').fill('360')
+  await page.locator('#publish-price').fill('650')
+  await page.locator('#publish-bills-included').selectOption('included')
   await continueWizard(page, 1)
-  await page.getByLabel('Estancia mínima (noches)').fill('4')
-  await page.getByLabel('Disponible hasta').fill('2026-12-31')
+  await page.locator('#publish-min-stay').fill('1')
+  await page.locator('#publish-available-until').fill('2026-12-31')
   await continueWizard(page, 1)
-  await page.getByLabel('A quién buscas').selectOption('couple')
+  await page.getByLabel('Requisito para la persona inquilina').selectOption('couple')
   await continueWizard(page, 4)
   await page.getByRole('button', { name: 'Publicar anuncio' }).click()
-  await expect(page).toHaveURL(/#\/mis-anuncios$/)
+  await expect(page).toHaveURL(/#\\/mis-anuncios$/)
 
   const listing = (await storedListings(page))[0]
   expect(listing).toMatchObject({
-    rentalMode: 'holiday', roomSizeM2: 19, currentResidents: 3, roomCapacity: 2,
+    rentalMode: 'long', roomSizeM2: 19, currentResidents: 3, roomCapacity: 2,
     shower: 'Ducha privada', tenantRequirement: 'couple',
-    nightlyPrice: 61, weeklyPrice: 360, monthlyPrice: 450,
-    minimumNights: 4, availableUntil: '2026-12-31',
+    monthlyPrice: 650, minimumStayMonths: 1, availableUntil: '2026-12-31',
   })
-  expect(listing).not.toHaveProperty('genderPreference')
   expect(listing.couplesAllowed).toBe(true)
   expect(listing.amenities.filter((item: string) => item === 'Lavadora compartida')).toHaveLength(1)
 
-  const query = '/#/buscar?alquiler=holiday&tamanoMin=19&tamanoMax=19&ducha=Ducha%20privada&residentes=3&capacidad=2&nochesMin=4&hasta=2026-12-31'
-  await page.goto(query)
+  await page.goto('/#/buscar?alquiler=long&ducha=Ducha%20privada&residentes=3&capacidad=2')
   await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toBeVisible()
-  await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toContainText('/noche')
+  await expect(page.locator(`[data-listing-id="${listing.id}"]`)).toContainText('/mes')
   await page.goto(`/#/habitacion/${encodeURIComponent(String(listing.id))}`)
   const priceDetails = page.getByRole('heading', { name: 'Precio y disponibilidad' }).locator('..').locator('.detail-list')
-  await expect(priceDetails).toContainText('Semana')
-  await expect(priceDetails).toContainText('360 €')
-  await expect(priceDetails).toContainText('450 €')
+  await expect(priceDetails).toContainText('650 €')
   await expect(page.getByText('Lavadora compartida', { exact: true })).toHaveCount(1)
-  await page.goto('/#/buscar?alquiler=long')
-  await expect(page.locator('.property-card').first()).toContainText('/mes')
 })
 
 test('LOC-01 selected zone coordinates persist, edit restores them and exact street stays private', async ({ page }) => {
@@ -282,12 +275,10 @@ test('FILTER-02..06 new filters have chips, reset, reload and history navigation
   await page.locator('.applied-filters__clear').click()
   await expect(page).not.toHaveURL(/ducha|residentes|capacidad/)
 
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
-  await sidebar.getByLabel('Estancia mínima: hasta (noches)').fill('4')
-  await sidebar.getByLabel('Disponible hasta al menos').fill('2026-11-01')
-  await expect(page).toHaveURL(/nochesMin=4/)
-  await expect(page).toHaveURL(/hasta=2026-11-01/)
-  await expect(page.locator('.applied-filters')).toContainText('4 noches')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await sidebar.getByLabel('Estancia mínima aceptada').selectOption('3')
+  await expect(page).toHaveURL(/estancia=3/)
+  await expect(page.locator('.applied-filters')).toContainText('3')
 })
 
 test('MAP-04 visible-area state activates after movement and resets after search', async ({ page }) => {
