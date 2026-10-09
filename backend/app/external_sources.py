@@ -438,7 +438,7 @@ def parse_price(value: str) -> tuple[int | None, str | None, str | None, bool]:
     # guard. The older regex could misread "1 200 €" as 200 EUR.
     precise = exact_euro_amount(value)
     amount = int(precise) if precise is not None else None
-    lower = re.sub(r'/\\s+', '/', value.casefold())
+    lower = re.sub(r'/\s+', '/', value.casefold())
     period = (
         "month"
         if any(x in lower for x in ("/mes", " al mes", "por mes", "mensual", "/month", "per month", "monthly"))
