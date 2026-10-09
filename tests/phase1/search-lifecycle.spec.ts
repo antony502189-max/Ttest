@@ -6,11 +6,11 @@ const cardSelector = '.m2-result-card'
 for (const count of [1, 5, 8, 15]) for (const external of [false, true]) {
   test(`${external ? 'external' : 'native'} ${count} photos preserve every URL, order, cover and wraparound`, async ({ page }) => {
     let galleryCalls = 0
-    const errors = await fixtures(page, (_, route) => route.fulfill({ json: result([card(count, id, 'holiday', external)]) }), async route => {
+    const errors = await fixtures(page, (_, route) => route.fulfill({ json: result([card(count, id, 'long', external)]) }), async route => {
       galleryCalls++
       await route.fulfill({ json: rows(count) })
     })
-    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+    await page.goto('/#/buscar?q=Tenerife&alquiler=long')
     const first = page.locator(cardSelector).first()
     for (let i = 0; i <= count; i++) {
       await expect(first.locator('.m2-result-card__counter')).toHaveText(`${i % count + 1}/${count}`)
@@ -32,7 +32,7 @@ for (const toggles of [1, 5]) {
       await gate.promise
       await route.fulfill({ json: rows(5) })
     })
-    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+    await page.goto('/#/buscar?q=Tenerife&alquiler=long')
     const first = page.locator(cardSelector).first()
     await expect(first.locator('.m2-result-card__counter')).toHaveText('1/1')
     for (let i = 0; i < toggles; i++) await first.locator('.m2-result-card__favorite').click()
@@ -46,7 +46,7 @@ for (const toggles of [1, 5]) {
 test('saved sorting legitimately starts a new generation when favorites change', async ({ page }) => {
   const searches: SearchBody[] = []
   await fixtures(page, async (body, route) => { searches.push(body); await route.fulfill({ json: result([card(5)]) }) })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday&mobileOrden=saved-new')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&mobileOrden=saved-new')
   await page.locator('.m2-result-card__favorite').click()
   await expect.poll(() => searches.length).toBe(2)
   expect(searches[1].sort).toBe('saved_new')
@@ -78,13 +78,13 @@ for (const rentalMode of ['holiday', 'long']) for (const back of ['browser', 'ap
     await expect(first.locator('.m2-result-card__counter')).toHaveText('1/5')
     await expect.poll(() => results.evaluate(el => el.scrollTop)).toBe(scroll)
     expect(searches).toHaveLength(1)
-    expect(searches[0].rentalMode).toBe(rentalMode)
+    expect(searches[0].rentalMode).toBe('long')
     expect(searches[0].query).toBe('Adeje')
     await expect(page.locator(cardSelector)).toHaveCount(20)
   })
 }
 
-for (const replacement of ['q=Arona&alquiler=holiday', 'q=Tenerife&alquiler=long', 'q=Tenerife&alquiler=holiday&mobileOrden=cheap']) {
+for (const replacement of ['q=Arona&alquiler=long', 'q=La Laguna&alquiler=long', 'q=Tenerife&alquiler=long&mobileOrden=cheap']) {
   test(`replacement ${replacement} rejects obsolete recovery with overlapping listing IDs`, async ({ page }) => {
     const gate = deferred()
     let calls = 0
@@ -94,7 +94,7 @@ for (const replacement of ['q=Arona&alquiler=holiday', 'q=Tenerife&alquiler=long
       await route.fulfill({ json: rows(8) }).catch(() => undefined)
       finished = true
     })
-    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+    await page.goto('/#/buscar?q=Tenerife&alquiler=long')
     const first = page.locator(cardSelector).first()
     await expect(first.locator('.m2-result-card__counter')).toHaveText('1/1')
     await changeSearch(page, replacement)
@@ -116,11 +116,11 @@ test('page-two recovery cannot replace a newer complete gallery; pagination uses
     if (body.cursor) return route.fulfill({ json: result([card()], null, 21) })
     await route.fulfill({ json: result(Array.from({ length: 20 }, (_, i) => card(5, `10000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`)), 'page-two', 21) })
   }, async route => { await galleryGate.promise; await route.fulfill({ json: rows(8) }).catch(() => undefined); finished = true })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator(cardSelector)).toHaveCount(20)
   await page.getByTestId('mobile-results').evaluate(el => { el.scrollTop = el.scrollHeight })
   await expect(page.locator(cardSelector)).toHaveCount(21)
-  await changeSearch(page, 'q=Arona&alquiler=holiday')
+  await changeSearch(page, 'q=Arona&alquiler=long')
   await expect(page.locator(cardSelector)).toHaveCount(1)
   await expect(page.locator('.m2-result-card__counter')).toHaveText('1/15')
   galleryGate.resolve()
@@ -139,10 +139,10 @@ test('obsolete delayed page cannot append after a new search', async ({ page }) 
     if (body.cursor) { pageRequested = true; await gate.promise; await route.fulfill({ json: result([card(5)], null, 21) }).catch(() => undefined); finished = true; return }
     await route.fulfill({ json: result(Array.from({ length: 20 }, (_, i) => card(5, `10000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`)), 'next', 21) })
   })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await page.getByTestId('mobile-results').evaluate(el => { el.scrollTop = el.scrollHeight })
   await expect.poll(() => pageRequested).toBe(true)
-  await changeSearch(page, 'q=Arona&alquiler=holiday')
+  await changeSearch(page, 'q=Arona&alquiler=long')
   await expect(page.locator(cardSelector)).toHaveCount(1)
   await expect(page.locator('.m2-result-card__counter')).toHaveText('1/15')
   gate.resolve()
@@ -159,7 +159,7 @@ for (const failure of ['503', 'abort', 'empty']) {
       if (failure === 'abort') return route.abort('failed')
       await route.fulfill(failure === '503' ? { status: 503, json: {} } : { json: [] })
     })
-    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+    await page.goto('/#/buscar?q=Tenerife&alquiler=long')
     const first = page.locator(cardSelector).first()
     await expect(first.locator('.m2-result-card__counter')).toHaveText('1/1')
     await expect(first.locator('img')).toHaveAttribute('src', new RegExp(`${urls[0]}\\?variant=card$`))
@@ -171,7 +171,7 @@ for (const failure of ['503', 'abort', 'empty']) {
 
 test('immediate recovery preserves the cover and sorts the full gallery by cover then sortOrder', async ({ page }) => {
   await fixtures(page, (_, route) => route.fulfill({ json: result() }), route => route.fulfill({ json: rows(5).reverse() }))
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   const first = page.locator(cardSelector).first()
   await expect(first.locator('.m2-result-card__counter')).toHaveText('1/5')
   for (let i = 0; i < 5; i++) {
@@ -183,7 +183,7 @@ test('immediate recovery preserves the cover and sorts the full gallery by cover
 test('a legitimate newer removal shrinks the gallery and clamps the selected index', async ({ page }) => {
   const gate = deferred()
   await fixtures(page, (_, route) => route.fulfill({ json: result([card(4)]) }), async route => { await gate.promise; await route.fulfill({ json: rows(1) }) })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   const first = page.locator(cardSelector).first()
   await expect(first.locator('.m2-result-card__counter')).toHaveText('1/4')
   for (let i = 0; i < 3; i++) await first.locator('.m2-result-card__next').click()
@@ -204,7 +204,7 @@ test('concurrent recoveries can finish in reverse order without duplicate reques
     await gates[i].promise
     await route.fulfill({ json: rows(counts[i]) })
   })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator(cardSelector)).toHaveCount(2)
   gates[1].resolve()
   await expect(page.locator('.m2-result-card__counter').nth(1)).toHaveText('1/8')
@@ -222,7 +222,7 @@ test('unmount aborts recovery and a remount starts a fresh usable generation', a
     if (calls === 1) await gate.promise
     await route.fulfill({ json: rows(calls === 1 ? 8 : 5) }).catch(() => undefined)
   })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator(cardSelector)).toHaveCount(1)
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(page.getByTestId('mobile-results')).toHaveCount(0)
@@ -236,7 +236,7 @@ for (const destination of ['map', 'favorites']) {
     const gate = deferred()
     let calls = 0
     await fixtures(page, async (_, route) => { calls++; await route.fulfill({ json: result() }) }, async route => { await gate.promise; await route.fulfill({ json: rows(5) }) })
-    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+    await page.goto('/#/buscar?q=Tenerife&alquiler=long')
     await expect(page.locator('.m2-result-card__counter')).toHaveText('1/1')
     for (let i = 0; i < 2; i++) {
       if (destination === 'map') {
@@ -260,7 +260,7 @@ test('CPU constrained mobile still renders cards before delayed recovery and pre
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
   const gate = deferred()
   await fixtures(page, (_, route) => route.fulfill({ json: result() }), async route => { await gate.promise; await route.fulfill({ json: rows(15) }) })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=holiday')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator('.m2-result-card__counter')).toHaveText('1/1')
   await page.locator('.m2-result-card__favorite').click()
   gate.resolve()
