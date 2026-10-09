@@ -172,6 +172,18 @@ test.describe('mobile history', () => {
   })
 })
 
+
+test('desktop map restores the last camera from the same browser without affecting search filters', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
+    camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+  })))
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+  await expect(map).toHaveAttribute('data-map-zoom', '11')
+  await expect(page).toHaveURL(/alquiler=long/)
+})
+
 test('desktop results → detail → browser Back restores the result route', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator('.search-page')).toBeVisible()
