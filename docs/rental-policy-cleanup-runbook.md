@@ -1,6 +1,6 @@
 # Long-term rental policy maintenance
 
-Policy: `long-eur-month-1000-v1`. The admission limit is inclusive: verified exact EUR/month rent plus fixed mandatory monthly charges must be positive and at most 1,000 EUR. Deposits are separate. Historical holiday enum/schema remain readable for rollback.
+Policy: `long-eur-month-1000-v1`. The admission limit is inclusive: verified exact EUR/month rent plus fixed mandatory monthly charges must be positive and at most 1,000 EUR. Deposits are separate. **Customer definition: a long-term listing is an offer with a verified price per month, not one with a mandatory six-month lease.** Offers priced nightly, daily, or weekly cannot be imported or published. The minimum stay or the words `temporada`, `temporal`, `vacacional`, or `holiday` do not alone determine admission: the *verified price billing unit* does. This does not authorize importing ambiguous starting prices or unverified currency/periods. Historical holiday enum/schema remain readable for rollback.
 
 ## Review and authorization
 
