@@ -172,7 +172,23 @@ def rental_price(data: dict[str, Any], source_name: str, amount: int | None, per
         r"\b(?:larga estancia|larga duracion|larga temporada|residencial|curso academico|academic year)\b", corpus)
     seasonal = structured in {"temporada", "temporary", "seasonal"} or re.search(
         r"\b(?:temporada|temporary|seasonal)\b", corpus)
-    if mode == "long" and (holiday_evidence or (seasonal and not residential_evidence)):
+    # A fixed-term residential room is not automatically tourist accommodation.
+    # However a bare "alquiler temporal" or merely monthly rate is NOT enough:
+    # require the provider to state a concrete 6+ month residential tenancy.
+    # These patterns match duration facts, not incidental numbers or deposits.
+    tenure = folded(str(data.get("description") or ""))
+    duration = re.search(
+        r"\\b(?:alquiler\\s+de|duracion\\s+minima\\s+del\\s+alquiler\\s*:?|"
+        r"estancia\\s+minima\\s*(?:de)?\\s*:?|contrato\\s+de)\\s*"
+        r"(\\d{1,2})\\s*(?:a\\s*\\d{1,2}\\s*)?meses?\\b",
+        tenure,
+    )
+    verified_residential_term = (
+        period == "month" and duration is not None and 6 <= int(duration.group(1)) <= 36
+        and not holiday_evidence
+    )
+    if mode == "long" and (holiday_evidence or (seasonal and not residential_evidence
+                                               and not verified_residential_term)):
         return None
     if mode == "long" and period == "month":
         return RentalPrice(mode, amount, period)
