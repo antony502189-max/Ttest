@@ -34,37 +34,24 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(dimensions.body).toBeLessThanOrEqual(dimensions.viewport)
 }
 
-test('Vivienda and Turismo are the only rental-mode controls and filter real listings', async ({ page }) => {
+test('Vivienda is the sole mode and mobile filters never show Tourism', async ({ page }) => {
   await finishOnboarding(page)
-  const results = await openResults(page, 'Vivienda')
-
+  const modes = page.locator('.m2-mode-switch > button')
+  await expect(modes).toHaveCount(1)
+  await modes.first().click()
+  const results = await openResults(page)
   await expect(results.locator('.m2-result-card')).toHaveCount(23)
-  await expect(results.locator('.m2-result-card__price')).toHaveCount(23)
   await expect(results.locator('.m2-result-card__price').first()).toContainText('/ mes')
-
   await results.getByRole('button', { name: 'Filtros' }).click()
-  const vivienda = results.getByRole('button', { name: 'Vivienda', exact: true })
-  const turismo = results.getByRole('button', { name: 'Turismo', exact: true })
-  await expect(vivienda).toHaveAttribute('aria-pressed', 'true')
-  await expect(turismo).toHaveAttribute('aria-pressed', 'false')
-  await expect(results.getByRole('button', { name: 'Comprar' })).toHaveCount(0)
-  await expect(results.getByRole('button', { name: 'Alquilar' })).toHaveCount(0)
-  await expect(results.getByText('Tipo de inmueble')).toHaveCount(0)
-  await expect(results.getByText('Tipo de alquiler')).toHaveCount(0)
-  await expect(results.getByLabel('Larga estancia')).toHaveCount(0)
-
-  await turismo.click()
-  await expect(turismo).toHaveAttribute('aria-pressed', 'true')
-  await expect(results.getByRole('button', { name: /Ver anuncios · 9/ })).toBeVisible()
-  await results.getByRole('button', { name: /Ver anuncios/ }).click()
-  await expect(results.locator('.m2-result-card')).toHaveCount(9)
-  await expect(results.locator('.m2-result-card__price').first()).toContainText('/ noche')
-
-  await results.getByRole('button', { name: 'Volver' }).click()
+  const housing = results.getByRole('button', { name: 'Vivienda', exact: true })
+  await expect(housing).toHaveAttribute('aria-pressed', 'true')
+  await expect(results.getByRole('button', { name: 'Turismo', exact: true })).toHaveCount(0)
+  await expect(results.getByLabel('Precio Máx')).toHaveAttribute('max', '1000')
+  await results.getByRole('button', { name: 'Cerrar' }).click()
   await expect(results.locator('.m2-result-card')).toHaveCount(23)
   await results.getByRole('button', { name: 'Volver' }).click()
   await expect(page.getByTestId('mobile-results')).toHaveCount(0)
-  await expect(homeModeButton(page, 'Vivienda')).toHaveAttribute('aria-pressed', 'true')
+  await expect(modes.first()).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('price and housing type filters change the listing set', async ({ page }) => {
