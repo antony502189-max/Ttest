@@ -1,5 +1,6 @@
-from pathlib import Path
 import re
+from pathlib import Path
+
 from app.services.rental_policy import MAX_MONTHLY_RENT_EUR, POLICY_VERSION
 
 
