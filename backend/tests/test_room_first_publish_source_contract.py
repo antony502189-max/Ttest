@@ -18,15 +18,15 @@ def test_publish_room_first_fields_keep_stable_accessible_contracts():
         'aria-label="Personas que viven en casa"',
         'aria-label="Capacidad de la habitación"',
         'aria-label="Alquiler mensual"',
-        'aria-label="Precio por noche"',
-        'aria-label="Precio por semana"',
-        'aria-label="Precio por mes"',
         'label="Requisito para la persona inquilina"',
         'label="Personas que ya viven en esta habitación"',
         'label="Número de camas"',
         'label="Aseo / WC"',
     ):
         assert contract in PUBLISH_SOURCE
+    assert 'aria-label="Precio por noche"' not in PUBLISH_SOURCE
+    assert 'aria-label="Precio por semana"' not in PUBLISH_SOURCE
+    assert 'aria-label="Precio por mes"' not in PUBLISH_SOURCE
 
 
 def test_publish_capacity_changes_keep_beds_and_occupancy_coherent():
