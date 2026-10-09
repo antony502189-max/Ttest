@@ -94,6 +94,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { getMunicipalityLabel } from "@/lib/map/zones";
 import { MediaImage, preloadMediaImages } from "@/components/media-image";
+import { useCardGalleryFailover } from "@/hooks/use-card-gallery-failover";
 import {
   amenityOptions,
   areas,
@@ -529,7 +530,8 @@ export function PropertyCard({
   const { discardListing } = useApp();
   const { t, locale } = useI18n();
   const markRecentlyViewed = useRecentlyViewedTracker();
-  const [selectedImageIndex, setImageIndex] = useState(0);
+  const { images: cardImages, imageIndex, imageSrc, nextImage, previousImage, onImageError } =
+    useCardGalleryFailover(listing.id, listing.images, fallbackImage);
   const availability = listing.availableFrom ? t(`Disponible desde ${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${listing.availableFrom}T12:00:00`))}`) : t(listing.available);
   const share = async () => {
     const url = `${location.origin}${location.pathname}#/habitacion/${listing.id}`;
@@ -545,9 +547,6 @@ export function PropertyCard({
   };
   const criticalRestrictions = getCriticalRestrictions(listing);
   const visibleRestrictions = criticalRestrictions.slice(0, compact ? 2 : 3);
-  const cardImages = listing.images.length ? listing.images : [fallbackImage];
-  const imageIndex = Math.min(selectedImageIndex, cardImages.length - 1);
-  if (imageIndex !== selectedImageIndex) setImageIndex(imageIndex);
   return (
     <article
       className={cn(
@@ -562,9 +561,9 @@ export function PropertyCard({
       <div className="property-card__media">
         <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`} onOpen={() => markRecentlyViewed(listing.id)}>
           <MediaImage
-            src={cardImages[imageIndex] || fallbackImage}
+            src={imageSrc}
             variant="card"
-            onError={imageFallback}
+            onError={onImageError}
             alt={`Habitación en ${listing.area}, foto ${imageIndex + 1} de ${cardImages.length}`}
             width="720"
             height="480"
@@ -574,12 +573,7 @@ export function PropertyCard({
         {cardImages.length > 1 ? <button
           type="button"
           className="card-gallery-arrow card-gallery-arrow--previous"
-          onClick={() =>
-            setImageIndex(
-              (current) =>
-                (current - 1 + cardImages.length) % cardImages.length,
-            )
-          }
+          onClick={previousImage}
           aria-label={`Foto anterior de ${listing.title}`}
         >
           <ChevronLeft />
@@ -587,9 +581,7 @@ export function PropertyCard({
         {cardImages.length > 1 ? <button
           type="button"
           className="card-gallery-arrow card-gallery-arrow--next"
-          onClick={() =>
-            setImageIndex((current) => (current + 1) % cardImages.length)
-          }
+          onClick={nextImage}
           aria-label={`Foto siguiente de ${listing.title}`}
         >
           <ChevronRight />
