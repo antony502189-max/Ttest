@@ -36,6 +36,10 @@ def exact_euro_amount(text: str) -> Decimal | None:
         return None
 
 def imported_price_allowed(item) -> bool:
+    if item.rental_mode == "long" and getattr(item, "price_is_from", False):
+        # A starting price does not guarantee that the actual monthly rent
+        # is at or below the inclusive policy ceiling.
+        return False
     if not long_term_price_allowed(item.rental_mode, item.price_amount):
         return False
     exact = exact_euro_amount(item.source_price_text)
