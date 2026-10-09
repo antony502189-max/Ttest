@@ -1460,6 +1460,8 @@ class ExternalListingSource(ABC):
         price = rental_price(data, self.name, amount, period)
         if price is None or currency != "EUR":
             return None
+        if price.mode == "long" and price_is_from:
+            return None
         if not long_term_price_allowed(price.mode, price.amount) or (
             price.mode == "long"
             and not long_term_price_allowed("long", exact_euro_amount(str(data.get("price_text", ""))))
