@@ -15,7 +15,7 @@ test('P0 current mobile home preserves the locked APK hierarchy and links all fo
   await page.goto('/#/')
   await settle(page)
   await expect(page.locator('.m2-home')).toBeVisible()
-  await expect(page.locator('.m2-mode-switch button')).toHaveCount(2)
+  await expect(page.locator('.m2-mode-switch button')).toHaveCount(1)
   await expect(page.locator('.m2-occupant-trigger')).toBeVisible()
   await expect(page.locator('.m2-select-row')).toBeVisible()
   await expect(page.getByTestId('open-location')).toBeVisible()
