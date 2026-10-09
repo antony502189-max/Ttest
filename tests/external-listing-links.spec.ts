@@ -8,7 +8,7 @@ const externalListing = {
   images: ['https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=800&q=80'],
   publishedAt: '2026-07-30T12:00:00.000Z', expiresAt: '2099-12-31', coordinates: { lat: 28.1227, lng: -16.7244 },
   isExternal: true, primarySource: 'Idealista', sourceUrl: 'https://www.idealista.com/inmueble/123456/', status: 'Publicado',
-  sourcePriceText: '710 €/mes', contactPhone: '+34 612 345 678', contactWhatsapp: '+34 612 345 678',
+  sourcePriceText: '710 €/mes', sourcePriceCurrency: 'EUR', sourcePricePeriod: 'month', sourcePriceIsFrom: false, contactPhone: '+34 612 345 678', contactWhatsapp: '+34 612 345 678',
   contactEmail: 'owner@example.test', roomSizeM2: 12, showPhone: true, showWhatsApp: true,
 }
 
