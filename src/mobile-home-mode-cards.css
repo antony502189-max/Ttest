@@ -12,6 +12,10 @@
     background: transparent;
   }
 
+  .m2-mode-switch > button:only-child {
+    grid-column: 1 / -1;
+  }
+
   .m2-mode-switch > button {
     position: relative;
     width: 100%;
@@ -38,7 +42,7 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  .m2-mode-switch > button:last-child {
+  .m2-mode-switch > button:last-child:not(:first-child) {
     border-color: #c60083;
     background: linear-gradient(145deg, #fff5fb 0%, #fbe8f3 100%);
   }
@@ -59,7 +63,7 @@
     box-shadow: 0 .42rem .9rem rgb(38 73 0 / .20), inset 0 0 0 4px #74b900;
   }
 
-  .m2-mode-switch > button:last-child.is-active {
+  .m2-mode-switch > button:last-child:not(:first-child).is-active {
     border-color: #c60083;
     background: linear-gradient(145deg, #fff5fb 0%, #f9dceb 100%);
     box-shadow: 0 .42rem .9rem rgb(98 0 65 / .20), inset 0 0 0 4px #c60083;
@@ -89,7 +93,7 @@
     line-height: 1;
   }
 
-  .m2-mode-switch > button:last-child.is-active::after {
+  .m2-mode-switch > button:last-child:not(:first-child).is-active::after {
     background: #c60083;
   }
 
