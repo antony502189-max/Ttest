@@ -118,6 +118,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const programmaticMoveRef = useRef(true)
   const fittedResultsRef = useRef(false)
   const skipNextResultsFitRef = useRef(false)
+  const preserveRestoredCameraRef = useRef(false)
   const manualMovePendingRef = useRef(false)
   const lastSearchedBoundsRef = useRef<MapBounds | null>(null)
   const previousFitResultsKeyRef = useRef(fitResultsKey)
@@ -326,7 +327,10 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       mapRef.current = map
       initializedMap = map
       // Prevent initial marker fitting from resetting an existing camera.
-      if (previousCamera) skipNextResultsFitRef.current = true
+      if (previousCamera) {
+        skipNextResultsFitRef.current = true
+        preserveRestoredCameraRef.current = true
+      }
       listeners.push(google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         if (containerRef.current) containerRef.current.dataset.mapInstance = 'google-ready'
       }))
@@ -477,7 +481,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       })
     if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })
     clusterRef.current = cluster
-    if (itemsRef.current.length && !skipNextResultsFitRef.current) {
+    if (itemsRef.current.length && !skipNextResultsFitRef.current && !preserveRestoredCameraRef.current) {
       programmaticMoveRef.current = true
       fitListings(map, itemsRef.current)
       google.maps.event.addListenerOnce(map, 'idle', () => {
@@ -554,6 +558,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     previousFitResultsKeyRef.current = fitResultsKey
     const map = mapRef.current
     if (previous === fitResultsKey || !map || !itemsRef.current.length) return
+    preserveRestoredCameraRef.current = false
     programmaticMoveRef.current = true
     setBoundsDirty(false)
     fitListings(map, itemsRef.current)
