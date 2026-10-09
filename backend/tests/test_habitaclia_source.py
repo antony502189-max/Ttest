@@ -19,7 +19,11 @@ def test_public_uuid_detail_uses_primary_structured_unit_and_preserves_legacy_id
         assert not source.is_listing_url(url.replace("habitaclia.com", "evil.test"))
         parsed = source.parse_listing(document, url)
         assert parsed["property_type"] == "flat" and parsed["bedroom_count"] == 1
-        item = source.normalize_listing(parsed, url)
+        # The historical real-world fixture is EUR 1,160: reject it without
+        # losing tests of the parsed ID, location and media for eligible offers.
+        assert parsed["price_text"] == "1.160 €/mes"
+        assert source.normalize_listing(parsed, url) is None
+        item = source.normalize_listing({**parsed, "price_text": "950 €/mes"}, url)
         assert item and (item.city, item.province, item.external_id, item.rental_mode) == (
             "Adeje",
             "Santa Cruz de Tenerife",
@@ -67,7 +71,7 @@ def room_document() -> str:
     </script></head><body>
       <h1>Alquiler piso. Se alquila habitación en La Laguna</h1>
       <div class="description">Se alquila habitación amueblada para una persona, disponible para larga estancia.</div>
-      <strong>530 €</strong>
+      <strong>530 €/mes</strong>
     </body></html>
     """
 
@@ -84,7 +88,7 @@ def studio_document() -> str:
     </script></head><body>
       <h1>Estudio amueblado en Puerto de la Cruz</h1>
       <div class="description">Estudio completo con cocina y baño, disponible para alquiler de larga estancia.</div>
-      <strong>650 €</strong>
+      <strong>650 €/mes</strong>
     </body></html>
     """
 
@@ -142,7 +146,7 @@ def el_medano_location_document() -> str:
       <div>Zona El Médano</div>
       <h1>Apartamento de una habitación en alquiler en El Médano</h1>
       <div class="description">Apartamento completo de una habitación para alquiler de larga estancia.</div>
-      <strong>1.100 €/mes</strong>
+      <strong>950 €/mes</strong>
       <section>
         <h2>Ubicación</h2>
         <h4>El Médano Avenida JOSE MIGUEL GALVAN BELLO</h4>
@@ -173,7 +177,7 @@ def hydration_image_document() -> str:
     </head><body>
       <h1>Apartamento con ascensor en alquiler en Los Sabandeños</h1>
       <div class="description">Apartamento completo de una habitación para alquiler de larga estancia.</div>
-      <strong>1.250 €</strong>
+      <strong>950 €/mes</strong>
     </body></html>
     """
 
