@@ -12,7 +12,8 @@ import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
-import { FIRST_MAP_VIEWPORT, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
+import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
+import { resolveTenerifeLocation } from '@/lib/tenerife'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
@@ -301,8 +302,15 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const previousCamera = readLastMapViewport()
-      // Return to the last map position, otherwise show Spain + Tenerife.
-      const startingCamera = previousCamera ?? FIRST_MAP_VIEWPORT
+      const hash = window.location.hash
+      const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
+      const deepLinkCamera = mapViewportFromParams(routeParams)
+      const location = resolveTenerifeLocation(routeParams.get('q') ?? '')
+      const namedCamera = location?.type !== 'island' && location?.coordinates
+        ? { ...location.coordinates, zoom: 12 } : null
+      // An explicit bookmarked camera or new location search outranks the
+      // previously visited area. Only generic searches restore history.
+      const startingCamera = deepLinkCamera ?? namedCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
       const map = new maps.Map(containerRef.current, {
         center: { lat: startingCamera.lat, lng: startingCamera.lng },
         zoom: startingCamera.zoom,
@@ -327,6 +335,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       map.setZoom(startingCamera.zoom)
       containerRef.current.dataset.mapCenter = `${startingCamera.lat.toFixed(6)},${startingCamera.lng.toFixed(6)}`
       containerRef.current.dataset.mapZoom = String(startingCamera.zoom)
+      rememberMapViewport(startingCamera)
       // The first-visit Atlantic overview and any restored camera are both
       // explicit initial views. Do not immediately replace either with an
       // automatic fit to currently loaded Tenerife listings.
