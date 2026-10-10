@@ -67,15 +67,6 @@ function resultCoordinates(result: google.maps.GeocoderResult): Coordinates | nu
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
 }
 
-function resultAreaCandidates(result: google.maps.GeocoderResult) {
-  return [
-    component(result, 'sublocality_level_1'),
-    component(result, 'sublocality'),
-    component(result, 'neighborhood'),
-    component(result, 'locality'),
-  ].filter(Boolean)
-}
-
 function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: string): ParsedAddressInput {
   const raw = rawStreet.trim().replace(/\s*\n+\s*/g, ', ')
   const embeddedPostcode = raw.match(/\b\d{5}\b/)?.[0] ?? ''
@@ -132,16 +123,10 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
   const municipalityMatches = !city
     || !resolvedMunicipality
     || normalizeTenerifeText(resolvedMunicipality) === normalizeTenerifeText(city)
-  if (!municipalityMatches) {
-    // Exact route + building number is enough to let Google correct stale/default
-    // municipality and area values. A postcode explicitly entered by the user
-    // is still enforced above.
-    if (wantedNumber) return true
-    const normalizedArea = normalizeTenerifeText(area)
-    const areaMatches = Boolean(normalizedArea) && resultAreaCandidates(result)
-      .some((candidate) => normalizeTenerifeText(candidate) === normalizedArea)
-    if (!areaMatches && !hasFullPostcode) return false
-  }
+  // 'city' is only supplied when the host explicitly chose the municipality.
+  // A matching house number/postcode must never override that choice: repeated
+  // street names occur across Tenerife municipalities.
+  if (!municipalityMatches) return false
 
   return true
 }
