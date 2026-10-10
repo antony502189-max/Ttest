@@ -38,7 +38,12 @@ function isUploadPreviewReference(source?: string) {
   if (!source || isMediaReference(source)) return false
   try {
     const url = new URL(source, window.location.origin)
-    return /^\/api\/v1\/media\/[0-9a-f-]{36}$/i.test(url.pathname)
+    const match = url.pathname.match(/^\/api\/v1\/media\/([0-9a-f-]{36})$/i)
+    if (!match) return false
+    // Never send an owner bearer token to a URL on an unrelated origin,
+    // even if an external URL happens to mimic the media path.
+    const trusted = new URL(resolveApiUrl(`/media/${match[1]}`))
+    return url.origin === trusted.origin && url.pathname === trusted.pathname
       && url.searchParams.get('uploadPreview') === '1'
   } catch {
     return false
