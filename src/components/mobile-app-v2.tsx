@@ -748,9 +748,13 @@ export function MobileAppV2() {
   const onMapRoute = location.pathname === '/buscar' && new URLSearchParams(location.search).get('vista') === 'mapa'
   if (onMapRoute && !mapEntryRef.current.active) {
     mapEntryRef.current.returnedInApp = mapOpenedInCurrentDocument
-    mapOpenedInCurrentDocument = true
   }
   mapEntryRef.current.active = onMapRoute
+  // Commit only after React mounts the route. StrictMode may render the tree
+  // twice before effects run; a speculative render must not start a session.
+  useEffect(() => {
+    if (onMapRoute) mapOpenedInCurrentDocument = true
+  }, [onMapRoute])
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
