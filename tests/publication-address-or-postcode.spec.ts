@@ -82,7 +82,7 @@ test('postcode-only result without a distinct locality replaces the stale draft 
   await expect(page.getByRole('heading', { name: 'Habitación y vivienda' })).toBeVisible()
 })
 
-test('an exact typed address ignores untouched draft postcode and falls back without stale municipality or area context', async ({ page }) => {
+test('typed address cannot override an explicitly chosen municipality and resolves after correcting it', async ({ page }) => {
   await openPublishLocation(page)
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
@@ -136,6 +136,16 @@ test('an exact typed address ignores untouched draft postcode and falls back wit
   await expect.poll(() => page.evaluate(() => (window as Window & { __addressOrPostcodeQueries?: string[] }).__addressOrPostcodeQueries ?? [])).toContain(
     'Avenida Siam 3, Tenerife, Spain',
   )
+  // A short street and house number may exist in several municipalities.
+  // Do not silently override the owner's explicit municipality selection.
+  await expect(page.getByLabel('Municipio')).toHaveValue('Santa Cruz de Tenerife')
+  await expect(page.locator('.listing-edit-location-pending')).toBeVisible()
+
+  // After the owner corrects the municipality, geocoding may establish the
+  // intended building without using the untouched draft postcode.
+  await page.getByLabel('Municipio').selectOption('Adeje')
+  await expect(page.locator('#publish-street')).toHaveValue('')
+  await page.locator('#publish-street').fill('Avenida Siam 3')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
