@@ -358,26 +358,52 @@ test('search and map bookmarks survive reload', async ({ page }) => {
 })
 
 
-test('300 km recall uses a wider zoom on a desktop than a phone and keeps circle inside both', async ({ page }) => {
+test('300 km recall fits the circle edge-to-edge without an extra zoom-out margin', async ({ page }) => {
   await page.goto('/#/')
   const result = await page.evaluate(async () => {
     const { viewportForRememberedArea, MAP_RECALL_RADIUS_KM } = await import('/src/lib/map-visit-history.ts')
-    const center = { lat: 28.12, lng: -16.72 }
-    const mobile = viewportForRememberedArea(center, 350, 600)
-    const desktop = viewportForRememberedArea(center, 1000, 720)
     const radius = MAP_RECALL_RADIUS_KM / 6371.0088
-    const phi = center.lat * Math.PI / 180
     const latDelta = radius * 180 / Math.PI
-    const lngDelta = Math.asin(Math.sin(radius) / Math.cos(phi)) * 180 / Math.PI
     const y = (lat: number) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2
-    const fits = (camera: { zoom: number }, width: number, height: number) =>
-      256 * (2 * lngDelta / 360) * 2 ** camera.zoom < width * .8
-      && 256 * (y(center.lat - latDelta) - y(center.lat + latDelta)) * 2 ** camera.zoom < height * .8
-    return { mobile, desktop, fitsMobile: fits(mobile, 350, 600), fitsDesktop: fits(desktop, 1000, 720) }
+    return [
+      { center: { lat: 28.12, lng: -16.72 }, width: 390, height: 844 }, // Tenerife, mobile
+      { center: { lat: 28.1, lng: -15.59 }, width: 390, height: 844 }, // Gran Canaria, mobile
+      { center: { lat: 40.07, lng: -2.13 }, width: 390, height: 844 }, // Cuenca, mobile
+      { center: { lat: 28.12, lng: -16.72 }, width: 1000, height: 720 }, // desktop
+      { center: { lat: 40.07, lng: -2.13 }, width: 1000, height: 720 },
+      { center: { lat: 28.12, lng: -16.72 }, width: 844, height: 390 }, // landscape
+    ].map(({ center, width, height }) => {
+      const camera = viewportForRememberedArea(center, width, height)
+      const longitudeDelta = Math.asin(Math.sin(radius) / Math.cos(center.lat * Math.PI / 180)) * 180 / Math.PI
+      const diameterWidth = 256 * 2 ** camera.zoom * (2 * longitudeDelta / 360)
+      const diameterHeight = 256 * 2 ** camera.zoom * (y(center.lat - latDelta) - y(center.lat + latDelta))
+      const extent = Math.max(diameterWidth / width, diameterHeight / height)
+      return { camera, extent, width, height }
+    })
   })
-  expect(result.mobile.lat).toBe(28.12)
-  expect(result.desktop.lat).toBe(28.12)
-  expect(result.mobile.zoom).toBeLessThan(result.desktop.zoom)
-  expect(result.fitsMobile).toBe(true)
-  expect(result.fitsDesktop).toBe(true)
+  for (const { camera, extent } of result) {
+    expect(camera.zoom).toBeGreaterThan(2)
+    // At least one axis is filled exactly; the 300 km circle still fits both.
+    expect(extent).toBeGreaterThan(0.9999)
+    expect(extent).toBeLessThanOrEqual(1.000001)
+  }
+  expect(result[0].camera.zoom).toBeLessThan(result[3].camera.zoom)
+})
+
+test('mobile 300 km return uses the full map canvas rather than the old reduced dimensions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
+      center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
+    }))
+  })
+  await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+  const map = page.getByTestId('google-map')
+  await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+  const expectedZoom = await page.evaluate(async () => {
+    const { viewportForRememberedArea } = await import('/src/lib/map-visit-history.ts')
+    return viewportForRememberedArea({ lat: 28.12, lng: -16.72 }, 390, 844).zoom
+  })
+  await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeCloseTo(expectedZoom, 5)
 })

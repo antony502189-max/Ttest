@@ -824,7 +824,7 @@ export function MobileAppV2() {
   const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
   const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasActivePolygon ? undefined
     : namedLocation ? { ...namedLocation, zoom: 12 }
-      : readLastMapViewport(Math.max(240, window.innerWidth - 40), Math.max(240, window.innerHeight - 240)) ?? FIRST_MAP_VIEWPORT)
+      : readLastMapViewport(window.innerWidth, window.innerHeight) ?? FIRST_MAP_VIEWPORT)
   const nearbyCameraCenter = hasNearbyCoordinates
     ? { lat: Number(cameraParams.get('lat')), lng: Number(cameraParams.get('lng')) }
     : undefined
