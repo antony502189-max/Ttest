@@ -328,11 +328,11 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       map.setZoom(startingCamera.zoom)
       containerRef.current.dataset.mapCenter = `${startingCamera.lat.toFixed(6)},${startingCamera.lng.toFixed(6)}`
       containerRef.current.dataset.mapZoom = String(startingCamera.zoom)
-      // Prevent initial marker fitting from resetting an existing camera.
-      if (previousCamera) {
-        skipNextResultsFitRef.current = true
-        preserveRestoredCameraRef.current = true
-      }
+      // The first-visit Atlantic overview and any restored camera are both
+      // explicit initial views. Do not immediately replace either with an
+      // automatic fit to currently loaded Tenerife listings.
+      skipNextResultsFitRef.current = true
+      preserveRestoredCameraRef.current = true
       listeners.push(google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         if (containerRef.current) containerRef.current.dataset.mapInstance = 'google-ready'
       }))
@@ -376,13 +376,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       setMapError('')
       google.maps.event.addListenerOnce(map, 'idle', updateBounds)
       listeners.push(google.maps.event.addListenerOnce(map, 'idle', () => {
-        if (cancelled || !itemsRef.current.length || previousCamera) return
-        programmaticMoveRef.current = true
-        fitListings(map, itemsRef.current)
-        google.maps.event.addListenerOnce(map, 'idle', () => {
-          fittedResultsRef.current = true
-          programmaticMoveRef.current = false
-        })
+        if (cancelled) return
+        fittedResultsRef.current = true
+        programmaticMoveRef.current = false
       }))
     }).catch((error) => {
       window.clearTimeout(loadTimeout)
