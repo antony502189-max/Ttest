@@ -333,6 +333,10 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         const { initialCenter: center, initialCamera: camera } = startingView.current
         const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? FIRST_MAP_VIEWPORT, zoom: camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 2, maxZoom: 19 })
         const startingCenter = camera ?? center ?? FIRST_MAP_VIEWPORT
+        let lastSettledCamera: MapCamera = {
+          lat: startingCenter.lat, lng: startingCenter.lng,
+          zoom: camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom),
+        }
         // Apply the camera to the map instance as well as its UI metadata.
         // The lightweight test Maps SDK does not honor constructor options.
         map.setCenter({ lat: startingCenter.lat, lng: startingCenter.lng })
@@ -363,7 +367,12 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
           if (!point || zoom === undefined) return
           map.getDiv().dataset.mapCenter = `${point.lat().toFixed(6)},${point.lng().toFixed(6)}`
           map.getDiv().dataset.mapZoom = String(zoom)
-          cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom }, userHasExploredMap)
+          const settledCamera = { lat: point.lat(), lng: point.lng(), zoom }
+          const genuinelyMoved = Math.abs(lastSettledCamera.lat - settledCamera.lat) > 0.000001
+            || Math.abs(lastSettledCamera.lng - settledCamera.lng) > 0.000001
+            || Math.abs(lastSettledCamera.zoom - zoom) > 0.001
+          lastSettledCamera = settledCamera
+          cameraChange.current(settledCamera, userHasExploredMap && genuinelyMoved)
         })
         google.maps.event.addListenerOnce(map, 'tilesloaded', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
       } catch (error) {
@@ -556,6 +565,7 @@ function MapScreen({ mode, language, t, query, initialCenter, initialCamera, pol
     const bounds = { north: northEast.lat(), south: southWest.lat(), east: northEast.lng(), west: southWest.lng() }
     if (!validMapSearchBounds(bounds)) return
     setSearchAreaDirty(false)
+    setSaved(false)
     onConfirmNewArea?.(bounds)
   }
   const showUserMarker = async (coordinates: MapPoint) => {
