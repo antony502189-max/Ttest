@@ -12,7 +12,7 @@ import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters } from '@/data/listings'
 import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
-import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
+import { filtersFromParams, getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import { mapViewportFromParams, searchBoundsFromParams, validMapSearchBounds, validMapViewport, type MapSearchBounds, type MapViewport } from '@/lib/map-visit-history'
 import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
@@ -598,21 +598,26 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     const bounds = searchBoundsFromParams(routeParams) ?? undefined
     const camera = mapViewportFromParams(routeParams) ?? undefined
     const savedQuery = routeParams.get('q')?.trim() || query
+    // The current search URL is authoritative. Mobile route navigation can
+    // change rental mode/filters before the app-context state catches up.
+    const savedRentalMode: RentalMode = routeParams.get('alquiler') === 'holiday'
+      ? 'holiday' : routeParams.get('alquiler') === 'long' ? 'long' : rentalMode
+    const savedFilters = hash.startsWith('#/buscar') ? filtersFromParams(routeParams) : filters
     updateScope(setSavedSearchScopes, (current) => {
       const searches = current ?? []
-      const duplicate = searches.some((item) => item.query === savedQuery && item.rentalMode === rentalMode
-        && JSON.stringify(item.filters) === JSON.stringify(filters)
+      const duplicate = searches.some((item) => item.query === savedQuery && item.rentalMode === savedRentalMode
+        && JSON.stringify(item.filters) === JSON.stringify(savedFilters)
         && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon)
         && JSON.stringify(item.bounds) === JSON.stringify(bounds))
       if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
       const optimistic: SavedSearch = {
-        id: `search-${Date.now()}`, query: savedQuery, rentalMode, filters: { ...filters },
+        id: `search-${Date.now()}`, query: savedQuery, rentalMode: savedRentalMode, filters: { ...savedFilters },
         alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon, bounds, camera,
       }
       if (currentUserId) {
         void createSavedSearch({
-          name: savedQuery, query: savedQuery, rentalMode,
-          filters: { ...filters, ...(bounds ? { __mapBounds: bounds } : {}), ...(camera ? { __mapCamera: camera } : {}) },
+          name: savedQuery, query: savedQuery, rentalMode: savedRentalMode,
+          filters: { ...savedFilters, ...(bounds ? { __mapBounds: bounds } : {}), ...(camera ? { __mapCamera: camera } : {}) },
           polygon: mapPolygon, alertsEnabled: true,
         }).then((saved) => {
           updateScope(setSavedSearchScopes, (latest) => (latest ?? []).map((item) => item.id === optimistic.id
