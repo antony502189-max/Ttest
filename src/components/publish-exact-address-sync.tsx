@@ -274,7 +274,7 @@ export function PublishExactAddressSync() {
           if (cancelled || !gate.isCurrent(version)) return
           result = postcodeOnly
             ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
-            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area, /\b\d+[A-Za-z]?\s*[.,;]\s*[^\d\s]/u.test(parsed.raw)))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area, /\b\d+[A-Za-z]?\s*[.,;]\s*(?:\d{5}\s+)?[^\d\s]/u.test(parsed.raw)))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
