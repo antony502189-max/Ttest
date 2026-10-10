@@ -42,6 +42,8 @@ import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { filtersToParams } from '@/lib/search'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
+import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport, type MapViewport } from '@/lib/map-visit-history'
+import { resolveTenerifeLocation } from '@/lib/tenerife'
 import type { Listing } from '@/types'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
@@ -55,7 +57,7 @@ type OccupantOption = 'anyone' | 'man' | 'woman' | 'person' | 'couple' | 'unrest
 type MapStatus = 'loading' | 'ready' | 'error'
 type LocationStatus = 'idle' | 'loading' | 'success' | GeolocationFailure | 'empty'
 type MapPoint = { lat: number; lng: number }
-type MapCamera = MapPoint & { zoom: number }
+type MapCamera = MapViewport
 type DrawingStroke = { pointerId: number; lastX: number; lastY: number; points: MapPoint[] }
 type MapInteractionState = {
   gestureHandling: google.maps.MapOptions['gestureHandling']
@@ -70,8 +72,6 @@ const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileMapListingsLayer })))
 const CommercialAdvertisementPlacement = lazy(() => import('@/components/commercial-advertisement-placement').then((module) => ({ default: module.CommercialAdvertisementPlacement })))
 const MobileServerMapLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileServerMapLayer })))
-const TENERIFE_CENTER = { lat: 28.2916, lng: -16.6291 }
-const MOBILE_TENERIFE_OVERVIEW_ZOOM = 10
 const GENERAL_OCCUPANTS = new Set<OccupantOption>(['anyone', 'unrestricted'])
 
 const languages: Array<{ value: AppLanguage; label: string }> = [
@@ -330,7 +330,12 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         if (cancelled || !containerRef.current) return
         const mapId = googleMapsConfig.mapId
         const { initialCenter: center, initialCamera: camera } = startingView.current
-        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? TENERIFE_CENTER, zoom: camera?.zoom ?? (center ? 14 : MOBILE_TENERIFE_OVERVIEW_ZOOM), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: mockMode ? 8 : 2, maxZoom: 19, restriction: mockMode ? { latLngBounds: { north: 29.2, south: 27.1, east: -15.3, west: -18.2 }, strictBounds: false } : undefined })
+        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? FIRST_MAP_VIEWPORT, zoom: camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 2, maxZoom: 19 })
+        const startingCenter = camera ?? center ?? FIRST_MAP_VIEWPORT
+        // Apply the camera to the map instance as well as its UI metadata.
+        // The lightweight test Maps SDK does not honor constructor options.
+        map.setCenter({ lat: startingCenter.lat, lng: startingCenter.lng })
+        map.setZoom(camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom))
         mapRef.current = map
         if (camera) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
@@ -703,6 +708,7 @@ export function MobileAppV2() {
   const navigate = useNavigate()
   const routeSearchRef = useRef(location.search)
   const pendingRouteSearchRef = useRef<string | null>(null)
+  const latestPendingCameraRef = useRef<{ camera: MapCamera; query: string | null } | null>(null)
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
@@ -757,13 +763,21 @@ export function MobileAppV2() {
     polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
   }), [filters, mapPolygon, mapQuery, query, rentalMode])
   const cameraParams = new URLSearchParams(location.search)
-  const cameraLat = Number(cameraParams.get('mapLat'))
-  const cameraLng = Number(cameraParams.get('mapLng'))
-  const cameraZoom = Number(cameraParams.get('mapZoom'))
-  const mapCamera = cameraParams.has('mapLat') && cameraParams.has('mapLng') && cameraParams.has('mapZoom')
-    && Number.isFinite(cameraLat) && Number.isFinite(cameraLng) && Number.isFinite(cameraZoom)
-    && cameraLat >= -90 && cameraLat <= 90 && cameraLng >= -180 && cameraLng <= 180 && cameraZoom >= 8 && cameraZoom <= 19
-    ? { lat: cameraLat, lng: cameraLng, zoom: cameraZoom } : undefined
+  // Explicit deep links and a new city search outrank previous map history.
+  // "Tenerife" is the generic search label, not a newly selected municipality.
+  const explicitCamera = mapViewportFromParams(cameraParams)
+  const hasNearbyCoordinates = cameraParams.has('lat') && cameraParams.has('lng')
+    && Number.isFinite(Number(cameraParams.get('lat'))) && Number.isFinite(Number(cameraParams.get('lng')))
+    && Math.abs(Number(cameraParams.get('lat'))) <= 85 && Math.abs(Number(cameraParams.get('lng'))) <= 180
+  const chosenLocation = resolveTenerifeLocation(cameraParams.get('q') ?? '')
+  const namedLocation = chosenLocation?.type !== 'island' ? chosenLocation?.coordinates : undefined
+  const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
+  const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasActivePolygon ? undefined
+    : namedLocation ? { ...namedLocation, zoom: 12 }
+      : readLastMapViewport() ?? FIRST_MAP_VIEWPORT)
+  const nearbyCameraCenter = hasNearbyCoordinates
+    ? { lat: Number(cameraParams.get('lat')), lng: Number(cameraParams.get('lng')) }
+    : undefined
   const { listings: favoriteListings } = useFavoriteListings()
   const { listings: recentlyViewedListings, clear: clearRecentHistory, mark: markRecent } = useRecentlyViewedListings()
   const favoriteItems = useMemo<MobileCollectionItem[]>(() => favoriteListings.map((listing) => ({ id: listing.id, title: listing.title, meta: `${listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`} · ${listing.price} €`, image: listing.images[0], onOpen: () => navigate(`/habitacion/${listing.id}`) })), [favoriteListings, navigate])
@@ -870,7 +884,15 @@ export function MobileAppV2() {
     navigate(`${location.pathname}?${params.toString()}`, { replace: true })
   }
   const commitMapCamera = (camera: MapCamera) => {
-    if (pendingRouteSearchRef.current) return
+    // Persist outside router history, so a completely new map visit recovers
+    // the last position. URL camera remains authoritative for Back/deep links.
+    rememberMapViewport(camera)
+    if (pendingRouteSearchRef.current) {
+      // Google Maps can emit a pan and zoom idle in the same render. Keep the
+      // newest camera rather than losing zoom while Router processes replace.
+      latestPendingCameraRef.current = { camera, query: new URLSearchParams(routeSearchRef.current).get('q') }
+      return
+    }
     const params = new URLSearchParams(routeSearchRef.current)
     const lat = camera.lat.toFixed(5)
     const lng = camera.lng.toFixed(5)
@@ -883,6 +905,22 @@ export function MobileAppV2() {
     pendingRouteSearchRef.current = routeSearchRef.current
     navigate(`${location.pathname}?${params.toString()}`, { replace: true })
   }
+  useEffect(() => {
+    if (pendingRouteSearchRef.current || !latestPendingCameraRef.current) return
+    if (location.pathname !== '/buscar' || new URLSearchParams(location.search).get('vista') !== 'mapa') {
+      latestPendingCameraRef.current = null
+      return
+    }
+    const latest = latestPendingCameraRef.current
+    latestPendingCameraRef.current = null
+    // A new search must not inherit delayed pan events from the old query.
+    if (latest.query !== new URLSearchParams(location.search).get('q')) return
+    commitMapCamera(latest.camera)
+    // The pending camera is flushed only when Router applies its previous URL
+    // update; commitMapCamera reads routeSearchRef.current synchronously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search])
+
   const navigateFromMap = (target: 'list' | 'filters' | 'area') => {
     const params = new URLSearchParams(location.search)
     params.delete('dibujar')
@@ -921,6 +959,6 @@ export function MobileAppV2() {
   if (!shellActive) return null
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} onBack={backToHome} onChangeRegion={() => openRegionSettings('location')} onMap={openMap} onNearby={() => { void openNearby() }} nearbyStatus={nearbyStatus} /></div>
-  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={mapCenter} initialCamera={mapCamera} polygon={mapPolygon} items={mapItems} serverQuery={serverMapQuery} onPolygonChange={commitMobilePolygon} onCameraChange={commitMapCamera} onBack={backFromMap} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
+  if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen key={mapQuery} mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={nearbyCameraCenter ?? mapCenter} initialCamera={mapCamera} polygon={mapPolygon} items={mapItems} serverQuery={serverMapQuery} onPolygonChange={commitMobilePolygon} onCameraChange={commitMapCamera} onBack={backFromMap} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
   return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' && location.pathname !== '/buscar' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onSearchIntent={preloadMobileSearchResults} onPublish={openPublication} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} recentItems={recentItems} onRemove={toggleFavorite} onClearRecent={clearRecentHistory} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }
