@@ -25,7 +25,7 @@ import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
 import { getBedroomCount } from '@/lib/listings'
 import { hasListingCoordinates } from '@/lib/listings'
-import { rememberMapViewport } from '@/lib/map-visit-history'
+import { rememberMapViewport, searchBoundsFromParams } from '@/lib/map-visit-history'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
@@ -232,9 +232,16 @@ export function MobileSearchResults() {
       'floor-high': 'floor_desc', 'floor-low': 'floor_asc',
     } as const
     const sort = sortByOrder[mobileOrder as ResultsOrder] ?? 'newest'
+    const bounds = searchBoundsFromParams(params)
+    const polygon = (params.get('poligono') ?? '').split(';')
+      .map((pair) => pair.split(',').map(Number))
+      .filter((pair) => pair.length === 2 && pair.every(Number.isFinite))
+      .map(([lat, lng]) => ({ latitude: lat, longitude: lng }))
     return {
       rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' as const : 'long' as const,
-      query: params.get('q') ?? 'Tenerife',
+      query: bounds || polygon.length >= 3 ? '' : params.get('q') ?? 'Tenerife',
+      bounds: bounds ?? undefined,
+      polygon: polygon.length >= 3 ? polygon : undefined,
       filters: canonical,
       minPrice: canonical.minPrice,
       maxPrice: canonical.maxPrice,
