@@ -192,3 +192,49 @@ test('reverse geocoding without a real street never overwrites a manually entere
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
   await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
 })
+
+test('editing a confirmed address blocks publication until the map point is confirmed again', async ({ page }) => {
+  await openPublishLocation(page)
+  const initial = { lat: 28.09123, lng: -16.73561 }
+  await page.evaluate((coordinates) => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
+    detail: { coordinates, zoom: 18 },
+  })), initial)
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0912, -16.7356')
+  await expect(page.locator('.listing-edit-location-pending')).toHaveCount(0)
+
+  await page.locator('#publish-street').fill('Calle corregida 18')
+  await expect(page.locator('.listing-edit-location-pending')).toContainText('La dirección ha cambiado')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0912, -16.7356')
+
+  await page.getByRole('button', { name: 'Publicar', exact: true }).first().click()
+  await expect(page.locator('#publish-location .field-error')).toContainText('Comprueba que el marcador')
+
+  const updated = { lat: 28.1056, lng: -16.7462 }
+  await page.evaluate((coordinates) => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
+    detail: { coordinates, zoom: 18 },
+  })), updated)
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.1056, -16.7462')
+  await expect(page.locator('.listing-edit-location-pending')).toHaveCount(0)
+  await expect(page.locator('#publish-location .field-error')).toHaveCount(0)
+})
+
+test('reverse-geocoding from an old marker cannot overwrite a newly typed street', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.evaluate(() => {
+    window.__googleMapsTestGeocode = () => new Promise((resolve) => {
+      ;(window as Window & { resolveOldPin?: (value: { results: google.maps.GeocoderResult[] }) => void }).resolveOldPin = resolve
+    })
+  })
+  const map = page.locator('.approximate-location-map')
+  await map.dblclick({ position: { x: 180, y: 180 } })
+  await expect.poll(() => page.evaluate(() => Boolean((window as Window & { resolveOldPin?: unknown }).resolveOldPin))).toBe(true)
+
+  await page.locator('#publish-street').fill('Calle nueva 42')
+  await expect(page.locator('.listing-edit-location-pending')).toBeVisible()
+  await page.evaluate((result) => {
+    ;(window as Window & { resolveOldPin?: (value: { results: google.maps.GeocoderResult[] }) => void }).resolveOldPin?.({ results: [result] })
+  }, resolvedAddress('Calle vieja 3', '38660'))
+  await expect(page.locator('#publish-street')).toHaveValue('Calle nueva 42')
+  await expect(page.locator('.listing-edit-location-pending')).toBeVisible()
+  await expect(page.locator('.approximate-location-map-address')).toHaveCount(0)
+})

@@ -316,7 +316,13 @@ export function ListingEditPage() {
   if (!draft) return null
 
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => {
-    setDraft((current) => current ? { ...current, [key]: value } : current)
+    setDraft((current) => current ? {
+      ...current,
+      [key]: value,
+      ...(['city', 'area', 'street', 'postcode'].includes(String(key)) && current[key] !== value
+        ? { locationNeedsConfirmation: true }
+        : {}),
+    } : current)
     setErrors((current) => {
       const next = { ...current }
       delete next[String(key)]
@@ -335,6 +341,7 @@ export function ListingEditPage() {
         ...current,
         coordinates: address.coordinates,
         locationManuallyMoved: true,
+        locationNeedsConfirmation: false,
         ...(address.street ? { street: address.street } : {}),
         ...(address.postcode ? { postcode: address.postcode } : {}),
         ...(address.city && municipalitySet.has(address.city) ? { city: address.city } : {}),
@@ -356,6 +363,7 @@ export function ListingEditPage() {
   const validate = () => {
     const next: Record<string, string> = {}
     if (!municipalitySet.has(draft.city)) next.city = 'Selecciona un municipio válido.'
+    if (draft.locationNeedsConfirmation) next.location = 'La dirección ha cambiado. Comprueba que el marcador señale el lugar correcto antes de guardar.'
     if (!draft.area.trim()) next.area = 'Indica la zona o barrio.'
     else if (containsBlockedListingLink(draft.area)) next.area = listingLinkBlockedMessage
     else {
@@ -451,8 +459,9 @@ export function ListingEditPage() {
           <FormField label="Calle" htmlFor="publish-street"><Input id="publish-street" value={draft.street} onChange={(e) => set('street', e.target.value)} /></FormField>
           <FormField label="Código postal" htmlFor="publish-postcode" error={errors.postcode}><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(e) => set('postcode', e.target.value)} /></FormField>
         </div>
-        <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => setDraft((current) => current ? { ...current, coordinates, locationManuallyMoved: true } : current)} onAddressResolved={applyResolvedAddress} onLocationError={(message) => setErrors((current) => ({ ...current, location: message }))} />
+        <ApproximateLocationMap coordinates={draft.coordinates} onChange={(coordinates) => { setDraft((current) => current ? { ...current, coordinates, locationManuallyMoved: true, locationNeedsConfirmation: false } : current); setErrors((current) => ({ ...current, location: '' })) }} onAddressResolved={applyResolvedAddress} onLocationError={(message) => setErrors((current) => ({ ...current, location: message }))} />
         {errors.location ? <p className="field-error" role="alert">{errors.location}</p> : null}
+        {draft.locationNeedsConfirmation ? <p className="listing-edit-location-pending" role="status">La dirección ha cambiado. Espera a que se sitúe el marcador o confirma la ubicación en el mapa.</p> : null}
         <output className="listing-edit-coordinates" aria-live="polite">Coordenadas exactas: {draft.coordinates.lat.toFixed(4)}, {draft.coordinates.lng.toFixed(4)}</output>
       </Section>
 

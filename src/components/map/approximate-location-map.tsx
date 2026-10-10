@@ -78,6 +78,17 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         pendingSelectedLocationRef.current = detail
       }
     }
+    // Reverse geocoding an earlier pin must not overwrite a newer street,
+    // postcode or municipality typed while the network request was pending.
+    const handleAddressEdit = (event: Event) => {
+      if (!event.isTrusted) return
+      const target = event.target
+      if (target instanceof HTMLElement && ['publish-city', 'publish-area', 'publish-street', 'publish-postcode'].includes(target.id)) {
+        requestGateRef.current.next()
+      }
+    }
+    document.addEventListener('input', handleAddressEdit, true)
+    document.addEventListener('change', handleAddressEdit, true)
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
     window.addEventListener('112233:publish-location-error', handleLocationError)
     window.addEventListener('112233:publish-location-selected', handleSelectedLocation)
@@ -225,6 +236,8 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       dragListener?.remove()
       mapDoubleClickListener?.remove()
       removePointerListeners?.()
+      document.removeEventListener('input', handleAddressEdit, true)
+      document.removeEventListener('change', handleAddressEdit, true)
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
       window.removeEventListener('112233:publish-location-error', handleLocationError)
       window.removeEventListener('112233:publish-location-selected', handleSelectedLocation)

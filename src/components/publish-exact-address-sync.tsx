@@ -104,7 +104,7 @@ function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: 
   return { street, postcode, area, raw }
 }
 
-function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string, area: string) {
+function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string, area: string, fullAddressWithArea: boolean) {
   const coordinates = resultCoordinates(result)
   if (!coordinates || !isInsideTenerife(coordinates)) return false
 
@@ -132,15 +132,15 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
   const municipalityMatches = !city
     || !resolvedMunicipality
     || normalizeTenerifeText(resolvedMunicipality) === normalizeTenerifeText(city)
+  // With a short street + number, never override a manually selected
+  // municipality: repeated street names occur across Tenerife.
+  // A *pasted complete address* is different: its explicit barrio can resolve
+  // a stale municipality when Google confirms both route, number and barrio.
   if (!municipalityMatches) {
-    // Exact route + building number is enough to let Google correct stale/default
-    // municipality and area values. A postcode explicitly entered by the user
-    // is still enforced above.
-    if (wantedNumber) return true
-    const normalizedArea = normalizeTenerifeText(area)
-    const areaMatches = Boolean(normalizedArea) && resultAreaCandidates(result)
-      .some((candidate) => normalizeTenerifeText(candidate) === normalizedArea)
-    if (!areaMatches && !hasFullPostcode) return false
+    const requestedArea = normalizeTenerifeText(area)
+    const verifiedArea = fullAddressWithArea && Boolean(wantedNumber && requestedArea)
+      && resultAreaCandidates(result).some((candidate) => normalizeTenerifeText(candidate) === requestedArea)
+    if (!verifiedArea) return false
   }
 
   return true
@@ -255,13 +255,18 @@ export function PublishExactAddressSync() {
       if (!hasStreet && !hasFullPostcode) return
 
       const postcodeOnly = !hasStreet && hasFullPostcode
+      const fullAddressWithArea = Boolean(area) && /\b\d+[A-Za-z]?\s*[.,;]\s*(?:\d{5}\s+)?[^\d\s]/u.test(parsed.raw)
+      // A pasted full address contains its own barrio. Do not inject a stale
+      // manually selected municipality into the Google query: that would bias
+      // the search away from the explicitly entered building.
+      const queryCity = fullAddressWithArea ? '' : cityConstraint
       const queries = postcodeOnly
         ? uniqueQueries([
             [postcode, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
           ])
         : uniqueQueries([
-            [street, postcode, area, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, area, queryCity, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [street, postcode, area, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [street, postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [parsed.raw || street, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
@@ -274,7 +279,7 @@ export function PublishExactAddressSync() {
           if (cancelled || !gate.isCurrent(version)) return
           result = postcodeOnly
             ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
-            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area, fullAddressWithArea))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
@@ -351,8 +356,11 @@ export function PublishExactAddressSync() {
 
     const setupMunicipality = (element: HTMLSelectElement) => {
       if (cleanups.has(element)) return
-      const onChange = (event: Event) => {
-        if (!event.isTrusted) return
+      const onChange = () => {
+        // Map/address synchronization marks this explicitly. A host's select
+        // change (including accessible keyboard/test controls) is otherwise
+        // authoritative, regardless of whether the event is synthetic.
+        if (element.dataset.locationAddressSync === 'true') return
         cityTouched = true
         cancelPending()
       }

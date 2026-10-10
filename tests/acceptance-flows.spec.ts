@@ -507,6 +507,11 @@ test("21–24 one-page publication validates, restores draft, creates and edits"
       "Descripción completa introducida por el usuario para comprobar la publicación de una sola página.",
     );
 
+  // After manual address edits the host must confirm the selected point.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
+    detail: { coordinates: { lat: 28.12746, lng: -16.73872 }, zoom: 18 },
+  })))
+  await expect(page.locator('.listing-edit-location-pending')).toHaveCount(0)
   await page.getByRole("button", { name: /publicar anuncio/i }).click();
   await expect(page).toHaveURL(/#\/mis-anuncios$/);
 

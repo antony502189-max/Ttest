@@ -242,6 +242,11 @@ async function openCompletedPublicationForm(page: Page) {
   await page.locator('#publish-city').selectOption('Adeje')
   await page.locator('#publish-area').fill('Costa Adeje')
   await page.locator('#publish-postcode').fill('38660')
+  // A publication must explicitly confirm its location after address edits.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
+    detail: { coordinates: { lat: 28.09123, lng: -16.73561 }, zoom: 18 },
+  })))
+  await expect(page.locator('.listing-edit-location-pending')).toHaveCount(0)
   await page.getByLabel('Añadir fotos del anuncio').setInputFiles(requiredPhotoFiles())
   await expect(page.locator('.upload-photo-card')).toHaveCount(5)
   await expect(page.getByRole('button', { name: 'Publicar anuncio' })).toBeVisible()
@@ -720,6 +725,11 @@ test('customer video: edit is not reported as saved when the server echoes a dif
   await expect(page.locator('#publish-street')).toBeVisible()
   await page.locator('#publish-street').fill('Avenida V Centenario 1')
   await page.locator('#publish-postcode').fill('38660')
+  // Reach the API echo validation with a newly confirmed owner map point.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
+    detail: { coordinates: { lat: 28.09123, lng: -16.73561 }, zoom: 18 },
+  })))
+  await expect(page.locator('.listing-edit-location-pending')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
 
