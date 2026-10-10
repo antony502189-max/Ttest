@@ -95,7 +95,7 @@ function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: 
   return { street, postcode, area, raw }
 }
 
-function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string, area: string) {
+function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string) {
   const coordinates = resultCoordinates(result)
   if (!coordinates || !isInsideTenerife(coordinates)) return false
 
@@ -259,7 +259,7 @@ export function PublishExactAddressSync() {
           if (cancelled || !gate.isCurrent(version)) return
           result = postcodeOnly
             ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
-            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
