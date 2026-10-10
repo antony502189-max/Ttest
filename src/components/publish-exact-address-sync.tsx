@@ -255,13 +255,18 @@ export function PublishExactAddressSync() {
       if (!hasStreet && !hasFullPostcode) return
 
       const postcodeOnly = !hasStreet && hasFullPostcode
+      const fullAddressWithArea = Boolean(area) && /\b\d+[A-Za-z]?\s*[.,;]\s*(?:\d{5}\s+)?[^\d\s]/u.test(parsed.raw)
+      // A pasted full address contains its own barrio. Do not inject a stale
+      // manually selected municipality into the Google query: that would bias
+      // the search away from the explicitly entered building.
+      const queryCity = fullAddressWithArea ? '' : cityConstraint
       const queries = postcodeOnly
         ? uniqueQueries([
             [postcode, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
           ])
         : uniqueQueries([
-            [street, postcode, area, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, area, queryCity, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [street, postcode, area, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [street, postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
             [parsed.raw || street, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
@@ -274,7 +279,7 @@ export function PublishExactAddressSync() {
           if (cancelled || !gate.isCurrent(version)) return
           result = postcodeOnly
             ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
-            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area, /\b\d+[A-Za-z]?\s*[.,;]\s*(?:\d{5}\s+)?[^\d\s]/u.test(parsed.raw)))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area, fullAddressWithArea))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
