@@ -1,4 +1,5 @@
 import { useEffect, useState, type ImgHTMLAttributes } from 'react'
+import { fetchAuthenticatedMedia } from '@/api/client'
 import { getMediaBlob, isMediaReference } from '@/lib/media-storage'
 
 const missingMediaFallback = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560"%3E%3Crect width="800" height="560" fill="%23eceeea"/%3E%3Cpath d="M260 360l90-95 62 65 48-44 92 96H260z" fill="%2398a19a"/%3E%3Ccircle cx="505" cy="190" r="34" fill="%23b7beb8"/%3E%3Ctext x="400" y="445" text-anchor="middle" fill="%235b635d" font-family="Arial" font-size="28"%3EFoto no disponible%3C/text%3E%3C/svg%3E'
@@ -33,14 +34,28 @@ export function preloadMediaImages(sources: Array<string | undefined>, variant: 
   }
 }
 
+function isUploadPreviewReference(source?: string) {
+  if (!source || isMediaReference(source)) return false
+  try {
+    const url = new URL(source, window.location.origin)
+    return /^\/api\/v1\/media\/[0-9a-f-]{36}$/i.test(url.pathname)
+      && url.searchParams.get('uploadPreview') === '1'
+  } catch {
+    return false
+  }
+}
+
 export function useMediaUrl(source?: string, variant: MediaVariant = 'full') {
   const [localMedia, setLocalMedia] = useState<{ reference: string; url: string } | null>(null)
 
   useEffect(() => {
-    if (!isMediaReference(source)) return
+    if (!isMediaReference(source) && !isUploadPreviewReference(source)) return
     let active = true
     let objectUrl = ''
-    void getMediaBlob(source)
+    const imageBlob = isMediaReference(source)
+      ? getMediaBlob(source)
+      : fetchAuthenticatedMedia(source)
+    void imageBlob
       .then((blob) => {
         if (!active || !blob) return
         objectUrl = URL.createObjectURL(blob)
@@ -58,7 +73,7 @@ export function useMediaUrl(source?: string, variant: MediaVariant = 'full') {
   // Public/remote gallery changes must update the rendered src in the *same*
   // render as the image counter. Keeping them in effect-driven state briefly
   // shows the previous photo when users rapidly swipe through a card.
-  if (!isMediaReference(source)) return mediaVariantUrl(source, variant)
+  if (!isMediaReference(source) && !isUploadPreviewReference(source)) return mediaVariantUrl(source, variant)
   return localMedia?.reference === source ? localMedia.url : ''
 }
 
@@ -80,7 +95,7 @@ export function MediaImage({
   const thumb = source ? mediaVariantUrl(source, 'thumb') : ''
   const card = source ? mediaVariantUrl(source, 'card') : ''
   const full = source ? mediaVariantUrl(source, 'full') : ''
-  const responsiveSet = responsive && source && !isMediaReference(source) && (thumb !== source || card !== source)
+  const responsiveSet = responsive && source && !isMediaReference(source) && !isUploadPreviewReference(source) && (thumb !== source || card !== source)
     ? `${thumb} 480w, ${card} 960w, ${full} 2048w`
     : srcSet
   return (
@@ -88,7 +103,7 @@ export function MediaImage({
       {...props}
       decoding={decoding}
       srcSet={responsiveSet}
-      src={resolved || (isMediaReference(source) ? missingMediaFallback : undefined)}
+      src={resolved || (isMediaReference(source) || isUploadPreviewReference(source) ? missingMediaFallback : undefined)}
     />
   )
 }
