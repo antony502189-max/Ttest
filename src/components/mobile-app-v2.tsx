@@ -608,11 +608,27 @@ function MapScreen({ mode, language, t, query, initialCenter, initialCamera, pol
   </section>
 }
 
-type MobileCollectionItem = { id: string; title: string; meta: string; image?: string; onOpen: () => void }
+type MobileCollectionItem = { id: string; title: string; meta: string; image?: string; areaPreview?: string; onOpen: () => void }
+
+/** A real outline of the saved geographic selection, not a fabricated map tile. */
+function savedAreaPreview(points: Array<{ lat: number; lng: number }>): string | undefined {
+  if (points.length < 3) return undefined
+  const latitudes = points.map((point) => point.lat)
+  const longitudes = points.map((point) => point.lng)
+  const minLat = Math.min(...latitudes), maxLat = Math.max(...latitudes)
+  const minLng = Math.min(...longitudes), maxLng = Math.max(...longitudes)
+  const latRange = Math.max(0.0001, maxLat - minLat)
+  const lngRange = Math.max(0.0001, maxLng - minLng)
+  return points.map((point) =>
+    `${(12 + 56 * (point.lng - minLng) / lngRange).toFixed(1)},${(68 - 56 * (point.lat - minLat) / latRange).toFixed(1)}`,
+  ).join(' ')
+}
 
 function EmptyScreen({ kind, onLogin, onExplore, authenticated, t, items = [] }: { kind: 'searches' | 'favorites'; onLogin: () => void; onExplore: () => void; authenticated: boolean; t: MobileCopy; items?: MobileCollectionItem[] }) {
   const data = { searches: { title: t.searchesTitle, heading: t.searchesHeading, text: t.searchesText, icon: <Bell /> }, favorites: { title: t.favoritesTitle, heading: t.favoritesHeading, text: t.favoritesText, icon: <Heart /> } }[kind]
-  if (items.length) return <section className="m2-screen m2-empty m2-collection"><header>{data.title}</header><div className="m2-collection__list">{items.map((item) => <button type="button" key={item.id} onClick={item.onOpen}><span><strong>{item.title}</strong><small>{item.meta}</small></span><ChevronRight /></button>)}</div></section>
+  if (items.length) return <section className="m2-screen m2-empty m2-collection"><header>{data.title}</header><div className="m2-collection__list">{items.map((item) => <button type="button" key={item.id} onClick={item.onOpen}>{item.areaPreview
+      ? <span className="m2-saved-area-preview" aria-hidden="true"><svg viewBox="0 0 80 80" focusable="false"><path d="M0 25H80M0 50H80M25 0V80M50 0V80" className="m2-saved-area-grid" /><polygon points={item.areaPreview} /></svg></span>
+      : null}<span><strong>{item.title}</strong><small>{item.meta}</small></span><ChevronRight /></button>)}</div></section>
   const heading = authenticated && kind === 'searches' ? t.searchesEmpty : data.heading
   const text = authenticated && kind === 'searches' ? t.searchesEmptyText : data.text
   return <section className="m2-screen m2-empty"><header>{data.title}</header><div className="m2-empty__icon">{data.icon}</div><h1>{heading}</h1><p>{text}</p><PrimaryButton onClick={authenticated ? onExplore : onLogin}>{authenticated ? t.search : t.login}</PrimaryButton></section>
@@ -791,11 +807,17 @@ export function MobileAppV2() {
     query: mapQuery || query,
     params: new URLSearchParams(mapFilterSearch),
   }) : [], [allListings, discarded, filters, mapFilterSearch, mapPolygon, mapQuery, query, rentalMode])
+  const serverMapBounds = searchBoundsFromParams(new URLSearchParams(location.search))
   const serverMapQuery = useMemo(() => mockMode ? undefined : buildListingSearchBody({
-    rentalMode, query: mapQuery || query, filters,
+    rentalMode,
+    // The geographically confirmed bounds / drawn area replace a previous
+    // named location, rather than intersecting it and hiding nearby islands.
+    query: serverMapBounds || mapPolygon.length >= 3 ? '' : mapQuery || query,
+    filters,
+    bounds: serverMapBounds ?? undefined,
     minPrice: filters.minPrice, maxPrice: filters.maxPrice,
     polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
-  }), [filters, mapPolygon, mapQuery, query, rentalMode])
+  }), [filters, mapPolygon, mapQuery, query, rentalMode, location.search])
   const cameraParams = new URLSearchParams(location.search)
   // Explicit deep links and a new city search outrank previous map history.
   // "Tenerife" is the generic search label, not a newly selected municipality.
@@ -827,7 +849,35 @@ export function MobileAppV2() {
     if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
     navigate(`/habitacion/${listing.id}`)
   } })), [markRecent, navigate, recentlyViewedListings])
-  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
+  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => {
+    const points = search.polygon?.length >= 3 ? search.polygon : search.bounds
+      ? [{ lat: search.bounds.north, lng: search.bounds.west }, { lat: search.bounds.north, lng: search.bounds.east },
+          { lat: search.bounds.south, lng: search.bounds.east }, { lat: search.bounds.south, lng: search.bounds.west }]
+      : []
+    return {
+      id: search.id,
+      title: search.query,
+      meta: `${search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode}${points.length ? ' · Zona del mapa' : ''}`,
+      areaPreview: savedAreaPreview(points),
+      onOpen: () => {
+        restoreSavedSearch(search.id)
+        const params = filtersToParams(search.filters)
+        params.set('q', search.query)
+        params.set('alquiler', search.rentalMode)
+        if (search.polygon?.length >= 3) {
+          params.set('poligono', search.polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
+        }
+        putSearchBounds(params, search.bounds ?? null)
+        if (search.camera) {
+          params.set('mapLat', search.camera.lat.toFixed(5))
+          params.set('mapLng', search.camera.lng.toFixed(5))
+          params.set('mapZoom', search.camera.zoom.toFixed(2))
+        }
+        if (points.length) params.set('vista', 'mapa')
+        navigate(`/buscar?${params.toString()}`)
+      },
+    }
+  }), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
