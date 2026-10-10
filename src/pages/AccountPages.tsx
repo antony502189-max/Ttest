@@ -47,7 +47,6 @@ import { useAppBack } from "@/hooks/use-app-back";
 import { useFavoriteListings } from "@/hooks/use-favorite-listings";
 import { useI18n } from "@/contexts/i18n-context";
 import { filtersToParams } from "@/lib/search";
-import { putSearchBounds } from "@/lib/map-visit-history";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
@@ -172,16 +171,6 @@ export function SavedSearchesPage() {
                     alquiler: item.rentalMode,
                   }),
                 );
-                if (item.polygon?.length >= 3) {
-                  params.set("poligono", item.polygon.map(({ lat, lng }) => `${lat.toFixed(5)},${lng.toFixed(5)}`).join(";"));
-                }
-                putSearchBounds(params, item.bounds ?? null);
-                if (item.camera) {
-                  params.set("mapLat", item.camera.lat.toFixed(5));
-                  params.set("mapLng", item.camera.lng.toFixed(5));
-                  params.set("mapZoom", item.camera.zoom.toFixed(2));
-                }
-                if (item.polygon?.length >= 3 || item.bounds) params.set("vista", "mapa");
                 return (
                   <article key={item.id} className="saved-search-card">
                     <div className="saved-search-card__icon">

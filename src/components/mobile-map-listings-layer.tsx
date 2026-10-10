@@ -35,11 +35,10 @@ function persistCurrentMapCameraBeforeDetail(map: google.maps.Map | null) {
   window.history.replaceState(window.history.state, '', url.toString())
 }
 
-export function MobileServerMapLayer({ mapRef, mapReady, query, freezeMarkers = false }: {
+export function MobileServerMapLayer({ mapRef, mapReady, query }: {
   mapRef: MutableRefObject<google.maps.Map | null>
   mapReady: boolean
   query: Record<string, unknown>
-  freezeMarkers?: boolean
 }) {
   const { language } = useI18n()
   const [markers, setMarkers] = useState<ListingMapMarker[]>([])
@@ -51,9 +50,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query, freezeMarkers = 
 
   useEffect(() => {
     const map = mapRef.current
-    // Until the visitor confirms the new search area, retain the last
-    // committed marker set and cancel in-flight viewport refreshes.
-    if (!map || !mapReady || freezeMarkers) return
+    if (!map || !mapReady) return
     let timer: number | undefined
     let request: AbortController | null = null
     let lastKey = ''
@@ -79,7 +76,7 @@ export function MobileServerMapLayer({ mapRef, mapReady, query, freezeMarkers = 
     return () => { listener.remove(); window.clearTimeout(timer); request?.abort() }
   // The serialized query is the stable request identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freezeMarkers, mapReady, mapRef, queryKey])
+  }, [mapReady, mapRef, queryKey])
 
   useEffect(() => {
     if (!selectedId) { setSelectedListings([]); return }

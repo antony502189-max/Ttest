@@ -12,7 +12,7 @@ import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
-import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport, searchBoundsFromParams, viewportForSearchBounds, viewportForSearchPolygon } from '@/lib/map-visit-history'
+import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
 import { resolveTenerifeLocation } from '@/lib/tenerife'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
@@ -196,7 +196,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !ready || !serverQueryKey || boundsDirty) return
+    if (!map || !ready || !serverQueryKey) return
     let timer: number | undefined
     let request: AbortController | null = null
     let lastKey = ''
@@ -219,7 +219,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     return () => { listener.remove(); window.clearTimeout(timer); request?.abort() }
   // The serialized query is the request identity; the object itself may be recreated.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundsDirty, ready, serverQueryKey])
+  }, [ready, serverQueryKey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -309,22 +309,12 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       const hash = window.location.hash
       const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
       const deepLinkCamera = mapViewportFromParams(routeParams)
-      const savedBounds = searchBoundsFromParams(routeParams)
-      const polygonPoints = (routeParams.get('poligono') ?? '').split(';')
-        .map((pair) => pair.split(',').map(Number))
-        .filter((pair) => pair.length === 2 && pair.every(Number.isFinite))
-        .map(([lat, lng]) => ({ lat, lng }))
-      const width = containerRef.current.clientWidth
-      const height = containerRef.current.clientHeight
-      const searchAreaCamera = polygonPoints.length >= 3
-        ? viewportForSearchPolygon(polygonPoints, width, height)
-        : savedBounds ? viewportForSearchBounds(savedBounds, width, height) : null
       const location = resolveTenerifeLocation(routeParams.get('q') ?? '')
       const namedCamera = location?.type !== 'island' && location?.coordinates
         ? { ...location.coordinates, zoom: 12 } : null
       // An explicit bookmarked camera or new location search outranks the
       // previously visited area. Only generic searches restore history.
-      const startingCamera = deepLinkCamera ?? searchAreaCamera ?? namedCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
+      const startingCamera = deepLinkCamera ?? namedCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
       const map = new maps.Map(containerRef.current, {
         center: { lat: startingCamera.lat, lng: startingCamera.lng },
         zoom: startingCamera.zoom,
@@ -807,8 +797,6 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     if (!currentBounds || !onBoundsSearch || !boundsDirty) return
     if (lastSearchedBoundsRef.current && boundsAreEqual(currentBounds, lastSearchedBoundsRef.current)) { setBoundsDirty(false); return }
     skipNextResultsFitRef.current = true
-    // Applying map bounds must not recenter to the OLD result markers.
-    previousFitResultsKeyRef.current = 1
     const currentCenter = mapRef.current?.getCenter()
     const currentZoom = mapRef.current?.getZoom()
     if (currentCenter && currentZoom !== undefined) {
