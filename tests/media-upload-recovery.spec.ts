@@ -28,6 +28,14 @@ test('temporary owner-uploaded photos use bearer authorization and cannot leak t
   expect(client).toContain('Authorization: `Bearer ${accessToken}`')
 })
 
+test('create/edit remove temporary uploaded photos but preserve original published assets', () => {
+  const create = readFileSync('src/pages/ListingCreatePage.tsx', 'utf8')
+  const edit = readFileSync('src/pages/ListingEditPage.tsx', 'utf8')
+  expect(create).toContain("else if (image.includes('uploadPreview=1')) void cleanupUploadedMediaReference(image)")
+  expect(edit).toContain("if (!existing.images.includes(image))")
+  expect(edit).toContain("else if (image.includes('uploadPreview=1')) void cleanupUploadedMediaReference(image)")
+})
+
 test('video picker preserves server error details and the existing 100 MB/60s contract', () => {
   const forms = readFileSync('src/components/forms.tsx', 'utf8')
   const storage = readFileSync('src/lib/media-storage.ts', 'utf8')
