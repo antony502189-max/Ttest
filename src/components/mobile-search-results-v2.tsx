@@ -24,6 +24,8 @@ import { useApp } from '@/contexts/app-context'
 import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
 import { getBedroomCount } from '@/lib/listings'
+import { hasListingCoordinates } from '@/lib/listings'
+import { rememberMapViewport } from '@/lib/map-visit-history'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
@@ -560,6 +562,7 @@ export function MobileSearchResults() {
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         markRecentlyViewed(listing.id)
+        if (hasListingCoordinates(listing)) rememberMapViewport({ ...listing.coordinates, zoom: 12 })
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
       }} />) : <div className="m2-results__empty">{t.empty}</div>}{!mockMode && !serverLoading && !serverError && nextCursor ? <div ref={loadMoreSentinelRef} className="m2-results__load-more" data-testid="mobile-results-load-more">{serverLoadingMore ? <span role="status">{t.loadingMore}</span> : serverLoadMoreError ? <><span role="alert">{t.loadMoreError}</span><button type="button" onClick={loadMore}>{t.retryMore}</button></> : <span aria-hidden="true" />}</div> : null}{!mockMode && !serverLoading && !serverError && !nextCursor && serverItems && serverItems.length > 20 ? <div className="m2-results__all-loaded" role="status">{t.allLoaded(resultCount)}</div> : null}</div></> : null}
