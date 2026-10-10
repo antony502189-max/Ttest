@@ -336,8 +336,11 @@ export function PublishExactAddressSync() {
 
     const setupMunicipality = (element: HTMLSelectElement) => {
       if (cleanups.has(element)) return
-      const onChange = (event: Event) => {
-        if (!event.isTrusted) return
+      const onChange = () => {
+        // Map/address synchronization marks this explicitly. A host's select
+        // change (including accessible keyboard/test controls) is otherwise
+        // authoritative, regardless of whether the event is synthetic.
+        if (element.dataset.locationAddressSync === 'true') return
         cityTouched = true
         cancelPending()
       }
