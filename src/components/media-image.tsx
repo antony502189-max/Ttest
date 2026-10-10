@@ -49,7 +49,7 @@ export function useMediaUrl(source?: string, variant: MediaVariant = 'full') {
   const [localMedia, setLocalMedia] = useState<{ reference: string; url: string } | null>(null)
 
   useEffect(() => {
-    if (!isMediaReference(source) && !isUploadPreviewReference(source)) return
+    if (!source || (!isMediaReference(source) && !isUploadPreviewReference(source))) return
     let active = true
     let objectUrl = ''
     const imageBlob = isMediaReference(source)
