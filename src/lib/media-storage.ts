@@ -162,8 +162,8 @@ function protectedDraftMediaReferences() {
 
 async function storeMediaBlob(blob: Blob) {
   const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const database = await openDatabase()
   try {
+    const database = await openDatabase()
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, 'readwrite')
       transaction.objectStore(STORE_NAME).put(blob, id)
@@ -173,8 +173,15 @@ async function storeMediaBlob(blob: Blob) {
     })
     return `${MEDIA_PREFIX}${id}`
   } catch (error) {
+    if (error instanceof MediaStorageError) throw error
     if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
       throw new MediaStorageError('quota', 'No hay espacio suficiente para guardar el archivo.')
+    }
+    // Safari private browsing and restricted browser profiles may throw
+    // SecurityError directly from indexedDB.open(), before a transaction.
+    if (error instanceof DOMException && (error.name === 'SecurityError' || error.name === 'InvalidStateError')) {
+      databasePromise = null
+      throw new MediaStorageError('unavailable', 'El almacenamiento local no está disponible en este navegador.')
     }
     throw new MediaStorageError('read', 'No se pudo leer o guardar el archivo.')
   }
