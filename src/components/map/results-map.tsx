@@ -353,10 +353,16 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
           containerRef.current.dataset.mapCenter = `${center.lat().toFixed(6)},${center.lng().toFixed(6)}`
           containerRef.current.dataset.mapZoom = String(map.getZoom() ?? '')
         }
+        // Persist every settled camera after the map has initialized, even if
+        // navigation used a marker click or panTo rather than a drag event.
+        // Programmatic marker-fit moves remain excluded; unchanged cameras
+        // are de-duplicated by rememberMapViewport.
+        if (fittedResultsRef.current && !programmaticMoveRef.current && center) {
+          const zoom = map.getZoom()
+          if (zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
+        }
         if (manualMovePendingRef.current && !programmaticMoveRef.current) {
           manualMovePendingRef.current = false
-          const zoom = map.getZoom()
-          if (center && zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
           setBoundsDirty(true)
         }
       }
