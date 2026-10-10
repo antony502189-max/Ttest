@@ -15,7 +15,7 @@ test('photo selection waits for processing and falls back to authenticated uploa
   expect(forms).not.toContain('file.size <= 12_000_000')
   expect(storage).toContain('MAX_LISTING_SOURCE_IMAGE_BYTES = 50 * 1024 * 1024')
   expect(storage).toContain('MAX_LISTING_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024')
-  expect(storage).toContain("optimized.type !== 'image/webp'")
+  expect(storage).toContain("!['image/webp', 'image/png', 'image/jpeg'].includes(optimized.type)")
   expect(media).toContain("return api<MediaAssetDto>('/uploads', { method: 'POST', body, timeoutMs: 90_000 })")
 })
 
