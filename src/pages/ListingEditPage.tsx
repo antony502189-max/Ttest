@@ -316,7 +316,13 @@ export function ListingEditPage() {
   if (!draft) return null
 
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => {
-    setDraft((current) => current ? { ...current, [key]: value } : current)
+    setDraft((current) => current ? {
+      ...current,
+      [key]: value,
+      ...(['city', 'area', 'street', 'postcode'].includes(String(key)) && current[key] !== value
+        ? { locationNeedsConfirmation: true }
+        : {}),
+    } : current)
     setErrors((current) => {
       const next = { ...current }
       delete next[String(key)]
