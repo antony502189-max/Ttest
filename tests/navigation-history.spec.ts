@@ -22,35 +22,40 @@ test.describe('mobile history', () => {
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThanOrEqual(6)
     await expect(page).toHaveURL(/mapZoom=5\.25/)
     await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
+    // Simply opening the map never creates a remembered search area.
+    expect(await page.evaluate(() => localStorage.getItem('112233:map-last-search-area:v2'))).toBeNull()
   })
 
 
-  test('a new visit restores the last map pan and zoom after leaving search and reopening', async ({ page }) => {
+  test('a new visit centers a 300 km search radius on the last explored point', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await map.dispatchEvent('pointerdown')
     await page.evaluate(() => {
       window.__googleMapsTestLastMap?.panTo({ lat: 28.12, lng: -16.72 })
       window.__googleMapsTestLastMap?.setZoom(11)
     })
     await expect(page).toHaveURL(/mapLat=28\.12000.*mapLng=-16\.72000.*mapZoom=11\.00/)
     await expect.poll(async () => page.evaluate(() => {
-      const record = JSON.parse(localStorage.getItem('112233:map-last-viewport:v1') ?? '{}')
-      return record.camera?.zoom
-    })).toBe(11)
+      const record = JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}')
+      return record.center
+    })).toEqual({ lat: 28.12, lng: -16.72 })
     await page.goto('/#/')
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
-    await expect(map).toHaveAttribute('data-map-zoom', '11')
-    await expect(page).toHaveURL(/mapLat=28\.12000.*mapLng=-16\.72000.*mapZoom=11\.00/)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(9)
+    // The previous close-up (zoom 11) must not be restored.
+    await expect(page).not.toHaveURL(/mapZoom=11\.00/)
   })
 
   test('explicit map deep link wins over remembered viewport and a new city search wins over history', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('112233:mobile-onboarding:v1', 'done')
-      localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
-        camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+      localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
+        center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
       }))
     })
     await page.goto('/#/buscar?q=Tenerife&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
@@ -65,8 +70,8 @@ test.describe('mobile history', () => {
   test('corrupt map history cannot displace the safe first-visit overview', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('112233:mobile-onboarding:v1', 'done')
-      localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
-        camera: { lat: 999, lng: -16, zoom: 12 }, savedAt: Date.now(),
+      localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
+        center: { lat: 999, lng: -16 }, savedAt: Date.now(),
       }))
     })
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
@@ -180,38 +185,41 @@ test('desktop first map shows broad Spain and Tenerife before prior browsing', a
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
 })
 
-test('desktop map writes manual pan and zoom to history for a new visit', async ({ page }) => {
+test('desktop map saves a new area but reopens zoomed out to 300 km radius', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
+  await map.dispatchEvent('wheel')
   await page.evaluate(() => {
     window.__googleMapsTestLastMap?.panTo({ lat: 28.12, lng: -16.72 })
     window.__googleMapsTestLastMap?.setZoom(11)
   })
   await expect.poll(() => page.evaluate(() => {
-    const raw = localStorage.getItem('112233:map-last-viewport:v1')
-    return raw ? JSON.parse(raw).camera?.zoom : null
-  })).toBe(11)
+    const raw = localStorage.getItem('112233:map-last-search-area:v2')
+    return raw ? JSON.parse(raw).center : null
+  })).toEqual({ lat: 28.12, lng: -16.72 })
   await page.goto('/#/')
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
-  await expect(map).toHaveAttribute('data-map-zoom', '11')
+  await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
+  await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(11)
 })
 
-test('desktop map restores the last camera from the same browser without affecting search filters', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
-    camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+test('desktop remembered area fits on the current screen without altering filters', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
+    center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
   })))
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
-  await expect(map).toHaveAttribute('data-map-zoom', '11')
+  await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
+  await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(11)
   await expect(page).toHaveURL(/alquiler=long/)
 })
 
 test('desktop explicit named area wins over prior map history', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
-    camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+  await page.addInitScript(() => localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
+    center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
   })))
   await page.goto('/#/buscar?q=Adeje&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
@@ -220,8 +228,8 @@ test('desktop explicit named area wins over prior map history', async ({ page })
 })
 
 test('desktop explicit bookmarked map camera wins over saved history', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
-    camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+  await page.addInitScript(() => localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
+    center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
   })))
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
   const map = page.locator('.google-map-canvas')
@@ -268,4 +276,29 @@ test('search and map bookmarks survive reload', async ({ page }) => {
   await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
   await page.reload()
   await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+})
+
+
+test('300 km recall uses a wider zoom on a desktop than a phone and keeps circle inside both', async ({ page }) => {
+  await page.goto('/#/')
+  const result = await page.evaluate(async () => {
+    const { viewportForRememberedArea, MAP_RECALL_RADIUS_KM } = await import('/src/lib/map-visit-history.ts')
+    const center = { lat: 28.12, lng: -16.72 }
+    const mobile = viewportForRememberedArea(center, 350, 600)
+    const desktop = viewportForRememberedArea(center, 1000, 720)
+    const radius = MAP_RECALL_RADIUS_KM / 6371.0088
+    const phi = center.lat * Math.PI / 180
+    const latDelta = radius * 180 / Math.PI
+    const lngDelta = Math.asin(Math.sin(radius) / Math.cos(phi)) * 180 / Math.PI
+    const y = (lat: number) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2
+    const fits = (camera: { zoom: number }, width: number, height: number) =>
+      256 * (2 * lngDelta / 360) * 2 ** camera.zoom < width * .8
+      && 256 * (y(center.lat - latDelta) - y(center.lat + latDelta)) * 2 ** camera.zoom < height * .8
+    return { mobile, desktop, fitsMobile: fits(mobile, 350, 600), fitsDesktop: fits(desktop, 1000, 720) }
+  })
+  expect(result.mobile.lat).toBe(28.12)
+  expect(result.desktop.lat).toBe(28.12)
+  expect(result.mobile.zoom).toBeLessThan(result.desktop.zoom)
+  expect(result.fitsMobile).toBe(true)
+  expect(result.fitsDesktop).toBe(true)
 })
