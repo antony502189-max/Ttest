@@ -2,7 +2,6 @@ import { defaultFilters } from '@/data/listings'
 import { distanceKm } from '@/lib/geolocation'
 import { filterListings, filtersFromParams, pointInPolygon, sortListings } from '@/lib/search'
 import { hasListingCoordinates } from '@/lib/listings'
-import { searchBoundsFromParams } from '@/lib/map-visit-history'
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from '@/lib/tenerife'
 import type { Filters, Listing, MapPolygonPoint, RentalMode } from '@/types'
 
@@ -53,7 +52,6 @@ export function selectMobileSearchListings({
   params,
 }: MobileSearchInput) {
   const location = resolveTenerifeLocation(query || 'Tenerife')
-  const bounds = searchBoundsFromParams(params)
   const nearby = params.get('cerca') === '1'
   const polygonApplied = params.get('dibujar') !== '1'
   const lat = Number(params.get('lat'))
@@ -77,13 +75,7 @@ export function selectMobileSearchListings({
     rentalMode,
     effectiveFilters,
   ).filter((listing) => {
-    // Explicit geographic selections replace the previous named location.
-    if (!bounds && !(polygonApplied && polygon.length >= 3) && (!location || !listingMatchesTenerifeLocation(listing, location))) return false
-    if (bounds) {
-      if (!hasListingCoordinates(listing)) return false
-      const { lat, lng } = listing.coordinates
-      if (lat < bounds.south || lat > bounds.north || lng < bounds.west || lng > bounds.east) return false
-    }
+    if (!location || !listingMatchesTenerifeLocation(listing, location)) return false
     if (roomTypes.length && !roomTypes.includes(listing.roomType)) return false
     if (polygonApplied && polygon.length >= 3) {
       if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, polygon)) return false
