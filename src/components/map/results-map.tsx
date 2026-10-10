@@ -12,7 +12,6 @@ import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
-import { TENERIFE_BOUNDS } from '@/lib/tenerife'
 import { FIRST_MAP_VIEWPORT, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
@@ -308,7 +307,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       const map = new maps.Map(containerRef.current, {
         center: { lat: startingCamera.lat, lng: startingCamera.lng },
         zoom: startingCamera.zoom,
-        minZoom: serverModeRef.current ? 2 : 8,
+        minZoom: 2,
         maxZoom: 19,
         mapId: googleMapsConfig.mapId,
         mapTypeId: getGoogleMapType('street'),
@@ -316,13 +315,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         clickableIcons: false,
         keyboardShortcuts: true,
         gestureHandling: 'greedy',
-        restriction: serverModeRef.current ? undefined : {
-          latLngBounds: TENERIFE_BOUNDS,
-          // A hard restriction forces a tall mobile viewport to zoom into only
-          // half of Tenerife. Keep the island as a soft pan boundary so the
-          // initial fit can show the complete result set like a property map.
-          strictBounds: false,
-        },
+        // The initial view spans both mainland Spain and Tenerife, so a
+        // hard or soft Tenerife-only restriction would reject the camera.
+
       })
       mapRef.current = map
       initializedMap = map
