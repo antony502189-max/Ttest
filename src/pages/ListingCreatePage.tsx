@@ -252,7 +252,13 @@ export function ListingCreatePage() {
   }, [verificationCooldown])
 
   const set = <K extends keyof ListingDraft>(key: K, value: ListingDraft[K]) => {
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => ({
+      ...current,
+      [key]: value,
+      ...(['city', 'area', 'street', 'postcode'].includes(String(key)) && current[key] !== value
+        ? { locationNeedsConfirmation: true }
+        : {}),
+    }))
     setErrors((current) => {
       const next = { ...current }
       delete next[String(key)]
