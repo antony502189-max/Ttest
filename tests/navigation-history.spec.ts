@@ -209,6 +209,26 @@ test('desktop map restores the last camera from the same browser without affecti
   await expect(page).toHaveURL(/alquiler=long/)
 })
 
+test('desktop explicit named area wins over prior map history', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
+    camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+  })))
+  await page.goto('/#/buscar?q=Adeje&alquiler=long&vista=mapa')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-center', '28.122700,-16.724400')
+  await expect(map).toHaveAttribute('data-map-zoom', '12')
+})
+
+test('desktop explicit bookmarked map camera wins over saved history', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
+    camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
+  })))
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-center', '28.463600,-16.251800')
+  await expect(map).toHaveAttribute('data-map-zoom', '13')
+})
+
 test('desktop results → detail → browser Back restores the result route', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long')
   await expect(page.locator('.search-page')).toBeVisible()
