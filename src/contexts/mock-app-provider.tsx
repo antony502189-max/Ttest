@@ -28,6 +28,7 @@ import type {
   UserRole,
 } from '@/types'
 import type { AppState, SavedSearch } from '@/contexts/app-context'
+import { mapViewportFromParams, searchBoundsFromParams } from '@/lib/map-visit-history'
 
 const LISTINGS_KEY = '112233:listings:v3'
 const LISTINGS_VERSION = 3
@@ -282,14 +283,28 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
 
   const clearSearchHistory = useCallback(() => updateScope<string[]>(setHistoryScopes, () => []), [updateScope])
 
-  const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
-    const searches = current ?? []
-    const duplicate = searches.some((item) => item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
-    if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
-    const saved = { id: `search-${Date.now()}`, query, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
-    toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
-    return [saved, ...searches]
-  }), [filters, mapPolygon, query, rentalMode, updateScope])
+  const saveCurrentSearch = useCallback(() => {
+    const hash = window.location.hash
+    const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
+    const bounds = searchBoundsFromParams(routeParams) ?? undefined
+    const camera = mapViewportFromParams(routeParams) ?? undefined
+    const savedQuery = routeParams.get('q')?.trim() || query
+    updateScope(setSavedSearchScopes, (current) => {
+      const searches = current ?? []
+      const duplicate = searches.some((item) => item.query === savedQuery && item.rentalMode === rentalMode
+        && JSON.stringify(item.filters) === JSON.stringify(filters)
+        && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon)
+        && JSON.stringify(item.bounds) === JSON.stringify(bounds))
+      if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
+      const saved: SavedSearch = {
+        id: `search-${Date.now()}`, query: savedQuery, rentalMode,
+        filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(),
+        polygon: mapPolygon, bounds, camera,
+      }
+      toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
+      return [saved, ...searches]
+    })
+  }, [filters, mapPolygon, query, rentalMode, updateScope])
 
   const restoreSavedSearch = useCallback((id: string) => {
     const found = savedSearches.find((item) => item.id === id)
