@@ -119,6 +119,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const skipNextResultsFitRef = useRef(false)
   const preserveRestoredCameraRef = useRef(false)
   const manualMovePendingRef = useRef(false)
+  const hasExploredMapRef = useRef(false)
   const lastSearchedBoundsRef = useRef<MapBounds | null>(null)
   const previousFitResultsKeyRef = useRef(fitResultsKey)
   const fittedPolygonSignatureRef = useRef('')
@@ -238,6 +239,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         zIndex: item.type === 'cluster' ? (item.promoted ? 2000 : 1000) + item.count : item.promoted ? 100 : 10,
       })
       const activate = () => {
+        hasExploredMapRef.current = true
         if (item.type === 'cluster') {
           map.panTo({ lat: item.latitude, lng: item.longitude })
           map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2))
@@ -279,12 +281,14 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     let initializedMap: google.maps.Map | null = null
     const listeners: google.maps.MapsEventListener[] = []
     const markZoomIntent = () => {
+      hasExploredMapRef.current = true
       programmaticMoveRef.current = false
       manualMovePendingRef.current = true
       setBoundsDirty(true)
     }
     const markKeyboardZoomIntent = (event: KeyboardEvent) => {
       if (event.key === '+' || event.key === '-' || event.key === '=') {
+        hasExploredMapRef.current = true
         programmaticMoveRef.current = false
         manualMovePendingRef.current = true
       }
@@ -357,7 +361,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         // navigation used a marker click or panTo rather than a drag event.
         // Programmatic marker-fit moves remain excluded; unchanged cameras
         // are de-duplicated by rememberMapViewport.
-        if (fittedResultsRef.current && !programmaticMoveRef.current && center) {
+        if (fittedResultsRef.current && hasExploredMapRef.current && !programmaticMoveRef.current && center) {
           const zoom = map.getZoom()
           if (zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
         }
@@ -367,6 +371,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         }
       }
       const markManualMove = () => {
+        hasExploredMapRef.current = true
         programmaticMoveRef.current = false
         manualMovePendingRef.current = true
         setBoundsDirty(true)
@@ -804,6 +809,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   }
 
   const markManualMapInteraction = () => {
+    hasExploredMapRef.current = true
     programmaticMoveRef.current = false
     manualMovePendingRef.current = true
     setBoundsDirty(true)
