@@ -302,3 +302,83 @@ test('300 km recall uses a wider zoom on a desktop than a phone and keeps circle
   expect(result.fitsMobile).toBe(true)
   expect(result.fitsDesktop).toBe(true)
 })
+
+
+test.describe('Idealista-style confirmed map area', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('moving away from a drawn zone preserves it until confirming a new search', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    const polygon = '28.05000,-16.75000;28.16000,-16.75000;28.16000,-16.62000'
+    await page.goto(`/#/buscar?q=Tenerife&alquiler=long&vista=mapa&poligono=${polygon}`)
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await expect(page.locator('.m2-map-screen')).toHaveClass(/has-drawn-zone/)
+    await map.dispatchEvent('pointerdown')
+    await page.evaluate(() => window.__googleMapsTestLastMap?.panTo({ lat: 27.95, lng: -15.55 }))
+    await expect(page.getByTestId('map-search-confirm')).toBeVisible()
+    // A pan is not a new search: the old geographic filter is still active.
+    await expect(page).toHaveURL(/poligono=/)
+    await expect(page).not.toHaveURL(/norte=/)
+
+    await page.getByTestId('confirm-map-search').click()
+    await expect(page).toHaveURL(/norte=.*sur=.*este=.*oeste=/)
+    await expect(page).not.toHaveURL(/poligono=/)
+    await expect(page.locator('.m2-map-screen')).not.toHaveClass(/has-drawn-zone/)
+    await expect(page.getByTestId('map-search-confirm')).toHaveCount(0)
+    await expect.poll(() => page.evaluate(() => {
+      const raw = localStorage.getItem('112233:map-last-search-area:v2')
+      return raw ? JSON.parse(raw).center?.lng : undefined
+    })).toBe(-15.55)
+  })
+
+  test('saved polygon opens again as a geographic map selection', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa&poligono=28.05000,-16.75000;28.16000,-16.75000;28.16000,-16.62000')
+    await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await expect(page.locator('.m2-map-screen')).toHaveClass(/has-drawn-zone/)
+    await page.locator('.m2-save').click()
+    await page.goto('/#/busquedas-guardadas')
+    const saved = page.locator('.m2-collection__list > button')
+    await expect(saved).toHaveCount(1)
+    await expect(saved.locator('.m2-saved-area-preview')).toBeVisible()
+    await saved.click()
+    await expect(page).toHaveURL(/vista=mapa/)
+    await expect(page).toHaveURL(/poligono=/)
+    await expect(page.locator('.m2-map-screen')).toHaveClass(/has-drawn-zone/)
+  })
+
+  test('confirmed bounds survive save and reopen without restoring the old polygon', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&alquiler=holiday&vista=mapa&poligono=28.05000,-16.75000;28.16000,-16.75000;28.16000,-16.62000')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await map.dispatchEvent('pointerdown')
+    await page.evaluate(() => window.__googleMapsTestLastMap?.panTo({ lat: 28.11, lng: -16.45 }))
+    await page.getByTestId('confirm-map-search').click()
+    await expect(page).toHaveURL(/norte=/)
+    await page.locator('.m2-save').click()
+    await page.goto('/#/busquedas-guardadas')
+    const saved = page.locator('.m2-collection__list > button')
+    await expect(saved.locator('.m2-saved-area-preview')).toBeVisible()
+    await saved.click()
+    await expect(page).toHaveURL(/alquiler=holiday/)
+    await expect(page).toHaveURL(/norte=.*sur=.*este=.*oeste=/)
+    await expect(page).not.toHaveURL(/poligono=/)
+    await expect(page.getByTestId('map-search-confirm')).toHaveCount(0)
+  })
+})
+
+test('desktop confirmed new search replaces old geographic restrictions', async ({ page }) => {
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa&zonas=Adeje&poligono=28.05000,-16.75000;28.16000,-16.75000;28.16000,-16.62000')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-zoom', /.+/)
+  await map.dispatchEvent('wheel')
+  await page.evaluate(() => window.__googleMapsTestLastMap?.panTo({ lat: 27.95, lng: -15.55 }))
+  const search = page.getByRole('button', { name: /Buscar en esta zona|Search this area|Искать в этой области/ })
+  await expect(search).toBeEnabled()
+  await expect(page).toHaveURL(/poligono=/)
+  await search.click()
+  await expect(page).toHaveURL(/norte=.*sur=.*este=.*oeste=/)
+  await expect(page).not.toHaveURL(/poligono=|zonas=/)
+})

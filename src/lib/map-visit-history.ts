@@ -8,6 +8,37 @@
  */
 export type MapViewport = { lat: number; lng: number; zoom: number }
 export type MapCenter = Pick<MapViewport, 'lat' | 'lng'>
+export type MapSearchBounds = { north: number; south: number; east: number; west: number }
+
+export function validMapSearchBounds(value: unknown): value is MapSearchBounds {
+  if (!value || typeof value !== 'object') return false
+  const b = value as Partial<MapSearchBounds>
+  return typeof b.north === 'number' && Number.isFinite(b.north)
+    && typeof b.south === 'number' && Number.isFinite(b.south)
+    && typeof b.east === 'number' && Number.isFinite(b.east)
+    && typeof b.west === 'number' && Number.isFinite(b.west)
+    && b.north <= 85 && b.south >= -85 && b.north > b.south
+    && b.east <= 180 && b.west >= -180 && b.east > b.west
+}
+
+export function searchBoundsFromParams(params: URLSearchParams): MapSearchBounds | null {
+  if (!['norte', 'sur', 'este', 'oeste'].every((key) => params.has(key))) return null
+  const bounds = {
+    north: Number(params.get('norte')), south: Number(params.get('sur')),
+    east: Number(params.get('este')), west: Number(params.get('oeste')),
+  }
+  return validMapSearchBounds(bounds) ? bounds : null
+}
+
+export function putSearchBounds(params: URLSearchParams, bounds: MapSearchBounds | null): void {
+  for (const key of ['norte', 'sur', 'este', 'oeste']) params.delete(key)
+  if (!bounds || !validMapSearchBounds(bounds)) return
+  params.set('norte', bounds.north.toFixed(5))
+  params.set('sur', bounds.south.toFixed(5))
+  params.set('este', bounds.east.toFixed(5))
+  params.set('oeste', bounds.west.toFixed(5))
+}
+
 
 export const MAP_VISIT_KEY = '112233:map-last-search-area:v2'
 export const MAP_RECALL_RADIUS_KM = 300
@@ -85,6 +116,29 @@ export function viewportForRememberedArea(center: MapCenter, width: number, heig
     Math.log2(usableHeight / (256 * latitudeFraction)),
   )
   return { ...center, zoom: Math.max(2, Math.min(19, Math.floor(zoom * 4) / 4)) }
+}
+
+/** Fit an explicitly saved polygon or searched rectangle, independently of history. */
+export function viewportForSearchBounds(bounds: MapSearchBounds, width: number, height: number): MapViewport {
+  const lat = (bounds.north + bounds.south) / 2
+  const lng = (bounds.east + bounds.west) / 2
+  const longitudeFraction = (bounds.east - bounds.west) / 360
+  const latitudeFraction = Math.abs(mercatorY(bounds.south) - mercatorY(bounds.north))
+  const zoom = Math.min(
+    Math.log2(Math.max(1, width * .76) / (256 * longitudeFraction)),
+    Math.log2(Math.max(1, height * .76) / (256 * latitudeFraction)),
+  )
+  return { lat, lng, zoom: Math.max(2, Math.min(19, Math.floor(zoom * 4) / 4)) }
+}
+
+export function viewportForSearchPolygon(points: MapCenter[], width: number, height: number): MapViewport | null {
+  if (points.length < 3 || !points.every(validMapCenter)) return null
+  const lats = points.map((point) => point.lat)
+  const lngs = points.map((point) => point.lng)
+  return viewportForSearchBounds({
+    north: Math.max(...lats), south: Math.min(...lats),
+    east: Math.max(...lngs), west: Math.min(...lngs),
+  }, width, height)
 }
 
 export function readLastMapViewport(width = 390, height = 600): MapViewport | null {

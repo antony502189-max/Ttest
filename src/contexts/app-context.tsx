@@ -12,8 +12,9 @@ import { createRemoteReport, getRemoteReports } from '@/api/reports'
 import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters } from '@/data/listings'
 import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
-import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
+import { filtersFromParams, getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
+import { mapViewportFromParams, searchBoundsFromParams, validMapSearchBounds, validMapViewport, type MapSearchBounds, type MapViewport } from '@/lib/map-visit-history'
 import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
 import { currentLocale } from '@/lib/i18n-locale'
@@ -27,6 +28,8 @@ export interface SavedSearch {
   alerts: boolean
   createdAt: string
   polygon: MapPolygonPoint[]
+  bounds?: MapSearchBounds
+  camera?: MapViewport
 }
 
 type RegisterInput = { name: string; email: string; password: string; role: UserRole }
@@ -496,7 +499,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       name: search.query,
       query: search.query,
       rentalMode: search.rentalMode,
-      filters: search.filters as unknown as Record<string, unknown>,
+      filters: { ...search.filters, ...(search.bounds ? { __mapBounds: search.bounds } : {}), ...(search.camera ? { __mapCamera: search.camera } : {}) } as Record<string, unknown>,
       polygon: search.polygon,
       alertsEnabled: search.alerts,
     }))
@@ -512,6 +515,8 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
           query: search.query,
           rentalMode: search.rentalMode,
           filters: normalizeFilters({ ...defaultFilters, ...search.filters }),
+          bounds: validMapSearchBounds(search.filters.__mapBounds) ? search.filters.__mapBounds : undefined,
+          camera: validMapViewport(search.filters.__mapCamera) ? search.filters.__mapCamera : undefined,
           alerts: search.alertsEnabled,
           createdAt: search.createdAt,
           polygon: search.polygon,
@@ -587,22 +592,46 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     if (currentUserId) void clearRemoteSearchHistory().catch(() => toast.error('No se pudo borrar el historial de búsqueda.'))
     return []
   }), [currentUserId, updateScope])
-  const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
-    const searches = current ?? []
-    const duplicate = searches.some((item) => item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
-    if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
-    const optimistic = { id: `search-${Date.now()}`, query, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
-    if (currentUserId) {
-      void createSavedSearch({ name: query, query, rentalMode, filters: filters as unknown as Record<string, unknown>, polygon: mapPolygon, alertsEnabled: true }).then((saved) => {
-        updateScope(setSavedSearchScopes, (latest) => (latest ?? []).map((item) => item.id === optimistic.id ? { ...item, id: saved.id, createdAt: saved.createdAt } : item))
-      }).catch(() => {
-        updateScope(setSavedSearchScopes, (latest) => (latest ?? []).filter((item) => item.id !== optimistic.id))
-        toast.error('No se pudo guardar la búsqueda.')
-      })
-    }
-    toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
-    return [optimistic, ...searches]
-  }), [currentUserId, filters, mapPolygon, query, rentalMode, updateScope])
+  const saveCurrentSearch = useCallback(() => {
+    const hash = window.location.hash
+    const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
+    const bounds = searchBoundsFromParams(routeParams) ?? undefined
+    const camera = mapViewportFromParams(routeParams) ?? undefined
+    const savedQuery = routeParams.get('q')?.trim() || query
+    // The current search URL is authoritative. Mobile route navigation can
+    // change rental mode/filters before the app-context state catches up.
+    const savedRentalMode: RentalMode = routeParams.get('alquiler') === 'holiday'
+      ? 'holiday' : routeParams.get('alquiler') === 'long' ? 'long' : rentalMode
+    const savedFilters = hash.startsWith('#/buscar') ? filtersFromParams(routeParams) : filters
+    updateScope(setSavedSearchScopes, (current) => {
+      const searches = current ?? []
+      const duplicate = searches.some((item) => item.query === savedQuery && item.rentalMode === savedRentalMode
+        && JSON.stringify(item.filters) === JSON.stringify(savedFilters)
+        && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon)
+        && JSON.stringify(item.bounds) === JSON.stringify(bounds))
+      if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
+      const optimistic: SavedSearch = {
+        id: `search-${Date.now()}`, query: savedQuery, rentalMode: savedRentalMode, filters: { ...savedFilters },
+        alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon, bounds, camera,
+      }
+      if (currentUserId) {
+        void createSavedSearch({
+          name: savedQuery, query: savedQuery, rentalMode: savedRentalMode,
+          filters: { ...savedFilters, ...(bounds ? { __mapBounds: bounds } : {}), ...(camera ? { __mapCamera: camera } : {}) },
+          polygon: mapPolygon, alertsEnabled: true,
+        }).then((saved) => {
+          updateScope(setSavedSearchScopes, (latest) => (latest ?? []).map((item) => item.id === optimistic.id
+            ? { ...item, id: saved.id, createdAt: saved.createdAt } : item))
+        }).catch(() => {
+          updateScope(setSavedSearchScopes, (latest) => (latest ?? []).filter((item) => item.id !== optimistic.id))
+          toast.error('No se pudo guardar la búsqueda.')
+        })
+      }
+      toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
+      return [optimistic, ...searches]
+    })
+  }, [currentUserId, filters, mapPolygon, query, rentalMode, updateScope])
+
   const restoreSavedSearch = useCallback((id: string) => {
     const found = savedSearches.find((item) => item.id === id)
     if (found) { setQuery(found.query); setRentalMode(found.rentalMode); setFilters(normalizeFilters(found.filters)); setMapPolygonState(found.polygon ?? []) }

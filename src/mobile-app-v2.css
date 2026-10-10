@@ -349,3 +349,72 @@ html.mobile-v2-active #main-content > :not(.m2-app) { display: none !important; 
     box-shadow: 0 .62rem 1.25rem rgb(0 0 0 / .3);
   }
 }
+
+/* An Idealista-style pending-area confirmation keeps the previous results
+   active until the visitor explicitly starts a search in the new viewport. */
+.m2-map-search-confirm {
+  position: absolute;
+  z-index: 37;
+  right: .75rem;
+  bottom: calc(8.75rem + env(safe-area-inset-bottom));
+  left: .75rem;
+  display: grid;
+  gap: .65rem;
+  max-width: 28rem;
+  margin-inline: auto;
+  padding: .95rem;
+  border: 1px solid #ced8b5;
+  border-radius: .65rem;
+  background: rgb(255 255 255 / .98);
+  color: #29351d;
+  box-shadow: 0 8px 25px rgb(0 0 0 / .21);
+}
+.m2-map-search-confirm p { margin: 0; font-size: .83rem; line-height: 1.38; }
+.m2-map-search-confirm button {
+  min-height: 2.8rem;
+  border: 0;
+  border-radius: .35rem;
+  background: #d2ff3f;
+  color: #1c2a04;
+  font-size: .86rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.m2-map-search-confirm button:focus-visible {
+  outline: 3px solid #597900;
+  outline-offset: 2px;
+}
+.m2-map-screen:has(.m2-map-listing-preview) .m2-map-search-confirm,
+.m2-map-screen:has(.m2-map-coincident-picker) .m2-map-search-confirm {
+  opacity: 0;
+  pointer-events: none;
+}
+.m2-collection__list > button > .m2-saved-area-preview {
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+  height: 4.5rem;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #c8cfb4;
+  border-radius: .4rem;
+  background: #e8f2e2;
+}
+.m2-collection__list > button > .m2-saved-area-preview svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.m2-saved-area-preview .m2-saved-area-grid {
+  fill: none;
+  stroke: #c4d6c6;
+  stroke-width: 1;
+}
+.m2-saved-area-preview polygon {
+  stroke: #4c7200;
+  stroke-width: 3;
+  fill: rgb(187 236 73 / .58);
+}
+@media (max-height: 550px) {
+  .m2-map-search-confirm { bottom: calc(4.35rem + env(safe-area-inset-bottom)); }
+}
