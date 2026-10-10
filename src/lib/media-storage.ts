@@ -59,14 +59,16 @@ async function optimizeMediaFile(file: File) {
     const blob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob(resolve, 'image/webp', LOCAL_MEDIA_WEBP_QUALITY)
     })
-    if (!blob) return file
+    if (!blob || !['image/webp', 'image/png', 'image/jpeg'].includes(blob.type)) return file
 
-    // Do not replace a small source with a larger derivative. Resizing always
-    // wins because it reduces upload, decode and rendered-memory costs.
-    if (scale === 1 && blob.size >= file.size) return file
+    // HEIC must be converted, even when conversion slightly increases bytes.
+    // For standard JPG/PNG/WebP a larger same-resolution copy is unnecessary.
+    const sourceIsHeic = file.type === 'image/heic' || file.type === 'image/heif'
+    if (!sourceIsHeic && scale === 1 && blob.size >= file.size) return file
     const baseName = file.name.replace(/\.[^.]+$/, '') || 'listing-image'
-    return new File([blob], `${baseName}.webp`, {
-      type: 'image/webp',
+    const extension = blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg'
+    return new File([blob], `${baseName}.${extension}`, {
+      type: blob.type,
       lastModified: file.lastModified,
     })
   } catch {
@@ -226,7 +228,8 @@ export async function prepareImageForUpload(file: File): Promise<File> {
   const optimized = await optimizeMediaFile(normalized)
   // HEIC/HEIF requires real browser decoding and conversion, not a MIME rename.
   // Never send HEIC bytes under an image/webp or image/jpeg label.
-  if ((mime === 'image/heic' || mime === 'image/heif') && optimized.type !== 'image/webp') {
+  if ((mime === 'image/heic' || mime === 'image/heif')
+    && !['image/webp', 'image/png', 'image/jpeg'].includes(optimized.type)) {
     throw new MediaStorageError('type', 'No se pudo convertir la foto HEIC. Exporta la foto como JPEG y vuelve a intentarlo.')
   }
   if (!optimized.size || optimized.size > MAX_LISTING_IMAGE_UPLOAD_BYTES) {
