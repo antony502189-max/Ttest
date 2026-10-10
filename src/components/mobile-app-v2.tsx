@@ -314,7 +314,7 @@ function LocationScreen({ t, onBack, onChangeRegion, onMap, onNearby, nearbyStat
   return <section className="m2-screen m2-location" data-testid="location-screen"><BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} /><div className="m2-location__body"><div className="m2-location-region"><strong>{t.regionSearch}</strong><button type="button" onClick={onChangeRegion}>{t.change}</button></div><form className="m2-location-search" onSubmit={submit}><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder} />{query ? <button type="button" className="m2-location-clear" onClick={() => setQuery('')} aria-label={t.clear}><X /></button> : null}</form><h2>{t.alsoYouCan}</h2><button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button><button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button>{statusMessage ? <p className={cn('m2-location-feedback', !['loading', 'success'].includes(nearbyStatus) && 'is-error')} role={nearbyStatus === 'loading' ? 'status' : 'alert'}>{statusMessage}</p> : null}</div></section>
 }
 
-function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onStatus, onCameraChange }: { t: MobileCopy; mapRef: MutableRefObject<google.maps.Map | null>; query: string; initialCenter?: MapPoint; initialCamera?: MapCamera; onStatus: (status: MapStatus) => void; onCameraChange: (camera: MapCamera) => void }) {
+function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onStatus, onCameraChange }: { t: MobileCopy; mapRef: MutableRefObject<google.maps.Map | null>; query: string; initialCenter?: MapPoint; initialCamera?: MapCamera; onStatus: (status: MapStatus) => void; onCameraChange: (camera: MapCamera, interacted?: boolean) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<MapStatus>('loading')
   const startingView = useRef({ query, initialCenter, initialCamera })
@@ -322,6 +322,7 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
   cameraChange.current = onCameraChange
   useEffect(() => {
     let cancelled = false
+    let removeInteractionListeners = () => {}
     const initialize = async () => {
       try {
         const { googleMapsConfig, loadGoogleMaps } = await import('@/lib/google-maps/loader')
@@ -337,6 +338,19 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         map.setCenter({ lat: startingCenter.lat, lng: startingCenter.lng })
         map.setZoom(camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom))
         mapRef.current = map
+        let userHasExploredMap = false
+        const markUserInteraction = () => { userHasExploredMap = true }
+        const canvas = containerRef.current
+        canvas.addEventListener('pointerdown', markUserInteraction, { passive: true })
+        canvas.addEventListener('wheel', markUserInteraction, { passive: true })
+        canvas.addEventListener('keydown', markUserInteraction)
+        const dragListener = map.addListener('dragstart', markUserInteraction)
+        removeInteractionListeners = () => {
+          canvas.removeEventListener('pointerdown', markUserInteraction)
+          canvas.removeEventListener('wheel', markUserInteraction)
+          canvas.removeEventListener('keydown', markUserInteraction)
+          dragListener.remove()
+        }
         if (camera) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
           map.getDiv().dataset.mapZoom = String(camera.zoom)
@@ -349,7 +363,7 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
           if (!point || zoom === undefined) return
           map.getDiv().dataset.mapCenter = `${point.lat().toFixed(6)},${point.lng().toFixed(6)}`
           map.getDiv().dataset.mapZoom = String(zoom)
-          cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom })
+          cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom }, userHasExploredMap)
         })
         google.maps.event.addListenerOnce(map, 'tilesloaded', () => { if (!cancelled) { setStatus('ready'); onStatus('ready') } })
       } catch (error) {
@@ -358,7 +372,7 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
       }
     }
     setStatus('loading'); onStatus('loading'); void initialize()
-    return () => { cancelled = true; mapRef.current = null }
+    return () => { cancelled = true; removeInteractionListeners(); mapRef.current = null }
   }, [mapRef, onStatus])
   return <div className="m2-map-canvas-wrap"><div ref={containerRef} className="m2-map-canvas" data-testid="google-map" />{status === 'loading' ? <div className="m2-map-status" role="status">{t.mapLoading}</div> : null}{status === 'error' ? <div className="m2-map-status m2-map-status--error" role="alert">{t.mapError}</div> : null}</div>
 }
@@ -518,7 +532,7 @@ function FreehandAreaLayer({ mapRef, mapReady, active, setActive, polygon, onPol
 }
 
 function MapScreen({ mode, language, t, query, initialCenter, initialCamera, polygon, items, serverQuery, onPolygonChange, onCameraChange, onBack, onSave, onList, onFilters, onSearchArea }: {
-  mode: MapMode; language: AppLanguage; t: MobileCopy; query: string; initialCenter?: MapPoint; initialCamera?: MapCamera; polygon: MapPoint[]; items: Listing[]; serverQuery?: Record<string, unknown>; onPolygonChange: (polygon: MapPoint[]) => void; onCameraChange: (camera: MapCamera) => void; onBack: () => void; onSave?: () => void; onList?: () => void; onFilters?: () => void; onSearchArea?: () => void
+  mode: MapMode; language: AppLanguage; t: MobileCopy; query: string; initialCenter?: MapPoint; initialCamera?: MapCamera; polygon: MapPoint[]; items: Listing[]; serverQuery?: Record<string, unknown>; onPolygonChange: (polygon: MapPoint[]) => void; onCameraChange: (camera: MapCamera, interacted?: boolean) => void; onBack: () => void; onSave?: () => void; onList?: () => void; onFilters?: () => void; onSearchArea?: () => void
 }) {
   const mapRef = useRef<google.maps.Map | null>(null)
   const preserveInitialCamera = useRef(Boolean(initialCamera))
@@ -550,6 +564,7 @@ function MapScreen({ mode, language, t, query, initialCenter, initialCamera, pol
     mapRef.current?.panTo(result.coordinates)
     mapRef.current?.setZoom(14)
     await showUserMarker(result.coordinates)
+    onCameraChange({ ...result.coordinates, zoom: 14 }, true)
     setLocationStatus('success')
   }
   useEffect(() => {
@@ -774,7 +789,7 @@ export function MobileAppV2() {
   const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
   const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasActivePolygon ? undefined
     : namedLocation ? { ...namedLocation, zoom: 12 }
-      : readLastMapViewport() ?? FIRST_MAP_VIEWPORT)
+      : readLastMapViewport(Math.max(240, window.innerWidth - 40), Math.max(240, window.innerHeight - 240)) ?? FIRST_MAP_VIEWPORT)
   const nearbyCameraCenter = hasNearbyCoordinates
     ? { lat: Number(cameraParams.get('lat')), lng: Number(cameraParams.get('lng')) }
     : undefined
@@ -883,10 +898,10 @@ export function MobileAppV2() {
     pendingRouteSearchRef.current = routeSearchRef.current
     navigate(`${location.pathname}?${params.toString()}`, { replace: true })
   }
-  const commitMapCamera = (camera: MapCamera) => {
-    // Persist outside router history, so a completely new map visit recovers
-    // the last position. URL camera remains authoritative for Back/deep links.
-    rememberMapViewport(camera)
+  const commitMapCamera = (camera: MapCamera, interacted = false) => {
+    // Keep Back/deep-link camera state on the URL, but only real map exploration
+    // contributes to the next SEARCH's remembered 300 km circle.
+    if (interacted) rememberMapViewport(camera)
     if (pendingRouteSearchRef.current) {
       // Google Maps can emit a pan and zoom idle in the same render. Keep the
       // newest camera rather than losing zoom while Router processes replace.
