@@ -152,6 +152,9 @@ test('MEDIA: large phone PNG is optimized before upload-size validation, and mis
   await continueWizard(page, 6)
   const uploader = page.locator('#publish-images')
   const cards = page.locator('.upload-photo-card')
+  // Wait for the saved draft/mock host's initial five photos to hydrate before
+  // measuring the increment; measuring immediately races initial app hydration.
+  await expect(cards).toHaveCount(5)
   const initialCount = await cards.count()
 
   // Some phone exports exceed the former 12 MB raw-file guard but compress
