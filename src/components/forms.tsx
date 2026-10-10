@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, GripVertical, ImagePlus, RotateCw, Trash2, UploadCloud, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiBlob, ApiError, resolveApiUrl } from "@/api/client";
+import { apiBlob, ApiError, fetchAuthenticatedMedia, resolveApiUrl } from "@/api/client";
 import { cleanupUploadedMediaReference, uploadImageFile, uploadVideoFile } from "@/api/media";
 import {
   Field,
@@ -182,10 +182,12 @@ async function imageBlob(reference: string) {
     return blob;
   }
 
-  const pathname = new URL(reference, window.location.origin).pathname;
-  const apiMediaPath = pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+  const mediaUrl = new URL(reference, window.location.origin);
+  const apiMediaPath = mediaUrl.pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+  const ownerPreview = Boolean(apiMediaPath && mediaUrl.searchParams.get("uploadPreview") === "1"
+    && mediaUrl.origin === new URL(resolveApiUrl(apiMediaPath)).origin);
   const blob = apiMediaPath
-    ? await apiBlob(apiMediaPath)
+    ? await (ownerPreview ? fetchAuthenticatedMedia(apiMediaPath) : apiBlob(apiMediaPath))
     : await fetch(reference, { credentials: "include" }).then((response) => {
         if (!response.ok) throw new MediaStorageError("read", "No se pudo leer la imagen.");
         return response.blob();
