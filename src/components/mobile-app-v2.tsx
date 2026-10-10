@@ -68,6 +68,10 @@ type MapInteractionState = {
 }
 
 const ONBOARDING_KEY = '112233:mobile-onboarding:v1'
+// Lives for the browser document, not for a React component: navigating to a
+// listing unmounts MobileAppV2, but Back should still restore the exact camera.
+// A genuine reload/new tab resets this flag and uses the 300 km recall instead.
+let mapOpenedInCurrentDocument = false
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileMapListingsLayer })))
 const CommercialAdvertisementPlacement = lazy(() => import('@/components/commercial-advertisement-placement').then((module) => ({ default: module.CommercialAdvertisementPlacement })))
@@ -740,11 +744,11 @@ export function MobileAppV2() {
   const latestPendingCameraRef = useRef<{ camera: MapCamera; query: string | null } | null>(null)
   // A generated exact map camera is only for Back/Forward within the same app
   // session. On a fresh visit or browser reload we recall the 300 km region.
-  const mapEntryRef = useRef({ active: false, visited: false, returnedInApp: false })
+  const mapEntryRef = useRef({ active: false, returnedInApp: false })
   const onMapRoute = location.pathname === '/buscar' && new URLSearchParams(location.search).get('vista') === 'mapa'
   if (onMapRoute && !mapEntryRef.current.active) {
-    mapEntryRef.current.returnedInApp = mapEntryRef.current.visited
-    mapEntryRef.current.visited = true
+    mapEntryRef.current.returnedInApp = mapOpenedInCurrentDocument
+    mapOpenedInCurrentDocument = true
   }
   mapEntryRef.current.active = onMapRoute
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
