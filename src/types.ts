@@ -193,6 +193,8 @@ export interface ListingDraft {
   postcode: string
   coordinates: Coordinates
   locationManuallyMoved: boolean
+  /** True when address fields changed after the last confirmed map location. */
+  locationNeedsConfirmation?: boolean
   roomType: Listing['roomType']
   roomSizeM2: number
   homeSizeM2: number
