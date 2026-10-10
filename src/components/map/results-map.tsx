@@ -196,7 +196,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !ready || !serverQueryKey) return
+    if (!map || !ready || !serverQueryKey || boundsDirty) return
     let timer: number | undefined
     let request: AbortController | null = null
     let lastKey = ''
@@ -219,7 +219,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     return () => { listener.remove(); window.clearTimeout(timer); request?.abort() }
   // The serialized query is the request identity; the object itself may be recreated.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, serverQueryKey])
+  }, [boundsDirty, ready, serverQueryKey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -797,6 +797,8 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     if (!currentBounds || !onBoundsSearch || !boundsDirty) return
     if (lastSearchedBoundsRef.current && boundsAreEqual(currentBounds, lastSearchedBoundsRef.current)) { setBoundsDirty(false); return }
     skipNextResultsFitRef.current = true
+    // Applying map bounds must not recenter to the OLD result markers.
+    previousFitResultsKeyRef.current = 1
     const currentCenter = mapRef.current?.getCenter()
     const currentZoom = mapRef.current?.getZoom()
     if (currentCenter && currentZoom !== undefined) {
