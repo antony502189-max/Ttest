@@ -36,6 +36,12 @@ test('create/edit remove temporary uploaded photos but preserve original publish
   expect(edit).toContain("else if (image.includes('uploadPreview=1')) void cleanupUploadedMediaReference(image)")
 })
 
+test('rotating a temporary uploaded image reads owner-protected bytes only from the configured API origin', () => {
+  const forms = readFileSync('src/components/forms.tsx', 'utf8')
+  expect(forms).toContain('mediaUrl.origin === new URL(resolveApiUrl(apiMediaPath)).origin')
+  expect(forms).toContain('ownerPreview ? fetchAuthenticatedMedia(apiMediaPath) : apiBlob(apiMediaPath)')
+})
+
 test('video picker preserves server error details and the existing 100 MB/60s contract', () => {
   const forms = readFileSync('src/components/forms.tsx', 'utf8')
   const storage = readFileSync('src/lib/media-storage.ts', 'utf8')
