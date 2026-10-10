@@ -1,5 +1,5 @@
 import { api, resolveApiUrl } from '@/api/client'
-import { getMediaBlob, isMediaReference } from '@/lib/media-storage'
+import { getMediaBlob, isMediaReference, prepareImageForUpload } from '@/lib/media-storage'
 
 type MediaAssetDto = { id: string; url: string }
 type ListingImageDto = { assetId: string; url: string; sortOrder: number; isCover: boolean }
@@ -23,6 +23,16 @@ export async function uploadMediaReference(reference: string) {
   const body = new FormData()
   body.append('file', new File([blob], 'listing-image.webp', { type: blob.type || 'image/webp' }))
   return api<MediaAssetDto>('/uploads', { method: 'POST', body, timeoutMs: 45_000 })
+}
+
+/** Direct owner upload used when IndexedDB is unavailable or out of space.
+ * The returned asset is kept until the user saves the listing; do not discard
+ * it simply because local browser storage failed. */
+export async function uploadImageFile(file: File) {
+  const prepared = await prepareImageForUpload(file)
+  const body = new FormData()
+  body.append('file', prepared, prepared.name)
+  return api<MediaAssetDto>('/uploads', { method: 'POST', body, timeoutMs: 90_000 })
 }
 
 export async function uploadVideoFile(file: File) {
