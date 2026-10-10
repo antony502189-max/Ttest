@@ -67,6 +67,15 @@ function resultCoordinates(result: google.maps.GeocoderResult): Coordinates | nu
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
 }
 
+function resultAreaCandidates(result: google.maps.GeocoderResult) {
+  return [
+    component(result, 'sublocality_level_1'),
+    component(result, 'sublocality'),
+    component(result, 'neighborhood'),
+    component(result, 'locality'),
+  ].filter(Boolean)
+}
+
 function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: string): ParsedAddressInput {
   const raw = rawStreet.trim().replace(/\s*\n+\s*/g, ', ')
   const embeddedPostcode = raw.match(/\b\d{5}\b/)?.[0] ?? ''
@@ -95,7 +104,7 @@ function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: 
   return { street, postcode, area, raw }
 }
 
-function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string) {
+function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string, area: string, fullAddressWithArea: boolean) {
   const coordinates = resultCoordinates(result)
   if (!coordinates || !isInsideTenerife(coordinates)) return false
 
@@ -123,10 +132,16 @@ function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, 
   const municipalityMatches = !city
     || !resolvedMunicipality
     || normalizeTenerifeText(resolvedMunicipality) === normalizeTenerifeText(city)
-  // 'city' is only supplied when the host explicitly chose the municipality.
-  // A matching house number/postcode must never override that choice: repeated
-  // street names occur across Tenerife municipalities.
-  if (!municipalityMatches) return false
+  // With a short street + number, never override a manually selected
+  // municipality: repeated street names occur across Tenerife.
+  // A *pasted complete address* is different: its explicit barrio can resolve
+  // a stale municipality when Google confirms both route, number and barrio.
+  if (!municipalityMatches) {
+    const requestedArea = normalizeTenerifeText(area)
+    const verifiedArea = fullAddressWithArea && Boolean(wantedNumber && requestedArea)
+      && resultAreaCandidates(result).some((candidate) => normalizeTenerifeText(candidate) === requestedArea)
+    if (!verifiedArea) return false
+  }
 
   return true
 }
@@ -259,7 +274,7 @@ export function PublishExactAddressSync() {
           if (cancelled || !gate.isCurrent(version)) return
           result = postcodeOnly
             ? results.find((candidate) => resultMatchesPostcode(candidate, postcode))
-            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint))
+            : results.find((candidate) => resultMatchesQuery(candidate, street, postcode, cityConstraint, area, /\b\d+[A-Za-z]?\s*[.,;]\s*[^\d\s]/u.test(parsed.raw)))
           if (result) break
         }
         const coordinates = result ? resultCoordinates(result) : null
