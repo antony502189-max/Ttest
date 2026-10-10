@@ -1,28 +1,37 @@
 /**
- * Local, device-scoped map history (no account, cookies or server writes).
+ * Device-local memory of the last area the visitor explored on the results map.
+ * We store only its geographic center, not the previous zoom: on each new
+ * search a 300 km radius must fit the CURRENT screen (desktop or mobile).
  *
- * Explicit camera/deep-link parameters always take priority. The last map
- * viewport is only a fallback when a visitor opens a NEW map search.
+ * A fresh visitor has no record. Camera bookmarks and named-area searches
+ * take precedence over this fallback.
  */
 export type MapViewport = { lat: number; lng: number; zoom: number }
+export type MapCenter = Pick<MapViewport, 'lat' | 'lng'>
 
-export const MAP_VISIT_KEY = '112233:map-last-viewport:v1'
+export const MAP_VISIT_KEY = '112233:map-last-search-area:v2'
+export const MAP_RECALL_RADIUS_KM = 300
 export const FIRST_MAP_VIEWPORT: Readonly<MapViewport> = {
-  // Atlantic midpoint: a first-time visitor sees the Canaries and mainland
-  // Spain rather than a close-up of an arbitrary property.
+  // First-time Atlantic overview including both Tenerife and mainland Spain.
   lat: 32.45, lng: -11.2, zoom: 5.25,
 }
 const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
+const EARTH_RADIUS_KM = 6371.0088
+const MAX_MERCATOR_LAT = 85.05112878
+
+function validMapCenter(value: unknown): value is MapCenter {
+  if (!value || typeof value !== 'object') return false
+  const center = value as Partial<MapCenter>
+  return typeof center.lat === 'number' && Number.isFinite(center.lat)
+    && center.lat >= -85 && center.lat <= 85
+    && typeof center.lng === 'number' && Number.isFinite(center.lng)
+    && center.lng >= -180 && center.lng <= 180
+}
 
 export function validMapViewport(value: unknown): value is MapViewport {
-  if (!value || typeof value !== 'object') return false
-  const camera = value as Partial<MapViewport>
-  return typeof camera.lat === 'number' && Number.isFinite(camera.lat)
-    && camera.lat >= -85 && camera.lat <= 85
-    && typeof camera.lng === 'number' && Number.isFinite(camera.lng)
-    && camera.lng >= -180 && camera.lng <= 180
-    && typeof camera.zoom === 'number' && Number.isFinite(camera.zoom)
-    && camera.zoom >= 2 && camera.zoom <= 19
+  if (!validMapCenter(value)) return false
+  const { zoom } = value as MapViewport
+  return typeof zoom === 'number' && Number.isFinite(zoom) && zoom >= 2 && zoom <= 19
 }
 
 export function mapViewportFromParams(params: URLSearchParams): MapViewport | null {
@@ -35,37 +44,70 @@ export function mapViewportFromParams(params: URLSearchParams): MapViewport | nu
   return validMapViewport(camera) ? camera : null
 }
 
-export function readLastMapViewport(): MapViewport | null {
+export function readLastMapCenter(): MapCenter | null {
   try {
     const raw = localStorage.getItem(MAP_VISIT_KEY)
     if (!raw) return null
     const record: unknown = JSON.parse(raw)
     if (!record || typeof record !== 'object') return null
-    const { camera, savedAt } = record as { camera?: unknown; savedAt?: unknown }
+    const { center, savedAt } = record as { center?: unknown; savedAt?: unknown }
     if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)
       || savedAt > Date.now() + 60_000 || Date.now() - savedAt > MAX_AGE_MS
-      || !validMapViewport(camera)) return null
-    return { lat: camera.lat, lng: camera.lng, zoom: camera.zoom }
+      || !validMapCenter(center)) return null
+    return { lat: center.lat, lng: center.lng }
   } catch {
-    // Browsers can refuse storage (incognito/quota/security restrictions).
+    // Restricted storage must not prevent a search.
     return null
   }
 }
 
+function mercatorY(latitude: number): number {
+  const phi = Math.max(-MAX_MERCATOR_LAT, Math.min(MAX_MERCATOR_LAT, latitude)) * Math.PI / 180
+  return (1 - Math.log(Math.tan(Math.PI / 4 + phi / 2)) / Math.PI) / 2
+}
+
+/** Zoom of the enclosing geographic circle, with margin for map controls. */
+export function viewportForRememberedArea(center: MapCenter, width: number, height: number): MapViewport {
+  const angularRadius = MAP_RECALL_RADIUS_KM / EARTH_RADIUS_KM
+  const latitudeRadius = angularRadius * 180 / Math.PI
+  const phi = center.lat * Math.PI / 180
+  const longitudeRadius = Math.abs(Math.cos(phi)) <= Math.sin(angularRadius)
+    ? 180 : Math.asin(Math.min(1, Math.sin(angularRadius) / Math.cos(phi))) * 180 / Math.PI
+  const longitudeFraction = Math.min(1, 2 * longitudeRadius / 360)
+  const latitudeFraction = Math.abs(mercatorY(center.lat - latitudeRadius) - mercatorY(center.lat + latitudeRadius))
+
+  // Google's world tile is 256 px at zoom 0. A 20% safety margin in each
+  // dimension ensures the 600 km diameter fits even behind mobile controls.
+  const usableWidth = Math.max(1, (width > 0 ? width : 390) * 0.8)
+  const usableHeight = Math.max(1, (height > 0 ? height : 600) * 0.8)
+  const zoom = Math.min(
+    Math.log2(usableWidth / (256 * longitudeFraction)),
+    Math.log2(usableHeight / (256 * latitudeFraction)),
+  )
+  return { ...center, zoom: Math.max(2, Math.min(19, Math.floor(zoom * 4) / 4)) }
+}
+
+export function readLastMapViewport(width = 390, height = 600): MapViewport | null {
+  const center = readLastMapCenter()
+  return center ? viewportForRememberedArea(center, width, height) : null
+}
+
+/**
+ * Called only after a visitor actually explores or searches the map.
+ * Initialization/automatic marker fitting MUST NOT write map history.
+ */
 export function rememberMapViewport(camera: MapViewport): void {
   if (!validMapViewport(camera)) return
   try {
-    const previous = readLastMapViewport()
-    // Map's idle event fires repeatedly without movement; avoid needless I/O.
+    const previous = readLastMapCenter()
     if (previous
       && Math.abs(previous.lat - camera.lat) < 0.00001
-      && Math.abs(previous.lng - camera.lng) < 0.00001
-      && Math.abs(previous.zoom - camera.zoom) < 0.001) return
+      && Math.abs(previous.lng - camera.lng) < 0.00001) return
     localStorage.setItem(MAP_VISIT_KEY, JSON.stringify({
-      camera: { lat: camera.lat, lng: camera.lng, zoom: camera.zoom },
+      center: { lat: camera.lat, lng: camera.lng },
       savedAt: Date.now(),
     }))
   } catch {
-    // Navigation and map browsing must keep working when storage is denied.
+    // Private mode, blocked storage, or quota errors are non-fatal.
   }
 }
