@@ -520,7 +520,7 @@ export function ListingEditPage() {
       </Section>
 
       <Section id="edit-photos" title="Fotografías" hint={`Entre ${MIN_LISTING_PHOTOS} y ${MAX_LISTING_PHOTOS} fotos y, opcionalmente, un vídeo de hasta 1 minuto. La primera foto será la portada.`}>
-        <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined) }} onProcessingChange={setProcessingImages} error={errors.images} />
+        <ImageUploader images={draft.images} onChange={(images) => set('images', images)} onRemove={(image) => { if (!existing.images.includes(image)) { if (isMediaReference(image)) void removeUnusedMediaReferences([image], nonDraftMedia).catch(() => undefined); else if (image.includes('uploadPreview=1')) void cleanupUploadedMediaReference(image).catch(() => undefined) } }} onProcessingChange={setProcessingImages} error={errors.images} />
         <VideoUploader video={draft.video} onChange={(video) => set('video', video)} onProcessingChange={setProcessingVideo} onRemove={(video) => { if (video !== existing.video) { if (isMediaReference(video)) void removeUnusedMediaReferences([video], nonDraftMedia).catch(() => undefined); else void cleanupUploadedMediaReference(video).catch(() => undefined) } }} error={errors.video} />
       </Section>
 

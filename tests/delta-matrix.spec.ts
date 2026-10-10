@@ -1,8 +1,56 @@
+import { randomFillSync } from 'node:crypto'
+import { deflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 
 const hostSession = 'host-demo'
 const firstListingId = 'armeñime-luminosa-01'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n1cAAAAASUVORK5CYII=', 'base64')
+
+// Generate an actual 13+ MiB PNG. Appending junk after IEND would be invalid:
+// strict browser PNG decoders correctly reject that file before compression.
+function createLargeValidPng(): Buffer {
+  const width = 2100
+  const height = 2100
+  const stride = width * 4
+  const rowLength = stride + 1
+  const raw = Buffer.alloc(rowLength * height)
+  for (let y = 0; y < height; y++) {
+    const offset = y * rowLength + 1
+    randomFillSync(raw, offset, stride)
+    // Opaque RGB noise is incompressible in PNG but is significantly smaller
+    // after the photo upload path's 2048px lossy WebP optimization.
+    for (let x = 3; x < stride; x += 4) raw[offset + x] = 255
+  }
+  const table = new Uint32Array(256)
+  for (let i = 0; i < 256; i++) {
+    let c = i
+    for (let j = 0; j < 8; j++) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    table[i] = c >>> 0
+  }
+  const chunk = (type: string, data: Buffer) => {
+    const header = Buffer.alloc(8)
+    header.writeUInt32BE(data.length, 0)
+    header.write(type, 4, 'ascii')
+    let crc = 0xffffffff
+    for (const byte of Buffer.concat([Buffer.from(type), data])) {
+      crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+    }
+    const checksum = Buffer.alloc(4)
+    checksum.writeUInt32BE((crc ^ 0xffffffff) >>> 0, 0)
+    return Buffer.concat([header, data, checksum])
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(width, 0)
+  ihdr.writeUInt32BE(height, 4)
+  ihdr[8] = 8 // 8 bits per channel
+  ihdr[9] = 6 // RGBA
+  return Buffer.concat([
+    Buffer.from('89504e470d0a1a0a', 'hex'),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw, { level: 1 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ])
+}
 
 async function clearLocalState(page: Page) {
   await page.goto('/#/')
@@ -145,6 +193,30 @@ test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback
   await page.reload()
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
   await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^data:image\/svg/)
+})
+
+test('MEDIA: large phone PNG is optimized before upload-size validation, and missing MIME is inferred', async ({ page }) => {
+  await openAs(page, hostSession, '/#/publicar')
+  await continueWizard(page, 6)
+  const uploader = page.locator('#publish-images')
+  const cards = page.locator('.upload-photo-card')
+  // The demo host starts with six seeded photos. Wait for hydration
+  // before comparing upload increments (an immediate count can still be zero).
+  await expect(cards).toHaveCount(6)
+  const initialCount = await cards.count()
+
+  // Phone photos can exceed the former 12 MiB raw-file guard while
+  // remaining below the upload limit after pixel-aware WebP optimization.
+  const largePhoto = createLargeValidPng()
+  expect(largePhoto.length).toBeGreaterThan(12 * 1024 * 1024)
+  await uploader.setInputFiles({ name: 'camera-export.png', mimeType: 'image/png', buffer: largePhoto })
+  await expect(cards).toHaveCount(initialCount + 1, { timeout: 20_000 })
+  await expect(page.locator('.image-uploader')).not.toContainText('12 MB')
+
+  // Android/iOS file pickers can supply octet-stream for an ordinary PNG.
+  await uploader.setInputFiles({ name: 'phone-image.png', mimeType: 'application/octet-stream', buffer: png })
+  await expect(cards).toHaveCount(initialCount + 2)
+  await expect(page.locator('.image-uploader').getByRole('status')).toHaveCount(0)
 })
 
 test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results', async ({ page }) => {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, GripVertical, ImagePlus, RotateCw, Trash2, UploadCloud, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiBlob, resolveApiUrl } from "@/api/client";
-import { uploadVideoFile } from "@/api/media";
+import { apiBlob, ApiError, fetchAuthenticatedMedia, resolveApiUrl } from "@/api/client";
+import { cleanupUploadedMediaReference, uploadImageFile, uploadVideoFile } from "@/api/media";
 import {
   Field,
   FieldDescription,
@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { acceptedImageTypes, getMediaBlob, isAcceptedVideoFile, isMediaReference, MAX_LISTING_PHOTOS, MAX_LISTING_VIDEO_BYTES, MAX_LISTING_VIDEO_SECONDS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile, validateVideoFile } from "@/lib/media-storage";
+import { getMediaBlob, isAcceptedImageFile, isAcceptedVideoFile, isMediaReference, MAX_LISTING_PHOTOS, MAX_LISTING_SOURCE_IMAGE_BYTES, MAX_LISTING_VIDEO_BYTES, MAX_LISTING_VIDEO_SECONDS, MediaStorageError, removeMediaReferences, saveMediaFile, saveVideoFile, validateVideoFile } from "@/lib/media-storage";
 import { MediaImage } from "@/components/media-image";
 import type { ListingStatus } from "@/types";
 import "@/listing-edit-comfort.css";
@@ -182,10 +182,12 @@ async function imageBlob(reference: string) {
     return blob;
   }
 
-  const pathname = new URL(reference, window.location.origin).pathname;
-  const apiMediaPath = pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+  const mediaUrl = new URL(reference, window.location.origin);
+  const apiMediaPath = mediaUrl.pathname.match(/^\/api\/v1(\/media\/[0-9a-f-]{36})$/i)?.[1];
+  const ownerPreview = Boolean(apiMediaPath && mediaUrl.searchParams.get("uploadPreview") === "1"
+    && mediaUrl.origin === new URL(resolveApiUrl(apiMediaPath)).origin);
   const blob = apiMediaPath
-    ? await apiBlob(apiMediaPath)
+    ? await (ownerPreview ? fetchAuthenticatedMedia(apiMediaPath) : apiBlob(apiMediaPath))
     : await fetch(reference, { credentials: "include" }).then((response) => {
         if (!response.ok) throw new MediaStorageError("read", "No se pudo leer la imagen.");
         return response.blob();
@@ -237,6 +239,20 @@ async function rotateImageFile(reference: string, quarterTurns = 1) {
   }
 }
 
+function mediaUploadError(error: unknown, kind: "foto" | "vídeo") {
+  if (error instanceof MediaStorageError) return error.message;
+  if (error instanceof ApiError) {
+    if (error.status === 401) return "La sesión ha caducado. Vuelve a iniciar sesión y selecciona el archivo.";
+    if (error.status === 413) return error.message === "Media storage quota exceeded"
+      ? "Has alcanzado el límite de almacenamiento de tu cuenta. Contacta con soporte."
+      : `El archivo supera el tamaño permitido para ${kind}.`;
+    if (error.status === 415 || error.status === 422) return `El servidor no puede procesar este ${kind}: ${error.message}`;
+    if (error.status === 429) return "Demasiadas cargas seguidas. Espera un momento e inténtalo otra vez.";
+    return `No se pudo subir el ${kind}: ${error.message}`;
+  }
+  return error instanceof Error ? error.message : `No se pudo procesar el ${kind}.`;
+}
+
 export function ImageUploader({
   images,
   onChange,
@@ -259,6 +275,8 @@ export function ImageUploader({
   const busyReferencesRef = useRef(new Set<string>());
   const [previewTurns, setPreviewTurns] = useState<Record<string, number>>({});
   const [localError, setLocalError] = useState("");
+  const photoBatchesRef = useRef(0);
+  const [addingImages, setAddingImages] = useState(false);
   const photoDragRef = useRef<{
     reference: string;
     sourceIndex: number;
@@ -307,10 +325,10 @@ export function ImageUploader({
   }, []);
 
   const reportBusy = (reference: string, busy: boolean) => {
-    const wasBusy = busyReferencesRef.current.size > 0;
+    const wasBusy = busyReferencesRef.current.size > 0 || photoBatchesRef.current > 0;
     if (busy) busyReferencesRef.current.add(reference);
     else busyReferencesRef.current.delete(reference);
-    const isBusy = busyReferencesRef.current.size > 0;
+    const isBusy = busyReferencesRef.current.size > 0 || photoBatchesRef.current > 0;
     if (wasBusy !== isBusy) onProcessingChange?.(isBusy);
   };
 
@@ -357,11 +375,22 @@ export function ImageUploader({
     rotatingReferencesRef.current.add(reference);
     try {
       const file = await rotateImageFile(reference, turns);
-      const nextReference = await saveMediaFile(file);
+      let nextReference: string;
+      try {
+        nextReference = await saveMediaFile(file);
+      } catch (reason) {
+        if (!(reason instanceof MediaStorageError) || reason.code === "type"
+          || import.meta.env.VITE_ENABLE_MOCK_MODE === "1") throw reason;
+        const uploaded = await uploadImageFile(file);
+        const url = resolveApiUrl(uploaded.url);
+        nextReference = `${url}${url.includes("?") ? "&" : "?"}uploadPreview=1`;
+      }
       const current = imagesRef.current;
       const currentIndex = current.indexOf(reference);
       if (currentIndex < 0) {
-        await removeMediaReferences([nextReference]).catch(() => undefined);
+        await (isMediaReference(nextReference)
+          ? removeMediaReferences([nextReference])
+          : cleanupUploadedMediaReference(nextReference)).catch(() => undefined);
         rotationQueueRef.current.delete(reference);
         setPreview(reference, 0);
         reportBusy(reference, false);
@@ -389,7 +418,7 @@ export function ImageUploader({
         busyReferencesRef.current.add(nextReference);
         scheduleRotation(nextReference);
       }
-      onProcessingChange?.(busyReferencesRef.current.size > 0);
+      onProcessingChange?.(busyReferencesRef.current.size > 0 || photoBatchesRef.current > 0);
       setLocalError("");
     } catch (rotateError) {
       rotationQueueRef.current.delete(reference);
@@ -401,15 +430,23 @@ export function ImageUploader({
     }
   }
 
-  const readFiles = async (files: FileList | null) => {
-    if (!files) return;
+  const readFiles = async (files: File[]) => {
+    if (!files.length) return;
+    // Prevent overlapping batches or publishing before decoding/IDB writes end.
+    if (photoBatchesRef.current) {
+      setLocalError("Espera a que terminen de prepararse las fotos.");
+      return;
+    }
+    photoBatchesRef.current += 1;
+    setAddingImages(true);
+    onProcessingChange?.(true);
     const current = imagesRef.current;
-    const accepted = [...files]
-      .filter((file) => acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number]) && file.size <= 12_000_000)
+    const accepted = files
+      .filter((file) => isAcceptedImageFile(file) && file.size > 0 && file.size <= MAX_LISTING_SOURCE_IMAGE_BYTES)
       .slice(0, Math.max(0, MAX_LISTING_PHOTOS - current.length));
     setLocalError(
       accepted.length !== files.length
-        ? `Algunas fotos se omitieron: usa JPEG, PNG o WebP de hasta 12 MB (máximo ${MAX_LISTING_PHOTOS}).`
+        ? `Algunas fotos se omitieron: usa JPEG, PNG o WebP (también HEIC) de hasta 50 MB (máximo ${MAX_LISTING_PHOTOS}).`
         : "",
     );
     try {
@@ -422,24 +459,42 @@ export function ImageUploader({
           try {
             saved[index] = { status: "fulfilled", value: await saveMediaFile(accepted[index]) };
           } catch (reason) {
-            saved[index] = { status: "rejected", reason };
+            if (reason instanceof MediaStorageError && reason.code !== "type"
+              && import.meta.env.VITE_ENABLE_MOCK_MODE !== "1") {
+              // Mobile private modes and quota failures can make IndexedDB
+              // unusable even while the authenticated upload API is healthy.
+              try {
+                const uploaded = await uploadImageFile(accepted[index]);
+                const url = resolveApiUrl(uploaded.url);
+                saved[index] = { status: "fulfilled", value: `${url}${url.includes("?") ? "&" : "?"}uploadPreview=1` };
+              } catch (uploadError) {
+                saved[index] = { status: "rejected", reason: uploadError };
+              }
+            } else {
+              saved[index] = { status: "rejected", reason };
+            }
           }
         }
       };
-      await Promise.all(
-        Array.from({ length: Math.min(2, accepted.length) }, () => worker()),
-      );
+      await Promise.all(Array.from({ length: Math.min(2, accepted.length) }, () => worker()));
       const references = saved.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
       const failed = saved.find((result) => result.status === "rejected");
       if (failed?.status === "rejected") {
-        await removeMediaReferences(references).catch(() => undefined);
+        await Promise.allSettled(references.map((reference) => isMediaReference(reference)
+          ? removeMediaReferences([reference])
+          : cleanupUploadedMediaReference(reference)));
         throw failed.reason;
       }
       const next = [...imagesRef.current, ...references];
       imagesRef.current = next;
       onChange(next);
     } catch (uploadError) {
-      setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar una de las imágenes.");
+      setLocalError(mediaUploadError(uploadError, "foto"));
+    } finally {
+      photoBatchesRef.current -= 1;
+      setAddingImages(false);
+      onProcessingChange?.(busyReferencesRef.current.size > 0 || photoBatchesRef.current > 0);
+      if (inputRef.current) inputRef.current.value = "";
     }
   };
 
@@ -776,15 +831,16 @@ export function ImageUploader({
         type="button"
         className="upload-dropzone"
         aria-describedby={error ? "publish-images-error" : undefined}
+        disabled={addingImages}
         onClick={() => inputRef.current?.click()}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
-          void readFiles(event.dataTransfer.files);
+          void readFiles(Array.from(event.dataTransfer.files));
         }}
       >
         <UploadCloud />
-        <strong>Añade fotos luminosas y horizontales</strong>
+        <strong>{addingImages ? "Preparando fotografías…" : "Añade fotos luminosas y horizontales"}</strong>
         <span>Arrastra o selecciona JPEG, PNG o WebP · máximo {MAX_LISTING_PHOTOS}</span>
       </button>
       <input
@@ -793,9 +849,10 @@ export function ImageUploader({
         className="sr-only"
         type="file"
         aria-label="Añadir fotos del anuncio"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
         multiple
-        onChange={(event) => void readFiles(event.target.files)}
+        disabled={addingImages}
+        onChange={(event) => void readFiles(Array.from(event.target.files ?? []))}
       />
       {error ? (
         <p id="publish-images-error" className="field-error" role="alert">
@@ -1000,7 +1057,7 @@ export function VideoUploader({
       onChange(reference);
       if (previous && previous !== reference) onRemove?.(previous);
     } catch (uploadError) {
-      setLocalError(uploadError instanceof MediaStorageError ? uploadError.message : "No se pudo leer o guardar el vídeo.");
+      setLocalError(mediaUploadError(uploadError, "vídeo"));
     } finally {
       setBusy(false);
       onProcessingChange?.(false);

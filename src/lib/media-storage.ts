@@ -5,7 +5,22 @@ const MEDIA_PREFIX = 'idb-media:'
 const DRAFT_KEYS = new Set(['112233:listing-draft:v3', '112233:listing-draft:v2'])
 const EDIT_DRAFT_PREFIX = '112233:listing-edit-draft:v1:'
 
-export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] as const
+const photoMimeByExtension: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  heic: 'image/heic', heif: 'image/heif',
+}
+
+/** Camera uploads occasionally have an empty/octet-stream MIME type. Inspect
+ * the filename as a hint; the backend still validates decoded image bytes. */
+export function isAcceptedImageFile(file: Pick<File, 'name' | 'type'>) {
+  const extension = (file.name || '').split('.').pop()?.toLowerCase() ?? ''
+  return acceptedImageTypes.includes(file.type.toLowerCase() as (typeof acceptedImageTypes)[number])
+    || Boolean(photoMimeByExtension[extension] && (!file.type || file.type === 'application/octet-stream'))
+}
+
+export const MAX_LISTING_SOURCE_IMAGE_BYTES = 50 * 1024 * 1024
+export const MAX_LISTING_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024
 const acceptedVideoExtensions = ['.3g2', '.3gp', '.asf', '.avi', '.f4v', '.flv', '.m2ts', '.m4v', '.mkv', '.mov', '.mp4', '.mpeg', '.mpg', '.mts', '.mxf', '.ogv', '.ts', '.vob', '.webm', '.wmv'] as const
 
 export function isAcceptedVideoFile(file: Pick<File, 'name' | 'type'>) {
@@ -44,14 +59,16 @@ async function optimizeMediaFile(file: File) {
     const blob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob(resolve, 'image/webp', LOCAL_MEDIA_WEBP_QUALITY)
     })
-    if (!blob) return file
+    if (!blob || !['image/webp', 'image/png', 'image/jpeg'].includes(blob.type)) return file
 
-    // Do not replace a small source with a larger derivative. Resizing always
-    // wins because it reduces upload, decode and rendered-memory costs.
-    if (scale === 1 && blob.size >= file.size) return file
+    // HEIC must be converted, even when conversion slightly increases bytes.
+    // For standard JPG/PNG/WebP a larger same-resolution copy is unnecessary.
+    const sourceIsHeic = file.type === 'image/heic' || file.type === 'image/heif'
+    if (!sourceIsHeic && scale === 1 && blob.size >= file.size) return file
     const baseName = file.name.replace(/\.[^.]+$/, '') || 'listing-image'
-    return new File([blob], `${baseName}.webp`, {
-      type: 'image/webp',
+    const extension = blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg'
+    return new File([blob], `${baseName}.${extension}`, {
+      type: blob.type,
       lastModified: file.lastModified,
     })
   } catch {
@@ -147,8 +164,8 @@ function protectedDraftMediaReferences() {
 
 async function storeMediaBlob(blob: Blob) {
   const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const database = await openDatabase()
   try {
+    const database = await openDatabase()
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, 'readwrite')
       transaction.objectStore(STORE_NAME).put(blob, id)
@@ -158,8 +175,15 @@ async function storeMediaBlob(blob: Blob) {
     })
     return `${MEDIA_PREFIX}${id}`
   } catch (error) {
+    if (error instanceof MediaStorageError) throw error
     if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
       throw new MediaStorageError('quota', 'No hay espacio suficiente para guardar el archivo.')
+    }
+    // Safari private browsing and restricted browser profiles may throw
+    // SecurityError directly from indexedDB.open(), before a transaction.
+    if (error instanceof DOMException && (error.name === 'SecurityError' || error.name === 'InvalidStateError')) {
+      databasePromise = null
+      throw new MediaStorageError('unavailable', 'El almacenamiento local no está disponible en este navegador.')
     }
     throw new MediaStorageError('read', 'No se pudo leer o guardar el archivo.')
   }
@@ -188,11 +212,34 @@ async function browserVideoDuration(file: File) {
   })
 }
 
-export async function saveMediaFile(file: File) {
-  if (!acceptedImageTypes.includes(file.type as (typeof acceptedImageTypes)[number])) {
-    throw new MediaStorageError('type', 'Formato no compatible. Usa JPEG, PNG o WebP.')
+export async function prepareImageForUpload(file: File): Promise<File> {
+  if (!isAcceptedImageFile(file)) {
+    throw new MediaStorageError('type', 'Formato no compatible. Usa JPEG, PNG, WebP o HEIC.')
   }
-  return storeMediaBlob(await optimizeMediaFile(file))
+  if (!file.size || file.size > MAX_LISTING_SOURCE_IMAGE_BYTES) {
+    throw new MediaStorageError('quota', 'La foto original no puede superar 50 MB.')
+  }
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const mime = acceptedImageTypes.includes(file.type.toLowerCase() as (typeof acceptedImageTypes)[number])
+    ? file.type.toLowerCase()
+    : photoMimeByExtension[extension]
+  const normalized = file.type === mime ? file
+    : new File([file], file.name, { type: mime, lastModified: file.lastModified })
+  const optimized = await optimizeMediaFile(normalized)
+  // HEIC/HEIF requires real browser decoding and conversion, not a MIME rename.
+  // Never send HEIC bytes under an image/webp or image/jpeg label.
+  if ((mime === 'image/heic' || mime === 'image/heif')
+    && !['image/webp', 'image/png', 'image/jpeg'].includes(optimized.type)) {
+    throw new MediaStorageError('type', 'No se pudo convertir la foto HEIC. Exporta la foto como JPEG y vuelve a intentarlo.')
+  }
+  if (!optimized.size || optimized.size > MAX_LISTING_IMAGE_UPLOAD_BYTES) {
+    throw new MediaStorageError('quota', 'No se pudo reducir la foto a 8 MB. Prueba con una imagen más pequeña.')
+  }
+  return optimized
+}
+
+export async function saveMediaFile(file: File) {
+  return storeMediaBlob(await prepareImageForUpload(file))
 }
 
 export async function validateVideoFile(file: File) {
