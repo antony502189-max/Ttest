@@ -147,6 +147,26 @@ test('MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback
   await expect(page.locator('.property-gallery img').first()).toHaveAttribute('src', /^data:image\/svg/)
 })
 
+test('MEDIA: large phone PNG is optimized before upload-size validation, and missing MIME is inferred', async ({ page }) => {
+  await openAs(page, hostSession, '/#/publicar')
+  await continueWizard(page, 6)
+  const uploader = page.locator('#publish-images')
+  const cards = page.locator('.upload-photo-card')
+  const initialCount = await cards.count()
+
+  // Some phone exports exceed the former 12 MB raw-file guard but compress
+  // to tiny WebP images. Padding is ignored by image decoders.
+  const largePhoto = Buffer.concat([png, Buffer.alloc(13 * 1024 * 1024)])
+  await uploader.setInputFiles({ name: 'camera-export.png', mimeType: 'image/png', buffer: largePhoto })
+  await expect(cards).toHaveCount(initialCount + 1)
+  await expect(page.locator('.image-uploader')).not.toContainText('12 MB')
+
+  // Android/iOS file pickers can supply octet-stream for an ordinary PNG.
+  await uploader.setInputFiles({ name: 'phone-image.png', mimeType: 'application/octet-stream', buffer: png })
+  await expect(cards).toHaveCount(initialCount + 2)
+  await expect(page.locator('.image-uploader').getByRole('status')).toHaveCount(0)
+})
+
 test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
   await page.getByText('Alquiler vacacional', { exact: true }).click()
