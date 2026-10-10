@@ -74,7 +74,7 @@ export function useMediaUrl(source?: string, variant: MediaVariant = 'full') {
   // render as the image counter. Keeping them in effect-driven state briefly
   // shows the previous photo when users rapidly swipe through a card.
   if (!isMediaReference(source) && !isUploadPreviewReference(source)) return mediaVariantUrl(source, variant)
-  return localMedia?.reference === source ? localMedia.url : ''
+  return localMedia && localMedia.reference === source ? localMedia.url : ''
 }
 
 type MediaImageProps = ImgHTMLAttributes<HTMLImageElement> & {
