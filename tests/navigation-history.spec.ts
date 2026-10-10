@@ -173,6 +173,31 @@ test.describe('mobile history', () => {
 })
 
 
+test('desktop first map shows broad Spain and Tenerife before prior browsing', async ({ page }) => {
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
+  await expect(map).toHaveAttribute('data-map-zoom', '5.25')
+})
+
+test('desktop map writes manual pan and zoom to history for a new visit', async ({ page }) => {
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-zoom', '5.25')
+  await page.evaluate(() => {
+    window.__googleMapsTestLastMap?.panTo({ lat: 28.12, lng: -16.72 })
+    window.__googleMapsTestLastMap?.setZoom(11)
+  })
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem('112233:map-last-viewport:v1')
+    return raw ? JSON.parse(raw).camera?.zoom : null
+  })).toBe(11)
+  await page.goto('/#/')
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+  await expect(map).toHaveAttribute('data-map-zoom', '11')
+})
+
 test('desktop map restores the last camera from the same browser without affecting search filters', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:map-last-viewport:v1', JSON.stringify({
     camera: { lat: 28.12, lng: -16.72, zoom: 11 }, savedAt: Date.now(),
