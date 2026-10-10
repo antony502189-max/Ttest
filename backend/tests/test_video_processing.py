@@ -23,6 +23,13 @@ def test_video_over_sixty_seconds_is_rejected_before_transcode(monkeypatch):
     assert "60 seconds" in str(error.value.detail)
 
 
+@pytest.mark.parametrize("extension", [".mov", ".mp4", ".webm", ".asf", ".f4v", ".flv", ".mxf", ".vob", ".wmv"])
+def test_picker_supported_video_extensions_accept_empty_or_generic_phone_mime(extension):
+    # ffprobe still authoritatively validates the bytes before any upload.
+    assert video_processing.is_supported_video_upload("", f"phone{extension}")
+    assert video_processing.is_supported_video_upload("application/octet-stream", f"phone{extension}")
+
+
 def test_non_video_without_video_extension_is_rejected():
     with pytest.raises(HTTPException) as error:
         video_processing.prepare_video(b"video", "application/octet-stream", "notes.txt")
