@@ -206,7 +206,7 @@ export function SearchPage() {
     const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
       Number.isFinite(latitude) && Number.isFinite(longitude);
     return {
-      rentalMode, query, roomTypes,
+      rentalMode, query: (mapBounds || mapPolygon.length >= 3) ? '' : query, roomTypes,
       center: nearby ? { latitude, longitude } : undefined,
       radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
       minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters,
@@ -315,17 +315,27 @@ export function SearchPage() {
     mutate(next);
     setParams(next, { replace });
   };
-  const commitBounds = (bounds: MapBounds | null) => updateParams((next) => {
-    boundKeys.forEach((key) => next.delete(key));
+  const commitBounds = (bounds: MapBounds | null) => {
+    // A confirmed new geographic search REPLACES old polygons, municipalities
+    // and nearby radius, not their intersection. Other filters are retained.
     if (bounds) {
-      next.set('norte', bounds.north.toFixed(5));
-      next.set('sur', bounds.south.toFixed(5));
-      next.set('este', bounds.east.toFixed(5));
-      next.set('oeste', bounds.west.toFixed(5));
+      if (mapPolygon.length) setMapPolygon([]);
+      if (filters.areas.length) setFilters({ ...filters, areas: [] });
     }
-    next.delete('pagina');
-    next.delete('cursor');
-  }, true);
+    updateParams((next) => {
+      boundKeys.forEach((key) => next.delete(key));
+      if (bounds) {
+        next.set('norte', bounds.north.toFixed(5));
+        next.set('sur', bounds.south.toFixed(5));
+        next.set('este', bounds.east.toFixed(5));
+        next.set('oeste', bounds.west.toFixed(5));
+        next.set('q', 'Tenerife');
+        for (const key of ['poligono', 'zonas', 'cerca', 'lat', 'lng', 'radio']) next.delete(key);
+      }
+      next.delete('pagina');
+      next.delete('cursor');
+    }, true);
+  };
   const commitPolygon = (polygon: MapPolygonPoint[]) => {
     const nextFilters = polygon.length >= 3 && filters.areas.length ? { ...filters, areas: [] } : filters;
     setMapPolygon(polygon);
@@ -333,7 +343,12 @@ export function SearchPage() {
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.delete("pagina");
     next.delete('cursor');
-    if (polygon.length >= 3) next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    if (polygon.length >= 3) {
+      boundKeys.forEach((key) => next.delete(key));
+      for (const key of ['cerca', 'lat', 'lng', 'radio', 'zonas']) next.delete(key);
+      next.set('q', 'Tenerife');
+      next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    }
     else next.delete("poligono");
     setParams(next, { replace: true });
   };
