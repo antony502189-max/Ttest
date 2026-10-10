@@ -1,5 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 
+async function zoneCenterFor(page: Page, point: { lat: number; lng: number }) {
+  return page.evaluate(async (value) => {
+    const { mapZoneForCenter } = await import('/src/lib/map-visit-history.ts')
+    const center = mapZoneForCenter(value)
+    return `${center.lat.toFixed(6)},${center.lng.toFixed(6)}`
+  }, point)
+}
+
 async function finishOnboarding(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -27,7 +35,7 @@ test.describe('mobile history', () => {
   })
 
 
-  test('a new visit centers a 300 km search radius on the last explored point', async ({ page }) => {
+  test('a new visit fits the 70 km cell containing the last explored point', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     const map = page.getByTestId('google-map')
@@ -44,14 +52,14 @@ test.describe('mobile history', () => {
     })).toEqual({ lat: 28.12, lng: -16.72 })
     await page.goto('/#/')
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
-    await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+    await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(9)
     // The previous close-up (zoom 11) must not be restored.
     await expect(page).not.toHaveURL(/mapZoom=11\.00/)
   })
 
-  test('after pan and zoom, reloading the same map URL recalls 300 km instead of the previous close-up', async ({ page }) => {
+  test('after pan and zoom, reloading the same map URL recalls the 70 km zone instead of the previous close-up', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     const map = page.getByTestId('google-map')
@@ -64,7 +72,7 @@ test.describe('mobile history', () => {
     await expect(page).toHaveURL(/mapAuto=1/)
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 40.071, lng: -2.13 })
     await page.reload()
-    await expect(map).toHaveAttribute('data-map-center', '40.071000,-2.130000')
+    await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 40.071, lng: -2.13 }))
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(4)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
   })
@@ -82,7 +90,7 @@ test.describe('mobile history', () => {
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 27.99, lng: -15.59 })
     await page.goto('/#/')
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
-    await expect(map).toHaveAttribute('data-map-center', '27.990000,-15.590000')
+    await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 27.99, lng: -15.59 }))
     await map.dispatchEvent('pointerdown')
     await page.evaluate(() => {
       window.__googleMapsTestLastMap?.panTo({ lat: 28.43, lng: -16.56 })
@@ -91,7 +99,7 @@ test.describe('mobile history', () => {
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 28.43, lng: -16.56 })
     await page.goto('/#/favoritos')
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
-    await expect(map).toHaveAttribute('data-map-center', '28.430000,-16.560000')
+    await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.43, lng: -16.56 }))
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
     await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
   })
@@ -108,7 +116,7 @@ test.describe('mobile history', () => {
     await page.goto('/#/')
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)
-    await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-center', `${saved.lat.toFixed(6)},${saved.lng.toFixed(6)}`)
+    await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-center', await zoneCenterFor(page, saved))
     expect(markerCenter).not.toBeNull()
   })
 
@@ -248,7 +256,7 @@ test('desktop first map shows broad Spain and Tenerife before prior browsing', a
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
 })
 
-test('desktop map saves a new area but reopens zoomed out to 300 km radius', async ({ page }) => {
+test('desktop map saves a new area but reopens its selected 70 km zone', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
@@ -263,7 +271,7 @@ test('desktop map saves a new area but reopens zoomed out to 300 km radius', asy
   })).toEqual({ lat: 28.12, lng: -16.72 })
   await page.goto('/#/')
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+  await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(11)
 })
@@ -280,7 +288,7 @@ test('desktop also saves a touch-style pointer pan when leaving directly', async
   await page.goto('/#/')
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 39.47, lng: -0.37 })
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
-  await expect(map).toHaveAttribute('data-map-center', '39.470000,-0.370000')
+  await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 39.47, lng: -0.37 }))
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
 })
 
@@ -290,7 +298,7 @@ test('desktop remembered area fits on the current screen without altering filter
   })))
   await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
-  await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+  await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(11)
   await expect(page).toHaveURL(/alquiler=long/)
@@ -358,7 +366,7 @@ test('search and map bookmarks survive reload', async ({ page }) => {
 })
 
 
-test('300 km recall fits the circle edge-to-edge without an extra zoom-out margin', async ({ page }) => {
+test('70 km recall fits the selected zone circle edge-to-edge without an extra margin', async ({ page }) => {
   await page.goto('/#/')
   const result = await page.evaluate(async () => {
     const { viewportForRememberedArea, MAP_RECALL_RADIUS_KM } = await import('/src/lib/map-visit-history.ts')
@@ -383,14 +391,14 @@ test('300 km recall fits the circle edge-to-edge without an extra zoom-out margi
   })
   for (const { camera, extent } of result) {
     expect(camera.zoom).toBeGreaterThan(2)
-    // At least one axis is filled exactly; the 300 km circle still fits both.
+    // At least one axis is filled exactly; the 70 km circle fits both.
     expect(extent).toBeGreaterThan(0.9999)
     expect(extent).toBeLessThanOrEqual(1.000001)
   }
   expect(result[0].camera.zoom).toBeLessThan(result[3].camera.zoom)
 })
 
-test('mobile 300 km return uses the full map canvas rather than the old reduced dimensions', async ({ page }) => {
+test('mobile 70 km return uses the full map canvas rather than the old reduced dimensions', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
@@ -400,10 +408,80 @@ test('mobile 300 km return uses the full map canvas rather than the old reduced 
   })
   await page.goto('/#/buscar?q=Tenerife&vista=mapa')
   const map = page.getByTestId('google-map')
-  await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+  await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
   const expectedZoom = await page.evaluate(async () => {
-    const { viewportForRememberedArea } = await import('/src/lib/map-visit-history.ts')
-    return viewportForRememberedArea({ lat: 28.12, lng: -16.72 }, 390, 844).zoom
+    const { viewportForRememberedArea, mapZoneForCenter } = await import('/src/lib/map-visit-history.ts')
+    return viewportForRememberedArea(mapZoneForCenter({ lat: 28.12, lng: -16.72 }), 390, 844).zoom
   })
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeCloseTo(expectedZoom, 5)
+})
+
+test('70 km virtual hexagonal zones cover Tenerife, Gran Canaria and mainland Spain with no gaps', async ({ page }) => {
+  await page.goto('/#/')
+  const result = await page.evaluate(async () => {
+    const { mapZoneForCenter, MAP_RECALL_RADIUS_KM } = await import('/src/lib/map-visit-history.ts')
+    const R = 6371.0088
+    const distanceKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const toRad = Math.PI / 180
+      const dLat = (a.lat - b.lat) * toRad
+      const dLng = (a.lng - b.lng) * toRad
+      const h = Math.sin(dLat / 2) ** 2 +
+        Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLng / 2) ** 2
+      return 2 * R * Math.asin(Math.sqrt(h))
+    }
+    let maxDistanceKm = 0
+    const seen = new Set<string>()
+    // Deterministic complete grid sampling across the Canary Islands,
+    // peninsula and Portugal, including virtual-cell boundaries.
+    for (let lat = 26; lat <= 44; lat += 0.27) {
+      for (let lng = -19; lng <= 5; lng += 0.41) {
+        const point = { lat, lng }
+        const zone = mapZoneForCenter(point)
+        maxDistanceKm = Math.max(maxDistanceKm, distanceKm(point, zone))
+        seen.add(`${zone.lat.toFixed(6)}:${zone.lng.toFixed(6)}`)
+      }
+    }
+    const base = mapZoneForCenter({ lat: 28.12, lng: -16.72 })
+    const close = mapZoneForCenter({ lat: base.lat + 0.04, lng: base.lng + 0.04 })
+    const far = mapZoneForCenter({ lat: base.lat, lng: base.lng + 2 })
+    return { radius: MAP_RECALL_RADIUS_KM, maxDistanceKm, uniqueZones: seen.size, base, close, far }
+  })
+  expect(result.radius).toBe(70)
+  expect(result.maxDistanceKm).toBeLessThanOrEqual(70.5)
+  expect(result.uniqueZones).toBeGreaterThan(200)
+  expect(result.close).toEqual(result.base)
+  expect(result.far).not.toEqual(result.base)
+})
+
+test('legacy saved exact point migrates to a virtual 70 km zone and preserves the same local record', async ({ page }) => {
+  await page.goto('/#/')
+  const result = await page.evaluate(async () => {
+    const { MAP_VISIT_KEY, readLastMapCenter, readLastMapViewport, mapZoneForCenter, rememberMapViewport } =
+      await import('/src/lib/map-visit-history.ts')
+    const point = { lat: 28.12, lng: -16.72 }
+    const timestamp = Date.now() - 30000
+    localStorage.setItem(MAP_VISIT_KEY, JSON.stringify({ center: point, savedAt: timestamp }))
+    const migrated = readLastMapCenter()
+    const viewport = readLastMapViewport(390, 844)
+    const before = localStorage.getItem(MAP_VISIT_KEY)
+    rememberMapViewport({ lat: migrated!.lat + 0.02, lng: migrated!.lng + 0.02, zoom: 13 })
+    const afterSameZone = localStorage.getItem(MAP_VISIT_KEY)
+    const otherPoint = { lat: 40.07, lng: -2.13 }
+    rememberMapViewport({ ...otherPoint, zoom: 12 })
+    const afterOtherZone = JSON.parse(localStorage.getItem(MAP_VISIT_KEY)!)
+    return {
+      migrated,
+      expected: mapZoneForCenter(point),
+      viewportCenter: { lat: viewport?.lat, lng: viewport?.lng },
+      sameZoneUnchanged: before === afterSameZone,
+      otherPointSaved: afterOtherZone.center,
+      otherZone: readLastMapCenter(),
+      otherExpected: mapZoneForCenter(otherPoint),
+    }
+  })
+  expect(result.migrated).toEqual(result.expected)
+  expect(result.viewportCenter).toEqual(result.expected)
+  expect(result.sameZoneUnchanged).toBe(true)
+  expect(result.otherPointSaved).toEqual({ lat: 40.07, lng: -2.13 })
+  expect(result.otherZone).toEqual(result.otherExpected)
 })
