@@ -112,6 +112,7 @@ import {
   getImageCriticalRestrictions,
   getPrimaryCadence,
   getPrimaryPrice,
+  hasListingCoordinates,
   unknownListingFact,
 } from "@/lib/listings";
 import { priceControlValues } from "@/lib/price-filter-controls";
@@ -127,6 +128,7 @@ import type {
 import { useApp } from "@/contexts/app-context";
 import { useI18n } from "@/contexts/i18n-context";
 import { useRecentlyViewedTracker } from "@/hooks/use-recently-viewed-listings";
+import { rememberMapViewport } from "@/lib/map-visit-history";
 
 const LazyGoogleMap = lazy(() =>
   import("@/components/map-view").then((module) => ({
@@ -530,6 +532,10 @@ export function PropertyCard({
   const { discardListing } = useApp();
   const { t, locale } = useI18n();
   const markRecentlyViewed = useRecentlyViewedTracker();
+  const recordListingVisit = () => {
+    markRecentlyViewed(listing.id);
+    if (hasListingCoordinates(listing)) rememberMapViewport({ ...listing.coordinates, zoom: 12 });
+  };
   const { images: cardImages, imageIndex, imageSrc, nextImage, previousImage, onImageError } =
     useCardGalleryFailover(listing.id, listing.images, fallbackImage);
   const availability = listing.availableFrom ? t(`Disponible desde ${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${listing.availableFrom}T12:00:00`))}`) : t(listing.available);
@@ -559,7 +565,7 @@ export function PropertyCard({
       data-listing-id={listing.id}
     >
       <div className="property-card__media">
-        <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`} onOpen={() => markRecentlyViewed(listing.id)}>
+        <ListingDestination listing={listing} ariaLabel={`Ver ${listing.title}`} onOpen={recordListingVisit}>
           <MediaImage
             src={imageSrc}
             variant="card"
@@ -597,7 +603,7 @@ export function PropertyCard({
         ) : null}
       </div>
       <div className="property-card__content">
-        <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`} onOpen={() => markRecentlyViewed(listing.id)}>
+        <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`} onOpen={recordListingVisit}>
           <h3 data-i18n-exempt>{listing.title}</h3>
           <div className="card-topline">
             <PriceBlock listing={listing} />
