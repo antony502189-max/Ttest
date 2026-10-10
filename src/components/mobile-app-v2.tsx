@@ -70,7 +70,7 @@ type MapInteractionState = {
 const ONBOARDING_KEY = '112233:mobile-onboarding:v1'
 // Lives for the browser document, not for a React component: navigating to a
 // listing unmounts MobileAppV2, but Back should still restore the exact camera.
-// A genuine reload/new tab resets this flag and uses the 300 km recall instead.
+// A genuine reload/new tab resets this flag and uses the 70 km recall instead.
 let mapOpenedInCurrentDocument = false
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileMapListingsLayer })))
@@ -743,7 +743,7 @@ export function MobileAppV2() {
   const pendingRouteSearchRef = useRef<string | null>(null)
   const latestPendingCameraRef = useRef<{ camera: MapCamera; query: string | null } | null>(null)
   // A generated exact map camera is only for Back/Forward within the same app
-  // session. On a fresh visit or browser reload we recall the 300 km region.
+  // session. On a fresh visit or browser reload we recall the 70 km region.
   const mapEntryRef = useRef({ active: false, returnedInApp: false })
   const onMapRoute = location.pathname === '/buscar' && new URLSearchParams(location.search).get('vista') === 'mapa'
   if (onMapRoute && !mapEntryRef.current.active) {
@@ -935,7 +935,7 @@ export function MobileAppV2() {
   }
   const commitMapCamera = (camera: MapCamera, interacted = false) => {
     // Keep Back/deep-link camera state on the URL, but only real map exploration
-    // contributes to the next SEARCH's remembered 300 km circle.
+    // contributes to the next SEARCH's remembered 70 km circle.
     if (interacted) rememberMapViewport(camera)
     if (pendingRouteSearchRef.current) {
       // Google Maps can emit a pan and zoom idle in the same render. Keep the
@@ -948,7 +948,7 @@ export function MobileAppV2() {
     const lng = camera.lng.toFixed(5)
     const zoom = camera.zoom.toFixed(2)
     if (params.get('mapLat') === lat && params.get('mapLng') === lng && params.get('mapZoom') === zoom) return
-    // Generated cameras must not override the next visit's 300 km recall;
+    // Generated cameras must not override the next visit's 70 km recall;
     // explicit bookmarked deep links without this flag still retain their zoom.
     if (interacted || !params.has('mapLat')) params.set('mapAuto', '1')
     params.set('mapLat', lat)
