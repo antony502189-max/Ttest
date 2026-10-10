@@ -433,7 +433,7 @@ export function ImageUploader({
       .slice(0, Math.max(0, MAX_LISTING_PHOTOS - current.length));
     setLocalError(
       accepted.length !== files.length
-        ? `Algunas fotos se omitieron: usa JPEG, PNG, WebP o HEIC de hasta 50 MB (máximo ${MAX_LISTING_PHOTOS}).`
+        ? `Algunas fotos se omitieron: usa JPEG, PNG o WebP (también HEIC) de hasta 50 MB (máximo ${MAX_LISTING_PHOTOS}).`
         : "",
     );
     try {
