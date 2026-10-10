@@ -15,6 +15,12 @@ from ..core.config import get_settings
 SUPPORTED_VIDEO_EXTENSIONS = {
     ".3g2",
     ".3gp",
+    ".asf",
+    ".f4v",
+    ".flv",
+    ".mxf",
+    ".vob",
+    ".wmv",
     ".avi",
     ".m2ts",
     ".m4v",
