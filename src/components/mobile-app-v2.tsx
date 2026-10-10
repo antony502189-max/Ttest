@@ -793,6 +793,9 @@ export function MobileAppV2() {
   mapFilterParams.delete('mapLat')
   mapFilterParams.delete('mapLng')
   mapFilterParams.delete('mapZoom')
+  // An automatically recorded camera is not a search filter. Otherwise the
+  // first map idle churns marker data and recreates every price marker.
+  mapFilterParams.delete('mapAuto')
   const mapFilterSearch = mapFilterParams.toString()
   const mapItems = useMemo(() => mockMode ? selectMobileSearchListings({
     listings: allListings,
