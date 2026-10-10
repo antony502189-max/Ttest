@@ -12,7 +12,8 @@ import { getGoogleMapType, type MapLayerId } from '@/lib/map/providers'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
-import { TENERIFE_BOUNDS, TENERIFE_CENTER, TENERIFE_DEFAULT_ZOOM } from '@/lib/tenerife'
+import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
+import { resolveTenerifeLocation } from '@/lib/tenerife'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
 import { SelectedListingSheet } from '@/components/map/selected-listing-sheet'
@@ -105,7 +106,6 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const [selectedDetail, setSelectedDetail] = useState<Listing | null>(null)
   const [serverCoincidentListings, setServerCoincidentListings] = useState<Listing[]>([])
   const serverQueryKey = serverQuery ? JSON.stringify(serverQuery) : ''
-  const serverModeRef = useRef(Boolean(serverQuery))
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
   const vertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const drawingRef = useRef(false)
@@ -117,6 +117,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const programmaticMoveRef = useRef(true)
   const fittedResultsRef = useRef(false)
   const skipNextResultsFitRef = useRef(false)
+  const preserveRestoredCameraRef = useRef(false)
   const manualMovePendingRef = useRef(false)
   const lastSearchedBoundsRef = useRef<MapBounds | null>(null)
   const previousFitResultsKeyRef = useRef(fitResultsKey)
@@ -300,10 +301,20 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       if (cancelled || !containerRef.current) return
       window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
+      const previousCamera = readLastMapViewport()
+      const hash = window.location.hash
+      const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
+      const deepLinkCamera = mapViewportFromParams(routeParams)
+      const location = resolveTenerifeLocation(routeParams.get('q') ?? '')
+      const namedCamera = location?.type !== 'island' && location?.coordinates
+        ? { ...location.coordinates, zoom: 12 } : null
+      // An explicit bookmarked camera or new location search outranks the
+      // previously visited area. Only generic searches restore history.
+      const startingCamera = deepLinkCamera ?? namedCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
       const map = new maps.Map(containerRef.current, {
-        center: TENERIFE_CENTER,
-        zoom: TENERIFE_DEFAULT_ZOOM,
-        minZoom: serverModeRef.current ? 2 : 8,
+        center: { lat: startingCamera.lat, lng: startingCamera.lng },
+        zoom: startingCamera.zoom,
+        minZoom: 2,
         maxZoom: 19,
         mapId: googleMapsConfig.mapId,
         mapTypeId: getGoogleMapType('street'),
@@ -311,16 +322,25 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         clickableIcons: false,
         keyboardShortcuts: true,
         gestureHandling: 'greedy',
-        restriction: serverModeRef.current ? undefined : {
-          latLngBounds: TENERIFE_BOUNDS,
-          // A hard restriction forces a tall mobile viewport to zoom into only
-          // half of Tenerife. Keep the island as a soft pan boundary so the
-          // initial fit can show the complete result set like a property map.
-          strictBounds: false,
-        },
+        // The initial view spans both mainland Spain and Tenerife, so a
+        // hard or soft Tenerife-only restriction would reject the camera.
+
       })
       mapRef.current = map
       initializedMap = map
+      // Explicitly apply the starting camera: the Google Maps test SDK does
+      // not apply constructor center/zoom options, unlike the real SDK. This
+      // also keeps the read-back and the map position synchronized.
+      map.setCenter({ lat: startingCamera.lat, lng: startingCamera.lng })
+      map.setZoom(startingCamera.zoom)
+      containerRef.current.dataset.mapCenter = `${startingCamera.lat.toFixed(6)},${startingCamera.lng.toFixed(6)}`
+      containerRef.current.dataset.mapZoom = String(startingCamera.zoom)
+      rememberMapViewport(startingCamera)
+      // The first-visit Atlantic overview and any restored camera are both
+      // explicit initial views. Do not immediately replace either with an
+      // automatic fit to currently loaded Tenerife listings.
+      skipNextResultsFitRef.current = true
+      preserveRestoredCameraRef.current = true
       listeners.push(google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
         if (containerRef.current) containerRef.current.dataset.mapInstance = 'google-ready'
       }))
@@ -332,6 +352,14 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         if (containerRef.current && center) {
           containerRef.current.dataset.mapCenter = `${center.lat().toFixed(6)},${center.lng().toFixed(6)}`
           containerRef.current.dataset.mapZoom = String(map.getZoom() ?? '')
+        }
+        // Persist every settled camera after the map has initialized, even if
+        // navigation used a marker click or panTo rather than a drag event.
+        // Programmatic marker-fit moves remain excluded; unchanged cameras
+        // are de-duplicated by rememberMapViewport.
+        if (fittedResultsRef.current && !programmaticMoveRef.current && center) {
+          const zoom = map.getZoom()
+          if (zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
         }
         if (manualMovePendingRef.current && !programmaticMoveRef.current) {
           manualMovePendingRef.current = false
@@ -345,6 +373,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       }
       listeners.push(map.addListener('idle', updateBounds))
       listeners.push(map.addListener('dragstart', markManualMove))
+      listeners.push(map.addListener('zoom_changed', () => {
+        if (fittedResultsRef.current && !programmaticMoveRef.current) manualMovePendingRef.current = true
+      }))
       listeners.push(map.addListener('click', (event: google.maps.MapMouseEvent) => {
         if (!drawingRef.current || !event.latLng) return
         setDraftPolygon((current) => [...current, { lat: event.latLng!.lat(), lng: event.latLng!.lng() }])
@@ -359,13 +390,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       setMapError('')
       google.maps.event.addListenerOnce(map, 'idle', updateBounds)
       listeners.push(google.maps.event.addListenerOnce(map, 'idle', () => {
-        if (cancelled || !itemsRef.current.length) return
-        programmaticMoveRef.current = true
-        fitListings(map, itemsRef.current)
-        google.maps.event.addListenerOnce(map, 'idle', () => {
-          fittedResultsRef.current = true
-          programmaticMoveRef.current = false
-        })
+        if (cancelled) return
+        fittedResultsRef.current = true
+        programmaticMoveRef.current = false
       }))
     }).catch((error) => {
       window.clearTimeout(loadTimeout)
@@ -466,7 +493,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       })
     if (googleMapsTestSdkEnabled) markers.forEach((marker) => { marker.map = map })
     clusterRef.current = cluster
-    if (itemsRef.current.length && !skipNextResultsFitRef.current) {
+    if (itemsRef.current.length && !skipNextResultsFitRef.current && !preserveRestoredCameraRef.current) {
       programmaticMoveRef.current = true
       fitListings(map, itemsRef.current)
       google.maps.event.addListenerOnce(map, 'idle', () => {
@@ -543,6 +570,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     previousFitResultsKeyRef.current = fitResultsKey
     const map = mapRef.current
     if (previous === fitResultsKey || !map || !itemsRef.current.length) return
+    preserveRestoredCameraRef.current = false
     programmaticMoveRef.current = true
     setBoundsDirty(false)
     fitListings(map, itemsRef.current)
