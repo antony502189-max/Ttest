@@ -301,7 +301,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       if (cancelled || !containerRef.current) return
       window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
-      const previousCamera = readLastMapViewport()
+      const previousCamera = readLastMapViewport(containerRef.current.clientWidth, containerRef.current.clientHeight)
       const hash = window.location.hash
       const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
       const deepLinkCamera = mapViewportFromParams(routeParams)
@@ -335,7 +335,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       map.setZoom(startingCamera.zoom)
       containerRef.current.dataset.mapCenter = `${startingCamera.lat.toFixed(6)},${startingCamera.lng.toFixed(6)}`
       containerRef.current.dataset.mapZoom = String(startingCamera.zoom)
-      rememberMapViewport(startingCamera)
+      // Initialization must not create a search-history entry.
       // The first-visit Atlantic overview and any restored camera are both
       // explicit initial views. Do not immediately replace either with an
       // automatic fit to currently loaded Tenerife listings.
@@ -792,6 +792,11 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     if (!currentBounds || !onBoundsSearch || !boundsDirty) return
     if (lastSearchedBoundsRef.current && boundsAreEqual(currentBounds, lastSearchedBoundsRef.current)) { setBoundsDirty(false); return }
     skipNextResultsFitRef.current = true
+    const currentCenter = mapRef.current?.getCenter()
+    const currentZoom = mapRef.current?.getZoom()
+    if (currentCenter && currentZoom !== undefined) {
+      rememberMapViewport({ lat: currentCenter.lat(), lng: currentCenter.lng(), zoom: currentZoom })
+    }
     onBoundsSearch(currentBounds)
     lastSearchedBoundsRef.current = currentBounds
     setBoundsDirty(false)
