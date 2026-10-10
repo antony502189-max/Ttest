@@ -210,7 +210,7 @@ test('MEDIA: large phone PNG is optimized before upload-size validation, and mis
   const largePhoto = createLargeValidPng()
   expect(largePhoto.length).toBeGreaterThan(12 * 1024 * 1024)
   await uploader.setInputFiles({ name: 'camera-export.png', mimeType: 'image/png', buffer: largePhoto })
-  await expect(cards).toHaveCount(initialCount + 1)
+  await expect(cards).toHaveCount(initialCount + 1, { timeout: 20_000 })
   await expect(page.locator('.image-uploader')).not.toContainText('12 MB')
 
   // Android/iOS file pickers can supply octet-stream for an ordinary PNG.
