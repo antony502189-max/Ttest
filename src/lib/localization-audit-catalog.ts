@@ -1,5 +1,6 @@
 // Spanish source copy used by live application screens; RU and EN stay paired.
 export const localizationAuditCatalog: Record<string, { ru: string; en: string }> = {
+  'La dirección ha cambiado. Espera a que se sitúe el marcador o confirma la ubicación en el mapa.': { ru: 'Адрес изменён. Дождитесь обновления маркера или подтвердите местоположение на карте.', en: 'The address has changed. Wait for the marker to update or confirm the location on the map.' },
   "Sin restricción": { ru: "Без ограничений", en: "No restriction" },
   "Tipo de propiedad": { ru: "Тип объекта", en: "Property type" },
   "Precio por noche": { ru: "Цена за ночь", en: "Price per night" },
