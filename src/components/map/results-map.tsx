@@ -119,6 +119,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const skipNextResultsFitRef = useRef(false)
   const preserveRestoredCameraRef = useRef(false)
   const manualMovePendingRef = useRef(false)
+  const hasExploredMapRef = useRef(false)
   const lastSearchedBoundsRef = useRef<MapBounds | null>(null)
   const previousFitResultsKeyRef = useRef(fitResultsKey)
   const fittedPolygonSignatureRef = useRef('')
@@ -238,6 +239,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         zIndex: item.type === 'cluster' ? (item.promoted ? 2000 : 1000) + item.count : item.promoted ? 100 : 10,
       })
       const activate = () => {
+        hasExploredMapRef.current = true
         if (item.type === 'cluster') {
           map.panTo({ lat: item.latitude, lng: item.longitude })
           map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2))
@@ -279,12 +281,14 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     let initializedMap: google.maps.Map | null = null
     const listeners: google.maps.MapsEventListener[] = []
     const markZoomIntent = () => {
+      hasExploredMapRef.current = true
       programmaticMoveRef.current = false
       manualMovePendingRef.current = true
       setBoundsDirty(true)
     }
     const markKeyboardZoomIntent = (event: KeyboardEvent) => {
       if (event.key === '+' || event.key === '-' || event.key === '=') {
+        hasExploredMapRef.current = true
         programmaticMoveRef.current = false
         manualMovePendingRef.current = true
       }
@@ -301,7 +305,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       if (cancelled || !containerRef.current) return
       window.clearTimeout(loadTimeout)
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
-      const previousCamera = readLastMapViewport()
+      const previousCamera = readLastMapViewport(containerRef.current.clientWidth, containerRef.current.clientHeight)
       const hash = window.location.hash
       const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
       const deepLinkCamera = mapViewportFromParams(routeParams)
@@ -335,7 +339,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       map.setZoom(startingCamera.zoom)
       containerRef.current.dataset.mapCenter = `${startingCamera.lat.toFixed(6)},${startingCamera.lng.toFixed(6)}`
       containerRef.current.dataset.mapZoom = String(startingCamera.zoom)
-      rememberMapViewport(startingCamera)
+      // Initialization must not create a search-history entry.
       // The first-visit Atlantic overview and any restored camera are both
       // explicit initial views. Do not immediately replace either with an
       // automatic fit to currently loaded Tenerife listings.
@@ -357,7 +361,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         // navigation used a marker click or panTo rather than a drag event.
         // Programmatic marker-fit moves remain excluded; unchanged cameras
         // are de-duplicated by rememberMapViewport.
-        if (fittedResultsRef.current && !programmaticMoveRef.current && center) {
+        if (fittedResultsRef.current && hasExploredMapRef.current && !programmaticMoveRef.current && center) {
           const zoom = map.getZoom()
           if (zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
         }
@@ -367,6 +371,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         }
       }
       const markManualMove = () => {
+        hasExploredMapRef.current = true
         programmaticMoveRef.current = false
         manualMovePendingRef.current = true
         setBoundsDirty(true)
@@ -792,6 +797,11 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     if (!currentBounds || !onBoundsSearch || !boundsDirty) return
     if (lastSearchedBoundsRef.current && boundsAreEqual(currentBounds, lastSearchedBoundsRef.current)) { setBoundsDirty(false); return }
     skipNextResultsFitRef.current = true
+    const currentCenter = mapRef.current?.getCenter()
+    const currentZoom = mapRef.current?.getZoom()
+    if (currentCenter && currentZoom !== undefined) {
+      rememberMapViewport({ lat: currentCenter.lat(), lng: currentCenter.lng(), zoom: currentZoom })
+    }
     onBoundsSearch(currentBounds)
     lastSearchedBoundsRef.current = currentBounds
     setBoundsDirty(false)
@@ -799,6 +809,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   }
 
   const markManualMapInteraction = () => {
+    hasExploredMapRef.current = true
     programmaticMoveRef.current = false
     manualMovePendingRef.current = true
     setBoundsDirty(true)
