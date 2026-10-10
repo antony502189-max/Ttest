@@ -280,6 +280,20 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     let resizeObserver: ResizeObserver | null = null
     let initializedMap: google.maps.Map | null = null
     const listeners: google.maps.MapsEventListener[] = []
+    const markPointerIntent = () => {
+      // Touchscreen pinch/zoom does not always emit dragstart or wheel.
+      hasExploredMapRef.current = true
+      programmaticMoveRef.current = false
+    }
+    const persistExploredCamera = () => {
+      if (!fittedResultsRef.current || !hasExploredMapRef.current || programmaticMoveRef.current) return
+      const center = mapRef.current?.getCenter()
+      const zoom = mapRef.current?.getZoom()
+      if (center && zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') persistExploredCamera()
+    }
     const markZoomIntent = () => {
       hasExploredMapRef.current = true
       programmaticMoveRef.current = false
@@ -295,7 +309,10 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     }
     const handleAuthFailure = () => setMapError(googleMapsAuthErrorMessage)
     container.addEventListener('wheel', markZoomIntent, { capture: true, passive: true })
+    container.addEventListener('pointerdown', markPointerIntent, { passive: true })
     container.addEventListener('keydown', markKeyboardZoomIntent)
+    window.addEventListener('pagehide', persistExploredCamera)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
 
     const loadTimeout = window.setTimeout(() => {
@@ -308,7 +325,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       const previousCamera = readLastMapViewport(containerRef.current.clientWidth, containerRef.current.clientHeight)
       const hash = window.location.hash
       const routeParams = new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '')
-      const deepLinkCamera = mapViewportFromParams(routeParams)
+      const deepLinkCamera = routeParams.get('mapAuto') === '1' ? null : mapViewportFromParams(routeParams)
       const location = resolveTenerifeLocation(routeParams.get('q') ?? '')
       const namedCamera = location?.type !== 'island' && location?.coordinates
         ? { ...location.coordinates, zoom: 12 } : null
@@ -361,10 +378,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         // navigation used a marker click or panTo rather than a drag event.
         // Programmatic marker-fit moves remain excluded; unchanged cameras
         // are de-duplicated by rememberMapViewport.
-        if (fittedResultsRef.current && hasExploredMapRef.current && !programmaticMoveRef.current && center) {
-          const zoom = map.getZoom()
-          if (zoom !== undefined) rememberMapViewport({ lat: center.lat(), lng: center.lng(), zoom })
-        }
+        persistExploredCamera()
         if (manualMovePendingRef.current && !programmaticMoveRef.current) {
           manualMovePendingRef.current = false
           setBoundsDirty(true)
@@ -405,12 +419,16 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
     })
 
     return () => {
+      persistExploredCamera()
       cancelled = true
       resizeObserver?.disconnect()
       listeners.forEach((listener) => listener.remove())
       window.clearTimeout(loadTimeout)
       container.removeEventListener('wheel', markZoomIntent, true)
+      container.removeEventListener('pointerdown', markPointerIntent)
       container.removeEventListener('keydown', markKeyboardZoomIntent)
+      window.removeEventListener('pagehide', persistExploredCamera)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener(GOOGLE_MAPS_AUTH_FAILURE_EVENT, handleAuthFailure)
       if (initializedMap) google.maps.event.clearInstanceListeners(initializedMap)
       mapRef.current = null
