@@ -1,7 +1,22 @@
-.m2-map-results-header .m2-save {
-  display: none !important;
-}
-
+/* Keep the save-search action visible on the map, as in the Idealista
+   reference. The selected-area title must not crowd the action on phones. */
 .m2-map-results-header {
-  grid-template-columns: 3rem minmax(0, 1fr) !important;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto !important;
+}
+.m2-map-results-header .m2-save {
+  display: inline-flex !important;
+  min-width: 0;
+  margin-right: 0;
+  padding-inline: .55rem;
+  border-radius: .35rem;
+  background: #bd2585;
+  color: #fff;
+}
+.m2-map-results-header .m2-save:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.m2-map-results-header .m2-save.is-saved {
+  background: #f2f8d4;
+  color: #4c6500;
 }
