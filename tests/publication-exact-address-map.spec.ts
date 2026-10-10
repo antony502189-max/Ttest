@@ -125,7 +125,7 @@ test('customer address Calle José Espronceda 20 in Armeñime resolves without s
   await typeExactAddress(page, 'Calle José Espronceda 20', '38678')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastExactAddressQuery?: string }).__lastExactAddressQuery ?? '')).toBe(
-    'Calle José Espronceda 20, 38678, Armeñime, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Adeje, Tenerife, Spain',
   )
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
