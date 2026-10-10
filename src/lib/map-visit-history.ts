@@ -66,7 +66,7 @@ function mercatorY(latitude: number): number {
   return (1 - Math.log(Math.tan(Math.PI / 4 + phi / 2)) / Math.PI) / 2
 }
 
-/** Zoom of the enclosing geographic circle, with margin for map controls. */
+/** Fit the exact 300 km geographic radius inside the map canvas, with no artificial zoom-out margin. */
 export function viewportForRememberedArea(center: MapCenter, width: number, height: number): MapViewport {
   const angularRadius = MAP_RECALL_RADIUS_KM / EARTH_RADIUS_KM
   const latitudeRadius = angularRadius * 180 / Math.PI
@@ -76,15 +76,16 @@ export function viewportForRememberedArea(center: MapCenter, width: number, heig
   const longitudeFraction = Math.min(1, 2 * longitudeRadius / 360)
   const latitudeFraction = Math.abs(mercatorY(center.lat - latitudeRadius) - mercatorY(center.lat + latitudeRadius))
 
-  // Google's world tile is 256 px at zoom 0. A 20% safety margin in each
-  // dimension ensures the 600 km diameter fits even behind mobile controls.
-  const usableWidth = Math.max(1, (width > 0 ? width : 390) * 0.8)
-  const usableHeight = Math.max(1, (height > 0 ? height : 600) * 0.8)
+  // Match the 600 km diameter to the canvas' limiting dimension exactly.
+  // Do not shrink the screen by 20%, or round down to quarter zoom levels:
+  // both cause the map to reopen noticeably farther out than requested.
+  const mapWidth = Math.max(1, width > 0 ? width : 390)
+  const mapHeight = Math.max(1, height > 0 ? height : 600)
   const zoom = Math.min(
-    Math.log2(usableWidth / (256 * longitudeFraction)),
-    Math.log2(usableHeight / (256 * latitudeFraction)),
+    Math.log2(mapWidth / (256 * longitudeFraction)),
+    Math.log2(mapHeight / (256 * latitudeFraction)),
   )
-  return { ...center, zoom: Math.max(2, Math.min(19, Math.floor(zoom * 4) / 4)) }
+  return { ...center, zoom: Math.max(2, Math.min(19, zoom)) }
 }
 
 export function readLastMapViewport(width = 390, height = 600): MapViewport | null {
