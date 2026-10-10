@@ -807,7 +807,7 @@ export function MobileAppV2() {
     query: mapQuery || query,
     params: new URLSearchParams(mapFilterSearch),
   }) : [], [allListings, discarded, filters, mapFilterSearch, mapPolygon, mapQuery, query, rentalMode])
-  const serverMapBounds = searchBoundsFromParams(new URLSearchParams(location.search))
+  const serverMapBounds = useMemo(() => searchBoundsFromParams(new URLSearchParams(mapFilterSearch)), [mapFilterSearch])
   const serverMapQuery = useMemo(() => mockMode ? undefined : buildListingSearchBody({
     rentalMode,
     // The geographically confirmed bounds / drawn area replace a previous
@@ -817,7 +817,7 @@ export function MobileAppV2() {
     bounds: serverMapBounds ?? undefined,
     minPrice: filters.minPrice, maxPrice: filters.maxPrice,
     polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
-  }), [filters, mapPolygon, mapQuery, query, rentalMode, location.search])
+  }), [filters, mapPolygon, mapQuery, query, rentalMode, serverMapBounds])
   const cameraParams = new URLSearchParams(location.search)
   // Explicit deep links and a new city search outrank previous map history.
   // "Tenerife" is the generic search label, not a newly selected municipality.
@@ -834,7 +834,7 @@ export function MobileAppV2() {
     .filter((point) => point.length === 2 && point.every(Number.isFinite))
     .map(([lat, lng]) => ({ lat, lng }))
   const mapCamera = explicitCamera ?? (hasNearbyCoordinates ? undefined
-    : polygonFromUrl.length >= 3 ? viewportForSearchPolygon(polygonFromUrl, mapWidth, mapHeight)
+    : polygonFromUrl.length >= 3 ? (viewportForSearchPolygon(polygonFromUrl, mapWidth, mapHeight) ?? FIRST_MAP_VIEWPORT)
       : savedBounds ? viewportForSearchBounds(savedBounds, mapWidth, mapHeight)
         : namedLocation ? { ...namedLocation, zoom: 12 }
           : readLastMapViewport(mapWidth, mapHeight) ?? FIRST_MAP_VIEWPORT)
