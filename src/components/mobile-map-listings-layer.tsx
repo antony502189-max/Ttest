@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { googleMapsTestSdkEnabled, loadGoogleMaps } from '@/lib/google-maps/loader'
 import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentListingIds } from '@/lib/map-marker-overlap'
 import { hasListingCoordinates } from '@/lib/listings'
+import { rememberMapViewport } from '@/lib/map-visit-history'
 import type { Listing } from '@/types'
 import '@/map.css'
 
@@ -122,6 +123,9 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
         zIndex: item.type === 'cluster' ? 1000 + item.count : item.promoted ? 100 : 10,
       })
       const activate = () => {
+        // Selecting a map marker is exploration even without a prior gesture.
+        // Persist immediately in case navigation happens before Maps becomes idle.
+        rememberMapViewport({ lat: item.latitude, lng: item.longitude, zoom: map.getZoom() ?? 8 })
         if (item.type === 'cluster') {
           map.panTo({ lat: item.latitude, lng: item.longitude })
           map.setZoom(Math.min(21, (map.getZoom() ?? 8) + 2))
@@ -161,7 +165,10 @@ export function MobileServerMapLayer({ mapRef, mapReady, query }: {
       onSelectSibling={(id) => {
         setSelectedId(id)
         const marker = markers.find((item) => item.type === 'listing' && item.id === id)
-        if (marker) mapRef.current?.panTo({ lat: marker.latitude, lng: marker.longitude })
+        if (marker) {
+          rememberMapViewport({ lat: marker.latitude, lng: marker.longitude, zoom: mapRef.current?.getZoom() ?? 8 })
+          mapRef.current?.panTo({ lat: marker.latitude, lng: marker.longitude })
+        }
       }}
       onClose={() => setSelectedId(null)}
     /> : null}
@@ -361,6 +368,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
           zIndex: listing.promoted ? 100 : 10,
         })
         const select = () => {
+          rememberMapViewport({ ...listing.coordinates, zoom: map.getZoom() ?? 8 })
           const groupIds = coincidentListingIdsFor(mappedItems, listing.id)
           setCoincidentIds(groupIds.length > 1 ? groupIds : [])
           setSelectedId(listing.id)
@@ -488,7 +496,10 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
   const selectSibling = (id: string) => {
     setSelectedId(id)
     const sibling = mappedItems.find((item) => item.id === id)
-    if (sibling) mapRef.current?.panTo(sibling.coordinates)
+    if (sibling) {
+      rememberMapViewport({ ...sibling.coordinates, zoom: mapRef.current?.getZoom() ?? 8 })
+      mapRef.current?.panTo(sibling.coordinates)
+    }
   }
   const openInternalListing = (id: string) => {
     persistCurrentMapCameraBeforeDetail(mapRef.current)

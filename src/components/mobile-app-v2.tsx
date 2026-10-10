@@ -68,6 +68,10 @@ type MapInteractionState = {
 }
 
 const ONBOARDING_KEY = '112233:mobile-onboarding:v1'
+// Lives for the browser document, not for a React component: navigating to a
+// listing unmounts MobileAppV2, but Back should still restore the exact camera.
+// A genuine reload/new tab resets this flag and uses the 300 km recall instead.
+let mapOpenedInCurrentDocument = false
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 const MobileMapListingsLayer = lazy(() => import('@/components/mobile-map-listings-layer').then((module) => ({ default: module.MobileMapListingsLayer })))
 const CommercialAdvertisementPlacement = lazy(() => import('@/components/commercial-advertisement-placement').then((module) => ({ default: module.CommercialAdvertisementPlacement })))
@@ -339,6 +343,17 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         map.setZoom(camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom))
         mapRef.current = map
         let userHasExploredMap = false
+        const persistExploredCamera = () => {
+          if (!userHasExploredMap) return
+          const point = map.getCenter()
+          const zoom = map.getZoom()
+          if (point && zoom !== undefined) rememberMapViewport({ lat: point.lat(), lng: point.lng(), zoom })
+        }
+        const onVisibilityChange = () => {
+          if (document.visibilityState === 'hidden') persistExploredCamera()
+        }
+        window.addEventListener('pagehide', persistExploredCamera)
+        document.addEventListener('visibilitychange', onVisibilityChange)
         const markUserInteraction = () => { userHasExploredMap = true }
         const canvas = containerRef.current
         canvas.addEventListener('pointerdown', markUserInteraction, { passive: true })
@@ -350,6 +365,9 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
           canvas.removeEventListener('wheel', markUserInteraction)
           canvas.removeEventListener('keydown', markUserInteraction)
           dragListener.remove()
+          window.removeEventListener('pagehide', persistExploredCamera)
+          document.removeEventListener('visibilitychange', onVisibilityChange)
+          persistExploredCamera()
         }
         if (camera) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
@@ -724,6 +742,19 @@ export function MobileAppV2() {
   const routeSearchRef = useRef(location.search)
   const pendingRouteSearchRef = useRef<string | null>(null)
   const latestPendingCameraRef = useRef<{ camera: MapCamera; query: string | null } | null>(null)
+  // A generated exact map camera is only for Back/Forward within the same app
+  // session. On a fresh visit or browser reload we recall the 300 km region.
+  const mapEntryRef = useRef({ active: false, returnedInApp: false })
+  const onMapRoute = location.pathname === '/buscar' && new URLSearchParams(location.search).get('vista') === 'mapa'
+  if (onMapRoute && !mapEntryRef.current.active) {
+    mapEntryRef.current.returnedInApp = mapOpenedInCurrentDocument
+  }
+  mapEntryRef.current.active = onMapRoute
+  // Commit only after React mounts the route. StrictMode may render the tree
+  // twice before effects run; a speculative render must not start a session.
+  useEffect(() => {
+    if (onMapRoute) mapOpenedInCurrentDocument = true
+  }, [onMapRoute])
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
@@ -762,6 +793,9 @@ export function MobileAppV2() {
   mapFilterParams.delete('mapLat')
   mapFilterParams.delete('mapLng')
   mapFilterParams.delete('mapZoom')
+  // An automatically recorded camera is not a search filter. Otherwise the
+  // first map idle churns marker data and recreates every price marker.
+  mapFilterParams.delete('mapAuto')
   const mapFilterSearch = mapFilterParams.toString()
   const mapItems = useMemo(() => mockMode ? selectMobileSearchListings({
     listings: allListings,
@@ -780,7 +814,8 @@ export function MobileAppV2() {
   const cameraParams = new URLSearchParams(location.search)
   // Explicit deep links and a new city search outrank previous map history.
   // "Tenerife" is the generic search label, not a newly selected municipality.
-  const explicitCamera = mapViewportFromParams(cameraParams)
+  const explicitCamera = cameraParams.get('mapAuto') === '1' && !mapEntryRef.current.returnedInApp
+    ? null : mapViewportFromParams(cameraParams)
   const hasNearbyCoordinates = cameraParams.has('lat') && cameraParams.has('lng')
     && Number.isFinite(Number(cameraParams.get('lat'))) && Number.isFinite(Number(cameraParams.get('lng')))
     && Math.abs(Number(cameraParams.get('lat'))) <= 85 && Math.abs(Number(cameraParams.get('lng'))) <= 180
@@ -913,6 +948,9 @@ export function MobileAppV2() {
     const lng = camera.lng.toFixed(5)
     const zoom = camera.zoom.toFixed(2)
     if (params.get('mapLat') === lat && params.get('mapLng') === lng && params.get('mapZoom') === zoom) return
+    // Generated cameras must not override the next visit's 300 km recall;
+    // explicit bookmarked deep links without this flag still retain their zoom.
+    if (interacted || !params.has('mapLat')) params.set('mapAuto', '1')
     params.set('mapLat', lat)
     params.set('mapLng', lng)
     params.set('mapZoom', zoom)

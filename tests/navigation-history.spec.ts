@@ -51,6 +51,67 @@ test.describe('mobile history', () => {
     await expect(page).not.toHaveURL(/mapZoom=11\.00/)
   })
 
+  test('after pan and zoom, reloading the same map URL recalls 300 km instead of the previous close-up', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await map.dispatchEvent('pointerdown')
+    await page.evaluate(() => {
+      window.__googleMapsTestLastMap?.panTo({ lat: 40.071, lng: -2.13 })
+      window.__googleMapsTestLastMap?.setZoom(13)
+    })
+    await expect(page).toHaveURL(/mapAuto=1/)
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 40.071, lng: -2.13 })
+    await page.reload()
+    await expect(map).toHaveAttribute('data-map-center', '40.071000,-2.130000')
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(4)
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
+  })
+
+  test('the latest area replaces the previous one even when leaving without viewing a listing', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    await map.dispatchEvent('pointerdown')
+    await page.evaluate(() => {
+      window.__googleMapsTestLastMap?.panTo({ lat: 27.99, lng: -15.59 })
+      window.__googleMapsTestLastMap?.setZoom(11)
+    })
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 27.99, lng: -15.59 })
+    await page.goto('/#/')
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await expect(map).toHaveAttribute('data-map-center', '27.990000,-15.590000')
+    await map.dispatchEvent('pointerdown')
+    await page.evaluate(() => {
+      window.__googleMapsTestLastMap?.panTo({ lat: 28.43, lng: -16.56 })
+      window.__googleMapsTestLastMap?.setZoom(14)
+    })
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 28.43, lng: -16.56 })
+    await page.goto('/#/favoritos')
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await expect(map).toHaveAttribute('data-map-center', '28.430000,-16.560000')
+    await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
+    await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
+  })
+
+  test('opening a map marker saves its location even without moving the map first', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const marker = page.locator('.m2-listing-marker').first()
+    await expect(marker).toBeAttached({ timeout: 20_000 })
+    await marker.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await expect(page.getByTestId('mobile-map-listing-preview')).toBeVisible()
+    const markerCenter = await page.getByTestId('google-map').getAttribute('data-map-center')
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).not.toBeNull()
+    await page.goto('/#/')
+    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)
+    await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-center', `${saved.lat.toFixed(6)},${saved.lng.toFixed(6)}`)
+    expect(markerCenter).not.toBeNull()
+  })
+
   test('explicit map deep link wins over remembered viewport and a new city search wins over history', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('112233:mobile-onboarding:v1', 'done')
@@ -61,6 +122,8 @@ test.describe('mobile history', () => {
     await page.goto('/#/buscar?q=Tenerife&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-center', '28.463600,-16.251800')
+    await expect(map).toHaveAttribute('data-map-zoom', '13')
+    await page.reload()
     await expect(map).toHaveAttribute('data-map-zoom', '13')
     await page.goto('/#/buscar?q=Adeje&vista=mapa')
     await expect(map).toHaveAttribute('data-map-center', '28.122700,-16.724400')
@@ -203,6 +266,22 @@ test('desktop map saves a new area but reopens zoomed out to 300 km radius', asy
   await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(11)
+})
+
+test('desktop also saves a touch-style pointer pan when leaving directly', async ({ page }) => {
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  const map = page.locator('.google-map-canvas')
+  await expect(map).toHaveAttribute('data-map-zoom', '5.25')
+  await map.dispatchEvent('pointerdown')
+  await page.evaluate(() => {
+    window.__googleMapsTestLastMap?.panTo({ lat: 39.47, lng: -0.37 })
+    window.__googleMapsTestLastMap?.setZoom(13)
+  })
+  await page.goto('/#/')
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 39.47, lng: -0.37 })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await expect(map).toHaveAttribute('data-map-center', '39.470000,-0.370000')
+  await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
 })
 
 test('desktop remembered area fits on the current screen without altering filters', async ({ page }) => {

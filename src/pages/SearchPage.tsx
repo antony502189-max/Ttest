@@ -78,7 +78,7 @@ export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const paramString = params.toString();
   const requestParams = new URLSearchParams(paramString);
-  ['vista', 'pagina', 'cursor', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom'].forEach((key) => requestParams.delete(key));
+  ['vista', 'pagina', 'cursor', 'panel', 'dibujar', 'mapLat', 'mapLng', 'mapZoom', 'mapAuto'].forEach((key) => requestParams.delete(key));
   const requestParamString = requestParams.toString();
   const {
     rentalMode: storedRentalMode,
