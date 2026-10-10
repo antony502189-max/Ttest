@@ -373,11 +373,22 @@ export function ImageUploader({
     rotatingReferencesRef.current.add(reference);
     try {
       const file = await rotateImageFile(reference, turns);
-      const nextReference = await saveMediaFile(file);
+      let nextReference: string;
+      try {
+        nextReference = await saveMediaFile(file);
+      } catch (reason) {
+        if (!(reason instanceof MediaStorageError) || reason.code === "type"
+          || import.meta.env.VITE_ENABLE_MOCK_MODE === "1") throw reason;
+        const uploaded = await uploadImageFile(file);
+        const url = resolveApiUrl(uploaded.url);
+        nextReference = `${url}${url.includes("?") ? "&" : "?"}uploadPreview=1`;
+      }
       const current = imagesRef.current;
       const currentIndex = current.indexOf(reference);
       if (currentIndex < 0) {
-        await removeMediaReferences([nextReference]).catch(() => undefined);
+        await (isMediaReference(nextReference)
+          ? removeMediaReferences([nextReference])
+          : cleanupUploadedMediaReference(nextReference)).catch(() => undefined);
         rotationQueueRef.current.delete(reference);
         setPreview(reference, 0);
         reportBusy(reference, false);
