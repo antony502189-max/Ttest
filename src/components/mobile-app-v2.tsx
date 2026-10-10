@@ -771,8 +771,8 @@ export function MobileAppV2() {
     && Math.abs(Number(cameraParams.get('lat'))) <= 85 && Math.abs(Number(cameraParams.get('lng'))) <= 180
   const chosenLocation = resolveTenerifeLocation(cameraParams.get('q') ?? '')
   const namedLocation = chosenLocation?.type !== 'island' ? chosenLocation?.coordinates : undefined
-  const hasExplicitPolygon = Boolean(cameraParams.get('poligono')?.trim())
-  const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasExplicitPolygon ? undefined
+  const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
+  const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasActivePolygon ? undefined
     : namedLocation ? { ...namedLocation, zoom: 12 }
       : readLastMapViewport() ?? FIRST_MAP_VIEWPORT)
   const nearbyCameraCenter = hasNearbyCoordinates
