@@ -183,6 +183,27 @@ test('same house number and postcode on a different Google route is rejected', a
   })).toEqual(before)
 })
 
+test('explicitly chosen municipality rejects the right house number on a street in another municipality', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.getByLabel('Municipio').selectOption('Arico')
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('.listing-edit-coordinates')).toContainText('28.1925, -16.5042')
+  const before = await page.locator('.listing-edit-coordinates').textContent()
+
+  await installGeocoderResult(page, {
+    route: 'Calle Londres',
+    number: '5',
+    postcode: '38660',
+    municipality: 'Adeje',
+    coordinates: { lat: 28.09123, lng: -16.73561 },
+  })
+  await typeExactAddress(page, 'Calle Londres 5', '38660')
+
+  await expect(page.locator('.listing-edit-coordinates')).toHaveText(before ?? '')
+  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('.listing-edit-location-pending')).toBeVisible()
+})
+
 test('house number is taken from the final numeric token rather than a number inside the street name', async ({ page }) => {
   await openPublishLocation(page)
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
