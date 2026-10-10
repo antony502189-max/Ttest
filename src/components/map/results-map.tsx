@@ -105,7 +105,6 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const [selectedDetail, setSelectedDetail] = useState<Listing | null>(null)
   const [serverCoincidentListings, setServerCoincidentListings] = useState<Listing[]>([])
   const serverQueryKey = serverQuery ? JSON.stringify(serverQuery) : ''
-  const serverModeRef = useRef(Boolean(serverQuery))
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
   const vertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const drawingRef = useRef(false)
