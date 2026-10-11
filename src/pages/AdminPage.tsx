@@ -806,6 +806,7 @@ export function AdminPage() {
   const loading = loadingSections.includes('users')
   const sectionLoading = loadingSections.includes(section)
   const sectionReady = loadedSectionsRef.current.has(section)
+  const closeUserDetail = useCallback(() => setSelectedUserId(null), [])
 
   const visibleUsers = useMemo(() => users.filter((user) => {
     const matchesName = !query.trim() || user.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
@@ -912,7 +913,7 @@ export function AdminPage() {
   }
 
   if (selectedUserId) {
-    return <div className="admin-page admin-page--detail"><AdminSidebar section={section} onSection={(next) => { setSelectedUserId(null); setSection(next) }} currentUserName={currentUser?.name} /><main className="admin-main"><UserDetailView userId={selectedUserId} listings={listings} reports={reports} listingsReady={loadedSectionsRef.current.has('listings')} reportsReady={loadedSectionsRef.current.has('reports')} listingsError={loadErrors.listings} reportsError={loadErrors.reports} onRetryRelated={(target) => { void loadSection(target, true) }} onBack={() => setSelectedUserId(null)} onUserChanged={updateUserRow} /></main></div>
+    return <div className="admin-page admin-page--detail"><AdminSidebar section={section} onSection={(next) => { setSelectedUserId(null); setSection(next) }} currentUserName={currentUser?.name} /><main className="admin-main"><UserDetailView userId={selectedUserId} listings={listings} reports={reports} listingsReady={loadedSectionsRef.current.has('listings')} reportsReady={loadedSectionsRef.current.has('reports')} listingsError={loadErrors.listings} reportsError={loadErrors.reports} onRetryRelated={(target) => { void loadSection(target, true) }} onBack={closeUserDetail} onUserChanged={updateUserRow} /></main></div>
   }
 
   return <div className="admin-page">
