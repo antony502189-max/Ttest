@@ -36,6 +36,16 @@
   overflow: visible;
   box-shadow: none !important;
 }
+.owner-listings-page .manage-actions .owner-manage-action__label {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  letter-spacing: -.015em;
+}
 .owner-listings-page .manage-actions .owner-manage-action svg {
   width: 1.28rem;
   height: 1.28rem;
@@ -178,7 +188,7 @@ body .owner-listings-page .owner-top-promote-button:hover {
 
 @media (max-width: 767px) {
   body .owner-listings-page .manage-card {
-    grid-template-columns: clamp(5.25rem, 24vw, 8.7rem) minmax(0, 1fr) 3.65rem;
+    grid-template-columns: clamp(5.25rem, 24vw, 8.7rem) minmax(0, 1fr) 4.25rem;
     align-items: start;
     gap: .5rem;
     min-height: 0;
