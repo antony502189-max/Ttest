@@ -7,6 +7,12 @@ type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
   'Cargando 112233.es…': { ru: 'Загрузка 112233.es…', en: 'Loading 112233.es…' },
+  'Cargando usuarios…': { ru: 'Загрузка пользователей…', en: 'Loading users…' },
+  'Cargando anuncios relacionados…': { ru: 'Загрузка связанных объявлений…', en: 'Loading related listings…' },
+  'Cargando denuncias relacionadas…': { ru: 'Загрузка связанных жалоб…', en: 'Loading related reports…' },
+  'No se pudieron cargar los datos.': { ru: 'Не удалось загрузить данные.', en: 'Could not load data.' },
+  'No se pudieron cargar los anuncios.': { ru: 'Не удалось загрузить объявления.', en: 'Could not load listings.' },
+  'No se pudieron cargar las denuncias relacionadas.': { ru: 'Не удалось загрузить связанные жалобы.', en: 'Could not load related reports.' },
   'Saltar al contenido': { ru: 'Перейти к содержимому', en: 'Skip to content' },
   'inicio': { ru: 'главная', en: 'home' },
   '112233.es — inicio': { ru: '112233.es — главная', en: '112233.es — home' },
