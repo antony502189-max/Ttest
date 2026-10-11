@@ -375,9 +375,43 @@ test("10–13 map marker/card sync, marker preview, bounds and polygon filtering
   await page.mouse.up();
   await expect(drawingOverlay).toHaveCount(0);
   await expect(page).toHaveURL(/poligono=/);
-  await expect
-    .poll(() => page.locator(".map-results-cards .property-card").count())
-    .toBeLessThanOrEqual(bounded);
+  // A drawn polygon now replaces the previous viewport bounding box
+  // instead of intersecting it. Verify the actual geographic invariant:
+  // every displayed listing must be INSIDE the selected polygon, even if
+  // the polygon contains more listings than the earlier bounds search.
+  await expect.poll(() => page.evaluate(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+    const raw = params.get('poligono');
+    if (!raw) return false;
+    const polygon = raw.split(';').map((pair) => {
+      const [lat, lng] = pair.split(',').map(Number);
+      return { lat, lng };
+    });
+    if (polygon.length < 3) return false;
+    const stored = localStorage.getItem('112233:listings:v3');
+    if (!stored) return false;
+    const listings = JSON.parse(stored).data as Array<{
+      id: string;
+      coordinates: { lat: number; lng: number };
+    }>;
+    const byId = new Map(listings.map((listing) => [listing.id, listing]));
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('.map-results-cards .property-card'));
+    return cards.every((card) => {
+      const listing = byId.get(card.dataset.listingId ?? '');
+      if (!listing?.coordinates) return false;
+      const point = listing.coordinates;
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const a = polygon[i];
+        const b = polygon[j];
+        if ((a.lat > point.lat) !== (b.lat > point.lat) &&
+          point.lng < ((b.lng - a.lng) * (point.lat - a.lat)) / (b.lat - a.lat || Number.EPSILON) + a.lng) {
+          inside = !inside;
+        }
+      }
+      return inside;
+    });
+  })).toBe(true);
 });
 
 test("14–15 favorites and complete saved-search restoration persist", async ({
