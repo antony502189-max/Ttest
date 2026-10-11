@@ -352,7 +352,7 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
     roomTypes: input.roomTypes ?? [],
     center: input.center,
     radiusKm: input.radiusKm,
-    ...(filters.roomType !== 'Cualquiera' ? { roomType: filters.roomType } : {}),
+    ...(filters.roomType !== 'Cualquiera' && !input.roomTypes?.length ? { roomType: filters.roomType } : {}),
     ...(filters.available ? { availableFrom: filters.available } : {}),
     ...(filters.availableUntil ? { availableUntil: filters.availableUntil } : {}),
     ...(filters.minStay !== 'Cualquiera' ? { maxMinimumStayMonths: Number(filters.minStay) } : {}),
