@@ -69,7 +69,7 @@ test.describe('owner listing manager reference-inspired redesign', () => {
     await expect(page.locator('.manage-card')).toHaveCount(3)
     await selector.selectOption('Oculto')
     await expect(page.locator('.manage-card')).toHaveCount(0)
-    await expect(page.getByText('No hay anuncios en este estado')).toBeVisible()
+    await expect(page.locator('.account-empty h2')).toBeVisible()
     await selector.selectOption('Publicado')
     await expect(page.locator('.manage-card')).toHaveCount(3)
     await selector.selectOption('Todos')
