@@ -1,4 +1,5 @@
 import { defaultFilters } from '@/data/listings'
+import { searchGeographyFromParams } from '@/lib/search-geography'
 import { distanceKm } from '@/lib/geolocation'
 import { filterListings, filtersFromParams, pointInPolygon, sortListings } from '@/lib/search'
 import { hasListingCoordinates } from '@/lib/listings'
@@ -48,20 +49,21 @@ export function selectMobileSearchListings({
   discarded,
   rentalMode,
   filters,
-  polygon,
-  query,
   params,
 }: MobileSearchInput) {
-  const location = resolveTenerifeLocation(query || 'Tenerife')
-  const community = params.get('comunidad')
+  const geography = searchGeographyFromParams(params)
+  const location = resolveTenerifeLocation(geography.query || 'Tenerife')
+  const community = geography.autonomousCommunity
   const region = getCommunity(community)
-  const countrySearch = ['españa', 'espana', 'spain', 'es'].includes(query.trim().toLowerCase())
-  const nearby = params.get('cerca') === '1'
+  const countrySearch = ['españa', 'espana', 'spain', 'es'].includes((geography.query ?? '').trim().toLowerCase())
   const polygonApplied = params.get('dibujar') !== '1'
-  const lat = Number(params.get('lat'))
-  const lng = Number(params.get('lng'))
-  const radiusKm = Math.min(50, Math.max(1, Number(params.get('radio')) || 15))
-  const nearbyCenter = nearby && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+  const polygon = polygonApplied
+    ? (geography.polygon ?? []).map(({ latitude, longitude }) => ({ lat: latitude, lng: longitude }))
+    : []
+  const nearbyCenter = geography.center
+    ? { lat: geography.center.latitude, lng: geography.center.longitude }
+    : null
+  const radiusKm = geography.radiusKm ?? 15
   const roomTypes = (params.get('tiposHabitacion') ?? '').split('|').filter(Boolean)
   const effectiveFilters = routeScopedMobileFilters(filters, params)
   const roomSizeFilterActive = effectiveFilters.roomSizeMin !== defaultFilters.roomSizeMin || effectiveFilters.roomSizeMax !== defaultFilters.roomSizeMax
@@ -85,6 +87,11 @@ export function selectMobileSearchListings({
     if (roomTypes.length && !roomTypes.includes(listing.roomType)) return false
     if (polygonApplied && polygon.length >= 3) {
       if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, polygon)) return false
+    }
+    if (geography.bounds) {
+      const { north, south, east, west } = geography.bounds
+      if (!hasListingCoordinates(listing) || listing.coordinates.lat > north || listing.coordinates.lat < south ||
+        listing.coordinates.lng > east || listing.coordinates.lng < west) return false
     }
     if (nearbyCenter) {
       if (!hasListingCoordinates(listing) || distanceKm(listing.coordinates, nearbyCenter) > radiusKm) return false
