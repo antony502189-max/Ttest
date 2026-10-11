@@ -33,12 +33,23 @@ test.describe('PR43 regression recovery', () => {
     await expect(page.getByTestId('map-search')).toBeVisible()
   })
 
-  test('nearby rejects coordinates outside Tenerife without pretending success', async ({ page, context }) => {
+  test('nearby works from Madrid, not only from Tenerife', async ({ page, context }) => {
     await context.grantPermissions(['geolocation'], { origin })
     await context.setGeolocation({ latitude: 40.4168, longitude: -3.7038 })
     await openLocation(page)
     await page.getByTestId('search-nearby').click()
-    await expect(page.getByRole('alert')).toContainText('fuera de Tenerife')
+    await expect(page).toHaveURL(/vista=mapa/)
+    await expect(page).toHaveURL(/lat=40\.4168/)
+    await expect(page).toHaveURL(/lng=-3\.7038/)
+    await expect(page.getByTestId('map-search')).toBeVisible()
+  })
+
+  test('nearby rejects coordinates outside Spain without pretending success', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation'], { origin })
+    await context.setGeolocation({ latitude: 48.8566, longitude: 2.3522 })
+    await openLocation(page)
+    await page.getByTestId('search-nearby').click()
+    await expect(page.getByRole('alert')).toContainText('fuera de España')
     await expect(page).toHaveURL(/panel=ubicacion/)
   })
 

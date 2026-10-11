@@ -291,6 +291,16 @@ export async function getSimilarListings(id: string, signal?: AbortSignal): Prom
   return hydrateIncompleteInternalGalleries(cards.map(toCardListing), signal)
 }
 
+export type AutonomousCommunityCount = { id: string; count: number; cities: string[] }
+
+export async function getAutonomousCommunityCounts(input: ListingSearchInput, signal?: AbortSignal): Promise<AutonomousCommunityCount[]> {
+  const body = buildListingSearchBody({ ...input, query: 'España', autonomousCommunity: undefined })
+  const response = await api<{ items: AutonomousCommunityCount[] }>('/listings/regions/counts', {
+    method: 'POST', body: JSON.stringify(body), signal,
+  })
+  return response.items
+}
+
 export async function getMapMarkers(body: Record<string, unknown>, signal?: AbortSignal): Promise<ListingMapMarker[]> {
   const response = await api<{ items: ListingMapMarker[] }>('/listings/map', { method: 'POST', body: JSON.stringify(body), signal })
   return response.items
@@ -320,6 +330,7 @@ export type ListingSearchInput = {
   maxPrice: number
   filters: Filters
   query?: string
+  autonomousCommunity?: string
   roomTypes?: Listing['roomType'][]
   bounds?: { north: number; south: number; east: number; west: number }
   polygon?: Array<{ latitude: number; longitude: number }>

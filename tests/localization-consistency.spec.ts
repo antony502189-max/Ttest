@@ -18,7 +18,7 @@ const criticalFiles = [
   'components/mobile-app-v2.tsx', 'components/mobile-search-results-v2.tsx',
   'components/mobile-publication-gate.tsx', 'components/admin-commercial-advertisements.tsx',
 ]
-const sharedNames = new Set(['Email', 'WhatsApp', 'Telegram', 'Wi-Fi', 'TOP', 'Tenerife', 'Tenerife · 112233.es', 'España (Tenerife)', '112233.es', 'www.112233.es', '.es', 'G', 'ES', 'WC', 'MB', 'ID', '© 2026 112233.es', 'nuevo-admin@gmail.com'])
+const sharedNames = new Set(['Email', 'WhatsApp', 'Telegram', 'Wi-Fi', 'TOP', 'Tenerife', 'Tenerife · 112233.es', 'España (Tenerife)', 'España', '112233.es', 'www.112233.es', '.es', 'G', 'ES', 'WC', 'MB', 'ID', '© 2026 112233.es', 'nuevo-admin@gmail.com'])
 
 test('critical JSX copy has translations and the complete catalog has locale parity', () => {
   const missing: string[] = []

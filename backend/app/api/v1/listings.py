@@ -18,6 +18,7 @@ from ...db.session import get_session
 from ...models import CatalogState, ExternalListingSource, Listing, ListingImage, MediaAsset, User
 from ...repositories.listings import (
     card_from_detail,
+    count_autonomous_communities,
     owned_query,
     owned_response_from,
     primary_price_expression,
@@ -128,6 +129,17 @@ async def listing_hidden_by_moderation(listing_id: UUID, owner_user_id: UUID, se
         await active_listing_restriction(listing_id, session)
         or await active_user_restriction(owner_user_id, session)
     )
+
+
+@router.post("/regions/counts")
+async def listing_region_counts(
+    payload: ListingSearchRequest,
+    user: User | None = Depends(optional_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Published counts per region, applying the user's current filters."""
+    await enforce_listing_view_access(user, session)
+    return {"items": await count_autonomous_communities(session, payload)}
 
 
 @router.get("/catalog-version", response_model=CatalogVersionResponse)

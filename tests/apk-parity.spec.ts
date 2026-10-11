@@ -46,7 +46,7 @@ test.describe('APK shell connected to the canonical web app', () => {
 
   test('location, search, back and reload use real URLs', async ({ page }) => {
     await finishOnboarding(page)
-    await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+    await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
     await expect(page).toHaveURL(/panel=ubicacion/)
     await expect(page.getByTestId('location-screen')).toBeVisible()
     await page.getByRole('button', { name: 'Volver' }).click()
@@ -54,7 +54,7 @@ test.describe('APK shell connected to the canonical web app', () => {
 
     await homeModeButton(page, 'housing').click()
     await page.getByTestId('open-location').click()
-    await expect(page).toHaveURL(/#\/buscar\?q=Tenerife&alquiler=long/)
+    await expect(page).toHaveURL(/q=Espa%C3%B1a&alquiler=long/)
     await expect(page.getByTestId('mobile-results')).toBeVisible()
     await page.reload()
     await expect(page.getByTestId('mobile-results')).toBeVisible()
@@ -95,7 +95,7 @@ test.describe('APK shell connected to the canonical web app', () => {
 
   test('map and drawing screens are reflected in the URL', async ({ page }) => {
     await finishOnboarding(page)
-    await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+    await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
     await page.getByTestId('draw-zone').click()
     await expect(page).toHaveURL(/vista=mapa.*dibujar=1/)
     await expect(page.getByTestId('map-draw')).toBeVisible()
@@ -107,7 +107,7 @@ test.describe('APK shell connected to the canonical web app', () => {
     await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
     await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
     await finishOnboarding(page)
-    await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+    await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
     await expect(page.locator('.m2-location-action')).toHaveCount(3)
 
     await page.getByTestId('search-nearby').click()
