@@ -1,0 +1,325 @@
+/* Customer-reference mobile menu. This sheet is loaded last so the
+   legacy compact menu rules cannot flatten the accessible card layout. */
+.m2-app .m2-menu {
+  padding: 0 .85rem calc(1.5rem + env(safe-area-inset-bottom));
+  background: #fff;
+  color: #202428;
+}
+
+.m2-app .m2-menu > header {
+  min-height: 3.75rem;
+  margin: 0 -.85rem;
+  padding: .65rem 1.05rem;
+  border: 0;
+  background: #d2ff3f;
+  color: #171b16;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.m2-menu-content {
+  display: grid;
+  align-content: start;
+  gap: 1.15rem;
+  padding-top: 1rem;
+}
+
+.m2-menu-admin-card {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 4rem minmax(0, 1fr) 2.8rem;
+  align-items: center;
+  gap: .8rem;
+  min-height: 8.7rem;
+  padding: 1rem .85rem;
+  border: 1px solid #b4d6f0;
+  border-radius: .95rem;
+  background: linear-gradient(120deg, #e4f4ff 0%, #d8ebfa 100%);
+  color: #111c2d;
+  box-shadow: 0 2px 10px rgb(26 96 148 / .07);
+  text-align: left;
+}
+
+.m2-menu-admin-card__icon,
+.m2-menu-admin-card__arrow {
+  display: grid;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #087bf1;
+  color: #fff;
+}
+
+.m2-menu-admin-card__icon {
+  width: 4rem;
+  height: 4rem;
+}
+
+.m2-menu-admin-card__icon svg { width: 2rem; height: 2rem; stroke-width: 1.9; }
+
+.m2-menu-admin-card__arrow {
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+.m2-menu-admin-card__arrow svg { width: 1.45rem; height: 1.45rem; }
+
+.m2-menu-admin-card__content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.m2-menu-admin-card__content small {
+  color: #167ac4;
+  font-size: .78rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.m2-menu-admin-card__content strong {
+  color: #101625;
+  font-size: clamp(.94rem, 3.8vw, 1.17rem);
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.m2-menu-admin-card__content > span {
+  color: #677386;
+  font-size: .87rem;
+  line-height: 1.4;
+}
+
+.m2-menu-account-card,
+.m2-menu-group {
+  border: 1px solid #e3e9df;
+  border-radius: 1rem;
+  background: #fcfdf9;
+  box-shadow: 0 1px 5px rgb(37 42 43 / .025);
+}
+
+.m2-menu-account-card {
+  display: grid;
+  gap: .8rem;
+  padding: 1rem .75rem .85rem;
+}
+
+.m2-app .m2-menu-login {
+  display: grid;
+  grid-template-columns: 4.15rem minmax(0, 1fr);
+  align-items: center;
+  gap: .85rem;
+  min-width: 0;
+  padding: 0 .15rem .15rem;
+}
+
+.m2-menu-account-avatar {
+  display: grid;
+  width: 4.15rem;
+  height: 4.15rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #dfff99;
+  color: #181d23;
+}
+
+.m2-menu-account-avatar svg {
+  width: 2.05rem;
+  height: 2.05rem;
+  stroke-width: 2;
+}
+
+.m2-app .m2-menu-login h2 {
+  margin: 0;
+  color: #101625;
+  font-size: 1.28rem;
+  font-weight: 800;
+  line-height: 1.24;
+  overflow-wrap: anywhere;
+}
+
+.m2-app .m2-menu-login p {
+  margin: .4rem 0 0;
+  color: #737985;
+  font-size: .86rem;
+  line-height: 1.45;
+}
+
+.m2-app .m2-menu-account-card > .m2-primary {
+  display: flex;
+  width: 100%;
+  min-height: 3.85rem;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  padding: .9rem 1rem;
+  border: 1.5px solid #4c8a16;
+  border-radius: 999px;
+  background: #caff10;
+  color: #171b12;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 2px 5px rgb(65 112 20 / .12);
+}
+
+.m2-menu-account-card > .m2-primary > span { min-width: 0; }
+.m2-menu-account-card > .m2-primary > svg {
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-left: auto;
+  flex: none;
+}
+
+.m2-app .m2-menu h3 {
+  margin: 0 0 .65rem;
+  color: #111827;
+  font-size: 1.18rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.m2-menu-section { min-width: 0; }
+
+.m2-menu-group {
+  display: grid;
+  gap: .65rem;
+  padding: .7rem;
+}
+
+.m2-app .m2-menu-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+  padding: .45rem .65rem;
+  border: 1px solid #e0e5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #171b27;
+  font-size: .98rem;
+  font-weight: 550;
+  line-height: 1.3;
+  text-align: left;
+  box-shadow: 0 1px 4px rgb(37 42 43 / .035);
+}
+
+.m2-app .m2-menu-row .m2-menu-row__label {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: .8rem;
+  overflow-wrap: anywhere;
+}
+
+.m2-app .m2-menu-row .m2-menu-row__icon {
+  display: grid;
+  width: 3.15rem;
+  height: 3.15rem;
+  flex: 0 0 3.15rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #dcff9a;
+  color: #151b19;
+}
+
+.m2-menu-row__icon svg { width: 1.65rem; height: 1.65rem; stroke-width: 2.2; }
+.m2-menu-row__icon--plain { background: transparent; }
+
+.m2-app .m2-menu-row > svg,
+.m2-menu-row__trailing > svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  color: #151b23;
+}
+
+.m2-app .m2-menu-row .m2-menu-row__trailing {
+  display: flex;
+  min-width: 0;
+  max-width: 55%;
+  align-items: center;
+  gap: .55rem;
+}
+
+.m2-app .m2-menu-row__trailing b {
+  min-width: 0;
+  overflow: hidden;
+  color: #516d0e;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.m2-app .m2-menu-row--profile {
+  margin-top: 0;
+  color: #171b27;
+  font-size: .98rem;
+}
+
+.m2-app .m2-menu button {
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .12s ease;
+}
+
+.m2-app .m2-menu button:active {
+  transform: translateY(1px) scale(.994);
+}
+
+.m2-app .m2-menu .m2-menu-row:focus-visible,
+.m2-app .m2-menu .m2-menu-admin-card:focus-visible,
+.m2-app .m2-menu .m2-primary:focus-visible {
+  outline: 3px solid #4c8a16;
+  outline-offset: 2px;
+}
+
+/* Always show a persistent selected state throughout the map drawing gesture.
+   aria-pressed comes from the existing map state; no map logic is changed. */
+.m2-app .m2-map-screen .m2-draw-cta {
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease, transform .1s ease, border-color .16s ease;
+}
+
+.m2-app .m2-map-screen .m2-draw-cta[aria-pressed="true"] {
+  border: 3px solid #3e7700;
+  border-radius: .6rem;
+  background: #d2ff3f;
+  color: #183100;
+  font-weight: 850;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / .95), 0 0 0 6px rgb(62 119 0 / .65), 0 .5rem 1.15rem rgb(24 52 0 / .23);
+}
+
+.m2-app .m2-map-screen .m2-draw-cta[aria-pressed="true"] svg {
+  stroke-width: 2.7;
+}
+
+.m2-app .m2-map-screen .m2-draw-cta:active {
+  transform: translateY(2px) scale(.985);
+}
+
+@media (max-width: 350px) {
+  .m2-menu-admin-card { grid-template-columns: 3.1rem minmax(0, 1fr) 2.25rem; gap: .55rem; padding: .8rem .6rem; }
+  .m2-menu-admin-card__icon { width: 3.1rem; height: 3.1rem; }
+  .m2-menu-admin-card__arrow { width: 2.25rem; height: 2.25rem; }
+  .m2-menu-admin-card__content > span { font-size: .78rem; }
+  .m2-app .m2-menu-login { grid-template-columns: 3.25rem minmax(0, 1fr); }
+  .m2-menu-account-avatar { width: 3.25rem; height: 3.25rem; }
+  .m2-app .m2-menu-login h2 { font-size: 1.12rem; }
+  .m2-app .m2-menu-row { font-size: .9rem; }
+  .m2-menu-row__icon { width: 2.7rem; height: 2.7rem; flex-basis: 2.7rem; }
+  .m2-menu-row__label { gap: .45rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m2-app .m2-menu button,
+  .m2-app .m2-map-screen .m2-draw-cta { transition: none; }
+}
