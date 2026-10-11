@@ -22,6 +22,7 @@ import { currentLocale } from "@/lib/i18n-locale";
 import { buildListingSearchBody, searchPublicListings, type ListingSearchInput } from "@/api/listings";
 import { defaultFilters } from "@/data/listings";
 import { hasListingCoordinates, tenantRequirementLabels } from "@/lib/listings";
+import { distanceKm } from "@/lib/geolocation";
 import { loadTenerifeZoneHierarchy } from "@/lib/map/geojson";
 import { getMunicipalityLabel, getRootMunicipalityId, getZoneLabel, isDetailedZoneId, type TenerifeZoneCollection } from "@/lib/map/zones";
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
@@ -271,6 +272,10 @@ export function SearchPage() {
         if (searchInput.polygon?.length) {
           if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates,
             searchInput.polygon.map(({ latitude, longitude }) => ({ lat: latitude, lng: longitude })))) return false;
+        }
+        if (searchInput.center && searchInput.radiusKm) {
+          if (!hasListingCoordinates(listing) || distanceKm(listing.coordinates,
+            { lat: searchInput.center.latitude, lng: searchInput.center.longitude }) > searchInput.radiusKm) return false;
         }
         return true;
       }) : filteredItems,
