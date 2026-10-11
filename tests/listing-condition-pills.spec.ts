@@ -77,5 +77,5 @@ test('condition labels have icon and tone parity with the supplied mobile refere
   await expect(block.getByText('Habitación para 1 persona')).toBeVisible()
   await expect(block.locator('.listing-condition-chip--neutral').first()).toBeVisible()
   await expect(block.locator('.listing-condition-chip--wide')).toHaveCount(2)
-  await expect(block.getByText('Gastos incluidos')).toHaveClass(/listing-condition-chip--positive/)
+  await expect(block.locator('.listing-condition-chip--positive').filter({ hasText: 'Gastos incluidos' })).toBeVisible()
 })
