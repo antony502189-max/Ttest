@@ -24,6 +24,7 @@ import { useApp } from '@/contexts/app-context'
 import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
 import { getBedroomCount } from '@/lib/listings'
+import { communityName } from '@/lib/spain-communities'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
@@ -232,7 +233,8 @@ export function MobileSearchResults() {
     const sort = sortByOrder[mobileOrder as ResultsOrder] ?? 'newest'
     return {
       rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' as const : 'long' as const,
-      query: params.get('q') ?? 'Tenerife',
+      query: params.get('q') ?? 'España',
+      autonomousCommunity: params.get('comunidad') ?? undefined,
       filters: canonical,
       minPrice: canonical.minPrice,
       maxPrice: canonical.maxPrice,
@@ -556,7 +558,9 @@ export function MobileSearchResults() {
   }
 
   return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { savedScrollTopRef.current = event.currentTarget.scrollTop }}>
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, serverSearchRequest?.query || new URLSearchParams(location.search).get('q') || appQuery)}</strong><small>{t.zone}</small></div></header>
+    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, communityName(new URLSearchParams(location.search).get('comunidad'), language) !== communityName(null, language)
+      ? communityName(new URLSearchParams(location.search).get('comunidad'), language)
+      : (serverSearchRequest?.query || new URLSearchParams(location.search).get('q') || 'España'))}</strong><small>{t.zone}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         markRecentlyViewed(listing.id)
