@@ -16,8 +16,8 @@
 }
 
 .idealista-listing-page .listing-conditions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
   align-items: stretch;
   gap: .65rem;
   margin: 1rem 0 0;
@@ -28,11 +28,11 @@
 .idealista-listing-page .listing-condition-chip {
   box-sizing: border-box;
   display: inline-flex;
-  flex: 0 1 auto;
   align-items: center;
   gap: .65rem;
   min-width: 0;
   max-width: 100%;
+  width: 100%;
   min-height: 3.4rem;
   padding: .7rem 1.05rem;
   border: 1px solid #e8aaa3;
@@ -76,10 +76,30 @@
 /* Longer lines get their own generous pill, like the supplied reference.
    On 320px screens their width is capped by the card, never the viewport. */
 .idealista-listing-page .listing-condition-chip--wide {
-  min-width: min(100%, 20.5rem);
+  grid-column: 1 / -1;
+  width: min(100%, 20.5rem);
+}
+
+@media (min-width: 768px) {
+  .idealista-listing-page .listing-conditions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .idealista-listing-page .listing-condition-chip {
+    width: auto;
+  }
 }
 
 @media (max-width: 359px) {
+  .idealista-listing-page .listing-conditions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .idealista-listing-page .listing-condition-chip--wide {
+    grid-column: auto;
+  }
+
   .idealista-listing-page .conditions-block {
     padding: .9rem;
   }
