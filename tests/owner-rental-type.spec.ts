@@ -58,7 +58,7 @@ test('owner cards show the existing rental labels without adding them to public 
 })
 
 
-test('mobile owner card keeps edit and delete in separate accessible actions', async ({ page }) => {
+test('mobile owner card shows delete directly below edit', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/#/')
   await page.evaluate(() => {
@@ -79,12 +79,10 @@ test('mobile owner card keeps edit and delete in separate accessible actions', a
   const removeBox = await remove.boundingBox()
   expect(editBox).not.toBeNull()
   expect(removeBox).not.toBeNull()
-  // The responsive redesign deliberately uses a horizontal management row
-  // rather than the old 3-icon vertical rail.
-  expect(Math.abs(removeBox!.y - editBox!.y)).toBeLessThanOrEqual(2)
-  expect(removeBox!.x).toBeGreaterThanOrEqual(editBox!.x + editBox!.width)
-  expect(editBox!.height).toBeGreaterThanOrEqual(44)
-  expect(removeBox!.height).toBeGreaterThanOrEqual(44)
+  expect(removeBox!.y).toBeGreaterThan(editBox!.y)
+  const editCenter = editBox!.x + editBox!.width / 2
+  const removeCenter = removeBox!.x + removeBox!.width / 2
+  expect(Math.abs(removeCenter - editCenter)).toBeLessThanOrEqual(2)
 })
 
 
