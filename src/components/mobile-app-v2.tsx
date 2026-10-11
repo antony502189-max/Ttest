@@ -40,7 +40,8 @@ import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocati
 import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
-import { filterListings, filtersToParams } from '@/lib/search'
+import { filterListings, filtersFromParams, filtersToParams } from '@/lib/search'
+import { searchGeographyFromParams } from '@/lib/search-geography'
 import { SPANISH_COMMUNITIES, communityAtCoordinates, communityMapCamera, communityName, communitySuggestions, getCommunity } from '@/lib/spain-communities'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
@@ -979,20 +980,44 @@ export function MobileAppV2() {
   // first map idle churns marker data and recreates every price marker.
   mapFilterParams.delete('mapAuto')
   const mapFilterSearch = mapFilterParams.toString()
+  // The results list and map must use identical route-scoped criteria.
+  // React context can retain the previous search/region after a language or
+  // filter change; it is not a reliable source for a new map API request.
+  const mapRouteCriteria = useMemo(() => {
+    const route = new URLSearchParams(mapFilterSearch)
+    const scopedFilters = filtersFromParams(route)
+    const types = (route.get('tiposHabitacion') ?? '').split('|').filter(
+      (value): value is Listing['roomType'] =>
+        ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value),
+    )
+    const geometry = searchGeographyFromParams(route)
+    return {
+      mode: route.get('alquiler') === 'holiday' ? 'holiday' as const : 'long' as const,
+      filters: scopedFilters,
+      roomTypes: types,
+      geography: geometry,
+    }
+  }, [mapFilterSearch])
   const mapItems = useMemo(() => mockMode ? selectMobileSearchListings({
     listings: allListings,
     discarded,
-    rentalMode,
-    filters,
+    rentalMode: mapRouteCriteria.mode,
+    filters: mapRouteCriteria.filters,
     polygon: mapPolygon,
-    query: mapQuery || query,
+    query: mapRouteCriteria.geography.query ?? 'España',
     params: new URLSearchParams(mapFilterSearch),
-  }) : [], [allListings, discarded, filters, mapFilterSearch, mapPolygon, mapQuery, query, rentalMode])
+  }) : [], [allListings, discarded, mapFilterSearch, mapPolygon, mapRouteCriteria])
   const serverMapQuery = useMemo(() => mockMode ? undefined : buildListingSearchBody({
-    rentalMode, query: mapQuery || query, autonomousCommunity: new URLSearchParams(location.search).get('comunidad') ?? undefined, filters,
-    minPrice: filters.minPrice, maxPrice: filters.maxPrice,
-    polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
-  }), [filters, location.search, mapPolygon, mapQuery, query, rentalMode])
+    rentalMode: mapRouteCriteria.mode,
+    ...mapRouteCriteria.geography,
+    filters: mapRouteCriteria.filters,
+    minPrice: mapRouteCriteria.filters.minPrice,
+    maxPrice: mapRouteCriteria.filters.maxPrice,
+    roomTypes: mapRouteCriteria.roomTypes,
+    polygon: mapPolygon.length >= 3
+      ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng }))
+      : mapRouteCriteria.geography.polygon,
+  }), [mapRouteCriteria, mapPolygon])
   const cameraParams = new URLSearchParams(location.search)
   // Explicit deep links and a new city search outrank previous map history.
   // "Tenerife" is the generic search label, not a newly selected municipality.
