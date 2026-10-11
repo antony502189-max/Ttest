@@ -299,6 +299,28 @@
   box-shadow: none;
 }
 .owner-listings-page .manage-actions [data-slot="button"] svg { width: 1.1rem; height: 1.1rem; flex: none; }
+/* Radix Slot/asChild renders the edit link as an <a> without a data-slot
+   attribute. Style actual interactive targets, not only shadcn wrappers. */
+.owner-listings-page .manage-actions .manage-actions__edit,
+.owner-listings-page .manage-actions .manage-actions__delete,
+.owner-listings-page .manage-actions .manage-actions__more {
+  min-width: 0;
+  min-height: 3rem !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .5rem;
+  padding: .65rem .7rem !important;
+  border: 1px solid #dfe4dc;
+  border-radius: .65rem !important;
+  background: #fff;
+  color: #29322e;
+  font-size: .84rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
 .owner-listings-page .manage-actions .manage-actions__edit { border-color: #c7d994; background: #f4fadf; }
 .owner-listings-page .manage-actions .manage-actions__delete { border-color: #f1d2d0; background: #fff7f6; color: #a23b3b; }
 .owner-listings-page .manage-actions [data-slot="button"]:hover { filter: brightness(.975); }
@@ -461,6 +483,16 @@
     font-size: .75rem;
     white-space: nowrap;
   }
+  .owner-listings-page .manage-actions .manage-actions__edit,
+  .owner-listings-page .manage-actions .manage-actions__delete,
+  .owner-listings-page .manage-actions .manage-actions__more {
+    width: 100%;
+    min-height: 3rem !important;
+    justify-content: center;
+    gap: .35rem;
+    padding: .6rem .25rem !important;
+    font-size: .75rem;
+  }
   .owner-listings-page .manage-actions [data-slot="button"] svg { width: .98rem; height: .98rem; }
 }
 @media (max-width: 355px) {
@@ -470,6 +502,9 @@
   .owner-listings-page .manage-card h2 { font-size: .86rem; }
   .owner-listings-page .owner-top-promote-button { width: 100%; justify-content: center; }
   .owner-listings-page .manage-actions [data-slot="button"] { font-size: .7rem; }
+  .owner-listings-page .manage-actions .manage-actions__edit,
+  .owner-listings-page .manage-actions .manage-actions__delete,
+  .owner-listings-page .manage-actions .manage-actions__more { font-size: .7rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .owner-listings-page *, .owner-listings-page *::before, .owner-listings-page *::after { scroll-behavior: auto; transition-duration: .01ms !important; }
