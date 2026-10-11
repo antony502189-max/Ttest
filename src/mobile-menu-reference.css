@@ -211,7 +211,7 @@
   box-shadow: 0 1px 4px rgb(37 42 43 / .035);
 }
 
-.m2-menu-row__label {
+.m2-app .m2-menu-row .m2-menu-row__label {
   display: flex;
   flex: 1 1 auto;
   min-width: 0;
@@ -220,7 +220,7 @@
   overflow-wrap: anywhere;
 }
 
-.m2-menu-row__icon {
+.m2-app .m2-menu-row .m2-menu-row__icon {
   display: grid;
   width: 3.15rem;
   height: 3.15rem;
@@ -242,7 +242,7 @@
   color: #151b23;
 }
 
-.m2-menu-row__trailing {
+.m2-app .m2-menu-row .m2-menu-row__trailing {
   display: flex;
   min-width: 0;
   max-width: 55%;
