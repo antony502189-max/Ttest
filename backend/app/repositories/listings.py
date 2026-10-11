@@ -367,6 +367,8 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
         query = query.where(Listing.restrictions.contains(payload.restrictions))
     if payload.tenantRequirement:
         query = query.where(Listing.tenant_requirement == payload.tenantRequirement)
+    if payload.tenantRequirements:
+        query = query.where(Listing.tenant_requirement.in_(payload.tenantRequirements))
     if payload.bathroom:
         query = query.where(Listing.bathroom == payload.bathroom)
     if payload.kitchen:

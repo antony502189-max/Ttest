@@ -43,3 +43,24 @@ def test_email_verification_code_requires_six_digits():
 def test_mail_links_use_existing_hash_routes():
     assert frontend_link("/restablecer-contrasena?token=test").endswith("/#/restablecer-contrasena?token=test")
     assert frontend_link("/habitacion/listing-id").endswith("/#/habitacion/listing-id")
+
+
+def test_search_schema_accepts_multiple_tenant_requirements() -> None:
+    request = ListingSearchRequest(
+        query="España",
+        tenantRequirements=["single-man", "single-woman"],
+    )
+    assert request.tenantRequirements == ["single-man", "single-woman"]
+    assert request.tenantRequirement is None
+
+
+def test_search_schema_rejects_conflicting_or_duplicate_tenant_requirements() -> None:
+    with pytest.raises(ValidationError, match="use tenantRequirement or tenantRequirements"):
+        ListingSearchRequest(
+            tenantRequirement="single-man",
+            tenantRequirements=["single-woman"],
+        )
+    with pytest.raises(ValidationError, match="duplicate or unsupported"):
+        ListingSearchRequest(tenantRequirements=["single-man", "single-man"])
+    with pytest.raises(ValidationError, match="duplicate or unsupported"):
+        ListingSearchRequest(tenantRequirements=["unknown"])

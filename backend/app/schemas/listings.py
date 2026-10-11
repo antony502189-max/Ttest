@@ -467,6 +467,7 @@ class ListingSearchRequest(BaseModel):
     maxMinimumStayMonths: int | None = Field(default=None, ge=0)
     restrictions: list[str] = Field(default_factory=list, max_length=100)
     tenantRequirement: str | None = Field(default=None, max_length=32)
+    tenantRequirements: list[str] = Field(default_factory=list, max_length=5)
     bathroom: str | None = Field(default=None, max_length=64)
     kitchen: str | None = Field(default=None, max_length=64)
     furnished: bool | None = None
@@ -569,6 +570,14 @@ class ListingSearchRequest(BaseModel):
             raise ValueError("acceptedTenantTypes contains duplicate or unsupported values")
         if self.currentRoomResidents is not None and self.maxCurrentRoomResidents is not None:
             raise ValueError("use currentRoomResidents or maxCurrentRoomResidents, not both")
+        if self.tenantRequirement and self.tenantRequirements:
+            raise ValueError("use tenantRequirement or tenantRequirements, not both")
+        if self.tenantRequirement is not None and self.tenantRequirement not in ALLOWED_TENANT_REQUIREMENTS:
+            raise ValueError("tenantRequirement contains an unsupported value")
+        if len(set(self.tenantRequirements)) != len(self.tenantRequirements) or any(
+            value not in ALLOWED_TENANT_REQUIREMENTS for value in self.tenantRequirements
+        ):
+            raise ValueError("tenantRequirements contains duplicate or unsupported values")
         if self.roomType and self.roomTypes:
             raise ValueError("use roomType or roomTypes, not both")
         if self.roomType and self.roomType not in ALLOWED_ROOM_TYPES:

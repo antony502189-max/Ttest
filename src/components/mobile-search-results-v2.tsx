@@ -27,6 +27,7 @@ import { getBedroomCount } from '@/lib/listings'
 import { communityName } from '@/lib/spain-communities'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
+import { mobileResultBadges } from '@/lib/mobile-result-badges'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
 import { searchGeographyFromParams } from '@/lib/search-geography'
 import { createProgressiveGalleryPage, filtersFromParams, filtersToParams, prioritizePromotedListings } from '@/lib/search'
@@ -126,13 +127,6 @@ function formatPrice(listing: Listing, language: ResultsLanguage) {
   return `${value} € / ${cadence}`
 }
 
-function capacityLabel(language: ResultsLanguage, count: number | null) {
-  if (count == null) return translateText('Consultar con el anunciante', language)
-  if (language === 'ru') return `Комната для ${count} ${count === 1 ? 'человека' : 'человек'}`
-  if (language === 'en') return `Room for ${count} ${count === 1 ? 'person' : 'people'}`
-  return `Habitación para ${count} ${count === 1 ? 'persona' : 'personas'}`
-}
-
 function bedroomFact(language: ResultsLanguage, count: number) {
   if (language === 'ru') return `${count} ${count === 1 ? 'комната' : count >= 2 && count <= 4 ? 'комнаты' : 'комнат'}`
   if (language === 'en') return `${count} ${count === 1 ? 'room' : 'rooms'}`
@@ -173,7 +167,7 @@ function MobileResultCard({ listing, language, favorite, onFavorite, onDiscard, 
   }
   return <article className="m2-result-card" data-listing-id={listing.id} data-external-source-url={listing.isExternal ? listing.sourceUrl : undefined} data-primary-source={listing.primarySource ?? listing.source}>
     <div className="m2-result-card__media"><button type="button" className="m2-result-card__image-button" onClick={onOpen} aria-label={listing.title}><MediaImage src={imageSrc} variant="card" onError={onImageError} alt={`${listing.title}, ${imageIndex + 1}/${images.length}`} width="720" height="480" loading="lazy" /></button><span className="m2-result-card__counter"><ImageIcon />{imageIndex + 1}/{images.length}</span>{images.length > 1 ? <button type="button" className="m2-result-card__next" onClick={nextImage} aria-label={t.photo}><ChevronRight /></button> : null}</div>
-    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{Array.from(new Set([...listing.restrictions.slice(0, 2).map((restriction) => translateText(restriction, language)), capacityLabel(language, listing.roomCapacity)])).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
+    <div className="m2-result-card__content"><p className="m2-result-card__location"><MapPin />{listing.approximateAddress ? `${listing.approximateAddress}, ${listing.city}` : `${listing.area}, ${listing.city}`}</p><h2>{translateText(listing.title, language)}</h2><strong className="m2-result-card__price">{formatPrice(listing, language)}</strong><p className="m2-result-card__facts">{translateText(listing.roomType, language)} · {bedroomFact(language, getBedroomCount(listing))} · {listing.roomSizeM2 == null ? translateText('Consultar con el anunciante', language) : `${listing.roomSizeM2} m²`} · {listing.currentResidents} {t.residents}</p><p className="m2-result-card__availability">{availabilityFact(listing, language)}</p><div className="m2-result-card__badges">{mobileResultBadges(listing, language).map((restriction) => <span key={restriction}>{restriction}</span>)}</div>
       <div className="m2-result-card__actions"><button type="button" onClick={onContact}><MessageCircle />{t.contact}</button>{listing.showPhone && listing.contactPhone ? <a href={`tel:${listing.contactPhone}`}><Phone />{t.call}</a> : null}<button type="button" className="m2-result-card__discard" onClick={onDiscard} aria-label={t.discard}><Trash2 /></button><button type="button" className={cn('m2-result-card__favorite', favorite && 'is-active')} onClick={onFavorite} aria-label={favorite ? t.unfavorite : t.favorite} aria-pressed={favorite}><Heart /></button></div>
     </div>
   </article>
@@ -191,6 +185,7 @@ export function MobileSearchResults() {
   const [order, setOrder] = useState<ResultsOrder>('relevance')
   const [filters, setFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
   const [draftFilters, setDraftFilters] = useState<ResultsFilters>(() => createDefaultFilters(rentalMode))
+  const [draftResetAll, setDraftResetAll] = useState(false)
   const [focusListingId, setFocusListingId] = useState('')
   const [serverItems, setServerItems] = useState<Listing[] | null>(null)
   const [serverTotal, setServerTotal] = useState(0)
@@ -369,6 +364,7 @@ export function MobileSearchResults() {
     const routeFilters: ResultsFilters = { rentalMode: routeMode, minPrice: parsed.minPrice, maxPrice: parsed.maxPrice, minArea: parsed.roomSizeMin, maxArea: parsed.roomSizeMax, roomTypes, available: parsed.available, availableUntil: parsed.availableUntil, shower: parsed.shower, toilet: parsed.toilet, kitchen: parsed.kitchen, bedType: parsed.bedType, smoking: parsed.smoking, accessible: parsed.accessible, floor: parsed.floor, amenities: [...parsed.amenities] }
     setFilters(routeFilters)
     setDraftFilters(routeFilters)
+    setDraftResetAll(false)
     setRentalMode(routeMode)
     setAppFilters(parsed)
     const routeOrder = params.get('mobileOrden') as ResultsOrder | null
@@ -401,7 +397,6 @@ export function MobileSearchResults() {
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
   }, [filters, goBack, open, panel])
 
-  const availableListings = useMemo(() => (mockMode ? allListings : serverItems ?? []).filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded, serverItems])
   const filteredListings = useMemo(() => {
     if (!mockMode) return (serverItems ?? []).filter((listing) => !discarded.has(listing.id))
     const params = new URLSearchParams(location.search)
@@ -438,7 +433,7 @@ export function MobileSearchResults() {
     params.delete('capacidades')
     params.delete('habitaciones')
     const canonicalFilters = {
-      ...appFilters,
+      ...(draftResetAll ? defaultFilters : filtersFromParams(params)),
       minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),
       maxPrice: Math.max(draftFilters.minPrice, draftFilters.maxPrice),
       roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
@@ -456,7 +451,7 @@ export function MobileSearchResults() {
       amenities: draftFilters.amenities,
     }
     return selectMobileSearchListings({ listings: allListings, discarded, rentalMode: draftFilters.rentalMode ?? rentalMode, filters: canonicalFilters, polygon: mapPolygon, query: params.get('q') ?? appQuery, params })
-  }, [allListings, appFilters, appQuery, discarded, draftFilters, filteredListings, location.search, mapPolygon, rentalMode])
+  }, [allListings, appQuery, discarded, draftFilters, draftResetAll, filteredListings, location.search, mapPolygon, rentalMode])
 
   const listings = useMemo(() => mockMode ? [...filteredListings].sort((a, b) => {
     const promotionPriority = Number(Boolean(b.promoted)) - Number(Boolean(a.promoted))
@@ -475,7 +470,20 @@ export function MobileSearchResults() {
     return 0
   }) : filteredListings, [favorites, filteredListings, order])
   const orderedListings = useMemo(() => prioritizePromotedListings(listings, focusListingId), [focusListingId, listings])
-  const resultCount = mockMode ? availableListings.length : serverTotal
+  const resultCount = mockMode ? filteredListings.length : serverTotal
+  const visibleGeography = searchGeographyFromParams(new URLSearchParams(location.search))
+  const drawingAreaSelected = Boolean(visibleGeography.polygon?.length || visibleGeography.bounds || visibleGeography.center)
+  const allSpain = !drawingAreaSelected && !visibleGeography.autonomousCommunity
+    && ['españa', 'espana', 'spain', 'es'].includes((visibleGeography.query ?? '').trim().toLocaleLowerCase())
+  const headingPlace = drawingAreaSelected
+    ? { es: 'la zona seleccionada', en: 'the selected area', ru: 'выделенная зона' }[language]
+    : visibleGeography.autonomousCommunity
+      ? communityName(visibleGeography.autonomousCommunity, language)
+      : allSpain ? { es: 'España', en: 'Spain', ru: 'Испания' }[language]
+        : visibleGeography.query ?? 'España'
+  const headingSubtitle = allSpain
+    ? { es: 'Toda España', en: 'All Spain', ru: 'Вся Испания' }[language]
+    : resultsCopy[language].zone
 
 
   if (!open) return null
@@ -508,7 +516,7 @@ export function MobileSearchResults() {
   const applyFilters = () => {
     const nextMode = draftFilters.rentalMode ?? rentalMode
     const nextFilters = {
-      ...appFilters,
+      ...(draftResetAll ? defaultFilters : filtersFromParams(new URLSearchParams(location.search))),
       minPrice: Math.min(draftFilters.minPrice, draftFilters.maxPrice),
       maxPrice: Math.max(draftFilters.minPrice, draftFilters.maxPrice),
       roomSizeMin: Math.min(draftFilters.minArea, draftFilters.maxArea),
@@ -528,6 +536,7 @@ export function MobileSearchResults() {
     const appliedFilters: ResultsFilters = { ...draftFilters, rentalMode: nextMode, minPrice: nextFilters.minPrice, maxPrice: nextFilters.maxPrice, minArea: nextFilters.roomSizeMin, maxArea: nextFilters.roomSizeMax }
     setFilters(appliedFilters)
     setDraftFilters(appliedFilters)
+    setDraftResetAll(false)
     setRentalMode(nextMode)
     setAppFilters(nextFilters)
     const params = filtersToParams(nextFilters, new URLSearchParams(location.search))
@@ -542,7 +551,12 @@ export function MobileSearchResults() {
     navigate(`/buscar?${params.toString()}`)
     setPanel('results')
   }
-  const clearFilters = () => setDraftFilters((current) => ({ ...createDefaultFilters(current.rentalMode), minPrice: defaultFilters.minPrice, maxPrice: defaultFilters.maxPrice, minArea: defaultFilters.roomSizeMin, maxArea: defaultFilters.roomSizeMax }))
+  const clearFilters = () => {
+    // Clear all search criteria, including hidden desktop-only filters. Keep
+    // the selected map polygon/city/community and the user's rental mode.
+    setDraftResetAll(true)
+    setDraftFilters((current) => createDefaultFilters(current.rentalMode))
+  }
   const applyOrder = (value: ResultsOrder) => {
     setOrder(value)
     const canonicalSort = value === 'cheap' ? 'Precio más bajo' : value === 'expensive' ? 'Precio más alto' : 'Relevancia'
@@ -558,10 +572,8 @@ export function MobileSearchResults() {
   }
 
   return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { savedScrollTopRef.current = event.currentTarget.scrollTop }}>
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, communityName(new URLSearchParams(location.search).get('comunidad'), language) !== communityName(null, language)
-      ? communityName(new URLSearchParams(location.search).get('comunidad'), language)
-      : (serverSearchRequest?.query || new URLSearchParams(location.search).get('q') || 'España'))}</strong><small>{t.zone}</small></div></header>
-      <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
+    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, headingPlace)}</strong><small>{headingSubtitle}</small></div></header>
+      <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftResetAll(false); setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         markRecentlyViewed(listing.id)
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
@@ -570,7 +582,7 @@ export function MobileSearchResults() {
 
     {panel === 'sort' ? <section className="m2-results-panel"><header><button type="button" onClick={() => setPanel('results')} aria-label={t.close}><X /></button><strong>{t.order}</strong></header><div className="m2-results-sort" role="radiogroup">{(mockMode ? orderKeys : productionOrderKeys).map((value) => <button key={value} type="button" role="radio" aria-checked={order === value} onClick={() => applyOrder(value)}><span>{orderLabel(t, value)}</span><i>{order === value ? '●' : ''}</i></button>)}</div></section> : null}
 
-    {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => { setDraftFilters(filters); setPanel('results') }} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
+    {panel === 'filters' ? <section className="m2-results-panel m2-results-filter"><header><button type="button" onClick={() => { setDraftResetAll(false); setDraftFilters(filters); setPanel('results') }} aria-label={t.close}><X /></button><strong>{t.filters}</strong><button type="button" className="m2-results-filter__clear" onClick={clearFilters}>{t.clear}</button></header><div className="m2-results-filter__scroll">
       <div className="m2-results-filter__transaction" role="group" aria-label={`${t.vivienda} / ${t.turismo}`}><button type="button" className={cn(draftFilters.rentalMode === 'long' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'long'} onClick={() => chooseRentalMode('long')}>{t.vivienda}</button><button type="button" className={cn(draftFilters.rentalMode === 'holiday' && 'is-active')} aria-pressed={draftFilters.rentalMode === 'holiday'} onClick={() => chooseRentalMode('holiday')}>{t.turismo}</button></div>
       <fieldset><legend>{t.price}</legend><div className="m2-results-filter__pair"><label><span>{t.min}</span><input aria-label={`${t.price} ${t.min}`} type="number" min="0" step="25" value={draftFilters.minPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, minPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label><label><span>{t.max}</span><input aria-label={`${t.price} ${t.max}`} type="number" min="0" step="25" value={draftFilters.maxPrice} onChange={(event) => setDraftFilters((current) => ({ ...current, maxPrice: Math.max(0, Number(event.target.value) || 0) }))} /></label></div></fieldset>
       <fieldset><legend>{t.moveIn}</legend><div className="m2-results-filter__pair m2-results-filter__pair--dates"><label><span>{t.moveIn}</span><input aria-label={t.moveIn} type="date" value={draftFilters.available} onChange={(event) => setDraftFilters((current) => ({ ...current, available: event.target.value }))} /></label><label><span>{t.moveOut}</span><input aria-label={t.moveOut} type="date" min={draftFilters.available || undefined} value={draftFilters.availableUntil} onChange={(event) => setDraftFilters((current) => ({ ...current, availableUntil: event.target.value }))} /></label></div></fieldset>
