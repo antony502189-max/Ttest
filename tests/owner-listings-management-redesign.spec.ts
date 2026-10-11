@@ -67,8 +67,11 @@ test.describe('owner listing manager reference-inspired redesign', () => {
     const selector = page.getByLabel('Estado')
     await expect(selector).toBeVisible()
     await expect(page.locator('.manage-card')).toHaveCount(3)
+    await selector.selectOption('Oculto')
+    await expect(page.locator('.manage-card')).toHaveCount(0)
+    await expect(page.getByText('No hay anuncios en este estado')).toBeVisible()
     await selector.selectOption('Publicado')
-    await expect(page.locator('.manage-card')).toHaveCount(2)
+    await expect(page.locator('.manage-card')).toHaveCount(3)
     await selector.selectOption('Todos')
     await expect(page.locator('.manage-card')).toHaveCount(3)
 
