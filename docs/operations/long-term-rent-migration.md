@@ -1,5 +1,7 @@
 # Monthly price cap — preserve PR #298 design and Tourism inventory
 
+> **Historical planning and read-only classification record.** Do not treat observed environment flags or rollout status from this document as the **current** VPS state. The current application retains both `long`/`holiday` modes and applies the inclusive €1,000/month cap to long-term listings only. Source of truth: [database](../database.md), [external import](../external-import.md), and [production operations](../production-operations.md). Ordinary code releases **do not** perform catalog cleanup or gallery repairs.
+
 ## Verified baseline and scope
 The customer explicitly corrected the scope: **do not redesign the marketplace**, keep the current PR #298 / #303 UI, both `Vivienda` and `Turismo` mode cards, their original colors, search navigation and property galleries. Do not redirect existing tourist mode to long-term mode. Long-term listings are defined by their verified **monthly price**, without a six-month lease-duration requirement. The inclusive €1,000/month cap is applied only to long-term listings; the existing Tourism mode continues to operate under its original behavior.
 
@@ -35,6 +37,6 @@ It is **not** a cleanup command. Candidate UUIDs are sensitive operational metad
 8. Verify post-change catalog counts, price boundaries, importer restart safety, and media access.
 
 ## Existing deploy behavior
-`deploy/deploy-release.sh` performs migrations and applies the deduplication and gallery repair commands while writers are paused; it also restarts `external-listings-worker`. A green code CI run does not verify current production backups or importer flags.
+`deploy/deploy-release.sh` verifies backup prerequisites, quiesces writers, backs up PostgreSQL, runs migrations, deploys application containers and restarts `external-listings-worker`; it **does not** run deduplication, automatic listing closure, media deletion or gallery repair. The current script explicitly records `data_maintenance=skipped`. A green CI build does not verify current production backups, importer flags or runtime SHA.
 
-**Status: CODE CHANGES UNDER REVIEW — NO PRODUCTION DEPLOY.**
+**Status of this document: historical review.** For current release status check `/srv/112233.es/current` and the public `build-info.json` on the VPS; do not infer deployments from this dated plan.

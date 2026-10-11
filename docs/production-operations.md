@@ -107,3 +107,27 @@ Before a controlled reboot, record `docker compose ps`, confirm there are no unk
 ## Historical data maintenance
 
 Ordinary code releases and importer cycles do not run global deduplication, source retirement, or legacy gallery repair. Production defaults preserve existing galleries and disable physical external removal. Keep EXTERNAL_IMPORT_PRESERVE_EXISTING_DATA=1 and EXTERNAL_REMOVAL_CHECK_ENABLED=0 unless a separate maintenance manifest has been reviewed and approved after successful PostgreSQL and MinIO restore drills. The maintenance commands remain available independently; their default dry-run is read-only. Application rollback does not undo listing closures, favorite transfers, added gallery relations, or removed media.
+
+
+## Release-version and Spain-search verification (2026-10-11)
+
+The new nationwide UI and 70 km map recall are code features, not a reason to change production import gates or run data cleanup. [Regional search](spain-regional-search.md) documents the 17-community contract; [map history](navigation-and-maps.md) documents the browser-local 70 km zone. Their deployment is accepted only when the real `current` SHA and public `/build-info.json` match the intended merged `main` SHA.
+
+Useful **read-only** verification, executed in a confirmed SSH session to `169.58.147.65`:
+
+```bash
+hostname
+readlink -f /srv/112233.es/current
+pgrep -af 'deploy-release.sh' || true
+docker ps -a --filter name=ttest-production
+curl -fsS https://app.112233.es/build-info.json
+bash /srv/112233.es/current/deploy/production-monitor-check.sh
+```
+
+For regression acceptance, separately open the public mobile UI and inspect the region picker: default is **unselected**, 17 autonomous-community rows appear **inline**, Barcelona offers Cataluña, and selecting one opens the scrolling results with the correct regional title and count. Test `comunidad` persistence across list/map navigation. The `POST /api/v1/listings/regions/counts` query is read-only; its counts are based on production catalog data and must not be replaced with fixture totals.
+
+**Important for operators:** earlier multi-line PowerShell-to-SSH piping has produced a log-tail race on this project. Prefer interactive SSH + native Linux shell commands, or create the log before following it. Lost terminal output is not proof a detached deploy has stopped. Do not start a second release until process, lock and `*.deploy-info` are checked.
+
+### Documentation status and change separation
+
+The runbooks in `docs/` describe the current source contract. A docs-only commit in GitHub is **not** automatically deployed to production. This manual prohibits broad source-import scope enabling, removal sweeps, database/media cleanup and stateful image migrations as side effects of a routine documentation or frontend release. See [release checklist](release-checklist.md), [deployment](deployment.md), [external import](external-import.md) and [troubleshooting](troubleshooting.md).

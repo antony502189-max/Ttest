@@ -1,5 +1,7 @@
 # Spain scale catalog architecture
 
+> **2026-10-11 update:** This document began as the nationwide scaling **design/rollout assessment**. Some passages below are baseline-specific, notably statements that Tenerife remains the default product scope, early migration boundaries, and the proposed importer activation sequence. The **current implementation** has 17-autonomous-community mobile browsing and live spatial region counts (`POST /api/v1/listings/regions/counts`), an INE municipality autocomplete dictionary, the 70 km virtual map recall zones, and Alembic head `0056_external_scope_checkpoint`. Refer to [regional search](spain-regional-search.md), [map history](navigation-and-maps.md), and [database](database.md) for active contracts. Do not equate region-picker UI coverage with production importer scope activation. The formulas and rollout gates below remain useful risk assessments, not a live state report.
+
 ## Inventory and migration boundary
 
 Before this change the production `AppContext` called `getStablePublicCatalog → getPublicListings → fetchAllSearch`, paged through the public catalog, held every listing in memory, and refreshed it when the catalog version changed. Desktop search, mobile results, maps, favorites and similar listings consumed that snapshot. Owner pages already used `/listings/mine`; detail deep links already used `/listings/{id}`. The old `/listings/search` offset endpoint remains for compatibility, but the production UI no longer calls the catalog-all flow.
@@ -28,7 +30,7 @@ Mock mode retains its fixture catalog. Production `allListings` is only a small 
 
 Migration 0050 adds a partial `(rental_mode, created_at DESC, id)` public index and partial trigram indexes for case-insensitive city/area search, built concurrently. The existing partial `(rental_mode, published_at DESC, id)` index and geography GiST index remain. `ST_Intersects(location, geography viewport)` and `ST_DWithin(location, point)` can use the geography index. Promotion predicates and varied filters can still require sorting; inspect plans on 10k, 50k and 100k fixtures before countrywide activation. Migration 0051 adds import scope fields and a disabled scope schedule table; it does not queue or crawl anything.
 
-Search and map inputs have coordinate ranges, ordered bounds, at most 100 polygon vertices, at most 100 km radius, page limits and fixed marker/grid bounds. Spain coverage includes mainland, Balearic and Canary Islands, Ceuta and Melilla; the generic map is not restricted to Tenerife. Current Tenerife copy and default camera remain product defaults while nationwide inventory is disabled.
+Search and map inputs have coordinate ranges, ordered bounds, at most 100 polygon vertices, at most 100 km radius, page limits and fixed marker/grid bounds. Spain coverage includes mainland, Balearic and Canary Islands, Ceuta and Melilla; the generic map is not restricted to Tenerife. **Current product behavior (updated):** the unselected countrywide location picker offers 17 autonomous communities, and the first map visit uses an Atlantic Spain/Canaries overview. Fresh repeat visits use a 70 km virtual zone around the last explored place. Active importer provinces depend on the actual production scope gate and enabled rows, not the user's chosen region.
 
 ## External import work
 
