@@ -26,6 +26,7 @@ from sqlalchemy import Float, Select, and_, case, cast, func, or_, select, updat
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..spain_communities import community_contains_location, community_geometries
 from ..core.config import get_settings
 from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
@@ -324,7 +325,11 @@ def owned_query() -> Select:
 def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select:
     price = primary_price_expression()
     bedrooms = bedroom_count_expression()
-    if payload.query and payload.query.casefold() not in {"tenerife", "isla de tenerife"}:
+    # Autonomous-community queries are spatial; never use the display name
+    # as a literal city/area substring (Cataluña must include Barcelona).
+    if payload.autonomousCommunity:
+        query = query.where(community_contains_location(payload.autonomousCommunity, Listing.location))
+    elif payload.query and payload.query.casefold() not in {"tenerife", "isla de tenerife", "espana", "españa", "spain", "es"}:
         term = f"%{payload.query}%"
         query = query.where(or_(Listing.city.ilike(term), Listing.area.ilike(term)))
     if payload.city:
@@ -472,6 +477,35 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
         polygon = ST_GeomFromText(wkt, 4326)
         query = query.where(ST_Intersects(Listing.location, cast(polygon, Geography("POLYGON", srid=4326))))
     return query
+
+
+async def count_autonomous_communities(session: AsyncSession, rental_mode: str | None) -> list[dict]:
+    """One grouped SQL request for all 17 counts and published-listing city aliases.
+
+    Uses the same visibility/price-limit filters and exact region geometries as
+    the list/card and map endpoints. Never counts archived or restricted rows.
+    """
+    expressions = [
+        (community_contains_location(region_id, Listing.location), region_id)
+        for region_id in community_geometries()
+    ]
+    region_case = case(*expressions, else_=None)
+    filtered = visible_query().with_only_columns(
+        region_case.label("community"), Listing.city,
+        maintain_column_froms=True,
+    )
+    if rental_mode:
+        filtered = filtered.where(Listing.rental_mode == rental_mode)
+    rows = filtered.subquery()
+    result = await session.execute(
+        select(rows.c.community, func.count(), func.array_agg(func.distinct(rows.c.city)))
+        .where(rows.c.community.is_not(None))
+        .group_by(rows.c.community)
+    )
+    counts = {region_id: {"id": region_id, "count": 0, "cities": []} for region_id in community_geometries()}
+    for region_id, count, cities in result:
+        counts[region_id] = {"id": region_id, "count": count, "cities": sorted(c for c in (cities or []) if c)}
+    return list(counts.values())
 
 
 def apply_search_order(query: Select, payload: ListingSearchRequest) -> Select:

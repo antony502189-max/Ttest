@@ -454,6 +454,7 @@ class ListingSearchRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     query: str | None = Field(default=None, max_length=240)
+    autonomousCommunity: str | None = Field(default=None, pattern=r"^(0[1-9]|1[0-7])$")
     city: str | None = Field(default=None, max_length=120)
     area: str | None = Field(default=None, max_length=120)
     rentalMode: str | None = None
