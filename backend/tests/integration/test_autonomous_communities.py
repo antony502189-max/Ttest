@@ -36,6 +36,7 @@ async def test_autonomous_community_counts_match_published_spatial_card_search(c
             session.add(Listing(
                 owner_user_id=owner.id, title=title, city=city, area="Centro",
                 approximate_address="Centro", rental_mode=mode, monthly_price=price,
+                nightly_price=price if mode == "holiday" else None,
                 location=point(lng, lat), status=status, published_at=now,
                 created_at=now,
             ))
