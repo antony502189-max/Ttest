@@ -49,7 +49,7 @@ for (const width of [320, 390, 430]) {
     const accountBox = await account.boundingBox(), propertiesBox = await property.boundingBox()
     expect(accountBox).not.toBeNull()
     expect(propertiesBox).not.toBeNull()
-    expect(accountBox!.bottom).toBeLessThan(propertiesBox!.top)
+    expect(accountBox!.y + accountBox!.height).toBeLessThan(propertiesBox!.y)
     const rows = menu.locator('.m2-menu-group .m2-menu-row')
     expect(await rows.count()).toBeGreaterThanOrEqual(3)
     for (const row of await rows.all()) {
@@ -82,7 +82,7 @@ test('administrator receives the blue admin card above their profile and can ope
   const panelBox = await admin.boundingBox(), accountBox = await menu.locator('.m2-menu-account-card').boundingBox()
   expect(panelBox).not.toBeNull()
   expect(accountBox).not.toBeNull()
-  expect(panelBox!.bottom).toBeLessThan(accountBox!.top)
+  expect(panelBox!.y + panelBox!.height).toBeLessThan(accountBox!.y)
   expect(panelBox!.height).toBeGreaterThan(120)
   const colors = await admin.evaluate((node) => ({
     background: getComputedStyle(node).backgroundImage,
