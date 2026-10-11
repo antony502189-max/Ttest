@@ -305,6 +305,7 @@
 .owner-listings-page .manage-actions .manage-actions__delete,
 .owner-listings-page .manage-actions .manage-actions__more {
   min-width: 0;
+  width: 100%;
   min-height: 3rem !important;
   display: inline-flex !important;
   align-items: center;
