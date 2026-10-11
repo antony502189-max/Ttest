@@ -317,6 +317,8 @@ export function SearchPage() {
     updateParams((next) => {
       boundKeys.forEach((key) => next.delete(key));
       if (bounds) {
+        next.set('q', 'España');
+        next.delete('comunidad');
         next.delete('poligono');
         next.delete('zonas');
         next.set('norte', bounds.north.toFixed(5));
@@ -336,6 +338,8 @@ export function SearchPage() {
     next.delete("pagina");
     next.delete('cursor');
     if (polygon.length >= 3) {
+      next.set('q', 'España');
+      next.delete('comunidad');
       boundKeys.forEach((key) => next.delete(key));
       next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
     }
