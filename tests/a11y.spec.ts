@@ -109,7 +109,7 @@ test("delta remaining contact controls support keyboard operation and axe while 
 test("delta fullscreen location flow has no serious or critical axe issues", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openRoute(page, { name: "inicio", path: "/#/" });
-  await page.getByRole("button", { name: "Buscar en Tenerife" }).click();
+  await page.getByRole("button", { name: "Seleccionar ubicación actual" }).click();
   await expect(page.getByTestId("location-screen")).toBeVisible();
   const results = await new AxeBuilder({ page }).include(".m2-location").analyze();
   expect(results.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);

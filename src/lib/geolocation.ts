@@ -1,4 +1,5 @@
 import type { Coordinates } from '@/types'
+import { communityAtCoordinates } from '@/lib/spain-communities'
 
 export type GeolocationFailure = 'unsupported' | 'denied' | 'unavailable' | 'timeout' | 'outside'
 export type GeolocationResult =
@@ -41,7 +42,9 @@ export function requestCurrentLocation(options: PositionOptions = {
   return new Promise((resolve) => {
     const resolvePosition = ({ coords }: GeolocationPosition) => {
       const coordinates = { lat: coords.latitude, lng: coords.longitude }
-      resolve(isInsideTenerife(coordinates)
+      // All mainland, Balearic and Canary autonomous communities are supported.
+      // The old Tenerife-only bounds must not reject Madrid, Barcelona, etc.
+      resolve(communityAtCoordinates(coordinates.lat, coordinates.lng)
         ? { ok: true, coordinates }
         : { ok: false, reason: 'outside' })
     }
