@@ -6,6 +6,9 @@ import {
   CalendarClock,
   Clock3,
   Edit3,
+  Frown,
+  Rocket,
+  Smile,
   Eye,
   EyeOff,
   LogOut,
@@ -51,27 +54,6 @@ import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/l
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
 import type { DemoUser } from "@/types";
-
-function OwnerPromoteIcon() {
-  return (
-    <svg
-      className="owner-top-promote-icon"
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M13.2 4.8h12.1v12.1l-4.1-4.1-7 7-6.1-6.1 7-7-1.9-1.9Z"
-        stroke="currentColor"
-        strokeWidth="2.75"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <path d="M8.2 18.1 5.4 20.9M10.5 21.6 6.7 25.4M14 23.9l-2.8 2.8" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function AccountHeader({
   eyebrow,
@@ -583,7 +565,7 @@ export function MyListingsPage() {
                 </div>
               </div>
               <div className="owner-top-cta__action">
-                <span className="owner-top-cta__pointer" aria-hidden="true">👉</span>
+                <span className="owner-top-cta__pointer" aria-hidden="true"><Rocket /></span>
                 <Button type="button" className="owner-top-cta__button" onClick={() => openTopFlow()}>
                   {t("Llevar a TOP")}
                 </Button>
@@ -614,28 +596,49 @@ export function MyListingsPage() {
                   {t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}
                 </span>
                 {listing.promoted ? (
-                  <p
-                    className="owner-top-status is-active"
-                    data-testid="owner-top-status"
-                    data-top-active="true"
-                  >
-                    <span aria-hidden="true">👍</span>
-                    {listing.promotionEndsAt
-                      ? `${t("Estás en TOP hasta")} ${formatOwnerPromotionEnd(listing.promotionEndsAt, locale, language)}`
-                      : t("Estás en TOP")}
-                  </p>
+                  <>
+                    <div className="owner-top-state owner-top-state--active" data-testid="owner-top-status" data-top-active="true">
+                      <Smile className="owner-top-state__face" aria-hidden="true" />
+                      <span className="owner-top-state__copy">
+                        <strong>{t("Estás en TOP")}</strong>
+                        {listing.promotionEndsAt ? (
+                          <small>{t("Estás en TOP hasta")} {formatOwnerPromotionEnd(listing.promotionEndsAt, locale, language)}</small>
+                        ) : (
+                          <small>{t("Más visibilidad para tu anuncio")}</small>
+                        )}
+                      </span>
+                    </div>
+                    {listing.status === "Publicado" && !listing.isExternal ? (
+                      <Button type="button" variant="outline"
+                        className="owner-top-action owner-top-action--active"
+                        data-testid="owner-top-manage-button"
+                        onClick={() => openTopFlow(listing.id)}
+                        aria-label={`${t("Gestionar TOP")}: ${listing.title}`}
+                      >
+                        <Rocket className="owner-top-rocket" aria-hidden="true" />
+                        <span>{t("Gestionar TOP")}</span>
+                      </Button>
+                    ) : null}
+                  </>
                 ) : listing.status === "Publicado" && !listing.isExternal ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="owner-top-promote-button"
-                    data-testid="owner-top-promote-button"
-                    onClick={() => openTopFlow(listing.id)}
-                    aria-label={`${t("Destacar")}: ${listing.title}`}
-                  >
-                    <OwnerPromoteIcon />
-                    {t("Destacar")}
-                  </Button>
+                  <>
+                    <div className="owner-top-state owner-top-state--inactive" data-testid="owner-top-status" data-top-active="false">
+                      <Frown className="owner-top-state__face" aria-hidden="true" />
+                      <span className="owner-top-state__copy">
+                        <strong>{t("No estás en TOP")}</strong>
+                        <small>{t("Más visibilidad para tu anuncio")}</small>
+                      </span>
+                    </div>
+                    <Button type="button" variant="outline"
+                      className="owner-top-promote-button owner-top-action owner-top-action--inactive"
+                      data-testid="owner-top-promote-button"
+                      onClick={() => openTopFlow(listing.id)}
+                      aria-label={`${t("Llevar a TOP")}: ${listing.title}`}
+                    >
+                      <Rocket className="owner-top-rocket" aria-hidden="true" />
+                      <span>{t("Llevar a TOP")}</span>
+                    </Button>
+                  </>
                 ) : null}
                 <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
                 {listing.status === "Finalizado" ? <p className="listing-ended-reason">Cerrado por el anunciante.</p> : null}
@@ -647,21 +650,23 @@ export function MyListingsPage() {
                 </div>
               </div>
               <div className="manage-actions">
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="owner-manage-action owner-manage-action--edit">
                   <Link to={`/mis-anuncios/${listing.id}/editar`}>
-                    <Edit3 data-icon="inline-start" />
-                    Editar
+                    <Edit3 aria-hidden="true" />
+                    <span>{t("Editar")}</span>
                   </Link>
                 </Button>
                 {!listing.isExternal ? <ConfirmDialog
                   trigger={
                     <Button
-                      variant="destructive"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
+                      className="owner-manage-action owner-manage-action--delete"
                       aria-label={`Eliminar ${listing.title}`}
-                      title="Eliminar"
+                      title={t("Eliminar")}
                     >
-                      <Trash2 />
+                      <Trash2 aria-hidden="true" />
+                      <span>{t("Eliminar")}</span>
                     </Button>
                   }
                   title="¿Eliminar este anuncio?"
@@ -675,11 +680,13 @@ export function MyListingsPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
+                      className="owner-manage-action owner-manage-action--more"
                       aria-label={`Más acciones para ${listing.title}`}
                     >
-                      <MoreHorizontal />
+                      <MoreHorizontal aria-hidden="true" />
+                      <span>{t("Más")}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
