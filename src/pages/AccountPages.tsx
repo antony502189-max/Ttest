@@ -627,7 +627,7 @@ export function MyListingsPage() {
                 /> : null}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="manage-actions__more" aria-label={`Más acciones para ${listing.title}`}><MoreHorizontal aria-hidden="true" />{t("Más acciones")}</Button>
+                    <Button variant="outline" size="sm" className="manage-actions__more" aria-label={`Más acciones para ${listing.title}`}><MoreHorizontal aria-hidden="true" />{t("Más")}</Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
