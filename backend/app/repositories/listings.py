@@ -479,7 +479,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     return query
 
 
-async def count_autonomous_communities(session: AsyncSession, rental_mode: str | None) -> list[dict]:
+async def count_autonomous_communities(session: AsyncSession, payload: ListingSearchRequest) -> list[dict]:
     """One grouped SQL request for all 17 counts and published-listing city aliases.
 
     Uses the same visibility/price-limit filters and exact region geometries as
@@ -490,12 +490,13 @@ async def count_autonomous_communities(session: AsyncSession, rental_mode: str |
         for region_id in community_geometries()
     ]
     region_case = case(*expressions, else_=None)
-    filtered = visible_query().with_only_columns(
+    filtered = apply_search_filters(
+        visible_query(),
+        payload.model_copy(update={"query": None, "autonomousCommunity": None}),
+    ).with_only_columns(
         region_case.label("community"), Listing.city,
         maintain_column_froms=True,
     )
-    if rental_mode:
-        filtered = filtered.where(Listing.rental_mode == rental_mode)
     rows = filtered.subquery()
     result = await session.execute(
         select(rows.c.community, func.count(), func.array_agg(func.distinct(rows.c.city)))
