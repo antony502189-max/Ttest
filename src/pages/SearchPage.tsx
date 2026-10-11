@@ -25,6 +25,7 @@ import { hasListingCoordinates, tenantRequirementLabels } from "@/lib/listings";
 import { loadTenerifeZoneHierarchy } from "@/lib/map/geojson";
 import { getMunicipalityLabel, getRootMunicipalityId, getZoneLabel, isDetailedZoneId, type TenerifeZoneCollection } from "@/lib/map/zones";
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
+import { communityName, listingInCommunity } from "@/lib/spain-communities";
 import { ListMapSwitcher } from "@/components/map/list-map-switcher";
 import {
   createProgressiveGalleryPage,
@@ -115,7 +116,8 @@ export function SearchPage() {
   const view = params.get("vista") === "mapa" ? "map" : "list";
   const page = Math.max(1, Number(params.get("pagina") || 1));
   const pageCursor = params.get('cursor') ?? undefined;
-  const requestedQuery = params.get("q")?.trim() || "Tenerife";
+  const requestedQuery = params.get("q")?.trim() || "España";
+  const communityId = params.get('comunidad');
   const location = resolveTenerifeLocation(requestedQuery);
   const invalidLocation = false;
   const query = location?.normalizedValue ?? requestedQuery;
@@ -206,7 +208,7 @@ export function SearchPage() {
     const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
       Number.isFinite(latitude) && Number.isFinite(longitude);
     return {
-      rentalMode, query, roomTypes,
+      rentalMode, query, autonomousCommunity: communityId ?? undefined, roomTypes,
       center: nearby ? { latitude, longitude } : undefined,
       radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
       minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters,
@@ -214,7 +216,7 @@ export function SearchPage() {
       polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
       sort,
     };
-  }, [filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
+  }, [communityId, filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
   const mapQuery = useMemo(() => buildListingSearchBody(searchInput), [searchInput]);
 
   useLayoutEffect(() => {
@@ -257,9 +259,11 @@ export function SearchPage() {
         rentalMode,
         filters,
         zoneHierarchy,
-      ).filter((listing) => !invalidLocation && listingMatchesTenerifeLocation(listing, location))
+      ).filter((listing) => !invalidLocation && (communityId
+        ? listingInCommunity(listing, communityId)
+        : ['españa', 'espana', 'spain'].includes(query.toLowerCase()) || listingMatchesTenerifeLocation(listing, location)))
       : (serverItems ?? []).filter((listing) => !discarded.has(listing.id)),
-    [allListings, discarded, filters, invalidLocation, location, rentalMode, serverItems, zoneHierarchy],
+    [allListings, communityId, discarded, filters, invalidLocation, location, query, rentalMode, serverItems, zoneHierarchy],
   );
   const spatialItems = useMemo(
     () =>
@@ -633,7 +637,7 @@ export function SearchPage() {
           <header className="results-head idealista-results-head">
             <div>
               <h1 id="results-title">
-                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${query || "Tenerife"}`)}
+                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${communityId ? communityName(communityId) : query || "España"}`)}
               </h1>
               <p>
                 <CalendarDays aria-hidden="true" />
