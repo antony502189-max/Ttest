@@ -36,7 +36,8 @@ for (const width of [320, 390, 540, 768]) {
       })
       return {
         borderRadius: getComputedStyle(container).borderTopLeftRadius,
-        wrap: style.flexWrap,
+        display: style.display,
+        columns: style.gridTemplateColumns.split(' ').length,
         gap: parseFloat(style.rowGap),
         left: card.left, right: card.right,
         scrollWidth: container.scrollWidth, clientWidth: container.clientWidth,
@@ -45,7 +46,12 @@ for (const width of [320, 390, 540, 768]) {
     })
 
     expect(parseFloat(layout.borderRadius)).toBeGreaterThanOrEqual(10)
-    expect(layout.wrap).toBe('wrap')
+    if (width < 768) {
+      expect(layout.display).toBe('grid')
+      expect(layout.columns).toBe(width < 360 ? 1 : 2)
+    } else {
+      expect(layout.display).toBe('flex')
+    }
     expect(layout.gap).toBeGreaterThanOrEqual(8)
     expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1)
 
@@ -55,6 +61,14 @@ for (const width of [320, 390, 540, 768]) {
       expect(chip.height).toBeGreaterThanOrEqual(49)
       expect(parseFloat(chip.radius)).toBeGreaterThanOrEqual(24)
       expect(chip.whiteSpace).toBe('normal')
+    }
+    if (width >= 360 && width < 768) {
+      // The customer's reference has three rows of paired chips, then two
+      // individually wide pills. Even long translations may grow vertically.
+      for (let index = 0; index < 6; index += 2) {
+        expect(layout.rectangles[index].top).toBeCloseTo(layout.rectangles[index + 1].top, 0)
+      }
+      expect(layout.rectangles[6].top).toBeGreaterThan(layout.rectangles[5].bottom)
     }
     for (let i = 0; i < layout.rectangles.length; i += 1) {
       for (let j = i + 1; j < layout.rectangles.length; j += 1) {
