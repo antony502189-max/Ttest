@@ -471,6 +471,19 @@ export function MobileSearchResults() {
   }) : filteredListings, [favorites, filteredListings, order])
   const orderedListings = useMemo(() => prioritizePromotedListings(listings, focusListingId), [focusListingId, listings])
   const resultCount = mockMode ? filteredListings.length : serverTotal
+  const visibleGeography = searchGeographyFromParams(new URLSearchParams(location.search))
+  const drawingAreaSelected = Boolean(visibleGeography.polygon?.length || visibleGeography.bounds || visibleGeography.center)
+  const allSpain = !drawingAreaSelected && !visibleGeography.autonomousCommunity
+    && ['españa', 'espana', 'spain', 'es'].includes((visibleGeography.query ?? '').trim().toLocaleLowerCase())
+  const headingPlace = drawingAreaSelected
+    ? { es: 'la zona seleccionada', en: 'the selected area', ru: 'выделенная зона' }[language]
+    : visibleGeography.autonomousCommunity
+      ? communityName(visibleGeography.autonomousCommunity, language)
+      : allSpain ? { es: 'España', en: 'Spain', ru: 'Испания' }[language]
+        : visibleGeography.query ?? 'España'
+  const headingSubtitle = allSpain
+    ? { es: 'Toda España', en: 'All Spain', ru: 'Вся Испания' }[language]
+    : resultsCopy[language].zone
 
 
   if (!open) return null
@@ -559,9 +572,7 @@ export function MobileSearchResults() {
   }
 
   return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { savedScrollTopRef.current = event.currentTarget.scrollTop }}>
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, communityName(new URLSearchParams(location.search).get('comunidad'), language) !== communityName(null, language)
-      ? communityName(new URLSearchParams(location.search).get('comunidad'), language)
-      : (serverSearchRequest?.query || new URLSearchParams(location.search).get('q') || 'España'))}</strong><small>{t.zone}</small></div></header>
+    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, headingPlace)}</strong><small>{headingSubtitle}</small></div></header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftResetAll(false); setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         markRecentlyViewed(listing.id)
