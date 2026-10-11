@@ -251,32 +251,30 @@ export function SearchPage() {
         rentalMode,
         filters,
         zoneHierarchy,
-      ).filter((listing) => !invalidLocation && (communityId
-        ? listingInCommunity(listing, communityId)
-        : ['españa', 'espana', 'spain'].includes(query.toLowerCase()) || listingMatchesTenerifeLocation(listing, location)))
+      ).filter((listing) => !invalidLocation && (searchInput.polygon || searchInput.bounds || searchInput.center
+        ? true
+        : communityId
+          ? listingInCommunity(listing, communityId)
+          : ['españa', 'espana', 'spain'].includes(query.toLowerCase()) || listingMatchesTenerifeLocation(listing, location)))
       : (serverItems ?? []).filter((listing) => !discarded.has(listing.id)),
-    [allListings, communityId, discarded, filters, invalidLocation, location, query, rentalMode, serverItems, zoneHierarchy],
+    [allListings, communityId, discarded, filters, invalidLocation, location, query, rentalMode, searchInput, serverItems, zoneHierarchy],
   );
   const spatialItems = useMemo(
     () =>
       mockMode ? filteredItems.filter((listing) => {
-        if (mapBounds) {
+        if (searchInput.bounds) {
+          const { north, south, east, west } = searchInput.bounds;
           if (!hasListingCoordinates(listing)) return false;
-          if (
-            listing.coordinates.lat > mapBounds.north ||
-            listing.coordinates.lat < mapBounds.south ||
-            listing.coordinates.lng > mapBounds.east ||
-            listing.coordinates.lng < mapBounds.west
-          )
-            return false;
+          if (listing.coordinates.lat > north || listing.coordinates.lat < south ||
+            listing.coordinates.lng > east || listing.coordinates.lng < west) return false;
         }
-        if (mapPolygon.length >= 3) {
-          if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, mapPolygon))
-            return false;
+        if (searchInput.polygon?.length) {
+          if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates,
+            searchInput.polygon.map(({ latitude, longitude }) => ({ lat: latitude, lng: longitude })))) return false;
         }
         return true;
       }) : filteredItems,
-    [filteredItems, mapBounds, mapPolygon],
+    [filteredItems, searchInput],
   );
   const items = useMemo(() => mockMode ? sortListings(spatialItems, filters.sort) : prioritizePromotedListings(spatialItems), [filters.sort, spatialItems]);
   const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items]);
@@ -312,11 +310,15 @@ export function SearchPage() {
     setParams(next, { replace });
   };
   const commitBounds = (bounds: MapBounds | null) => {
-    if (bounds) setMapPolygon([]);
+    if (bounds) {
+      setMapPolygon([]);
+      if (filters.areas.length) setFilters({ ...filters, areas: [] });
+    }
     updateParams((next) => {
       boundKeys.forEach((key) => next.delete(key));
       if (bounds) {
         next.delete('poligono');
+        next.delete('zonas');
         next.set('norte', bounds.north.toFixed(5));
         next.set('sur', bounds.south.toFixed(5));
         next.set('este', bounds.east.toFixed(5));
@@ -359,6 +361,7 @@ export function SearchPage() {
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.set('q', selectedQuery);
+    next.delete('comunidad');
     next.delete('poligono');
     boundKeys.forEach((key) => next.delete(key));
     next.delete('pagina');
@@ -376,6 +379,7 @@ export function SearchPage() {
       const next = filtersToParams(nextFilters, new URLSearchParams(current));
       next.set('q', nextQuery);
       if (selectedAreas.length) {
+        next.delete('comunidad');
         next.delete('poligono');
         boundKeys.forEach((key) => next.delete(key));
       }
@@ -437,6 +441,7 @@ export function SearchPage() {
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
     ["pagina", "cursor", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
     next.set('q', 'España');
+    ['comunidad', 'cerca', 'lat', 'lng', 'radio'].forEach((key) => next.delete(key));
     setParams(next);
   };
 
