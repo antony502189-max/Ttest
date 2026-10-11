@@ -28,6 +28,7 @@ import './mobile-site-feedback.css'
 import './publish-select-canonical-values'
 import './customer-listing-photo-fit.css'
 import './bolder-back-navigation-arrows.css'
+import './listing-condition-pills.css'
 
 // Keep the entry URL canonical so returning to Home through browser history
 // lands on the same shareable HashRouter URL as internal Home links.
