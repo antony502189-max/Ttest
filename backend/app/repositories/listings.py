@@ -26,7 +26,6 @@ from sqlalchemy import Float, Select, and_, case, cast, func, or_, select, updat
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..spain_communities import community_contains_location, community_geometries
 from ..core.config import get_settings
 from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
@@ -47,6 +46,7 @@ from ..schemas.listings import (
     OwnedListingResponse,
 )
 from ..services.rental_price_limit import public_price_limit_clause
+from ..spain_communities import community_contains_location, community_geometries
 
 
 def point(longitude: float, latitude: float):

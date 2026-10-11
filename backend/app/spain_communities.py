@@ -14,6 +14,7 @@ from pathlib import Path
 from geoalchemy2 import Geography
 from sqlalchemy import cast, func
 
+
 @lru_cache(maxsize=1)
 def community_geometries() -> dict[str, dict]:
     source = json.loads(Path(__file__).with_name("spain_communities.json").read_text(encoding="utf-8"))
