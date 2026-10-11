@@ -93,6 +93,13 @@ test('Spanish autonomous communities have correct point-in-boundary assignments 
   expect(result.matches.every((item) => item.actual === item.expected)).toBe(true)
   expect(result.barcelona).toEqual(['09'])
   expect(result.tenerife).toEqual(['05'])
+  // Official INE municipality lookup, including towns absent from listings.
+  const municipalitySuggestions = await page.evaluate(async () => {
+    const { communitySuggestions } = await import('/src/lib/spain-communities.ts')
+    return ['Ajalvir', 'Abáigar', 'Teguise', 'Pobla de Segur'].map((town) =>
+      communitySuggestions(town).map((region) => region.id))
+  })
+  expect(municipalitySuggestions).toEqual([['13'], ['15'], ['05'], ['09']])
   expect(result.madrid?.zoom).toBeGreaterThan(5)
   expect(new Set(result.catalogNames).size).toBe(17)
 })

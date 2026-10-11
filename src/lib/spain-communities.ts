@@ -27,7 +27,7 @@ const officialMunicipalities = new Map<string, string[]>(
   Object.entries(municipalities.communities).map(([id, names]) => [id, names.flatMap((name) => {
     // The INE stores articles after a comma: "Pobla de Segur, La".
     // Match both that official spelling and the ordinary "La Pobla de Segur".
-    const inverted = name.match(/^(.+),\\s*(El|La|Los|Las|L'|Es|Sa)$/i)
+    const inverted = name.match(/^(.+),\s*(El|La|Los|Las|L'|Es|Sa)$/i)
     return inverted ? [normalizeSpanishPlace(name), normalizeSpanishPlace(`${inverted[2]} ${inverted[1]}`)] : [normalizeSpanishPlace(name)]
   })]),
 )
