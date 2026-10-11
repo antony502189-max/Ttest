@@ -311,7 +311,7 @@
   .m2-menu-admin-card__icon { width: 3.1rem; height: 3.1rem; }
   .m2-menu-admin-card__arrow { width: 2.25rem; height: 2.25rem; }
   .m2-menu-admin-card__content > span { font-size: .78rem; }
-  .m2-menu-account-avatar, .m2-app .m2-menu-login { grid-template-columns: 3.25rem minmax(0,1fr); }
+  .m2-app .m2-menu-login { grid-template-columns: 3.25rem minmax(0, 1fr); }
   .m2-menu-account-avatar { width: 3.25rem; height: 3.25rem; }
   .m2-app .m2-menu-login h2 { font-size: 1.12rem; }
   .m2-app .m2-menu-row { font-size: .9rem; }
