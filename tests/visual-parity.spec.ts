@@ -52,11 +52,12 @@ test('current mobile menu, auth and Russian visual states', async ({ page }) => 
   // order rather than asserting pixels against the superseded design.
   await expect(menu.getByTestId('menu-admin-entry')).toHaveCount(0)
   const visualMenu = await menu.evaluate((element) => {
-    const header = element.querySelector<HTMLElement(':scope > header')!
-    const account = element.querySelector<HTMLElement>('.m2-menu-account-card')!
-    const firstSection = element.querySelector<HTMLElement>('.m2-menu-section')!
-    const action = account.querySelector<HTMLElement>('.m2-primary')!
-    const rows = Array.from(element.querySelectorAll<HTMLElement>('.m2-menu-group .m2-menu-row'))
+    const header = element.querySelector(':scope > header')
+    const account = element.querySelector('.m2-menu-account-card')
+    const firstSection = element.querySelector('.m2-menu-section')
+    const action = account?.querySelector('.m2-primary')
+    const rows = Array.from(element.querySelectorAll('.m2-menu-group .m2-menu-row'))
+    if (!header || !account || !firstSection || !action) throw new Error('Mobile menu structure missing')
     const a = account.getBoundingClientRect()
     const s = firstSection.getBoundingClientRect()
     return {
