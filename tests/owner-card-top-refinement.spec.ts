@@ -11,6 +11,40 @@ async function openOwnerPage(page: Page) {
   await expect(page.locator('.manage-card').first()).toBeVisible()
 }
 
+test.describe('owner edit label stays inside its button', () => {
+  for (const width of [320, 360, 390, 430, 468]) {
+    test(`all locales at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 })
+      await openOwnerPage(page)
+
+      for (const [language, expected] of [
+        ['ru', 'Изменить'],
+        ['es', 'Editar'],
+        ['en', 'Edit'],
+      ] as const) {
+        await page.evaluate((next) => localStorage.setItem('112233:language:v1', next), language)
+        await page.reload()
+        await expect(page.locator('.manage-card').first()).toBeVisible()
+        const edit = page.locator('.manage-card').first().locator('.owner-manage-action--edit')
+        const label = edit.locator('.owner-manage-action__label')
+        await expect(label).toHaveText(expected)
+        await page.evaluate(async () => { await document.fonts.ready })
+        const sizes = await edit.evaluate((button) => {
+          const label = button.querySelector('.owner-manage-action__label') as HTMLElement
+          const parent = button.getBoundingClientRect()
+          const child = label.getBoundingClientRect()
+          return {
+            contained: child.left >= parent.left - 1 && child.right <= parent.right + 1,
+            fullText: label.scrollWidth <= label.clientWidth + 1,
+          }
+        })
+        expect(sizes.contained).toBe(true)
+        expect(sizes.fullText).toBe(true)
+      }
+    })
+  }
+})
+
 test.describe('classic owner cards with focused TOP controls', () => {
   for (const width of [320, 390, 430, 768, 1280]) {
     test('vertical right-side actions and readable TOP state at ' + width + 'px', async ({ page }) => {

@@ -653,7 +653,7 @@ export function MyListingsPage() {
                 <Button asChild variant="outline" size="sm" className="owner-manage-action owner-manage-action--edit">
                   <Link to={`/mis-anuncios/${listing.id}/editar`}>
                     <Edit3 aria-hidden="true" />
-                    <span>{t("Editar")}</span>
+                    <span className="owner-manage-action__label">{language === "ru" ? t("Modificar") : t("Editar")}</span>
                   </Link>
                 </Button>
                 {!listing.isExternal ? <ConfirmDialog
