@@ -326,7 +326,7 @@ function LocationScreen({ t, language, rentalMode, onBack, onMap, onNearby, onRe
       const eligible = filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, currentFilters)
       // Resolve each point only once. Re-running point-in-polygon for every
       // community would make the inline suggestions noticeably slow on mobile.
-      const grouped = new Map(SPANISH_COMMUNITIES.map((region) => [region.id, { count: 0, cities: new Set<string>() }]))
+      const grouped = new globalThis.Map(SPANISH_COMMUNITIES.map((region) => [region.id, { count: 0, cities: new Set<string>() }] as const))
       for (const listing of eligible) {
         if (!listing.coordinates) continue
         const id = communityAtCoordinates(listing.coordinates.lat, listing.coordinates.lng)?.id
