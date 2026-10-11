@@ -34,7 +34,8 @@ test.describe('mobile Spain community search', () => {
     await input.fill('barce')
     const suggestions = page.getByTestId('community-suggestions')
     await expect(suggestions).toBeVisible()
-    await expect(page.locator('.m2-community-option')).toHaveCount(1)
+    // "barce" also matches Barceo in Castilla y León: Barcelona must rank first.
+    await expect(page.locator('.m2-community-option').first()).toHaveAttribute('data-testid', 'community-option-09')
     await expect(page.getByTestId('community-option-09')).toContainText(/Catalu|Каталон/i)
     await expect(page.getByTestId('community-option-09')).toContainText(/anuncios|listings|объявлений/i)
     await page.getByTestId('community-option-09').click()
@@ -91,7 +92,7 @@ test('Spanish autonomous communities have correct point-in-boundary assignments 
   })
   expect(result.length).toBe(17)
   expect(result.matches.every((item) => item.actual === item.expected)).toBe(true)
-  expect(result.barcelona).toEqual(['09'])
+  expect(result.barcelona[0]).toBe('09')
   expect(result.tenerife).toEqual(['05'])
   // Official INE municipality lookup, including towns absent from listings.
   const municipalitySuggestions = await page.evaluate(async () => {

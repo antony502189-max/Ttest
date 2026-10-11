@@ -36,11 +36,30 @@ function terms(region: Community, extraCities: string[]): string[] {
     ...region.aliases, ...extraCities].map(normalizeSpanishPlace)
     .concat(officialMunicipalities.get(region.id) ?? [])
 }
+function suggestionRank(region: Community, search: string, extraCities: string[]): number | null {
+  const regionNames = [region.es, region.en, region.ru].map(normalizeSpanishPlace)
+  if (regionNames.includes(search)) return 0
+  if (regionNames.some((name) => name.startsWith(search))) return 1
+  const landmarks = [region.capitalEs, region.capitalEn, region.capitalRu,
+    ...region.aliases].map(normalizeSpanishPlace)
+  const names = officialMunicipalities.get(region.id) ?? []
+  const dynamic = extraCities.map(normalizeSpanishPlace)
+  if (landmarks.includes(search)) return 2
+  if (landmarks.some((name) => name.startsWith(search))) return 3
+  if (names.includes(search) || dynamic.includes(search)) return 4
+  if (names.some((name) => name.startsWith(search)) || dynamic.some((name) => name.startsWith(search))) return 5
+  if (regionNames.some((name) => name.includes(search)) || landmarks.some((name) => name.includes(search))) return 6
+  if (names.some((name) => name.includes(search)) || dynamic.some((name) => name.includes(search))) return 7
+  return null
+}
 export function communitySuggestions(input: string, dynamicCities: Record<string, string[]> = {}): Community[] {
   const search = normalizeSpanishPlace(input)
   if (!search) return SPANISH_COMMUNITIES
-  return SPANISH_COMMUNITIES.filter((region) => terms(region, dynamicCities[region.id] ?? [])
-    .some((name) => name.includes(search)))
+  return SPANISH_COMMUNITIES.map((region) => ({
+    region, rank: suggestionRank(region, search, dynamicCities[region.id] ?? []),
+  })).filter((match): match is { region: Community; rank: number } => match.rank !== null)
+    .sort((left, right) => left.rank - right.rank)
+    .map(({ region }) => region)
 }
 export function resolveCommunityText(input: string, dynamicCities: Record<string, string[]> = {}): Community | undefined {
   const search = normalizeSpanishPlace(input)
