@@ -5,6 +5,11 @@ import {
   BellOff,
   CalendarClock,
   Clock3,
+  CheckCircle2,
+  ChevronRight,
+  Eye as EyeIcon,
+  Image as ImageIcon,
+  Trophy,
   Edit3,
   Eye,
   EyeOff,
@@ -511,6 +516,8 @@ export function MyListingsPage() {
     status === "Todos"
       ? mine
       : mine.filter((listing) => listing.status === status);
+  const publishedCount = mine.filter((listing) => listing.status === "Publicado").length;
+  const viewCount = mine.reduce((sum, listing) => sum + listing.views, 0);
   const openTopFlow = (listingId?: string) => {
     const candidate = listingId
       ? promotable.find((listing) => listing.id === listingId)
@@ -521,7 +528,7 @@ export function MyListingsPage() {
   };
   return (
     <div className="owner-listings-page">
-      <header className="owner-mobile-appbar"><Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label="Volver"><ArrowLeft /></Button><strong>Tus anuncios</strong></header>
+      <header className="owner-mobile-appbar"><Button type="button" variant="ghost" size="icon" onClick={goBack} aria-label={t("Volver")}><ArrowLeft /></Button><strong>{t("Tus anuncios")}</strong><span className="owner-mobile-appbar__count" aria-label={`${mine.length} ${t("anuncios")}`}>{mine.length}</span></header>
       <div className="container account-page">
       <AccountHeader
         eyebrow="Área del anunciante"
@@ -536,170 +543,107 @@ export function MyListingsPage() {
           </Button>
         }
       />
-      <div className="account-toolbar">
-        <label htmlFor="my-listings-status">Estado</label>
+      <div className="account-toolbar owner-listings-toolbar">
+        <label htmlFor="my-listings-status">{t("Estado")}</label>
         <select
           id="my-listings-status"
           value={status}
           onChange={(event) => setStatus(event.target.value)}
         >
-          <option>Todos</option>
-          <option>Publicado</option>
-          <option>Oculto</option>
-          <option>Borrador</option>
-          <option>Pendiente</option>
-          <option>Rechazado</option>
-          <option>Finalizado</option>
+          {["Todos", "Publicado", "Oculto", "Borrador", "Pendiente", "Rechazado", "Finalizado"].map((value) => <option key={value} value={value}>{t(value)}</option>)}
         </select>
       </div>
+      <div className="listing-summary owner-listings-summary" aria-label={t("Resumen de anuncios")}>
+        <span><strong>{publishedCount}</strong>{t("Publicados")}</span>
+        <span><strong>{viewCount.toLocaleString(currentLocale())}</strong>{t("Visualizaciones")}</span>
+        <span><strong>{mine.length}</strong>{t("Total de anuncios")}</span>
+      </div>
+      {promotable.length ? (
+        <section className="owner-top-cta" data-testid="owner-top-cta" aria-label={t("Sube tu anuncio a TOP")}>
+          <span className="owner-top-cta__icon" aria-hidden="true"><Trophy /></span>
+          <div className="owner-top-cta__copy">
+            <strong>{t("Sube tu anuncio a TOP")}</strong>
+            <p>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</p>
+          </div>
+          <Button type="button" className="owner-top-cta__button" onClick={() => openTopFlow()}>
+            {t("Llevar a TOP")} <ChevronRight aria-hidden="true" />
+          </Button>
+        </section>
+      ) : null}
       {items.length ? (
         <div className="my-listings">
-          <div className="listing-summary">
-            <span>
-              <strong>
-                {mine.filter((item) => item.status === "Publicado").length}
-              </strong>{" "}
-              publicados
-            </span>
-            <span>
-              <strong>
-                {mine
-                  .reduce((sum, item) => sum + item.views, 0)
-                  .toLocaleString(currentLocale())}
-              </strong>{" "}
-              visualizaciones
-            </span>
-            <span>
-              <strong>{mine.length}</strong> anuncios locales
-            </span>
-          </div>
-          {promotable.length ? (
-            <section className="owner-top-cta" data-testid="owner-top-cta" aria-label={t("Sube tu anuncio a TOP")}>
-              <div className="owner-top-cta__copy">
-                <span className="owner-top-cta__eyebrow">TOP</span>
-                <div>
-                  <strong>{t("Sube tu anuncio a TOP")}</strong>
-                  <p>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</p>
-                </div>
-              </div>
-              <div className="owner-top-cta__action">
-                <span className="owner-top-cta__pointer" aria-hidden="true">👉</span>
-                <Button type="button" className="owner-top-cta__button" onClick={() => openTopFlow()}>
-                  {t("Llevar a TOP")}
-                </Button>
-              </div>
-            </section>
-          ) : null}
           {items.map((listing) => (
             <article className="manage-card" key={listing.id} data-listing-id={listing.id}>
-              <MediaImage
-                src={listing.images[0]}
-                variant="thumb"
-                alt={`Habitación en ${listing.area}`}
-                loading="lazy"
-              />
+              <div className="manage-card__image">
+                <MediaImage src={listing.images[0]} variant="thumb" alt={`Habitación en ${listing.area}`} loading="lazy" />
+                {listing.images.length > 0 ? <span className="manage-card__image-count" aria-label={`${listing.images.length} ${t("fotos")}`}><ImageIcon aria-hidden="true" />{listing.images.length}</span> : null}
+              </div>
               <div className="manage-card__main">
-                <div>
+                <div className="manage-card__status">
                   <StatusBadge status={listing.status} />
-                  <span>Ref. {listing.id.slice(-5).toUpperCase()}</span>
+                  <span className="manage-card__reference">Ref. {listing.id.slice(-5).toUpperCase()}</span>
                 </div>
                 <h2 data-i18n-exempt>{listing.title}</h2>
-                <p>
-                  {listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}
-                </p>
-                <span
-                  data-testid="owner-rental-type"
-                  className={`owner-rental-type owner-rental-type--${listing.rentalMode === "long" ? "long" : "holiday"}`}
-                >
-                  {t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}
-                </span>
-                {listing.promoted ? (
-                  <p
-                    className="owner-top-status is-active"
-                    data-testid="owner-top-status"
-                    data-top-active="true"
-                  >
-                    <span aria-hidden="true">👍</span>
-                    {listing.promotionEndsAt
-                      ? `${t("Estás en TOP hasta")} ${formatOwnerPromotionEnd(listing.promotionEndsAt, locale, language)}`
-                      : t("Estás en TOP")}
-                  </p>
-                ) : listing.status === "Publicado" && !listing.isExternal ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="owner-top-promote-button"
-                    data-testid="owner-top-promote-button"
-                    onClick={() => openTopFlow(listing.id)}
-                    aria-label={`${t("Destacar")}: ${listing.title}`}
-                  >
-                    <OwnerPromoteIcon />
-                    {t("Destacar")}
-                  </Button>
-                ) : null}
+                <p className="manage-card__location"><MapPin aria-hidden="true" /><span>{listing.area} · {getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}</span></p>
+                <span data-testid="owner-rental-type" className={`owner-rental-type owner-rental-type--${listing.rentalMode === "long" ? "long" : "holiday"}`}>{t(listing.rentalMode === "long" ? "Larga estancia" : "Alquiler vacacional")}</span>
                 <p className="manage-restrictions">{getCriticalRestrictions(listing).slice(0, 2).join(" · ")}</p>
-                {listing.status === "Finalizado" ? <p className="listing-ended-reason">Cerrado por el anunciante.</p> : null}
-                <div className="manage-metrics">
-                  <span>
-                    <Eye />
-                    {listing.views} vistas
-                  </span>
-                </div>
+                {listing.status === "Finalizado" ? <p className="listing-ended-reason">{t("Cerrado por el anunciante.")}</p> : null}
+                <div className="manage-metrics"><span><Eye aria-hidden="true" />{listing.views.toLocaleString(locale)} {t("vistas")}</span></div>
               </div>
+              {listing.status === "Publicado" && !listing.isExternal ? (
+                <div className={`manage-card__promotion ${listing.promoted ? "is-active" : "is-inactive"}`}>
+                  {listing.promoted ? (
+                    <p className="owner-top-status is-active" data-testid="owner-top-status" data-top-active="true">
+                      <CheckCircle2 aria-hidden="true" />
+                      <span><strong>{t("Estás en TOP")}</strong>{listing.promotionEndsAt
+                        ? <small>{t("Estás en TOP hasta")} {formatOwnerPromotionEnd(listing.promotionEndsAt, locale, language)}</small>
+                        : null}</span>
+                      <span className="owner-top-status__legacy-marker" aria-hidden="true">👍</span>
+                    </p>
+                  ) : (
+                    <>
+                      <div className="owner-top-status is-inactive">
+                        <OwnerPromoteIcon />
+                        <span><strong>{t("No estás en TOP")}</strong><small>{t("Más visibilidad para tu anuncio")}</small></span>
+                      </div>
+                      <Button type="button" variant="outline" className="owner-top-promote-button" data-testid="owner-top-promote-button" onClick={() => openTopFlow(listing.id)} aria-label={`${t("Destacar")}: ${listing.title}`}>
+                        <OwnerPromoteIcon />{t("Destacar")}<ChevronRight aria-hidden="true" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : null}
               <div className="manage-actions">
-                <Button asChild variant="outline" size="sm">
-                  <Link to={`/mis-anuncios/${listing.id}/editar`}>
-                    <Edit3 data-icon="inline-start" />
-                    Editar
-                  </Link>
+                <Button asChild variant="outline" size="sm" className="manage-actions__edit">
+                  <Link to={`/mis-anuncios/${listing.id}/editar`}><Edit3 aria-hidden="true" />{t("Editar")}</Link>
                 </Button>
                 {!listing.isExternal ? <ConfirmDialog
-                  trigger={
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      aria-label={`Eliminar ${listing.title}`}
-                      title="Eliminar"
-                    >
-                      <Trash2 />
-                    </Button>
-                  }
+                  trigger={<Button variant="outline" size="sm" className="manage-actions__delete" aria-label={`Eliminar ${listing.title}`} title={t("Eliminar")}><Trash2 aria-hidden="true" />{t("Eliminar")}</Button>}
                   title="¿Eliminar este anuncio?"
                   description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es."
                   confirmLabel="Eliminar"
                   destructive
-                  onConfirm={async () => {
-                    if (await deleteListing(listing.id)) toast.success("Anuncio eliminado");
-                  }}
+                  onConfirm={async () => { if (await deleteListing(listing.id)) toast.success(t("Anuncio eliminado")); }}
                 /> : null}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Más acciones para ${listing.title}`}
-                    >
-                      <MoreHorizontal />
-                    </Button>
+                    <Button variant="outline" size="sm" className="manage-actions__more" aria-label={`Más acciones para ${listing.title}`}><MoreHorizontal aria-hidden="true" />{t("Más acciones")}</Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
-                      {listing.status === "Finalizado" ? <DropdownMenuItem
-                        onClick={async () => {
-                          const next = await renewListing(listing.id);
-                          if (next) toast.success(next === "Publicado" ? "Anuncio publicado de nuevo" : "Anuncio enviado a revisión");
-                        }}
-                      ><RotateCcw />Volver a publicar</DropdownMenuItem> : <DropdownMenuItem
-                        onClick={async () => {
-                          const showing = listing.status === "Oculto" || listing.status === "Rechazado";
-                          const next = await setListingStatus(listing.id, showing ? "Pendiente" : "Oculto");
-                          if (next) toast.success(showing ? "Anuncio enviado a revisión" : "Anuncio ocultado");
-                        }}
-                      >
-                        {listing.status === "Oculto" || listing.status === "Rechazado" ? <Eye /> : <EyeOff />}
-                        {listing.status === "Oculto" || listing.status === "Rechazado" ? "Enviar a revisión" : "Ocultar"}
+                      {listing.status === "Publicado" ? <DropdownMenuItem asChild><Link to={`/habitacion/${listing.id}`}><EyeIcon aria-hidden="true" />{t("Ver anuncio")}</Link></DropdownMenuItem> : null}
+                      {listing.status === "Finalizado" ? <DropdownMenuItem onClick={async () => {
+                        const next = await renewListing(listing.id);
+                        if (next) toast.success(next === "Publicado" ? t("Anuncio publicado de nuevo") : t("Anuncio enviado a revisión"));
+                      }}><RotateCcw aria-hidden="true" />{t("Volver a publicar")}</DropdownMenuItem> : <DropdownMenuItem onClick={async () => {
+                        const showing = listing.status === "Oculto" || listing.status === "Rechazado";
+                        const next = await setListingStatus(listing.id, showing ? "Pendiente" : "Oculto");
+                        if (next) toast.success(showing ? t("Anuncio enviado a revisión") : t("Anuncio ocultado"));
+                      }}>
+                        {listing.status === "Oculto" || listing.status === "Rechazado" ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
+                        {t(listing.status === "Oculto" || listing.status === "Rechazado" ? "Enviar a revisión" : "Ocultar")}
                       </DropdownMenuItem>}
-                      {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success("Anuncio cerrado"); }}><CalendarClock />Cerrar anuncio</DropdownMenuItem> : null}
+                      {listing.status !== "Finalizado" ? <DropdownMenuItem onClick={async () => { if (await closeListing(listing.id)) toast.success(t("Anuncio cerrado")); }}><CalendarClock aria-hidden="true" />{t("Cerrar anuncio")}</DropdownMenuItem> : null}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -709,12 +653,10 @@ export function MyListingsPage() {
         </div>
       ) : (
         <div className="account-empty">
-          <UserRound />
-          <h2>No hay anuncios en este estado</h2>
-          <p>Crea uno nuevo o cambia el filtro.</p>
-          <Button asChild>
-            <Link to="/publicar">Crear anuncio</Link>
-          </Button>
+          <UserRound aria-hidden="true" />
+          <h2>{t("No hay anuncios en este estado")}</h2>
+          <p>{t("Crea uno nuevo o cambia el filtro.")}</p>
+          <Button asChild><Link to="/publicar">{t("Crear anuncio")}</Link></Button>
         </div>
       )}
       </div>
