@@ -324,15 +324,21 @@ function LocationScreen({ t, language, rentalMode, onBack, onMap, onNearby, onRe
   useEffect(() => {
     if (mockMode) {
       const eligible = filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, currentFilters)
-      const regions = SPANISH_COMMUNITIES.map((region) => ({
-        id: region.id,
-        count: eligible.filter((listing) => listing.coordinates &&
-          communityAtCoordinates(listing.coordinates.lat, listing.coordinates.lng)?.id === region.id).length,
-        cities: eligible.filter((listing) => listing.coordinates &&
-          communityAtCoordinates(listing.coordinates.lat, listing.coordinates.lng)?.id === region.id)
-          .map((listing) => listing.city),
-      }))
-      setCounts(regions)
+      // Resolve each point only once. Re-running point-in-polygon for every
+      // community would make the inline suggestions noticeably slow on mobile.
+      const grouped = new Map(SPANISH_COMMUNITIES.map((region) => [region.id, { count: 0, cities: new Set<string>() }]))
+      for (const listing of eligible) {
+        if (!listing.coordinates) continue
+        const id = communityAtCoordinates(listing.coordinates.lat, listing.coordinates.lng)?.id
+        const aggregate = id ? grouped.get(id) : undefined
+        if (!aggregate) continue
+        aggregate.count += 1
+        if (listing.city) aggregate.cities.add(listing.city)
+      }
+      setCounts(SPANISH_COMMUNITIES.map((region) => ({
+        id: region.id, count: grouped.get(region.id)?.count ?? 0,
+        cities: [...(grouped.get(region.id)?.cities ?? [])],
+      })))
       return
     }
     const controller = new AbortController()
