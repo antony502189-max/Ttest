@@ -13,6 +13,7 @@ import { buildDisplayMarkerPositions, coincidentListingIdsFor, exactCoincidentLi
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { canonicalizeZoneId, municipalityZoneId } from '@/lib/map/zones'
 import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport } from '@/lib/map-visit-history'
+import { communityMapCamera } from '@/lib/spain-communities'
 import { resolveTenerifeLocation } from '@/lib/tenerife'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
 import { MapLayerSwitcher, MapToolbar } from '@/components/map/map-toolbar'
@@ -331,7 +332,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
         ? { ...location.coordinates, zoom: 12 } : null
       // An explicit bookmarked camera or new location search outranks the
       // previously visited area. Only generic searches restore history.
-      const startingCamera = deepLinkCamera ?? namedCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
+      const communityCamera = routeParams.get('comunidad')
+        ? communityMapCamera(routeParams.get('comunidad')!, containerRef.current.clientWidth, containerRef.current.clientHeight) : undefined
+      const startingCamera = deepLinkCamera ?? namedCamera ?? communityCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
       const map = new maps.Map(containerRef.current, {
         center: { lat: startingCamera.lat, lng: startingCamera.lng },
         zoom: startingCamera.zoom,
