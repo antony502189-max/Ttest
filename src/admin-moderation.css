@@ -703,3 +703,30 @@
   }
   .admin-detail-card dd { text-align: left; }
 }
+
+
+/* Administration loading/errors are tab-scoped: never masquerade as empty data. */
+.admin-load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+  margin: .9rem 0 1rem;
+  padding: .95rem 1rem;
+  border: 1px solid #e9afa5;
+  border-radius: .85rem;
+  background: #fff5f3;
+  color: #80271d;
+  font-size: .96rem;
+  line-height: 1.4;
+}
+
+.admin-load-error > svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+
+.admin-load-error > span { flex: 1 1 12rem; overflow-wrap: anywhere; }
+.admin-load-error > button { flex: 0 0 auto; min-height: 2.7rem; }
+.admin-related-loading { padding: 1rem; color: var(--ink-muted); font-size: .95rem; }

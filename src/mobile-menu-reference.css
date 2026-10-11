@@ -244,13 +244,21 @@
 
 .m2-app .m2-menu-row .m2-menu-row__trailing {
   display: flex;
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 55%;
+  max-width: 56%;
   align-items: center;
-  gap: .55rem;
+  gap: .4rem;
+}
+
+.m2-app .m2-menu-row .m2-menu-row__label {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .m2-app .m2-menu-row__trailing b {
+  display: block;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: #516d0e;
@@ -258,7 +266,10 @@
   font-weight: 600;
   line-height: 1.25;
   text-align: right;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-overflow: ellipsis;
 }
 
 .m2-app .m2-menu-row--profile {

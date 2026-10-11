@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -80,12 +80,22 @@ import type { ListingStatus } from '@/types'
 import { preloadOwnerListingRoutes } from '@/lib/route-preload'
 import { adminRentalModeLabel, matchesAdminRentalMode, type AdminRentalModeFilter } from '@/lib/admin-listings'
 import { AdminCommercialAdvertisements } from '@/components/admin-commercial-advertisements'
+import { fetchAdminTab, type AdminTabSources } from '@/lib/admin-tab-loader'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 const PROMOTION_DAILY_PRICE_CENTS = 100
 const PROMOTION_PRESETS = [1, 7, 14, 21, 30] as const
 
 type Section = 'users' | 'reports' | 'listings' | 'advertisements' | 'activity' | 'settings'
+
+const adminTabSources: AdminTabSources = {
+  users: getAdminUserRows,
+  listings: getAdminListings,
+  homepageHero: getAdminHomepageHero,
+  reports: getAdminReports,
+  activity: getAdminAuditLog,
+  settings: getAdmins,
+}
 type UserFilter = '' | 'active' | 'restricted' | 'full' | 'publish' | 'view_listings' | 'deleted'
 type RestrictionDuration = 'day' | 'week' | 'month' | 'forever' | 'custom'
 
@@ -601,12 +611,22 @@ function UserDetailView({
   userId,
   listings,
   reports,
+  listingsReady,
+  reportsReady,
+  listingsError,
+  reportsError,
+  onRetryRelated,
   onBack,
   onUserChanged,
 }: {
   userId: string
   listings: AdminListing[]
   reports: AdminReport[]
+  listingsReady: boolean
+  reportsReady: boolean
+  listingsError?: string
+  reportsError?: string
+  onRetryRelated: (target: 'listings' | 'reports') => void
   onBack: () => void
   onUserChanged: (user: AdminUser) => void
 }) {
@@ -695,12 +715,12 @@ function UserDetailView({
       <section className="admin-detail-card"><h2>Soporte</h2><p>Los avisos de moderación incluyen el motivo, la fecha final —si existe— y esta dirección.</p><a className="admin-support-link" href={`mailto:${SUPPORT_EMAIL}`}><Mail /> {SUPPORT_EMAIL}</a></section>
     </div>
 
-    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Anuncios</h2><p>{ownedListings.length} asociados a esta cuenta</p></div></div>
-      {ownedListings.length ? <div className="admin-compact-list">{ownedListings.map((listing) => <div key={listing.id}><div><strong>{listing.title}</strong><span>{listing.area} · {listingStatusLabels[listing.status] ?? listing.status}</span></div>{listing.activeRestriction ? <Badge variant="destructive">Restringido</Badge> : <Badge variant="outline">Visible según estado</Badge>}</div>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="Esta cuenta todavía no tiene anuncios." />}
+    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Anuncios</h2><p>{listingsReady ? `${ownedListings.length} asociados a esta cuenta` : 'Cargando anuncios relacionados…'}</p></div></div>
+      {!listingsReady ? <div className="admin-related-loading" role={listingsError ? 'alert' : 'status'}>{listingsError ? <>No se pudieron cargar los anuncios. <button type="button" onClick={() => onRetryRelated('listings')}>Reintentar</button></> : 'Cargando anuncios relacionados…'}</div> : ownedListings.length ? <div className="admin-compact-list">{ownedListings.map((listing) => <div key={listing.id}><div><strong>{listing.title}</strong><span>{listing.area} · {listingStatusLabels[listing.status] ?? listing.status}</span></div>{listing.activeRestriction ? <Badge variant="destructive">Restringido</Badge> : <Badge variant="outline">Visible según estado</Badge>}</div>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="Esta cuenta todavía no tiene anuncios." />}
     </section>
 
-    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Denuncias relacionadas</h2><p>{relatedReports.length} sobre sus anuncios o su cuenta</p></div></div>
-      {relatedReports.length ? <div className="admin-compact-list">{relatedReports.map((report) => <div key={report.id}><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant="outline">{reportLabels[report.status]}</Badge></div>)}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay denuncias asociadas a esta cuenta." />}
+    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Denuncias relacionadas</h2><p>{reportsReady && listingsReady ? `${relatedReports.length} sobre sus anuncios o su cuenta` : 'Cargando denuncias relacionadas…'}</p></div></div>
+      {!reportsReady || !listingsReady ? <div className="admin-related-loading" role={reportsError || listingsError ? 'alert' : 'status'}>{reportsError || listingsError ? <>No se pudieron cargar las denuncias relacionadas. <button type="button" onClick={() => { if (reportsError) onRetryRelated('reports'); if (listingsError) onRetryRelated('listings') }}>Reintentar</button></> : 'Cargando denuncias relacionadas…'}</div> : relatedReports.length ? <div className="admin-compact-list">{relatedReports.map((report) => <div key={report.id}><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant="outline">{reportLabels[report.status]}</Badge></div>)}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay denuncias asociadas a esta cuenta." />}
     </section>
 
     <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Historial de restricciones</h2><p>Registro cronológico no editable.</p></div></div>
@@ -727,7 +747,12 @@ export function AdminPage() {
   const [reports, setReports] = useState<AdminReport[]>([])
   const [auditLog, setAuditLog] = useState<AdminAuditLog[]>([])
   const [admins, setAdmins] = useState<AdminAccount[]>([])
-  const [loading, setLoading] = useState(true)
+  // Each administration tab loads independently; the Users spinner does
+  // not wait for listings, reports, audit history or settings.
+  const [loadingSections, setLoadingSections] = useState<Section[]>(['users'])
+  const [loadErrors, setLoadErrors] = useState<Partial<Record<Section, string>>>({})
+  const loadedSectionsRef = useRef(new Set<Section>())
+  const pendingSectionsRef = useRef(new Map<Section, Promise<void>>())
   const [query, setQuery] = useState('')
   const [userFilter, setUserFilter] = useState<UserFilter>('')
   const [listingRentalModeFilter, setListingRentalModeFilter] = useState<AdminRentalModeFilter>('')
@@ -739,31 +764,60 @@ export function AdminPage() {
   const [newAdminEmail, setNewAdminEmail] = useState('')
   const [addingAdmin, setAddingAdmin] = useState(false)
 
-  const loadAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [loadedUsers, loadedListings, loadedReports, loadedAudit, loadedAdmins, loadedHomepageHero] = await Promise.all([
-        getAdminUserRows(),
-        getAdminListings(),
-        getAdminReports(),
-        getAdminAuditLog(),
-        getAdmins(),
-        getAdminHomepageHero(),
-      ])
-      setUsers(loadedUsers)
-      setListings(loadedListings)
-      setReports(loadedReports)
-      setAuditLog(loadedAudit)
-      setAdmins(loadedAdmins)
-      setHomepageHero(loadedHomepageHero)
-    } catch (error) {
-      toast.error(errorMessage(error))
-    } finally {
-      setLoading(false)
-    }
+  const loadSection = useCallback((target: Section, force = false): Promise<void> => {
+    if (target === 'advertisements') return Promise.resolve() // Independent view.
+    const pending = pendingSectionsRef.current.get(target)
+    if (pending) return pending
+    if (!force && loadedSectionsRef.current.has(target)) return Promise.resolve()
+    setLoadingSections((current) => current.includes(target) ? current : [...current, target])
+    setLoadErrors((current) => ({ ...current, [target]: undefined }))
+    const task = (async () => {
+      try {
+        const result = await fetchAdminTab(target, adminTabSources)
+        if (result) {
+          switch (result.tab) {
+            case 'users':
+              setUsers(result.users)
+              break
+            case 'listings':
+              setListings(result.listings)
+              setHomepageHero(result.homepageHero)
+              break
+            case 'reports':
+              setReports(result.reports)
+              break
+            case 'activity':
+              setAuditLog(result.audit)
+              break
+            case 'settings':
+              setAdmins(result.admins)
+              break
+          }
+        }
+        loadedSectionsRef.current.add(target)
+      } catch (error) {
+        setLoadErrors((current) => ({ ...current, [target]: errorMessage(error) }))
+      } finally {
+        pendingSectionsRef.current.delete(target)
+        setLoadingSections((current) => current.filter((value) => value !== target))
+      }
+    })()
+    pendingSectionsRef.current.set(target, task)
+    return task
   }, [])
 
-  useEffect(() => { void loadAll() }, [loadAll])
+  useEffect(() => { void loadSection(section) }, [loadSection, section])
+  // Related reports and listings are fetched only when needed for detail or
+  // moderation context, never as a prerequisite for opening Usuarios.
+  useEffect(() => {
+    if (selectedUserId || section === 'reports') void loadSection('listings')
+    if (selectedUserId) void loadSection('reports')
+  }, [loadSection, section, selectedUserId])
+
+  const loading = loadingSections.includes('users')
+  const sectionLoading = loadingSections.includes(section)
+  const sectionReady = loadedSectionsRef.current.has(section)
+  const closeUserDetail = useCallback(() => setSelectedUserId(null), [])
 
   const visibleUsers = useMemo(() => users.filter((user) => {
     const matchesName = !query.trim() || user.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
@@ -870,19 +924,25 @@ export function AdminPage() {
   }
 
   if (selectedUserId) {
-    return <div className="admin-page admin-page--detail"><AdminSidebar section={section} onSection={(next) => { setSelectedUserId(null); setSection(next) }} currentUserName={currentUser?.name} /><main className="admin-main"><UserDetailView userId={selectedUserId} listings={listings} reports={reports} onBack={() => setSelectedUserId(null)} onUserChanged={updateUserRow} /></main></div>
+    return <div className="admin-page admin-page--detail"><AdminSidebar section={section} onSection={(next) => { setSelectedUserId(null); setSection(next) }} currentUserName={currentUser?.name} /><main className="admin-main"><UserDetailView userId={selectedUserId} listings={listings} reports={reports} listingsReady={loadedSectionsRef.current.has('listings')} reportsReady={loadedSectionsRef.current.has('reports')} listingsError={loadErrors.listings} reportsError={loadErrors.reports} onRetryRelated={(target) => { void loadSection(target, true) }} onBack={closeUserDetail} onUserChanged={updateUserRow} /></main></div>
   }
 
   return <div className="admin-page">
     <AdminSidebar section={section} onSection={(next) => { setSection(next); setQuery('') }} currentUserName={currentUser?.name} reportCount={reports.filter((report) => report.status === 'open').length} />
     <main className="admin-main">
+      {section !== 'advertisements' && loadErrors[section] ? <div className="admin-load-error" role="alert">
+        <AlertTriangle aria-hidden="true" />
+        <span>No se pudieron cargar los datos. {loadErrors[section]}</span>
+        <Button variant="outline" onClick={() => { void loadSection(section, true) }}>Reintentar</Button>
+      </div> : null}
+      {section !== 'users' && section !== 'advertisements' && sectionLoading ? <div className="admin-detail-loading" role="status"><RefreshCw className="spin" /> Cargando…</div> : null}
       {section === 'users' ? <>
-        <SectionHeader title="Usuarios" description="Busca una cuenta, revisa su contexto y aplica solo la restricción necesaria." actions={<Button variant="outline" onClick={() => { void loadAll() }} disabled={loading}><RefreshCw /> Actualizar</Button>} />
+        <SectionHeader title="Usuarios" description="Busca una cuenta, revisa su contexto y aplica solo la restricción necesaria." actions={<Button variant="outline" onClick={() => { void loadSection('users', true) }} disabled={loading}><RefreshCw /> Actualizar</Button>} />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre…" aria-label="Buscar usuarios por nombre" /></div><select value={userFilter} onChange={(event) => setUserFilter(event.target.value as UserFilter)} aria-label="Filtrar usuarios"><option value="">Todos</option><option value="active">Activos</option><option value="restricted">Con restricción</option><option value="full">Bloqueo completo</option><option value="publish">Sin publicación</option><option value="view_listings">Sin acceso a anuncios</option><option value="deleted">Eliminados</option></select></div>
-        {loading ? <div className="admin-detail-loading"><RefreshCw className="spin" /> Cargando…</div> : visibleUsers.length ? <div className="admin-user-list">{visibleUsers.map((user) => <button type="button" className="admin-user-row" key={user.id} onClick={() => setSelectedUserId(user.id)}><div className="admin-avatar admin-avatar--small">{user.initials || user.name.slice(0, 2).toUpperCase()}</div><div className="admin-user-primary"><strong>{user.name}</strong><span>{user.email}</span></div><div className="admin-user-meta"><span>{user.listingCount} anuncios</span><span>Último acceso: {formatDate(user.lastLoginAt)}</span></div><UserStatus user={user}/><span className="admin-row-arrow">›</span></button>)}</div> : <EmptyState icon={Users} title="Sin resultados" description="No hay usuarios que coincidan con este filtro." />}
+        {loading ? <div className="admin-detail-loading" role="status"><RefreshCw className="spin" /> Cargando usuarios…</div> : !loadErrors.users && visibleUsers.length ? <div className="admin-user-list">{visibleUsers.map((user) => <button type="button" className="admin-user-row" key={user.id} onClick={() => setSelectedUserId(user.id)}><div className="admin-avatar admin-avatar--small">{user.initials || user.name.slice(0, 2).toUpperCase()}</div><div className="admin-user-primary"><strong>{user.name}</strong><span>{user.email}</span></div><div className="admin-user-meta"><span>{user.listingCount} anuncios</span><span>Último acceso: {formatDate(user.lastLoginAt)}</span></div><UserStatus user={user}/><span className="admin-row-arrow">›</span></button>)}</div> : !loadErrors.users ? <EmptyState icon={Users} title="Sin resultados" description="No hay usuarios que coincidan con este filtro." /> : null}
       </> : null}
 
-      {section === 'reports' ? <>
+      {section === 'reports' && sectionReady && !sectionLoading && !loadErrors.reports ? <>
         <SectionHeader title="Denuncias" description="Revisa el contexto y llega al usuario o al anuncio sin tener que buscarlo manualmente." />
         {visibleReports.length ? <div className="admin-report-list">{visibleReports.map((report) => {
           const listing = listings.find((item) => item.id === report.listingId)
@@ -893,19 +953,19 @@ export function AdminPage() {
         })}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay reportes pendientes ni históricos disponibles." />}
       </> : null}
 
-      {section === 'listings' ? <>
+      {section === 'listings' && sectionReady && !sectionLoading && !loadErrors.listings ? <>
         <SectionHeader title="Anuncios" description="Consulta el propietario, programa TOP o publicidad en portada por fechas y aplica moderación sin alterar el estado original del anuncio." />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, usuario, zona o Ref.…" /></div><select value={listingRentalModeFilter} onChange={(event) => setListingRentalModeFilter(event.target.value as AdminRentalModeFilter)} aria-label="Tipo de alquiler"><option value="">Todos</option><option value="long">Larga estancia</option><option value="holiday">Corta estancia</option></select></div>
         {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><Badge className="admin-listing-rental-badge" variant={listing.rentalMode === 'holiday' ? 'secondary' : 'outline'}>{adminRentalModeLabel(listing.rentalMode)}</Badge><small className="admin-listing-reference">Ref. {listing.id.slice(0, 8).toUpperCase()} · {listing.isExternal ? 'Externo' : 'Local'}</small><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{homepageHero?.listingId === listing.id && homepageHero.state === 'active' ? <><Badge>Portada activa · hasta {formatPromotionEndDate(homepageHero.endsAt)}</Badge><span>{homepageHero.days} días</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'scheduled' ? <><Badge variant="outline">Portada programada</Badge><span>{formatDateOnly(homepageHero.startsAt)} → {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'expired' ? <><Badge variant="outline">Portada finalizada</Badge><span>Terminó {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{listing.promotionState === 'active' ? <><Badge variant="destructive">TOP activo{listing.promotionEndsAt ? ` · hasta ${formatPromotionEndDate(listing.promotionEndsAt)}` : ''}</Badge>{listing.promotionDays ? <span>{listing.promotionDays} días{listing.promotionTotalPriceCents != null ? ` · ${formatEuros(listing.promotionTotalPriceCents)}` : ''}</span> : null}</> : null}{listing.promotionState === 'scheduled' ? <><Badge variant="outline">TOP programado</Badge><span>{formatDateOnly(listing.promotionStartsAt)} → {formatPromotionEndDate(listing.promotionEndsAt)}{listing.promotionDays ? ` · ${listing.promotionDays} días` : ''}</span></> : null}{listing.promotionState === 'expired' ? <><Badge variant="outline">TOP finalizado</Badge><span>{listing.promotionEndsAt ? `Terminó ${formatPromotionEndDate(listing.promotionEndsAt)}` : 'Periodo finalizado'}</span></> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}{listing.status === 'published' ? <Button variant="outline" size="sm" onClick={() => setHomepageHeroListing(listing)}><CalendarDays />{isCurrentHomepagePromotion(homepageHero, listing.id) ? 'Cambiar portada' : 'Poner en portada'}</Button> : null}{isCurrentHomepagePromotion(homepageHero, listing.id) ? <Button variant="outline" size="sm" onClick={() => { void removeHomepageHero() }}>Quitar portada</Button> : null}{listing.status === 'published' ? <Button variant="outline" size="sm" onClick={() => setListingPromotion(listing)}><CalendarDays />{isCurrentPromotionState(listing.promotionState) ? 'Cambiar TOP' : 'Subir al TOP'}</Button> : null}{isCurrentPromotionState(listing.promotionState) ? <Button variant="outline" size="sm" onClick={() => { void removeListingPromotion(listing) }}>Quitar TOP</Button> : null}{listing.status !== 'published' ? <span className="admin-listing-actions-note">Publica el anuncio para gestionar portada y TOP.</span> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}{!listing.isExternal ? <ConfirmDialog trigger={<Button variant="destructive" size="sm"><Trash2 /> Eliminar</Button>} title="¿Eliminar este anuncio?" description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es." confirmLabel="Eliminar" destructive onConfirm={() => deleteListingFromAdmin(listing)} /> : null}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
       </> : null}
 
       {section === 'advertisements' ? <AdminCommercialAdvertisements /> : null}
-      {section === 'activity' ? <>
+      {section === 'activity' && sectionReady && !sectionLoading && !loadErrors.activity ? <>
         <SectionHeader title="Actividad" description="Historial de acciones administrativas: quién hizo qué y cuándo." />
         {auditLog.length ? <div className="admin-audit-list">{auditLog.map((item) => <article key={item.id}><span className="admin-audit-icon"><ClipboardList /></span><div><strong>{item.action}</strong><p>{item.actorName ?? 'Sistema'} · {item.targetType}{item.targetId ? ` · ${item.targetId}` : ''}</p><small>{formatDate(item.createdAt)}</small></div><pre>{Object.keys(item.detail).length ? JSON.stringify(item.detail, null, 2) : ''}</pre></article>)}</div> : <EmptyState icon={ClipboardList} title="Sin actividad" description="Las acciones administrativas aparecerán aquí." />}
       </> : null}
 
-      {section === 'settings' ? <>
+      {section === 'settings' && sectionReady && !sectionLoading && !loadErrors.settings ? <>
         <SectionHeader title="Ajustes" description="Gestiona quién puede entrar en esta administración mediante una cuenta Google vinculada." />
         <section className="admin-detail-card admin-admins-card"><div className="admin-card-head"><div><h2>Administradores</h2><p>Todos tienen los mismos permisos. No se puede eliminar el último administrador ni revocar tus propios permisos desde aquí.</p></div></div><form className="admin-add-admin" onSubmit={addAdmin}><Input type="email" value={newAdminEmail} onChange={(event) => setNewAdminEmail(event.target.value)} placeholder="nuevo-admin@gmail.com" required /><Button type="submit" disabled={addingAdmin || !newAdminEmail.trim()}><Plus /> Añadir administrador</Button></form><div className="admin-admin-list">{admins.map((admin) => <div key={admin.email}><div><Shield /><span><strong>{admin.email}</strong><small>Activo desde {formatDate(admin.createdAt)}</small></span></div><Button variant="outline" size="sm" disabled={admin.email.toLowerCase() === currentUser?.email.toLowerCase()} onClick={() => { void revokeAdmin(admin.email) }}>Revocar acceso</Button></div>)}</div></section>
         <section className="admin-detail-card"><h2>Correo de soporte</h2><p>Se muestra al usuario en bloqueos, avisos y correos de moderación.</p><a className="admin-support-link" href={`mailto:${SUPPORT_EMAIL}`}><Mail /> {SUPPORT_EMAIL}</a></section>
