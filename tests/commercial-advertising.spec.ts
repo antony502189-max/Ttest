@@ -109,7 +109,7 @@ test('authenticated mobile advertising entry stays inside the existing menu row 
   await expect(advertising).toBeVisible()
   await expect(advertising).toHaveClass(/m2-menu-row/)
   await expect(advertising.locator('svg')).toHaveCount(2)
-  expect(await advertising.evaluate((element) => element.parentElement?.classList.contains('m2-menu') ?? false)).toBe(true)
+  expect(await advertising.evaluate((element) => Boolean(element.closest('.m2-menu-group') && element.closest('.m2-menu')))).toBe(true)
   await advertising.click()
   await expect(page).toHaveURL(/#\/mis-campanas$/)
 })
