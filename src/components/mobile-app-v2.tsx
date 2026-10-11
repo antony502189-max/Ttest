@@ -947,7 +947,7 @@ export function MobileAppV2() {
   mapBackParams.delete('mapZoom')
   const backFromMap = useAppBack(`/buscar?${mapBackParams.toString()}`)
   const { language, setLanguage } = useI18n()
-  const { allListings, discarded, toggleFavorite, savedSearches, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, query, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
+  const { allListings, discarded, toggleFavorite, savedSearches, mapPolygon, setMapPolygon, saveCurrentSearch, restoreSavedSearch, setQuery, rentalMode, filters, setFilters, currentUser } = useApp()
   const mapPolygonRef = useRef(mapPolygon)
   mapPolygonRef.current = mapPolygon
   const [step, setStep] = useState<OnboardingStep>(() => {
