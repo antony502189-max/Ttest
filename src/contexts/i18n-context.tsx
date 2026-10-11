@@ -6,6 +6,7 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Más': { ru: 'Ещё', en: 'More' },
   'Resumen de anuncios': { ru: 'Сводка по объявлениям', en: 'Listing summary' },
   'Publicados': { ru: 'Опубликовано', en: 'Published' },
   'Visualizaciones': { ru: 'Просмотры', en: 'Views' },
