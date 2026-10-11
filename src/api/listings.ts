@@ -360,6 +360,9 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
     ...(filters.tenantRequirement !== 'Cualquiera' && filters.tenantRequirement !== 'any'
       ? { tenantRequirement: filters.tenantRequirement }
       : {}),
+    ...(filters.tenantRequirement === 'Cualquiera' && filters.tenantRequirements.length
+      ? { tenantRequirements: filters.tenantRequirements }
+      : {}),
     ...(filters.bathroom !== 'Cualquiera' ? { bathroom: filters.bathroom } : {}),
     ...(filters.kitchen !== 'Cualquiera' ? { kitchen: filters.kitchen } : {}),
     ...(filters.furnished ? { furnished: true } : {}),
