@@ -1,5 +1,7 @@
 # ADR 0001: отдельный backend для GitHub Pages frontend
 
+> **Историческое решение — заменено ADR 0002 для production-хостинга.** GitHub Pages может использоваться как старый preview/прототип, но **не является production**. Сейчас frontend и FastAPI работают на VPS под `https://app.112233.es`, как описано в [ADR 0002](0002-vps-production.md) и [production operations](../production-operations.md). Описанная ниже модель типизированной API-границы, access JWT и HttpOnly refresh остаётся архитектурно значимой.
+
 ## Контекст
 
 Существующий React/Vite интерфейс публикуется на GitHub Pages по пути `/Ttest/`. GitHub Pages не может исполнять FastAPI, хранить Postgres/PostGIS-данные или выдавать защищённые refresh cookies.

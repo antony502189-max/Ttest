@@ -78,3 +78,16 @@ The repository cannot prove the following without the production provider accoun
 - Google OAuth production origins and redirect URIs work end-to-end;
 - SMTP sender/domain verification and real inbox delivery are healthy;
 - external alert delivery itself (for example, the VPS monitoring provider) is configured and tested.
+
+
+## Spain regional-search and map acceptance signals
+
+For a release touching nationwide search, inspect the public UI in addition to this read-only infrastructure check:
+
+- Unselected Home location; 17 selectable autonomous communities with translated labels.
+- Inline municipality autocomplete such as Barcelona → Cataluña and Madrid → Comunidad de Madrid.
+- Region counts are returned by `POST /api/v1/listings/regions/counts` and reflect the same mode/price and other applicable filters as public cards.
+- The selected `comunidad` survives list/map navigation; public cards use the spatial `autonomousCommunity` filter, rather than display-text matching.
+- Fresh map visits after an exploration re-fit the last virtual **70 km radius**, without adding a visible circle or requiring an ad view.
+
+These are **functional smoke checks** and are not currently a substitute for an operator-run browser session; the monitor script's exit code covers infrastructure/worker health. Do not present current region counts or last imported province scope as facts without querying the live site/server. See [regional search](spain-regional-search.md), [map history](navigation-and-maps.md), [testing](testing.md).

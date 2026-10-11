@@ -1,173 +1,105 @@
 # 112233.es
 
-[Abrir 112233.es](https://112233.es/)
+Marketplace inmobiliario de alquiler en España / Spanish rental marketplace. **Vivienda** (long-term) and **Turismo** (holiday) are separate search and publication modes. Coverage includes mainland Spain, the Balearic Islands and the Canary Islands; the interface is not limited to Tenerife.
 
-Marketplace full-stack de alquiler de habitaciones en Tenerife. El frontend conserva el diseño aprobado y consume una API FastAPI con PostgreSQL/PostGIS. Google Maps es el único proveedor cartográfico.
+**Production application:** https://app.112233.es · **Repository:** https://github.com/antony502189-max/Ttest
 
-## Inicio local completo
+> Source-of-truth rule: the GitHub `main` branch is the latest merged code, **not** proof that production runs that version. Read `/srv/112233.es/current` or the public `/build-info.json` to verify what is deployed. Production is the self-hosted VPS, **not GitHub Pages**.
 
-Requisitos: Docker Compose, Python 3.12+, Node.js 22+ y npm.
+## Capabilities
+
+- Browse public property listings in scrolling cards and a Google Maps view; images, videos, favorites, discarded items, saved searches, notifications, account and owner publication flows.
+- Mobile location picker covering **17 autonomous communities**: Spanish/Russian/English names, autocomplete against approximately 8,130 municipality names and catalog cities, region-specific published-listing counts, and regional scrolling results. Selecting `Barcelona` ranks **Cataluña** first; `comunidad=09` is the canonical region filter.
+- Database-side geography filtering with PostGIS. `POST /api/v1/listings/regions/counts` uses the same published-visibility and other active search filters as card results.
+- Map state: first visit shows an Atlantic overview of mainland Spain and the Canary Islands. Subsequent fresh visits use the last explored **virtual 70 km-radius zone**, fitted to the current screen; opening a listing is unnecessary. An exact map bookmark or returning via in-app Back is handled separately.
+- Long-term listings obey the inclusive **€1,000/month** cap; the holiday mode has separate pricing rules and is **not removed or redirected**.
+- Authenticated host publication, geocoding/address editing, moderated listings, commercial homepage campaigns, external-listing import, a transactional email outbox, and admin controls.
+
+## Architecture at a glance
+
+```text
+Browser (React 19, TypeScript, Vite, React Router HashRouter)
+   │
+   ├── Google Maps (browser API; restricted key)
+   └── /api/v1 → FastAPI → SQLAlchemy async → PostgreSQL 16 / PostGIS
+                          ├── Redis (rate limits / leases)
+                          ├── MinIO (private S3-compatible media)
+                          ├── mail-worker (SMTP outbox)
+                          └── external-listings-worker (provider adapters)
+Public HTTPS: Traefik → frontend Nginx / API on Contabo VPS
+```
+
+Production is `https://app.112233.es` on VPS `169.58.147.65`. Existing Traefik is the public listener; Postgres, Redis and MinIO have no public host ports. See [architecture](docs/architecture.md), [deployment](docs/deployment.md) and [operations](docs/production-operations.md).
+
+## Local quick start
+
+Prerequisites: **Node.js 22+**, **npm**, **Docker Compose** and **Python 3.12+** for running the backend outside Docker. Docker Desktop is supported on Windows. Use only development credentials locally.
 
 ```bash
 git clone https://github.com/antony502189-max/Ttest.git
 cd Ttest
 cp .env.example .env.local
-cp backend/.env.example backend/.env
-docker compose up -d migrate backend mail-worker
 npm ci
+docker compose up -d postgres redis minio minio-init mailpit
+docker compose up -d migrate backend mail-worker
 npm run dev
 ```
 
-Servicios locales incluidos:
+PowerShell copy alternative: `Copy-Item .env.example .env.local`. Set `VITE_API_BASE_URL=http://localhost:8000/api/v1` (or your overridden backend port), `VITE_ENABLE_MOCK_MODE=0`. Vite prints its development URL, typically `http://localhost:5173`. Google Maps requires a browser-restricted key to use the real map. Mock mode `VITE_ENABLE_MOCK_MODE=1` is for isolated frontend tests only.
 
-- PostgreSQL + PostGIS: `localhost:5432`;
-- FastAPI/OpenAPI: `http://localhost:8000/api/docs`;
-- Redis: `localhost:6379`;
-- MinIO S3 API: `http://localhost:9000`;
-- MinIO console: `http://localhost:9001`;
-- Mailpit SMTP: `localhost:1025`;
-- Mailpit UI: `http://localhost:8025`.
-
-Para cargar datos de desarrollo:
+Optional local seed (development **only**):
 
 ```bash
 docker compose --profile tools run --rm seed
 ```
 
-Frontend `.env.local`:
+Local endpoints: backend `http://localhost:8000`; interactive Swagger `http://localhost:8000/api/docs` (development only); Postgres `localhost:5432`; Redis `localhost:6379`; MinIO API/console `localhost:9000/9001`; Mailpit `http://localhost:8025`.
 
-```dotenv
-VITE_GOOGLE_MAPS_API_KEY=
-VITE_GOOGLE_MAPS_MAP_ID=
-VITE_GOOGLE_CLIENT_ID=
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-VITE_ENABLE_MOCK_MODE=0
-VITE_BASE_PATH=/Ttest/
-```
+See [local development](docs/local-development.md) and [configuration](docs/configuration.md) for PowerShell commands, env variables, local services, fixtures and common failures.
 
-Google Maps debe autorizar estos HTTP referrers:
-
-```text
-https://antony502189-max.github.io/Ttest/
-https://antony502189-max.github.io/Ttest/*
-```
-
-## Backend без Docker
-
-```bash
-python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -e "backend[dev]"
-cd backend
-alembic upgrade head
-uvicorn app.main:app --reload
-```
-
-PostgreSQL с PostGIS всё равно должен быть доступен через `DATABASE_URL`. SQLite не является поддерживаемой production или integration-test базой.
-
-## Почта
-
-Письма создаются транзакционно в `mail_outbox`. Постоянный worker запускается сервисом `mail-worker`:
-
-```bash
-docker compose up -d mail-worker
-```
-
-В локальном Compose письма доставляются в Mailpit. В production обязательны реальные `SMTP_*` значения и постоянно работающий worker.
-
-## Media
-
-В обычном production-режиме используется S3-compatible storage. Локальный Compose уже подключает реальный MinIO и проверяет операции put/read/delete. Filesystem adapter остаётся для изолированной разработки и тестов.
-
-## Полный локальный аудит
-
-Полная проверка выполняется локально:
-
-```bash
-bash scripts/final-audit-local.sh
-```
-
-Скрипт:
-
-1. поднимает PostGIS, Redis, MinIO и Mailpit;
-2. создаёт отдельную `ttest_test`;
-3. применяет Alembic с пустой базы;
-4. запускает Ruff, Mypy и pytest;
-5. проверяет PostgreSQL/PostGIS и MinIO integration tests;
-6. запускает API, mail worker и seed;
-7. выполняет frontend lint, typecheck и production build;
-8. выполняет полный Playwright, a11y и visual suite;
-9. выполняет отдельный real full-stack Playwright suite без mock backend.
-
-Результаты Playwright сохраняются только в `output/` и исключены из Git.
-
-CI берёт утверждённые snapshots из ветки `visual-baselines`, а actual/expected/diff и HTML-report публикует как GitHub Actions artifacts. Обычный CI никогда не обновляет baseline. Обновление разрешено только ручным запуском workflow **Update Approved Visual Baselines** после визуального ревью.
-
-Отдельные команды:
+## Quality gates
 
 ```bash
 npm run lint
 npm run typecheck
 npm run build
 npm run test:e2e
-npm run test:a11y
-npm run test:visual
 npm run test:fullstack
+npm run test:security
+```
 
+For backend (Python environment installed with `pip install -e "backend[dev]"`):
+
+```bash
 cd backend
 ruff check app tests
 mypy app
-pytest -q
+pytest -q -m 'not integration'
 ```
 
-## Backup
+The full infrastructure-backed audit is `bash scripts/final-audit-local.sh` on Linux/WSL. GitHub Actions independently runs snapshot, production/static audits, full audit, four-shard mobile Playwright and publication/auth validation. **A green CI result is not a production smoke test.** [Testing handbook](docs/testing.md).
 
-Создать PostgreSQL backup:
+## Releasing safely
 
-```bash
-docker compose --profile tools run --rm db-backup
-```
+Changes go through a PR to protected `main`. On the correct VPS the controlled script is `deploy/deploy-release.sh <exact-40-character-origin-main-sha>`. It uses a release lock, validates immutable Git worktrees, checks a fresh MinIO backup, takes a PostgreSQL backup, applies migrations, deploys containers, verifies the public origin and rolls back the app if verification fails.
 
-Файлы появляются в локальном каталоге `backups/`, который исключён из Git. Production использует self-hosted PostGIS volume и проверяемую backup/restore-процедуру на VPS; см. [Production operations](docs/production-operations.md).
+**Do not** run database cleanup, delete Docker volumes/backups/releases, run destructive migration scripts, bypass the lock, or deploy an arbitrary older SHA. [Release checklist](docs/release-checklist.md) · [Production operations](docs/production-operations.md) · [Monitoring](docs/production-monitoring.md).
 
-## Production checklist
+## Documentation index
 
-Перед production deployment обязательны:
+Start with [the documentation hub](docs/index.md). Main references:
 
-- DNS `app.112233.es`, направленный на VPS, и HTTPS через существующий Traefik;
-- точные HTTPS origins в `FRONTEND_ORIGINS`;
-- сильный `JWT_SECRET` и отдельный независимый `EMAIL_VERIFICATION_HMAC_SECRET`;
-- self-hosted PostgreSQL/PostGIS, Redis и MinIO с persistent volumes;
-- SMTP и outbox worker;
-- Google OAuth client для production origins;
-- Google Maps HTTP-referrer/API restrictions;
-- `SENTRY_DSN` или другой error-tracking provider;
-- reverse proxy с TLS и ограничениями размера request body.
+| Topic | Guide |
+| --- | --- |
+| Architecture, routes, state | [Architecture](docs/architecture.md), [Frontend](docs/frontend.md) |
+| Geography & location picker | [Spanish communities](docs/spain-regional-search.md) |
+| Map & visit history | [Maps and navigation](docs/navigation-and-maps.md) |
+| API, auth, examples | [API reference](docs/api.md) |
+| Database & migrations | [Database](docs/database.md) |
+| Local setup, configuration | [Local development](docs/local-development.md), [Configuration](docs/configuration.md) |
+| Tests, contribution | [Testing](docs/testing.md), [Contributing](docs/contributing.md) |
+| Security & privacy | [Security](docs/security-and-privacy.md) |
+| External imports | [External data](docs/external-import.md) |
+| Production | [Deployment](docs/deployment.md), [Operations](docs/production-operations.md), [Troubleshooting](docs/troubleshooting.md) |
 
-GitHub Pages не является production-поверхностью этого проекта. Production frontend и API работают на VPS за `https://app.112233.es`, используют `/api/v1` и `VITE_ENABLE_MOCK_MODE=0`. Команды deploy, backup, restore и rollback описаны в [Production operations](docs/production-operations.md).
-
-Backend специально отказывается запускаться в `APP_ENV=production`, если критическая конфигурация небезопасна или отсутствует.
-
-## Документация
-
-- [Архитектура](docs/architecture.md)
-- [API](docs/api.md)
-- [Publicidad comercial en la portada](docs/homepage-advertising.md)
-- [База данных](docs/database.md)
-- [Локальная разработка](docs/local-development.md)
-- [Deployment](docs/deployment.md)
-- [Design freeze](docs/frontend-freeze-report.md)
-- [Тестирование](docs/test-report.md)
-- [Финальный аудит](docs/final-audit.md)
-
-## Stack
-
-- React 19 + TypeScript + Vite 8
-- FastAPI + SQLAlchemy async + Alembic
-- PostgreSQL + PostGIS
-- Redis
-- MinIO/S3-compatible media storage
-- Mail outbox + SMTP worker
-- Prometheus metrics + structured JSON logs + optional Sentry
-- Google Maps JavaScript API
-- Playwright + axe-core
+Historical implementation audits and research are retained in `docs/` for traceability. They describe their respective baselines and must not override current source code, workflows or runbooks.
