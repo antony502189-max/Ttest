@@ -397,7 +397,6 @@ export function MobileSearchResults() {
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', closeOnEscape) }
   }, [filters, goBack, open, panel])
 
-  const availableListings = useMemo(() => (mockMode ? allListings : serverItems ?? []).filter((listing) => listing.status === 'Publicado' && !discarded.has(listing.id)), [allListings, discarded, serverItems])
   const filteredListings = useMemo(() => {
     if (!mockMode) return (serverItems ?? []).filter((listing) => !discarded.has(listing.id))
     const params = new URLSearchParams(location.search)
