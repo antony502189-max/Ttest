@@ -80,12 +80,22 @@ import type { ListingStatus } from '@/types'
 import { preloadOwnerListingRoutes } from '@/lib/route-preload'
 import { adminRentalModeLabel, matchesAdminRentalMode, type AdminRentalModeFilter } from '@/lib/admin-listings'
 import { AdminCommercialAdvertisements } from '@/components/admin-commercial-advertisements'
+import { fetchAdminTab, type AdminTabSources } from '@/lib/admin-tab-loader'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 const PROMOTION_DAILY_PRICE_CENTS = 100
 const PROMOTION_PRESETS = [1, 7, 14, 21, 30] as const
 
 type Section = 'users' | 'reports' | 'listings' | 'advertisements' | 'activity' | 'settings'
+
+const adminTabSources: AdminTabSources = {
+  users: getAdminUserRows,
+  listings: getAdminListings,
+  homepageHero: getAdminHomepageHero,
+  reports: getAdminReports,
+  activity: getAdminAuditLog,
+  settings: getAdmins,
+}
 type UserFilter = '' | 'active' | 'restricted' | 'full' | 'publish' | 'view_listings' | 'deleted'
 type RestrictionDuration = 'day' | 'week' | 'month' | 'forever' | 'custom'
 
@@ -763,25 +773,26 @@ export function AdminPage() {
     setLoadErrors((current) => ({ ...current, [target]: undefined }))
     const task = (async () => {
       try {
-        switch (target) {
-          case 'users':
-            setUsers(await getAdminUserRows())
-            break
-          case 'listings': {
-            const [rows, hero] = await Promise.all([getAdminListings(), getAdminHomepageHero()])
-            setListings(rows)
-            setHomepageHero(hero)
-            break
+        const result = await fetchAdminTab(target, adminTabSources)
+        if (result) {
+          switch (result.tab) {
+            case 'users':
+              setUsers(result.users)
+              break
+            case 'listings':
+              setListings(result.listings)
+              setHomepageHero(result.homepageHero)
+              break
+            case 'reports':
+              setReports(result.reports)
+              break
+            case 'activity':
+              setAuditLog(result.audit)
+              break
+            case 'settings':
+              setAdmins(result.admins)
+              break
           }
-          case 'reports':
-            setReports(await getAdminReports())
-            break
-          case 'activity':
-            setAuditLog(await getAdminAuditLog())
-            break
-          case 'settings':
-            setAdmins(await getAdmins())
-            break
         }
         loadedSectionsRef.current.add(target)
       } catch (error) {
