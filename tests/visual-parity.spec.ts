@@ -44,8 +44,41 @@ test('current mobile home, results, location and map visual states', async ({ pa
 
 test('current mobile menu, auth and Russian visual states', async ({ page }) => {
   await open(page, '/#/menu')
-  await expect(page.locator('.m2-menu')).toBeVisible()
-  await shot(page, 'current-menu-390x844')
+  const menu = page.getByTestId('mobile-menu')
+  await expect(menu).toBeVisible()
+  // The old menu PNG is intentionally NOT silently replaced: baseline approval
+  // is owner-only (.github/workflows/update-visual-baselines.yml). Until that
+  // approval, enforce the new customer-reference geometry, palette and card
+  // order rather than asserting pixels against the superseded design.
+  await expect(menu.getByTestId('menu-admin-entry')).toHaveCount(0)
+  const visualMenu = await menu.evaluate((element) => {
+    const header = element.querySelector<HTMLElement(':scope > header')!
+    const account = element.querySelector<HTMLElement>('.m2-menu-account-card')!
+    const firstSection = element.querySelector<HTMLElement>('.m2-menu-section')!
+    const action = account.querySelector<HTMLElement>('.m2-primary')!
+    const rows = Array.from(element.querySelectorAll<HTMLElement>('.m2-menu-group .m2-menu-row'))
+    const a = account.getBoundingClientRect()
+    const s = firstSection.getBoundingClientRect()
+    return {
+      headerBackground: getComputedStyle(header).backgroundColor,
+      accountRadius: parseFloat(getComputedStyle(account).borderTopLeftRadius),
+      actionRadius: parseFloat(getComputedStyle(action).borderTopLeftRadius),
+      actionHeight: action.getBoundingClientRect().height,
+      accountBeforePropertyRows: a.bottom < s.top,
+      rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+      rowRadii: rows.map((row) => parseFloat(getComputedStyle(row).borderTopLeftRadius)),
+      noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    }
+  })
+  expect(visualMenu.headerBackground).toBe('rgb(210, 255, 63)')
+  expect(visualMenu.accountRadius).toBeGreaterThanOrEqual(12)
+  expect(visualMenu.actionRadius).toBeGreaterThanOrEqual(24)
+  expect(visualMenu.actionHeight).toBeGreaterThanOrEqual(60)
+  expect(visualMenu.accountBeforePropertyRows).toBe(true)
+  expect(visualMenu.rowHeights.length).toBeGreaterThanOrEqual(3)
+  for (const height of visualMenu.rowHeights) expect(height).toBeGreaterThanOrEqual(60)
+  for (const radius of visualMenu.rowRadii) expect(radius).toBeGreaterThanOrEqual(24)
+  expect(visualMenu.noOverflow).toBe(true)
 
   await open(page, '/#/acceso')
   await shot(page, 'current-auth-390x844')
