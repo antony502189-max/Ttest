@@ -131,17 +131,15 @@ async def listing_hidden_by_moderation(listing_id: UUID, owner_user_id: UUID, se
     )
 
 
-@router.get("/regions/counts")
+@router.post("/regions/counts")
 async def listing_region_counts(
-    rentalMode: str | None = Query(default=None),
+    payload: ListingSearchRequest,
     user: User | None = Depends(optional_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Published listing counts for all Spanish autonomous communities."""
+    """Published counts per region, applying the user's current filters."""
     await enforce_listing_view_access(user, session)
-    if rentalMode not in (None, "long", "holiday"):
-        raise HTTPException(status_code=422, detail="Unsupported rentalMode")
-    return {"items": await count_autonomous_communities(session, rentalMode)}
+    return {"items": await count_autonomous_communities(session, payload)}
 
 
 @router.get("/catalog-version", response_model=CatalogVersionResponse)
