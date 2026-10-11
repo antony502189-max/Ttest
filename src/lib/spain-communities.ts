@@ -1,8 +1,11 @@
 /** The seventeen autonomous communities, without Ceuta and Melilla.
- * Geographic polygons from Code for America / click_that_hood, MIT, checked
- * into backend/app/spain_communities.json and shared between web and API.
+ * Geographic polygons: Code for America / click_that_hood (MIT).
+ * City names: codeforspain/ds-organizacion-administrativa, INE Jan 2026
+ * (ODC-PDDL / public domain). Names and geo boundaries are bundled locally,
+ * so autocomplete works offline and is not limited to published listing cities.
  */
 import geography from '../data/spain-communities.json'
+import municipalities from '../data/spanish-municipalities.json'
 import type { Listing } from '@/types'
 
 export type Community = { id: string; es: string; en: string; ru: string; capitalEs: string; capitalEn: string; capitalRu: string; aliases: string[] }
@@ -20,9 +23,18 @@ export function communityName(id: string | null | undefined, language: 'es' | 'e
 export function normalizeSpanishPlace(input: string): string {
   return input.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().replace(/[^a-z0-9а-яё ]/g, ' ').replace(/\s+/g, ' ').trim()
 }
+const officialMunicipalities = new Map<string, string[]>(
+  Object.entries(municipalities.communities).map(([id, names]) => [id, names.flatMap((name) => {
+    // The INE stores articles after a comma: "Pobla de Segur, La".
+    // Match both that official spelling and the ordinary "La Pobla de Segur".
+    const inverted = name.match(/^(.+),\\s*(El|La|Los|Las|L'|Es|Sa)$/i)
+    return inverted ? [normalizeSpanishPlace(name), normalizeSpanishPlace(`${inverted[2]} ${inverted[1]}`)] : [normalizeSpanishPlace(name)]
+  })]),
+)
 function terms(region: Community, extraCities: string[]): string[] {
   return [region.es, region.en, region.ru, region.capitalEs, region.capitalEn, region.capitalRu,
     ...region.aliases, ...extraCities].map(normalizeSpanishPlace)
+    .concat(officialMunicipalities.get(region.id) ?? [])
 }
 export function communitySuggestions(input: string, dynamicCities: Record<string, string[]> = {}): Community[] {
   const search = normalizeSpanishPlace(input)
