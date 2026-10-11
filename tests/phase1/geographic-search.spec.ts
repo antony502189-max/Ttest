@@ -23,7 +23,7 @@ async function watchSearches(page: import('@playwright/test').Page) {
   return { requests, errors }
 }
 
-test('mobile polygon overrides a stale island and community; results and next pages stay geographically scoped', async ({ page }) => {
+test('mobile polygon overrides a stale island and community in the server search', async ({ page }) => {
   const { requests, errors } = await watchSearches(page)
   await page.goto(`/#/buscar?q=Adeje&comunidad=05&alquiler=holiday&poligono=${encodeURIComponent(madridPolygon)}`)
 
