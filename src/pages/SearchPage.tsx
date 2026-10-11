@@ -37,6 +37,7 @@ import {
   sortListings,
 } from "@/lib/search";
 import { filtersForRentalMode } from "@/lib/price-filter-controls";
+import { searchGeographyFromParams } from "@/lib/search-geography";
 import {
   EmptyState,
   ErrorState,
@@ -203,20 +204,11 @@ export function SearchPage() {
     const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
     const roomTypes = (activeParams.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
       ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value));
-    const latitude = Number(activeParams.get('lat'));
-    const longitude = Number(activeParams.get('lng'));
-    const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
-      Number.isFinite(latitude) && Number.isFinite(longitude);
     return {
-      rentalMode, query, autonomousCommunity: communityId ?? undefined, roomTypes,
-      center: nearby ? { latitude, longitude } : undefined,
-      radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
-      minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters,
-      bounds: mapBounds ?? undefined,
-      polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
-      sort,
+      rentalMode, ...searchGeographyFromParams(activeParams), roomTypes,
+      minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters, sort,
     };
-  }, [communityId, filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
+  }, [filters, rentalMode, requestParamString]);
   const mapQuery = useMemo(() => buildListingSearchBody(searchInput), [searchInput]);
 
   useLayoutEffect(() => {
@@ -319,17 +311,21 @@ export function SearchPage() {
     mutate(next);
     setParams(next, { replace });
   };
-  const commitBounds = (bounds: MapBounds | null) => updateParams((next) => {
-    boundKeys.forEach((key) => next.delete(key));
-    if (bounds) {
-      next.set('norte', bounds.north.toFixed(5));
-      next.set('sur', bounds.south.toFixed(5));
-      next.set('este', bounds.east.toFixed(5));
-      next.set('oeste', bounds.west.toFixed(5));
-    }
-    next.delete('pagina');
-    next.delete('cursor');
-  }, true);
+  const commitBounds = (bounds: MapBounds | null) => {
+    if (bounds) setMapPolygon([]);
+    updateParams((next) => {
+      boundKeys.forEach((key) => next.delete(key));
+      if (bounds) {
+        next.delete('poligono');
+        next.set('norte', bounds.north.toFixed(5));
+        next.set('sur', bounds.south.toFixed(5));
+        next.set('este', bounds.east.toFixed(5));
+        next.set('oeste', bounds.west.toFixed(5));
+      }
+      next.delete('pagina');
+      next.delete('cursor');
+    }, true);
+  };
   const commitPolygon = (polygon: MapPolygonPoint[]) => {
     const nextFilters = polygon.length >= 3 && filters.areas.length ? { ...filters, areas: [] } : filters;
     setMapPolygon(polygon);
@@ -337,7 +333,10 @@ export function SearchPage() {
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.delete("pagina");
     next.delete('cursor');
-    if (polygon.length >= 3) next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    if (polygon.length >= 3) {
+      boundKeys.forEach((key) => next.delete(key));
+      next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    }
     else next.delete("poligono");
     setParams(next, { replace: true });
   };
@@ -360,8 +359,11 @@ export function SearchPage() {
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.set('q', selectedQuery);
+    next.delete('poligono');
+    boundKeys.forEach((key) => next.delete(key));
     next.delete('pagina');
     next.delete('cursor');
+    setMapPolygon([]);
     setParams(next);
   };
   const applyLocationAreas = (selectedAreas: string[]) => {
@@ -373,7 +375,10 @@ export function SearchPage() {
     setParams((current) => {
       const next = filtersToParams(nextFilters, new URLSearchParams(current));
       next.set('q', nextQuery);
-      if (selectedAreas.length) next.delete('poligono');
+      if (selectedAreas.length) {
+        next.delete('poligono');
+        boundKeys.forEach((key) => next.delete(key));
+      }
       next.delete('pagina');
       next.delete('cursor');
       return next;
@@ -431,7 +436,7 @@ export function SearchPage() {
     setMapPolygon([]);
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
     ["pagina", "cursor", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
-    next.set('q', 'Tenerife');
+    next.set('q', 'España');
     setParams(next);
   };
 
