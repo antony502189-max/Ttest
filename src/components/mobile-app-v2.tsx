@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Crosshair,
   Heart,
+  Globe2,
   Home,
   Image as ImageIcon,
   Layers3,
@@ -793,10 +794,109 @@ function FavoritesCollectionScreen({ items, recentItems, onRemove, onClearRecent
   </section>
 }
 
-function MenuScreen({ onLogin, onProperties, onAdvertising, onLanguage, onRegion, onAgencies, onPublish, onAdmin, adminAllowed, language, t, currentUserName }: { onLogin: () => void; onProperties: () => void; onAdvertising: () => void; onLanguage: () => void; onRegion: () => void; onAgencies: () => void; onPublish: () => void; onAdmin: () => void; adminAllowed: boolean; language: AppLanguage; t: MobileCopy; currentUserName?: string }) {
+function MenuScreen({
+  onLogin, onProperties, onAdvertising, onLanguage, onRegion, onPublish, onAdmin,
+  adminAllowed, authenticated, language, t, currentUserName, selectedCommunity,
+}: {
+  onLogin: () => void
+  onProperties: () => void
+  onAdvertising: () => void
+  onLanguage: () => void
+  onRegion: () => void
+  onPublish: () => void
+  onAdmin: () => void
+  adminAllowed: boolean
+  authenticated: boolean
+  language: AppLanguage
+  t: MobileCopy
+  currentUserName?: string
+  selectedCommunity: string | null
+}) {
   const languageLabel = languages.find((item) => item.value === language)?.label ?? 'Español'
   const advertisingLabel = language === 'ru' ? 'Мои рекламные кампании' : language === 'en' ? 'My advertising campaigns' : 'Mis campañas publicitarias'
-  return <section className="m2-screen m2-menu"><header>{t.menu}</header><div className="m2-menu-login"><UserRound /><div><h2>{currentUserName ?? t.login}</h2><p>{t.loginDescription}</p></div></div><PrimaryButton onClick={currentUserName ? onProperties : onLogin}>{currentUserName ? t.yourProperties : t.login}</PrimaryButton>{currentUserName ? <button type="button" className="m2-menu-row m2-menu-row--profile" onClick={onLogin}><span><UserRound />{t.editProfile}</span><ChevronRight /></button> : null}<h3>{t.propertyManagement}</h3><button type="button" className="m2-menu-row" onClick={onAgencies}><span><Search />{t.findAgencies}</span><ChevronRight /></button><button type="button" className="m2-menu-row" onClick={onPublish}><span><Plus />{t.publishYourAd}</span><ChevronRight /></button>{currentUserName ? <button type="button" className="m2-menu-row" onClick={onAdvertising}><span><Megaphone />{advertisingLabel}</span><ChevronRight /></button> : null}{adminAllowed ? <button type="button" className="m2-menu-row m2-menu-row--admin" onClick={onAdmin}><span><Shield />{t.adminPanel}</span><ChevronRight /></button> : null}<h3>{t.settings}</h3><button type="button" className="m2-menu-row" onClick={onRegion}><span>{t.searchRegion}</span><b>España</b></button><button type="button" className="m2-menu-row" onClick={onLanguage}><span>{t.language}</span><b>{languageLabel}</b></button><button type="button" className="m2-menu-row"><span>{t.appearance}</span><b>{t.appearanceDefault}</b></button><button type="button" className="m2-menu-row"><span>{t.about}</span><b>{t.version}</b></button></section>
+  const regionLabel = selectedCommunity
+    ? `España (${communityName(selectedCommunity, language)})`
+    : 'España'
+  const adminCopy = {
+    es: { eyebrow: 'PANEL DE ADMINISTRACIÓN', description: 'Gestiona tus propiedades, reservas, clientes y ajustes avanzados.' },
+    en: { eyebrow: 'ADMINISTRATION PANEL', description: 'Manage properties, bookings, clients and advanced settings.' },
+    ru: { eyebrow: 'ПАНЕЛЬ АДМИНИСТРАТОРА', description: 'Управление объектами, бронированиями, клиентами и настройками.' },
+  }[language]
+  const name = currentUserName?.trim() || t.login
+
+  return (
+    <section className="m2-screen m2-menu" data-testid="mobile-menu">
+      <header>{t.menu}</header>
+      <div className="m2-menu-content">
+        {adminAllowed ? (
+          <button
+            type="button"
+            className="m2-menu-admin-card"
+            onClick={onAdmin}
+            data-testid="menu-admin-entry"
+          >
+            <span className="m2-menu-admin-card__icon"><Shield aria-hidden="true" /></span>
+            <span className="m2-menu-admin-card__content">
+              <small>{adminCopy.eyebrow}</small>
+              <strong>{t.adminPanel}</strong>
+              <span>{adminCopy.description}</span>
+            </span>
+            <span className="m2-menu-admin-card__arrow"><ChevronRight aria-hidden="true" /></span>
+          </button>
+        ) : null}
+
+        <section className="m2-menu-account-card" aria-label={name}>
+          <div className="m2-menu-login">
+            <span className="m2-menu-account-avatar"><UserRound aria-hidden="true" /></span>
+            <div>
+              <h2>{name}</h2>
+              <p>{t.loginDescription}</p>
+            </div>
+          </div>
+          <PrimaryButton onClick={authenticated ? onProperties : onLogin}>
+            <span>{authenticated ? t.yourProperties : t.login}</span>
+            <ChevronRight aria-hidden="true" />
+          </PrimaryButton>
+          {authenticated ? (
+            <button type="button" className="m2-menu-row m2-menu-row--profile" onClick={onLogin}>
+              <span className="m2-menu-row__label"><span className="m2-menu-row__icon m2-menu-row__icon--plain"><UserRound aria-hidden="true" /></span>{t.editProfile}</span>
+              <ChevronRight aria-hidden="true" />
+            </button>
+          ) : null}
+        </section>
+
+        <section className="m2-menu-section" aria-label={t.propertyManagement}>
+          <h3>{t.propertyManagement}</h3>
+          <div className="m2-menu-group">
+            <button type="button" className="m2-menu-row" onClick={onPublish}>
+              <span className="m2-menu-row__label"><span className="m2-menu-row__icon"><Plus aria-hidden="true" /></span>{t.publishYourAd}</span>
+              <ChevronRight aria-hidden="true" />
+            </button>
+            {authenticated ? (
+              <button type="button" className="m2-menu-row" onClick={onAdvertising}>
+                <span className="m2-menu-row__label"><span className="m2-menu-row__icon"><Megaphone aria-hidden="true" /></span>{advertisingLabel}</span>
+                <ChevronRight aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="m2-menu-section" aria-label={t.settings}>
+          <h3>{t.settings}</h3>
+          <div className="m2-menu-group">
+            <button type="button" className="m2-menu-row" onClick={onRegion}>
+              <span className="m2-menu-row__label"><span className="m2-menu-row__icon"><MapPin aria-hidden="true" /></span>{t.searchRegion}</span>
+              <span className="m2-menu-row__trailing"><b>{regionLabel}</b><ChevronRight aria-hidden="true" /></span>
+            </button>
+            <button type="button" className="m2-menu-row" onClick={onLanguage}>
+              <span className="m2-menu-row__label"><span className="m2-menu-row__icon"><Globe2 aria-hidden="true" /></span>{t.language}</span>
+              <span className="m2-menu-row__trailing"><b>{languageLabel}</b><ChevronRight aria-hidden="true" /></span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </section>
+  )
 }
 
 function getNavItems(t: MobileCopy): Array<{ tab: MobileTab; label: string; icon: typeof Home }> {
@@ -1114,5 +1214,5 @@ export function MobileAppV2() {
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} language={language} rentalMode={homeMode === 'turismo' ? 'holiday' : 'long'} onBack={backToHome} onMap={openMap} onNearby={() => { void openNearby() }} onRegionSelect={chooseCommunity} nearbyStatus={nearbyStatus} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen key={mapQuery} mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={nearbyCameraCenter ?? mapCenter} initialCamera={mapCamera} polygon={mapPolygon} items={mapItems} serverQuery={serverMapQuery} onPolygonChange={commitMobilePolygon} onCameraChange={commitMapCamera} onBack={backFromMap} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
-  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' && location.pathname !== '/buscar' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onSearchIntent={preloadMobileSearchResults} onPublish={openPublication} selectedCommunity={selectedCommunity} language={language} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} recentItems={recentItems} onRemove={toggleFavorite} onClearRecent={clearRecentHistory} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onAgencies={() => navigate('/contacto')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} language={language} t={t} currentUserName={currentUser?.name} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' && location.pathname !== '/buscar' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onSearchIntent={preloadMobileSearchResults} onPublish={openPublication} selectedCommunity={selectedCommunity} language={language} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} recentItems={recentItems} onRemove={toggleFavorite} onClearRecent={clearRecentHistory} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} authenticated={Boolean(currentUser)} language={language} t={t} currentUserName={currentUser?.name} selectedCommunity={selectedCommunity} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
 }
