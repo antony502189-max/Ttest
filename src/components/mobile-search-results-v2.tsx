@@ -28,6 +28,7 @@ import { communityName } from '@/lib/spain-communities'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
+import { searchGeographyFromParams } from '@/lib/search-geography'
 import { createProgressiveGalleryPage, filtersFromParams, filtersToParams, prioritizePromotedListings } from '@/lib/search'
 import { compareListingFloors } from '@/lib/floor'
 import type { Filters, Listing, RentalMode } from '@/types'
@@ -233,8 +234,7 @@ export function MobileSearchResults() {
     const sort = sortByOrder[mobileOrder as ResultsOrder] ?? 'newest'
     return {
       rentalMode: params.get('alquiler') === 'holiday' ? 'holiday' as const : 'long' as const,
-      query: params.get('q') ?? 'España',
-      autonomousCommunity: params.get('comunidad') ?? undefined,
+      ...searchGeographyFromParams(params),
       filters: canonical,
       minPrice: canonical.minPrice,
       maxPrice: canonical.maxPrice,

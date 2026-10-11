@@ -22,6 +22,7 @@ import { currentLocale } from "@/lib/i18n-locale";
 import { buildListingSearchBody, searchPublicListings, type ListingSearchInput } from "@/api/listings";
 import { defaultFilters } from "@/data/listings";
 import { hasListingCoordinates, tenantRequirementLabels } from "@/lib/listings";
+import { distanceKm } from "@/lib/geolocation";
 import { loadTenerifeZoneHierarchy } from "@/lib/map/geojson";
 import { getMunicipalityLabel, getRootMunicipalityId, getZoneLabel, isDetailedZoneId, type TenerifeZoneCollection } from "@/lib/map/zones";
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from "@/lib/tenerife";
@@ -37,6 +38,7 @@ import {
   sortListings,
 } from "@/lib/search";
 import { filtersForRentalMode } from "@/lib/price-filter-controls";
+import { searchGeographyFromParams } from "@/lib/search-geography";
 import {
   EmptyState,
   ErrorState,
@@ -203,20 +205,11 @@ export function SearchPage() {
     const sort = filters.sort === 'Precio más bajo' ? 'price_asc' : filters.sort === 'Precio más alto' ? 'price_desc' : filters.sort === 'Más antiguos' ? 'oldest' : 'newest';
     const roomTypes = (activeParams.get('tiposHabitacion') ?? '').split('|').filter((value): value is Listing['roomType'] =>
       ['Habitación individual', 'Habitación compartida', 'Estudio'].includes(value));
-    const latitude = Number(activeParams.get('lat'));
-    const longitude = Number(activeParams.get('lng'));
-    const nearby = activeParams.get('cerca') === '1' && activeParams.has('lat') && activeParams.has('lng') &&
-      Number.isFinite(latitude) && Number.isFinite(longitude);
     return {
-      rentalMode, query, autonomousCommunity: communityId ?? undefined, roomTypes,
-      center: nearby ? { latitude, longitude } : undefined,
-      radiusKm: nearby ? Math.min(50, Math.max(1, Number(activeParams.get('radio')) || 15)) : undefined,
-      minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters,
-      bounds: mapBounds ?? undefined,
-      polygon: mapPolygon.length >= 3 ? mapPolygon.map(({ lat, lng }) => ({ latitude: lat, longitude: lng })) : undefined,
-      sort,
+      rentalMode, ...searchGeographyFromParams(activeParams), roomTypes,
+      minPrice: filters.minPrice, maxPrice: filters.maxPrice, filters, sort,
     };
-  }, [communityId, filters, mapBounds, mapPolygon, query, rentalMode, requestParamString]);
+  }, [filters, rentalMode, requestParamString]);
   const mapQuery = useMemo(() => buildListingSearchBody(searchInput), [searchInput]);
 
   useLayoutEffect(() => {
@@ -259,32 +252,34 @@ export function SearchPage() {
         rentalMode,
         filters,
         zoneHierarchy,
-      ).filter((listing) => !invalidLocation && (communityId
-        ? listingInCommunity(listing, communityId)
-        : ['españa', 'espana', 'spain'].includes(query.toLowerCase()) || listingMatchesTenerifeLocation(listing, location)))
+      ).filter((listing) => !invalidLocation && (searchInput.polygon || searchInput.bounds || searchInput.center
+        ? true
+        : communityId
+          ? listingInCommunity(listing, communityId)
+          : ['españa', 'espana', 'spain'].includes(query.toLowerCase()) || listingMatchesTenerifeLocation(listing, location)))
       : (serverItems ?? []).filter((listing) => !discarded.has(listing.id)),
-    [allListings, communityId, discarded, filters, invalidLocation, location, query, rentalMode, serverItems, zoneHierarchy],
+    [allListings, communityId, discarded, filters, invalidLocation, location, query, rentalMode, searchInput, serverItems, zoneHierarchy],
   );
   const spatialItems = useMemo(
     () =>
       mockMode ? filteredItems.filter((listing) => {
-        if (mapBounds) {
+        if (searchInput.bounds) {
+          const { north, south, east, west } = searchInput.bounds;
           if (!hasListingCoordinates(listing)) return false;
-          if (
-            listing.coordinates.lat > mapBounds.north ||
-            listing.coordinates.lat < mapBounds.south ||
-            listing.coordinates.lng > mapBounds.east ||
-            listing.coordinates.lng < mapBounds.west
-          )
-            return false;
+          if (listing.coordinates.lat > north || listing.coordinates.lat < south ||
+            listing.coordinates.lng > east || listing.coordinates.lng < west) return false;
         }
-        if (mapPolygon.length >= 3) {
-          if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, mapPolygon))
-            return false;
+        if (searchInput.polygon?.length) {
+          if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates,
+            searchInput.polygon.map(({ latitude, longitude }) => ({ lat: latitude, lng: longitude })))) return false;
+        }
+        if (searchInput.center && searchInput.radiusKm) {
+          if (!hasListingCoordinates(listing) || distanceKm(listing.coordinates,
+            { lat: searchInput.center.latitude, lng: searchInput.center.longitude }) > searchInput.radiusKm) return false;
         }
         return true;
       }) : filteredItems,
-    [filteredItems, mapBounds, mapPolygon],
+    [filteredItems, searchInput],
   );
   const items = useMemo(() => mockMode ? sortListings(spatialItems, filters.sort) : prioritizePromotedListings(spatialItems), [filters.sort, spatialItems]);
   const mappedItems = useMemo(() => items.filter(hasListingCoordinates), [items]);
@@ -319,17 +314,37 @@ export function SearchPage() {
     mutate(next);
     setParams(next, { replace });
   };
-  const commitBounds = (bounds: MapBounds | null) => updateParams((next) => {
-    boundKeys.forEach((key) => next.delete(key));
-    if (bounds) {
-      next.set('norte', bounds.north.toFixed(5));
-      next.set('sur', bounds.south.toFixed(5));
-      next.set('este', bounds.east.toFixed(5));
-      next.set('oeste', bounds.west.toFixed(5));
+  const commitBounds = (bounds: MapBounds | null) => {
+    // A map search button pressed after drawing must not replace the polygon
+    // with the broader visible viewport. Show the scoped list on mobile.
+    if (bounds && searchGeographyFromParams(params).polygon) {
+      if (isMobile) updateParams((next) => {
+        next.delete('vista');
+        next.delete('pagina');
+        next.delete('cursor');
+      }, true);
+      return;
     }
-    next.delete('pagina');
-    next.delete('cursor');
-  }, true);
+    if (bounds) {
+      setMapPolygon([]);
+      if (filters.areas.length) setFilters({ ...filters, areas: [] });
+    }
+    updateParams((next) => {
+      boundKeys.forEach((key) => next.delete(key));
+      if (bounds) {
+        next.set('q', 'España');
+        next.delete('comunidad');
+        next.delete('poligono');
+        next.delete('zonas');
+        next.set('norte', bounds.north.toFixed(5));
+        next.set('sur', bounds.south.toFixed(5));
+        next.set('este', bounds.east.toFixed(5));
+        next.set('oeste', bounds.west.toFixed(5));
+      }
+      next.delete('pagina');
+      next.delete('cursor');
+    }, true);
+  };
   const commitPolygon = (polygon: MapPolygonPoint[]) => {
     const nextFilters = polygon.length >= 3 && filters.areas.length ? { ...filters, areas: [] } : filters;
     setMapPolygon(polygon);
@@ -337,7 +352,12 @@ export function SearchPage() {
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.delete("pagina");
     next.delete('cursor');
-    if (polygon.length >= 3) next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    if (polygon.length >= 3) {
+      next.set('q', 'España');
+      next.delete('comunidad');
+      boundKeys.forEach((key) => next.delete(key));
+      next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
+    }
     else next.delete("poligono");
     setParams(next, { replace: true });
   };
@@ -360,8 +380,12 @@ export function SearchPage() {
     setFilters(nextFilters);
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.set('q', selectedQuery);
+    next.delete('comunidad');
+    next.delete('poligono');
+    boundKeys.forEach((key) => next.delete(key));
     next.delete('pagina');
     next.delete('cursor');
+    setMapPolygon([]);
     setParams(next);
   };
   const applyLocationAreas = (selectedAreas: string[]) => {
@@ -373,7 +397,11 @@ export function SearchPage() {
     setParams((current) => {
       const next = filtersToParams(nextFilters, new URLSearchParams(current));
       next.set('q', nextQuery);
-      if (selectedAreas.length) next.delete('poligono');
+      if (selectedAreas.length) {
+        next.delete('comunidad');
+        next.delete('poligono');
+        boundKeys.forEach((key) => next.delete(key));
+      }
       next.delete('pagina');
       next.delete('cursor');
       return next;
@@ -431,7 +459,8 @@ export function SearchPage() {
     setMapPolygon([]);
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
     ["pagina", "cursor", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
-    next.set('q', 'Tenerife');
+    next.set('q', 'España');
+    ['comunidad', 'cerca', 'lat', 'lng', 'radio'].forEach((key) => next.delete(key));
     setParams(next);
   };
 

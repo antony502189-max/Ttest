@@ -39,6 +39,19 @@ On `/#/buscar?vista=mapa` the query/region, saved polygon, nearby coordinates, e
 
 ## Search is not equal to viewport recall
 
+Applied list/map searches use a single geographic constraint, with this priority:
+
+1. Explicitly drawn `poligono` (point-in-polygon through PostGIS).
+2. Explicitly submitted visible map bounds (`norte`, `sur`, `este`, `oeste`).
+3. Explicit nearby search (`cerca=1` with valid `lat` and `lng`, plus radius).
+4. Named city or selected `comunidad` when no map region is applied.
+5. Nationwide results only when none of the above has been selected.
+
+A map polygon or viewport search must not be intersected with a stale city, autonomous community or previously submitted map bounds. Selecting a new named location clears the previous drawn/viewport constraint. A remembered **70 km map camera** does not itself activate a listing filter; it is a viewport-restoration affordance, not a saved user search.
+
+The desktop search page and the independently paginated mobile-results overlay both derive their server request geography from the same URL parser (`src/lib/search-geography.ts`). The backend already filters cards and markers through PostGIS; never filter only visible marker UI while allowing non-matching cards. The request contract is covered by `tests/phase1/geographic-search.spec.ts`.
+
+
 Map history remembers the user's **position**, not which listings they viewed. Filtering still happens server-side by published visibility, mode, price, location and/or selected `comunidad`. The API uses:
 
 - `POST /api/v1/listings/map`: bounded markers and grid clusters for an explicit viewport.
