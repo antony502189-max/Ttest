@@ -601,12 +601,16 @@ function UserDetailView({
   userId,
   listings,
   reports,
+  listingsReady,
+  reportsReady,
   onBack,
   onUserChanged,
 }: {
   userId: string
   listings: AdminListing[]
   reports: AdminReport[]
+  listingsReady: boolean
+  reportsReady: boolean
   onBack: () => void
   onUserChanged: (user: AdminUser) => void
 }) {
@@ -695,12 +699,12 @@ function UserDetailView({
       <section className="admin-detail-card"><h2>Soporte</h2><p>Los avisos de moderación incluyen el motivo, la fecha final —si existe— y esta dirección.</p><a className="admin-support-link" href={`mailto:${SUPPORT_EMAIL}`}><Mail /> {SUPPORT_EMAIL}</a></section>
     </div>
 
-    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Anuncios</h2><p>{ownedListings.length} asociados a esta cuenta</p></div></div>
-      {ownedListings.length ? <div className="admin-compact-list">{ownedListings.map((listing) => <div key={listing.id}><div><strong>{listing.title}</strong><span>{listing.area} · {listingStatusLabels[listing.status] ?? listing.status}</span></div>{listing.activeRestriction ? <Badge variant="destructive">Restringido</Badge> : <Badge variant="outline">Visible según estado</Badge>}</div>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="Esta cuenta todavía no tiene anuncios." />}
+    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Anuncios</h2><p>{listingsReady ? `${ownedListings.length} asociados a esta cuenta` : 'Cargando anuncios relacionados…'}</p></div></div>
+      {!listingsReady ? <div className="admin-related-loading" role="status">Cargando anuncios relacionados…</div> : ownedListings.length ? <div className="admin-compact-list">{ownedListings.map((listing) => <div key={listing.id}><div><strong>{listing.title}</strong><span>{listing.area} · {listingStatusLabels[listing.status] ?? listing.status}</span></div>{listing.activeRestriction ? <Badge variant="destructive">Restringido</Badge> : <Badge variant="outline">Visible según estado</Badge>}</div>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="Esta cuenta todavía no tiene anuncios." />}
     </section>
 
-    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Denuncias relacionadas</h2><p>{relatedReports.length} sobre sus anuncios o su cuenta</p></div></div>
-      {relatedReports.length ? <div className="admin-compact-list">{relatedReports.map((report) => <div key={report.id}><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant="outline">{reportLabels[report.status]}</Badge></div>)}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay denuncias asociadas a esta cuenta." />}
+    <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Denuncias relacionadas</h2><p>{reportsReady && listingsReady ? `${relatedReports.length} sobre sus anuncios o su cuenta` : 'Cargando denuncias relacionadas…'}</p></div></div>
+      {!reportsReady || !listingsReady ? <div className="admin-related-loading" role="status">Cargando denuncias relacionadas…</div> : relatedReports.length ? <div className="admin-compact-list">{relatedReports.map((report) => <div key={report.id}><div><strong>{report.reason}</strong><span>{report.publicReference} · {formatDate(report.createdAt)}</span></div><Badge variant="outline">{reportLabels[report.status]}</Badge></div>)}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay denuncias asociadas a esta cuenta." />}
     </section>
 
     <section className="admin-detail-card"><div className="admin-card-head"><div><h2>Historial de restricciones</h2><p>Registro cronológico no editable.</p></div></div>
