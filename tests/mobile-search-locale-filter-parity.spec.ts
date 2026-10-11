@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { mobileResultBadges } from '../src/lib/mobile-result-badges'
-import { buildListingSearchBody } from '../src/api/listings'
+import { buildListingSearchBody } from '../src/lib/listing-search-body'
 import { defaultFilters } from '../src/data/listings'
 import { filtersFromParams, filtersToParams } from '../src/lib/search'
 import { searchGeographyFromParams } from '../src/lib/search-geography'
