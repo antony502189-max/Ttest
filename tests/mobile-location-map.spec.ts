@@ -7,7 +7,7 @@ async function finishOnboarding(page: Page) {
   await expect(page.getByText('Español', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Español', exact: true }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByText('España (Tenerife)', { exact: true })).toBeVisible()
+  await expect(page.getByText('España', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Ahora no' }).click()
@@ -35,19 +35,19 @@ test('onboarding returns after refresh and language names are never machine-tran
   await expect(page.getByTestId('open-location')).toHaveCount(0)
 })
 
-test('country selection contains only Tenerife and returns correctly from location editing', async ({ page }) => {
+test('country onboarding supports all Spain and location picker has no fixed regional banner', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.locator('.m2-country')).toHaveCount(1)
-  await expect(page.getByText('España (Tenerife)', { exact: true })).toBeVisible()
+  await expect(page.getByText('España', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Ahora no' }).click()
-  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
-  await page.getByRole('button', { name: 'Cambiar' }).click()
-  await expect(page.getByText('Selecciona la región en la que buscas o tienes una vivienda')).toBeVisible()
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
+  await expect(page.locator('.m2-location-region')).toHaveCount(0)
+  await page.getByTestId('community-search-input').focus()
+  await expect(page.locator('.m2-community-option')).toHaveCount(17)
 })
 
 test('housing modes start inactive and occupant selector keeps one compatible primary choice', async ({ page }) => {
@@ -79,11 +79,11 @@ test('housing modes start inactive and occupant selector keeps one compatible pr
   await expect(page.locator('[data-m2-occupant-key="unrestricted"]')).toHaveAttribute('aria-checked', 'true')
 })
 
-test('location screen contains the approved actions and address submit opens map', async ({ page }) => {
+test('location screen preserves map shortcuts and a city selects its autonomous community', async ({ page }) => {
   await finishOnboarding(page)
-  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+  await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
-  await expect(page.getByText('Búsqueda en Tenerife')).toBeVisible()
+  await expect(page.getByText('Búsqueda en Tenerife')).toHaveCount(0)
   await expect(page.locator('.m2-location-action')).toHaveCount(3)
   await expect(page.getByText('Dibujar tu zona', { exact: true })).toBeVisible()
   await expect(page.getByText('Buscar en el mapa', { exact: true })).toBeVisible()
@@ -92,16 +92,17 @@ test('location screen contains the approved actions and address submit opens map
 
   const input = page.getByPlaceholder('Municipio, zona o dirección')
   await input.fill('Santa Cruz de Tenerife')
+  await expect(page.getByTestId('community-option-05')).toBeVisible()
   await input.press('Enter')
-  await expect(page.getByTestId('map-search')).toBeVisible()
-  await expect(page.getByText('Santa Cruz de Tenerife', { exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/comunidad=05/)
+  await expect(page.getByTestId('mobile-results')).toBeVisible()
 })
 
 test('current location opens the map and keeps the user coordinates even when no nearby listing is required', async ({ page, context }) => {
   await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
   await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
   await finishOnboarding(page)
-  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+  await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
   await page.getByTestId('search-nearby').click()
   await expect(page).toHaveURL(/vista=mapa/)
   await expect(page).toHaveURL(/cerca=1/)
@@ -115,7 +116,7 @@ test('map current-location control centers the map and renders the user marker',
   await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
   await context.setGeolocation({ latitude: 28.2916, longitude: -16.6291 })
   await finishOnboarding(page)
-  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+  await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
   await page.getByTestId('search-map').click()
   await page.getByRole('button', { name: 'Mi ubicación' }).click()
   await expect(page.getByText('Ubicación encontrada')).toBeVisible()
@@ -124,7 +125,7 @@ test('map current-location control centers the map and renders the user marker',
 
 test('draw and search map interfaces expose the connected listing layer without a result-count redesign', async ({ page }) => {
   await finishOnboarding(page)
-  await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+  await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
   await page.getByTestId('draw-zone').click()
   await expect(page.getByTestId('map-draw')).toBeVisible()
   await expect(page.getByTestId('google-map')).toBeVisible()
@@ -135,7 +136,7 @@ test('draw and search map interfaces expose the connected listing layer without 
 
   await page.getByTestId('search-map').click()
   await expect(page.getByTestId('map-search')).toBeVisible()
-  await expect(page.locator('.m2-map-results-header')).toContainText('Tenerife')
+  await expect(page.locator('.m2-map-results-header')).toContainText('España')
   await expect.poll(async () => page.locator('.m2-listing-marker').count()).toBeGreaterThan(0)
   await expect(page.locator('.m2-map-results-header')).not.toContainText(/\d+\s+(viviendas|anuncios|resultados)/i)
 })
@@ -154,7 +155,7 @@ test('menu keeps deleted sections absent and settings rows work without restarti
   await expect(page.getByText('Settings', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /Language English/ })).toBeVisible()
 
-  await page.getByRole('button', { name: /Search region España \(Tenerife\)/ }).click()
+  await page.getByRole('button', { name: /Search region España/ }).click()
   await expect(page.getByText('Select the region where you are looking for or own a property')).toBeVisible()
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('Settings', { exact: true })).toBeVisible()
@@ -183,7 +184,7 @@ for (const viewport of [
     const occupantDialog = page.getByRole('dialog')
     await expect(occupantDialog).toBeVisible()
     await occupantDialog.locator('button[aria-label="Cerrar"]:visible, button[aria-label="Close"]:visible').first().click()
-    await page.getByRole('button', { name: 'Buscar en Tenerife' }).click()
+    await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
     await expectNoHorizontalOverflow(page)
     await page.getByTestId('draw-zone').click()
     await expectNoHorizontalOverflow(page)
