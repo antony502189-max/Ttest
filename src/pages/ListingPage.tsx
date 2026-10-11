@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { ContactPanel, PriceBlock, PropertyBadge, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
+import { ContactPanel, PriceBlock, PropertyCard, PropertyGallery, ReportDialog } from '@/components/marketplace'
+import { ListingConditionChips } from '@/components/listing-condition-chips'
 import { ListingLocationSection } from '@/components/listing-location-section'
 import { UserReportDialog } from '@/components/user-report-dialog'
 import { useApp } from '@/contexts/app-context'
@@ -179,7 +180,7 @@ export function ListingPage() {
           <Separator />
           <section className="listing-section"><h2>Equipamiento</h2><div className="amenities-grid">{listing.amenities.map((amenity) => <span key={amenity}><Check />{amenity}</span>)}</div></section>
           <Separator />
-          <section className="listing-section conditions-block"><h2>Normas y convivencia</h2><p>Todas las condiciones están visibles antes del contacto.</p><div className="badge-row badge-row--large">{criticalRestrictions.map((item) => <PropertyBadge key={item}>{item}</PropertyBadge>)}</div></section>
+          <section className="listing-section conditions-block"><h2>Normas y convivencia</h2><p>Todas las condiciones están visibles antes del contacto.</p><ListingConditionChips conditions={criticalRestrictions} /></section>
           <Separator />
           <section className="listing-section"><h2>Precio y disponibilidad</h2><dl className="detail-list"><div><dt>Renta</dt><dd>{getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}</dd></div>{listing.rentalMode === 'holiday' && listing.weeklyPrice ? <div><dt>Semana</dt><dd>{listing.weeklyPrice} €</dd></div> : null}{listing.rentalMode === 'holiday' && listing.monthlyPrice ? <div><dt>Mes</dt><dd>{listing.monthlyPrice} €</dd></div> : null}<div><dt>Gastos</dt><dd>{listing.bills}</dd></div><div><dt>Fianza</dt><dd>{listing.deposit}</dd></div><div><dt>Disponible desde</dt><dd>{listing.availableFrom}</dd></div><div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? 'Sin fecha final'}</dd></div><div><dt>Estancia mínima</dt><dd>{listing.minimumStay}</dd></div></dl></section>
           <Separator />

@@ -1,0 +1,116 @@
+/* Listing-detail-only treatment matching the customer-approved rounded condition pills.
+   Search cards and other PropertyBadge variants deliberately keep their styling. */
+.idealista-listing-page .conditions-block {
+  margin: 0;
+  padding: clamp(1rem, 3.2vw, 1.4rem);
+  border: 1px solid #efdfd1;
+  border-radius: .85rem;
+  background: #fffaf6;
+  box-shadow: 0 1px 4px rgb(98 69 44 / .06);
+}
+
+.idealista-listing-page .conditions-block > p {
+  margin-top: .55rem;
+  color: var(--ink-muted);
+  line-height: 1.55;
+}
+
+.idealista-listing-page .listing-conditions {
+  display: grid;
+  grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
+  align-items: stretch;
+  gap: .65rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.idealista-listing-page .listing-condition-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: .65rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  min-height: 3.4rem;
+  padding: .7rem 1.05rem;
+  border: 1px solid #e8aaa3;
+  border-radius: 999px;
+  background: #fff0ee;
+  color: #8b3028;
+  box-shadow: 0 2px 5px rgb(101 48 30 / .07);
+  font-family: inherit;
+  font-size: clamp(.8rem, 2.7vw, .95rem);
+  font-weight: 720;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.idealista-listing-page .listing-condition-chip > svg {
+  display: block;
+  flex: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  stroke-width: 2;
+}
+
+.idealista-listing-page .listing-condition-chip > span {
+  min-width: 0;
+}
+
+.idealista-listing-page .listing-condition-chip--neutral {
+  border-color: #b9bdc1;
+  background: #f3f4f5;
+  color: #24292f;
+}
+
+.idealista-listing-page .listing-condition-chip--positive {
+  border-color: #76cfa0;
+  background: #e8f8ed;
+  color: #087c50;
+}
+
+/* Longer lines get their own generous pill, like the supplied reference.
+   On 320px screens their width is capped by the card, never the viewport. */
+.idealista-listing-page .listing-condition-chip--wide {
+  grid-column: 1 / -1;
+  width: min(100%, 20.5rem);
+}
+
+@media (min-width: 768px) {
+  .idealista-listing-page .listing-conditions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .idealista-listing-page .listing-condition-chip {
+    width: auto;
+  }
+}
+
+@media (max-width: 359px) {
+  .idealista-listing-page .listing-conditions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .idealista-listing-page .listing-condition-chip--wide {
+    grid-column: auto;
+  }
+
+  .idealista-listing-page .conditions-block {
+    padding: .9rem;
+  }
+
+  .idealista-listing-page .listing-conditions {
+    gap: .6rem;
+  }
+
+  .idealista-listing-page .listing-condition-chip {
+    min-height: 3.15rem;
+    gap: .5rem;
+    padding: .65rem .8rem;
+  }
+}
