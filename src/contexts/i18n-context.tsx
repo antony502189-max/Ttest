@@ -6,6 +6,22 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Más': { ru: 'Ещё', en: 'More' },
+  'Resumen de anuncios': { ru: 'Сводка по объявлениям', en: 'Listing summary' },
+  'Publicados': { ru: 'Опубликовано', en: 'Published' },
+  'Visualizaciones': { ru: 'Просмотры', en: 'Views' },
+  'Total de anuncios': { ru: 'Всего объявлений', en: 'Total listings' },
+  'Más visibilidad para tu anuncio': { ru: 'Увеличьте видимость объявления', en: 'Give your listing more visibility' },
+  'Cerrado por el anunciante.': { ru: 'Закрыто владельцем.', en: 'Closed by the owner.' },
+  'fotos': { ru: 'фотографий', en: 'photos' },
+  'No hay anuncios en este estado': { ru: 'Нет объявлений с этим статусом', en: 'No listings with this status' },
+  'Crea uno nuevo o cambia el filtro.': { ru: 'Создайте объявление или выберите другой статус.', en: 'Create a listing or select another status.' },
+  'Anuncio publicado de nuevo': { ru: 'Объявление опубликовано повторно', en: 'Listing published again' },
+  'Anuncio enviado a revisión': { ru: 'Объявление отправлено на проверку', en: 'Listing sent for review' },
+  'Anuncio cerrado': { ru: 'Объявление закрыто', en: 'Listing closed' },
+  'Volver a publicar': { ru: 'Опубликовать снова', en: 'Publish again' },
+  'Cerrar anuncio': { ru: 'Закрыть объявление', en: 'Close listing' },
+  'anuncios': { ru: 'объявлений', en: 'listings' },
   'Cargando 112233.es…': { ru: 'Загрузка 112233.es…', en: 'Loading 112233.es…' },
   'Cargando usuarios…': { ru: 'Загрузка пользователей…', en: 'Loading users…' },
   'Cargando anuncios relacionados…': { ru: 'Загрузка связанных объявлений…', en: 'Loading related listings…' },
