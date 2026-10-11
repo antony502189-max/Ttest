@@ -310,6 +310,16 @@ export function SearchPage() {
     setParams(next, { replace });
   };
   const commitBounds = (bounds: MapBounds | null) => {
+    // A map search button pressed after drawing must not replace the polygon
+    // with the broader visible viewport. Show the scoped list on mobile.
+    if (bounds && searchGeographyFromParams(params).polygon) {
+      if (isMobile) updateParams((next) => {
+        next.delete('vista');
+        next.delete('pagina');
+        next.delete('cursor');
+      }, true);
+      return;
+    }
     if (bounds) {
       setMapPolygon([]);
       if (filters.areas.length) setFilters({ ...filters, areas: [] });
