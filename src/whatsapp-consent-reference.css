@@ -58,7 +58,6 @@
   body .idealista-listing-page .mobile-contact-bar:has(.condition-confirm--whatsapp)
     :is(.condition-confirm--whatsapp) {
     box-sizing: border-box;
-    display: grid;
     grid-template-columns: clamp(2.65rem, 12vw, 3.4rem) 1.35rem minmax(0, 1fr) 1.25rem;
     align-items: center;
     gap: clamp(.24rem, 1.3vw, .48rem);
