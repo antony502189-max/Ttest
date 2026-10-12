@@ -1391,13 +1391,22 @@ export function ContactPanel({
           </div>
         </>
       )}
-      <label className="condition-confirm" htmlFor={checkboxId}>
+      <label
+        className={cn("condition-confirm", listing.showWhatsApp && listing.contactWhatsapp && "condition-confirm--whatsapp")}
+        htmlFor={checkboxId}
+      >
         <Checkbox
           id={checkboxId}
           checked={confirmed}
           onCheckedChange={(value) => setConfirmed(value === true)}
         />
-        <span>{confirmationText}</span>
+        {listing.showWhatsApp && listing.contactWhatsapp ? (
+          <svg className="condition-confirm__whatsapp" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <path d="M16 3a13 13 0 0 0-11.15 19.69L3 29l6.43-1.7A13 13 0 1 0 16 3Z" fill="#087c3f" />
+            <path d="M10.4 9.2c.7-.42 1.14.6 1.8 1.92.28.54.2.78-.34 1.35-.2.22-.35.41-.4.56.72 1.44 2.13 2.83 3.57 3.55.18-.06.42-.29.63-.49.45-.45.7-.57 1.2-.32l1.96 1.09c.8.44.22 1.52-.4 2.05-1.13.96-2.75.94-4.95-.15-2.68-1.31-5.24-3.85-6.03-6.5-.36-1.2.49-2.36 1.52-3.06.46-.31 1.06-.3 1.44 0Z" fill="#fff" />
+          </svg>
+        ) : null}
+        <span className="condition-confirm__text">{confirmationText}</span>
       </label>
       <div className="contact-actions">
         {listing.showWhatsApp && listing.contactWhatsapp ? <Button asChild={confirmed} disabled={!confirmed}>
