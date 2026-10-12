@@ -196,7 +196,7 @@ for (const width of [320, 360, 390, 468]) {
     await expect(arrow).toBeVisible()
     await expect(arrow).toHaveAttribute('aria-hidden', 'true')
     await expect(copy.locator('.condition-confirm__lead')).toHaveText('Confirmo que cumplo estas condiciones:')
-    await expect(copy).toContainText('solo hombre')
+    await expect(copy).toContainText(/solo mujer/i)
     await expect(checkbox).toHaveAttribute('aria-checked', 'false')
     await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveCount(0)
 
