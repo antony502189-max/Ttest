@@ -1296,6 +1296,8 @@ Object.assign(translations, {
   'Sin pagar': { ru: 'Не оплачено', en: 'Unpaid' },
   'Cancelar': { ru: 'Отменить', en: 'Cancel' },
   'Todavía no tienes campañas publicitarias.': { ru: 'У вас пока нет рекламных кампаний.', en: 'You have no advertising campaigns yet.' },
+  'Cargando campañas…': { ru: 'Загружаем рекламные кампании…', en: 'Loading advertising campaigns…' },
+  'La imagen supera el límite de 8 MB. Elige un archivo más pequeño.': { ru: 'Изображение превышает лимит 8 МБ. Выберите файл меньшего размера.', en: 'The image exceeds the 8 MB limit. Choose a smaller file.' },
   'Moderación de publicidad': { ru: 'Модерация рекламы', en: 'Advertising moderation' },
   'Estado': { ru: 'Статус', en: 'Status' },
   'Todos': { ru: 'Все', en: 'All' },
