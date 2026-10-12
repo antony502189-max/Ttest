@@ -109,7 +109,8 @@ test.describe('classic owner cards with focused TOP controls', () => {
       localStorage.setItem('112233:mobile-onboarding:v1', 'done')
       return target.id as string
     })
-    await page.goto('/#/mis-anuncios')
+    // Load a fresh document so the app hydrates the seeded owner and TOP state.
+    await page.goto('/?owner-top-status=1#/mis-anuncios')
     const card = page.locator(`.manage-card[data-listing-id="${listingId}"]`)
     await expect(card).toBeVisible()
     const status = card.getByTestId('owner-top-status')
