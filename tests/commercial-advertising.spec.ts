@@ -114,6 +114,30 @@ test('authenticated mobile advertising entry stays inside the existing menu row 
   await expect(page).toHaveURL(/#\/mis-campanas$/)
 })
 
+test('campaign page back arrow returns directly to home in Russian on narrow mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:language:v1', 'ru')
+  })
+  await page.route('**/api/v1/advertisements/mine', (route) => route.fulfill({ json: [] }))
+  await page.goto('/#/mis-campanas')
+  await expect(page.getByRole('heading', { name: 'Мои кампании' })).toBeVisible()
+
+  const back = page.getByRole('link', { name: 'Вернуться на главную' })
+  await expect(back).toBeVisible()
+  await expect(back).toHaveAttribute('href', '#/')
+  const bounds = await back.boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds!.width).toBeGreaterThanOrEqual(44)
+  expect(bounds!.height).toBeGreaterThanOrEqual(44)
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320)
+
+  await back.click()
+  await expect(page).toHaveURL(/#\/$/)
+  await expect(page.getByRole('heading', { name: 'Мои кампании' })).toHaveCount(0)
+})
+
 test('mobile campaign page bottom navigation spans the viewport and every tab routes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
