@@ -220,6 +220,11 @@
   .idealista-listing-page .mobile-contact-bar:has(.contact-actions [data-slot="button"]:disabled):not(:has(.contact-actions [data-slot="button"]:not(:disabled))) .condition-confirm {
     display: flex;
   }
+  /* Keep the new checkbox / WhatsApp / text columns when this mobile rule
+     restores the confirmation row; the generic flex fallback would overlap it. */
+  .idealista-listing-page .mobile-contact-bar:has(.contact-actions [data-slot="button"]:disabled):not(:has(.contact-actions [data-slot="button"]:not(:disabled))) .condition-confirm--whatsapp {
+    display: grid;
+  }
 
   /* The terminal mobile cascade intentionally hides the first CTA when other
      contact methods exist. Do not let that rule hide the only available CTA
