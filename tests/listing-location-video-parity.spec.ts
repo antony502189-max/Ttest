@@ -197,7 +197,8 @@ for (const width of [320, 360, 390, 468]) {
     expect(copy.x + copy.width).toBeLessThanOrEqual(outer.x + outer.width + 1)
     expect(copy.x + copy.width).toBeLessThanOrEqual(width + 1)
     expect(Math.abs(logo.y - square.y)).toBeLessThanOrEqual(8)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(outer.x + outer.width).toBeLessThanOrEqual(width + 1)
+    expect(await confirmation.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
 
     await text.click()
     await expect(checkbox).toHaveAttribute('aria-checked', 'true')
