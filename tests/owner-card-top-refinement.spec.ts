@@ -91,6 +91,13 @@ test.describe('classic owner cards with focused TOP controls', () => {
       await expect(rocket).toHaveCSS('background-color', 'rgb(255, 230, 233)')
       await expect(rocket.locator('svg.owner-top-action__face')).toBeVisible()
       await expect(rocket.locator('svg.owner-top-rocket')).toHaveAttribute('data-top-rocket-active', 'false')
+      const idle = rocket.locator('svg.owner-top-rocket')
+      await expect(idle).toHaveCSS('animation-name', 'none')
+      const idleAngle = await idle.evaluate((element) => {
+        const matrix = new DOMMatrix(getComputedStyle(element).transform)
+        return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI)
+      })
+      expect(idleAngle).toBeCloseTo(-45, 1)
     })
   }
 
@@ -122,6 +129,15 @@ test.describe('classic owner cards with focused TOP controls', () => {
     await expect(action).toHaveCSS('background-color', 'rgb(209, 248, 205)')
     await expect(action.locator('svg.owner-top-action__face')).toBeVisible()
     await expect(action.locator('svg.owner-top-rocket')).toHaveAttribute('data-top-rocket-active', 'true')
+    const activeRocket = action.locator('svg.owner-top-rocket')
+    await expect(activeRocket).toHaveCSS('animation-name', 'owner-top-reference-flight')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await expect(activeRocket).toHaveCSS('animation-name', 'none')
+    const activeAngle = await activeRocket.evaluate((element) => {
+      const matrix = new DOMMatrix(getComputedStyle(element).transform)
+      return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI)
+    })
+    expect(activeAngle).toBeCloseTo(0, 1)
     await expect(card.getByTestId('owner-top-promote-button')).toHaveCount(0)
     await action.click()
     await expect(page.locator(`[data-testid="owner-top-option"][data-listing-id="${listingId}"]`)).toHaveClass(/is-selected/)
