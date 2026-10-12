@@ -169,6 +169,54 @@ test('preview keeps Android Google tile rows contiguous and outside responsive i
   })
 })
 
+for (const width of [320, 360, 390, 468]) {
+  test(`WhatsApp confirmation icon keeps text aligned at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await patchInternalListingContacts(page, {
+      showPhone: false,
+      showWhatsApp: true,
+      contactPhone: '',
+      contactWhatsapp: '+34 688 888 888',
+    })
+    await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+
+    const confirmation = page.locator('.mobile-contact-bar .condition-confirm')
+    const checkbox = confirmation.locator('[data-slot="checkbox"]')
+    const icon = confirmation.locator('svg.condition-confirm__whatsapp')
+    const text = confirmation.locator('.condition-confirm__text')
+    await expect(confirmation).toBeVisible()
+    await expect(confirmation).toHaveClass(/condition-confirm--whatsapp/)
+    await expect(icon).toBeVisible()
+    await expect(icon).toHaveAttribute('aria-hidden', 'true')
+    await expect(text).toContainText('Confirmo que cumplo estas condiciones:')
+    const boxes = await Promise.all([confirmation, checkbox, icon, text].map(async (element) => element.boundingBox()))
+    for (const box of boxes) expect(box).not.toBeNull()
+    const [outer, square, logo, copy] = boxes.map((box) => box!)
+    expect(logo.x).toBeGreaterThanOrEqual(square.x + square.width)
+    expect(copy.x).toBeGreaterThanOrEqual(logo.x + logo.width)
+    expect(copy.x + copy.width).toBeLessThanOrEqual(outer.x + outer.width + 1)
+    expect(copy.x + copy.width).toBeLessThanOrEqual(width + 1)
+    expect(Math.abs(logo.y - square.y)).toBeLessThanOrEqual(8)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
+    await text.click()
+    await expect(checkbox).toHaveAttribute('aria-checked', 'true')
+    await expect(page.locator('.mobile-contact-bar a[href^="https://wa.me/"]')).toHaveAttribute('href', /34688888888/)
+  })
+}
+
+test('no WhatsApp logo appears for a listing without a WhatsApp contact', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await patchInternalListingContacts(page, {
+    showPhone: true,
+    showWhatsApp: false,
+    contactPhone: '+34 699 999 999',
+    contactWhatsapp: '',
+  })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+  await expect(page.locator('.contact-panel .condition-confirm__whatsapp')).toHaveCount(0)
+})
+
 test('mobile WhatsApp-only listing keeps the floating confirmation highlighted like the lime action bar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await patchInternalListingContacts(page, {
