@@ -233,3 +233,178 @@ body .owner-listings-page .owner-top-promote-button:hover {
     animation: none;
   }
 }
+
+
+/* Customer-approved owner-card visual parity, 2026-10-12.
+   Palette sampled from the supplied screenshot; selectors stay owner-only.
+   Keep original 3-column geometry, title, location, media and business actions. */
+.owner-listings-page .manage-card {
+  border-color: #ececec;
+}
+.owner-listings-page .manage-actions .owner-manage-action {
+  border-radius: .88rem !important;
+  font-weight: 750;
+  box-shadow: none !important;
+}
+.owner-listings-page .manage-actions .owner-manage-action--edit {
+  background: #daf4f4 !important;
+  border-color: #cfedf1 !important;
+  color: #06728a !important;
+}
+.owner-listings-page .manage-actions .owner-manage-action--delete {
+  background: #ffebec !important;
+  border-color: #f7dde0 !important;
+  color: #be334e !important;
+}
+.owner-listings-page .manage-actions .owner-manage-action--more {
+  background: #ededed !important;
+  border-color: #e6e6e6 !important;
+  color: #484848 !important;
+}
+.owner-listings-page .manage-actions .owner-manage-action:hover {
+  filter: brightness(.975);
+}
+
+/* Match the customer reference: status is a simple text-only capsule.
+   The face illustrations belong in the corresponding action button. */
+.owner-listings-page .owner-top-state {
+  min-height: 3rem;
+  margin-top: .48rem;
+  padding: .52rem .65rem .52rem 1.85rem;
+  border-radius: .72rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .03);
+}
+.owner-listings-page .owner-top-state--inactive {
+  background: #f3f3f3;
+  border-color: #e6e6e6;
+  color: #535353;
+}
+.owner-listings-page .owner-top-state--active {
+  background: #e1f7e1;
+  border-color: #d8efd8;
+  color: #08713d;
+}
+.owner-listings-page .owner-top-state__copy {
+  gap: .12rem;
+}
+.owner-listings-page .owner-top-state__copy strong {
+  color: inherit;
+  font-weight: 800;
+  font-size: .8rem;
+}
+.owner-listings-page .owner-top-state__copy small {
+  color: #686868;
+  font-size: .73rem;
+  line-height: 1.3;
+}
+.owner-listings-page .owner-top-state--active .owner-top-state__copy small {
+  color: #5d705f;
+}
+
+/* Explicit body qualifier wins over the old generic promotional button CSS. */
+body .owner-listings-page .owner-top-action,
+body .owner-listings-page .owner-top-promote-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .38rem;
+  width: 100%;
+  min-height: 2.95rem;
+  margin-top: .46rem;
+  padding: .36rem .48rem !important;
+  border-radius: .72rem !important;
+  box-shadow: 0 1px 3px rgb(0 0 0 / .04) !important;
+  font-size: .79rem !important;
+  font-weight: 830 !important;
+  line-height: 1.1 !important;
+  white-space: normal;
+}
+body .owner-listings-page .owner-top-action--inactive,
+body .owner-listings-page .owner-top-promote-button.owner-top-action--inactive {
+  background: #ffe6e9 !important;
+  border: 1px solid #efb3bf !important;
+  color: #af143c !important;
+}
+body .owner-listings-page .owner-top-action--inactive:hover,
+body .owner-listings-page .owner-top-promote-button.owner-top-action--inactive:hover {
+  background: #ffdce2 !important;
+  border-color: #e78da3 !important;
+}
+body .owner-listings-page .owner-top-action--active {
+  background: #d1f8cd !important;
+  border: 1px solid #81dc97 !important;
+  color: #076b36 !important;
+}
+body .owner-listings-page .owner-top-action--active:hover {
+  background: #c5f5bf !important;
+  border-color: #5bcb7d !important;
+}
+.owner-listings-page .owner-top-action__face {
+  width: 1.65rem;
+  height: 1.65rem;
+  flex: none;
+  stroke-width: 2.15;
+}
+.owner-listings-page .owner-top-action__label {
+  min-width: 0;
+  flex: 0 1 auto;
+  font-weight: 830;
+}
+.owner-listings-page .owner-top-action .owner-top-rocket {
+  display: block;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: none;
+  overflow: visible;
+  stroke-width: initial;
+}
+.owner-listings-page .owner-top-action--active .owner-top-rocket {
+  transform-origin: center;
+  animation: owner-top-reference-flight 2.9s ease-in-out infinite;
+}
+@keyframes owner-top-reference-flight {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(2px, -2px) rotate(4deg); }
+}
+/* Keep our CSS responsive rather than copy fixed screenshot pixel positions. */
+@media (max-width: 767px) {
+  .owner-listings-page .owner-top-state {
+    min-height: 3.05rem;
+    padding: .48rem .42rem .48rem clamp(.8rem, 6vw, 1.85rem);
+  }
+  body .owner-listings-page .owner-top-action,
+  body .owner-listings-page .owner-top-promote-button {
+    min-height: 2.85rem;
+    padding: .3rem .22rem !important;
+    gap: .28rem;
+    font-size: .72rem !important;
+  }
+  .owner-listings-page .owner-top-action__face {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+  .owner-listings-page .owner-top-action .owner-top-rocket {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+@media (max-width: 360px) {
+  .owner-listings-page .owner-top-action__face {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+  .owner-listings-page .owner-top-action .owner-top-rocket {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  body .owner-listings-page .owner-top-action,
+  body .owner-listings-page .owner-top-promote-button {
+    gap: .12rem;
+    font-size: .64rem !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .owner-listings-page .owner-top-action--active .owner-top-rocket {
+    animation: none;
+  }
+}
