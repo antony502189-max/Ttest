@@ -225,7 +225,7 @@ test('ROOM-01..04 and MODE-01..03 migrated room and rental models render consist
 test('CONTACT-01..06 confirmation gates direct channels and internal messaging stays unavailable', async ({ page }) => {
   await page.goto(`/#/habitacion/${encodeURIComponent(firstListingId)}`)
   await expect(page.locator('.property-card').first()).not.toContainText('+34 600 112 233')
-  const confirmation = page.getByText(/Confirmo que cumplo estas condiciones/).first()
+  const confirmation = page.locator('.contact-panel .condition-confirm__text').first()
   await expect(confirmation).toContainText(/solo mujer/i)
   await expect(confirmation).toContainText(/habitación para 1 persona/i)
   await expect(page.getByRole('button', { name: /Mostrar teléfono/ })).toBeDisabled()
