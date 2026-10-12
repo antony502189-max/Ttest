@@ -75,11 +75,11 @@ test('My campaigns does not flash the empty-state while the owner request is loa
     await route.fulfill({ json: [] })
   })
   await page.goto('/#/mis-campanas')
-  await expect(page.getByRole('status', { name: 'Cargando campañas…' })).toBeVisible()
+  await expect(page.locator('.ad-flow [role="status"]')).toBeVisible()
   await expect(page.getByText('Todavía no tienes campañas publicitarias.')).toHaveCount(0)
   send?.()
   await expect(page.getByText('Todavía no tienes campañas publicitarias.')).toBeVisible()
-  await expect(page.getByRole('status', { name: 'Cargando campañas…' })).toHaveCount(0)
+  await expect(page.locator('.ad-flow [role="status"]')).toHaveCount(0)
 })
 
 test('campaign list exposes retry after a failed load', async ({ page }) => {
