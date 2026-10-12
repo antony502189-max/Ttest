@@ -45,7 +45,6 @@
   stroke: currentColor;
   stroke-width: 3.3;
   justify-self: center;
-  pointer-events: none;
 }
 .condition-confirm--whatsapp:focus-within {
   outline: 2px solid #147b42;
