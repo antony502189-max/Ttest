@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
-  cancelAdvertisement, completeAdTestPayment, createAdCheckout, createAdvertisement,
+  cancelAdvertisement, createAdCheckout, createAdvertisement,
   getAdvertisement, getMyAdvertisements, updateAdvertisement, uploadAdvertisementImage,
   type AdvertisementDetail, type AdvertisementWrite, type DestinationType,
 } from '@/api/commercial-advertisements'
@@ -54,14 +54,14 @@ export function AdvertisementEditorPage() {
   const submit = (event: FormEvent) => { event.preventDefault(); setError(''); setPreview(true) }
   return <div className="ad-flow"><Link to="/mis-campanas" className="ad-flow__back"><ArrowLeft />{t('Mis campañas')}</Link><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t(id ? 'Editar publicidad' : 'Crear publicidad')}</h1><p>{t('Tu campaña será revisada antes de aparecer en la portada.')}</p></div>
     {error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}
-    {preview ? <section className="ad-flow__panel" aria-label={t('Vista previa')}><h2>{t('Vista previa')}</h2><div className="ad-flow__preview">{filePreview ? <img data-i18n-exempt src={filePreview} alt={form.title} /> : form.imageAssetId ? <CommercialAdvertisementImage path={imagePath} title={form.title} /> : null}<div><small>{t('Publicidad')}</small><h3 data-i18n-exempt>{form.title}</h3><p data-i18n-exempt>{form.description}</p><span>{form.destination}</span></div></div><div className="ad-flow__actions"><button type="button" className="ad-flow__secondary" onClick={() => setPreview(false)}>{t('Volver a editar')}</button><button type="button" disabled={busy} onClick={() => { void save() }}>{t(existing?.paymentStatus === 'paid' && existing.status !== 'expired' ? 'Enviar a revisión' : 'Continuar al pago de prueba')}</button></div></section> : <form className="ad-flow__panel ad-flow__form" onSubmit={submit}>
+    {preview ? <section className="ad-flow__panel" aria-label={t('Vista previa')}><h2>{t('Vista previa')}</h2><div className="ad-flow__preview">{filePreview ? <img data-i18n-exempt src={filePreview} alt={form.title} /> : form.imageAssetId ? <CommercialAdvertisementImage path={imagePath} title={form.title} /> : null}<div><small>{t('Publicidad')}</small><h3 data-i18n-exempt>{form.title}</h3><p data-i18n-exempt>{form.description}</p><span>{form.destination}</span></div></div><div className="ad-flow__actions"><button type="button" className="ad-flow__secondary" onClick={() => setPreview(false)}>{t('Volver a editar')}</button><button type="button" disabled={busy} onClick={() => { void save() }}>{t(existing?.paymentStatus === 'paid' && existing.status !== 'expired' ? 'Enviar a revisión' : 'Continuar al pago')}</button></div></section> : <form className="ad-flow__panel ad-flow__form" onSubmit={submit}>
       <label>{t('Imagen publicitaria')}<input type="file" accept="image/jpeg,image/png,image/webp" required={!form.imageAssetId} disabled={busy} aria-invalid={Boolean(fieldErrors.imageAssetId)} aria-describedby={fieldErrors.imageAssetId ? 'ad-image-error' : undefined} onChange={(event) => { void chooseFile(event.target.files?.[0]) }} />{fieldErrors.imageAssetId ? <small id="ad-image-error">{t(fieldErrors.imageAssetId)}</small> : null}</label>
       {filePreview ? <img className="ad-flow__uploaded" src={filePreview} alt={t('Vista previa de la imagen')} /> : existing ? <CommercialAdvertisementImage path={existing.imageUrl} title={existing.title} /> : null}
       <label>{t('Título')}<input value={form.title} maxLength={90} minLength={3} required aria-invalid={Boolean(fieldErrors.title)} aria-describedby={fieldErrors.title ? 'ad-title-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} />{fieldErrors.title ? <small id="ad-title-error">{t(fieldErrors.title)}</small> : null}</label>
       <label>{t('Descripción')}<textarea value={form.description} maxLength={300} minLength={10} required rows={4} aria-invalid={Boolean(fieldErrors.description)} aria-describedby={fieldErrors.description ? 'ad-description-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, description: event.target.value }))} />{fieldErrors.description ? <small id="ad-description-error">{t(fieldErrors.description)}</small> : null}</label>
       <label>{t('Tipo de contacto')}<select value={form.destinationType} onChange={(event) => setForm((previous) => ({ ...previous, destinationType: event.target.value as DestinationType, destination: '' }))}><option value="website">{t('Sitio web')}</option><option value="whatsapp">WhatsApp</option><option value="phone">{t('Teléfono')}</option><option value="email">Email</option></select></label>
       <label>{t(form.destinationType === 'website' ? 'Enlace web' : form.destinationType === 'email' ? 'Correo electrónico' : 'Número de teléfono')}<input value={form.destination} type={form.destinationType === 'email' ? 'email' : form.destinationType === 'website' ? 'url' : 'tel'} required placeholder={form.destinationType === 'website' ? 'https://ejemplo.es' : undefined} aria-invalid={Boolean(fieldErrors.destination)} aria-describedby={fieldErrors.destination ? 'ad-destination-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, destination: event.target.value }))} />{fieldErrors.destination ? <small id="ad-destination-error">{t(fieldErrors.destination)}</small> : null}</label>
-      <p className="ad-flow__notice">{t('Paquete de prueba · 30 días. No se realizará ningún cargo.')}</p><button type="submit" disabled={busy || !form.imageAssetId}>{t('Vista previa')}</button>
+      <p className="ad-flow__notice">{t('Publicidad · 30 días. El importe se mostrará antes de pagar.')}</p><button type="submit" disabled={busy || !form.imageAssetId}>{t('Vista previa')}</button>
     </form>}
   </div>
 }
@@ -69,25 +69,28 @@ export function AdvertisementEditorPage() {
 export function AdvertisementCheckoutPage() {
   const { id } = useParams()
   const { t } = useI18n()
-  const navigate = useNavigate()
+  const paymentReturn = new URLSearchParams(window.location.search).get('payment') === 'return'
   const [ad, setAd] = useState<AdvertisementDetail | null>(null)
   const [price, setPrice] = useState('')
+  const [checkoutUrl, setCheckoutUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => {
     if (!id) return
     void getAdvertisement(id).then((item) => {
       setAd(item)
-      if (item.status === 'pending_payment') void createAdCheckout(id).then((checkout) => setPrice(checkout.displayPrice)).catch((reason: Error) => setError(reason.message))
+      if (item.status === 'pending_payment' && !paymentReturn) void createAdCheckout(id).then((checkout) => {
+        setPrice(new Intl.NumberFormat('es-ES', { style: 'currency', currency: checkout.currency }).format(checkout.amountCents / 100))
+        setCheckoutUrl(checkout.url)
+      }).catch((reason: Error) => setError(reason.message))
     }).catch((reason: Error) => setError(reason.message))
-  }, [id])
-  const complete = async () => {
-    if (!id) return
-    setBusy(true); setError('')
-    try { await completeAdTestPayment(id); navigate('/mis-campanas', { replace: true }) }
-    catch (reason) { setError((reason as Error).message); setBusy(false) }
-  }
-  return <div className="ad-flow"><Link to="/mis-campanas" className="ad-flow__back"><ArrowLeft />{t('Mis campañas')}</Link><div className="ad-flow__heading"><span>{t('Pago de prueba')}</span><h1>{t('Confirmar publicidad')}</h1></div>{error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}{ad ? <section className="ad-flow__panel"><div className="ad-flow__preview"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><small>{t('Publicidad')}</small><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p></div></div><p>{t('Paquete de prueba · 30 días. No se realizará ningún cargo.')}</p><p>{price ? t(price) : t('Pago de prueba')}</p>{ad.status === 'pending_payment' ? <button type="button" disabled={busy || !price} onClick={() => { void complete() }}>{t('Simular pago')}</button> : <p role="status">{t('Pago completado · pendiente de revisión')}</p>}</section> : null}</div>
+    if (paymentReturn) {
+      const timer = window.setInterval(() => { void getAdvertisement(id).then(setAd).catch(() => undefined) }, 3000)
+      const stop = window.setTimeout(() => window.clearInterval(timer), 30000)
+      return () => { window.clearInterval(timer); window.clearTimeout(stop) }
+    }
+  }, [id, paymentReturn])
+  return <div className="ad-flow"><Link to="/mis-campanas" className="ad-flow__back"><ArrowLeft />{t('Mis campañas')}</Link><div className="ad-flow__heading"><span>{t('Pago')}</span><h1>{t('Confirmar publicidad')}</h1></div>{error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}{ad ? <section className="ad-flow__panel"><div className="ad-flow__preview"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><small>{t('Publicidad')}</small><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p></div></div><p>{t('Publicidad · 30 días')}</p><p>{!paymentReturn ? (price || t('Cargando precio…')) : null}</p>{ad.status === 'pending_payment' && paymentReturn ? <p role="status">{t('Estamos confirmando el pago. Puedes consultar tus campañas en unos segundos.')}</p> : ad.status === 'pending_payment' ? <button type="button" disabled={busy || !checkoutUrl} onClick={() => { setBusy(true); window.location.assign(checkoutUrl) }}>{t('Pagar con Stripe')}</button> : <p role="status">{t('Pago confirmado · pendiente de revisión')}</p>}</section> : null}</div>
 }
 
 export function MyAdvertisementPage() {
@@ -97,5 +100,5 @@ export function MyAdvertisementPage() {
   const reload = () => void getMyAdvertisements().then(setItems).catch((reason: Error) => setError(reason.message))
   useEffect(reload, [])
   const cancel = async (id: string) => { try { await cancelAdvertisement(id); reload() } catch (reason) { setError((reason as Error).message) } }
-  return <div className="ad-flow"><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t('Mis campañas')}</h1><p>{t('Gestiona tus anuncios publicitarios por separado de tus viviendas.')}</p></div><Link className="ad-flow__button" to="/publicidad/nueva">{t('Crear publicidad')}</Link>{error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}<div className="ad-flow__list">{items.map((ad) => <article key={ad.id} className="ad-flow__panel ad-flow__row"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><h2 data-i18n-exempt>{ad.title}</h2><p>{t(advertisementStatusSource(ad.status, ad.endsAt))} · {t(ad.paymentStatus === 'paid' ? 'Pagado (prueba)' : 'Sin pagar')}</p><small>{new Date(ad.createdAt).toLocaleDateString(locale)} {ad.startsAt ? ` · ${new Date(ad.startsAt).toLocaleDateString(locale)} – ${ad.endsAt ? new Date(ad.endsAt).toLocaleDateString(locale) : '∞'}` : ''}</small>{ad.moderationNote ? <p data-i18n-exempt>{ad.moderationNote}</p> : null}<div className="ad-flow__actions">{ad.status !== 'cancelled' ? <Link to={`/publicidad/${ad.id}/editar`}>{t('Editar')}</Link> : null}{ad.status === 'pending_payment' ? <Link to={`/publicidad/${ad.id}/checkout`}>{t('Pago de prueba')}</Link> : null}{ad.status !== 'cancelled' ? <button type="button" className="ad-flow__secondary" onClick={() => { void cancel(ad.id) }}>{t('Cancelar')}</button> : null}</div></div></article>)}</div>{!items.length && !error ? <p>{t('Todavía no tienes campañas publicitarias.')}</p> : null}</div>
+  return <div className="ad-flow"><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t('Mis campañas')}</h1><p>{t('Gestiona tus anuncios publicitarios por separado de tus viviendas.')}</p></div><Link className="ad-flow__button" to="/publicidad/nueva">{t('Crear publicidad')}</Link>{error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}<div className="ad-flow__list">{items.map((ad) => <article key={ad.id} className="ad-flow__panel ad-flow__row"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p><p>{t(advertisementStatusSource(ad.status, ad.endsAt))} · {t(ad.paymentStatus === 'paid' ? 'Pagado' : 'Sin pagar')}</p><small>{new Date(ad.createdAt).toLocaleDateString(locale)} {ad.startsAt ? ` · ${new Date(ad.startsAt).toLocaleDateString(locale)} – ${ad.endsAt ? new Date(ad.endsAt).toLocaleDateString(locale) : '∞'}` : ''}</small>{ad.moderationNote ? <p data-i18n-exempt>{ad.moderationNote}</p> : null}<div className="ad-flow__actions">{ad.status !== 'cancelled' ? <Link to={`/publicidad/${ad.id}/editar`}>{t('Editar')}</Link> : null}{ad.status === 'pending_payment' ? <Link to={`/publicidad/${ad.id}/checkout`}>{t('Pagar')}</Link> : null}{ad.status !== 'cancelled' ? <button type="button" className="ad-flow__secondary" onClick={() => { void cancel(ad.id) }}>{t('Cancelar')}</button> : null}</div></div></article>)}</div>{!items.length && !error ? <p>{t('Todavía no tienes campañas publicitarias.')}</p> : null}</div>
 }

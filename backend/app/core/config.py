@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # cryptographically separated.
     email_verification_hmac_secret: str = ""
     frontend_app_url: str = "http://localhost:5173"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_live_payments_enabled: bool = False
+    advertisement_30d_price_cents: int = 3000
     frontend_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:5174,http://127.0.0.1:5174,"
@@ -265,6 +269,16 @@ class Settings(BaseSettings):
             problems.append("External import limits are invalid")
         if not 0 <= self.sentry_traces_sample_rate <= 1:
             problems.append("SENTRY_TRACES_SAMPLE_RATE must be between 0 and 1")
+        if bool(self.stripe_secret_key) != bool(self.stripe_webhook_secret):
+            problems.append("STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be configured together")
+        if self.stripe_secret_key and not self.stripe_secret_key.startswith(("sk_test_", "sk_live_")):
+            problems.append("STRIPE_SECRET_KEY must be a Stripe secret key")
+        if self.stripe_webhook_secret and not self.stripe_webhook_secret.startswith("whsec_"):
+            problems.append("STRIPE_WEBHOOK_SECRET must be a Stripe webhook signing secret")
+        if self.stripe_secret_key.startswith("sk_live_") and not self.stripe_live_payments_enabled:
+            problems.append("Live Stripe payments require STRIPE_LIVE_PAYMENTS_ENABLED=true")
+        if self.advertisement_30d_price_cents < 0:
+            problems.append("ADVERTISEMENT_30D_PRICE_CENTS cannot be negative")
 
         if self.is_production:
             if len(self.jwt_secret) < 32 or "unsafe" in self.jwt_secret or "development" in self.jwt_secret:

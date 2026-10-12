@@ -437,6 +437,7 @@ class SearchHistory(Base):
 # module registered here so autogeneration can never mistake application tables
 # for orphaned schema objects.
 from .commercial_advertisement import CommercialAdvertisement  # noqa: F401
+from .payment_order import PaymentOrder  # noqa: F401
 from .moderation import (  # noqa: F401
     AdminAccess,
     AdminNote,

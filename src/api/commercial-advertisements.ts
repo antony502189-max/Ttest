@@ -41,8 +41,7 @@ export const getAdvertisement = (id: string) => api<AdvertisementDetail>(`/adver
 export const createAdvertisement = (body: AdvertisementWrite) => api<AdvertisementDetail>('/advertisements', { method: 'POST', body: JSON.stringify(body) })
 export const updateAdvertisement = (id: string, body: AdvertisementWrite) => api<AdvertisementDetail>(`/advertisements/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
 export const cancelAdvertisement = (id: string) => api<void>(`/advertisements/${id}`, { method: 'DELETE' })
-export const createAdCheckout = (id: string) => api<{ advertisementId: string; packageId: string; displayPrice: string; paymentMode: 'test' }>(`/advertisements/${id}/checkout`, { method: 'POST' })
-export const completeAdTestPayment = (id: string) => api<AdvertisementDetail>(`/advertisements/${id}/fake-payment/complete`, { method: 'POST' })
+export const createAdCheckout = (id: string) => api<{ url: string; amountCents: number; currency: string }>(`/payments/advertisements/${id}/checkout`, { method: 'POST' })
 export const getAdminAdvertisements = (status?: string) => api<AdminAdvertisement[]>(`/admin/advertisements${status ? `?status_filter=${encodeURIComponent(status)}` : ''}`)
 export const moderateAdvertisement = (id: string, action: 'approve' | 'reject' | 'deactivate', note?: string) => api<AdvertisementDetail>(`/admin/advertisements/${id}/${action}`, { method: 'POST', body: JSON.stringify({ note: note || null }) })
 

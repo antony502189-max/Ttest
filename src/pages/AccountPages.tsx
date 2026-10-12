@@ -53,7 +53,10 @@ import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
+import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
+
+const TOP_PACKAGE_PRICES_EUR: Record<number, number> = { 1: 1, 7: 5, 30: 10 };
 
 function AccountHeader({
   eyebrow,
@@ -487,6 +490,9 @@ export function MyListingsPage() {
   const [status, setStatus] = useState("Todos");
   const [topDialogOpen, setTopDialogOpen] = useState(false);
   const [topCandidateId, setTopCandidateId] = useState("");
+  const [topDays, setTopDays] = useState(7);
+  const [topPaymentBusy, setTopPaymentBusy] = useState(false);
+  const [topPaymentError, setTopPaymentError] = useState("");
   const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
   const promotable = mine.filter((listing) => listing.status === "Publicado" && !listing.isExternal);
   const items =
@@ -500,6 +506,20 @@ export function MyListingsPage() {
     if (!candidate) return;
     setTopCandidateId(candidate.id);
     setTopDialogOpen(true);
+  };
+  const payForTop = async () => {
+    if (!topCandidateId) return;
+    setTopPaymentBusy(true);
+    setTopPaymentError("");
+    try {
+      const checkout = await api<{ url: string }>(`/payments/listings/${topCandidateId}/top/checkout`, {
+        method: "POST", body: JSON.stringify({ days: topDays }),
+      });
+      window.location.assign(checkout.url);
+    } catch (error) {
+      setTopPaymentError((error as Error).message);
+      setTopPaymentBusy(false);
+    }
   };
   return (
     <div className="owner-listings-page">
@@ -518,6 +538,9 @@ export function MyListingsPage() {
           </Button>
         }
       />
+      {new URLSearchParams(window.location.search).get("payment") === "return" ? (
+        <p role="status">{t("Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p>
+      ) : null}
       <div className="account-toolbar">
         <label htmlFor="my-listings-status">Estado</label>
         <select
@@ -752,7 +775,10 @@ export function MyListingsPage() {
           </div>
           <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
             <strong>{t("Siguiente: duración y pago")}</strong>
-            <span>{t("Elige el anuncio que quieres destacar")}</span>
+            <label>{t("Duración")}{" "}<select value={topDays} onChange={(event) => setTopDays(Number(event.target.value))}>{[1, 7, 30].map((days) => <option key={days} value={days}>{days} {t(days === 1 ? "día" : "días")}</option>)}</select></label>
+            <span>{TOP_PACKAGE_PRICES_EUR[topDays]} € · {t("Elige el anuncio que quieres destacar")}</span>
+            {topPaymentError ? <span role="alert">{topPaymentError}</span> : null}
+            <Button type="button" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
           </div>
         </DialogContent>
       </Dialog>

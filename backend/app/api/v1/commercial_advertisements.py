@@ -8,6 +8,7 @@ from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
+from ...core.config import get_settings
 from ...models import MediaAsset, User
 from ...models.commercial_advertisement import CommercialAdvertisement as Ad
 from ...schemas.commercial_advertisements import (
@@ -180,6 +181,8 @@ async def cancel_advertisement(ad_id: UUID, user: User = Depends(current_user), 
 
 @router.post("/advertisements/{ad_id}/checkout", response_model=CheckoutResponse)
 async def advertisement_checkout(ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    if get_settings().is_production or get_settings().stripe_secret_key:
+        raise HTTPException(404, "Not found")
     ad = await owned_ad(session, ad_id, user)
     display_price = payment_service.checkout(ad)
     return CheckoutResponse(advertisementId=ad.id, packageId=ad.package_id, displayPrice=display_price)
@@ -187,6 +190,8 @@ async def advertisement_checkout(ad_id: UUID, user: User = Depends(current_user)
 
 @router.post("/advertisements/{ad_id}/fake-payment/complete", response_model=AdvertisementDetail)
 async def complete_test_payment(ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    if get_settings().is_production or get_settings().stripe_secret_key:
+        raise HTTPException(404, "Not found")
     ad = await owned_ad(session, ad_id, user, lock=True)
     payment_service.complete(ad)
     await session.commit()
