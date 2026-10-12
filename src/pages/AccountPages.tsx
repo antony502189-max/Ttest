@@ -468,6 +468,33 @@ export function ProfilePage() {
   );
 }
 
+/** Fixed vector asset for both TOP states; no platform-dependent emoji artwork. */
+function OwnerTopRocket({ active }: { active: boolean }) {
+  return (
+    <svg
+      className={`owner-top-rocket ${active ? "is-launched" : "is-grounded"}`}
+      data-top-rocket-active={active ? "true" : "false"}
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M15 31 9 39l1-8-5 1 9-13 8 2" fill={active ? "#b8efd0" : "#ffe9ed"} stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M27 29 31 40l-7-4-5 8-2-13" fill={active ? "#88d8a6" : "#ffe9ed"} stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M17 31c-1-7 2-15 10-22 5-4 10-6 16-6 1 8-2 15-7 21-6 7-13 10-19 7Z" fill={active ? "#e8fff3" : "#fff3f5"} stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M30 7 40 17" stroke="currentColor" strokeWidth="2.3" />
+      <circle cx="30" cy="18" r="4" fill={active ? "#68c7e4" : "#ffced8"} stroke="currentColor" strokeWidth="2.2" />
+      <path d="m17 31-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      {active ? (
+        <>
+          <path d="M11 34c-5 1-7 6-8 11 5-1 10-3 12-8l-4-3Z" fill="#ffbf39" stroke="#ce7223" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="m12 38-4 4" stroke="#ff6a21" strokeWidth="2" strokeLinecap="round" />
+        </>
+      ) : null}
+    </svg>
+  );
+}
+
 function formatOwnerPromotionEnd(value: string, locale: string, language: string) {
   const inclusiveEnd = new Date(value);
   if (Number.isNaN(inclusiveEnd.getTime())) return "";
@@ -598,7 +625,6 @@ export function MyListingsPage() {
                 {listing.promoted ? (
                   <>
                     <div className="owner-top-state owner-top-state--active" data-testid="owner-top-status" data-top-active="true">
-                      <Smile className="owner-top-state__face" aria-hidden="true" />
                       <span className="owner-top-state__copy">
                         <strong>{t("Estás en TOP")}</strong>
                         {listing.promotionEndsAt ? (
@@ -615,15 +641,15 @@ export function MyListingsPage() {
                         onClick={() => openTopFlow(listing.id)}
                         aria-label={`${t("Gestionar TOP")}: ${listing.title}`}
                       >
-                        <Rocket className="owner-top-rocket" aria-hidden="true" />
-                        <span>{t("Gestionar TOP")}</span>
+                        <Smile className="owner-top-action__face" aria-hidden="true" />
+                        <OwnerTopRocket active />
+                        <span className="owner-top-action__label">{t("Gestionar TOP")}</span>
                       </Button>
                     ) : null}
                   </>
                 ) : listing.status === "Publicado" && !listing.isExternal ? (
                   <>
                     <div className="owner-top-state owner-top-state--inactive" data-testid="owner-top-status" data-top-active="false">
-                      <Frown className="owner-top-state__face" aria-hidden="true" />
                       <span className="owner-top-state__copy">
                         <strong>{t("No estás en TOP")}</strong>
                         <small>{t("Más visibilidad para tu anuncio")}</small>
@@ -635,8 +661,9 @@ export function MyListingsPage() {
                       onClick={() => openTopFlow(listing.id)}
                       aria-label={`${t("Llevar a TOP")}: ${listing.title}`}
                     >
-                      <Rocket className="owner-top-rocket" aria-hidden="true" />
-                      <span>{t("Llevar a TOP")}</span>
+                      <Frown className="owner-top-action__face" aria-hidden="true" />
+                      <OwnerTopRocket active={false} />
+                      <span className="owner-top-action__label">{t("Llevar a TOP")}</span>
                     </Button>
                   </>
                 ) : null}
