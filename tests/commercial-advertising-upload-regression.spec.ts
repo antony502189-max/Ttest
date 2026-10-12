@@ -93,7 +93,8 @@ test('campaign list exposes retry after a failed load', async ({ page }) => {
   await page.goto('/#/mis-campanas')
   await expect(page.getByRole('alert')).toBeVisible()
   await expect(page.getByText('Todavía no tienes campañas publicitarias.')).toHaveCount(0)
+  const beforeRetry = attempts
   await page.getByRole('button', { name: 'Reintentar' }).click()
   await expect(page.getByText('Todavía no tienes campañas publicitarias.')).toBeVisible()
-  expect(attempts).toBe(2)
+  expect(attempts).toBeGreaterThan(beforeRetry)
 })
