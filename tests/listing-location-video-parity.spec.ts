@@ -250,9 +250,13 @@ test('mobile WhatsApp-only listing keeps the floating confirmation highlighted l
     contact: getComputedStyle(document.querySelector<HTMLElement>('.mobile-contact-bar')!).backgroundColor,
     actionbar: getComputedStyle(document.querySelector<HTMLElement>('.listing-actionbar')!).backgroundColor,
   }))
-  expect(floatingColors.contact).toBe(floatingColors.actionbar)
-  expect(floatingColors.contact).not.toBe('rgb(255, 255, 255)')
+  // The customer reference has a transparent floating shell surrounding
+  // the lime pill, rather than the former rectangular lime background.
+  expect(floatingColors.contact).toBe('rgba(0, 0, 0, 0)')
+  expect(floatingColors.actionbar).not.toBe('rgb(255, 255, 255)')
   await expect(confirmation).toBeVisible()
+  await expect(confirmation).toHaveCSS('background-color', 'rgb(215, 255, 39)')
+  await expect(confirmation).toHaveCSS('border-radius', '999px')
   await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveCount(0)
 
   await confirmation.locator('[data-slot="checkbox"]').click()
