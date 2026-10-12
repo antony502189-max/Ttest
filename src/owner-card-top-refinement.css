@@ -403,6 +403,16 @@ body .owner-listings-page .owner-top-action--active:hover {
     font-size: .64rem !important;
   }
 }
+/* The parked rocket points straight up; the launched rocket flies northeast.
+   No flame or animation until the promotion is active. */
+.owner-listings-page .owner-top-action--inactive .owner-top-rocket {
+  transform: rotate(-45deg);
+  animation: none !important;
+}
+.owner-listings-page .owner-top-action--active .owner-top-rocket {
+  transform: rotate(0deg);
+  animation: owner-top-reference-flight 2.9s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .owner-listings-page .owner-top-action--active .owner-top-rocket {
     animation: none;
