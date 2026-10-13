@@ -118,8 +118,14 @@ test('both production and mock right-hand carousel controls render genuine left 
   const code = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
   // Both selected-listing implementations have the same control contract:
   // button stays on the RIGHT and advances to next ID with a LEFT arrowhead.
-  const nextControls = Array.from(code.matchAll(/className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next"[^>]*>\s*<ChevronLeft\s*\/>/g))
+  const rightButton = 'className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next"'
+  const nextControls = code.split(rightButton).slice(1)
   expect(nextControls).toHaveLength(2)
+  for (const markup of nextControls) {
+    const buttonContent = markup.split('</button>')[0]
+    expect(buttonContent).toContain('<ChevronLeft />')
+    expect(buttonContent).not.toContain('<ChevronRight />')
+  }
   const styles = readFileSync('src/mobile-map-ideal.css', 'utf8')
   expect(styles).toContain('.m2-map-listing-carousel__arrow--next > svg')
   expect(styles).toContain('transform: none !important')
