@@ -471,10 +471,26 @@ test.describe('touch photo ordering', () => {
       touchPoints: [{ x: from!.x + from!.width / 2, y: from!.y + from!.height / 2 }],
     })
     await expect(cards.nth(0)).toHaveClass(/is-dragging/)
-    await session.send('Input.dispatchTouchEvent', {
-      type: 'touchMove',
-      touchPoints: [{ x: to!.x + to!.width / 2, y: to!.y + to!.height / 2 }],
-    })
+    // Move the finger through actual intermediate touch positions. A single
+    // 200+ px teleport can be interpreted as a browser pan/cancel in headless
+    // Chromium and does not exercise the application's drag target handling.
+    const startX = from!.x + from!.width / 2
+    const startY = from!.y + from!.height / 2
+    const endX = to!.x + to!.width / 2
+    const endY = to!.y + to!.height / 2
+    for (let step = 1; step <= 12; step += 1) {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{
+          x: startX + (endX - startX) * step / 12,
+          y: startY + (endY - startY) * step / 12,
+        }],
+      })
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+    }
+    // Verify a real drop-target was reached before releasing the touch. This
+    // must not silently replace long-press reordering with click-button moves.
+    await expect(cards.nth(1)).toHaveClass(/is-drop-target/)
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await expect(cards.nth(0)).toHaveAttribute('data-photo-reference', originalSecond!)
     await expect(cards.nth(1)).toHaveAttribute('data-photo-reference', originalFirst!)
