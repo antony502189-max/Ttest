@@ -97,6 +97,7 @@ if verify_backup_authentication "$backup_test_dir/backup.enc" 2>/dev/null; then
 fi
 cleanup_backup_test
 trap - EXIT
+bash scripts/test-minio-backup-preflight.sh
 
 # Parse the exact production nginx file in the pinned runtime image. The fake
 # backend host avoids DNS failure during nginx -t without starting the stack.
