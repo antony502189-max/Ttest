@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeft } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   cancelAdvertisement, createAdCheckout, createAdvertisement,
   getAdvertisement, getMyAdvertisements, updateAdvertisement, uploadAdvertisementImage,
@@ -68,8 +68,9 @@ export function AdvertisementEditorPage() {
 
 export function AdvertisementCheckoutPage() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const { t } = useI18n()
-  const paymentReturn = new URLSearchParams(window.location.search).get('payment') === 'return'
+  const paymentReturn = searchParams.get('payment') === 'return'
   const [ad, setAd] = useState<AdvertisementDetail | null>(null)
   const [price, setPrice] = useState('')
   const [checkoutUrl, setCheckoutUrl] = useState('')

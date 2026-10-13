@@ -1,0 +1,83 @@
+# Isolated local Stripe sandbox. Run with --project-name ttest-stripe-test.
+services:
+  postgres:
+    image: mirror.gcr.io/postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
+    environment:
+      POSTGRES_DB: ttest_stripe
+      POSTGRES_USER: ttest
+      POSTGRES_PASSWORD: ttest-local-only
+    ports: ["127.0.0.1:15432:5432"]
+    volumes: ["stripe-postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ttest -d ttest_stripe"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: mirror.gcr.io/library/redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["stripe-redis-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: mirror.gcr.io/axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    ports: ["127.0.0.1:18025:8025"]
+
+  migrate:
+    build: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment: &api-environment
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://ttest:ttest-local-only@postgres:5432/ttest_stripe
+      JWT_SECRET: stripe-sandbox-local-only-32-character-secret
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_BACKEND: local
+      MEDIA_ROOT: /app/var/media
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_STARTTLS: "false"
+      FRONTEND_APP_URL: http://localhost:5173
+      FRONTEND_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Set a sk_test_ key in .stripe-test.secrets}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?Set a whsec_ secret in .stripe-test.secrets}
+      STRIPE_LIVE_PAYMENTS_ENABLED: "false"
+      ADVERTISEMENT_30D_PRICE_CENTS: "3000"
+      AUTO_PUBLISH_LISTINGS: "true"
+      EXTERNAL_IMPORT_ENABLED: "false"
+      EXTERNAL_IMPORT_RUN_ON_START: "false"
+      EXTERNAL_REMOVAL_CHECK_ENABLED: "false"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  backend:
+    build: ./backend
+    environment: *api-environment
+    ports: ["127.0.0.1:18000:8000"]
+    volumes: ["stripe-media-data:/app/var/media"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      mailpit: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  seed:
+    build: ./backend
+    profiles: ["tools"]
+    command: ["python", "-m", "app.commands.seed"]
+    environment: *api-environment
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  stripe-postgres-data:
+  stripe-redis-data:
+  stripe-media-data:

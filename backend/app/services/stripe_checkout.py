@@ -16,11 +16,13 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
     settings = get_settings()
     if not settings.stripe_secret_key or not settings.stripe_webhook_secret:
         raise HTTPException(503, "Stripe is not configured")
+    # The SPA uses HashRouter, so Stripe must return to a route in the fragment.
     base = settings.frontend_app_url.rstrip("/")
+    route_base = f"{base}/#"
     data = {
         "mode": "payment",
-        "success_url": f"{base}{return_path}?payment=return",
-        "cancel_url": f"{base}{return_path}?payment=cancelled",
+        "success_url": f"{route_base}{return_path}?payment=return",
+        "cancel_url": f"{route_base}{return_path}?payment=cancelled",
         "client_reference_id": str(order.id),
         "line_items[0][price_data][currency]": "eur",
         "line_items[0][price_data][unit_amount]": str(order.amount_cents),

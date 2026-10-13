@@ -1,0 +1,24 @@
+# Reuse an existing local backend image while mounting the current checkout.
+# Useful when first-time PyPI downloads fail; do not use for release builds.
+services:
+  migrate:
+    image: ttest-backend:latest
+    pull_policy: never
+    volumes: &current-backend-code
+      - ./backend/app:/app/app:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+
+  backend:
+    image: ttest-backend:latest
+    pull_policy: never
+    volumes:
+      - ./backend/app:/app/app:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+      - stripe-media-data:/app/var/media
+
+  seed:
+    image: ttest-backend:latest
+    pull_policy: never
+    volumes: *current-backend-code

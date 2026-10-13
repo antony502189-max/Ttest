@@ -26,6 +26,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.stripe-test.local
+.stripe-test.secrets
+.stripe-tools/
+.pnpm-store/
 .playwright-cli/
 output/
 test-results/

@@ -21,7 +21,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { currentLocale } from "@/lib/i18n-locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -485,6 +485,7 @@ function formatOwnerPromotionEnd(value: string, locale: string, language: string
 
 export function MyListingsPage() {
   const goBack = useAppBack('/menu');
+  const [searchParams] = useSearchParams();
   const { t, language, locale } = useI18n();
   const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser } = useApp();
   const [status, setStatus] = useState("Todos");
@@ -538,7 +539,7 @@ export function MyListingsPage() {
           </Button>
         }
       />
-      {new URLSearchParams(window.location.search).get("payment") === "return" ? (
+      {searchParams.get("payment") === "return" ? (
         <p role="status">{t("Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p>
       ) : null}
       <div className="account-toolbar">
