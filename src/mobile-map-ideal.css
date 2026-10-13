@@ -806,9 +806,10 @@
 
   .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
   .m2-map-listing-carousel__arrow--next {
-    /* Keep forward navigation on the right edge of the current card,
-       rather than covering the revealed photo. */
-    right: clamp(4.4rem, 22.5vw, 7.25rem) !important;
+    /* Place the control entirely over the exposed NEXT photograph.
+       Keeping it outside the active card prevents overlap with any
+       listing text, including at narrow mobile widths. */
+    right: 1.25rem !important;
   }
 
   /* Both variants render ChevronLeft; do not allow a later transform
