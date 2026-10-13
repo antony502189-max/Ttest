@@ -14,6 +14,7 @@
     "test:a11y": "playwright test tests/a11y.spec.ts",
     "test:visual": "playwright test tests/visual-parity.spec.ts tests/true-target-parity.spec.ts && python scripts/build-true-target-parity.py",
     "test:fullstack": "playwright test --config playwright.fullstack.config.ts",
+    "test:admin-performance": "playwright test --config playwright.admin-performance.config.ts",
     "test:security": "node scripts/check-dependency-security.mjs",
     "test:bundle-security": "node scripts/check-production-bundle.mjs"
   },

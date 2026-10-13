@@ -202,6 +202,26 @@ export async function getAdminListings(search = '', status = '', restricted?: bo
   return drainAdminPages<AdminListing>('/admin/listings', params)
 }
 
+// The scrolling administration view requests one page. Full collections remain
+// available for the existing related-user/report workflows.
+export const ADMIN_LISTING_PAGE_SIZE = 50
+
+export function getAdminListingPage(
+  search: string,
+  rentalMode: '' | 'long' | 'holiday',
+  after: Pick<AdminListing, 'id' | 'createdAt'> | null,
+  signal: AbortSignal,
+) {
+  const params = new URLSearchParams({ limit: String(ADMIN_LISTING_PAGE_SIZE), offset: '0' })
+  if (search.trim()) params.set('displaySearch', search)
+  if (rentalMode) params.set('rentalMode', rentalMode)
+  if (after) {
+    params.set('afterCreatedAt', after.createdAt)
+    params.set('afterId', after.id)
+  }
+  return api<AdminListing[]>(`/admin/listings?${params}`, { signal })
+}
+
 export const moderateRemoteListing = (id: string, status: ListingStatus) =>
   api<AdminListing>(`/admin/listings/${id}/status`, {
     method: 'PATCH',
@@ -238,7 +258,7 @@ export const promoteAdminListing = (id: string, payload: { startsAt: string; end
 export const removeAdminListingPromotion = (id: string) =>
   api<AdminListing>(`/admin/listings/${id}/promotion`, { method: 'DELETE' })
 
-export const getAdminHomepageHero = () => api<HomepageHeroPromotion | null>('/admin/homepage-hero')
+export const getAdminHomepageHero = (signal?: AbortSignal) => api<HomepageHeroPromotion | null>('/admin/homepage-hero', { signal })
 
 export const setAdminHomepageHero = (id: string, payload: { startsAt: string; endsAt: string }) =>
   api<HomepageHeroPromotion>(`/admin/homepage-hero/${id}`, {

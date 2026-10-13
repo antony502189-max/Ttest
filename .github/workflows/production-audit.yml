@@ -128,6 +128,8 @@ jobs:
       - run: npm run build
       - run: npm run test:bundle-security
       - run: npm run test:security
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:admin-performance
       - name: Verify unprivileged Nginx can read static and legal assets
         run: |
           docker build \
