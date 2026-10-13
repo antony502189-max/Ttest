@@ -75,6 +75,8 @@ for (const width of [320, 390, 480]) {
     await expect(forward).toBeVisible()
     // The icon is left-facing, but the button still advances to the next listing.
     await expect(forward.locator('svg')).toHaveClass(/lucide-chevron-left/)
+    // A ChevronLeft component is insufficient if CSS mirrors its SVG.
+    await expect(forward.locator('svg')).toHaveCSS('transform', 'none')
 
     await expect.poll(async () => carousel.evaluate((stage) => {
       const current = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current')!
@@ -85,6 +87,15 @@ for (const width of [320, 390, 480]) {
       return Math.max(0, Math.min(sibling.right, boundary.right) - Math.max(main.right, sibling.left))
     })).toBeGreaterThanOrEqual(width <= 340 ? 43 : 47)
 
+    // Measure the part of the NEXT listing's photograph that is actually
+    // visible beyond the current card, not merely the side card's hit target.
+    await expect.poll(async () => carousel.evaluate((stage) => {
+      const current = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current')!.getBoundingClientRect()
+      const photo = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next .m2-map-listing-preview__media-shell')!.getBoundingClientRect()
+      const limit = stage.getBoundingClientRect()
+      return Math.max(0, Math.min(photo.right, limit.right) - Math.max(photo.left, current.right, limit.left))
+    })).toBeGreaterThanOrEqual(width <= 340 ? 50 : width <= 400 ? 58 : 65)
+
     const geometry = await carousel.evaluate((stage) => {
       const current = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current')!.getBoundingClientRect()
       const next = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next')!.getBoundingClientRect()
@@ -93,6 +104,7 @@ for (const width of [320, 390, 480]) {
       return { currentRight: current.right, nextRight: next.right, arrowRight: arrow.right, stageRight: boundary.right }
     })
     expect(geometry.arrowRight).toBeLessThanOrEqual(geometry.currentRight + 8)
+    expect(geometry.stageRight - geometry.currentRight).toBeGreaterThan(width <= 340 ? 53 : width <= 400 ? 62 : 77)
     expect(geometry.nextRight).toBeGreaterThan(geometry.currentRight)
     expect(geometry.stageRight).toBeLessThanOrEqual(width + 1)
     const oldId = await carousel.getAttribute('data-listing-id')
