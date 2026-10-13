@@ -90,6 +90,9 @@ migration_position = text.index('"${compose[@]}" run --rm migrate')
 
 if not image_gate_position < minio_backup_gate_position < stop_position:
     raise SystemExit("fresh authenticated MinIO recovery point must be verified before writers stop")
+rollback_trap_position = text.index("trap rollback_after_failure ERR")
+if not minio_backup_gate_position < rollback_trap_position < metadata_position:
+    raise SystemExit("missing MinIO recovery point must fail before rollback or in-progress metadata")
 if '"$release/deploy/backup-minio.sh"' in text:
     raise SystemExit("ordinary code deploys must not create a full MinIO archive")
 if not stop_position < postgres_backup_position < new_dependencies_position:
