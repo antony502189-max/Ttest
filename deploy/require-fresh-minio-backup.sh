@@ -17,8 +17,13 @@ shopt -s nullglob
 for archive in "$BACKUP_DIR"/minio-*.tar.enc; do
   [[ -s "$archive" ]] || continue
   modified="$(stat -c %Y "$archive")"
-  (( now - modified <= MAX_AGE_HOURS * 3600 )) || continue
-  if verify_backup_authentication "$archive"; then
+  # Reject future-dated files as well as stale ones; mtime is not proof of
+  # a newer recovery point when the server clock or file metadata is wrong.
+  age_seconds=$(( now - modified ))
+  (( age_seconds >= 0 && age_seconds <= MAX_AGE_HOURS * 3600 )) || continue
+  # A normal restore drill may opt into a trusted legacy archive, but the
+  # production release gate must always require a real authenticated MAC.
+  if ALLOW_LEGACY_UNAUTHENTICATED_BACKUP=0 verify_backup_authentication "$archive"; then
     printf '%s\n' "$archive"
     exit 0
   fi

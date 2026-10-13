@@ -85,6 +85,30 @@ To add a source, first confirm that anonymous public access and the source's ter
 
 ## Backup, restore and rollback
 
+An existing production MinIO volume requires an encrypted, HMAC-authenticated
+backup modified within `MINIO_BACKUP_MAX_AGE_HOURS` (default 72 hours). A
+missing or invalid recovery point is a **preflight refusal**: it exits before
+writers are stopped, before in-progress metadata is written, and before the
+automatic rollback handler is armed. Do not relax the freshness threshold,
+bypass the authentication gate or fabricate a backup to make a code release
+pass. A GitHub merge or Pages build does not update the VPS.
+
+If the gate fails, run the supported standalone backup on the **VPS**, using
+the *currently active* release (not the candidate). This operation acquires
+the same release lock and does not delete stored media or backups:
+
+```bash
+sudo bash /srv/112233.es/current/deploy/backup-minio.sh
+sudo bash /srv/112233.es/current/deploy/require-fresh-minio-backup.sh
+```
+
+Only after both commands succeed and the expected `origin/main` SHA has
+been verified should the normal immutable `deploy-release.sh` procedure
+be retried. The final acceptance criterion is that both the active
+`/srv/112233.es/current` release and public `/build-info.json` report
+the requested SHA. Never interpret an earlier failed deploy log or successful
+PR CI as proof that a new UI is live.
+
 ```bash
 /srv/112233.es/current/deploy/backup-production.sh
 /srv/112233.es/current/deploy/restore-verify.sh /srv/112233.es/backups/postgres-YYYYMMDD-HHMMSS.dump.enc

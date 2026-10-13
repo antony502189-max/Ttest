@@ -119,6 +119,15 @@ if [[ -n "$old_release" ]]; then
   }
 fi
 
+# Fail closed before creating in-progress metadata or arming rollback. A missing
+# authenticated media recovery point cannot require restarting healthy services.
+# Keep this preflight under the shared release lock and after runtime/image
+# compatibility checks. The backup is produced separately, never by a deploy.
+minio_backup=""
+if [[ -n "$old_release" ]] && (( has_existing_minio )); then
+  minio_backup="$(ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" bash "$release/deploy/require-fresh-minio-backup.sh")"
+fi
+
 metadata="$ROOT/releases/$SHA.deploy-info"
 failure_log="$ROOT/releases/$SHA.failed.log"
 
@@ -158,8 +167,6 @@ backups="first_deploy:no_existing_persistent_data"
 revision="none"
 if [[ -n "$old_release" ]]; then
   if (( has_existing_minio )); then
-    # Verify the scheduled media recovery point before entering downtime.
-    minio_backup="$(ENV_FILE="$ENV_FILE" BACKUP_DIR="$ROOT/backups" bash "$release/deploy/require-fresh-minio-backup.sh")"
     backups="minio=$minio_backup"
   fi
   # Quiesce every writer before the backup and migration boundary. The ERR
