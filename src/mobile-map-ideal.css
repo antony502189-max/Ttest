@@ -797,9 +797,10 @@
 
   .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
   .m2-map-listing-card.is-next {
-    /* Move the next photo a little left; the narrower current card
-       exposes approximately 64–92px at widths from 320–480px. */
-    transform: translate(37%, -50%) scale(.94) !important;
+    /* The previous 37% offset put the next photo too far beyond the
+       viewport: measured visible slices were just 49-64px. Pull it LEFT
+       to 30% so the photo fills the space exposed by the narrower card. */
+    transform: translate(30%, -50%) scale(.94) !important;
     opacity: 1;
   }
 
