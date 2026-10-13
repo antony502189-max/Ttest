@@ -781,3 +781,24 @@
 .m2-map-listing-carousel .m2-map-listing-card:not(.is-current) .m2-map-listing-preview__actions > span {
   min-height: 1.85rem;
 }
+
+/* Customer-requested right peek: leave more of the next whole card visible.
+   Apply only when an address has multiple listings; single-card geometry stays
+   unchanged. Keep side-card hit targets and next-listing behavior intact. */
+.m2-map-listing-carousel.has-multiple .m2-map-listing-card.is-current {
+  width: calc(100% - 4.5rem);
+  transform: translate(calc(-50% - 1rem), -50%) scale(1);
+}
+.m2-map-listing-carousel.has-multiple .m2-map-listing-card.is-next {
+  transform: translate(32%, -50%) scale(.94);
+}
+/* Park the forward control at the active card's right edge, not over the
+   exposed next card. It remains on the right but uses a left-facing chevron. */
+.m2-map-listing-carousel.has-multiple .m2-map-listing-carousel__arrow--next {
+  right: 3.1rem;
+}
+@media (max-width: 340px) {
+  .m2-map-listing-carousel.has-multiple .m2-map-listing-card.is-current {
+    width: calc(100% - 3.75rem);
+  }
+}

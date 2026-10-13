@@ -40,6 +40,68 @@ test('mobile map keeps coincident listings at one truthful position for clusteri
   for (const position of positions) expect(position).toBe('28.1299668,-16.7578612')
 })
 
+for (const width of [320, 390, 480]) {
+  test(`right-side next-card preview is larger and forward chevron faces left at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/')
+    await page.waitForFunction(() => Boolean(localStorage.getItem('112233:listings:v3')))
+    const ids = await page.evaluate(() => {
+      const key = '112233:listings:v3'
+      const payload = JSON.parse(localStorage.getItem(key)!)
+      const pair = payload.data.slice(0, 2)
+      pair.forEach((listing: { coordinates: { lat: number; lng: number }; city: string; area: string; rentalMode: string; status: string }) => {
+        listing.coordinates = { lat: 28.1299668, lng: -16.7578612 }
+        listing.city = 'Adeje'
+        listing.area = 'Armeñime'
+        listing.rentalMode = 'long'
+        listing.status = 'Publicado'
+      })
+      localStorage.setItem(key, JSON.stringify(payload))
+      return pair.map((listing: { id: string }) => listing.id)
+    })
+    await page.reload()
+    await finishOnboarding(page)
+    await page.locator('.m2-select-row').click()
+    await page.getByTestId('search-map').click()
+    await expect(page.getByTestId('google-map')).toBeVisible()
+    const marker = page.getByTestId(`mobile-map-marker-${ids[0]}`)
+    await expect(marker).toBeAttached()
+    await marker.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    const carousel = page.getByTestId('mobile-map-listing-preview')
+    await expect(carousel).toHaveAttribute('data-group-size', '2')
+    await expect(carousel).toHaveClass(/has-multiple/)
+    const forward = carousel.locator('.m2-map-listing-carousel__arrow--next')
+    await expect(forward).toBeVisible()
+    // The icon is left-facing, but the button still advances to the next listing.
+    await expect(forward.locator('svg')).toHaveClass(/lucide-chevron-left/)
+
+    await expect.poll(async () => carousel.evaluate((stage) => {
+      const current = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current')!
+      const next = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next')!
+      const boundary = stage.getBoundingClientRect()
+      const main = current.getBoundingClientRect()
+      const sibling = next.getBoundingClientRect()
+      return Math.max(0, Math.min(sibling.right, boundary.right) - Math.max(main.right, sibling.left))
+    })).toBeGreaterThanOrEqual(width <= 340 ? 43 : 47)
+
+    const geometry = await carousel.evaluate((stage) => {
+      const current = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current')!.getBoundingClientRect()
+      const next = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next')!.getBoundingClientRect()
+      const arrow = stage.querySelector<HTMLElement>('.m2-map-listing-carousel__arrow--next')!.getBoundingClientRect()
+      const boundary = stage.getBoundingClientRect()
+      return { currentRight: current.right, nextRight: next.right, arrowRight: arrow.right, stageRight: boundary.right }
+    })
+    expect(geometry.arrowRight).toBeLessThanOrEqual(geometry.currentRight + 8)
+    expect(geometry.nextRight).toBeGreaterThan(geometry.currentRight)
+    expect(geometry.stageRight).toBeLessThanOrEqual(width + 1)
+    const oldId = await carousel.getAttribute('data-listing-id')
+    await forward.click()
+    await expect(carousel).not.toHaveAttribute('data-listing-id', oldId!)
+    await expect(carousel).toHaveAttribute('data-group-size', '2')
+  })
+}
+
 test('same-address cluster opens one full-card carousel without moving coordinates', () => {
   const layer = readFileSync('src/components/mobile-map-listings-layer.tsx', 'utf8')
   const css = readFileSync('src/mobile-map-ideal.css', 'utf8')

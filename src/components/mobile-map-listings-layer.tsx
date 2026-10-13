@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { useNavigate } from 'react-router'
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
-import { ChevronLeft, ChevronRight, Heart, MapPin, X } from 'lucide-react'
+import { ChevronLeft, Heart, MapPin, X } from 'lucide-react'
 import { MediaImage } from '@/components/media-image'
 import { getMapMarkers, getPublicListing, type ListingMapMarker } from '@/api/listings'
 import { AdvancedClusterRenderer, createClusterContent, createPriceMarkerContent, createPriceMarkerContentFromData, priceLabel, setClusterPromotionState, setPriceMarkerState } from '@/components/map/map-icons'
@@ -272,7 +272,7 @@ function MobileServerSelectedPreview({ listings, selectedId, language, mapRef, o
     <div className="m2-map-listing-carousel__stage">{slots.map(renderCard)}</div>
     {listings.length > 1 ? <>
       <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} onClick={() => previous && onSelectSibling(previous.id)}><ChevronLeft /></button>
-      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Anuncio siguiente en esta dirección'} onClick={() => next && onSelectSibling(next.id)}><ChevronRight /></button>
+      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Anuncio siguiente en esta dirección'} onClick={() => next && onSelectSibling(next.id)}><ChevronLeft /></button>
       <span className="m2-map-listing-carousel__count" aria-label={`${carouselIndex + 1} / ${listings.length}`}>{carouselIndex + 1}/{listings.length}</span>
     </> : null}
   </section>
@@ -585,7 +585,7 @@ export function MobileMapListingsLayer({ mapRef, mapReady, language, drawing, it
     </div>
     {carousel.length > 1 ? <>
       <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--prev" aria-label={language === 'ru' ? 'Предыдущее объявление по этому адресу' : language === 'en' ? 'Previous listing at this address' : 'Anuncio anterior en esta dirección'} onClick={() => previous && selectSibling(previous.id)}><ChevronLeft /></button>
-      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'} onClick={() => next && selectSibling(next.id)}><ChevronRight /></button>
+      <button type="button" className="m2-map-listing-carousel__arrow m2-map-listing-carousel__arrow--next" aria-label={language === 'ru' ? 'Следующее объявление по этому адресу' : language === 'en' ? 'Next listing at this address' : 'Siguiente anuncio en esta dirección'} onClick={() => next && selectSibling(next.id)}><ChevronLeft /></button>
       <span className="m2-map-listing-carousel__count" aria-label={`${carouselIndex + 1} / ${carousel.length}`}>{carouselIndex + 1}/{carousel.length}</span>
     </> : null}
   </section>
