@@ -99,11 +99,19 @@ for (const width of [320, 390, 480]) {
     const geometry = await carousel.evaluate((stage) => {
       const current = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current')!.getBoundingClientRect()
       const next = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next')!.getBoundingClientRect()
+      const photo = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next .m2-map-listing-preview__media-shell')!.getBoundingClientRect()
       const arrow = stage.querySelector<HTMLElement>('.m2-map-listing-carousel__arrow--next')!.getBoundingClientRect()
       const boundary = stage.getBoundingClientRect()
-      return { currentRight: current.right, nextRight: next.right, arrowRight: arrow.right, stageRight: boundary.right }
+      return {
+        currentRight: current.right, nextRight: next.right,
+        photoRight: photo.right, arrowLeft: arrow.left, arrowRight: arrow.right,
+        stageRight: boundary.right,
+      }
     })
-    expect(geometry.arrowRight).toBeLessThanOrEqual(geometry.currentRight + 8)
+    // The entire button must remain outside the current listing (not just
+    // outside its text lines), and inside the exposed neighbor photograph.
+    expect(geometry.arrowLeft).toBeGreaterThanOrEqual(geometry.currentRight + 8)
+    expect(geometry.arrowRight).toBeLessThanOrEqual(geometry.photoRight - 2)
     expect(geometry.stageRight - geometry.currentRight).toBeGreaterThan(width <= 340 ? 58 : width <= 400 ? 72 : 85)
     expect(geometry.nextRight).toBeGreaterThan(geometry.currentRight)
     expect(geometry.stageRight).toBeLessThanOrEqual(width + 1)
@@ -130,6 +138,9 @@ test('both production and mock right-hand carousel controls render genuine left 
   expect(styles).toContain('.m2-map-listing-carousel__arrow--next > svg')
   expect(styles).toContain('transform: none !important')
   expect(styles).toContain('transform: translate(30%, -50%) scale(.94) !important')
+  // Old inset put the forward arrow directly on listing copy.
+  expect(styles).toContain('right: 1.25rem !important')
+  expect(styles).not.toContain('right: clamp(4.4rem, 22.5vw, 7.25rem) !important')
 })
 
 test('same-address cluster opens one full-card carousel without moving coordinates', () => {
