@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import String, and_, cast, or_, select
+from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import ExternalListingSource, Listing, User
@@ -46,6 +46,8 @@ async def list_listings(
     search: str | None,
     *,
     restricted: bool | None = None,
+    display_search: str | None = None,
+    rental_mode: str | None = None,
     limit: int,
     offset: int,
     after_created_at: datetime | None = None,
@@ -75,6 +77,13 @@ async def list_listings(
     )
     if status:
         query = query.where(Listing.status == status)
+    if rental_mode:
+        query = query.where(Listing.rental_mode == rental_mode)
+    if display_search and display_search.strip():
+        # Match the existing browser filter, including spaces between fields
+        # and literal %/_ characters; leave the legacy API search unchanged.
+        display_text = func.lower(func.concat(Listing.title, " ", func.coalesce(User.name, ""), " ", Listing.area))
+        query = query.where(display_text.contains(display_search.lower(), autoescape=True))
     if search:
         term = f"%{search.strip()}%"
         query = query.where(

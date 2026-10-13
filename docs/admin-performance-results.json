@@ -1,0 +1,1525 @@
+{
+  "before": {
+    "browser": [
+      {
+        "count": 100,
+        "visit": "initial",
+        "initialAdminUsableMs": 1885.0439,
+        "usableMs": 703.7581,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          115.148
+        ],
+        "payloadBytesToUsable": 56406,
+        "heapBytes": 33228808,
+        "searchMs": 49.30430000000024,
+        "longTasks": [
+          447,
+          93
+        ],
+        "reactCommits": [
+          3.700000001117587,
+          4.599999999627471,
+          409.2000000011176,
+          1.4999999981373549
+        ],
+        "domElements": 4190,
+        "renderedListings": 100
+      },
+      {
+        "count": 100,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1885.0439,
+        "usableMs": 282.9508000000001,
+        "requestsToUsable": 0,
+        "apiDurationsMs": [],
+        "payloadBytesToUsable": 0,
+        "heapBytes": 42900624,
+        "searchMs": 39.54309999999987,
+        "longTasks": [
+          226
+        ],
+        "reactCommits": [
+          114.8999999947846,
+          1.0999999959021807
+        ],
+        "domElements": 4190,
+        "renderedListings": 100
+      },
+      {
+        "count": 1000,
+        "visit": "initial",
+        "initialAdminUsableMs": 1555.1311000000005,
+        "usableMs": 4261.3655,
+        "requestsToUsable": 6,
+        "apiDurationsMs": [
+          125.733,
+          105.822,
+          108.244,
+          117.962,
+          124.479,
+          115.789
+        ],
+        "payloadBytesToUsable": 564537,
+        "heapBytes": 79321828,
+        "searchMs": 208.04669999999896,
+        "longTasks": [
+          2186,
+          1281
+        ],
+        "reactCommits": [
+          4.099999999627471,
+          4.700000001117587,
+          1816.7000000067055,
+          8.800000000745058
+        ],
+        "domElements": 40115,
+        "renderedListings": 1000
+      },
+      {
+        "count": 1000,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1555.1311000000005,
+        "usableMs": 2998.367199999999,
+        "requestsToUsable": 0,
+        "apiDurationsMs": [],
+        "payloadBytesToUsable": 0,
+        "heapBytes": 142390740,
+        "searchMs": 153.17059999999947,
+        "longTasks": [
+          2874
+        ],
+        "reactCommits": [
+          1537.4000000115484,
+          7.4000000059604645
+        ],
+        "domElements": 40115,
+        "renderedListings": 1000
+      },
+      {
+        "count": 5000,
+        "visit": "initial",
+        "initialAdminUsableMs": 1535.4413999999997,
+        "usableMs": 21037.795499999997,
+        "requestsToUsable": 26,
+        "apiDurationsMs": [
+          120.29,
+          108.007,
+          108.356,
+          121.079,
+          118.476,
+          121.2,
+          106.439,
+          106.672,
+          107.266,
+          120.098,
+          121.441,
+          123.54,
+          121.24,
+          123.657,
+          113.412,
+          124.32,
+          118.458,
+          106.821,
+          106.342,
+          107.799,
+          120.696,
+          107.028,
+          107.919,
+          119.012,
+          131.892,
+          110.791
+        ],
+        "payloadBytesToUsable": 2826890,
+        "heapBytes": 300205608,
+        "searchMs": 1081.832500000004,
+        "longTasks": [
+          10409,
+          7204
+        ],
+        "reactCommits": [
+          5.099999999627471,
+          6.200000001117587,
+          8276.100000033155,
+          51.299999974668026
+        ],
+        "domElements": 199775,
+        "renderedListings": 5000
+      },
+      {
+        "count": 5000,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1535.4413999999997,
+        "usableMs": 14893.958400000003,
+        "requestsToUsable": 0,
+        "apiDurationsMs": [],
+        "payloadBytesToUsable": 0,
+        "heapBytes": 644156600,
+        "searchMs": 811.0406999999977,
+        "longTasks": [
+          14490,
+          168
+        ],
+        "reactCommits": [
+          7509.400000009686,
+          52.099999979138374
+        ],
+        "domElements": 199775,
+        "renderedListings": 5000
+      },
+      {
+        "count": 10000,
+        "visit": "initial",
+        "initialAdminUsableMs": 1595.017200000002,
+        "usableMs": 33859.0436,
+        "requestsToUsable": 51,
+        "apiDurationsMs": [
+          118.535,
+          121.156,
+          122.201,
+          116.726,
+          111.842,
+          117.068,
+          109.224,
+          108.099,
+          119.009,
+          109.519,
+          120.225,
+          109.033,
+          121.371,
+          120.054,
+          121.221,
+          123.835,
+          119.631,
+          121.656,
+          121.449,
+          107.032,
+          122.817,
+          120.664,
+          106.304,
+          107.196,
+          107.572,
+          122.409,
+          125.917,
+          117.709,
+          108.709,
+          119.032,
+          106.888,
+          108.002,
+          129.07,
+          114.448,
+          121.296,
+          107.191,
+          109.363,
+          109.724,
+          119.78,
+          120.67,
+          107.025,
+          120.686,
+          107.568,
+          108.401,
+          121.256,
+          121.361,
+          110.232,
+          118.694,
+          109.754,
+          120.167,
+          105.247
+        ],
+        "payloadBytesToUsable": 5654832,
+        "heapBytes": 561418764,
+        "searchMs": 1427.3034999999945,
+        "longTasks": [
+          16737,
+          10148
+        ],
+        "reactCommits": [
+          8.399999998509884,
+          8.000000001862645,
+          13038.800000000745,
+          104.49999998882413
+        ],
+        "domElements": 399365,
+        "renderedListings": 10000
+      },
+      {
+        "count": 10000,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1595.017200000002,
+        "usableMs": 28728.330099999992,
+        "requestsToUsable": 0,
+        "apiDurationsMs": [],
+        "payloadBytesToUsable": 0,
+        "heapBytes": 1247049128,
+        "searchMs": 1833.9523000000045,
+        "longTasks": [
+          27900,
+          326
+        ],
+        "reactCommits": [
+          12750.999999942258,
+          83.29999999701977
+        ],
+        "domElements": 399365,
+        "renderedListings": 10000
+      }
+    ],
+    "database": [
+      {
+        "count": 100,
+        "visit": "initial",
+        "apiCollectionMs": 27.551099999982398,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 11.541599998963648,
+        "firstQueryMs": 7.968800000526244,
+        "explainExecutionMs": 0.597,
+        "payloadBytes": 61650
+      },
+      {
+        "count": 100,
+        "visit": "repeated",
+        "apiCollectionMs": 12.486499999795342,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 6.768200000806246,
+        "firstQueryMs": 5.251900000075693,
+        "explainExecutionMs": 0.615,
+        "payloadBytes": 61650
+      },
+      {
+        "count": 1000,
+        "visit": "initial",
+        "apiCollectionMs": 116.59139999937906,
+        "requests": 6,
+        "sqlCount": 11,
+        "sqlTotalMs": 57.96020000161661,
+        "firstQueryMs": 10.624700000334997,
+        "explainExecutionMs": 3.411,
+        "payloadBytes": 616500
+      },
+      {
+        "count": 1000,
+        "visit": "repeated",
+        "apiCollectionMs": 102.52590000163764,
+        "requests": 6,
+        "sqlCount": 11,
+        "sqlTotalMs": 48.47400000289781,
+        "firstQueryMs": 9.114899999985937,
+        "explainExecutionMs": 3.722,
+        "payloadBytes": 616500
+      },
+      {
+        "count": 5000,
+        "visit": "initial",
+        "apiCollectionMs": 1283.8857999995525,
+        "requests": 26,
+        "sqlCount": 51,
+        "sqlTotalMs": 718.5600000011618,
+        "firstQueryMs": 31.78920000027574,
+        "explainExecutionMs": 42.081,
+        "payloadBytes": 3082500
+      },
+      {
+        "count": 5000,
+        "visit": "repeated",
+        "apiCollectionMs": 1347.7939000003971,
+        "requests": 26,
+        "sqlCount": 51,
+        "sqlTotalMs": 792.4320000074658,
+        "firstQueryMs": 49.06010000013339,
+        "explainExecutionMs": 29.355,
+        "payloadBytes": 3082500
+      },
+      {
+        "count": 10000,
+        "visit": "initial",
+        "apiCollectionMs": 2133.4750999994867,
+        "requests": 51,
+        "sqlCount": 101,
+        "sqlTotalMs": 1440.8935000046768,
+        "firstQueryMs": 33.968000001550536,
+        "explainExecutionMs": 36.44,
+        "payloadBytes": 6165000
+      },
+      {
+        "count": 10000,
+        "visit": "repeated",
+        "apiCollectionMs": 2314.737900000182,
+        "requests": 51,
+        "sqlCount": 101,
+        "sqlTotalMs": 1525.5853999969986,
+        "firstQueryMs": 46.78830000011658,
+        "explainExecutionMs": 42.326,
+        "payloadBytes": 6165000
+      }
+    ]
+  },
+  "after": {
+    "browser": [
+      {
+        "count": 100,
+        "visit": "initial",
+        "initialAdminUsableMs": 1584.3068000000003,
+        "usableMs": 578.3586,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          114.779
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 30635572,
+        "searchMs": 375.0844000000002,
+        "longTasks": [
+          343,
+          60
+        ],
+        "reactCommits": [
+          4.100000001490116,
+          5,
+          318.89999999664724,
+          0.5
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 100,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1584.3068000000003,
+        "usableMs": 534.8834999999999,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          116.706
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 38721536,
+        "searchMs": 347.17580000000044,
+        "longTasks": [
+          311
+        ],
+        "reactCommits": [
+          5.800000000745058,
+          6.099999999627471,
+          5.799999997019768,
+          292.1000000014901,
+          0.7000000011175871
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 1000,
+        "visit": "initial",
+        "initialAdminUsableMs": 1546.9496,
+        "usableMs": 673.4063999999998,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          108.442
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 30614876,
+        "searchMs": 372.6156000000001,
+        "longTasks": [
+          409,
+          92
+        ],
+        "reactCommits": [
+          8.100000001490116,
+          6.799999998882413,
+          379.09999999962747,
+          0.3999999985098839
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 1000,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1546.9496,
+        "usableMs": 687.9922999999999,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          115.594
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 38543372,
+        "searchMs": 358.65989999999965,
+        "longTasks": [
+          443,
+          74
+        ],
+        "reactCommits": [
+          7.300000000745058,
+          5.399999998509884,
+          5.399999998509884,
+          411.4000000078231,
+          0.7999999970197678
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 5000,
+        "visit": "initial",
+        "initialAdminUsableMs": 1624.2260999999999,
+        "usableMs": 735.3563000000013,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          114.392
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 31128172,
+        "searchMs": 369.1923000000006,
+        "longTasks": [
+          454,
+          101
+        ],
+        "reactCommits": [
+          5.800000000745058,
+          7.300000000745058,
+          417.9999999869615,
+          0.900000000372529
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 5000,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1624.2260999999999,
+        "usableMs": 603.1903999999995,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          109.35
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 39113592,
+        "searchMs": 352.688900000001,
+        "longTasks": [
+          382,
+          52
+        ],
+        "reactCommits": [
+          6.200000001117587,
+          6.700000001117587,
+          6.699999999254942,
+          357.40000000037253,
+          0.5999999977648258
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 10000,
+        "visit": "initial",
+        "initialAdminUsableMs": 1806.0661999999993,
+        "usableMs": 909.6198000000004,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          116.844
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 30584888,
+        "searchMs": 375.1358,
+        "longTasks": [
+          602,
+          115
+        ],
+        "reactCommits": [
+          8.400000000372529,
+          8,
+          561.5999999959022,
+          1.200000001117587
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      },
+      {
+        "count": 10000,
+        "visit": "repeated",
+        "initialAdminUsableMs": 1806.0661999999993,
+        "usableMs": 696.1768000000011,
+        "requestsToUsable": 1,
+        "apiDurationsMs": [
+          106.749
+        ],
+        "payloadBytesToUsable": 28226,
+        "heapBytes": 38571352,
+        "searchMs": 366.8957999999984,
+        "longTasks": [
+          473,
+          68
+        ],
+        "reactCommits": [
+          8.400000000372529,
+          6.100000001490116,
+          6.200000001117587,
+          441.59999999962747,
+          1.1000000014901161
+        ],
+        "domElements": 2184,
+        "renderedListings": 50
+      }
+    ],
+    "database": [
+      {
+        "count": 100,
+        "visit": "initial",
+        "apiCollectionMs": 29.44269999898097,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 13.097900000502705,
+        "firstQueryMs": 10.798400000567199,
+        "explainExecutionMs": 1.248,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 100,
+        "visit": "repeated",
+        "apiCollectionMs": 12.049800001477706,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 6.288999999014777,
+        "firstQueryMs": 5.09779999993043,
+        "explainExecutionMs": 1.471,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 1000,
+        "visit": "initial",
+        "apiCollectionMs": 14.286499999798252,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 8.870800000295276,
+        "firstQueryMs": 7.802500000252621,
+        "explainExecutionMs": 3.965,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 1000,
+        "visit": "repeated",
+        "apiCollectionMs": 13.223399999333196,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 8.539299999029026,
+        "firstQueryMs": 7.524399999965681,
+        "explainExecutionMs": 3.573,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 5000,
+        "visit": "initial",
+        "apiCollectionMs": 27.510400001119706,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 21.37870000115072,
+        "firstQueryMs": 19.80550000007497,
+        "explainExecutionMs": 34.824,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 5000,
+        "visit": "repeated",
+        "apiCollectionMs": 39.36239999893587,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 34.09219999957713,
+        "firstQueryMs": 32.50389999993786,
+        "explainExecutionMs": 17.924,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 10000,
+        "visit": "initial",
+        "apiCollectionMs": 38.04909999962547,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 33.573899998373236,
+        "firstQueryMs": 32.463599998663994,
+        "explainExecutionMs": 45.119,
+        "payloadBytes": 30825
+      },
+      {
+        "count": 10000,
+        "visit": "repeated",
+        "apiCollectionMs": 36.82719999960682,
+        "requests": 1,
+        "sqlCount": 2,
+        "sqlTotalMs": 31.618600000001607,
+        "firstQueryMs": 30.000700000528013,
+        "explainExecutionMs": 38.669,
+        "payloadBytes": 30825
+      }
+    ]
+  },
+  "visual": {
+    "compared": 72,
+    "identical": 68,
+    "screenshots": [
+      {
+        "name": "activity-1440-en.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "activity-1440-es.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "activity-1440-ru.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "activity-320-en.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "activity-320-es.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "activity-320-ru.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "activity-390-en.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "activity-390-es.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "activity-390-ru.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "activity-768-en.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "activity-768-es.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "activity-768-ru.png",
+        "equal": false,
+        "beforeSize": [
+          778,
+          900
+        ],
+        "afterSize": [
+          778,
+          900
+        ]
+      },
+      {
+        "name": "advertisements-1440-en.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "advertisements-1440-es.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "advertisements-1440-ru.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "advertisements-320-en.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "advertisements-320-es.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "advertisements-320-ru.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "advertisements-390-en.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "advertisements-390-es.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "advertisements-390-ru.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "advertisements-768-en.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "advertisements-768-es.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "advertisements-768-ru.png",
+        "equal": true,
+        "beforeSize": [
+          778,
+          900
+        ],
+        "afterSize": [
+          778,
+          900
+        ]
+      },
+      {
+        "name": "listings-1440-en.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          2507
+        ],
+        "afterSize": [
+          1440,
+          2507
+        ]
+      },
+      {
+        "name": "listings-1440-es.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          2507
+        ],
+        "afterSize": [
+          1440,
+          2507
+        ]
+      },
+      {
+        "name": "listings-1440-ru.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          2638
+        ],
+        "afterSize": [
+          1440,
+          2638
+        ]
+      },
+      {
+        "name": "listings-320-en.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          5750
+        ],
+        "afterSize": [
+          320,
+          5750
+        ]
+      },
+      {
+        "name": "listings-320-es.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          5750
+        ],
+        "afterSize": [
+          320,
+          5750
+        ]
+      },
+      {
+        "name": "listings-320-ru.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          5774
+        ],
+        "afterSize": [
+          320,
+          5774
+        ]
+      },
+      {
+        "name": "listings-390-en.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          5728
+        ],
+        "afterSize": [
+          390,
+          5728
+        ]
+      },
+      {
+        "name": "listings-390-es.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          5606
+        ],
+        "afterSize": [
+          390,
+          5606
+        ]
+      },
+      {
+        "name": "listings-390-ru.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          5753
+        ],
+        "afterSize": [
+          390,
+          5753
+        ]
+      },
+      {
+        "name": "listings-768-en.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          3703
+        ],
+        "afterSize": [
+          768,
+          3703
+        ]
+      },
+      {
+        "name": "listings-768-es.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          3939
+        ],
+        "afterSize": [
+          768,
+          3939
+        ]
+      },
+      {
+        "name": "listings-768-ru.png",
+        "equal": true,
+        "beforeSize": [
+          778,
+          4228
+        ],
+        "afterSize": [
+          778,
+          4228
+        ]
+      },
+      {
+        "name": "reports-1440-en.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "reports-1440-es.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "reports-1440-ru.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "reports-320-en.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "reports-320-es.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "reports-320-ru.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "reports-390-en.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "reports-390-es.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "reports-390-ru.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "reports-768-en.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "reports-768-es.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "reports-768-ru.png",
+        "equal": false,
+        "beforeSize": [
+          778,
+          900
+        ],
+        "afterSize": [
+          778,
+          900
+        ]
+      },
+      {
+        "name": "settings-1440-en.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "settings-1440-es.png",
+        "equal": false,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "settings-1440-ru.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "settings-320-en.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "settings-320-es.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "settings-320-ru.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "settings-390-en.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "settings-390-es.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "settings-390-ru.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "settings-768-en.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "settings-768-es.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "settings-768-ru.png",
+        "equal": false,
+        "beforeSize": [
+          778,
+          900
+        ],
+        "afterSize": [
+          778,
+          900
+        ]
+      },
+      {
+        "name": "users-1440-en.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "users-1440-es.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "users-1440-ru.png",
+        "equal": true,
+        "beforeSize": [
+          1440,
+          900
+        ],
+        "afterSize": [
+          1440,
+          900
+        ]
+      },
+      {
+        "name": "users-320-en.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "users-320-es.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "users-320-ru.png",
+        "equal": true,
+        "beforeSize": [
+          320,
+          998
+        ],
+        "afterSize": [
+          320,
+          998
+        ]
+      },
+      {
+        "name": "users-390-en.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "users-390-es.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "users-390-ru.png",
+        "equal": true,
+        "beforeSize": [
+          390,
+          998
+        ],
+        "afterSize": [
+          390,
+          998
+        ]
+      },
+      {
+        "name": "users-768-en.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "users-768-es.png",
+        "equal": true,
+        "beforeSize": [
+          768,
+          900
+        ],
+        "afterSize": [
+          768,
+          900
+        ]
+      },
+      {
+        "name": "users-768-ru.png",
+        "equal": true,
+        "beforeSize": [
+          778,
+          900
+        ],
+        "afterSize": [
+          778,
+          900
+        ]
+      }
+    ]
+  }
+}
