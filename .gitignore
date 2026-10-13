@@ -29,6 +29,8 @@ dist-ssr
 !.env.stripe-test.local
 .stripe-test.secrets
 .stripe-tools/
+.advertising-test-deps/
+webpush.local.env
 .pnpm-store/
 .playwright-cli/
 output/

@@ -70,6 +70,11 @@ const pageCopy: Record<Language, {
 }
 
 const productNotificationCopy: Record<string, Record<Language, { title: string; body: string }>> = {
+  advertising_slot_available: {
+    es: { title: 'Hay un espacio publicitario disponible', body: 'Ya puedes publicar tu publicidad por 1 € al día.' },
+    en: { title: 'An advertising slot is available', body: 'You can now place your banner for €1 per day.' },
+    ru: { title: 'Освободилось место для рекламы', body: 'Теперь можно разместить баннер за 1 € в день.' },
+  },
   listing_submitted: {
     es: { title: 'Tu anuncio se ha enviado', body: 'Revisaremos tu anuncio antes de publicarlo.' },
     en: { title: 'Your listing was submitted', body: 'We will review your listing before publishing it.' },
@@ -164,6 +169,7 @@ function displayNotification(item: NotificationItem, language: Language) {
 }
 
 function notificationTarget(item: NotificationItem, copy: typeof pageCopy.es) {
+  if (item.type === 'advertising_slot_available') return { to: '/publicidad/nueva', label: '112233.es' }
   if (item.type === 'favorite_unavailable') return { to: '/favoritos', label: copy.openFavorites }
   if (MY_LISTING_NOTIFICATION_TYPES.has(item.type)) return { to: '/mis-anuncios', label: copy.openMyListings }
   if (item.entityListingId) return { to: `/habitacion/${item.entityListingId}`, label: copy.openListing }

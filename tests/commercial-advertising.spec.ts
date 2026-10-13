@@ -5,6 +5,7 @@ const assetId = '00000000-0000-4000-8000-000000000732'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { total: 7, available: 7, dailyPriceCents: 100, currency: 'EUR', pushEnabled: false, pushPublicKey: null } }))
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
@@ -60,43 +61,6 @@ test('approved advertisement has a visible disclosure and safe sponsored link', 
   await expect(link).toHaveAttribute('target', '_blank')
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer sponsored')
   await test.info().attach('advertising-desktop', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
-})
-
-test('homepage carousel exposes at most twelve campaigns and rotates without redesigning the card', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  const ads = Array.from({ length: 13 }, (_, index) => ({
-    id: `00000000-0000-4000-8000-${String(800 + index).padStart(12, '0')}`,
-    title: `Campaign ${index + 1}`,
-    description: `Commercial campaign number ${index + 1} for carousel verification.`,
-    imageUrl: `/api/v1/media/${assetId}?variant=card`,
-    imageWidth: 800,
-    imageHeight: 450,
-    destinationType: 'website',
-    destinationUrl: `https://example.org/campaign-${index + 1}`,
-    placement: 'homepage_bottom',
-  }))
-  await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: ads }))
-  await page.route(`**/api/v1/media/${assetId}**`, (route) => route.fulfill({ body: png, contentType: 'image/png' }))
-  await page.goto('/#/')
-
-  const placement = page.locator('.commercial-ad')
-  const slide = placement.getByTestId('commercial-ad-slide')
-  await expect(slide).toHaveAttribute('data-ad-id', ads[0].id)
-  await expect(placement.getByText('1 / 12')).toBeVisible()
-  await expect(placement.locator('.commercial-ad__carousel-dots button')).toHaveCount(12)
-  await expect(placement.getByRole('heading', { name: 'Campaign 13' })).toHaveCount(0)
-  await placement.scrollIntoViewIfNeeded()
-  expect(await placement.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-  await test.info().attach('advertising-carousel-mobile-12', { body: await page.screenshot(), contentType: 'image/png' })
-
-  await placement.getByRole('button', { name: 'Publicidad siguiente' }).click()
-  await expect(slide).toHaveAttribute('data-ad-id', ads[1].id)
-  await expect(placement.getByText('2 / 12')).toBeVisible()
-  await expect(placement.getByRole('heading', { name: 'Campaign 2' })).toBeVisible()
-
-  await placement.getByRole('button', { name: 'Publicidad anterior' }).click()
-  await expect(slide).toHaveAttribute('data-ad-id', ads[0].id)
-  await expect(placement.getByText('1 / 12')).toBeVisible()
 })
 
 test('authenticated mobile advertising entry stays inside the existing menu row design', async ({ page }) => {
@@ -171,15 +135,20 @@ test('advertising API failure leaves homepage usable', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Solo habitaciones' })).toBeVisible()
 })
 
-test('advertiser previews, completes test checkout and sees persisted review state', async ({ page }) => {
+test('advertiser previews, returns from Stripe and sees persisted review state', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   let ad: Record<string, unknown> | null = null
+  await page.route('**/api/v1/payments/advertisements/*/quote', route => route.fulfill({ json: { days: 1, amountCents: 100, currency: 'EUR', available: true } }))
+  await page.route('**/api/v1/payments/advertisements/*/checkout', route => {
+    ad = { ...ad, status: 'pending_review', paymentStatus: 'paid' }
+    return route.fulfill({ json: { url: '/#/publicidad/' + adId + '/checkout?payment=return', amountCents: 100, currency: 'EUR' } })
+  })
   await page.route('**/api/v1/advertisements**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
     if (path.endsWith('/homepage')) return route.fulfill({ json: [] })
     if (path.endsWith('/uploads') && request.method() === 'POST') return route.fulfill({ status: 201, json: { id: assetId, url: `/api/v1/media/${assetId}` } })
-    if (path.endsWith('/checkout') && request.method() === 'POST') return route.fulfill({ json: { advertisementId: adId, packageId: 'test_homepage_30d', displayPrice: 'Pago de prueba — sin cargo', paymentMode: 'test' } })
+    if (path.endsWith('/checkout') && request.method() === 'POST') return route.fulfill({ json: { advertisementId: adId, packageId: 'homepage_1d', displayPrice: 'Pago de prueba — sin cargo', paymentMode: 'test' } })
     if (path.endsWith('/fake-payment/complete') && request.method() === 'POST') {
       ad = { ...ad, status: 'pending_review', paymentStatus: 'paid' }
       return route.fulfill({ json: ad })
@@ -201,11 +170,13 @@ test('advertiser previews, completes test checkout and sees persisted review sta
   await page.getByLabel('Enlace web').fill('https://example.org/moving')
   await page.getByRole('button', { name: 'Vista previa' }).click()
   await expect(page.getByRole('heading', { name: 'Local moving service' })).toBeVisible()
-  await page.getByRole('button', { name: 'Continuar al pago de prueba' }).click()
+  await page.getByRole('button', { name: 'Continuar al pago' }).click()
   await expect(page).toHaveURL(new RegExp(`#/publicidad/${adId}/checkout`))
-  await expect(page.getByText('Pago de prueba — sin cargo')).toBeVisible()
+  await expect(page.getByText('Publicidad · 1 día · 1 €')).toBeVisible()
   await expectDecodedImage(page.locator('.ad-flow__preview .commercial-ad__visual img'))
-  await page.getByRole('button', { name: 'Simular pago' }).click()
+  await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
+  await expect(page.getByText('Pago confirmado · pendiente de revisión')).toBeVisible()
+  await page.getByRole('link', { name: 'Mis campañas', exact: true }).click()
   await expect(page).toHaveURL(/#\/mis-campanas$/)
   await expect(page.getByText('Pendiente de revisión')).toBeVisible()
   await expectDecodedImage(page.locator('.ad-flow__row .commercial-ad__visual img'))
@@ -221,7 +192,7 @@ test('admin approves a paid campaign and the homepage displays it', async ({ pag
     id: adId, ownerUserId: 'host-demo', ownerEmail: 'advertiser@example.com', adminPriority: 0,
     title: 'Local moving service', description: 'Moving help across Spain.', imageAssetId: assetId,
     imageUrl: `/api/v1/media/${assetId}?variant=card`, destinationType: 'website',
-    destination: 'https://example.org/moving', packageId: 'test_homepage_30d',
+    destination: 'https://example.org/moving', packageId: 'homepage_1d',
     placement: 'homepage_bottom', status: 'pending_review', paymentStatus: 'paid',
     createdAt: new Date().toISOString(), startsAt: null, endsAt: null, moderationNote: null,
   }

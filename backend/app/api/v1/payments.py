@@ -13,7 +13,10 @@ from ...models import Listing, User
 from ...models.commercial_advertisement import CommercialAdvertisement
 from ...models.moderation import ListingPromotion
 from ...models.payment_order import PaymentOrder
-from ...services.stripe_checkout import create_stripe_session, verified_stripe_event
+from ...services.stripe_checkout import create_stripe_session, retrieve_stripe_session, verified_stripe_event
+from ...services.commercial_advertisements import (
+    MAX_ACTIVE_HOMEPAGE_ADS, PACKAGE_PRICE_CENTS, lock_advertising_capacity, occupied_slots, require_free_slot,
+)
 from ..dependencies import current_user
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -31,13 +34,27 @@ class CheckoutResponse(BaseModel):
     currency: str = "EUR"
 
 
+@router.get("/advertisements/{ad_id}/quote")
+async def advertisement_quote(
+    ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+):
+    ad = await session.scalar(select(CommercialAdvertisement).where(
+        CommercialAdvertisement.id == ad_id, CommercialAdvertisement.owner_user_id == user.id,
+    ))
+    if not ad:
+        raise HTTPException(404, "Advertisement not found")
+    legacy = ad.package_id == "test_homepage_30d"
+    return {"days": 30 if legacy else 1,
+            "amountCents": get_settings().advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS,
+            "currency": "EUR", "available": await occupied_slots(session, exclude_id=ad.id) < MAX_ACTIVE_HOMEPAGE_ADS}
+
+
 async def checkout(
     session: AsyncSession, user: User, kind: str, target_id: UUID, days: int, amount: int,
     name: str, return_path: str,
 ) -> CheckoutResponse:
     if not get_settings().stripe_secret_key or not get_settings().stripe_webhook_secret:
         raise HTTPException(503, "Stripe is not configured")
-    now = datetime.now(UTC)
     previous = await session.scalar(
         select(PaymentOrder).where(
             PaymentOrder.owner_user_id == user.id,
@@ -46,10 +63,14 @@ async def checkout(
             PaymentOrder.status == "pending",
         ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update()
     )
-    if previous and previous.checkout_url and previous.created_at > now - timedelta(hours=25):
-        if previous.days == days and previous.amount_cents == amount:
-            return CheckoutResponse(url=previous.checkout_url, amountCents=amount)
-        raise HTTPException(409, "An unfinished payment already exists for this item")
+    if previous and previous.checkout_url and previous.stripe_session_id:
+        remote = await retrieve_stripe_session(previous.stripe_session_id)
+        if remote["status"] == "complete":
+            raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
+        if remote["status"] == "open":
+            if previous.days == days and previous.amount_cents == amount:
+                return CheckoutResponse(url=previous.checkout_url, amountCents=amount)
+            raise HTTPException(409, "An unfinished payment already exists for this item")
     if previous:
         previous.status = "expired"
     order = PaymentOrder(
@@ -67,6 +88,7 @@ async def checkout(
 async def advertisement_checkout(
     ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
 ):
+    await lock_advertising_capacity(session)
     ad = await session.scalar(select(CommercialAdvertisement).where(
         CommercialAdvertisement.id == ad_id,
         CommercialAdvertisement.owner_user_id == user.id,
@@ -76,11 +98,14 @@ async def advertisement_checkout(
     if ad.status != "pending_payment" or ad.payment_status != "unpaid":
         raise HTTPException(409, "Advertisement is not awaiting payment")
     settings = get_settings()
-    amount = settings.advertisement_30d_price_cents
+    legacy = ad.package_id == "test_homepage_30d"
+    amount = settings.advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS
     if amount < 50:
         raise HTTPException(503, "Advertisement price has not been configured")
-    return await checkout(session, user, "advertisement", ad.id, 30, amount,
-                          "Publicidad 112233.es · 30 días", f"/publicidad/{ad.id}/checkout")
+    await require_free_slot(session, exclude_id=ad.id)
+    days = 30 if legacy else 1
+    return await checkout(session, user, "advertisement", ad.id, days, amount,
+                          f"Publicidad 112233.es · {days} días", f"/publicidad/{ad.id}/checkout")
 
 
 @router.post("/listings/{listing_id}/top/checkout", response_model=CheckoutResponse)
@@ -108,16 +133,22 @@ async def stripe_webhook(
     session: AsyncSession = Depends(get_session),
 ):
     event = verified_stripe_event(await request.body(), stripe_signature)
-    if event.get("type") not in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
+    event_type = event.get("type")
+    if event_type not in {"checkout.session.completed", "checkout.session.async_payment_succeeded",
+                          "checkout.session.expired"}:
         return {"received": True}
-    checkout_session = event.get("data", {}).get("object", {})
-    if checkout_session.get("payment_status") != "paid":
+    data = event.get("data")
+    if not isinstance(data, dict) or not isinstance(data.get("object"), dict):
+        raise HTTPException(400, "Invalid Stripe event")
+    checkout_session = data["object"]
+    if event_type != "checkout.session.expired" and checkout_session.get("payment_status") != "paid":
         return {"received": True}
     order_id = checkout_session.get("client_reference_id")
     try:
         order_uuid = UUID(order_id)
     except (ValueError, TypeError, AttributeError):
         raise HTTPException(400, "Unknown payment order") from None
+    await lock_advertising_capacity(session)
     order = await session.scalar(select(PaymentOrder).where(PaymentOrder.id == order_uuid).with_for_update())
     if not order or order.stripe_session_id != checkout_session.get("id"):
         raise HTTPException(400, "Unknown payment order")
@@ -127,6 +158,11 @@ async def stripe_webhook(
             or checkout_session.get("livemode") is not expected_live):
         raise HTTPException(400, "Payment does not match order")
     if order.status == "paid":
+        return {"received": True}
+    if event_type == "checkout.session.expired":
+        if order.status == "pending":
+            order.status = "expired"
+            await session.commit()
         return {"received": True}
     if order.status == "expired":
         logger.error("stripe_paid_expired_order order_id=%s", order.id)
@@ -170,6 +206,7 @@ async def stripe_webhook(
                     listing_id=listing.id, boosted_at=order.paid_at, boosted_by=None,
                     starts_at=order.paid_at, ends_at=order.paid_at + timedelta(days=order.days),
                     daily_price_cents=order.amount_cents if order.days == 1 else None,
+                    total_price_cents=order.amount_cents,
                 ))
         else:
             logger.error("stripe_paid_top_requires_review order_id=%s", order.id)

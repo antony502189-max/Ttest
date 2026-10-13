@@ -10,7 +10,7 @@
 4. В отдельном окне PowerShell запустите и оставьте работающим:
 
    ```powershell
-   stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded --forward-to http://127.0.0.1:18000/api/v1/payments/stripe/webhook
+   stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.expired,checkout.session.async_payment_failed --forward-to http://127.0.0.1:18000/api/v1/payments/stripe/webhook
    ```
 
    CLI покажет локальный секрет подписи `whsec_`. Его не нужно регистрировать как публичный webhook в Dashboard. Если выбран другой аккаунт/песочница, перепроверьте `stripe login list` и `stripe switch`.
@@ -36,7 +36,7 @@ npm run dev -- --mode stripe-test --host localhost --strictPort
 ## Проверка покупок
 
 1. Войдите как локальный владелец, создайте и опубликуйте своё объявление, откройте «Mis anuncios» и запустите TOP на 1 день. На странице Stripe проверьте сумму **1 €**. Используйте [тестовую карту Stripe](https://docs.stripe.com/testing) `4242 4242 4242 4242`, любую будущую дату и трёхзначный CVC. После возврата убедитесь, что CLI получил `checkout.session.completed` с ответом `200`, а объявление стало TOP. Для пакетов 7 и 30 дней используйте отдельные объявления или завершите прежние незаконченные сессии; ожидаемые суммы **5 €** и **10 €**.
-2. Создайте рекламный баннер с изображением через «Publicar publicidad». Перед оплатой проверьте **30 €** за 30 дней; оплатите той же тестовой картой. После webhook кампания должна стать `pending_review` / `paid`, но не появиться публично до одобрения.
+2. Создайте рекламный баннер с изображением через «Publicar publicidad». Перед оплатой проверьте **1 €** за 1 день; оплатите той же тестовой картой. После webhook кампания должна стать `pending_review` / `paid`, но не появиться публично до одобрения. При семи занятых местах новая оплата недоступна; предложена подписка на освобождение места.
 3. Проверьте сохранённые результаты без вывода секретов:
 
    ```powershell

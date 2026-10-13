@@ -18,6 +18,31 @@
 @media (max-width: 700px) { .commercial-ad { width: calc(100% - 1.5rem); margin: 1.5rem auto 2rem; padding: 1rem; } .commercial-ad__content, .commercial-ad__house { grid-template-columns: 1fr; gap: .85rem; } .commercial-ad__mark { width: 3rem; height: 3rem; } .commercial-ad__mark svg { width: 1.5rem; height: 1.5rem; } .commercial-ad__visual { min-height: 150px; } .commercial-ad__cta { width: 100%; } }
 .commercial-ad--mobile { width: 100%; margin: 1.25rem 0 calc(var(--m2-nav-height, 4rem) + 1.5rem); }
 
+.commercial-ad--slots { border-color: var(--market-border, #e5e7eb); border-radius: 1rem; color: var(--foreground, #263321); }
+.commercial-ad__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.commercial-ad__header .commercial-ad__eyebrow { margin-bottom: 0; }
+.commercial-ad__header > span { font-weight: 700; white-space: nowrap; }
+.commercial-ad__slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.commercial-ad__slot { min-width: 0; display: grid; grid-template-columns: 32% minmax(0, 1fr); gap: 1rem; align-items: center; padding: 1rem; border: 1px solid var(--market-border, #e5e7eb); border-radius: .65rem; background: #fff; }
+.commercial-ad__slot .commercial-ad__visual { min-height: 100px; aspect-ratio: 1; background: #f7f7f5; }
+.commercial-ad__slot .commercial-ad__copy h2 { font-size: 1.1rem; }
+.commercial-ad__slot .commercial-ad__copy p { font-size: .9rem; margin-bottom: .7rem; }
+.commercial-ad__more { display: inline-flex; align-items: center; gap: .3rem; color: var(--market-magenta, #a92883); font-weight: 700; min-height: 44px; }
+.commercial-ad__more svg { width: 1rem; height: 1rem; }
+.commercial-ad__more:focus-visible { outline: 3px solid var(--market-magenta, #a92883); outline-offset: 2px; }
+.commercial-ad__slot--empty { display: flex; justify-content: center; min-height: 100px; color: #687060; background: #fafbf7; }
+.commercial-ad__slot--empty > svg { width: 1.3rem; height: 1.3rem; }
+.commercial-ad--slots .commercial-ad__house { grid-template-columns: minmax(0, 1fr) auto; margin-top: 1.25rem; }
+.advertising-vacancy { margin-top: 1.25rem; }
+.advertising-vacancy > p { line-height: 1.5; }
+.advertising-vacancy button { cursor: pointer; }
+.advertising-vacancy button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 700px) {
+  .commercial-ad__slots { grid-template-columns: 1fr; }
+  .commercial-ad__slot { gap: .8rem; padding: .9rem; }
+  .commercial-ad--slots .commercial-ad__house { grid-template-columns: 1fr; }
+}
+
 .commercial-ad__carousel {
   display: grid;
   grid-template-columns: 2.75rem auto minmax(0, 1fr) 2.75rem;

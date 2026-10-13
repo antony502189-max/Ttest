@@ -22,9 +22,14 @@ test('real API persists advertiser upload, checkout and pending review', async (
   await page.getByLabel('Descripción').fill('Safe local moving support throughout Spain.')
   await page.getByLabel('Enlace web').fill('https://example.org/moving')
   await page.getByRole('button', { name: 'Vista previa' }).click()
-  await page.getByRole('button', { name: 'Continuar al pago de prueba' }).click()
+  await page.getByRole('button', { name: 'Continuar al pago' }).click()
   await expect(page).toHaveURL(/#\/publicidad\/[0-9a-f-]+\/checkout$/)
-  await page.getByRole('button', { name: 'Simular pago' }).click()
+  await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeVisible()
+  // This fixture runs without Stripe credentials; exercise its server-only test adapter.
+  const advertisementId = page.url().match(/publicidad\/([0-9a-f-]+)\/checkout/)![1]
+  const paid = await api.post(`/api/v1/advertisements/${advertisementId}/fake-payment/complete`, { headers: { Authorization: `Bearer ${account.accessToken}` } })
+  expect(paid.status()).toBe(200)
+  await page.goto('/#/mis-campanas')
   await expect(page).toHaveURL(/#\/mis-campanas$/)
   await expect(page.getByText('Pendiente de revisión')).toBeVisible()
   const ownerImage = page.locator('.ad-flow__row .commercial-ad__visual img')

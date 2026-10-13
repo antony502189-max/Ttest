@@ -17,6 +17,7 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "pydantic-settings>=2.7",
   "PyJWT>=2.10",
+  "pywebpush>=2.0,<3",
   "python-multipart>=0.0.18",
   "playwright>=1.52",
   "redis>=5.2",

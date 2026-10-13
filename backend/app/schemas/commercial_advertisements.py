@@ -13,7 +13,7 @@ class AdvertisementWrite(BaseModel):
     imageAssetId: UUID
     destinationType: DestinationType
     destination: str = Field(min_length=3, max_length=2048)
-    packageId: Literal["test_homepage_30d"] = "test_homepage_30d"
+    packageId: Literal["homepage_1d"] = "homepage_1d"
 
     @field_validator("title", "description")
     @classmethod

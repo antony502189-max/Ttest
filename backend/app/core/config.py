@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_live_payments_enabled: bool = False
     advertisement_30d_price_cents: int = 3000
+    web_push_public_key: str = ""
+    web_push_private_key: str = ""
+    web_push_subject: str = ""
     frontend_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:5174,http://127.0.0.1:5174,"

@@ -4,13 +4,16 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
 from ...core.config import get_settings
 from ...models import MediaAsset, User
 from ...models.commercial_advertisement import CommercialAdvertisement as Ad
+from ...models.advertising_waitlist import AdvertisingWaitlist
+from pydantic import BaseModel, Field
+from ...services.advertising_alerts import push_configured, validate_subscription
 from ...schemas.commercial_advertisements import (
     AdvertisementAdminDetail,
     AdvertisementDetail,
@@ -20,7 +23,10 @@ from ...schemas.commercial_advertisements import (
     DestinationType,
     ModerationDecision,
 )
-from ...services.commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, approve, destination_url, payment_service
+from ...services.commercial_advertisements import (
+    MAX_ACTIVE_HOMEPAGE_ADS, PACKAGE_ID, approve, destination_url, payment_service,
+    lock_advertising_capacity, occupied_slots, require_free_slot,
+)
 from ...services.listings import mark_orphaned_media
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
 from ..dependencies import current_user, require_admin
@@ -44,7 +50,7 @@ def image_url(asset_id: UUID) -> str:
 
 
 def detail(ad: Ad) -> AdvertisementDetail:
-    visible_status = "expired" if ad.status == "active" and ad.ends_at and ad.ends_at <= datetime.now(UTC) else ad.status
+    visible_status = "expired" if ad.status in {"active", "pending_review"} and ad.ends_at and ad.ends_at <= datetime.now(UTC) else ad.status
     return AdvertisementDetail(
         id=ad.id, ownerUserId=ad.owner_user_id, title=ad.title, description=ad.description,
         imageAssetId=ad.image_asset_id, imageUrl=image_url(ad.image_asset_id),
@@ -85,6 +91,53 @@ async def homepage_advertisements(session: AsyncSession = Depends(get_session)):
     ) for ad, asset in rows]
 
 
+@router.get("/advertisements/availability")
+async def advertising_availability(session: AsyncSession = Depends(get_session)):
+    used = await occupied_slots(session)
+    settings = get_settings()
+    return {"total": MAX_ACTIVE_HOMEPAGE_ADS, "available": max(0, MAX_ACTIVE_HOMEPAGE_ADS - used),
+            "dailyPriceCents": 100, "currency": "EUR", "pushEnabled": push_configured(),
+            "pushPublicKey": settings.web_push_public_key if push_configured() else None}
+
+
+class VacancySubscription(BaseModel):
+    subscription: dict | None = None
+    language: str = Field(default="es", pattern="^(es|ru|en)$")
+
+
+@router.post("/advertisements/waitlist")
+async def subscribe_advertising_vacancy(
+    payload: VacancySubscription, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+):
+    subscription = validate_subscription(payload.subscription) if payload.subscription else None
+    if subscription and not push_configured():
+        raise HTTPException(503, "Push notifications are not configured")
+    await lock_advertising_capacity(session)
+    if await occupied_slots(session) < MAX_ACTIVE_HOMEPAGE_ADS:
+        return {"subscribed": False, "available": True}
+    alert = await session.get(AdvertisingWaitlist, user.id)
+    if not alert:
+        alert = AdvertisingWaitlist(user_id=user.id)
+        session.add(alert)
+    elif alert.notified_at is not None:
+        alert.created_at = datetime.now(UTC)
+    alert.subscription = subscription
+    alert.language = payload.language
+    alert.notified_at = None
+    alert.next_attempt_at = None
+    await session.commit()
+    return {"subscribed": True, "available": False}
+
+
+@router.delete("/advertisements/waitlist", status_code=status.HTTP_204_NO_CONTENT)
+async def unsubscribe_advertising_vacancy(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    alert = await session.get(AdvertisingWaitlist, user.id)
+    if alert:
+        await session.delete(alert)
+        await session.commit()
+
+
 @router.post("/advertisements/uploads", status_code=status.HTTP_201_CREATED)
 async def upload_advertisement_image(
     file: UploadFile = File(...), user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
@@ -102,6 +155,8 @@ async def upload_advertisement_image(
 async def create_advertisement(
     payload: AdvertisementWrite, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
 ):
+    await lock_advertising_capacity(session)
+    await require_free_slot(session)
     await lock_media_owner(session, user.id)
     created_today = await session.scalar(select(func.count(Ad.id)).where(
         Ad.owner_user_id == user.id, Ad.created_at >= datetime.now(UTC) - timedelta(days=1),
@@ -135,6 +190,7 @@ async def get_advertisement(ad_id: UUID, user: User = Depends(current_user), ses
 async def edit_advertisement(
     ad_id: UUID, payload: AdvertisementWrite, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
 ):
+    await lock_advertising_capacity(session)
     await lock_media_owner(session, user.id)
     current = await owned_ad(session, ad_id, user)
     await lock_media_assets(session, {current.image_asset_id, payload.imageAssetId})
@@ -146,8 +202,17 @@ async def edit_advertisement(
     changed = any((ad.title != payload.title, ad.description != payload.description,
                    ad.image_asset_id != payload.imageAssetId, ad.destination_type != payload.destinationType,
                    ad.destination != payload.destination))
-    expired = ad.status == "active" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
+    expired = ad.payment_status == "paid" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
     if changed or expired:
+        from ...models.payment_order import PaymentOrder
+        pending = await session.scalar(select(PaymentOrder.id).where(
+            PaymentOrder.target_id == ad.id, PaymentOrder.kind == "advertisement",
+            PaymentOrder.status == "pending",
+        ).limit(1))
+        if pending:
+            raise HTTPException(409, "Finish or wait for the current payment before editing")
+        if ad.payment_status == "paid" and not expired:
+            await require_free_slot(session, exclude_id=ad.id)
         ad.title = payload.title
         ad.description = payload.description
         ad.image_asset_id = payload.imageAssetId
@@ -156,10 +221,11 @@ async def edit_advertisement(
         ad.approved_at = None
         if expired:
             ad.payment_status = "unpaid"
-        # Once content changes, the old publication window no longer belongs to
-        # the newly moderated creative. A fresh window is assigned on approval.
-        ad.starts_at = None
-        ad.ends_at = None
+            ad.package_id = PACKAGE_ID
+        # A paid edit keeps its original expiry instead of granting a new day.
+        if ad.payment_status != "paid":
+            ad.starts_at = None
+            ad.ends_at = None
         ad.moderation_note = None
         ad.status = "pending_review" if ad.payment_status == "paid" else "pending_payment"
         if ad.status == "pending_review":
@@ -174,6 +240,13 @@ async def edit_advertisement(
 
 @router.delete("/advertisements/{ad_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def cancel_advertisement(ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    from ...models.payment_order import PaymentOrder
+    if await session.scalar(select(PaymentOrder.id).where(
+        PaymentOrder.target_id == ad_id, PaymentOrder.owner_user_id == user.id,
+        PaymentOrder.kind == "advertisement", PaymentOrder.status == "pending",
+    ).limit(1)):
+        raise HTTPException(409, "Finish or wait for the current payment before editing")
     ad = await owned_ad(session, ad_id, user, lock=True)
     ad.status = "cancelled"
     await session.commit()
@@ -192,6 +265,8 @@ async def advertisement_checkout(ad_id: UUID, user: User = Depends(current_user)
 async def complete_test_payment(ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     if get_settings().is_production or get_settings().stripe_secret_key:
         raise HTTPException(404, "Not found")
+    await lock_advertising_capacity(session)
+    await require_free_slot(session, exclude_id=ad_id)
     ad = await owned_ad(session, ad_id, user, lock=True)
     payment_service.complete(ad)
     await session.commit()
@@ -224,6 +299,7 @@ async def admin_ad(session: AsyncSession, ad_id: UUID) -> Ad:
 async def approve_advertisement(
     ad_id: UUID, decision: ModerationDecision, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
+    await lock_advertising_capacity(session)
     ad = await admin_ad(session, ad_id)
     owner_is_active = await session.scalar(
         select(User.id).where(User.id == ad.owner_user_id, User.deleted_at.is_(None), User.blocked.is_(False))
@@ -238,17 +314,15 @@ async def approve_advertisement(
     )
     if owner_is_active is None or image_is_active is None:
         raise HTTPException(409, "Advertisement owner and image must still be active")
-    # Serialize the capacity decision so concurrent admin approvals cannot both
-    # observe the same free slot and exceed the twelve-campaign ceiling.
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
-        {"lock_key": "commercial-advertising:homepage-bottom"},
-    )
+    await require_free_slot(session, exclude_id=ad.id)
     now = datetime.now(UTC)
     proposed_start = decision.startsAt or ad.starts_at or now
-    proposed_end = decision.endsAt or ad.ends_at or proposed_start + timedelta(days=30)
+    duration = 30 if ad.package_id == "test_homepage_30d" else 1
+    proposed_end = decision.endsAt or ad.ends_at or proposed_start + timedelta(days=duration)
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
+    if proposed_end - proposed_start > timedelta(days=duration):
+        raise HTTPException(422, "Advertisement schedule exceeds paid duration")
     overlapping = await session.scalar(
         select(func.count(Ad.id))
         .join(User, User.id == Ad.owner_user_id)
@@ -278,6 +352,7 @@ async def approve_advertisement(
 async def reject_advertisement(
     ad_id: UUID, decision: ModerationDecision, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
+    await lock_advertising_capacity(session)
     ad = await admin_ad(session, ad_id)
     if ad.status != "pending_review":
         raise HTTPException(409, "Pending-review advertisement required")
@@ -294,6 +369,7 @@ async def reject_advertisement(
 async def deactivate_advertisement(
     ad_id: UUID, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
+    await lock_advertising_capacity(session)
     ad = await admin_ad(session, ad_id)
     if ad.status != "active":
         raise HTTPException(409, "Active advertisement required")

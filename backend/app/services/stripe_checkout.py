@@ -30,6 +30,10 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
         "line_items[0][quantity]": "1",
         "metadata[order_id]": str(order.id),
     }
+    if getattr(order, "kind", None) == "advertisement":
+        # Only immediate card payments can reserve this scarce inventory.
+        data["payment_method_types[0]"] = "card"
+        data["expires_at"] = str(int(time.time()) + 31 * 60)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.post(
@@ -47,6 +51,24 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
         return payload["id"], payload["url"]
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(502, "Could not start Stripe Checkout") from exc
+
+
+async def retrieve_stripe_session(session_id: str) -> dict:
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                f"https://api.stripe.com/v1/checkout/sessions/{session_id}",
+                headers={"Authorization": f"Bearer {settings.stripe_secret_key}"},
+            )
+        response.raise_for_status()
+        payload = response.json()
+        if (not isinstance(payload, dict) or payload.get("id") != session_id
+                or payload.get("status") not in {"open", "complete", "expired"}):
+            raise ValueError("Invalid Stripe Checkout session")
+        return payload
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(502, "Could not verify Stripe Checkout") from exc
 
 
 def verified_stripe_event(body: bytes, signature: str) -> dict:
@@ -67,6 +89,9 @@ def verified_stripe_event(body: bytes, signature: str) -> dict:
     if not any(hmac.compare_digest(digest, value) for value in values.get("v1", [])):
         raise HTTPException(400, "Invalid Stripe signature")
     try:
-        return json.loads(body)
+        event = json.loads(body)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise HTTPException(400, "Invalid Stripe event") from exc
+    if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+        raise HTTPException(400, "Invalid Stripe event")
+    return event
