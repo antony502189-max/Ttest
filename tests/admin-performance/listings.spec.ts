@@ -67,6 +67,11 @@ test('failed initial and continuation pages retry the same cursor without losing
   fixture.fail()
   await page.locator('.admin-listing-row').last().scrollIntoViewIfNeeded()
   await expect(page.locator('.admin-load-error')).toBeVisible()
+  // A failed continuation must not hide listings already fetched, the search
+  // input, or existing moderation actions while the retry is available.
+  await expect(page.locator('.admin-listing-row')).toHaveCount(50)
+  await expect(page.getByPlaceholder('Título, usuario, zona o Ref.…')).toBeVisible()
+  await expect(page.locator('.admin-listing-row').first().getByRole('button', { name: 'Ocultar' })).toBeVisible()
   await page.getByRole('button', { name: 'Reintentar' }).click()
   await expect(page.locator('.admin-listing-row')).toHaveCount(75)
   expect(fixture.requests[2].searchParams.get('afterId')).toBe(fixture.requests[3].searchParams.get('afterId'))
