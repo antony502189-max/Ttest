@@ -8,6 +8,25 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+for (const width of [320, 390, 768]) {
+  test(`existing Normas y convivencia appears exactly once between Descripción and Habitación y plazas at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(listingUrl)
+    const main = page.locator('.idealista-listing-page .listing-main')
+    const rules = main.locator('section.conditions-block')
+    await expect(rules).toHaveCount(1)
+    await expect(rules.getByRole('heading', { name: 'Normas y convivencia' })).toBeVisible()
+    await expect(rules.getByTestId('listing-conditions').locator('.listing-condition-chip').first()).toBeVisible()
+    const sequence = await main.locator(':scope > section.listing-section > h2').allTextContents()
+    const start = sequence.indexOf('Descripción')
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(sequence.slice(start, start + 3)).toEqual([
+      'Descripción', 'Normas y convivencia', 'Habitación y plazas',
+    ])
+    expect(sequence.filter((label) => label === 'Normas y convivencia')).toHaveLength(1)
+  })
+}
+
 for (const width of [320, 390, 540, 768]) {
   test(`living-condition pills stay rounded, spaced and within their card at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
