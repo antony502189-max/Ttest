@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from app.api.v1 import payments
 from app.core.config import Settings
 from app.services import stripe_checkout
+from app.services import payment_fulfillment
 
 
 def signed_request(event, timestamp=None):
@@ -29,6 +30,9 @@ def configured(monkeypatch):
     settings = SimpleNamespace(stripe_secret_key="sk_test_audit", stripe_webhook_secret="whsec_audit")
     monkeypatch.setattr(payments, "get_settings", lambda: settings)
     monkeypatch.setattr(payments, "lock_advertising_capacity", AsyncMock())
+    monkeypatch.setattr(payment_fulfillment, "get_settings", lambda: settings)
+    monkeypatch.setattr(payment_fulfillment, "lock_advertising_capacity", AsyncMock())
+    monkeypatch.setattr(payment_fulfillment, "notify_payment", AsyncMock())
     monkeypatch.setattr(stripe_checkout, "get_settings", lambda: settings)
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"open"}))
 

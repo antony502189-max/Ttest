@@ -6,6 +6,23 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Pago en revisión': { ru: 'Оплата на проверке', en: 'Payment under review' },
+  'Stripe is not configured': { ru: 'Оплата временно недоступна. Попробуйте позже.', en: 'Payments are temporarily unavailable. Please try later.' },
+  'Could not start Stripe Checkout': { ru: 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.', en: 'Could not open the payment page. Please try again.' },
+  'Could not verify Stripe Checkout': { ru: 'Не удалось проверить оплату. Попробуйте ещё раз.', en: 'Could not verify the payment. Please try again.' },
+  'Could not cancel Stripe Checkout': { ru: 'Не удалось подтвердить отмену оплаты. Попробуйте ещё раз.', en: 'Could not confirm payment cancellation. Please try again.' },
+  'Payment is awaiting confirmation; do not pay again': { ru: 'Ожидаем подтверждение оплаты. Не оплачивайте повторно.', en: 'Payment confirmation is pending. Do not pay again.' },
+  'An unfinished payment already exists for this item': { ru: 'Для этой услуги уже открыта оплата. Завершите её или отмените.', en: 'An unfinished payment already exists. Complete or cancel it.' },
+  'Advertisement is not awaiting payment': { ru: 'Эта рекламная кампания сейчас не требует оплаты.', en: 'This advertising campaign is not awaiting payment.' },
+  'Pago fallido': { ru: 'Ошибка оплаты', en: 'Payment failed' },
+  'Reembolsado': { ru: 'Возвращено', en: 'Refunded' },
+  'Pagos que necesitan revisión': { ru: 'Оплаты, требующие проверки', en: 'Payments requiring review' },
+  'No se pudieron cargar los pagos pendientes de revisión.': { ru: 'Не удалось загрузить оплаты, требующие проверки.', en: 'Could not load payments requiring review.' },
+  'Cancelar pago': { ru: 'Отменить оплату', en: 'Cancel payment' },
+  'Pago cancelado. El espacio reservado se ha liberado.': { ru: 'Оплата отменена. Зарезервированное место освобождено.', en: 'Payment cancelled. The reserved slot has been released.' },
+  'El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.': { ru: 'Оплата получена, но требуется проверка. Свяжитесь с поддержкой; не оплачивайте повторно.', en: 'Payment received, but it needs review. Contact support; do not pay again.' },
+  'No se pudo comprobar el aviso guardado. Inténtalo de nuevo.': { ru: 'Не удалось проверить сохранённую подписку на уведомление. Попробуйте ещё раз.', en: 'Could not check your saved alert. Please try again.' },
+  'A paid advertisement needs review; do not pay again': { ru: 'Оплата рекламы уже получена и требует проверки. Не оплачивайте повторно.', en: 'Your advertising payment needs review. Do not pay again.' },
   '1 € · 1 día': { ru: '1 € · 1 день', en: '€1 · 1 day' },
   'Publicidad · 1 día · 1 €': { ru: 'Реклама · 1 день · 1 €', en: 'Advertisement · 1 day · €1' },
   'Publicidad · 1 día · 1 €. El plazo empieza cuando se aprueba tu campaña.': { ru: 'Реклама · 1 день · 1 €. Срок показа начинается после одобрения кампании.', en: 'Advertisement · 1 day · €1. The display period starts when your campaign is approved.' },

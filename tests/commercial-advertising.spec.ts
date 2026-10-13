@@ -5,6 +5,8 @@ const assetId = '00000000-0000-4000-8000-000000000732'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/advertisements/waitlist', route => route.fulfill({ json: { subscribed: false, channel: 'site' } }))
   await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { total: 7, available: 7, dailyPriceCents: 100, currency: 'EUR', pushEnabled: false, pushPublicKey: null } }))
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
@@ -138,6 +140,7 @@ test('advertising API failure leaves homepage usable', async ({ page }) => {
 test('advertiser previews, returns from Stripe and sees persisted review state', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   let ad: Record<string, unknown> | null = null
+  await page.route('**/api/v1/payments/advertisements/*/status', route => route.fulfill({ json: { status: 'pending_review', paymentStatus: 'paid', orderStatus: 'paid', fulfillmentStatus: 'fulfilled' } }))
   await page.route('**/api/v1/payments/advertisements/*/quote', route => route.fulfill({ json: { days: 1, amountCents: 100, currency: 'EUR', available: true } }))
   await page.route('**/api/v1/payments/advertisements/*/checkout', route => {
     ad = { ...ad, status: 'pending_review', paymentStatus: 'paid' }
@@ -214,7 +217,7 @@ test('admin approves a paid campaign and the homepage displays it', async ({ pag
   await expect(page.getByRole('heading', { name: detail.title })).toBeVisible()
   await expectDecodedImage(page.locator('.ad-flow__row .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Aprobar' }).click()
-  await expect(page.getByText('Activa · Pagado (prueba)')).toBeVisible()
+  await expect(page.getByText('Activa · Pagado')).toBeVisible()
   await page.goto('/#/')
   const publicAd = page.locator('.commercial-ad')
   await expect(publicAd.getByRole('heading', { name: detail.title })).toBeVisible()

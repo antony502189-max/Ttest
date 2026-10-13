@@ -16,6 +16,8 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: [] }))
   await page.route(`**/api/v1/media/${assetId}**`, (route) => route.fulfill({ body: png, contentType: 'image/jpeg' }))
   await page.route(`**/api/v1/payments/advertisements/${adId}/quote`, (route) => route.fulfill({ json: { days: 1, amountCents: 100, currency: 'EUR', available: true } }))
+  await page.route('**/api/v1/advertisements/waitlist', route => route.fulfill({ json: { subscribed: false, channel: 'site' } }))
+  await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
 })
 
 test('seven cards preserve sponsored links and cap even an oversized response', async ({ page }) => {
@@ -52,6 +54,7 @@ test('full inventory prevents upload and offers a cancellable persisted alert', 
   let subscriptions = 0
   let cancelled = false
   await page.route('**/api/v1/advertisements/waitlist', (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { subscribed: false, channel: 'site' } })
     if (route.request().method() === 'DELETE') { cancelled = true; return route.fulfill({ status: 204 }) }
     expect(route.request().postDataJSON()).toEqual({ language: 'es', subscription: null })
     subscriptions++
@@ -96,4 +99,96 @@ test('checkout starts only after an explicit payment click and handles the last 
   await expect(page.getByText('No hay espacios publicitarios disponibles en este momento.')).toBeVisible()
   expect(checkouts).toBe(1)
   await expect(page.getByRole('button', { name: 'Avisarme cuando haya un espacio' })).toBeVisible()
+})
+
+test('saved push alert survives reload and can be cancelled', async ({ page }) => {
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: availability(0) }))
+  let subscribed = true
+  await page.route('**/api/v1/advertisements/waitlist', route => {
+    if (route.request().method() === 'DELETE') { subscribed = false; return route.fulfill({ status: 204 }) }
+    return route.fulfill({ json: { subscribed, channel: 'push' } })
+  })
+  await page.goto('/#/publicidad/nueva')
+  await expect(page.getByText('Te enviaremos una notificación push cuando se libere un espacio.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Cancelar aviso' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancelar aviso' }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Avisarme cuando haya un espacio' })).toBeVisible()
+})
+
+test('Stripe cancellation return releases the reservation and allows a new attempt', async ({ page }) => {
+  const item = { ...ads[0], id: adId, imageAssetId: assetId, packageId: 'homepage_1d', status: 'pending_payment', paymentStatus: 'unpaid' }
+  await page.route('**/api/v1/advertisements/' + adId, route => route.fulfill({ json: item }))
+  let cancelled = false
+  await page.route('**/api/v1/payments/advertisements/*/checkout/cancel', route => {
+    cancelled = true
+    return route.fulfill({ json: { cancelled: true, paid: false } })
+  })
+  await page.goto('/#/publicidad/' + adId + '/checkout?payment=cancelled')
+  await expect(page.getByText('Pago cancelado. El espacio reservado se ha liberado.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()
+  expect(cancelled).toBe(true)
+})
+
+test('review-required paid order never offers another payment', async ({ page }) => {
+  const item = { ...ads[0], id: adId, imageAssetId: assetId, packageId: 'homepage_1d', status: 'pending_payment', paymentStatus: 'unpaid' }
+  await page.route('**/api/v1/advertisements/' + adId, route => route.fulfill({ json: item }))
+  await page.route('**/api/v1/payments/advertisements/*/status', route => route.fulfill({ json: { status: 'pending_payment', paymentStatus: 'unpaid', orderStatus: 'paid', fulfillmentStatus: 'review_required' } }))
+  await page.goto('/#/publicidad/' + adId + '/checkout?payment=return')
+  await expect(page.getByText('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toHaveCount(0)
+})
+
+test('browser push permission denied keeps a truthful site-notification fallback', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'PushManager', { value: function PushManager() {} })
+    Object.defineProperty(Notification, 'requestPermission', { value: async () => 'denied' })
+  })
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { ...availability(0), pushEnabled: true, pushPublicKey: 'test' } }))
+  await page.route('**/api/v1/advertisements/waitlist', route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { subscribed: false, channel: 'site' } })
+    expect(route.request().postDataJSON().subscription).toBeNull()
+    return route.fulfill({ json: { subscribed: true, available: false } })
+  })
+  await page.goto('/#/publicidad/nueva')
+  await page.getByRole('button', { name: 'Avisarme cuando haya un espacio' }).click()
+  await expect(page.getByText('Te avisaremos en las notificaciones del sitio cuando se libere un espacio.')).toBeVisible()
+})
+
+test('sign-in for a vacancy alert returns to advertising instead of losing the intent', async ({ page }) => {
+  await page.addInitScript(() => localStorage.removeItem('112233:session:v1'))
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: availability(0) }))
+  await page.goto('/#/')
+  await page.getByRole('link', { name: 'Inicia sesión para recibir un aviso' }).click()
+  await expect(page).toHaveURL(/#\/acceso$/)
+  await page.getByRole('button', { name: 'Continuar con Google' }).click()
+  await expect(page).toHaveURL(/#\/publicidad\/nueva$/)
+  await expect(page.getByRole('button', { name: 'Avisarme cuando haya un espacio' })).toBeVisible()
+})
+
+test('campaign list shows a received payment under review instead of another pay link', async ({ page }) => {
+  await page.route('**/api/v1/advertisements/mine', route => route.fulfill({ json: [{ ...ads[0], id: adId, imageAssetId: assetId,
+    destination: 'https://example.org/', packageId: 'homepage_1d', status: 'pending_payment', paymentStatus: 'unpaid',
+    paymentReviewRequired: true, createdAt: new Date().toISOString(), startsAt: null, endsAt: null, moderationNote: null }] }))
+  await page.goto('/#/mis-campanas')
+  await expect(page.getByText('Pendiente de pago · Pago en revisión')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Pagar', exact: true })).toHaveCount(0)
+  await expect(page.getByText('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')).toBeVisible()
+})
+
+test('banner image recovers after a transient failure on the next availability refresh', async ({ page }) => {
+  await page.clock.install()
+  await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: ads.slice(0, 1) }))
+  let failing = true
+  await page.route('**/api/v1/media/' + assetId + '**', route => failing ? route.abort() : route.fulfill({ body: png, contentType: 'image/jpeg' }))
+  await page.goto('/#/')
+  const block = page.locator('.commercial-ad')
+  await block.scrollIntoViewIfNeeded()
+  await expect(block.locator('.commercial-ad__visual > svg')).toBeVisible()
+  failing = false
+  await page.clock.runFor(60001)
+  const image = block.locator('.commercial-ad__visual img')
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
 })

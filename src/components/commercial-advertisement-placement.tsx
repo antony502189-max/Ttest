@@ -20,7 +20,7 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
     const load = async () => {
       const [items, capacity] = await Promise.allSettled([getHomepageAdvertisements(), getAdvertisingAvailability()])
       if (!active) return
-      if (items.status === 'fulfilled') { setAds(items.value.slice(0, SLOTS)); setFailed(false) }
+      if (items.status === 'fulfilled') { setAds(items.value.slice(0, SLOTS)); setImageFailures(new Set()); setFailed(false) }
       else setFailed(true)
       setAvailable(capacity.status === 'fulfilled' ? capacity.value.available : null)
       setLoading(false)

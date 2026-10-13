@@ -17,7 +17,7 @@ from app.services import commercial_advertisements as ads
 @pytest.mark.asyncio
 async def test_full_inventory_rejects_before_stripe_and_uses_shared_lock(monkeypatch):
     ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', status='pending_payment', payment_status='unpaid')
-    session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, 7]), execute=AsyncMock())
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 7]), execute=AsyncMock())
     provider = AsyncMock()
     monkeypatch.setattr(payments, 'checkout', provider)
     with pytest.raises(HTTPException) as exc:
@@ -31,7 +31,7 @@ async def test_full_inventory_rejects_before_stripe_and_uses_shared_lock(monkeyp
 @pytest.mark.asyncio
 async def test_new_package_is_one_euro_for_one_day(monkeypatch):
     ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', status='pending_payment', payment_status='unpaid')
-    session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, 6]), execute=AsyncMock())
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 6]), execute=AsyncMock())
     provider = AsyncMock(return_value='checkout')
     monkeypatch.setattr(payments, 'checkout', provider)
     assert await payments.advertisement_checkout(ad.id, SimpleNamespace(id=uuid4()), session) == 'checkout'
@@ -67,8 +67,11 @@ def test_new_writes_cannot_select_future_or_legacy_packages():
 
 
 def subscription(endpoint='https://fcm.googleapis.com/fcm/send/token'):
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    public = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
     encode = lambda value: base64.urlsafe_b64encode(value).decode().rstrip('=')
-    return {'endpoint': endpoint, 'keys': {'p256dh': encode(b'\x04' + b'x' * 64), 'auth': encode(b'x' * 16)}}
+    return {'endpoint': endpoint, 'keys': {'p256dh': encode(public), 'auth': encode(b'x' * 16)}}
 
 
 @pytest.mark.parametrize('endpoint', ['https://127.0.0.1/push', 'https://fcm.googleapis.com.evil.org/x',
@@ -81,7 +84,8 @@ def test_push_rejects_arbitrary_destinations(endpoint):
 
 
 def test_push_accepts_real_provider_and_validates_keys():
-    assert alerts.validate_subscription(subscription()) == subscription()
+    valid = subscription()
+    assert alerts.validate_subscription(valid) == valid
     invalid = subscription()
     invalid['keys']['auth'] = 'malformed'
     with pytest.raises(HTTPException):
@@ -93,7 +97,7 @@ async def test_worker_notifies_on_vacancy_and_keeps_completed_payment_reserved(m
     order = SimpleNamespace(stripe_session_id='cs_test', status='pending')
     alert = SimpleNamespace(subscription=None, language='ru', notified_at=None,
                             created_at=datetime.now(UTC), next_attempt_at=None)
-    session = SimpleNamespace(execute=AsyncMock(side_effect=[Mock(), SimpleNamespace(all=lambda: [(alert, SimpleNamespace(id=uuid4()))])]),
+    session = SimpleNamespace(execute=AsyncMock(side_effect=[Mock(), Mock(), SimpleNamespace(all=lambda: [(alert, SimpleNamespace(id=uuid4()))])]),
                               scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [order])),
                               scalar=AsyncMock(return_value=alert), flush=AsyncMock(), commit=AsyncMock())
     notify = AsyncMock()
@@ -114,6 +118,9 @@ async def test_worker_releases_only_stripe_confirmed_expiry_and_stays_quiet_when
                               flush=AsyncMock(), commit=AsyncMock())
     notify = AsyncMock()
     monkeypatch.setattr(alerts, 'occupied_slots', AsyncMock(return_value=7))
+    async def confirmed_expiry(*_):
+        order.status = 'expired'
+    monkeypatch.setattr(alerts, 'apply_stripe_session', confirmed_expiry)
     monkeypatch.setattr(alerts, 'retrieve_stripe_session', AsyncMock(return_value={'status': 'expired'}))
     monkeypatch.setattr(alerts, 'create_notification', notify)
     assert await alerts.process_advertising_alerts(session) == 0
@@ -126,7 +133,7 @@ async def test_worker_releases_only_stripe_confirmed_expiry_and_stays_quiet_when
 async def test_worker_delivers_push_or_retries_without_losing_subscription(monkeypatch, fails):
     alert = SimpleNamespace(subscription=subscription(), language='en', notified_at=None,
                             created_at=datetime.now(UTC), next_attempt_at=None)
-    session = SimpleNamespace(execute=AsyncMock(side_effect=[Mock(), SimpleNamespace(all=lambda: [(alert, SimpleNamespace(id=uuid4()))])]),
+    session = SimpleNamespace(execute=AsyncMock(side_effect=[Mock(), Mock(), SimpleNamespace(all=lambda: [(alert, SimpleNamespace(id=uuid4()))])]),
                               scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [])),
                               scalar=AsyncMock(return_value=alert), flush=AsyncMock(), commit=AsyncMock())
     send = AsyncMock(side_effect=OSError('network unavailable') if fails else None)

@@ -34,13 +34,16 @@ async def test_checkout_returns_to_hash_routes(monkeypatch):
         frontend_app_url="http://localhost:5173/",
     ))
     monkeypatch.setattr(stripe_checkout.httpx, "AsyncClient", lambda **_: Client())
-    order = SimpleNamespace(id=uuid4(), amount_cents=3000)
+    order = SimpleNamespace(id=uuid4(), amount_cents=3000, kind="advertisement")
     session_id, checkout_url = await stripe_checkout.create_stripe_session(order, "Banner", "/publicidad/123/checkout")
 
     assert (session_id, checkout_url) == ("cs_test_example", "https://checkout.stripe.com/test")
     assert captured["success_url"] == "http://localhost:5173/#/publicidad/123/checkout?payment=return"
     assert captured["cancel_url"] == "http://localhost:5173/#/publicidad/123/checkout?payment=cancelled"
     assert captured["line_items[0][price_data][unit_amount]"] == "3000"
+    assert captured["allowed_payment_method_types[0]"] == "card"
+    assert "payment_method_types[0]" not in captured
+    assert 30 * 60 <= int(captured["expires_at"]) - time.time() <= 32 * 60
 
 
 def test_webhook_signature_rejects_tampering(monkeypatch):

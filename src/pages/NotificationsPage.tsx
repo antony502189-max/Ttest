@@ -70,6 +70,26 @@ const pageCopy: Record<Language, {
 }
 
 const productNotificationCopy: Record<string, Record<Language, { title: string; body: string }>> = {
+  advertisement_paid: {
+    es: { title: 'Pago publicitario confirmado', body: 'Tu publicidad está pagada y pendiente de revisión. El plazo empieza tras la aprobación.' },
+    ru: { title: 'Оплата рекламы подтверждена', body: 'Баннер оплачен и ожидает проверки. Срок показа начнётся после одобрения.' },
+    en: { title: 'Advertising payment confirmed', body: 'Your banner is paid and awaiting review. Its display period starts after approval.' },
+  },
+  advertisement_approved: {
+    es: { title: 'Tu publicidad está publicada', body: 'Tu publicidad ha sido aprobada. Puedes consultar su fecha de finalización en Mis campañas.' },
+    ru: { title: 'Ваш баннер опубликован', body: 'Реклама одобрена. Дата окончания показа указана в разделе «Мои кампании».' },
+    en: { title: 'Your banner is published', body: 'Your advertisement is approved. Check its end date in My campaigns.' },
+  },
+  advertisement_rejected: {
+    es: { title: 'Tu publicidad necesita cambios', body: 'Tu publicidad no ha sido aprobada. Consulta la nota de moderación en Mis campañas.' },
+    ru: { title: 'Баннер требует изменений', body: 'Реклама не одобрена. Причина указана в разделе «Мои кампании».' },
+    en: { title: 'Your banner needs changes', body: 'Your advertisement was not approved. Check the moderation note in My campaigns.' },
+  },
+  payment_review_required: {
+    es: { title: 'Tu pago necesita una revisión', body: 'El pago se ha recibido, pero no hemos podido activar el servicio. Contacta con soporte; no vuelvas a pagar.' },
+    ru: { title: 'Оплата требует проверки', body: 'Оплата получена, но услугу не удалось активировать. Свяжитесь с поддержкой; не оплачивайте повторно.' },
+    en: { title: 'Your payment needs review', body: 'Payment received, but the service could not be activated. Contact support; do not pay again.' },
+  },
   advertising_slot_available: {
     es: { title: 'Hay un espacio publicitario disponible', body: 'Ya puedes publicar tu publicidad por 1 € al día.' },
     en: { title: 'An advertising slot is available', body: 'You can now place your banner for €1 per day.' },
@@ -169,6 +189,7 @@ function displayNotification(item: NotificationItem, language: Language) {
 }
 
 function notificationTarget(item: NotificationItem, copy: typeof pageCopy.es) {
+  if (item.type.startsWith('advertisement_') || item.type === 'payment_review_required') return { to: '/mis-campanas', label: '112233.es' }
   if (item.type === 'advertising_slot_available') return { to: '/publicidad/nueva', label: '112233.es' }
   if (item.type === 'favorite_unavailable') return { to: '/favoritos', label: copy.openFavorites }
   if (MY_LISTING_NOTIFICATION_TYPES.has(item.type)) return { to: '/mis-anuncios', label: copy.openMyListings }

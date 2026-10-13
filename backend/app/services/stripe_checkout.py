@@ -32,7 +32,7 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
     }
     if getattr(order, "kind", None) == "advertisement":
         # Only immediate card payments can reserve this scarce inventory.
-        data["payment_method_types[0]"] = "card"
+        data["allowed_payment_method_types[0]"] = "card"
         data["expires_at"] = str(int(time.time()) + 31 * 60)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -69,6 +69,26 @@ async def retrieve_stripe_session(session_id: str) -> dict:
         return payload
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(502, "Could not verify Stripe Checkout") from exc
+
+
+async def expire_stripe_session(session_id: str) -> dict:
+    """Release inventory only when the provider confirms the session is closed."""
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            response = await client.post(f"https://api.stripe.com/v1/checkout/sessions/{session_id}/expire",
+                                         headers={"Authorization": f"Bearer {settings.stripe_secret_key}",
+                                                  "Idempotency-Key": f"expire:{session_id}"})
+        if response.status_code == 400:
+            # Payment may have completed concurrently with the cancellation.
+            return await retrieve_stripe_session(session_id)
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict) or payload.get("id") != session_id or payload.get("status") != "expired":
+            raise ValueError("Stripe did not confirm expiry")
+        return payload
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(502, "Could not cancel Stripe Checkout") from exc
 
 
 def verified_stripe_event(body: bytes, signature: str) -> dict:

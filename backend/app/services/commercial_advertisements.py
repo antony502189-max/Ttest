@@ -54,6 +54,16 @@ async def require_free_slot(session, *, exclude_id=None) -> None:
         raise HTTPException(409, "No advertising slots available")
 
 
+async def notify_advertiser(session, ad, kind: str, title: str, body: str) -> None:
+    from ..models import User
+    from .notifications import create_notification
+    recipient = await session.get(User, ad.owner_user_id)
+    if recipient and recipient.deleted_at is None:
+        event = ad.submitted_at or ad.created_at
+        await create_notification(session, recipient=recipient, kind=kind, title=title, body=body,
+                                  idempotency_key=f"advertisement:{ad.id}:{kind}:{event.isoformat()}")
+
+
 def normalize_destination(kind: str, raw: str) -> str:
     value = raw.strip()
     if kind == "website":

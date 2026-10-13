@@ -113,7 +113,7 @@ async def test_payment_moderation_public_visibility_and_media(client, register_u
     async with SessionLocal() as session:
         stored = await session.get(CommercialAdvertisement, ad_id)
         assert stored is not None
-        stored.ends_at = datetime.now(UTC) + timedelta(days=1)
+        stored.ends_at = stored.starts_at + timedelta(days=1)
         await session.commit()
     edited = await client.patch(f"/api/v1/advertisements/{ad_id}", headers=owner_headers,
                                 json={**payload, "title": "A changed local service"})

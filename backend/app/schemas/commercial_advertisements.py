@@ -62,6 +62,7 @@ class AdvertisementDetail(BaseModel):
     startsAt: datetime | None
     endsAt: datetime | None
     moderationNote: str | None
+    paymentReviewRequired: bool = False
 
 
 class AdvertisementAdminDetail(AdvertisementDetail):

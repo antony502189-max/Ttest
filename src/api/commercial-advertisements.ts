@@ -27,6 +27,7 @@ export type AdvertisementDetail = Omit<AdvertisementWrite, 'packageId'> & {
   imageUrl: string
   status: string
   paymentStatus: string
+  paymentReviewRequired?: boolean
   placement: string
   createdAt: string
   startsAt: string | null
@@ -44,11 +45,16 @@ export const updateAdvertisement = (id: string, body: AdvertisementWrite) => api
 export const cancelAdvertisement = (id: string) => api<void>(`/advertisements/${id}`, { method: 'DELETE' })
 export const createAdCheckout = (id: string) => api<{ url: string; amountCents: number; currency: string }>(`/payments/advertisements/${id}/checkout`, { method: 'POST' })
 export const getAdQuote = (id: string) => api<{ days: number; amountCents: number; currency: string; available: boolean }>(`/payments/advertisements/${id}/quote`)
+export const getAdPaymentStatus = (id: string) => api<{ status: string; paymentStatus: string; orderStatus: string | null; fulfillmentStatus: string | null }>(`/payments/advertisements/${id}/status`)
+export const cancelAdCheckout = (id: string) => api<{ cancelled: boolean; paid: boolean }>(`/payments/advertisements/${id}/checkout/cancel`, { method: 'POST' })
 export type AdvertisingAvailability = { total: number; available: number; dailyPriceCents: number; currency: string; pushEnabled: boolean; pushPublicKey: string | null }
 export const getAdvertisingAvailability = () => api<AdvertisingAvailability>('/advertisements/availability', { timeoutMs: 6000 })
 export const subscribeAdvertisingVacancy = (language: string, subscription: PushSubscriptionJSON | null) => api<{ subscribed: boolean; available: boolean }>('/advertisements/waitlist', { method: 'POST', body: JSON.stringify({ language, subscription }) })
 export const unsubscribeAdvertisingVacancy = () => api<void>('/advertisements/waitlist', { method: 'DELETE' })
+export const getAdvertisingWaitlistStatus = () => api<{ subscribed: boolean; channel: 'push' | 'site' }>('/advertisements/waitlist')
 export const getAdminAdvertisements = (status?: string) => api<AdminAdvertisement[]>(`/admin/advertisements${status ? `?status_filter=${encodeURIComponent(status)}` : ''}`)
+export type PaymentReview = { id: string; kind: string; targetId: string; amountCents: number; paidAt: string; note: string }
+export const getPaymentReviews = () => api<PaymentReview[]>('/payments/admin/review-required')
 export const moderateAdvertisement = (id: string, action: 'approve' | 'reject' | 'deactivate', note?: string) => api<AdvertisementDetail>(`/admin/advertisements/${id}/${action}`, { method: 'POST', body: JSON.stringify({ note: note || null }) })
 
 export async function uploadAdvertisementImage(file: File) {

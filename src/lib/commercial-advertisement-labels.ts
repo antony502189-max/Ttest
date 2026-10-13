@@ -4,7 +4,7 @@ export function advertisementStatusSource(value: string, endsAt?: string | null)
 }
 
 export function advertisementPaymentSource(value: string) {
-  return ({ paid: 'Pagado (prueba)', unpaid: 'Sin pagar' } as Record<string, string>)[value] ?? value
+  return ({ paid: 'Pagado', unpaid: 'Sin pagar', pending: 'Pendiente de pago', failed: 'Pago fallido', refunded: 'Reembolsado' } as Record<string, string>)[value] ?? value
 }
 
 export function advertisementDestinationSource(value: string) {

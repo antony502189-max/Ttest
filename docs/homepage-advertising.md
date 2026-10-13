@@ -22,14 +22,19 @@ reserve capacity. Pending orders count once per campaign. New purchases are
 rejected with HTTP 409 before a provider session is created when all seven places
 are occupied. Existing open sessions can be reused for their reserved campaign.
 
-Banner Checkout accepts immediate card payments and expires after 31 minutes.
+Banner Checkout accepts immediate card payments using the current
+`allowed_payment_method_types` filter and expires after about 31 minutes.
 Expiry webhooks release reservations; the outbox worker also checks old pending
 orders against Stripe. A local timer never frees a potentially paid reservation.
-Completed sessions awaiting their webhook remain reserved. Subscribe Stripe to
+Completed sessions are recovered through authenticated Stripe GET by the worker
+and the owner's `/payments/advertisements/{id}/status` endpoint when a webhook is
+lost. `/payments/advertisements/{id}/checkout/cancel` expires an open session before
+releasing capacity. If payment wins the cancellation race, it is fulfilled and
+capacity remains reserved. Subscribe Stripe to
 `checkout.session.completed`, `checkout.session.async_payment_succeeded` and
 `checkout.session.expired`. [Stripe Checkout parameters](https://docs.stripe.com/api/checkout/sessions/create).
 
-Only verified paid webhooks move campaigns into review. Editing a paid active
+Only signed paid webhooks or verified Stripe GET responses move campaigns into review. Editing a paid active
 creative preserves its original end time, so repeated edits cannot restart the
 paid period. Rejected and deactivated campaigns release space. Refunds retain the
 existing manual Stripe process.
@@ -46,7 +51,10 @@ links open the advertising form. A notification does not reserve a place.
 If enabled and permitted by the user, browser push is sent through the registered
 `advertising-sw.js` service worker. Transient provider failures retry after five
 minutes; invalid subscriptions (404/410) fall back to the in-site notification.
-The endpoint only accepts known browser push providers and validates key sizes.
+The endpoint only accepts known browser push providers, validates key sizes and
+checks the browser's actual P-256 public point. Saved subscription state survives
+page reload and can be cancelled. A changed subscription invalidates an old worker
+claim so it cannot mark the new subscription as delivered.
 Without browser permission, browser support, or server VAPID configuration, the
 UI explicitly confirms the in-site notification channel.
 [Browser subscription requirements](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe).
@@ -54,7 +62,8 @@ UI explicitly confirms the in-site notification channel.
 ## Deployment
 
 1. Install backend dependencies using `backend/constraints.txt` and apply
-   `alembic upgrade head`, including `0058_advertising_waitlist`.
+   `alembic upgrade head`, including `0058_advertising_waitlist` and
+   `0059_payment_fulfillment`.
 2. Generate a key pair once in a private, ignored environment file:
    `python -m app.commands.web_push_keys --output webpush.local.env`.
 3. Put `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY` and `WEB_PUSH_SUBJECT` in the
@@ -69,3 +78,18 @@ UI explicitly confirms the in-site notification channel.
 If more than seven old campaigns/reservations already exist, new purchases stay
 closed until capacity drops below seven. The public display is capped at seven;
 resolve any pre-existing oversold paid campaigns operationally before release.
+
+## Exceptional paid orders
+
+`payment_orders.fulfillment_status` records `fulfilled` independently of `paid`.
+A paid order that cannot be safely assigned is retained as `review_required`, with
+the reason recorded and a notification to the buyer. Its campaign blocks another
+purchase; the checkout and My campaigns show the payment issue. The administrator
+advertising page shows the reconciliation queue from
+`GET /payments/admin/review-required`. Refunds continue to be handled in Stripe;
+do not collect another payment while the earlier one is unresolved.
+
+The stored creative fingerprint prevents late events from approving different
+content. A late paid expired order cannot displace seven currently reserved places.
+Migration preserves historical paid TOP fulfillment to prevent duplicate grants;
+historical paid advertising orders without a paid campaign are queued for review.

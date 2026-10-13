@@ -4,16 +4,16 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...db.session import get_session
 from ...core.config import get_settings
+from ...db.session import get_session
 from ...models import MediaAsset, User
-from ...models.commercial_advertisement import CommercialAdvertisement as Ad
 from ...models.advertising_waitlist import AdvertisingWaitlist
-from pydantic import BaseModel, Field
-from ...services.advertising_alerts import push_configured, validate_subscription
+from ...models.commercial_advertisement import CommercialAdvertisement as Ad
+from ...models.payment_order import PaymentOrder
 from ...schemas.commercial_advertisements import (
     AdvertisementAdminDetail,
     AdvertisementDetail,
@@ -23,9 +23,17 @@ from ...schemas.commercial_advertisements import (
     DestinationType,
     ModerationDecision,
 )
+from ...services.advertising_alerts import push_configured, validate_subscription
 from ...services.commercial_advertisements import (
-    MAX_ACTIVE_HOMEPAGE_ADS, PACKAGE_ID, approve, destination_url, payment_service,
-    lock_advertising_capacity, occupied_slots, require_free_slot,
+    MAX_ACTIVE_HOMEPAGE_ADS,
+    PACKAGE_ID,
+    approve,
+    destination_url,
+    lock_advertising_capacity,
+    notify_advertiser,
+    occupied_slots,
+    payment_service,
+    require_free_slot,
 )
 from ...services.listings import mark_orphaned_media
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
@@ -119,7 +127,10 @@ async def subscribe_advertising_vacancy(
     if not alert:
         alert = AdvertisingWaitlist(user_id=user.id)
         session.add(alert)
-    elif alert.notified_at is not None:
+    elif alert.notified_at is None and alert.subscription == subscription and alert.language == payload.language:
+        return {"subscribed": True, "available": False}
+    else:
+        # Changing a subscription invalidates any in-flight delivery claim.
         alert.created_at = datetime.now(UTC)
     alert.subscription = subscription
     alert.language = payload.language
@@ -127,6 +138,13 @@ async def subscribe_advertising_vacancy(
     alert.next_attempt_at = None
     await session.commit()
     return {"subscribed": True, "available": False}
+
+
+@router.get("/advertisements/waitlist")
+async def advertising_waitlist_status(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    alert = await session.get(AdvertisingWaitlist, user.id)
+    subscribed = bool(alert and alert.notified_at is None)
+    return {"subscribed": subscribed, "channel": "push" if subscribed and alert.subscription else "site"}
 
 
 @router.delete("/advertisements/waitlist", status_code=status.HTTP_204_NO_CONTENT)
@@ -178,12 +196,21 @@ async def create_advertisement(
 @router.get("/advertisements/mine", response_model=list[AdvertisementDetail])
 async def my_advertisements(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     ads = (await session.scalars(select(Ad).where(Ad.owner_user_id == user.id).order_by(Ad.created_at.desc()).limit(100))).all()
-    return [detail(ad) for ad in ads]
+    issues = set((await session.scalars(select(PaymentOrder.target_id).where(
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.kind == "advertisement",
+        PaymentOrder.status == "paid", PaymentOrder.fulfillment_status == "review_required",
+    ))).all())
+    return [detail(ad).model_copy(update={"paymentReviewRequired": ad.id in issues}) for ad in ads]
 
 
 @router.get("/advertisements/{ad_id}", response_model=AdvertisementDetail)
 async def get_advertisement(ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    return detail(await owned_ad(session, ad_id, user))
+    ad = await owned_ad(session, ad_id, user)
+    issue = await session.scalar(select(PaymentOrder.id).where(
+        PaymentOrder.target_id == ad.id, PaymentOrder.owner_user_id == user.id, PaymentOrder.kind == "advertisement",
+        PaymentOrder.status == "paid", PaymentOrder.fulfillment_status == "review_required",
+    ).limit(1))
+    return detail(ad).model_copy(update={"paymentReviewRequired": issue is not None})
 
 
 @router.patch("/advertisements/{ad_id}", response_model=AdvertisementDetail)
@@ -204,7 +231,6 @@ async def edit_advertisement(
                    ad.destination != payload.destination))
     expired = ad.payment_status == "paid" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
     if changed or expired:
-        from ...models.payment_order import PaymentOrder
         pending = await session.scalar(select(PaymentOrder.id).where(
             PaymentOrder.target_id == ad.id, PaymentOrder.kind == "advertisement",
             PaymentOrder.status == "pending",
@@ -241,7 +267,6 @@ async def edit_advertisement(
 @router.delete("/advertisements/{ad_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def cancel_advertisement(ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     await lock_advertising_capacity(session)
-    from ...models.payment_order import PaymentOrder
     if await session.scalar(select(PaymentOrder.id).where(
         PaymentOrder.target_id == ad_id, PaymentOrder.owner_user_id == user.id,
         PaymentOrder.kind == "advertisement", PaymentOrder.status == "pending",
@@ -342,6 +367,8 @@ async def approve_advertisement(
     if (overlapping or 0) >= MAX_ACTIVE_HOMEPAGE_ADS:
         raise HTTPException(409, f"Homepage advertising is limited to {MAX_ACTIVE_HOMEPAGE_ADS} simultaneous campaigns")
     approve(ad, proposed_start, proposed_end)
+    await notify_advertiser(session, ad, "advertisement_approved", "Tu publicidad está publicada",
+                            "Tu publicidad ha sido aprobada. Puedes consultar su fecha de finalización en Mis campañas.")
     await session.commit()
     await session.refresh(ad)
     logger.info("commercial_advertisement_approved")
@@ -359,6 +386,8 @@ async def reject_advertisement(
     ad.status = "rejected"
     ad.rejected_at = datetime.now(UTC)
     ad.moderation_note = decision.note
+    await notify_advertiser(session, ad, "advertisement_rejected", "Tu publicidad necesita cambios",
+                            "Tu publicidad no ha sido aprobada. Consulta la nota de moderación en Mis campañas.")
     await session.commit()
     await session.refresh(ad)
     logger.info("commercial_advertisement_rejected")
