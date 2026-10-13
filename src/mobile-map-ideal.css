@@ -782,7 +782,7 @@
   min-height: 1.85rem;
 }
 
-/* Customer reference, revision 2 (2026-10-13).
+/* Customer reference, revision 3 (2026-10-13).
    The first tweak was too subtle. Make the NEXT photo clearly visible,
    while retaining a readable active listing on 320–480px phones.
    Only multi-listing map carousels change; no map or card data changes.
@@ -790,16 +790,16 @@
 @media (max-width: 767px) {
   .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
   .m2-map-listing-card.is-current {
-    width: calc(100% - clamp(5.25rem, 26vw, 7.75rem)) !important;
+    width: calc(100% - clamp(5.75rem, 29vw, 8.25rem)) !important;
     max-width: none;
-    transform: translate(calc(-50% - clamp(1rem, 4vw, 1.5rem)), -50%) scale(1) !important;
+    transform: translate(calc(-50% - clamp(1.35rem, 5.5vw, 2rem)), -50%) scale(1) !important;
   }
 
   .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
   .m2-map-listing-card.is-next {
     /* Move the next photo a little left; the narrower current card
-       exposes ~58–82px at widths from 320–480px. */
-    transform: translate(30%, -50%) scale(.94) !important;
+       exposes approximately 64–92px at widths from 320–480px. */
+    transform: translate(37%, -50%) scale(.94) !important;
     opacity: 1;
   }
 
@@ -807,7 +807,7 @@
   .m2-map-listing-carousel__arrow--next {
     /* Keep forward navigation on the right edge of the current card,
        rather than covering the revealed photo. */
-    right: clamp(3.5rem, 19vw, 6rem) !important;
+    right: clamp(4.4rem, 22.5vw, 7.25rem) !important;
   }
 
   /* Both variants render ChevronLeft; do not allow a later transform
