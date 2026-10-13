@@ -129,7 +129,7 @@ test('both production and mock right-hand carousel controls render genuine left 
   const styles = readFileSync('src/mobile-map-ideal.css', 'utf8')
   expect(styles).toContain('.m2-map-listing-carousel__arrow--next > svg')
   expect(styles).toContain('transform: none !important')
-  expect(styles).toContain('transform: translate(37%, -50%) scale(.94) !important')
+  expect(styles).toContain('transform: translate(30%, -50%) scale(.94) !important')
 })
 
 test('same-address cluster opens one full-card carousel without moving coordinates', () => {
