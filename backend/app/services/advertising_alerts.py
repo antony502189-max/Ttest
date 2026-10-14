@@ -19,9 +19,9 @@ from .stripe_checkout import retrieve_stripe_session
 
 logger = logging.getLogger(__name__)
 COPY = {
-    "es": ("Hay un espacio publicitario disponible", "Ya puedes publicar tu publicidad por 1 € al día."),
-    "ru": ("Освободилось место для рекламы", "Теперь можно разместить баннер за 1 € в день."),
-    "en": ("An advertising slot is available", "You can now place your banner for €1 per day."),
+    "es": ("Hay un espacio publicitario disponible", "Ya puedes publicar tu publicidad por 30 € al mes."),
+    "ru": ("Освободилось место для рекламы", "Теперь можно разместить баннер за 30 € в месяц."),
+    "en": ("An advertising slot is available", "You can now place your banner for €30 per month."),
 }
 
 

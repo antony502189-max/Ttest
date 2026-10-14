@@ -24,6 +24,7 @@ test('homepage purchase selects an owned listing and opens Stripe only after exp
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('heading', { name: 'Tu anuncio en portada' })).toBeVisible()
   expect(count).toBe(0)
+  await expect(dialog.getByRole('button', { name: 'Pagar con Stripe' })).toBeDisabled()
   await dialog.locator('.owner-top-dialog__option').last().click()
   await dialog.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(dialog.getByRole('alert')).toBeVisible()
@@ -32,19 +33,14 @@ test('homepage purchase selects an owned listing and opens Stripe only after exp
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('banner minimum and selected total are visible before payment', async ({ page }) => {
+test('banner monthly total is visible before payment', async ({ page }) => {
   const id = '00000000-0000-4000-8000-000000000999'
   await page.route(`**/advertisements/${id}`, route => route.fulfill({ json: { id, title: 'Local service', description: 'Service for our community.', imageUrl: '', packageId: 'homepage_1d', status: 'pending_payment', paymentStatus: 'unpaid' } }))
   await page.route(`**/payments/advertisements/${id}/quote**`, route => {
-    const days = Number(new URL(route.request().url()).searchParams.get('days'))
-    return route.fulfill({ json: { days, amountCents: days * 100, currency: 'EUR', available: true } })
+    return route.fulfill({ json: { days: 30, months: 1, amountCents: 3000, currency: 'EUR', available: true } })
   })
   await page.goto(`/#/publicidad/${id}/checkout`, { waitUntil: 'domcontentloaded' })
-  const input = page.getByLabel('Duración (mínimo 10 días)')
-  await expect(input).toHaveValue('10')
-  await input.fill('9')
-  await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeDisabled()
-  await input.fill('21')
-  await expect(page.getByText(/21 días.*21,00/)).toBeVisible()
+  await expect(page.getByLabel('Duración (mínimo 10 días)')).toHaveCount(0)
+  await expect(page.getByText(/30 € · 1 mes.*30,00/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()
 })

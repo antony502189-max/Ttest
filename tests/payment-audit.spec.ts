@@ -31,7 +31,7 @@ test('failed asynchronous payment stops confirmation and allows a new purchase',
   })
   await page.route(`**/advertisements/${adId}`, route => route.fulfill({ json: { id: adId, title: 'Local service', description: 'Our local community service.', imageUrl: '', packageId: 'homepage_1d', status: 'pending_payment', paymentStatus: 'unpaid' } }))
   await page.route(`**/payments/advertisements/${adId}/status`, route => route.fulfill({ json: { orderStatus: 'failed', fulfillmentStatus: 'pending' } }))
-  await page.route(`**/payments/advertisements/${adId}/quote**`, route => route.fulfill({ json: { days: 10, amountCents: 1000, currency: 'EUR', available: true } }))
+  await page.route(`**/payments/advertisements/${adId}/quote**`, route => route.fulfill({ json: { days: 30, amountCents: 3000, currency: 'EUR', available: true } }))
   await page.goto(`/#/publicidad/${adId}/checkout?payment=return`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('Pago fallido. Puedes volver a intentarlo.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()

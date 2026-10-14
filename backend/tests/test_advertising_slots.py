@@ -29,14 +29,14 @@ async def test_full_inventory_rejects_before_stripe_and_uses_shared_lock(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_new_package_defaults_to_ten_days_at_one_euro_per_day(monkeypatch):
+async def test_banner_defaults_to_one_month_at_thirty_euros(monkeypatch):
     ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', status='pending_payment', payment_status='unpaid')
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 6]), execute=AsyncMock())
     provider = AsyncMock(return_value='checkout')
     monkeypatch.setattr(payments, 'checkout', provider)
     assert await payments.advertisement_checkout(ad.id, SimpleNamespace(id=uuid4()), session) == 'checkout'
     args = provider.await_args.args
-    assert args[4:6] == (10, 1000)
+    assert args[4:6] == (30, 3000)
 
 
 @pytest.mark.asyncio

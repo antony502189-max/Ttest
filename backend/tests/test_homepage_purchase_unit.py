@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.api.v1.payments import BannerCheckoutRequest, advertisement_checkout
+from app.api.v1.payments import BannerCheckoutRequest, TopCheckoutRequest, advertisement_checkout
 from app.api.v1 import payments
 from app.services import payment_fulfillment as fulfillment
 from app.services.homepage_purchase import one_month_after
@@ -19,13 +19,13 @@ def test_calendar_month(start, end):
 
 
 @pytest.mark.parametrize("days", [0, 1, 9, 366, 10.5, "10", True])
-def test_banner_rejects_invalid_duration(days):
+def test_top_rejects_invalid_duration(days):
     with pytest.raises(ValidationError):
-        BannerCheckoutRequest(days=days)
+        TopCheckoutRequest(days=days)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("days", [10, 21, 30, 365])
+@pytest.mark.parametrize("days", [30])
 async def test_banner_server_price(monkeypatch, days):
     ad = SimpleNamespace(id=uuid4(), status="pending_payment", payment_status="unpaid", package_id="homepage_1d")
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None]))
@@ -34,7 +34,14 @@ async def test_banner_server_price(monkeypatch, days):
     create = AsyncMock()
     monkeypatch.setattr(payments, "checkout", create)
     await advertisement_checkout(ad.id, SimpleNamespace(id=uuid4()), session, BannerCheckoutRequest(days=days))
-    assert create.call_args.args[4:6] == (days, days * 100)
+    assert create.call_args.args[4:6] == (30, 3000)
+    assert create.call_args.kwargs['months'] == 1
+
+
+@pytest.mark.parametrize('days', [10, 21, 31, 30.5, '30', True])
+def test_banner_requires_monthly_package(days):
+    with pytest.raises(ValidationError):
+        BannerCheckoutRequest(days=days)
 
 
 @pytest.mark.asyncio

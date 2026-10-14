@@ -6,6 +6,10 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  '30 € · 1 mes': { ru: '30 € · 1 месяц', en: '€30 · 1 month' },
+  'Publicidad · 30 € por un mes. El plazo empieza cuando se aprueba tu campaña.': { ru: 'Баннер · 30 € за месяц. Срок показа начинается после одобрения кампании.', en: 'Advertising · €30 per month. The period starts when your campaign is approved.' },
+  'Selecciona tu anuncio. TOP cuesta 1 € al día, mínimo 10 días, y lo sitúa antes que los anuncios sin TOP.': { ru: 'Выберите объявление. TOP стоит 1 € в день, минимум 10 дней, и поднимает его выше объявлений без TOP.', en: 'Choose your listing. TOP costs €1 per day, minimum 10 days, and places it before listings without TOP.' },
+  'El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.': { ru: 'Срок начинается после подтверждения оплаты. Если TOP уже активен, купленные дни добавляются к текущему сроку.', en: 'The period starts when payment is confirmed. If TOP is already active, the purchased days extend the current period.' },
   'Motivo de resolución': { ru: 'Причина урегулирования', en: 'Resolution reason' },
   'Sesión Stripe verificada': { ru: 'Проверенная сессия Stripe', en: 'Verified Stripe session' },
   'Conciliar pago': { ru: 'Сверить оплату', en: 'Reconcile payment' },
@@ -19,9 +23,6 @@ const translations: Record<string, Translation> = {
   'Payment creation needs review; do not pay again': { ru: 'Создание оплаты требует проверки. Не оплачивайте повторно.', en: 'Payment creation needs review. Do not pay again.' },
   'Pago fallido. Puedes volver a intentarlo.': { ru: 'Оплата не прошла. Вы можете попробовать снова.', en: 'Payment failed. You can try again.' },
   'Pago devuelto · servicio finalizado': { ru: 'Оплата возвращена · услуга завершена', en: 'Payment refunded · service ended' },
-  '30 € · 1 mes en TOP': { ru: '30 € · 1 месяц в TOP', en: '€30 · 1 month in TOP' },
-  'Selecciona tu anuncio. TOP cuesta 30 € por un mes y lo sitúa antes que los anuncios sin TOP.': { ru: 'Выберите объявление. TOP стоит 30 € за месяц и поднимает его выше объявлений без TOP.', en: 'Choose your listing. TOP costs €30 for one month and places it before listings without TOP.' },
-  'El mes empieza cuando se confirma el pago. Si ya tienes TOP, se añade un mes al plazo actual.': { ru: 'Месяц начинается после подтверждения оплаты. Если TOP уже активен, к его сроку добавится месяц.', en: 'The month starts when payment is confirmed. If TOP is already active, one month is added to its current period.' },
   'Pago confirmado · tu anuncio está en TOP': { ru: 'Оплата подтверждена · объявление в TOP', en: 'Payment confirmed · your listing is in TOP' },
   'Pago cancelado. Puedes volver a comprar TOP.': { ru: 'Оплата отменена. Вы можете снова купить TOP.', en: 'Payment cancelled. You can purchase TOP again.' },
   'Your TOP payment needs review; do not pay again': { ru: 'Оплата TOP требует проверки. Не оплачивайте повторно.', en: 'Your TOP payment needs review. Do not pay again.' },
@@ -39,7 +40,6 @@ const translations: Record<string, Translation> = {
   'Your homepage payment needs review; do not pay again': { ru: 'Оплата закрепления требует проверки. Не оплачивайте повторно.', en: 'Your homepage payment needs review. Do not pay again.' },
   'Duración (mínimo 10 días)': { ru: 'Срок (минимум 10 дней)', en: 'Duration (at least 10 days)' },
   '1 € al día · mínimo 10 días': { ru: '1 € в день · минимум 10 дней', en: '€1 per day · minimum 10 days' },
-  'Publicidad · 1 € al día · mínimo 10 días. El plazo empieza cuando se aprueba tu campaña.': { ru: 'Реклама · 1 € в день · минимум 10 дней. Срок показа начинается после одобрения кампании.', en: 'Advertising · €1 per day · minimum 10 days. The period starts when your campaign is approved.' },
   'Pago en revisión': { ru: 'Оплата на проверке', en: 'Payment under review' },
   'Stripe is not configured': { ru: 'Оплата временно недоступна. Попробуйте позже.', en: 'Payments are temporarily unavailable. Please try later.' },
   'Could not start Stripe Checkout': { ru: 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.', en: 'Could not open the payment page. Please try again.' },

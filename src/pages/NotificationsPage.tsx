@@ -91,9 +91,9 @@ const productNotificationCopy: Record<string, Record<Language, { title: string; 
     en: { title: 'Your payment needs review', body: 'Payment received, but the service could not be activated. Contact support; do not pay again.' },
   },
   advertising_slot_available: {
-    es: { title: 'Hay un espacio publicitario disponible', body: 'Ya puedes publicar tu publicidad por 1 € al día.' },
-    en: { title: 'An advertising slot is available', body: 'You can now place your banner for €1 per day.' },
-    ru: { title: 'Освободилось место для рекламы', body: 'Теперь можно разместить баннер за 1 € в день.' },
+    es: { title: 'Hay un espacio publicitario disponible', body: 'Ya puedes publicar tu publicidad por 30 € al mes.' },
+    en: { title: 'An advertising slot is available', body: 'You can now place your banner for €30 per month.' },
+    ru: { title: 'Освободилось место для рекламы', body: 'Теперь можно разместить баннер за 30 € в месяц.' },
   },
   listing_submitted: {
     es: { title: 'Tu anuncio se ha enviado', body: 'Revisaremos tu anuncio antes de publicarlo.' },

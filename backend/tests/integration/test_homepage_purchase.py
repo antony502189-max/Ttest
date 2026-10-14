@@ -68,18 +68,18 @@ async def test_cancel_releases_homepage_reservation(client, register_user, provi
     assert (await client.get('/api/v1/listings/homepage-hero')).json() is None
 
 
-async def test_variable_banner_quote_and_approved_duration(client, register_user, provider):
+async def test_monthly_banner_quote_and_approved_duration(client, register_user, provider):
     ad, _, headers, _ = await create_ad(client, register_user, 'banner-duration@example.com')
     route = '/api/v1/payments/advertisements/' + ad['id']
-    for invalid in [9, 10.5, 366]:
+    for invalid in [9, 10, 21, 31, 10.5, 366]:
         assert (await client.post(route + '/checkout', headers=headers, json={'days': invalid})).status_code == 422
-    quote = await client.get(route + '/quote?days=21', headers=headers)
-    assert quote.json()['amountCents'] == 2100
-    result = await client.post(route + '/checkout', headers=headers, json={'days': 21, 'amountCents': 1})
-    assert result.status_code == 200 and result.json()['amountCents'] == 2100
-    assert (await client.get(route + '/quote', headers=headers)).json()['reservedDays'] == 21
+    quote = await client.get(route + '/quote', headers=headers)
+    assert quote.json()['amountCents'] == 3000 and quote.json()['months'] == 1
+    result = await client.post(route + '/checkout', headers=headers, json={'days': 30, 'amountCents': 1})
+    assert result.status_code == 200 and result.json()['amountCents'] == 3000
+    assert (await client.get(route + '/quote', headers=headers)).json()['reservedDays'] == 30
     changed = await client.post(route + '/checkout', headers=headers, json={'days': 10})
-    assert changed.status_code == 409
+    assert changed.status_code == 422
     remote = provider[result.json()['url'].rsplit('/', 1)[-1]]
     remote.update(status='complete', payment_status='paid')
     assert (await webhook(client, remote)).status_code == 200
@@ -87,4 +87,4 @@ async def test_variable_banner_quote_and_approved_duration(client, register_user
     approved = await client.post('/api/v1/admin/advertisements/' + ad['id'] + '/approve', headers=admin, json={})
     assert approved.status_code == 200, approved.text
     value = approved.json()
-    assert datetime.fromisoformat(value['endsAt']) - datetime.fromisoformat(value['startsAt']) == timedelta(days=21)
+    assert datetime.fromisoformat(value['endsAt']) == one_month_after(datetime.fromisoformat(value['startsAt']))

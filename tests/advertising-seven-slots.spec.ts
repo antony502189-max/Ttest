@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 const adId = '00000000-0000-4000-8000-000000000731'
 const assetId = '00000000-0000-4000-8000-000000000732'
 const png = readFileSync('src/assets/mobile-hero.jpg')
-const availability = (available = 7) => ({ total: 7, available, dailyPriceCents: 100, currency: 'EUR', pushEnabled: false, pushPublicKey: null })
+const availability = (available = 7) => ({ total: 7, available, monthlyPriceCents: 3000, months: 1, currency: 'EUR', pushEnabled: false, pushPublicKey: null })
 const ads = Array.from({ length: 8 }, (_, index) => ({ id: `${adId}-${index}`, title: `Service ${index + 1}`, description: 'A local service for our community.', imageUrl: `/api/v1/media/${assetId}?variant=card`, imageWidth: 800, imageHeight: 450, destinationType: 'website', destinationUrl: 'https://example.org/', placement: 'homepage_bottom' }))
 
 test.beforeEach(async ({ page }) => {
@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/advertisements/availability', (route) => route.fulfill({ json: availability() }))
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: [] }))
   await page.route(`**/api/v1/media/${assetId}**`, (route) => route.fulfill({ body: png, contentType: 'image/jpeg' }))
-  await page.route(`**/api/v1/payments/advertisements/${adId}/quote**`, (route) => route.fulfill({ json: { days: 10, amountCents: 1000, currency: 'EUR', available: true } }))
+  await page.route(`**/api/v1/payments/advertisements/${adId}/quote**`, (route) => route.fulfill({ json: { days: 30, amountCents: 3000, currency: 'EUR', available: true } }))
   await page.route('**/api/v1/advertisements/waitlist', route => route.fulfill({ json: { subscribed: false, channel: 'site' } }))
   await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
 })
@@ -30,7 +30,7 @@ test('seven cards preserve sponsored links and cap even an oversized response', 
   await expect(block.getByRole('heading', { name: 'Service 8' })).toHaveCount(0)
   await expect(block.getByRole('heading', { name: 'Service 7' })).toBeVisible()
   await expect(block.getByRole('link', { name: 'Más información' }).first()).toHaveAttribute('rel', 'noopener noreferrer sponsored')
-  await expect(block.getByText('1 € al día · mínimo 10 días')).toBeVisible()
+  await expect(block.getByText('30 € · 1 mes')).toBeVisible()
   await block.locator('img').evaluateAll((images) => images.forEach((img) => { (img as HTMLImageElement).loading = 'eager' }))
   await expect.poll(() => block.locator('img').evaluateAll((images) => images.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await block.screenshot({ path: 'output/advertising/seven-desktop.png', style: '.site-header, .skip-link { visibility: hidden !important; }' })
@@ -94,7 +94,7 @@ test('checkout starts only after an explicit payment click and handles the last 
     return route.fulfill({ status: 409, json: { detail: 'No advertising slots available' } })
   })
   await page.goto(`/#/publicidad/${adId}/checkout`)
-  await expect(page.getByLabel('Duración (mínimo 10 días)')).toHaveValue('10')
+  await expect(page.getByText('30 € · 1 mes', { exact: false })).toBeVisible()
   expect(checkouts).toBe(0)
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(page.getByText('No hay espacios publicitarios disponibles en este momento.')).toBeVisible()

@@ -34,15 +34,15 @@ from ..dependencies import current_user, require_admin
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 logger = logging.getLogger(__name__)
-TOP_MONTH_PRICE_CENTS = 3000
+TOP_DAY_PRICE_CENTS = 100
 
 
 class TopCheckoutRequest(BaseModel):
-    days: int = Field(default=30, ge=30, le=30, strict=True)
+    days: int = Field(default=10, ge=10, le=365, strict=True)
 
 
 class BannerCheckoutRequest(BaseModel):
-    days: int = Field(default=10, ge=10, le=365, strict=True)
+    days: int = Field(default=30, ge=30, le=30, strict=True)
 
 
 class CheckoutResponse(BaseModel):
@@ -54,21 +54,20 @@ class CheckoutResponse(BaseModel):
 @router.get("/advertisements/{ad_id}/quote")
 async def advertisement_quote(
     ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
-    days: int = Query(default=10, ge=10, le=365),
+    days: int = Query(default=30, ge=30, le=30),
 ):
     ad = await session.scalar(select(CommercialAdvertisement).where(
         CommercialAdvertisement.id == ad_id, CommercialAdvertisement.owner_user_id == user.id,
     ))
     if not ad:
         raise HTTPException(404, "Advertisement not found")
-    legacy = ad.package_id == "test_homepage_30d"
     reserved_days = await session.scalar(select(PaymentOrder.days).where(
         PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
         PaymentOrder.owner_user_id == user.id, PaymentOrder.status.in_(["creating", "pending"]),
     ).order_by(PaymentOrder.created_at.desc()).limit(1))
-    return {"days": 30 if legacy else days,
+    return {"days": 30, "months": 1,
             "reservedDays": reserved_days,
-            "amountCents": get_settings().advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS * days,
+            "amountCents": PACKAGE_PRICE_CENTS,
             "currency": "EUR", "available": await occupied_slots(session, exclude_id=ad.id) < MAX_ACTIVE_HOMEPAGE_ADS}
 
 
@@ -106,7 +105,7 @@ async def checkout(
         elif kind == "homepage_hero" and not await slot_available(session):
             raise HTTPException(409, "Homepage placement is currently unavailable")
     elif previous:
-        if previous.days != days or previous.amount_cents != amount:
+        if previous.days != days or previous.amount_cents != amount or previous.duration_months != months:
             raise HTTPException(409, "An unfinished payment already exists for this item")
         url = await finish_creation(previous, session, create=create_stripe_session)
         return CheckoutResponse(url=url, amountCents=amount)
@@ -145,15 +144,12 @@ async def advertisement_checkout(
     ).limit(1))
     if unresolved:
         raise HTTPException(409, "A paid advertisement needs review; do not pay again")
-    settings = get_settings()
-    legacy = ad.package_id == "test_homepage_30d"
-    amount = settings.advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS * payload.days
+    amount = PACKAGE_PRICE_CENTS
     if amount < 50:
         raise HTTPException(503, "Advertisement price has not been configured")
     await require_free_slot(session, exclude_id=ad.id)
-    days = 30 if legacy else payload.days
-    return await checkout(session, user, "advertisement", ad.id, days, amount,
-                          f"Publicidad 112233.es · {days} {'día' if days == 1 else 'días'}", f"/publicidad/{ad.id}/checkout", advertisement_fingerprint(ad))
+    return await checkout(session, user, "advertisement", ad.id, 30, amount,
+                          "Publicidad 112233.es · 1 mes", f"/publicidad/{ad.id}/checkout", advertisement_fingerprint(ad), months=1)
 
 
 @router.get("/homepage/quote")
@@ -260,8 +256,8 @@ async def listing_top_checkout(
     ).limit(1))
     if unresolved:
         raise HTTPException(409, "Your TOP payment needs review; do not pay again")
-    return await checkout(session, user, "listing_top", listing.id, 30, TOP_MONTH_PRICE_CENTS,
-                          "TOP 112233.es · 1 mes", f"/mis-anuncios?top={listing.id}", months=1)
+    return await checkout(session, user, "listing_top", listing.id, payload.days, TOP_DAY_PRICE_CENTS * payload.days,
+                          f"TOP 112233.es · {payload.days} días", f"/mis-anuncios?top={listing.id}")
 
 
 @router.get("/listings/{listing_id}/top/status")

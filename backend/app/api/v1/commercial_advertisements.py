@@ -105,7 +105,7 @@ async def advertising_availability(session: AsyncSession = Depends(get_session))
     used = await occupied_slots(session)
     settings = get_settings()
     return {"total": MAX_ACTIVE_HOMEPAGE_ADS, "available": max(0, MAX_ACTIVE_HOMEPAGE_ADS - used),
-            "dailyPriceCents": 100, "currency": "EUR", "pushEnabled": push_configured(),
+            "monthlyPriceCents": 3000, "months": 1, "currency": "EUR", "pushEnabled": push_configured(),
             "pushPublicKey": settings.web_push_public_key if push_configured() else None}
 
 
@@ -356,10 +356,13 @@ async def approve_advertisement(
     now = datetime.now(UTC)
     proposed_start = decision.startsAt or ad.starts_at or now
     duration = ad.duration_days or (30 if ad.package_id == "test_homepage_30d" else 1)
-    proposed_end = decision.endsAt or ad.ends_at or proposed_start + timedelta(days=duration)
+    from ...services.homepage_purchase import one_month_after
+    paid_order = await session.get(PaymentOrder, ad.current_payment_order_id) if ad.current_payment_order_id else None
+    paid_end = one_month_after(proposed_start) if paid_order and paid_order.duration_months == 1 else proposed_start + timedelta(days=duration)
+    proposed_end = decision.endsAt or ad.ends_at or paid_end
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
-    if proposed_end - proposed_start > timedelta(days=duration):
+    if proposed_end > paid_end:
         raise HTTPException(422, "Advertisement schedule exceeds paid duration")
     overlapping = await session.scalar(
         select(func.count(Ad.id))

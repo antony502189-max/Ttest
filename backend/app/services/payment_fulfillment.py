@@ -156,13 +156,13 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                 promotion.boosted_at = service_start
                 promotion.payment_managed = True
                 order.service_starts_at, order.service_ends_at = start, promotion.ends_at
-                promotion.daily_price_cents = None
+                promotion.daily_price_cents = None if monthly else order.amount_cents // order.days
                 promotion.total_price_cents = (promotion.total_price_cents or 0) + order.amount_cents
             else:
                 session.add(ListingPromotion(
                     listing_id=listing.id, boosted_at=service_start, boosted_by=None,
                     starts_at=service_start, ends_at=one_month_after(service_start) if monthly else service_start + timedelta(days=order.days),
-                    daily_price_cents=order.amount_cents if order.days == 1 else None,
+                    daily_price_cents=None if monthly else order.amount_cents // order.days,
                     total_price_cents=order.amount_cents,
                     payment_managed=True,
                 ))

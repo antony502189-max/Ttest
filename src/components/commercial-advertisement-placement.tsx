@@ -30,7 +30,7 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
     return () => { active = false; window.clearInterval(timer) }
   }, [])
   return <section className={`commercial-ad commercial-ad--slots ${mobile ? 'commercial-ad--mobile' : ''}`} aria-label={t('Publicidad comercial')}>
-    <div className="commercial-ad__header"><div className="commercial-ad__eyebrow"><Megaphone aria-hidden="true" />{t('Publicidad')}</div><span>{t('1 € al día · mínimo 10 días')}</span></div>
+    <div className="commercial-ad__header"><div className="commercial-ad__eyebrow"><Megaphone aria-hidden="true" />{t('Publicidad')}</div><span>{t('30 € · 1 mes')}</span></div>
     {loading ? <p role="status">{t('Cargando publicidad…')}</p> : failed ? <p role="status">{t('No se pudo cargar la publicidad. Inténtalo más tarde.')}</p> : <div className="commercial-ad__slots">
       {Array.from({ length: SLOTS }, (_, index) => {
         const ad = ads[index]

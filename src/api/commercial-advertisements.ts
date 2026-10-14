@@ -44,11 +44,11 @@ export const getAdvertisement = (id: string) => api<AdvertisementDetail>(`/adver
 export const createAdvertisement = (body: AdvertisementWrite) => api<AdvertisementDetail>('/advertisements', { method: 'POST', body: JSON.stringify(body) })
 export const updateAdvertisement = (id: string, body: AdvertisementWrite) => api<AdvertisementDetail>(`/advertisements/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
 export const cancelAdvertisement = (id: string) => api<void>(`/advertisements/${id}`, { method: 'DELETE' })
-export const createAdCheckout = (id: string, days = 10) => api<{ url: string; amountCents: number; currency: string }>(`/payments/advertisements/${id}/checkout`, { method: 'POST', body: JSON.stringify({ days }) })
-export const getAdQuote = (id: string, days = 10) => api<{ days: number; amountCents: number; currency: string; available: boolean; reservedDays?: number | null }>(`/payments/advertisements/${id}/quote?days=${days}`)
+export const createAdCheckout = (id: string) => api<{ url: string; amountCents: number; currency: string }>(`/payments/advertisements/${id}/checkout`, { method: 'POST', body: JSON.stringify({ days: 30 }) })
+export const getAdQuote = (id: string) => api<{ days: number; amountCents: number; currency: string; available: boolean; reservedDays?: number | null }>(`/payments/advertisements/${id}/quote`)
 export const getAdPaymentStatus = (id: string) => api<{ status: string; paymentStatus: string; orderStatus: string | null; fulfillmentStatus: string | null }>(`/payments/advertisements/${id}/status`)
 export const cancelAdCheckout = (id: string) => api<{ cancelled: boolean; paid: boolean }>(`/payments/advertisements/${id}/checkout/cancel`, { method: 'POST' })
-export type AdvertisingAvailability = { total: number; available: number; dailyPriceCents: number; currency: string; pushEnabled: boolean; pushPublicKey: string | null }
+export type AdvertisingAvailability = { total: number; available: number; monthlyPriceCents: number; months: number; currency: string; pushEnabled: boolean; pushPublicKey: string | null }
 export const getAdvertisingAvailability = () => api<AdvertisingAvailability>('/advertisements/availability', { timeoutMs: 6000 })
 export const subscribeAdvertisingVacancy = (language: string, subscription: PushSubscriptionJSON | null) => api<{ subscribed: boolean; available: boolean }>('/advertisements/waitlist', { method: 'POST', body: JSON.stringify({ language, subscription }) })
 export const unsubscribeAdvertisingVacancy = () => api<void>('/advertisements/waitlist', { method: 'DELETE' })

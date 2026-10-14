@@ -494,6 +494,8 @@ export function MyListingsPage() {
   const [status, setStatus] = useState("Todos");
   const [topDialogOpen, setTopDialogOpen] = useState(false);
   const [topCandidateId, setTopCandidateId] = useState("");
+  const [topDays, setTopDays] = useState("10");
+  const validTopDays = /^\d+$/.test(topDays) && Number(topDays) >= 10 && Number(topDays) <= 365;
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -541,19 +543,20 @@ export function MyListingsPage() {
   const openTopFlow = (listingId?: string) => {
     const candidate = listingId
       ? promotable.find((listing) => listing.id === listingId)
-      : promotable.find((listing) => !listing.promoted) ?? promotable[0];
-    if (!candidate) return;
-    setTopCandidateId(candidate.id);
+      : undefined;
+    if (!promotable.length) return;
+    setTopCandidateId(candidate?.id ?? "");
+    setTopDays("10");
     setTopPaymentError("");
     setTopDialogOpen(true);
   };
   const payForTop = async () => {
-    if (!topCandidateId) return;
+    if (!topCandidateId || !validTopDays) return;
     setTopPaymentBusy(true);
     setTopPaymentError("");
     try {
       const checkout = await api<{ url: string }>(`/payments/listings/${topCandidateId}/top/checkout`, {
-        method: "POST", body: JSON.stringify({ days: 30 }),
+        method: "POST", body: JSON.stringify({ days: Number(topDays) }),
       });
       window.location.assign(checkout.url);
     } catch (error) {
@@ -805,13 +808,14 @@ export function MyListingsPage() {
         <DialogContent className="owner-top-dialog">
           <DialogHeader>
             <DialogTitle>{t("Sube tu anuncio a TOP")}</DialogTitle>
-            <DialogDescription>{t("Selecciona tu anuncio. TOP cuesta 30 € por un mes y lo sitúa antes que los anuncios sin TOP.")}</DialogDescription>
+            <DialogDescription>{t("Selecciona tu anuncio. TOP cuesta 1 € al día, mínimo 10 días, y lo sitúa antes que los anuncios sin TOP.")}</DialogDescription>
           </DialogHeader>
           <div className="owner-top-dialog__list" role="list">
             {promotable.map((listing) => (
               <button
                 key={listing.id}
                 type="button"
+                aria-pressed={topCandidateId === listing.id}
                 className={`owner-top-dialog__option ${topCandidateId === listing.id ? "is-selected" : ""}`}
                 data-testid="owner-top-option"
                 data-listing-id={listing.id}
@@ -828,10 +832,11 @@ export function MyListingsPage() {
           </div>
           <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
             <strong>{t("Siguiente: duración y pago")}</strong>
-            <span>{t("30 € · 1 mes en TOP")}</span>
-            <span>{t("El mes empieza cuando se confirma el pago. Si ya tienes TOP, se añade un mes al plazo actual.")}</span>
+            <label className="field-label">{t("Duración (mínimo 10 días)")}<input type="number" min={10} max={365} step={1} value={topDays} aria-invalid={!validTopDays} disabled={topPaymentBusy} onChange={(event) => setTopDays(event.target.value)} /></label>
+            <span>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${topDays} ${t('días')} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</span>
+            <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
             {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
-            <Button type="button" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+            <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
             <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
           </div>
         </DialogContent>

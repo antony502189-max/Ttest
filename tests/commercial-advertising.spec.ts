@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route => route.fulfill({ body: png, contentType: 'image/png' }))
   await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
   await page.route('**/api/v1/advertisements/waitlist', route => route.fulfill({ json: { subscribed: false, channel: 'site' } }))
-  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { total: 7, available: 7, dailyPriceCents: 100, currency: 'EUR', pushEnabled: false, pushPublicKey: null } }))
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { total: 7, available: 7, monthlyPriceCents: 3000, months: 1, currency: 'EUR', pushEnabled: false, pushPublicKey: null } }))
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
 })
 
@@ -142,11 +142,11 @@ test('advertiser previews, returns from Stripe and sees persisted review state',
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   let ad: Record<string, unknown> | null = null
   await page.route('**/api/v1/payments/advertisements/*/status', route => route.fulfill({ json: { status: 'pending_review', paymentStatus: 'paid', orderStatus: 'paid', fulfillmentStatus: 'fulfilled' } }))
-  await page.route('**/api/v1/payments/advertisements/*/quote**', route => route.fulfill({ json: { days: 10, amountCents: 1000, currency: 'EUR', available: true } }))
+  await page.route('**/api/v1/payments/advertisements/*/quote**', route => route.fulfill({ json: { days: 30, amountCents: 3000, currency: 'EUR', available: true } }))
   await page.route('**/api/v1/payments/advertisements/*/checkout', route => {
     ad = { ...ad, status: 'pending_review', paymentStatus: 'paid' }
-    expect(route.request().postDataJSON()).toEqual({ days: 10 })
-    return route.fulfill({ json: { url: '/#/publicidad/' + adId + '/checkout?payment=return', amountCents: 1000, currency: 'EUR' } })
+    expect(route.request().postDataJSON()).toEqual({ days: 30 })
+    return route.fulfill({ json: { url: '/#/publicidad/' + adId + '/checkout?payment=return', amountCents: 3000, currency: 'EUR' } })
   })
   await page.route('**/api/v1/advertisements**', async (route) => {
     const request = route.request()
@@ -177,7 +177,7 @@ test('advertiser previews, returns from Stripe and sees persisted review state',
   await expect(page.getByRole('heading', { name: 'Local moving service' })).toBeVisible()
   await page.getByRole('button', { name: 'Continuar al pago' }).click()
   await expect(page).toHaveURL(new RegExp(`#/publicidad/${adId}/checkout`))
-  await expect(page.getByLabel('Duración (mínimo 10 días)')).toHaveValue('10')
+  await expect(page.getByText('30 € · 1 mes', { exact: false })).toBeVisible()
   await expectDecodedImage(page.locator('.ad-flow__preview .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(page.getByText('Pago confirmado · pendiente de revisión')).toBeVisible()

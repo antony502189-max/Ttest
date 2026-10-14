@@ -12,7 +12,7 @@ from ..models.commercial_advertisement import CommercialAdvertisement
 
 PACKAGE_DURATION_DAYS = 1
 PACKAGE_ID = "homepage_1d"
-PACKAGE_PRICE_CENTS = 100
+PACKAGE_PRICE_CENTS = 3000
 MAX_ACTIVE_HOMEPAGE_ADS = 7
 
 

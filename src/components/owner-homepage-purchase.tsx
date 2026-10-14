@@ -75,7 +75,7 @@ export function OwnerHomepagePurchase() {
   return <>
     <section className="owner-top-cta owner-homepage-cta" aria-label={t('Tu anuncio en portada')}>
       <div className="owner-top-cta__copy"><span className="owner-top-cta__eyebrow"><Home aria-hidden="true" /></span><div><strong>{t('Tu anuncio en portada')}</strong><p>{t('60 € · 1 mes · enlace directo a tu anuncio')}</p>{status?.endsAt ? <small>{t('En portada hasta')} {new Date(status.endsAt).toLocaleDateString(locale)}</small> : null}</div></div>
-      <Button className="owner-top-cta__button" disabled={!listings.length || busy || review || Boolean(status?.endsAt)} onClick={() => { setSelected(quote?.reservedListingId || listings[0]?.id || ''); setError(''); setOpen(true) }}>{t('Destacar en portada')}</Button>
+      <Button className="owner-top-cta__button" disabled={!listings.length || busy || review || Boolean(status?.endsAt)} onClick={() => { setSelected(quote?.reservedListingId || ''); setError(''); setOpen(true) }}>{t('Destacar en portada')}</Button>
     </section>
     {error && !open ? <p role="alert">{t(error)}</p> : null}
     {review ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p> : null}
