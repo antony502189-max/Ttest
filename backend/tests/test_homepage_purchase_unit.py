@@ -1,3 +1,4 @@
+"""Unit boundaries; unique module name also permits full integration collection."""
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock

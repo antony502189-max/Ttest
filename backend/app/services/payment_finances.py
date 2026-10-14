@@ -52,7 +52,7 @@ async def charge_snapshot(charge_id, *, dispute_id=None):
                 "refundPending":any(r.get('status') in {'pending','requires_action'} for r in receipts),
                 "refundFailed":any(r.get('status') in {'failed','canceled'} for r in receipts),
                 "disputed":charge.get("disputed", False),
-                "orderId":intent.get("metadata",{}).get("order_id")}
+                "orderId":(intent.get("metadata") or {}).get("order_id")}
     if intent.get("id") != intent_id:
         raise HTTPException(400, "Payment intent does not match charge")
     if not snapshot["orderId"]:
@@ -93,9 +93,9 @@ async def change_service_finances(order, session):
             await session.delete(hero)
     else:
         promotion = await session.get(ListingPromotion, order.target_id)
-        baseline_matches = bool(promotion and order.paid_at and promotion.baseline_starts_at and promotion.baseline_ends_at
+        baseline_matches = bool(promotion and order.fulfillment_status == "fulfilled" and order.paid_at and promotion.baseline_starts_at and promotion.baseline_ends_at
                                 and promotion.baseline_starts_at <= order.paid_at < promotion.baseline_ends_at)
-        legacy_matches = bool(promotion and order.paid_at and not promotion.payment_managed and promotion.starts_at <= order.paid_at
+        legacy_matches = bool(promotion and order.fulfillment_status == "fulfilled" and order.paid_at and not promotion.payment_managed and promotion.starts_at <= order.paid_at
                               and (promotion.ends_at is None or order.paid_at < promotion.ends_at))
         if promotion and (legacy_matches or (baseline_matches and not order.service_ends_at)):
             # Old aggregated TOP windows cannot be split safely into purchases.
@@ -123,6 +123,26 @@ async def change_service_finances(order, session):
     elif order.service_ends_at and order.fulfillment_status == "review_required":
         order.fulfillment_status = "fulfilled"
         order.fulfillment_note = None
+    if order.kind == "listing_top":
+        promotion = await session.get(ListingPromotion,order.target_id)
+        if promotion and promotion.payment_managed:
+            remaining = (await session.scalars(select(PaymentOrder).where(
+                PaymentOrder.kind == "listing_top",PaymentOrder.target_id == order.target_id,
+                PaymentOrder.status == "paid",PaymentOrder.fulfillment_status == "fulfilled",
+                PaymentOrder.financial_status == "normal",PaymentOrder.service_ends_at > datetime.now(UTC),
+            ))).all()
+            starts = [row.service_starts_at for row in remaining if row.service_starts_at]
+            ends = [row.service_ends_at for row in remaining]
+            if promotion.baseline_ends_at and promotion.baseline_ends_at > datetime.now(UTC):
+                starts.append(promotion.baseline_starts_at)
+                ends.append(promotion.baseline_ends_at)
+            if ends:
+                promotion.starts_at, promotion.ends_at = min(starts),max(ends)
+                promotion.boosted_at = max(row.paid_at for row in remaining) if remaining else promotion.baseline_starts_at
+            else:
+                promotion.ends_at = datetime.now(UTC)
+            if not promotion.baseline_ends_at:
+                promotion.total_price_cents = sum(row.amount_cents for row in remaining)
     await touch_catalog(session)
 
 
@@ -187,7 +207,7 @@ async def financial_webhook(event, session):
         if refund.get("charge") != charge_id:
             raise HTTPException(400,"Refund does not match charge")
         snapshot["refundId"], snapshot["refundStatus"] = refund["id"], refund.get("status")
-        snapshot["refundAttempt"] = refund.get("metadata",{}).get("attempt")
+        snapshot["refundAttempt"] = (refund.get("metadata") or {}).get("attempt")
     # Snapshot is fetched *now*, not trusted from an old/out-of-order webhook.
     inserted = await session.scalar(insert(PaymentEvent).values(id=event_id, payment_intent_id=snapshot["intent"],
         event_type=event["type"],snapshot=snapshot).on_conflict_do_nothing().returning(PaymentEvent.id))
@@ -251,9 +271,11 @@ async def resolve_payment(order_id, actor, reason, action, session):
         remote = await retrieve_stripe_session(order.stripe_session_id)
         if remote.get("payment_status") != "paid":
             raise HTTPException(409, "Stripe has not confirmed payment")
+        if remote.get("client_reference_id") != str(order.id) or remote.get("amount_total") != order.amount_cents or remote.get("currency") != "eur" or remote.get("livemode") is not get_settings().stripe_secret_key.startswith("sk_live_") or (order.stripe_payment_intent_id and remote.get("payment_intent") != order.stripe_payment_intent_id):
+            raise HTTPException(400,"Payment does not match order")
         if order.financial_status == "refund_failed":
             snapshot = await charge_snapshot(order.stripe_charge_id)
-            if snapshot["refunded"] or (snapshot["disputed"] and order.dispute_status not in {"won","warning_closed"}):
+            if snapshot["refunded"] or snapshot.get("refundPending") or (snapshot["disputed"] and order.dispute_status not in {"won","warning_closed"}):
                 raise HTTPException(409,"The payment has a refund or dispute")
         await lock_advertising_capacity(session)
         order = await session.scalar(select(PaymentOrder).where(PaymentOrder.id == order_id).with_for_update().execution_options(populate_existing=True))
@@ -325,7 +347,7 @@ async def resolve_payment(order_id, actor, reason, action, session):
         refund = await stripe_object("refunds/" + stripe_id(order.refund_id,"re_"))
     else:
         previous = await stripe_object("refunds?payment_intent=" + stripe_id(order.stripe_payment_intent_id,"pi_") + "&limit=100")
-        refund = next((r for r in previous.get("data",[]) if r.get("metadata",{}).get("order_id") == str(order.id) and r.get("metadata",{}).get("attempt") == str(order.refund_attempt)), None)
+        refund = next((r for r in previous.get("data",[]) if (r.get("metadata") or {}).get("order_id") == str(order.id) and (r.get("metadata") or {}).get("attempt") == str(order.refund_attempt)), None)
         if refund is None:
             if previous.get("has_more") or order.refund_requested_at < datetime.now(UTC)-timedelta(hours=23):
                 raise HTTPException(409, "Refund receipt needs manual Stripe reconciliation; do not create another refund")

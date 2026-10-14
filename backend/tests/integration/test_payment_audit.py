@@ -332,3 +332,44 @@ async def test_unknown_checkout_after_idempotency_window_requires_verified_recon
     result = await client.post(f'/api/v1/payments/admin/orders/{order_id}/resolve',headers=admin,
         json={'action':'reconcile','reason':'Verified expired Stripe session','stripeSessionId':verified_id})
     assert result.status_code == 200 and result.json()['status'] == 'expired', result.text
+
+
+async def test_refund_of_ungranted_order_preserves_independent_admin_top(client,register_user,provider,finances):
+    target, _, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+    admin = await admin_headers(client,register_user)
+    actor = (await client.get('/api/v1/auth/me',headers=admin)).json()['id']
+    async with SessionLocal() as db:
+        from app.models.moderation import ListingPromotion
+        db.add(ListingPromotion(listing_id=UUID(target),boosted_by=UUID(actor),
+            starts_at=datetime.now(UTC)-timedelta(days=1),ends_at=None))
+        await db.commit()
+    remote.update(status='complete',payment_status='paid')
+    assert (await webhook(client,remote)).status_code == 200
+    refunded = await resolve(client,admin,order_id)
+    assert refunded.status_code == 200 and refunded.json()['resolved'], refunded.text
+    result = await client.post('/api/v1/listings/search',json={'rentalMode':'long'})
+    assert result.json()['items'][0]['promoted']
+
+
+async def test_refund_of_renewal_preserves_original_top_period_and_rank(client,register_user,provider,finances):
+    target, headers, _, _, first_id = await checkout_top(client,register_user,provider,finances)
+    async with SessionLocal() as db:
+        first = await db.get(PaymentOrder,UUID(first_id))
+        original_end, original_rank = first.service_ends_at, first.paid_at
+    response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+    remote = provider[response.json()['url'].rsplit('/',1)[-1]]
+    intent, charge = 'pi_' + uuid4().hex,'ch_' + uuid4().hex
+    remote.update(status='complete',payment_status='paid',payment_intent=intent)
+    finances[0]['payment_intents/'+intent] = {'id':intent,'metadata':{'order_id':remote['client_reference_id']}}
+    finances[0]['charges/'+charge] = {'id':charge,'payment_intent':intent,'amount':3000,'amount_refunded':0,'disputed':False,'currency':'eur','livemode':False}
+    assert (await webhook(client,remote)).status_code == 200
+    admin = await admin_headers(client,register_user)
+    refunded = await resolve(client,admin,remote['client_reference_id'])
+    assert refunded.status_code == 200 and refunded.json()['resolved'], refunded.text
+    async with SessionLocal() as db:
+        from app.models.moderation import ListingPromotion
+        promotion = await db.get(ListingPromotion,UUID(target))
+        assert promotion.ends_at == original_end and promotion.boosted_at == original_rank
+        assert promotion.total_price_cents == 3000
+    result = await client.post('/api/v1/listings/search',json={'rentalMode':'long'})
+    assert result.json()['items'][0]['promoted']

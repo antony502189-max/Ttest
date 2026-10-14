@@ -3,6 +3,10 @@ import http.client
 import json
 import subprocess
 import sys
+import io
+import zipfile
+import urllib.request
+from pathlib import Path
 from urllib.parse import quote
 
 task_git = 'C:/Users/HONOR/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/git/cmd/git.exe'
@@ -23,13 +27,28 @@ data = json.loads(response.read())
 runs = [item for item in data['workflow_runs'] if item['name'] == 'Payment audit']
 for item in runs:
     print(json.dumps({key:item.get(key) for key in ['id','name','head_sha','status','conclusion','html_url']}))
+    if '--logs' in sys.argv:
+        connection.request('GET',f"/repos/antony502189-max/Ttest/actions/runs/{item['id']}/logs",
+            headers={'Authorization':'Bearer '+token,'User-Agent':'Ttest-payment-CI'})
+        log_response = connection.getresponse()
+        location = log_response.getheader('Location')
+        log_response.read()
+        if log_response.status == 302 and location:
+            archive = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(location,timeout=30).read()))
+            for name in archive.namelist():
+                if name.endswith('.txt') and ('Server unit' in name or 'PostgreSQL payment' in name):
+                    content = archive.read(name).decode('utf-8','replace')
+                    output = Path('output/payment-audit/ci') / Path(name).name
+                    output.parent.mkdir(parents=True,exist_ok=True)
+                    output.write_text(content,encoding='utf-8')
+                    print(content[-18000:])
     connection.request('GET',f"/repos/antony502189-max/Ttest/actions/runs/{item['id']}/jobs",
         headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','User-Agent':'Ttest-payment-CI'})
     result = connection.getresponse()
     if result.status == 200:
         jobs = json.loads(result.read())
         for job in jobs['jobs']:
-            print(json.dumps({'job':job['name'],'status':job['status'],'conclusion':job['conclusion'],
+            print(json.dumps({'id':job['id'],'job':job['name'],'status':job['status'],'conclusion':job['conclusion'],
                 'steps':[{'name':step['name'],'conclusion':step.get('conclusion'),'status':step['status']} for step in job.get('steps',[])]}))
     else:
         result.read()
