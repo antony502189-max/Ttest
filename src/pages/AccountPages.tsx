@@ -57,7 +57,7 @@ import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
 
-const TOP_PACKAGE_PRICES_EUR: Record<number, number> = { 1: 1, 7: 5, 30: 10 };
+type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
 function AccountHeader({
   eyebrow,
@@ -475,7 +475,9 @@ export function ProfilePage() {
 function formatOwnerPromotionEnd(value: string, locale: string, language: string) {
   const inclusiveEnd = new Date(value);
   if (Number.isNaN(inclusiveEnd.getTime())) return "";
-  inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  if (inclusiveEnd.getHours() === 0 && inclusiveEnd.getMinutes() === 0 && inclusiveEnd.getSeconds() === 0) {
+    inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  }
   const formatted = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "2-digit",
@@ -488,13 +490,48 @@ export function MyListingsPage() {
   const goBack = useAppBack('/menu');
   const [searchParams] = useSearchParams();
   const { t, language, locale } = useI18n();
-  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser } = useApp();
+  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser, refreshOwnedListings } = useApp();
   const [status, setStatus] = useState("Todos");
   const [topDialogOpen, setTopDialogOpen] = useState(false);
   const [topCandidateId, setTopCandidateId] = useState("");
-  const [topDays, setTopDays] = useState(7);
+  const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
+  const returnedTopId = searchParams.get("top");
+  const returnedPayment = searchParams.get("payment");
+  useEffect(() => {
+    if (!returnedTopId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const poll = async () => {
+      try {
+        const result = await api<TopPaymentStatus>(`/payments/listings/${returnedTopId}/top/status`);
+        if (!active) return;
+        setTopPaymentStatus(result);
+        if (result.fulfillmentStatus === "fulfilled") {
+          await refreshOwnedListings();
+          window.dispatchEvent(new Event("catalog:refresh"));
+        } else if (result.orderStatus === "pending" && ++attempts < 60) {
+          timer = setTimeout(() => void poll(), 3000);
+        }
+      } catch (error) {
+        if (active) {
+          setTopPaymentError((error as Error).message);
+          if (++attempts < 60) timer = setTimeout(() => void poll(), 3000);
+        }
+      }
+    };
+    const initialize = async () => {
+      if (returnedPayment === "cancelled") {
+        try { await api(`/payments/listings/${returnedTopId}/top/checkout/cancel`, { method: "POST" }); }
+        catch (error) { if (active) setTopPaymentError((error as Error).message); }
+      }
+      await poll();
+    };
+    void initialize();
+    return () => { active = false; clearTimeout(timer); };
+  }, [returnedTopId, returnedPayment, refreshOwnedListings]);
   const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
   const promotable = mine.filter((listing) => listing.status === "Publicado" && !listing.isExternal);
   const items =
@@ -507,6 +544,7 @@ export function MyListingsPage() {
       : promotable.find((listing) => !listing.promoted) ?? promotable[0];
     if (!candidate) return;
     setTopCandidateId(candidate.id);
+    setTopPaymentError("");
     setTopDialogOpen(true);
   };
   const payForTop = async () => {
@@ -515,13 +553,23 @@ export function MyListingsPage() {
     setTopPaymentError("");
     try {
       const checkout = await api<{ url: string }>(`/payments/listings/${topCandidateId}/top/checkout`, {
-        method: "POST", body: JSON.stringify({ days: topDays }),
+        method: "POST", body: JSON.stringify({ days: 30 }),
       });
       window.location.assign(checkout.url);
     } catch (error) {
       setTopPaymentError((error as Error).message);
       setTopPaymentBusy(false);
     }
+  };
+  const cancelTopPayment = async () => {
+    if (!topCandidateId) return;
+    setTopPaymentBusy(true); setTopPaymentError("");
+    try {
+      await api(`/payments/listings/${topCandidateId}/top/checkout/cancel`, { method: "POST" });
+      await refreshOwnedListings();
+      setTopDialogOpen(false);
+    } catch (error) { setTopPaymentError((error as Error).message); }
+    finally { setTopPaymentBusy(false); }
   };
   return (
     <div className="owner-listings-page">
@@ -540,9 +588,11 @@ export function MyListingsPage() {
           </Button>
         }
       />
-      {searchParams.get("payment") === "return" ? (
+      {searchParams.get("payment") === "return" && !returnedTopId && !searchParams.get("homepage") ? (
         <p role="status">{t("Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p>
       ) : null}
+      {returnedTopId ? <p role={topPaymentStatus?.fulfillmentStatus === "review_required" ? "alert" : "status"}>{t(topPaymentStatus?.fulfillmentStatus === "review_required" ? "El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar." : topPaymentStatus?.fulfillmentStatus === "fulfilled" ? "Pago confirmado · tu anuncio está en TOP" : topPaymentStatus?.orderStatus === "expired" ? "Pago cancelado. Puedes volver a comprar TOP." : "Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p> : null}
+      {topPaymentError && !topDialogOpen ? <p role="alert">{t(topPaymentError)}</p> : null}
       <OwnerHomepagePurchase />
       <div className="account-toolbar">
         <label htmlFor="my-listings-status">Estado</label>
@@ -755,7 +805,7 @@ export function MyListingsPage() {
         <DialogContent className="owner-top-dialog">
           <DialogHeader>
             <DialogTitle>{t("Sube tu anuncio a TOP")}</DialogTitle>
-            <DialogDescription>{t("Selecciona uno de tus anuncios publicados. En el siguiente paso configuraremos la duración y el pago.")}</DialogDescription>
+            <DialogDescription>{t("Selecciona tu anuncio. TOP cuesta 30 € por un mes y lo sitúa antes que los anuncios sin TOP.")}</DialogDescription>
           </DialogHeader>
           <div className="owner-top-dialog__list" role="list">
             {promotable.map((listing) => (
@@ -778,10 +828,11 @@ export function MyListingsPage() {
           </div>
           <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
             <strong>{t("Siguiente: duración y pago")}</strong>
-            <label>{t("Duración")}{" "}<select value={topDays} onChange={(event) => setTopDays(Number(event.target.value))}>{[1, 7, 30].map((days) => <option key={days} value={days}>{days} {t(days === 1 ? "día" : "días")}</option>)}</select></label>
-            <span>{TOP_PACKAGE_PRICES_EUR[topDays]} € · {t("Elige el anuncio que quieres destacar")}</span>
-            {topPaymentError ? <span role="alert">{topPaymentError}</span> : null}
+            <span>{t("30 € · 1 mes en TOP")}</span>
+            <span>{t("El mes empieza cuando se confirma el pago. Si ya tienes TOP, se añade un mes al plazo actual.")}</span>
+            {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
             <Button type="button" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+            <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -33,6 +33,7 @@ def configured(monkeypatch):
     monkeypatch.setattr(payment_fulfillment, "get_settings", lambda: settings)
     monkeypatch.setattr(payment_fulfillment, "lock_advertising_capacity", AsyncMock())
     monkeypatch.setattr(payment_fulfillment, "notify_payment", AsyncMock())
+    monkeypatch.setattr(payment_fulfillment, "touch_catalog", AsyncMock())
     monkeypatch.setattr(stripe_checkout, "get_settings", lambda: settings)
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"open"}))
 

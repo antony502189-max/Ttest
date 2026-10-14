@@ -6,6 +6,13 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  '30 € · 1 mes en TOP': { ru: '30 € · 1 месяц в TOP', en: '€30 · 1 month in TOP' },
+  'Selecciona tu anuncio. TOP cuesta 30 € por un mes y lo sitúa antes que los anuncios sin TOP.': { ru: 'Выберите объявление. TOP стоит 30 € за месяц и поднимает его выше объявлений без TOP.', en: 'Choose your listing. TOP costs €30 for one month and places it before listings without TOP.' },
+  'El mes empieza cuando se confirma el pago. Si ya tienes TOP, se añade un mes al plazo actual.': { ru: 'Месяц начинается после подтверждения оплаты. Если TOP уже активен, к его сроку добавится месяц.', en: 'The month starts when payment is confirmed. If TOP is already active, one month is added to its current period.' },
+  'Pago confirmado · tu anuncio está en TOP': { ru: 'Оплата подтверждена · объявление в TOP', en: 'Payment confirmed · your listing is in TOP' },
+  'Pago cancelado. Puedes volver a comprar TOP.': { ru: 'Оплата отменена. Вы можете снова купить TOP.', en: 'Payment cancelled. You can purchase TOP again.' },
+  'Your TOP payment needs review; do not pay again': { ru: 'Оплата TOP требует проверки. Не оплачивайте повторно.', en: 'Your TOP payment needs review. Do not pay again.' },
+  'Permanent TOP needs support review before purchase': { ru: 'У объявления бессрочный TOP. Свяжитесь с поддержкой перед покупкой.', en: 'This listing has permanent TOP. Contact support before purchasing.' },
   'Tu anuncio en portada': { ru: 'Объявление на главной', en: 'Your listing on the homepage' },
   '60 € · 1 mes · enlace directo a tu anuncio': { ru: '60 € · 1 месяц · ссылка на ваше объявление', en: '€60 · 1 month · direct link to your listing' },
   'Destacar en portada': { ru: 'Закрепить на главной', en: 'Feature on the homepage' },

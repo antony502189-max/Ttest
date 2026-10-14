@@ -21,7 +21,7 @@ from ...services.commercial_advertisements import (
 )
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
 from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
-from ...models.moderation import HomepageHeroPromotion
+from ...models.moderation import HomepageHeroPromotion, ListingPromotion
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
@@ -32,11 +32,11 @@ from ..dependencies import current_user, require_admin
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 logger = logging.getLogger(__name__)
-TOP_PACKAGE_PRICES_CENTS = {1: 100, 7: 500, 30: 1000}
+TOP_MONTH_PRICE_CENTS = 3000
 
 
 class TopCheckoutRequest(BaseModel):
-    days: int = Field(ge=1, le=30)
+    days: int = Field(default=30, ge=30, le=30, strict=True)
 
 
 class BannerCheckoutRequest(BaseModel):
@@ -73,6 +73,7 @@ async def advertisement_quote(
 async def checkout(
     session: AsyncSession, user: User, kind: str, target_id: UUID, days: int, amount: int,
     name: str, return_path: str, fingerprint: str | None = None,
+    months: int | None = None,
 ) -> CheckoutResponse:
     if not get_settings().stripe_secret_key or not get_settings().stripe_webhook_secret:
         raise HTTPException(503, "Stripe is not configured")
@@ -91,7 +92,7 @@ async def checkout(
                 await apply_stripe_session(remote, "checkout.session.completed", session)
             raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
         if remote["status"] == "open":
-            if previous.days == days and previous.amount_cents == amount:
+            if previous.days == days and previous.amount_cents == amount and getattr(previous, "duration_months", None) == months:
                 return CheckoutResponse(url=previous.checkout_url, amountCents=amount)
             raise HTTPException(409, "An unfinished payment already exists for this item")
     if previous:
@@ -99,6 +100,7 @@ async def checkout(
     order = PaymentOrder(
         owner_user_id=user.id, kind=kind, target_id=target_id,
         days=days, amount_cents=amount, status="pending", advertisement_fingerprint=fingerprint,
+        duration_months=months,
     )
     session.add(order)
     await session.flush()
@@ -233,13 +235,63 @@ async def listing_top_checkout(
     ).with_for_update())
     if not listing:
         raise HTTPException(404, "Listing not found")
-    if listing.status != "published" or listing.is_external or listing.deleted_at is not None:
+    if not await eligible(listing, session):
         raise HTTPException(409, "Only your published listing can be promoted")
-    if payload.days not in TOP_PACKAGE_PRICES_CENTS:
-        raise HTTPException(422, "Choose a TOP package of 1, 7 or 30 days")
-    return await checkout(session, user, "listing_top", listing.id, payload.days,
-                          TOP_PACKAGE_PRICES_CENTS[payload.days],
-                          f"TOP 112233.es · {payload.days} {'día' if payload.days == 1 else 'días'}", "/mis-anuncios")
+    promotion = await session.get(ListingPromotion, listing.id)
+    if promotion and promotion.ends_at is None:
+        raise HTTPException(409, "Permanent TOP needs support review before purchase")
+    unresolved = await session.scalar(select(PaymentOrder.id).where(
+        PaymentOrder.kind == "listing_top", PaymentOrder.target_id == listing.id,
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "paid",
+        PaymentOrder.fulfillment_status == "review_required",
+    ).limit(1))
+    if unresolved:
+        raise HTTPException(409, "Your TOP payment needs review; do not pay again")
+    return await checkout(session, user, "listing_top", listing.id, 30, TOP_MONTH_PRICE_CENTS,
+                          "TOP 112233.es · 1 mes", f"/mis-anuncios?top={listing.id}", months=1)
+
+
+@router.get("/listings/{listing_id}/top/status")
+async def top_payment_status(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    listing = await session.scalar(select(Listing.id).where(Listing.id == listing_id, Listing.owner_user_id == user.id))
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    order = await session.scalar(select(PaymentOrder).where(
+        PaymentOrder.kind == "listing_top", PaymentOrder.target_id == listing_id, PaymentOrder.owner_user_id == user.id,
+    ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
+    now = datetime.now(UTC)
+    if order and order.status == "pending" and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
+        order.last_reconciled_at = now
+        remote = await retrieve_stripe_session(order.stripe_session_id)
+        if remote["status"] == "complete" and remote.get("payment_status") == "paid":
+            await apply_stripe_session(remote, "checkout.session.completed", session)
+        elif remote["status"] == "expired":
+            order.status = "expired"
+        await session.commit()
+    promotion = await session.get(ListingPromotion, listing_id)
+    return {"orderStatus": order.status if order else None,
+            "fulfillmentStatus": order.fulfillment_status if order else None,
+            "endsAt": promotion.ends_at if promotion else None}
+
+
+@router.post("/listings/{listing_id}/top/checkout/cancel")
+async def cancel_top_checkout(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    order = await session.scalar(select(PaymentOrder).where(
+        PaymentOrder.kind == "listing_top", PaymentOrder.target_id == listing_id,
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "pending",
+    ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
+    if order:
+        remote = await expire_stripe_session(order.stripe_session_id)
+        if remote["status"] == "complete" and remote.get("payment_status") == "paid":
+            await apply_stripe_session(remote, "checkout.session.completed", session)
+            return {"cancelled": False}
+        if remote["status"] != "expired":
+            raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
+        order.status = "expired"
+        await session.commit()
+    return {"cancelled": True}
 
 
 @router.post("/stripe/webhook")

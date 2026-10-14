@@ -111,7 +111,9 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
         listing = await session.scalar(select(Listing).where(
             Listing.id == order.target_id, Listing.owner_user_id == order.owner_user_id,
         ).with_for_update())
-        if listing and listing.status == "published" and not listing.is_external and listing.deleted_at is None:
+        monthly = getattr(order, "duration_months", None) == 1
+        valid = await eligible(listing, session) if monthly else bool(listing and listing.status == "published" and not listing.is_external and listing.deleted_at is None)
+        if valid:
             promotion = await session.scalar(select(ListingPromotion).where(
                 ListingPromotion.listing_id == listing.id,
             ).with_for_update())
@@ -120,18 +122,23 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
                 order.fulfillment_status = "review_required"
                 order.fulfillment_note = "Legacy permanent TOP requires manual reconciliation."
             elif promotion:
-                if promotion.ends_at <= order.paid_at:
+                if promotion.ends_at <= order.paid_at or promotion.starts_at > order.paid_at:
                     promotion.starts_at = order.paid_at
-                promotion.ends_at = start + timedelta(days=order.days)
+                promotion.ends_at = one_month_after(start) if monthly else start + timedelta(days=order.days)
+                promotion.boosted_at = order.paid_at
                 promotion.daily_price_cents = None
                 promotion.total_price_cents = (promotion.total_price_cents or 0) + order.amount_cents
             else:
                 session.add(ListingPromotion(
                     listing_id=listing.id, boosted_at=order.paid_at, boosted_by=None,
-                    starts_at=order.paid_at, ends_at=order.paid_at + timedelta(days=order.days),
+                    starts_at=order.paid_at, ends_at=one_month_after(order.paid_at) if monthly else order.paid_at + timedelta(days=order.days),
                     daily_price_cents=order.amount_cents if order.days == 1 else None,
                     total_price_cents=order.amount_cents,
                 ))
+            if order.fulfillment_status == "fulfilled":
+                await touch_catalog(session)
+                await notify_payment(session, order, "listing_top_paid", "Tu anuncio está en TOP",
+                                     "El pago está confirmado. Tu anuncio aparece antes que los anuncios sin TOP.")
         else:
             order.fulfillment_status = "review_required"
             order.fulfillment_note = "Paid TOP listing no longer eligible."
