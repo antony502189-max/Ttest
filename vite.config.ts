@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
@@ -8,11 +8,6 @@ type ProductionReplacement = {
   mockExpression: string
   productionExpression: string
 }
-
-const mockMode = process.env.VITE_ENABLE_MOCK_MODE === '1'
-const mockProviderModule = mockMode
-  ? './src/contexts/mock-app-provider.tsx'
-  : './src/contexts/mock-app-provider.production.tsx'
 
 const productionReplacements: ProductionReplacement[] = [
   {
@@ -27,7 +22,7 @@ const productionReplacements: ProductionReplacement[] = [
   },
 ]
 
-function isolateMockDataFromProduction(): Plugin {
+function isolateMockDataFromProduction(mockMode: boolean): Plugin {
   const transformedSources = new Set<string>()
   return {
     name: 'isolate-mock-data-from-production',
@@ -57,20 +52,27 @@ function isolateMockDataFromProduction(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: process.env.VITE_BASE_PATH || '/',
-  plugins: [isolateMockDataFromProduction(), react(), tailwindcss()],
-  server: {
-    watch: {
-      ignored: ['**/artifacts/**', '**/test-results/**'],
+export default defineConfig(({ mode }) => {
+  const mockMode = loadEnv(mode, process.cwd(), 'VITE_').VITE_ENABLE_MOCK_MODE === '1'
+  const mockProviderModule = mockMode
+    ? './src/contexts/mock-app-provider.tsx'
+    : './src/contexts/mock-app-provider.production.tsx'
+
+  return {
+    base: process.env.VITE_BASE_PATH || '/',
+    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss()],
+    server: {
+      watch: {
+        ignored: ['**/artifacts/**', '**/test-results/**'],
+      },
     },
-  },
-  resolve: {
-    alias: {
-      'shadcn/tailwind.css': path.resolve(__dirname, './src/styles/shadcn-tailwind.css'),
-      '@/components/marketplace': path.resolve(__dirname, './src/components/marketplace-localized.tsx'),
-      '@/contexts/mock-app-provider': path.resolve(__dirname, mockProviderModule),
-      '@': path.resolve(__dirname, './src'),
+    resolve: {
+      alias: {
+        'shadcn/tailwind.css': path.resolve(__dirname, './src/styles/shadcn-tailwind.css'),
+        '@/components/marketplace': path.resolve(__dirname, './src/components/marketplace-localized.tsx'),
+        '@/contexts/mock-app-provider': path.resolve(__dirname, mockProviderModule),
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
+  }
 })

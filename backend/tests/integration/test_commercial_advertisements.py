@@ -30,7 +30,7 @@ async def create_ad(client, register_user, email="advertiser@example.com"):
     payload = {
         "title": "Helpful local service", "description": "Friendly service for the local community.",
         "imageAssetId": upload.json()["id"], "destinationType": "website",
-        "destination": "https://example.org/offer", "packageId": "test_homepage_30d",
+        "destination": "https://example.org/offer", "packageId": "homepage_1d",
     }
     response = await client.post("/api/v1/advertisements", headers=headers, json=payload)
     assert response.status_code == 201, response.text
@@ -113,13 +113,13 @@ async def test_payment_moderation_public_visibility_and_media(client, register_u
     async with SessionLocal() as session:
         stored = await session.get(CommercialAdvertisement, ad_id)
         assert stored is not None
-        stored.ends_at = datetime.now(UTC) + timedelta(days=1)
+        stored.ends_at = stored.starts_at + timedelta(days=1)
         await session.commit()
     edited = await client.patch(f"/api/v1/advertisements/{ad_id}", headers=owner_headers,
                                 json={**payload, "title": "A changed local service"})
     assert edited.status_code == 200 and edited.json()["status"] == "pending_review"
-    assert edited.json()["startsAt"] is None
-    assert edited.json()["endsAt"] is None
+    assert edited.json()["startsAt"] is not None
+    assert edited.json()["endsAt"] is not None
     assert (await client.get("/api/v1/advertisements/homepage")).json() == []
     rejected = await client.post(f"/api/v1/admin/advertisements/{ad_id}/reject", headers=admin, json={"note": "Needs changes"})
     assert rejected.status_code == 200 and rejected.json()["status"] == "rejected"
@@ -192,7 +192,7 @@ async def test_spanish_phone_and_whatsapp_destinations_are_normalized(client, re
         "title": "Servicio local",
         "description": "Servicio local disponible para toda la comunidad.",
         "imageAssetId": upload.json()["id"],
-        "packageId": "test_homepage_30d",
+        "packageId": "homepage_1d",
     }
     phone = await client.post("/api/v1/advertisements", headers=headers, json={
         **base, "destinationType": "phone", "destination": "612 345 678",
@@ -212,7 +212,7 @@ async def test_spanish_phone_and_whatsapp_destinations_are_normalized(client, re
     assert invalid.status_code == 422
 
 
-async def test_homepage_returns_twelve_and_rejects_thirteenth_overlapping_campaign(client, register_user):
+async def test_homepage_returns_seven_and_rejects_eighth_overlapping_campaign(client, register_user):
     ad, payload, owner_headers, user = await create_ad(client, register_user, email="capacity-owner@example.com")
     ad_id = ad["id"]
     assert (await client.post(f"/api/v1/advertisements/{ad_id}/fake-payment/complete", headers=owner_headers)).status_code == 200
@@ -220,7 +220,7 @@ async def test_homepage_returns_twelve_and_rejects_thirteenth_overlapping_campai
     now = datetime.now(UTC)
 
     async with SessionLocal() as session:
-        for index in range(12):
+        for index in range(7):
             session.add(CommercialAdvertisement(
                 owner_user_id=user["id"],
                 image_asset_id=payload["imageAssetId"],
@@ -241,7 +241,7 @@ async def test_homepage_returns_twelve_and_rejects_thirteenth_overlapping_campai
 
     public = await client.get("/api/v1/advertisements/homepage")
     assert public.status_code == 200
-    assert len(public.json()) == 12
+    assert len(public.json()) == 7
 
     blocked = await client.post(f"/api/v1/admin/advertisements/{ad_id}/approve", headers=admin, json={})
     assert blocked.status_code == 409
@@ -258,10 +258,10 @@ async def test_homepage_returns_twelve_and_rejects_thirteenth_overlapping_campai
 
     approved = await client.post(f"/api/v1/admin/advertisements/{ad_id}/approve", headers=admin, json={})
     assert approved.status_code == 200, approved.text
-    assert len((await client.get("/api/v1/advertisements/homepage")).json()) == 12
+    assert len((await client.get("/api/v1/advertisements/homepage")).json()) == 7
 
 
-async def test_concurrent_approvals_cannot_overbook_twelve_homepage_slots(client, register_user):
+async def test_concurrent_approvals_cannot_overbook_seven_homepage_slots(client, register_user):
     first, first_payload, first_headers, user = await create_ad(
         client, register_user, email="capacity-race-one@example.com"
     )
@@ -284,7 +284,7 @@ async def test_concurrent_approvals_cannot_overbook_twelve_homepage_slots(client
     now = datetime.now(UTC)
 
     async with SessionLocal() as session:
-        for index in range(11):
+        for index in range(5):
             session.add(
                 CommercialAdvertisement(
                     owner_user_id=user["id"],
@@ -309,13 +309,13 @@ async def test_concurrent_approvals_cannot_overbook_twelve_homepage_slots(client
         client.post(f"/api/v1/admin/advertisements/{first['id']}/approve", headers=admin, json={}),
         client.post(f"/api/v1/admin/advertisements/{second['id']}/approve", headers=admin, json={}),
     )
-    assert sorted(response.status_code for response in responses) == [200, 409]
+    assert sorted(response.status_code for response in responses) == [200, 200]
     public = await client.get("/api/v1/advertisements/homepage")
     assert public.status_code == 200
-    assert len(public.json()) == 12
+    assert len(public.json()) == 7
 
 
-async def test_active_edit_clears_old_window_and_can_be_reapproved(client, register_user):
+async def test_active_edit_preserves_paid_window_when_reapproved(client, register_user):
     ad, payload, owner_headers, _ = await create_ad(client, register_user, email="reapprove-owner@example.com")
     ad_id = ad["id"]
     admin = await admin_headers(client, register_user)
@@ -336,8 +336,8 @@ async def test_active_edit_clears_old_window_and_can_be_reapproved(client, regis
     )
     assert edited.status_code == 200
     assert edited.json()["status"] == "pending_review"
-    assert edited.json()["startsAt"] is None
-    assert edited.json()["endsAt"] is None
+    assert edited.json()["startsAt"] is not None
+    assert edited.json()["endsAt"] is not None
 
     reapproved = await client.post(f"/api/v1/admin/advertisements/{ad_id}/approve", headers=admin, json={})
     assert reapproved.status_code == 200, reapproved.text

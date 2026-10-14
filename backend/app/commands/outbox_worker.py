@@ -10,6 +10,7 @@ from ..core.config import get_settings
 from ..core.observability import configure_logging
 from ..db.session import SessionLocal, engine
 from ..models import MailWorkerState
+from ..services.advertising_alerts import process_advertising_alerts
 from ..services.data_retention import RETENTION_RUN_INTERVAL, prune_expired_records
 from ..services.mail import deliver_pending_mail
 from ..services.moderation_expiry import process_expired_moderation
@@ -75,6 +76,7 @@ async def run() -> None:
                 try:
                     now = datetime.now(UTC)
                     async with SessionLocal() as session:
+                        await process_advertising_alerts(session)
                         moderation_expired = await process_expired_moderation(session)
                         delivered = await deliver_pending_mail(session)
                         storage_deletions = await process_storage_deletions(session)

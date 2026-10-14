@@ -21,7 +21,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { currentLocale } from "@/lib/i18n-locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,7 +53,11 @@ import { filtersToParams } from "@/lib/search";
 import { getCriticalRestrictions, getPrimaryCadence, getPrimaryPrice } from "@/lib/listings";
 import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
+import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
+import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
+
+type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
 function AccountHeader({
   eyebrow,
@@ -498,7 +502,9 @@ function OwnerTopRocket({ active }: { active: boolean }) {
 function formatOwnerPromotionEnd(value: string, locale: string, language: string) {
   const inclusiveEnd = new Date(value);
   if (Number.isNaN(inclusiveEnd.getTime())) return "";
-  inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  if (inclusiveEnd.getHours() === 0 && inclusiveEnd.getMinutes() === 0 && inclusiveEnd.getSeconds() === 0) {
+    inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  }
   const formatted = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "2-digit",
@@ -509,11 +515,52 @@ function formatOwnerPromotionEnd(value: string, locale: string, language: string
 
 export function MyListingsPage() {
   const goBack = useAppBack('/menu');
+  const [searchParams] = useSearchParams();
   const { t, language, locale } = useI18n();
-  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser } = useApp();
+  const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser, refreshOwnedListings } = useApp();
   const [status, setStatus] = useState("Todos");
   const [topDialogOpen, setTopDialogOpen] = useState(false);
   const [topCandidateId, setTopCandidateId] = useState("");
+  const [topDays, setTopDays] = useState("10");
+  const validTopDays = /^\d+$/.test(topDays) && Number(topDays) >= 10 && Number(topDays) <= 365;
+  const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
+  const [topPaymentBusy, setTopPaymentBusy] = useState(false);
+  const [topPaymentError, setTopPaymentError] = useState("");
+  const returnedTopId = searchParams.get("top");
+  const returnedPayment = searchParams.get("payment");
+  useEffect(() => {
+    if (!returnedTopId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const poll = async () => {
+      try {
+        const result = await api<TopPaymentStatus>(`/payments/listings/${returnedTopId}/top/status`);
+        if (!active) return;
+        setTopPaymentStatus(result);
+        if (result.fulfillmentStatus === "fulfilled") {
+          await refreshOwnedListings();
+          window.dispatchEvent(new Event("catalog:refresh"));
+        } else if (result.orderStatus === "pending" && ++attempts < 60) {
+          timer = setTimeout(() => void poll(), 3000);
+        }
+      } catch (error) {
+        if (active) {
+          setTopPaymentError((error as Error).message);
+          if (++attempts < 60) timer = setTimeout(() => void poll(), 3000);
+        }
+      }
+    };
+    const initialize = async () => {
+      if (returnedPayment === "cancelled") {
+        try { await api(`/payments/listings/${returnedTopId}/top/checkout/cancel`, { method: "POST" }); }
+        catch (error) { if (active) setTopPaymentError((error as Error).message); }
+      }
+      await poll();
+    };
+    void initialize();
+    return () => { active = false; clearTimeout(timer); };
+  }, [returnedTopId, returnedPayment, refreshOwnedListings]);
   const mine = ownedListings.filter((listing) => listing.ownerUserId === currentUser?.id);
   const promotable = mine.filter((listing) => listing.status === "Publicado" && !listing.isExternal);
   const items =
@@ -523,10 +570,36 @@ export function MyListingsPage() {
   const openTopFlow = (listingId?: string) => {
     const candidate = listingId
       ? promotable.find((listing) => listing.id === listingId)
-      : promotable.find((listing) => !listing.promoted) ?? promotable[0];
-    if (!candidate) return;
-    setTopCandidateId(candidate.id);
+      : undefined;
+    if (!promotable.length) return;
+    setTopCandidateId(candidate?.id ?? "");
+    setTopDays("10");
+    setTopPaymentError("");
     setTopDialogOpen(true);
+  };
+  const payForTop = async () => {
+    if (!topCandidateId || !validTopDays) return;
+    setTopPaymentBusy(true);
+    setTopPaymentError("");
+    try {
+      const checkout = await api<{ url: string }>(`/payments/listings/${topCandidateId}/top/checkout`, {
+        method: "POST", body: JSON.stringify({ days: Number(topDays) }),
+      });
+      window.location.assign(checkout.url);
+    } catch (error) {
+      setTopPaymentError((error as Error).message);
+      setTopPaymentBusy(false);
+    }
+  };
+  const cancelTopPayment = async () => {
+    if (!topCandidateId) return;
+    setTopPaymentBusy(true); setTopPaymentError("");
+    try {
+      await api(`/payments/listings/${topCandidateId}/top/checkout/cancel`, { method: "POST" });
+      await refreshOwnedListings();
+      setTopDialogOpen(false);
+    } catch (error) { setTopPaymentError((error as Error).message); }
+    finally { setTopPaymentBusy(false); }
   };
   return (
     <div className="owner-listings-page">
@@ -545,6 +618,12 @@ export function MyListingsPage() {
           </Button>
         }
       />
+      {searchParams.get("payment") === "return" && !returnedTopId && !searchParams.get("homepage") ? (
+        <p role="status">{t("Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p>
+      ) : null}
+      {returnedTopId ? <p role={topPaymentStatus?.fulfillmentStatus === "review_required" ? "alert" : "status"}>{t(topPaymentStatus?.fulfillmentStatus === "review_required" ? "El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar." : topPaymentStatus?.fulfillmentStatus === "revoked" ? "Pago devuelto · servicio finalizado" : topPaymentStatus?.fulfillmentStatus === "fulfilled" ? "Pago confirmado · tu anuncio está en TOP" : topPaymentStatus?.orderStatus === "failed" ? "Pago fallido. Puedes volver a intentarlo." : topPaymentStatus?.orderStatus === "expired" ? "Pago cancelado. Puedes volver a comprar TOP." : "Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p> : null}
+      {topPaymentError && !topDialogOpen ? <p role="alert">{t(topPaymentError)}</p> : null}
+      <OwnerHomepagePurchase />
       <div className="account-toolbar">
         <label htmlFor="my-listings-status">Estado</label>
         <select
@@ -756,13 +835,14 @@ export function MyListingsPage() {
         <DialogContent className="owner-top-dialog">
           <DialogHeader>
             <DialogTitle>{t("Sube tu anuncio a TOP")}</DialogTitle>
-            <DialogDescription>{t("Selecciona uno de tus anuncios publicados. En el siguiente paso configuraremos la duración y el pago.")}</DialogDescription>
+            <DialogDescription>{t("Selecciona tu anuncio. TOP cuesta 1 € al día, mínimo 10 días, y lo sitúa antes que los anuncios sin TOP.")}</DialogDescription>
           </DialogHeader>
           <div className="owner-top-dialog__list" role="list">
             {promotable.map((listing) => (
               <button
                 key={listing.id}
                 type="button"
+                aria-pressed={topCandidateId === listing.id}
                 className={`owner-top-dialog__option ${topCandidateId === listing.id ? "is-selected" : ""}`}
                 data-testid="owner-top-option"
                 data-listing-id={listing.id}
@@ -779,7 +859,12 @@ export function MyListingsPage() {
           </div>
           <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
             <strong>{t("Siguiente: duración y pago")}</strong>
-            <span>{t("Elige el anuncio que quieres destacar")}</span>
+            <label className="field-label">{t("Duración (mínimo 10 días)")}<input type="number" min={10} max={365} step={1} value={topDays} aria-invalid={!validTopDays} disabled={topPaymentBusy} onChange={(event) => setTopDays(event.target.value)} /></label>
+            <span>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${topDays} ${t('días')} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</span>
+            <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
+            {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
+            <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+            <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
           </div>
         </DialogContent>
       </Dialog>

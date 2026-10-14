@@ -71,6 +71,9 @@ class ListingPromotion(Base):
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     daily_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payment_managed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    baseline_starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    baseline_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class HomepageHeroPromotion(Base):
@@ -87,6 +90,7 @@ class HomepageHeroPromotion(Base):
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     configured_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     configured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    payment_order_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
 
 class AdminNote(Base):

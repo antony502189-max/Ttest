@@ -63,7 +63,7 @@ test('API copy and canonical campaign values render in each language', () => {
   }
   expect(advertisementStatusSource('pending_review')).toBe('Pendiente de revisión')
   expect(advertisementStatusSource('active', '2000-01-01')).toBe('Expirada')
-  expect(advertisementPaymentSource('paid')).toBe('Pagado (prueba)')
+  expect(advertisementPaymentSource('paid')).toBe('Pagado')
   expect(advertisementDestinationSource('website')).toBe('Sitio web')
   expect(translateText('Disponible desde 18 ago 2026', 'ru')).toBe('Доступно с 18 авг. 2026')
   expect(translateText('Disponible desde 18 ago 2026', 'en')).toBe('Available from 18 Aug 2026')
@@ -105,7 +105,7 @@ test('campaigns, dates, navigation and footer switch without stale copy or trans
     await chooseLanguage(page, language)
     await expect(page.locator('.ad-flow h1')).toHaveText(translateText('Mis campañas', language))
     await expect(page.locator('.ad-flow__row')).toContainText(translateText('Pendiente de revisión', language))
-    await expect(page.locator('.ad-flow__row')).toContainText(translateText('Pagado (prueba)', language))
+    await expect(page.locator('.ad-flow__row')).toContainText(translateText('Pagado', language))
     await expect(page.locator('.ad-flow__row small')).toHaveText(new Date(createdAt).toLocaleDateString({ ru: 'ru-RU', en: 'en-GB', es: 'es-ES' }[language]))
     await expect(page.locator('.ad-flow__row h2')).toHaveText('Publicidad')
     await expect(page.locator('.site-footer')).toContainText(translateText('Sobre nosotros', language))

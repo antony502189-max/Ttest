@@ -119,6 +119,10 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
 
 
 async def delete_account(user: User, session: AsyncSession) -> None:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_guards import protect_payment_deletion
+    await lock_advertising_capacity(session)
+    await protect_payment_deletion(session, owner_id=user.id)
     # Acquire the same per-account mutation locks used by media and search-state
     # writers before locking the User row. Writers take these locks before their
     # FK inserts, so matching that order prevents both post-delete resurrection

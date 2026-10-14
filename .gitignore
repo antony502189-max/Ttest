@@ -26,6 +26,12 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.stripe-test.local
+.stripe-test.secrets
+.stripe-tools/
+.advertising-test-deps/
+webpush.local.env
+.pnpm-store/
 .playwright-cli/
 output/
 test-results/

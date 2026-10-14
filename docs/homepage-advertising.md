@@ -1,41 +1,113 @@
-# Homepage commercial advertising
+# Homepage advertising
 
-Commercial campaigns are separate from property listings. The `commercial_advertisements` table owns campaign content, payment and moderation state, schedule, and the `homepage_bottom` placement. The internal house ad is frontend content and has no database row.
+The homepage has seven advertising cards at the bottom, using the existing fonts,
+white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
+campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
+Existing `test_homepage_30d` purchases retain their paid duration and price.
+The paid number of days is recorded on the order and campaign; approval uses that duration.
 
-## Lifecycle
+The existing homepage photo slot can also be purchased from **Mis anuncios** for
+**€60 for one calendar month**. It shows the selected published listing's photo
+and a direct link, in the existing homepage layout. Checkout reserves the single
+slot; concurrent purchases and administrator replacement of a purchased slot
+are blocked. It starts on confirmed payment and ends at the same UTC time on the
+next month's corresponding day (clamped to the last day for shorter months).
+There is no recurring subscription. A new purchase is possible after expiry.
 
-An authenticated advertiser uploads one JPEG, PNG, or WebP through `/api/v1/advertisements/uploads`. The existing bounded image decoder normalizes it to WebP and generates card and thumbnail variants. The upload is tagged `advertisement_image`; listing publication rejects that media kind. Campaign creation starts in `pending_payment`/`unpaid`. `POST /advertisements/{id}/checkout` returns a test checkout descriptor and does not change state. An explicit `POST /advertisements/{id}/fake-payment/complete` records `paid` and moves the campaign to `pending_review`. Only a backend allowlisted administrator may approve, reject, or deactivate. Approval sets an active window, defaulting to 30 days. Editing approved content clears approval and returns it to review. Expired campaigns require a new test checkout for renewal.
+Apply migration `0060_homepage_purchases` before deploying the new backend.
+It adds the homepage order kind and nullable banner duration while preserving
+old purchased campaign durations. Homepage payments use the same signed webhook,
+verified Stripe GET recovery and background reconciliation as banner payments.
 
-`AdvertisementPaymentService` is the provider boundary. Its current `FakeAdvertisementPaymentService` records only test state. No card data, payment SDK, gateway call, or real production price is present. A real provider should implement checkout creation and a verified asynchronous completion/webhook, then use the same payment transition and moderation lifecycle. Production launch of real paid campaigns requires pricing, reconciliation, refunds, idempotent webhook handling, and legal copy to be decided separately.
+Advertisers upload JPEG, PNG or WebP and enter a title, description and website,
+phone, WhatsApp or email destination. The existing image validation, ownership,
+media delivery, moderation and campaign management paths remain in use.
 
-## Homepage placement and capacity
+## Payments and seven-slot capacity
 
-`GET /api/v1/advertisements/homepage` returns at most **12** eligible campaigns. Eligibility requires active status, paid status, valid start/end window, an active owner, and a live image. The backend serializes approval capacity decisions with a PostgreSQL transaction advisory lock, so concurrent admin approvals cannot exceed 12 simultaneous overlapping homepage campaigns.
+`GET /payments/advertisements/{id}/quote?days=21` returns the owner’s price and availability
+without reserving a place. The explicit payment click calls the existing Stripe
+Checkout endpoint. A shared PostgreSQL transaction advisory lock serializes
+checkout, moderation, editing, cancellation and webhook state changes.
 
-The client renders the eligible set as one native carousel in the existing homepage design. It shows one campaign at a time, supports previous/next controls and direct position dots, and advances every eight seconds when the user is not hovering or focusing the carousel. Automatic movement is disabled for `prefers-reduced-motion`. The client also hard-caps the received set to 12 as a defensive boundary.
+The banner Checkout body is `{ "days": 21 }`; totals are computed on the server.
+Changing an existing open payment's duration requires cancelling that payment
+first. Homepage endpoints are `/payments/homepage/quote` and
+`/payments/listings/{id}/homepage/checkout`, `/status`, and `/checkout/cancel`.
 
-Desktop and mobile render the same commercial placement near the bottom of the homepage. Mobile keeps the banner as ordinary scroll content above the fixed bottom navigation. If no eligible campaign exists, or the public API fails, the site shows the localized house advertisement ("Your advertisement could be here") instead.
+Active unexpired campaigns, paid review submissions, and pending Stripe orders
+reserve capacity. Pending orders count once per campaign. New purchases are
+rejected with HTTP 409 before a provider session is created when all seven places
+are occupied. Existing open sessions can be reused for their reserved campaign.
 
-Images request the optimized `card` variant lazily with fixed dimensions and a neutral failure fallback. External destinations are disclosed as sponsored advertising and use safe link semantics.
+Banner Checkout accepts immediate card payments using the current
+`allowed_payment_method_types` filter and expires after about 31 minutes.
+Expiry webhooks release reservations; the outbox worker also checks old pending
+orders against Stripe. A local timer never frees a potentially paid reservation.
+Completed sessions are recovered through authenticated Stripe GET by the worker
+and the owner's `/payments/advertisements/{id}/status` endpoint when a webhook is
+lost. `/payments/advertisements/{id}/checkout/cancel` expires an open session before
+releasing capacity. If payment wins the cancellation race, it is fulfilled and
+capacity remains reserved. Subscribe Stripe to
+`checkout.session.completed`, `checkout.session.async_payment_succeeded` and
+`checkout.session.expired`. [Stripe Checkout parameters](https://docs.stripe.com/api/checkout/sessions/create).
 
-## Contacts
+Only signed paid webhooks or verified Stripe GET responses move campaigns into review. Editing a paid active
+creative preserves its original end time, so repeated edits cannot restart the
+paid period. Rejected and deactivated campaigns release space. Refunds retain the
+existing manual Stripe process.
 
-Website destinations allow only public HTTP(S) URLs. Email uses a validated mailto destination. Phone and WhatsApp accept an explicit international prefix (`+...` or `00...`) or a normal nine-digit Spanish number beginning with 6, 7, 8, or 9; nine-digit Spanish numbers are normalized to `+34...`. Ambiguous local numbers are rejected instead of being silently interpreted as another country's calling code.
+## Vacancy notifications
 
-## Moderation and editing
+`GET /advertisements/availability` reports free capacity and the public VAPID key.
+Authenticated users subscribe through `POST /advertisements/waitlist` and cancel
+through `DELETE /advertisements/waitlist`. One waiting subscription per account is
+stored durably. The worker checks for a vacancy after expiry, rejection or
+cancellation and records one in-site notification per subscription. Notification
+links open the advertising form. A notification does not reserve a place.
 
-An active campaign edited by its owner is removed from public display and returned to moderation. The old active schedule is cleared so a stale `ends_at` cannot make later reapproval impossible. In the current test-payment MVP a successful reapproval receives a fresh default test window. Before a real payment provider is enabled, the commercial entitlement policy for edited creatives must be finalized so paid duration cannot be extended unintentionally.
+If enabled and permitted by the user, browser push is sent through the registered
+`advertising-sw.js` service worker. Transient provider failures retry after five
+minutes; invalid subscriptions (404/410) fall back to the in-site notification.
+The endpoint only accepts known browser push providers, validates key sizes and
+checks the browser's actual P-256 public point. Saved subscription state survives
+page reload and can be cancelled. A changed subscription invalidates an old worker
+claim so it cannot mark the new subscription as delivered.
+Without browser permission, browser support, or server VAPID configuration, the
+UI explicitly confirms the in-site notification channel.
+[Browser subscription requirements](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe).
 
-The administrator view lives inside the existing admin interface and can approve, reject, or deactivate campaigns. A thirteenth overlapping campaign receives HTTP 409 until one of the twelve slots becomes free.
+## Deployment
 
-## Media retention
+1. Install backend dependencies using `backend/constraints.txt` and apply
+   `alembic upgrade head`, including `0058_advertising_waitlist` and
+   `0059_payment_fulfillment`.
+2. Generate a key pair once in a private, ignored environment file:
+   `python -m app.commands.web_push_keys --output webpush.local.env`.
+3. Put `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY` and `WEB_PUSH_SUBJECT` in the
+   API and worker environment. Production Compose forwards all three settings.
+   Never place the private key in frontend settings or source control. On Windows,
+   keep the generated file in a directory whose ACL is restricted to the operator.
+4. Serve the frontend over HTTPS, including `advertising-sw.js`, and run the
+   existing outbox worker. Keep a stable VAPID pair across redeployments.
+5. Keep existing Stripe keys/webhook configured; this change never switches Stripe
+   between test and live modes.
 
-Advertisement media participates in the existing ownership, orphan detection, account deletion, and storage-deletion flow. Terminal campaign rows are retained for 180 days for user/admin history. After that retention window, cancelled/rejected campaigns and long-expired active campaigns are removed in bounded maintenance batches; their media is released only when no remaining listing, avatar, or advertisement reference exists.
+If more than seven old campaigns/reservations already exist, new purchases stay
+closed until capacity drops below seven. The public display is capped at seven;
+resolve any pre-existing oversold paid campaigns operationally before release.
 
-## Security and operations
+## Exceptional paid orders
 
-All write routes derive ownership from the bearer session. Administrator actions use the existing `require_admin` allowlist. The server validates text lengths and rejects markup, restricts destinations to safe schemes, enforces ownership, and applies existing rate limits plus a per-account submission cap. Public DTOs contain only display-safe fields. Public media access applies the same campaign-eligibility rules; owner/admin can inspect pending media through authenticated requests.
+`payment_orders.fulfillment_status` records `fulfilled` independently of `paid`.
+A paid order that cannot be safely assigned is retained as `review_required`, with
+the reason recorded and a notification to the buyer. Its campaign blocks another
+purchase; the checkout and My campaigns show the payment issue. The administrator
+advertising page shows the reconciliation queue from
+`GET /payments/admin/review-required`. Refunds continue to be handled in Stripe;
+do not collect another payment while the earlier one is unresolved.
 
-Apply Alembic revision `0052_commercial_advertisements` before deploying the backend. It adds the advertisement image media enum value and an independent table/indexes; it does not change listing rows. The enum value remains after downgrade because removing PostgreSQL enum members would require a risky type rebuild.
-
-The commercial-advertising PR intentionally does not alter property-map UI, bounded Spain catalog loading, map markers/cards, or search navigation behavior.
+The stored creative fingerprint prevents late events from approving different
+content. A late paid expired order cannot displace seven currently reserved places.
+Migration preserves historical paid TOP fulfillment to prevent duplicate grants;
+historical paid advertising orders without a paid campaign are queued for review.

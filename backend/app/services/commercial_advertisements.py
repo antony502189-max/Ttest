@@ -10,9 +10,59 @@ from fastapi import HTTPException
 
 from ..models.commercial_advertisement import CommercialAdvertisement
 
-PACKAGE_DURATION_DAYS = 30
-PACKAGE_ID = "test_homepage_30d"
-MAX_ACTIVE_HOMEPAGE_ADS = 12
+PACKAGE_DURATION_DAYS = 1
+PACKAGE_ID = "homepage_1d"
+PACKAGE_PRICE_CENTS = 3000
+MAX_ACTIVE_HOMEPAGE_ADS = 7
+
+
+async def lock_advertising_capacity(session) -> None:
+    from sqlalchemy import text
+
+    await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+                          {"lock_key": "commercial-advertising:homepage-bottom"})
+
+
+async def occupied_slots(session, *, exclude_id=None) -> int:
+    """Paid review queues and provider-confirmed pending payments reserve space.
+
+    Never release a payment on a local timer: a delayed webhook may represent a
+    completed payment. The worker releases it only after Stripe confirms expiry.
+    """
+    from sqlalchemy import and_, func, or_, select
+
+    from ..models.payment_order import PaymentOrder
+
+    ad = CommercialAdvertisement
+    pending_payment = select(PaymentOrder.id).where(
+        PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
+        PaymentOrder.status.in_(["creating", "pending"]),
+    ).exists()
+    query = select(func.count(ad.id)).where(ad.placement == "homepage_bottom", or_(
+        and_(ad.status == "active", ad.payment_status == "paid",
+             or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
+        and_(ad.status.in_(["pending_review", "rejected"]), ad.payment_status == "paid",
+             or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
+        pending_payment,
+    ))
+    if exclude_id is not None:
+        query = query.where(ad.id != exclude_id)
+    return int(await session.scalar(query) or 0)
+
+
+async def require_free_slot(session, *, exclude_id=None) -> None:
+    if await occupied_slots(session, exclude_id=exclude_id) >= MAX_ACTIVE_HOMEPAGE_ADS:
+        raise HTTPException(409, "No advertising slots available")
+
+
+async def notify_advertiser(session, ad, kind: str, title: str, body: str) -> None:
+    from ..models import User
+    from .notifications import create_notification
+    recipient = await session.get(User, ad.owner_user_id)
+    if recipient and recipient.deleted_at is None:
+        event = ad.submitted_at or ad.created_at
+        await create_notification(session, recipient=recipient, kind=kind, title=title, body=body,
+                                  idempotency_key=f"advertisement:{ad.id}:{kind}:{event.isoformat()}")
 
 
 def normalize_destination(kind: str, raw: str) -> str:
@@ -96,7 +146,8 @@ def approve(ad: CommercialAdvertisement, starts_at: datetime | None, ends_at: da
         raise HTTPException(409, "Paid pending-review advertisement required")
     now = datetime.now(UTC)
     start = starts_at or ad.starts_at or now
-    end = ends_at or ad.ends_at or start + timedelta(days=PACKAGE_DURATION_DAYS)
+    duration = getattr(ad, "duration_days", None) or (30 if ad.package_id == "test_homepage_30d" else PACKAGE_DURATION_DAYS)
+    end = ends_at or ad.ends_at or start + timedelta(days=duration)
     if start.tzinfo is None or end.tzinfo is None or end <= start or end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
     ad.status = "active"

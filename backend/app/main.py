@@ -24,6 +24,7 @@ from .api.v1.commercial_advertisements import router as commercial_advertisement
 from .api.v1.favorites import router as favorites_router
 from .api.v1.listings import router as listings_router
 from .api.v1.notifications import router as notifications_router
+from .api.v1.payments import router as payments_router
 from .api.v1.reports import router as reports_router
 from .api.v1.saved_searches import router as saved_searches_router
 from .api.v1.search_history import router as search_history_router
@@ -157,6 +158,8 @@ def rate_limit_rule(method: str, path: str) -> tuple[str, int, int] | None:
         return "/api/v1/discarded-listings/{listing_id}", 60, 60
     if method == "POST" and path.startswith("/api/v1/advertisements/") and path.endswith("/fake-payment/complete"):
         return "/api/v1/advertisements/{id}/fake-payment/complete", 10, 60
+    if method == "POST" and path.startswith("/api/v1/payments/") and path.endswith("/checkout"):
+        return "/api/v1/payments/{target}/checkout", 10, 60
     return None
 
 
@@ -404,6 +407,7 @@ async def metrics():
 app.include_router(public_pages_router)
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(commercial_advertisements_router, prefix="/api/v1")
+app.include_router(payments_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(favorites_router, prefix="/api/v1")
 app.include_router(listings_router, prefix="/api/v1")

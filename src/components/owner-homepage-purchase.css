@@ -1,0 +1,7 @@
+.owner-homepage-cta { margin-bottom: 1rem; }
+@media (max-width: 767px) {
+  .owner-listings-page .owner-homepage-cta { flex-wrap: wrap; }
+  .owner-homepage-cta .owner-top-cta__copy { flex: 1 1 100%; }
+  .owner-listings-page .owner-homepage-cta .owner-top-cta__copy p { display: block; }
+  .owner-homepage-cta .owner-top-cta__button { margin-left: auto; }
+}
