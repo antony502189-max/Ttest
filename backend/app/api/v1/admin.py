@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -197,6 +198,8 @@ async def list_listings_route(
     status_filter: str | None = Query(default=None, alias="status"),
     search: str | None = None,
     restricted: bool | None = None,
+    display_search: str | None = Query(default=None, alias="displaySearch"),
+    rental_mode: Literal["long", "holiday"] | None = Query(default=None, alias="rentalMode"),
     limit: int = Query(default=100, ge=1, le=200),
     offset: int = Query(default=0, ge=0, le=ADMIN_MAX_OFFSET),
     after_created_at: datetime | None = Query(default=None, alias="afterCreatedAt"),
@@ -210,6 +213,8 @@ async def list_listings_route(
         status_filter,
         search,
         restricted=restricted,
+        display_search=display_search,
+        rental_mode=rental_mode,
         limit=limit,
         offset=offset,
         after_created_at=after_created_at,

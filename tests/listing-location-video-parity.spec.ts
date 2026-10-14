@@ -169,6 +169,69 @@ test('preview keeps Android Google tile rows contiguous and outside responsive i
   })
 })
 
+for (const width of [320, 360, 390, 468]) {
+  test(`customer reference WhatsApp consent pill fits at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await patchInternalListingContacts(page, {
+      showPhone: false,
+      showWhatsApp: true,
+      contactPhone: '',
+      contactWhatsapp: '+34 688 888 888',
+    })
+    await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+
+    const bar = page.locator('.mobile-contact-bar')
+    const confirmation = bar.locator('.condition-confirm')
+    const checkbox = confirmation.locator('[data-slot="checkbox"]')
+    const logo = confirmation.locator('svg.condition-confirm__whatsapp')
+    const copy = confirmation.locator('.condition-confirm__text')
+    const arrow = confirmation.locator('svg.condition-confirm__chevron')
+    await expect(confirmation).toBeVisible()
+    await expect(confirmation).toHaveClass(/condition-confirm--whatsapp/)
+    await expect(confirmation).toHaveCSS('border-radius', '999px')
+    await expect(confirmation).toHaveCSS('background-color', 'rgb(215, 255, 39)')
+    await expect(checkbox).toBeVisible()
+    await expect(logo).toBeVisible()
+    await expect(logo).toHaveAttribute('aria-hidden', 'true')
+    await expect(arrow).toBeVisible()
+    await expect(arrow).toHaveAttribute('aria-hidden', 'true')
+    await expect(copy.locator('.condition-confirm__lead')).toHaveText('Confirmo que cumplo estas condiciones:')
+    await expect(copy).toContainText(/solo mujer/i)
+    await expect(checkbox).toHaveAttribute('aria-checked', 'false')
+    await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveCount(0)
+
+    const boxes = await Promise.all([confirmation, logo, checkbox, copy, arrow].map((element) => element.boundingBox()))
+    for (const box of boxes) expect(box).not.toBeNull()
+    const [outer, brand, square, text, chevron] = boxes.map((box) => box!)
+    expect(brand.width).toBeGreaterThanOrEqual(width <= 320 ? 40 : 45)
+    expect(square.width).toBeGreaterThanOrEqual(20)
+    expect(brand.x + brand.width).toBeLessThanOrEqual(square.x + 1)
+    expect(square.x + square.width).toBeLessThanOrEqual(text.x + 1)
+    expect(text.x + text.width).toBeLessThanOrEqual(chevron.x + 1)
+    expect(chevron.x + chevron.width).toBeLessThanOrEqual(outer.x + outer.width + 1)
+    expect(outer.x).toBeGreaterThanOrEqual(0)
+    expect(outer.x + outer.width).toBeLessThanOrEqual(width + 1)
+    expect(await confirmation.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+
+    await arrow.click()
+    await expect(checkbox).toHaveAttribute('aria-checked', 'true')
+    await expect(confirmation).toBeHidden()
+    await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveAttribute('href', /34688888888/)
+  })
+}
+
+test('no WhatsApp logo appears for a listing without a WhatsApp contact', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await patchInternalListingContacts(page, {
+    showPhone: true,
+    showWhatsApp: false,
+    contactPhone: '+34 699 999 999',
+    contactWhatsapp: '',
+  })
+  await page.goto(`/#/habitacion/${encodeURIComponent(internalListingId)}`)
+  await expect(page.locator('.contact-panel .condition-confirm__whatsapp')).toHaveCount(0)
+})
+
 test('mobile WhatsApp-only listing keeps the floating confirmation highlighted like the lime action bar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await patchInternalListingContacts(page, {
@@ -187,9 +250,13 @@ test('mobile WhatsApp-only listing keeps the floating confirmation highlighted l
     contact: getComputedStyle(document.querySelector<HTMLElement>('.mobile-contact-bar')!).backgroundColor,
     actionbar: getComputedStyle(document.querySelector<HTMLElement>('.listing-actionbar')!).backgroundColor,
   }))
-  expect(floatingColors.contact).toBe(floatingColors.actionbar)
-  expect(floatingColors.contact).not.toBe('rgb(255, 255, 255)')
+  // The customer reference has a transparent floating shell surrounding
+  // the lime pill, rather than the former rectangular lime background.
+  expect(floatingColors.contact).toBe('rgba(0, 0, 0, 0)')
+  expect(floatingColors.actionbar).not.toBe('rgb(255, 255, 255)')
   await expect(confirmation).toBeVisible()
+  await expect(confirmation).toHaveCSS('background-color', 'rgb(215, 255, 39)')
+  await expect(confirmation).toHaveCSS('border-radius', '999px')
   await expect(bar.locator('a[href^="https://wa.me/"]')).toHaveCount(0)
 
   await confirmation.locator('[data-slot="checkbox"]').click()

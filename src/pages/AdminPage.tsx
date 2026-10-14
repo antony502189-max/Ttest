@@ -81,6 +81,7 @@ import { preloadOwnerListingRoutes } from '@/lib/route-preload'
 import { adminRentalModeLabel, matchesAdminRentalMode, type AdminRentalModeFilter } from '@/lib/admin-listings'
 import { AdminCommercialAdvertisements } from '@/components/admin-commercial-advertisements'
 import { fetchAdminTab, type AdminTabSources } from '@/lib/admin-tab-loader'
+import { useAdminListingFeed } from '@/lib/use-admin-listing-feed'
 
 const SUPPORT_EMAIL = 'tf.shuler@gmail.com'
 const PROMOTION_DAILY_PRICE_CENTS = 100
@@ -763,6 +764,7 @@ export function AdminPage() {
   const [homepageHero, setHomepageHero] = useState<HomepageHeroPromotion | null>(null)
   const [newAdminEmail, setNewAdminEmail] = useState('')
   const [addingAdmin, setAddingAdmin] = useState(false)
+  const listingFeed = useAdminListingFeed(section === 'listings' && !selectedUserId, query, listingRentalModeFilter, setHomepageHero)
 
   const loadSection = useCallback((target: Section, force = false): Promise<void> => {
     if (target === 'advertisements') return Promise.resolve() // Independent view.
@@ -806,7 +808,7 @@ export function AdminPage() {
     return task
   }, [])
 
-  useEffect(() => { void loadSection(section) }, [loadSection, section])
+  useEffect(() => { if (section !== 'listings') void loadSection(section) }, [loadSection, section])
   // Related reports and listings are fetched only when needed for detail or
   // moderation context, never as a prerequisite for opening Usuarios.
   useEffect(() => {
@@ -815,8 +817,9 @@ export function AdminPage() {
   }, [loadSection, section, selectedUserId])
 
   const loading = loadingSections.includes('users')
-  const sectionLoading = loadingSections.includes(section)
-  const sectionReady = loadedSectionsRef.current.has(section)
+  const sectionLoading = section === 'listings' ? listingFeed.loading && !listingFeed.ready : loadingSections.includes(section)
+  const sectionReady = section === 'listings' ? listingFeed.ready : loadedSectionsRef.current.has(section)
+  const sectionError = section === 'listings' ? listingFeed.error : loadErrors[section]
   const closeUserDetail = useCallback(() => setSelectedUserId(null), [])
 
   const visibleUsers = useMemo(() => users.filter((user) => {
@@ -830,17 +833,18 @@ export function AdminPage() {
     return user.activeRestriction?.restrictionType === userFilter
   }), [query, userFilter, users])
 
-  const visibleListings = useMemo(() => listings.filter((listing) => {
+  const visibleListings = useMemo(() => listingFeed.rows.filter((listing) => {
     if (!matchesAdminRentalMode(listing.rentalMode, listingRentalModeFilter)) return false
     if (!query.trim()) return true
     const needle = query.toLocaleLowerCase()
     return `${listing.title} ${listing.ownerName ?? ''} ${listing.area}`.toLocaleLowerCase().includes(needle)
-  }), [listingRentalModeFilter, listings, query])
+  }), [listingRentalModeFilter, listingFeed.rows, query])
 
   const visibleReports = useMemo(() => [...reports].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [reports])
 
   const updateUserRow = (changed: AdminUser) => setUsers((current) => current.map((user) => user.id === changed.id ? { ...user, ...changed } : user))
   const updateListingRow = (changed: AdminListing) => {
+    listingFeed.replace(changed)
     setListings((current) => current.map((listing) => listing.id === changed.id ? changed : listing))
     window.dispatchEvent(new Event('catalog:refresh'))
   }
@@ -857,6 +861,7 @@ export function AdminPage() {
   const deleteListingFromAdmin = async (listing: AdminListing) => {
     try {
       await deleteAdminListing(listing.id)
+      listingFeed.remove(listing.id)
       setListings((current) => current.filter((item) => item.id !== listing.id))
       setReports((current) => current.filter((report) => report.listingId !== listing.id))
       if (homepageHero?.listingId === listing.id) setHomepageHero(null)
@@ -930,10 +935,10 @@ export function AdminPage() {
   return <div className="admin-page">
     <AdminSidebar section={section} onSection={(next) => { setSection(next); setQuery('') }} currentUserName={currentUser?.name} reportCount={reports.filter((report) => report.status === 'open').length} />
     <main className="admin-main">
-      {section !== 'advertisements' && loadErrors[section] ? <div className="admin-load-error" role="alert">
+      {section !== 'advertisements' && sectionError ? <div className="admin-load-error" role="alert">
         <AlertTriangle aria-hidden="true" />
-        <span>No se pudieron cargar los datos. {loadErrors[section]}</span>
-        <Button variant="outline" onClick={() => { void loadSection(section, true) }}>Reintentar</Button>
+        <span>No se pudieron cargar los datos. {sectionError}</span>
+        <Button variant="outline" onClick={() => { if (section === 'listings') listingFeed.retry(); else void loadSection(section, true) }}>Reintentar</Button>
       </div> : null}
       {section !== 'users' && section !== 'advertisements' && sectionLoading ? <div className="admin-detail-loading" role="status"><RefreshCw className="spin" /> Cargando…</div> : null}
       {section === 'users' ? <>
@@ -953,10 +958,10 @@ export function AdminPage() {
         })}</div> : <EmptyState icon={AlertTriangle} title="Sin denuncias" description="No hay reportes pendientes ni históricos disponibles." />}
       </> : null}
 
-      {section === 'listings' && sectionReady && !sectionLoading && !loadErrors.listings ? <>
+      {section === 'listings' && sectionReady && !sectionLoading && (!sectionError || listingFeed.rows.length > 0) ? <>
         <SectionHeader title="Anuncios" description="Consulta el propietario, programa TOP o publicidad en portada por fechas y aplica moderación sin alterar el estado original del anuncio." />
         <div className="admin-toolbar"><div className="admin-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, usuario, zona o Ref.…" /></div><select value={listingRentalModeFilter} onChange={(event) => setListingRentalModeFilter(event.target.value as AdminRentalModeFilter)} aria-label="Tipo de alquiler"><option value="">Todos</option><option value="long">Larga estancia</option><option value="holiday">Corta estancia</option></select></div>
-        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing) => <article key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><Badge className="admin-listing-rental-badge" variant={listing.rentalMode === 'holiday' ? 'secondary' : 'outline'}>{adminRentalModeLabel(listing.rentalMode)}</Badge><small className="admin-listing-reference">Ref. {listing.id.slice(0, 8).toUpperCase()} · {listing.isExternal ? 'Externo' : 'Local'}</small><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{homepageHero?.listingId === listing.id && homepageHero.state === 'active' ? <><Badge>Portada activa · hasta {formatPromotionEndDate(homepageHero.endsAt)}</Badge><span>{homepageHero.days} días</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'scheduled' ? <><Badge variant="outline">Portada programada</Badge><span>{formatDateOnly(homepageHero.startsAt)} → {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'expired' ? <><Badge variant="outline">Portada finalizada</Badge><span>Terminó {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{listing.promotionState === 'active' ? <><Badge variant="destructive">TOP activo{listing.promotionEndsAt ? ` · hasta ${formatPromotionEndDate(listing.promotionEndsAt)}` : ''}</Badge>{listing.promotionDays ? <span>{listing.promotionDays} días{listing.promotionTotalPriceCents != null ? ` · ${formatEuros(listing.promotionTotalPriceCents)}` : ''}</span> : null}</> : null}{listing.promotionState === 'scheduled' ? <><Badge variant="outline">TOP programado</Badge><span>{formatDateOnly(listing.promotionStartsAt)} → {formatPromotionEndDate(listing.promotionEndsAt)}{listing.promotionDays ? ` · ${listing.promotionDays} días` : ''}</span></> : null}{listing.promotionState === 'expired' ? <><Badge variant="outline">TOP finalizado</Badge><span>{listing.promotionEndsAt ? `Terminó ${formatPromotionEndDate(listing.promotionEndsAt)}` : 'Periodo finalizado'}</span></> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}{listing.status === 'published' ? <Button variant="outline" size="sm" onClick={() => setHomepageHeroListing(listing)}><CalendarDays />{isCurrentHomepagePromotion(homepageHero, listing.id) ? 'Cambiar portada' : 'Poner en portada'}</Button> : null}{isCurrentHomepagePromotion(homepageHero, listing.id) ? <Button variant="outline" size="sm" onClick={() => { void removeHomepageHero() }}>Quitar portada</Button> : null}{listing.status === 'published' ? <Button variant="outline" size="sm" onClick={() => setListingPromotion(listing)}><CalendarDays />{isCurrentPromotionState(listing.promotionState) ? 'Cambiar TOP' : 'Subir al TOP'}</Button> : null}{isCurrentPromotionState(listing.promotionState) ? <Button variant="outline" size="sm" onClick={() => { void removeListingPromotion(listing) }}>Quitar TOP</Button> : null}{listing.status !== 'published' ? <span className="admin-listing-actions-note">Publica el anuncio para gestionar portada y TOP.</span> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}{!listing.isExternal ? <ConfirmDialog trigger={<Button variant="destructive" size="sm"><Trash2 /> Eliminar</Button>} title="¿Eliminar este anuncio?" description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es." confirmLabel="Eliminar" destructive onConfirm={() => deleteListingFromAdmin(listing)} /> : null}</div></article>)}</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
+        {visibleListings.length ? <div className="admin-listing-list">{visibleListings.map((listing, index) => <article ref={index === visibleListings.length - 1 ? listingFeed.observeLastRow : undefined} key={listing.id} className="admin-listing-row"><div><strong>{listing.title}</strong><span>{listing.area} · {listing.ownerName ?? 'Sin propietario'}</span><Badge className="admin-listing-rental-badge" variant={listing.rentalMode === 'holiday' ? 'secondary' : 'outline'}>{adminRentalModeLabel(listing.rentalMode)}</Badge><small className="admin-listing-reference">Ref. {listing.id.slice(0, 8).toUpperCase()} · {listing.isExternal ? 'Externo' : 'Local'}</small><small>{listingStatusLabels[listing.status] ?? listing.status} · {listing.views} visitas</small></div><div className="admin-listing-state">{homepageHero?.listingId === listing.id && homepageHero.state === 'active' ? <><Badge>Portada activa · hasta {formatPromotionEndDate(homepageHero.endsAt)}</Badge><span>{homepageHero.days} días</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'scheduled' ? <><Badge variant="outline">Portada programada</Badge><span>{formatDateOnly(homepageHero.startsAt)} → {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{homepageHero?.listingId === listing.id && homepageHero.state === 'expired' ? <><Badge variant="outline">Portada finalizada</Badge><span>Terminó {formatPromotionEndDate(homepageHero.endsAt)}</span></> : null}{listing.promotionState === 'active' ? <><Badge variant="destructive">TOP activo{listing.promotionEndsAt ? ` · hasta ${formatPromotionEndDate(listing.promotionEndsAt)}` : ''}</Badge>{listing.promotionDays ? <span>{listing.promotionDays} días{listing.promotionTotalPriceCents != null ? ` · ${formatEuros(listing.promotionTotalPriceCents)}` : ''}</span> : null}</> : null}{listing.promotionState === 'scheduled' ? <><Badge variant="outline">TOP programado</Badge><span>{formatDateOnly(listing.promotionStartsAt)} → {formatPromotionEndDate(listing.promotionEndsAt)}{listing.promotionDays ? ` · ${listing.promotionDays} días` : ''}</span></> : null}{listing.promotionState === 'expired' ? <><Badge variant="outline">TOP finalizado</Badge><span>{listing.promotionEndsAt ? `Terminó ${formatPromotionEndDate(listing.promotionEndsAt)}` : 'Periodo finalizado'}</span></> : null}{listing.activeRestriction ? <><Badge variant="destructive">{listing.activeRestriction.endsAt ? `Bloqueado hasta ${formatDate(listing.activeRestriction.endsAt)}` : 'Bloqueado permanentemente'}</Badge><span>{listing.activeRestriction.reason}</span></> : <Badge variant="outline">Sin bloqueo administrativo</Badge>}</div><div className="admin-listing-actions">{listing.status === 'pending' ? <><Button size="sm" onClick={() => { void changeListingStatus(listing, 'published', '¿Aprobar y publicar este anuncio?') }}><CheckCircle2 /> Aprobar</Button><Button variant="destructive" size="sm" onClick={() => { void changeListingStatus(listing, 'rejected', '¿Rechazar este anuncio?') }}><XCircle /> Rechazar</Button></> : null}{listing.status === 'published' ? <><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'hidden', '¿Ocultar este anuncio de la parte pública?') }}><Ban /> Ocultar</Button><Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'closed', '¿Cerrar este anuncio?') }}><XCircle /> Cerrar</Button></> : null}{['hidden', 'closed', 'rejected'].includes(listing.status) ? <Button variant="outline" size="sm" onClick={() => { void changeListingStatus(listing, 'pending', '¿Restaurar este anuncio a revisión?') }}><RefreshCw /> Restaurar a revisión</Button> : null}{listing.status === 'published' ? <Button variant="outline" size="sm" onClick={() => setHomepageHeroListing(listing)}><CalendarDays />{isCurrentHomepagePromotion(homepageHero, listing.id) ? 'Cambiar portada' : 'Poner en portada'}</Button> : null}{isCurrentHomepagePromotion(homepageHero, listing.id) ? <Button variant="outline" size="sm" onClick={() => { void removeHomepageHero() }}>Quitar portada</Button> : null}{listing.status === 'published' ? <Button variant="outline" size="sm" onClick={() => setListingPromotion(listing)}><CalendarDays />{isCurrentPromotionState(listing.promotionState) ? 'Cambiar TOP' : 'Subir al TOP'}</Button> : null}{isCurrentPromotionState(listing.promotionState) ? <Button variant="outline" size="sm" onClick={() => { void removeListingPromotion(listing) }}>Quitar TOP</Button> : null}{listing.status !== 'published' ? <span className="admin-listing-actions-note">Publica el anuncio para gestionar portada y TOP.</span> : null}<Button variant="outline" size="sm" onClick={() => setSelectedUserId(listing.ownerUserId)}><UserRound /> Usuario</Button>{listing.activeRestriction ? <Button size="sm" onClick={() => { void removeListingRestriction(listing) }}><CheckCircle2 /> Desbloquear</Button> : <Button variant="destructive" size="sm" onClick={() => setListingRestriction(listing)}><Ban /> Bloquear</Button>}{!listing.isExternal ? <ConfirmDialog trigger={<Button variant="destructive" size="sm"><Trash2 /> Eliminar</Button>} title="¿Eliminar este anuncio?" description="El anuncio y sus datos asociados se eliminarán definitivamente de 112233.es." confirmLabel="Eliminar" destructive onConfirm={() => deleteListingFromAdmin(listing)} /> : null}</div></article>)}</div> : listingFeed.loading ? <div className="admin-detail-loading" role="status"><RefreshCw className="spin" /> Cargando…</div> : <EmptyState icon={FileSearch} title="Sin anuncios" description="No hay anuncios que coincidan con la búsqueda." />}
       </> : null}
 
       {section === 'advertisements' ? <AdminCommercialAdvertisements /> : null}

@@ -781,3 +781,43 @@
 .m2-map-listing-carousel .m2-map-listing-card:not(.is-current) .m2-map-listing-preview__actions > span {
   min-height: 1.85rem;
 }
+
+/* Customer reference, revision 3 (2026-10-13).
+   The first tweak was too subtle. Make the NEXT photo clearly visible,
+   while retaining a readable active listing on 320–480px phones.
+   Only multi-listing map carousels change; no map or card data changes.
+   Keep stage overflow hidden to avoid horizontal page scroll. */
+@media (max-width: 767px) {
+  .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
+  .m2-map-listing-card.is-current {
+    width: calc(100% - clamp(5.75rem, 29vw, 8.25rem)) !important;
+    max-width: none;
+    transform: translate(calc(-50% - clamp(1.35rem, 5.5vw, 2rem)), -50%) scale(1) !important;
+  }
+
+  .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
+  .m2-map-listing-card.is-next {
+    /* The previous 37% offset put the next photo too far beyond the
+       viewport: measured visible slices were just 49-64px. Pull it LEFT
+       to 30% so the photo fills the space exposed by the narrower card. */
+    transform: translate(30%, -50%) scale(.94) !important;
+    opacity: 1;
+  }
+
+  .m2-map-listing-preview.m2-map-listing-carousel.has-multiple
+  .m2-map-listing-carousel__arrow--next {
+    /* Center the 2.35rem arrow directly on the current card's RIGHT
+       border: half on the listing, half on the visible next photo.
+       The first clamp is half of the card-width inset; the second is
+       the card's leftward shift (see .is-current above). The 1.175rem
+       subtraction is half the arrow width. Keep these in sync. */
+    right: calc(clamp(2.875rem, 14.5vw, 4.125rem) + clamp(1.35rem, 5.5vw, 2rem) - 1.175rem) !important;
+  }
+
+  /* Both variants render ChevronLeft; do not allow a later transform
+     to visually mirror it into a right-facing arrow. */
+  .m2-map-listing-preview.m2-map-listing-carousel
+  .m2-map-listing-carousel__arrow--next > svg {
+    transform: none !important;
+  }
+}

@@ -13,6 +13,7 @@ import { useI18n } from '@/contexts/i18n-context'
 import { advertisementStatusSource } from '@/lib/commercial-advertisement-labels'
 import './commercial-advertisement-pages.css'
 
+const MAX_AD_IMAGE_BYTES = 8 * 1024 * 1024
 const initial: AdvertisementWrite = { title: '', description: '', imageAssetId: '', destinationType: 'website', destination: '', packageId: 'homepage_1d' }
 
 export function AdvertisementEditorPage() {
@@ -48,12 +49,18 @@ export function AdvertisementEditorPage() {
   const chooseFile = async (file?: File) => {
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError('Solo se admiten imágenes JPEG, PNG o WebP.'); return }
+    if (file.size > MAX_AD_IMAGE_BYTES) { setError('La imagen supera el límite de 8 MB. Elige un archivo más pequeño.'); return }
     setBusy(true); setError(''); setFieldErrors({})
     try {
       const asset = await uploadAdvertisementImage(file)
       setForm((previous) => ({ ...previous, imageAssetId: asset.id }))
       setFilePreview(URL.createObjectURL(file))
-    } catch (reason) { setError((reason as Error).message); if (reason instanceof ApiError) setFieldErrors(reason.fieldErrors) } finally { setBusy(false) }
+    } catch (reason) {
+      setError(reason instanceof ApiError && reason.status === 413
+        ? 'La imagen supera el límite de 8 MB. Elige un archivo más pequeño.'
+        : (reason as Error).message)
+      if (reason instanceof ApiError) setFieldErrors(reason.fieldErrors)
+    } finally { setBusy(false) }
   }
   const save = async () => {
     setBusy(true); setError(''); setFieldErrors({})
@@ -176,8 +183,16 @@ export function MyAdvertisementPage() {
   const { t, locale } = useI18n()
   const [items, setItems] = useState<AdvertisementDetail[]>([])
   const [error, setError] = useState('')
-  const reload = () => void getMyAdvertisements().then(setItems).catch((reason: Error) => setError(reason.message))
+  const [loading, setLoading] = useState(true)
+  const reload = () => {
+    setLoading(true)
+    setError('')
+    void getMyAdvertisements()
+      .then(setItems)
+      .catch((reason: Error) => setError(reason.message))
+      .finally(() => setLoading(false))
+  }
   useEffect(reload, [])
   const cancel = async (id: string) => { try { await cancelAdvertisement(id); reload() } catch (reason) { setError((reason as Error).message) } }
-  return <div className="ad-flow"><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t('Mis campañas')}</h1><p>{t('Gestiona tus anuncios publicitarios por separado de tus viviendas.')}</p></div><Link className="ad-flow__button" to="/publicidad/nueva">{t('Crear publicidad')}</Link>{error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}<div className="ad-flow__list">{items.map((ad) => <article key={ad.id} className="ad-flow__panel ad-flow__row"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p><p>{t(advertisementStatusSource(ad.status, ad.endsAt))} · {t(ad.paymentReviewRequired ? 'Pago en revisión' : ad.paymentStatus === 'paid' ? 'Pagado' : 'Sin pagar')}</p><small>{new Date(ad.createdAt).toLocaleDateString(locale)} {ad.startsAt ? ` · ${new Date(ad.startsAt).toLocaleDateString(locale)} – ${ad.endsAt ? new Date(ad.endsAt).toLocaleDateString(locale) : '∞'}` : ''}</small>{ad.paymentReviewRequired ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p> : null}{ad.moderationNote ? <p data-i18n-exempt>{ad.moderationNote}</p> : null}<div className="ad-flow__actions">{ad.status !== 'cancelled' ? <Link to={`/publicidad/${ad.id}/editar`}>{t('Editar')}</Link> : null}{ad.status === 'pending_payment' && !ad.paymentReviewRequired ? <Link to={`/publicidad/${ad.id}/checkout`}>{t('Pagar')}</Link> : null}{ad.status !== 'cancelled' ? <button type="button" className="ad-flow__secondary" onClick={() => { void cancel(ad.id) }}>{t('Cancelar')}</button> : null}</div></div></article>)}</div>{!items.length && !error ? <p>{t('Todavía no tienes campañas publicitarias.')}</p> : null}</div>
+  return <div className="ad-flow"><div className="ad-flow__campaign-heading"><Link to="/" className="ad-flow__back ad-flow__back--home" aria-label={t('Volver al inicio')} title={t('Volver al inicio')}><ArrowLeft aria-hidden="true" /></Link><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t('Mis campañas')}</h1><p>{t('Gestiona tus anuncios publicitarios por separado de tus viviendas.')}</p></div></div><Link className="ad-flow__button" to="/publicidad/nueva">{t('Crear publicidad')}</Link>{error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}<div className="ad-flow__list">{items.map((ad) => <article key={ad.id} className="ad-flow__panel ad-flow__row"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p><p>{t(advertisementStatusSource(ad.status, ad.endsAt))} · {t(ad.paymentReviewRequired ? 'Pago en revisión' : ad.paymentStatus === 'paid' ? 'Pagado' : 'Sin pagar')}</p><small>{new Date(ad.createdAt).toLocaleDateString(locale)} {ad.startsAt ? ` · ${new Date(ad.startsAt).toLocaleDateString(locale)} – ${ad.endsAt ? new Date(ad.endsAt).toLocaleDateString(locale) : '∞'}` : ''}</small>{ad.paymentReviewRequired ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p> : null}{ad.moderationNote ? <p data-i18n-exempt>{ad.moderationNote}</p> : null}<div className="ad-flow__actions">{ad.status !== 'cancelled' ? <Link to={`/publicidad/${ad.id}/editar`}>{t('Editar')}</Link> : null}{ad.status === 'pending_payment' && !ad.paymentReviewRequired ? <Link to={`/publicidad/${ad.id}/checkout`}>{t('Pagar')}</Link> : null}{ad.status !== 'cancelled' ? <button type="button" className="ad-flow__secondary" onClick={() => { void cancel(ad.id) }}>{t('Cancelar')}</button> : null}</div></div></article>)}</div>{loading && !items.length ? <p role="status">{t('Cargando campañas…')}</p> : null}{error ? <button type="button" className="ad-flow__retry" onClick={reload}>{t('Reintentar')}</button> : null}{!loading && !items.length && !error ? <p>{t('Todavía no tienes campañas publicitarias.')}</p> : null}</div>
 }

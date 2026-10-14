@@ -151,6 +151,8 @@ export function ListingPage() {
           <Separator />
           <section className="listing-section"><h2>Descripción</h2><p className="prose" data-i18n-exempt>{listing.description}</p></section>
           <Separator />
+          <section className="listing-section conditions-block"><h2>Normas y convivencia</h2><p>Todas las condiciones están visibles antes del contacto.</p><ListingConditionChips conditions={criticalRestrictions} /></section>
+          <Separator />
           <section className="listing-section"><h2>Habitación y plazas</h2><ul className="idealista-feature-list">
             <li><BedDouble />{rentalUnitLabel}</li>
             <li><UsersRound />Capacidad: {listing.roomCapacity == null ? unknownListingFact : `${listing.roomCapacity} ${listing.roomCapacity === 1 ? 'persona' : 'personas'}`}</li>
@@ -179,8 +181,6 @@ export function ListingPage() {
           </dl></section>
           <Separator />
           <section className="listing-section"><h2>Equipamiento</h2><div className="amenities-grid">{listing.amenities.map((amenity) => <span key={amenity}><Check />{amenity}</span>)}</div></section>
-          <Separator />
-          <section className="listing-section conditions-block"><h2>Normas y convivencia</h2><p>Todas las condiciones están visibles antes del contacto.</p><ListingConditionChips conditions={criticalRestrictions} /></section>
           <Separator />
           <section className="listing-section"><h2>Precio y disponibilidad</h2><dl className="detail-list"><div><dt>Renta</dt><dd>{getPrimaryPrice(listing)} €/{getPrimaryCadence(listing)}</dd></div>{listing.rentalMode === 'holiday' && listing.weeklyPrice ? <div><dt>Semana</dt><dd>{listing.weeklyPrice} €</dd></div> : null}{listing.rentalMode === 'holiday' && listing.monthlyPrice ? <div><dt>Mes</dt><dd>{listing.monthlyPrice} €</dd></div> : null}<div><dt>Gastos</dt><dd>{listing.bills}</dd></div><div><dt>Fianza</dt><dd>{listing.deposit}</dd></div><div><dt>Disponible desde</dt><dd>{listing.availableFrom}</dd></div><div><dt>Disponible hasta</dt><dd>{listing.availableUntil ?? 'Sin fecha final'}</dd></div><div><dt>Estancia mínima</dt><dd>{listing.minimumStay}</dd></div></dl></section>
           <Separator />
