@@ -1,5 +1,5 @@
 {
-  "frozen_through_revision": "0040_listing_capacity_contract",
+  "frozen_through_revision": "0056_external_scope_checkpoint",
   "files": {
     "0033_admin_moderation.py": "ec6d4cd0ecf9696cf61e40014105b3d7879625b9",
     "0034_room_first_listing_details.py": "aa681133058ef5ccea0efe55d7bca594523c47c2",
@@ -8,6 +8,22 @@
     "0037_bunk_bed_type.py": "394fd3d68268c3089532ff77697881dcedde9111",
     "0038_notifications.py": "cab598577e274937b68a1453606d97b6eb3efa39",
     "0039_admin_grant_repair_and_permanent_listing_restrictions.py": "25f681ed44605d3723c979c98c812ce951534a41",
-    "0040_listing_capacity_contract.py": "c294900b31a0f922af8f1c58c1caf8a7337b6a85"
+    "0040_listing_capacity_contract.py": "c294900b31a0f922af8f1c58c1caf8a7337b6a85",
+    "0041_direct_publish_existing_pending.py": "adeaefbdeb0cc3267713dc977d64c88a15104cc2",
+    "0042_timed_listing_promotions.py": "d181bbbde5a84d9d89f39fa7cf7ccb799b0e9703",
+    "0043_homepage_hero_promotions.py": "6c487b88b06270000456313d74e21a8db8871a4f",
+    "0044_nullable_listing_location.py": "2876885e202c3337533d220e57c8b0bc03079a05",
+    "0045_habitaclia_location_integrity.py": "af2939423d321d0689edf53914cc1af070c7e436",
+    "0046_owner_location_parity.py": "da665fee1627964f8cb80ebe4914331accd23392",
+    "0047_media_delivery_index.py": "08d33088ece5e01b227e4e8af2d7c12985d4ba32",
+    "0048_media_phash_bands.py": "15c6fc8f803b3223fc72f82851bfa4e5f970b676",
+    "0049_listing_video.py": "0edad519b4644729e96d09229a540970aa41ac80",
+    "0050_spain_search_indexes.py": "ed8edbe56d1af6b60f77dd9ba3f92c4d5e86fb1d",
+    "0051_external_import_scopes.py": "de5e11ab043853f9449172d66a00b2c1d533d8c8",
+    "0052_commercial_advertisements.py": "5b0ea0ac2cd238340c6ab432872d3ff88e64fd76",
+    "0053_permanent_internal_listings.py": "83ea01dbe72f5d1ce82e4d0e26d38ac63d019916",
+    "0054_recover_reexpired_internal_listings.py": "efc2cb33e728dbd2293883c5a18af286d8171fca",
+    "0055_external_removal_cursor.py": "cc0cc0cb4f8a4703b6936fe38a613a197227e619",
+    "0056_external_scope_checkpoint.py": "f395e6c05602eb27d117233acd9ca33ea4d61897"
   }
 }

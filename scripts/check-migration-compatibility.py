@@ -14,6 +14,11 @@ from typing import Any
 
 MIGRATIONS = Path("backend/alembic/versions")
 BASELINE_FILE = Path("backend/alembic/rollback-compatibility-baseline.json")
+RELEASED_FILE = Path("backend/alembic/released-migration-blobs.json")
+CONSTRAINT_METHODS = {
+    "drop_constraint", "create_check_constraint", "create_foreign_key",
+    "create_primary_key", "create_unique_constraint",
+}
 PROHIBITED_SQL = (
     (re.compile(r"\bDROP\s+TABLE\b", re.IGNORECASE), "DROP TABLE"),
     (re.compile(r"\bDROP\s+COLUMN\b", re.IGNORECASE), "DROP COLUMN"),
@@ -213,15 +218,25 @@ def literal_none(node: ast.AST | None) -> bool:
     return isinstance(node, ast.Constant) and node.value is None
 
 
-def inspect_future_migration(migration: Migration) -> list[str]:
+def inspect_future_migration(migration: Migration, new_tables: set[str] | None = None) -> list[str]:
     constants = string_constants(migration.tree)
+    new_tables = new_tables or set()
     violations: list[str] = []
     for function in reachable_upgrade_functions(migration.tree, migration.path):
         for node in ast.walk(function):
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
             method = node.func.attr
-            if method in PROHIBITED_OP_METHODS:
+            # Only a table introduced by an unreleased ancestor can evolve its
+            # constraints. The rollback application has never used that table.
+            # Unknown targets, schemas and every other destructive op stay denied.
+            table = constant_text(node.args[1], constants) if len(node.args) > 1 else None
+            new_table_constraint = (
+                method in CONSTRAINT_METHODS and table in new_tables
+                and keyword_value(node, "schema") is None
+                and keyword_value(node, "source_schema") is None
+            )
+            if method in PROHIBITED_OP_METHODS and not new_table_constraint:
                 violations.append(f"{migration.path}:{node.lineno}: {method} is not expand-compatible")
             if method == "alter_column":
                 if keyword_value(node, "new_column_name") is not None or keyword_value(node, "type_") is not None:
@@ -245,17 +260,61 @@ def inspect_future_migration(migration: Migration) -> list[str]:
     return violations
 
 
-manifest = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
-baseline = manifest.get("baseline_revision")
-if not isinstance(baseline, str):
-    raise SystemExit("rollback compatibility baseline_revision must be a string")
-migrations = load_migrations()
-historical = historical_revisions(migrations, baseline)
-verify_historical_hashes(migrations, historical, manifest)
-violations: list[str] = []
-for revision, migration in sorted(migrations.items()):
-    if revision not in historical:
-        violations.extend(inspect_future_migration(migration))
-if violations:
-    raise SystemExit("\n".join(violations))
-print(f"deployed migration history is immutable; future upgrades after {baseline} are expand-compatible")
+def verify_released_history(migrations: dict[str, Migration], historical: set[str]) -> set[str]:
+    manifest = json.loads(RELEASED_FILE.read_text(encoding="utf-8"))
+    released = historical_revisions(migrations, manifest["frozen_through_revision"])
+    if not historical < released:
+        raise SystemExit("released history must extend the rollback baseline")
+    expected = {migrations[revision].path.name for revision in released - historical}
+    if set(manifest["files"]) != expected:
+        raise SystemExit("released migration file set mismatch")
+    for revision in released - historical:
+        path = migrations[revision].path
+        content = path.read_bytes()
+        blob = hashlib.sha1(f"blob {len(content)}\0".encode() + content, usedforsecurity=False).hexdigest()
+        if blob != manifest["files"][path.name]:
+            raise SystemExit(f"released migration history is immutable: {path}")
+    return released
+
+
+def new_ancestor_tables(migrations: dict[str, Migration], revision: str, released: set[str]) -> set[str]:
+    tables: set[str] = set()
+    ancestors = historical_revisions(migrations, revision) - {revision} - released
+    for ancestor in ancestors:
+        migration = migrations[ancestor]
+        constants = string_constants(migration.tree)
+        # Direct op.create_table calls only: no conditional/helper/dynamic DDL.
+        upgrade = next(node for node in migration.tree.body if isinstance(node, ast.FunctionDef) and node.name == "upgrade")
+        for statement in upgrade.body:
+            call = statement.value if isinstance(statement, ast.Expr) else None
+            if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                    and isinstance(call.func.value, ast.Name) and call.func.value.id == "op"
+                    and call.func.attr == "create_table" and call.args
+                    and keyword_value(call, "schema") is None):
+                table = constant_text(call.args[0], constants)
+                if table is not None:
+                    tables.add(table)
+    return tables
+
+
+def main() -> None:
+    manifest = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+    baseline = manifest.get("baseline_revision")
+    if not isinstance(baseline, str):
+        raise SystemExit("rollback compatibility baseline_revision must be a string")
+    migrations = load_migrations()
+    historical = historical_revisions(migrations, baseline)
+    verify_historical_hashes(migrations, historical, manifest)
+    released = verify_released_history(migrations, historical)
+    violations: list[str] = []
+    for revision, migration in sorted(migrations.items()):
+        if revision not in historical:
+            tables = new_ancestor_tables(migrations, revision, released)
+            violations.extend(inspect_future_migration(migration, tables))
+    if violations:
+        raise SystemExit("\n".join(violations))
+    print(f"deployed migration history is immutable; future upgrades after {baseline} are expand-compatible")
+
+
+if __name__ == "__main__":
+    main()
