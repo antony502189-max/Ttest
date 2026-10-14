@@ -89,7 +89,7 @@ async def test_seven_paid_banners_block_eighth_then_expiry_notifies_once(client,
     for ad, _, headers, _ in campaigns[:7]:
         response = await checkout(client, ad, headers)
         assert response.status_code == 200, response.text
-        assert response.json()['amountCents'] == 100
+        assert response.json()['amountCents'] == 1000
         await paid(client, provider, response.json()['url'])
         # Duplicate delivery must not produce a second notification or reset payment time.
         duplicate = await webhook(client, provider[response.json()['url'].rsplit('/', 1)[-1]])
@@ -106,7 +106,7 @@ async def test_seven_paid_banners_block_eighth_then_expiry_notifies_once(client,
         approved = await client.post('/api/v1/admin/advertisements/' + ad['id'] + '/approve', headers=admin, json={})
         assert approved.status_code == 200, approved.text
         value = approved.json()
-        assert datetime.fromisoformat(value['endsAt']) - datetime.fromisoformat(value['startsAt']) == timedelta(days=1)
+        assert datetime.fromisoformat(value['endsAt']) - datetime.fromisoformat(value['startsAt']) == timedelta(days=10)
     assert len((await client.get('/api/v1/advertisements/homepage')).json()) == 7
     async with SessionLocal() as session:
         first = await session.get(CommercialAdvertisement, UUID(campaigns[0][0]['id']))
@@ -187,7 +187,7 @@ async def test_paid_changed_creative_requires_review_and_blocks_second_charge(cl
     assert len(provider) == 1
     admin = await admin_headers(client, register_user)
     queue = (await client.get('/api/v1/payments/admin/review-required', headers=admin)).json()
-    assert len(queue) == 1 and queue[0]['amountCents'] == 100
+    assert len(queue) == 1 and queue[0]['amountCents'] == 1000
     assert (await client.get('/api/v1/advertisements/mine', headers=headers)).json()[0]['paymentReviewRequired']
 
 

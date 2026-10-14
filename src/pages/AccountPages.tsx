@@ -55,6 +55,7 @@ import { MediaImage, useMediaUrl } from "@/components/media-image";
 import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-storage";
 import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
+import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
 
 const TOP_PACKAGE_PRICES_EUR: Record<number, number> = { 1: 1, 7: 5, 30: 10 };
 
@@ -542,6 +543,7 @@ export function MyListingsPage() {
       {searchParams.get("payment") === "return" ? (
         <p role="status">{t("Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p>
       ) : null}
+      <OwnerHomepagePurchase />
       <div className="account-toolbar">
         <label htmlFor="my-listings-status">Estado</label>
         <select

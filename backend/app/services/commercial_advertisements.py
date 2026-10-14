@@ -145,7 +145,7 @@ def approve(ad: CommercialAdvertisement, starts_at: datetime | None, ends_at: da
         raise HTTPException(409, "Paid pending-review advertisement required")
     now = datetime.now(UTC)
     start = starts_at or ad.starts_at or now
-    duration = 30 if ad.package_id == "test_homepage_30d" else PACKAGE_DURATION_DAYS
+    duration = getattr(ad, "duration_days", None) or (30 if ad.package_id == "test_homepage_30d" else PACKAGE_DURATION_DAYS)
     end = ends_at or ad.ends_at or start + timedelta(days=duration)
     if start.tzinfo is None or end.tzinfo is None or end <= start or end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")

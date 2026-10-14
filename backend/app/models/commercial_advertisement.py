@@ -28,6 +28,7 @@ class CommercialAdvertisement(Base):
     status: Mapped[str] = mapped_column(String(24), default="pending_payment")
     payment_status: Mapped[str] = mapped_column(String(16), default="unpaid")
     package_id: Mapped[str] = mapped_column(String(40), default="homepage_1d")
+    duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     admin_priority: Mapped[int] = mapped_column(Integer, default=0)
     moderation_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

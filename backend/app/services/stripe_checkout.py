@@ -19,10 +19,11 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
     # The SPA uses HashRouter, so Stripe must return to a route in the fragment.
     base = settings.frontend_app_url.rstrip("/")
     route_base = f"{base}/#"
+    separator = "&" if "?" in return_path else "?"
     data = {
         "mode": "payment",
-        "success_url": f"{route_base}{return_path}?payment=return",
-        "cancel_url": f"{route_base}{return_path}?payment=cancelled",
+        "success_url": f"{route_base}{return_path}{separator}payment=return",
+        "cancel_url": f"{route_base}{return_path}{separator}payment=cancelled",
         "client_reference_id": str(order.id),
         "line_items[0][price_data][currency]": "eur",
         "line_items[0][price_data][unit_amount]": str(order.amount_cents),
@@ -30,7 +31,7 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
         "line_items[0][quantity]": "1",
         "metadata[order_id]": str(order.id),
     }
-    if getattr(order, "kind", None) == "advertisement":
+    if getattr(order, "kind", None) in {"advertisement", "homepage_hero"}:
         # Only immediate card payments can reserve this scarce inventory.
         data["allowed_payment_method_types[0]"] = "card"
         data["expires_at"] = str(int(time.time()) + 31 * 60)

@@ -2,9 +2,22 @@
 
 The homepage has seven advertising cards at the bottom, using the existing fonts,
 white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
-campaign costs **€1 for 24 hours**. Duration starts at administrator approval.
+campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
 Existing `test_homepage_30d` purchases retain their paid duration and price.
-Week/month packages are not selectable yet.
+The paid number of days is recorded on the order and campaign; approval uses that duration.
+
+The existing homepage photo slot can also be purchased from **Mis anuncios** for
+**€60 for one calendar month**. It shows the selected published listing's photo
+and a direct link, in the existing homepage layout. Checkout reserves the single
+slot; concurrent purchases and administrator replacement of a purchased slot
+are blocked. It starts on confirmed payment and ends at the same UTC time on the
+next month's corresponding day (clamped to the last day for shorter months).
+There is no recurring subscription. A new purchase is possible after expiry.
+
+Apply migration `0060_homepage_purchases` before deploying the new backend.
+It adds the homepage order kind and nullable banner duration while preserving
+old purchased campaign durations. Homepage payments use the same signed webhook,
+verified Stripe GET recovery and background reconciliation as banner payments.
 
 Advertisers upload JPEG, PNG or WebP and enter a title, description and website,
 phone, WhatsApp or email destination. The existing image validation, ownership,
@@ -12,10 +25,15 @@ media delivery, moderation and campaign management paths remain in use.
 
 ## Payments and seven-slot capacity
 
-`GET /payments/advertisements/{id}/quote` returns the owner’s price and availability
+`GET /payments/advertisements/{id}/quote?days=21` returns the owner’s price and availability
 without reserving a place. The explicit payment click calls the existing Stripe
 Checkout endpoint. A shared PostgreSQL transaction advisory lock serializes
 checkout, moderation, editing, cancellation and webhook state changes.
+
+The banner Checkout body is `{ "days": 21 }`; totals are computed on the server.
+Changing an existing open payment's duration requires cancelling that payment
+first. Homepage endpoints are `/payments/homepage/quote` and
+`/payments/listings/{id}/homepage/checkout`, `/status`, and `/checkout/cancel`.
 
 Active unexpired campaigns, paid review submissions, and pending Stripe orders
 reserve capacity. Pending orders count once per campaign. New purchases are

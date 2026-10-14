@@ -15,6 +15,9 @@ from ..models.moderation import ListingPromotion
 from ..models.payment_order import PaymentOrder
 from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
 from .notifications import create_notification
+from .homepage_purchase import eligible, one_month_after, slot_available
+from ..models.moderation import HomepageHeroPromotion
+from .catalog import touch_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
                 await occupied_slots(session, exclude_id=ad.id) < MAX_ACTIVE_HOMEPAGE_ADS
             )
         if valid:
+            ad.duration_days = order.days
             ad.payment_status = "paid"
             ad.status = "pending_review"
             ad.submitted_at = order.paid_at
@@ -83,7 +87,27 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
         else:
             order.fulfillment_status = "review_required"
             order.fulfillment_note = "Paid advertising order cannot be safely assigned; check creative, capacity and refund."
-    else:
+    elif order.kind == "homepage_hero":
+        listing = await session.scalar(select(Listing).where(
+            Listing.id == order.target_id, Listing.owner_user_id == order.owner_user_id,
+        ).with_for_update())
+        if await eligible(listing, session) and await slot_available(session, exclude_order=order.id):
+            hero = await session.get(HomepageHeroPromotion, 1)
+            if hero is None:
+                hero = HomepageHeroPromotion(id=1)
+                session.add(hero)
+            hero.listing_id = listing.id
+            hero.starts_at = order.paid_at
+            hero.ends_at = one_month_after(order.paid_at)
+            hero.configured_by = None
+            hero.configured_at = order.paid_at
+            await touch_catalog(session)
+            await notify_payment(session, order, "homepage_hero_paid", "Tu anuncio está en portada",
+                                 "El pago está confirmado. Tu anuncio aparecerá en la portada durante un mes.")
+        else:
+            order.fulfillment_status = "review_required"
+            order.fulfillment_note = "Paid homepage placement no longer eligible or slot occupied; reconcile or refund."
+    elif order.kind == "listing_top":
         listing = await session.scalar(select(Listing).where(
             Listing.id == order.target_id, Listing.owner_user_id == order.owner_user_id,
         ).with_for_update())

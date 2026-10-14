@@ -11,7 +11,7 @@ from ..db.base import Base
 class PaymentOrder(Base):
     __tablename__ = "payment_orders"
     __table_args__ = (
-        CheckConstraint("kind IN ('advertisement','listing_top')", name="ck_payment_order_kind"),
+        CheckConstraint("kind IN ('advertisement','listing_top','homepage_hero')", name="ck_payment_order_kind"),
         CheckConstraint("status IN ('pending','paid','expired')", name="ck_payment_order_status"),
         CheckConstraint("amount_cents > 0", name="ck_payment_order_amount"),
         CheckConstraint("fulfillment_status IN ('pending','fulfilled','review_required')", name="ck_payment_order_fulfillment"),

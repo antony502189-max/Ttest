@@ -17,6 +17,7 @@ from .admin import _actionable_listing, audit
 from .catalog import touch_catalog
 from .moderation import active_listing_restriction, active_user_restriction
 from .rental_price_limit import require_listing_price
+from .homepage_purchase import protect_purchased_slot
 
 HOMEPAGE_HERO_SINGLETON_ID = 1
 DEFAULT_HOMEPAGE_HERO_DAYS = 7
@@ -60,6 +61,7 @@ async def configure_homepage_hero(
     starts_at: datetime | None = None,
     ends_at: datetime | None = None,
 ) -> HomepageHeroPromotionResponse:
+    await protect_purchased_slot(session)
     listing, owner = await _actionable_listing(listing_id, session)
     require_listing_price(listing)
     if listing.status != "published":
@@ -128,6 +130,7 @@ async def configure_homepage_hero(
 
 
 async def remove_homepage_hero(actor: User, session: AsyncSession) -> None:
+    await protect_purchased_slot(session)
     row = await session.scalar(
         select(HomepageHeroPromotion)
         .where(HomepageHeroPromotion.id == HOMEPAGE_HERO_SINGLETON_ID)

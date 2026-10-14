@@ -72,7 +72,7 @@ export function AdvertisementEditorPage() {
       <label>{t('Descripción')}<textarea value={form.description} maxLength={300} minLength={10} required rows={4} aria-invalid={Boolean(fieldErrors.description)} aria-describedby={fieldErrors.description ? 'ad-description-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, description: event.target.value }))} />{fieldErrors.description ? <small id="ad-description-error">{t(fieldErrors.description)}</small> : null}</label>
       <label>{t('Tipo de contacto')}<select value={form.destinationType} onChange={(event) => setForm((previous) => ({ ...previous, destinationType: event.target.value as DestinationType, destination: '' }))}><option value="website">{t('Sitio web')}</option><option value="whatsapp">WhatsApp</option><option value="phone">{t('Teléfono')}</option><option value="email">Email</option></select></label>
       <label>{t(form.destinationType === 'website' ? 'Enlace web' : form.destinationType === 'email' ? 'Correo electrónico' : 'Número de teléfono')}<input value={form.destination} type={form.destinationType === 'email' ? 'email' : form.destinationType === 'website' ? 'url' : 'tel'} required placeholder={form.destinationType === 'website' ? 'https://ejemplo.es' : undefined} aria-invalid={Boolean(fieldErrors.destination)} aria-describedby={fieldErrors.destination ? 'ad-destination-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, destination: event.target.value }))} />{fieldErrors.destination ? <small id="ad-destination-error">{t(fieldErrors.destination)}</small> : null}</label>
-      <p className="ad-flow__notice">{t('Publicidad · 1 día · 1 €. El plazo empieza cuando se aprueba tu campaña.')}</p><button type="submit" disabled={busy || !form.imageAssetId}>{t('Vista previa')}</button>
+      <p className="ad-flow__notice">{t('Publicidad · 1 € al día · mínimo 10 días. El plazo empieza cuando se aprueba tu campaña.')}</p><button type="submit" disabled={busy || !form.imageAssetId}>{t('Vista previa')}</button>
     </form>}
   </div>
 }
@@ -85,6 +85,16 @@ export function AdvertisementCheckoutPage() {
   const paymentCancelled = searchParams.get('payment') === 'cancelled'
   const [ad, setAd] = useState<AdvertisementDetail | null>(null)
   const [quote, setQuote] = useState<{ days: number; amountCents: number; currency: string } | null>(null)
+  const [days, setDays] = useState('10')
+  const validDays = /^\d+$/.test(days) && Number(days) >= 10 && Number(days) <= 365
+  useEffect(() => {
+    if (!id || !validDays) { setQuote(null); return }
+    let active = true
+    setQuote(null)
+    void getAdQuote(id, Number(days)).then((price) => { if (active) { setQuote(price); setFull(!price.available) } })
+      .catch((reason: Error) => { if (active) setError(reason.message) })
+    return () => { active = false }
+  }, [id, days, validDays])
   const [full, setFull] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -105,12 +115,12 @@ export function AdvertisementCheckoutPage() {
       const item = await getAdvertisement(id)
       if (!active) return
       setAd(item)
+      if (item.status === 'pending_payment' && !paymentReturn) {
+        const reservation = await getAdQuote(id)
+        if (active && reservation.reservedDays) setDays(String(reservation.reservedDays))
+      }
       if (item.paymentStatus === 'paid') setError('')
       if (item.paymentReviewRequired) setReviewRequired(true)
-      if (item.status === 'pending_payment' && !item.paymentReviewRequired) {
-        const price = await getAdQuote(id)
-        if (active) { setQuote(price); setFull(!price.available) }
-      }
     }
     const initialize = async () => {
       if (paymentCancelled) {
@@ -134,7 +144,7 @@ export function AdvertisementCheckoutPage() {
   const pay = async () => {
     if (!id) return
     setBusy(true); setError('')
-    try { const checkout = await createAdCheckout(id); window.location.assign(checkout.url) }
+    try { const checkout = await createAdCheckout(id, Number(days)); window.location.assign(checkout.url) }
     catch (reason) {
       if (reason instanceof ApiError && reason.message === 'No advertising slots available') setFull(true)
       else { setError((reason as Error).message); await refresh().catch(() => undefined) }
@@ -154,8 +164,8 @@ export function AdvertisementCheckoutPage() {
     {error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}
     {ad ? <section className="ad-flow__panel">
       <div className="ad-flow__preview"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><small>{t('Publicidad')}</small><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p></div></div>
-      <p>{t(quote?.days === 30 || ad.packageId === 'test_homepage_30d' ? 'Publicidad · 30 días' : 'Publicidad · 1 día · 1 €')}</p>
-      {quote?.days === 30 ? <p>{new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)}</p> : null}
+      {ad.status === 'pending_payment' && ad.packageId !== 'test_homepage_30d' && !paymentReturn ? <label className="ad-flow__form">{t('Duración (mínimo 10 días)')}<input type="number" min={10} max={365} step={1} value={days} disabled={busy} onChange={(event) => setDays(event.target.value)} aria-invalid={!validDays} /></label> : null}
+      {ad.status === 'pending_payment' ? <p>{t('1 € al día · mínimo 10 días')}{quote ? ` · ${quote.days} ${t('días')} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)}` : ''}</p> : null}
       <p>{t('El plazo empieza cuando se aprueba tu campaña.')}</p>
       {cancelled ? <p role="status">{t('Pago cancelado. El espacio reservado se ha liberado.')}</p> : null}
       {reviewRequired ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p>

@@ -71,7 +71,7 @@ async def process_advertising_alerts(session) -> int:
     await lock_advertising_capacity(session)
     now = datetime.now(UTC)
     orders = (await session.scalars(select(PaymentOrder).where(
-        PaymentOrder.kind == "advertisement", PaymentOrder.status == "pending",
+        PaymentOrder.kind.in_(["advertisement", "homepage_hero"]), PaymentOrder.status == "pending",
         PaymentOrder.created_at < now - timedelta(seconds=30),
         PaymentOrder.last_reconciled_at.is_(None) | (PaymentOrder.last_reconciled_at < now - timedelta(seconds=30)),
     ).order_by(PaymentOrder.last_reconciled_at.asc().nulls_first(), PaymentOrder.created_at).limit(2).with_for_update())).all()

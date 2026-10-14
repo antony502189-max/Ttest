@@ -248,6 +248,7 @@ async def edit_advertisement(
         if expired:
             ad.payment_status = "unpaid"
             ad.package_id = PACKAGE_ID
+            ad.duration_days = None
         # A paid edit keeps its original expiry instead of granting a new day.
         if ad.payment_status != "paid":
             ad.starts_at = None
@@ -342,7 +343,7 @@ async def approve_advertisement(
     await require_free_slot(session, exclude_id=ad.id)
     now = datetime.now(UTC)
     proposed_start = decision.startsAt or ad.starts_at or now
-    duration = 30 if ad.package_id == "test_homepage_30d" else 1
+    duration = ad.duration_days or (30 if ad.package_id == "test_homepage_30d" else 1)
     proposed_end = decision.endsAt or ad.ends_at or proposed_start + timedelta(days=duration)
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")

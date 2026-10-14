@@ -6,6 +6,20 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Tu anuncio en portada': { ru: 'Объявление на главной', en: 'Your listing on the homepage' },
+  '60 € · 1 mes · enlace directo a tu anuncio': { ru: '60 € · 1 месяц · ссылка на ваше объявление', en: '€60 · 1 month · direct link to your listing' },
+  'Destacar en portada': { ru: 'Закрепить на главной', en: 'Feature on the homepage' },
+  'En portada hasta': { ru: 'На главной до', en: 'Featured until' },
+  'Selecciona tu anuncio. Su foto aparecerá en la portada durante un mes con un enlace al anuncio.': { ru: 'Выберите объявление. Его фото будет месяц на главной со ссылкой на объявление.', en: 'Choose your listing. Its photo will appear on the homepage for one month with a link to the listing.' },
+  'El mes empieza cuando se confirma el pago.': { ru: 'Месяц показа начинается после подтверждения оплаты.', en: 'The month starts when payment is confirmed.' },
+  'La portada está ocupada. Vuelve a intentarlo cuando quede libre.': { ru: 'Место на главной занято. Покупка будет доступна после его освобождения.', en: 'The homepage slot is occupied. Try again when it becomes available.' },
+  'Estamos confirmando el pago de portada.': { ru: 'Проверяем оплату закрепления на главной.', en: 'We are confirming your homepage payment.' },
+  'Homepage placement is currently unavailable': { ru: 'Место на главной сейчас занято.', en: 'The homepage slot is currently occupied.' },
+  'Choose a published listing with a photo': { ru: 'Выберите опубликованное объявление с фотографией.', en: 'Choose a published listing with a photo.' },
+  'Your homepage payment needs review; do not pay again': { ru: 'Оплата закрепления требует проверки. Не оплачивайте повторно.', en: 'Your homepage payment needs review. Do not pay again.' },
+  'Duración (mínimo 10 días)': { ru: 'Срок (минимум 10 дней)', en: 'Duration (at least 10 days)' },
+  '1 € al día · mínimo 10 días': { ru: '1 € в день · минимум 10 дней', en: '€1 per day · minimum 10 days' },
+  'Publicidad · 1 € al día · mínimo 10 días. El plazo empieza cuando se aprueba tu campaña.': { ru: 'Реклама · 1 € в день · минимум 10 дней. Срок показа начинается после одобрения кампании.', en: 'Advertising · €1 per day · minimum 10 days. The period starts when your campaign is approved.' },
   'Pago en revisión': { ru: 'Оплата на проверке', en: 'Payment under review' },
   'Stripe is not configured': { ru: 'Оплата временно недоступна. Попробуйте позже.', en: 'Payments are temporarily unavailable. Please try later.' },
   'Could not start Stripe Checkout': { ru: 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.', en: 'Could not open the payment page. Please try again.' },

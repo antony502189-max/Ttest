@@ -190,6 +190,10 @@
   opacity: 1;
 }
 
+.market-home .home-hero.home-hero--promotion .home-hero__overlay {
+  background: linear-gradient(0deg, rgb(0 0 0 / .18), transparent 65%);
+}
+
 .home-hero-promotion__hit {
   position: absolute;
   inset: 0;

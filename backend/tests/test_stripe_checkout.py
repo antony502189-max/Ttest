@@ -13,7 +13,11 @@ from app.services import stripe_checkout
 
 
 @pytest.mark.asyncio
-async def test_checkout_returns_to_hash_routes(monkeypatch):
+@pytest.mark.parametrize("kind,path,separator", [
+    ("advertisement", "/publicidad/123/checkout", "?"),
+    ("homepage_hero", "/mis-anuncios?homepage=123", "&"),
+])
+async def test_checkout_returns_to_hash_routes(monkeypatch, kind, path, separator):
     captured = {}
 
     class Client:
@@ -34,12 +38,12 @@ async def test_checkout_returns_to_hash_routes(monkeypatch):
         frontend_app_url="http://localhost:5173/",
     ))
     monkeypatch.setattr(stripe_checkout.httpx, "AsyncClient", lambda **_: Client())
-    order = SimpleNamespace(id=uuid4(), amount_cents=3000, kind="advertisement")
-    session_id, checkout_url = await stripe_checkout.create_stripe_session(order, "Banner", "/publicidad/123/checkout")
+    order = SimpleNamespace(id=uuid4(), amount_cents=3000, kind=kind)
+    session_id, checkout_url = await stripe_checkout.create_stripe_session(order, "Banner", path)
 
     assert (session_id, checkout_url) == ("cs_test_example", "https://checkout.stripe.com/test")
-    assert captured["success_url"] == "http://localhost:5173/#/publicidad/123/checkout?payment=return"
-    assert captured["cancel_url"] == "http://localhost:5173/#/publicidad/123/checkout?payment=cancelled"
+    assert captured["success_url"] == f"http://localhost:5173/#{path}{separator}payment=return"
+    assert captured["cancel_url"] == f"http://localhost:5173/#{path}{separator}payment=cancelled"
     assert captured["line_items[0][price_data][unit_amount]"] == "3000"
     assert captured["allowed_payment_method_types[0]"] == "card"
     assert "payment_method_types[0]" not in captured

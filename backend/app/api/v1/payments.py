@@ -2,7 +2,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,8 @@ from ...services.commercial_advertisements import (
     require_free_slot,
 )
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
+from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
+from ...models.moderation import HomepageHeroPromotion
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
@@ -37,6 +39,10 @@ class TopCheckoutRequest(BaseModel):
     days: int = Field(ge=1, le=30)
 
 
+class BannerCheckoutRequest(BaseModel):
+    days: int = Field(default=10, ge=10, le=365, strict=True)
+
+
 class CheckoutResponse(BaseModel):
     url: str
     amountCents: int
@@ -46,6 +52,7 @@ class CheckoutResponse(BaseModel):
 @router.get("/advertisements/{ad_id}/quote")
 async def advertisement_quote(
     ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+    days: int = Query(default=10, ge=10, le=365),
 ):
     ad = await session.scalar(select(CommercialAdvertisement).where(
         CommercialAdvertisement.id == ad_id, CommercialAdvertisement.owner_user_id == user.id,
@@ -53,8 +60,13 @@ async def advertisement_quote(
     if not ad:
         raise HTTPException(404, "Advertisement not found")
     legacy = ad.package_id == "test_homepage_30d"
-    return {"days": 30 if legacy else 1,
-            "amountCents": get_settings().advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS,
+    reserved_days = await session.scalar(select(PaymentOrder.days).where(
+        PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "pending",
+    ).order_by(PaymentOrder.created_at.desc()).limit(1))
+    return {"days": 30 if legacy else days,
+            "reservedDays": reserved_days,
+            "amountCents": get_settings().advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS * days,
             "currency": "EUR", "available": await occupied_slots(session, exclude_id=ad.id) < MAX_ACTIVE_HOMEPAGE_ADS}
 
 
@@ -98,6 +110,7 @@ async def checkout(
 @router.post("/advertisements/{ad_id}/checkout", response_model=CheckoutResponse)
 async def advertisement_checkout(
     ad_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+    payload: BannerCheckoutRequest = BannerCheckoutRequest(),
 ):
     await lock_advertising_capacity(session)
     ad = await session.scalar(select(CommercialAdvertisement).where(
@@ -117,13 +130,96 @@ async def advertisement_checkout(
         raise HTTPException(409, "A paid advertisement needs review; do not pay again")
     settings = get_settings()
     legacy = ad.package_id == "test_homepage_30d"
-    amount = settings.advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS
+    amount = settings.advertisement_30d_price_cents if legacy else PACKAGE_PRICE_CENTS * payload.days
     if amount < 50:
         raise HTTPException(503, "Advertisement price has not been configured")
     await require_free_slot(session, exclude_id=ad.id)
-    days = 30 if legacy else 1
+    days = 30 if legacy else payload.days
     return await checkout(session, user, "advertisement", ad.id, days, amount,
                           f"Publicidad 112233.es · {days} {'día' if days == 1 else 'días'}", f"/publicidad/{ad.id}/checkout", advertisement_fingerprint(ad))
+
+
+@router.get("/homepage/quote")
+async def homepage_quote(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    hero = await session.get(HomepageHeroPromotion, 1)
+    reservation = await session.scalar(select(PaymentOrder.target_id).where(
+        PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "pending",
+    ).limit(1))
+    own_hero = await session.scalar(select(Listing.id).where(Listing.id == hero.listing_id, Listing.owner_user_id == user.id)) if hero else None
+    return {"amountCents": PRICE_CENTS, "currency": "EUR", "months": 1,
+            "available": await slot_available(session),
+            "reservedListingId": reservation, "featuredListingId": own_hero,
+            "endsAt": hero.ends_at if hero and hero.ends_at > datetime.now(UTC) else None}
+
+
+@router.post("/listings/{listing_id}/homepage/checkout", response_model=CheckoutResponse)
+async def homepage_checkout(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    listing = await session.scalar(select(Listing).where(
+        Listing.id == listing_id, Listing.owner_user_id == user.id,
+    ).with_for_update())
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    if not await eligible(listing, session):
+        raise HTTPException(409, "Choose a published listing with a photo")
+    unresolved = await session.scalar(select(PaymentOrder.id).where(
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.kind == "homepage_hero",
+        PaymentOrder.status == "paid", PaymentOrder.fulfillment_status == "review_required",
+    ).limit(1))
+    if unresolved:
+        raise HTTPException(409, "Your homepage payment needs review; do not pay again")
+    previous = await session.scalar(select(PaymentOrder).where(
+        PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id,
+        PaymentOrder.target_id == listing_id, PaymentOrder.status == "pending",
+    ).limit(1))
+    if not await slot_available(session, exclude_order=previous.id if previous else None):
+        raise HTTPException(409, "Homepage placement is currently unavailable")
+    return await checkout(session, user, "homepage_hero", listing.id, 30, PRICE_CENTS,
+                          "Portada 112233.es · 1 mes", f"/mis-anuncios?homepage={listing.id}")
+
+
+@router.get("/listings/{listing_id}/homepage/status")
+async def homepage_status(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    listing = await session.scalar(select(Listing.id).where(Listing.id == listing_id, Listing.owner_user_id == user.id))
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    order = await session.scalar(select(PaymentOrder).where(
+        PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id,
+        PaymentOrder.target_id == listing_id,
+    ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
+    now = datetime.now(UTC)
+    if order and order.status == "pending" and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
+        order.last_reconciled_at = now
+        remote = await retrieve_stripe_session(order.stripe_session_id)
+        if remote["status"] == "complete" and remote.get("payment_status") == "paid":
+            await apply_stripe_session(remote, "checkout.session.completed", session)
+        elif remote["status"] == "expired":
+            order.status = "expired"
+        await session.commit()
+    hero = await session.get(HomepageHeroPromotion, 1)
+    return {"orderStatus": order.status if order else None,
+            "fulfillmentStatus": order.fulfillment_status if order else None,
+            "endsAt": hero.ends_at if hero and hero.listing_id == listing_id and hero.ends_at > now else None}
+
+
+@router.post("/listings/{listing_id}/homepage/checkout/cancel")
+async def cancel_homepage_checkout(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    await lock_advertising_capacity(session)
+    order = await session.scalar(select(PaymentOrder).where(
+        PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id,
+        PaymentOrder.target_id == listing_id, PaymentOrder.status == "pending",
+    ).limit(1).with_for_update())
+    if order:
+        remote = await expire_stripe_session(order.stripe_session_id)
+        if remote["status"] == "complete" and remote.get("payment_status") == "paid":
+            await apply_stripe_session(remote, "checkout.session.completed", session)
+            return {"cancelled": False}
+        if remote["status"] != "expired":
+            raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
+        order.status = "expired"
+        await session.commit()
+    return {"cancelled": True}
 
 
 @router.post("/listings/{listing_id}/top/checkout", response_model=CheckoutResponse)
