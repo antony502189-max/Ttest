@@ -3,18 +3,18 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select, or_
+from sqlalchemy import or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from ..core.config import get_settings
-from ..models.payment_order import PaymentOrder
-from ..models.payment_event import PaymentEvent
 from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.moderation import HomepageHeroPromotion, ListingPromotion
-from .commercial_advertisements import lock_advertising_capacity, require_free_slot
-from .catalog import touch_catalog
+from ..models.payment_event import PaymentEvent
+from ..models.payment_order import PaymentOrder
 from .admin import audit
-from .stripe_checkout import stripe_object, retrieve_stripe_session, create_stripe_refund
+from .catalog import touch_catalog
+from .commercial_advertisements import lock_advertising_capacity, require_free_slot
+from .stripe_checkout import create_stripe_refund, retrieve_stripe_session, stripe_object
 
 FINANCIAL_EVENTS = {"charge.refunded", "charge.refund.updated", "refund.created", "refund.updated", "refund.failed",
                     "charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed",
@@ -173,9 +173,7 @@ async def apply_financial_snapshot(snapshot, session):
         order.financial_status = "refunded"
     elif order.dispute_status == "lost":
         order.financial_status = "dispute_lost"
-    elif order.dispute_status and order.dispute_status not in {"won", "warning_closed"}:
-        order.financial_status = "disputed"
-    elif snapshot["disputed"] and order.dispute_status not in {"won", "warning_closed"}:
+    elif order.dispute_status and order.dispute_status not in {"won", "warning_closed"} or snapshot["disputed"] and order.dispute_status not in {"won", "warning_closed"}:
         order.financial_status = "disputed"
     elif order.refunded_amount_cents:
         order.financial_status = "partial_refund"
@@ -298,7 +296,7 @@ async def resolve_payment(order_id, actor, reason, action, session):
                 ad = await session.get(CommercialAdvertisement,order.target_id)
                 if not ad or ad.current_payment_order_id != order.id:
                     raise HTTPException(409,"The original campaign cannot be restored; refund or reconcile")
-                from ..models import User, MediaAsset
+                from ..models import MediaAsset, User
                 owner = await session.get(User,order.owner_user_id)
                 image = await session.get(MediaAsset,ad.image_asset_id)
                 if not owner or owner.deleted_at or owner.blocked or not image or image.deleted_at:

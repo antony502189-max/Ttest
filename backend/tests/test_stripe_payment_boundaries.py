@@ -14,8 +14,7 @@ from fastapi import HTTPException
 
 from app.api.v1 import payments
 from app.core.config import Settings
-from app.services import stripe_checkout
-from app.services import payment_fulfillment
+from app.services import payment_fulfillment, stripe_checkout
 
 
 def signed_request(event, timestamp=None):

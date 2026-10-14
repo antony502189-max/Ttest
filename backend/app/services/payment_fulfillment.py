@@ -11,13 +11,12 @@ from sqlalchemy import select
 from ..core.config import get_settings
 from ..models import Listing, User
 from ..models.commercial_advertisement import CommercialAdvertisement
-from ..models.moderation import ListingPromotion
+from ..models.moderation import HomepageHeroPromotion, ListingPromotion
 from ..models.payment_order import PaymentOrder
-from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
-from .notifications import create_notification
-from .homepage_purchase import eligible, one_month_after, slot_available
-from ..models.moderation import HomepageHeroPromotion
 from .catalog import touch_catalog
+from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
+from .homepage_purchase import eligible, one_month_after, slot_available
+from .notifications import create_notification
 
 logger = logging.getLogger(__name__)
 

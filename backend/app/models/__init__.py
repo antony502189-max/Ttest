@@ -436,9 +436,8 @@ class SearchHistory(Base):
 # Alembic imports this package to build Base.metadata. Keep every mapped model
 # module registered here so autogeneration can never mistake application tables
 # for orphaned schema objects.
-from .commercial_advertisement import CommercialAdvertisement  # noqa: F401
 from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
-from .payment_order import PaymentOrder  # noqa: F401
+from .commercial_advertisement import CommercialAdvertisement  # noqa: F401
 from .moderation import (  # noqa: F401
     AdminAccess,
     AdminNote,
@@ -449,6 +448,7 @@ from .moderation import (  # noqa: F401
     UserReportTarget,
     UserRestriction,
 )
+from .payment_event import PaymentEvent  # noqa: F401
+from .payment_order import PaymentOrder  # noqa: F401
 from .room_details import ListingRoomDetails  # noqa: F401
 from .storage_deletion import StorageDeletionJob  # noqa: F401
-from .payment_event import PaymentEvent  # noqa: F401

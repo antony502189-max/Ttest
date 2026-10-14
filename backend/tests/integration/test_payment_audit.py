@@ -4,22 +4,25 @@ import hashlib
 import hmac
 import json
 import time
-from uuid import UUID, uuid4
 from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import select, func
+import test_banner_payment_lifecycle as payment_lifecycle
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from test_banner_payment_lifecycle import provider, webhook, paid, campaigns_from_distinct_clients
-from test_commercial_advertisements import create_ad, admin_headers
+from test_banner_payment_lifecycle import campaigns_from_distinct_clients, paid, webhook
+from test_commercial_advertisements import admin_headers
 from test_homepage_purchase import listing
+
 from app.api.v1 import payments
 from app.db.session import SessionLocal
-from app.models import User, AuditLog
-from app.models.payment_order import PaymentOrder
+from app.models import AuditLog
 from app.models.payment_event import PaymentEvent
+from app.models.payment_order import PaymentOrder
 from app.services import payment_finances
+
+provider = payment_lifecycle.provider
 
 pytestmark = pytest.mark.integration
 
@@ -129,7 +132,7 @@ async def test_bug003_open_checkout_blocks_account_deletion(client,register_user
 
 
 async def test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering(client,register_user,provider,finances):
-    target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
+    _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
     objects = finances[0]
     dispute_id = 'du_' + uuid4().hex
     objects['charges/'+charge]['disputed'] = True
@@ -157,7 +160,7 @@ async def test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering(cl
 
 
 async def test_bug004_financial_event_before_checkout_never_grants_refunded_top(client,register_user,provider,finances):
-    target, _, remote, charge, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+    _target, _, remote, charge, _ = await checkout_top(client,register_user,provider,finances,pay=False)
     finances[0]['charges/'+charge]['amount_refunded'] = 3000
     assert (await financial_event(client,'charge.refunded',{'id':charge})).status_code == 200
     remote.update(status='complete',payment_status='paid')
@@ -234,7 +237,7 @@ async def test_bug006_commit_failure_recovers_same_reserved_order(client,registe
 
 
 async def test_bug007_review_can_restore_once_with_operator_audit(client,register_user,provider,finances):
-    target, headers, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+    target, _headers, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
     async with SessionLocal() as db:
         from app.models import Listing
         row = await db.get(Listing,UUID(target)); row.status = 'hidden'; await db.commit()
@@ -255,7 +258,7 @@ async def test_bug007_review_can_restore_once_with_operator_audit(client,registe
 
 
 async def test_partial_refund_is_reviewed_and_remaining_balance_refunded_once(client,register_user,provider,finances):
-    target, _, _, charge, order_id = await checkout_top(client,register_user,provider,finances)
+    _target, _, _, charge, order_id = await checkout_top(client,register_user,provider,finances)
     finances[0]['charges/'+charge]['amount_refunded'] = 1000
     assert (await financial_event(client,'charge.refunded',{'id':charge})).status_code == 200
     admin = await admin_headers(client,register_user)
@@ -290,7 +293,7 @@ async def test_refund_commit_failure_reuses_provider_receipt(client,register_use
 
 
 async def test_pending_failed_refund_does_not_revoke_or_replay_after_restore(client,register_user,provider,finances):
-    target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
+    _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
     receipt = {'id':'re_' + uuid4().hex,'charge':charge,'payment_intent':remote['payment_intent'],
                'amount':3000,'currency':'eur','status':'pending','metadata':{}}
     finances[1][receipt['id']] = receipt

@@ -16,9 +16,9 @@ from ..schemas.admin import HomepageHeroPromotionResponse, PromotionState
 from ..schemas.listings import ListingResponse
 from .admin import _actionable_listing, audit
 from .catalog import touch_catalog
+from .homepage_purchase import protect_purchased_slot
 from .moderation import active_listing_restriction, active_user_restriction
 from .rental_price_limit import require_listing_price
-from .homepage_purchase import protect_purchased_slot
 
 HOMEPAGE_HERO_SINGLETON_ID = 1
 DEFAULT_HOMEPAGE_HERO_DAYS = 7

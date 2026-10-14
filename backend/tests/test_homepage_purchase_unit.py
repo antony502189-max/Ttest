@@ -7,8 +7,8 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.api.v1.payments import BannerCheckoutRequest, TopCheckoutRequest, advertisement_checkout
 from app.api.v1 import payments
+from app.api.v1.payments import BannerCheckoutRequest, TopCheckoutRequest, advertisement_checkout
 from app.services import payment_fulfillment as fulfillment
 from app.services.homepage_purchase import one_month_after
 

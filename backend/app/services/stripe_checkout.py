@@ -103,9 +103,9 @@ async def stripe_object(path: str) -> dict:
         response.raise_for_status()
         result = response.json()
         if not isinstance(result, dict):
-            raise ValueError("Invalid Stripe object")
+            raise TypeError("Invalid Stripe object")
         return result
-    except (httpx.HTTPError, ValueError) as exc:
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
         raise HTTPException(502, "Could not verify Stripe financial state") from exc
 
 

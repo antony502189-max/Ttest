@@ -1,9 +1,9 @@
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Literal, cast
 from uuid import UUID
-from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from ...core.config import get_settings
 from ...db.session import get_session
 from ...models import Listing, User
 from ...models.commercial_advertisement import CommercialAdvertisement
+from ...models.moderation import HomepageHeroPromotion, ListingPromotion
 from ...models.payment_order import PaymentOrder
 from ...services.commercial_advertisements import (
     MAX_ACTIVE_HOMEPAGE_ADS,
@@ -20,10 +21,9 @@ from ...services.commercial_advertisements import (
     occupied_slots,
     require_free_slot,
 )
+from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
 from ...services.payment_sessions import finish_creation, reconcile_order
-from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
-from ...models.moderation import HomepageHeroPromotion, ListingPromotion
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
@@ -223,7 +223,7 @@ async def cancel_homepage_checkout(listing_id: UUID, user: User = Depends(curren
         if not order.stripe_session_id:
             await finish_creation(order, session, create=create_stripe_session)
         await session.commit()
-        remote = await expire_stripe_session(order.stripe_session_id)
+        remote = await expire_stripe_session(cast(str, order.stripe_session_id))
         if remote["status"] == "complete" and remote.get("payment_status") == "paid":
             await apply_stripe_session(remote, "checkout.session.completed", session)
             return {"cancelled": False}
@@ -291,7 +291,7 @@ async def cancel_top_checkout(listing_id: UUID, user: User = Depends(current_use
         if not order.stripe_session_id:
             await finish_creation(order, session, create=create_stripe_session)
         await session.commit()
-        remote = await expire_stripe_session(order.stripe_session_id)
+        remote = await expire_stripe_session(cast(str, order.stripe_session_id))
         if remote["status"] == "complete" and remote.get("payment_status") == "paid":
             await apply_stripe_session(remote, "checkout.session.completed", session)
             return {"cancelled": False}
@@ -307,7 +307,7 @@ async def stripe_webhook(
     session: AsyncSession = Depends(get_session),
 ):
     event = verified_stripe_event(await request.body(), stripe_signature)
-    event_type = event.get("type")
+    event_type = event["type"]
     if event_type.startswith("charge.") or event_type in {"refund.created", "refund.updated", "refund.failed"}:
         from ...services.payment_finances import financial_webhook
         return await financial_webhook(event, session)
@@ -364,7 +364,7 @@ async def cancel_advertisement_checkout(ad_id: UUID, user: User = Depends(curren
         if not order.stripe_session_id:
             await finish_creation(order, session, create=create_stripe_session)
         await session.commit()
-        remote = await expire_stripe_session(order.stripe_session_id)
+        remote = await expire_stripe_session(cast(str, order.stripe_session_id))
         if remote["status"] == "complete" and remote.get("payment_status") == "paid":
             await apply_stripe_session(remote, "checkout.session.completed", session)
             return {"cancelled": False, "paid": True}
@@ -393,7 +393,7 @@ class PaymentResolutionRequest(BaseModel):
 
 @router.post("/admin/orders/{order_id}/resolve")
 async def resolve_order(order_id: UUID, payload: PaymentResolutionRequest, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session)):
-    from ...services.payment_finances import resolve_payment, reconcile_unknown_session
+    from ...services.payment_finances import reconcile_unknown_session, resolve_payment
     if len(payload.reason.strip()) < 10:
         raise HTTPException(422, "A resolution reason of at least 10 characters is required")
     if payload.action == "reconcile":

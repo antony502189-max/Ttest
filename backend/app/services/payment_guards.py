@@ -1,11 +1,12 @@
 """Deletion is explicit: settle open/unused purchases before destroying targets."""
 from datetime import UTC, datetime
+
 from fastapi import HTTPException
-from sqlalchemy import select, or_
-from ..models.payment_order import PaymentOrder
-from ..models.moderation import ListingPromotion, HomepageHeroPromotion
+from sqlalchemy import select
+
 from ..models.commercial_advertisement import CommercialAdvertisement
-from .commercial_advertisements import lock_advertising_capacity
+from ..models.moderation import HomepageHeroPromotion, ListingPromotion
+from ..models.payment_order import PaymentOrder
 
 
 async def protect_payment_deletion(session, *, owner_id=None, target_id=None):

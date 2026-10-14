@@ -30,6 +30,7 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
     completed payment. The worker releases it only after Stripe confirms expiry.
     """
     from sqlalchemy import and_, func, or_, select
+
     from ..models.payment_order import PaymentOrder
 
     ad = CommercialAdvertisement

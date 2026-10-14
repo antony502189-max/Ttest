@@ -775,7 +775,8 @@ async def delete_listing(listing_id: UUID, user: User, session: AsyncSession) ->
     listing-specific audit/notification record; admin deletion leaves only the
     required generic notification for the former owner.
     """
-    from .payment_guards import protect_payment_deletion, lock_advertising_capacity
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_guards import protect_payment_deletion
     await lock_advertising_capacity(session)
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)

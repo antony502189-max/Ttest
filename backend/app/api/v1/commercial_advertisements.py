@@ -145,7 +145,7 @@ async def subscribe_advertising_vacancy(
 async def advertising_waitlist_status(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     alert = await session.get(AdvertisingWaitlist, user.id)
     subscribed = bool(alert and alert.notified_at is None)
-    return {"subscribed": subscribed, "channel": "push" if subscribed and alert.subscription else "site"}
+    return {"subscribed": subscribed, "channel": "push" if subscribed and alert is not None and alert.subscription else "site"}
 
 
 @router.delete("/advertisements/waitlist", status_code=status.HTTP_204_NO_CONTENT)

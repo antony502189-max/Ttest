@@ -2,13 +2,16 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
-from test_banner_payment_lifecycle import provider, webhook
-from test_listing_photo_contract import listing_payload
+import test_banner_payment_lifecycle as payment_lifecycle
+from test_banner_payment_lifecycle import webhook
 from test_commercial_advertisements import admin_headers, create_ad
+from test_listing_photo_contract import listing_payload
+
 from app.db.session import SessionLocal
 from app.models.moderation import HomepageHeroPromotion
 from app.services.homepage_purchase import one_month_after
+
+provider = payment_lifecycle.provider
 
 pytestmark = pytest.mark.integration
 

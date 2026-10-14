@@ -14,7 +14,6 @@ from ..models.advertising_waitlist import AdvertisingWaitlist
 from ..models.payment_order import PaymentOrder
 from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
 from .notifications import create_notification
-from .payment_fulfillment import apply_stripe_session
 from .stripe_checkout import retrieve_stripe_session
 
 logger = logging.getLogger(__name__)
@@ -111,7 +110,7 @@ async def process_advertising_alerts(session) -> int:
         if subscription:
             if not push_configured():
                 continue
-            from pywebpush import WebPushException, webpush
+            from pywebpush import WebPushException, webpush  # type: ignore[import-untyped]
             settings = get_settings()
             try:
                 await asyncio.to_thread(

@@ -21,10 +21,10 @@ from .api.public_pages import router as public_pages_router
 from .api.v1.admin import router as admin_router
 from .api.v1.auth import router as auth_router
 from .api.v1.commercial_advertisements import router as commercial_advertisements_router
-from .api.v1.payments import router as payments_router
 from .api.v1.favorites import router as favorites_router
 from .api.v1.listings import router as listings_router
 from .api.v1.notifications import router as notifications_router
+from .api.v1.payments import router as payments_router
 from .api.v1.reports import router as reports_router
 from .api.v1.saved_searches import router as saved_searches_router
 from .api.v1.search_history import router as search_history_router

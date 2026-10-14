@@ -119,7 +119,8 @@ async def update_avatar(payload: AvatarUpdateRequest, user: User, session: Async
 
 
 async def delete_account(user: User, session: AsyncSession) -> None:
-    from .payment_guards import protect_payment_deletion, lock_advertising_capacity
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_guards import protect_payment_deletion
     await lock_advertising_capacity(session)
     await protect_payment_deletion(session, owner_id=user.id)
     # Acquire the same per-account mutation locks used by media and search-state

@@ -59,8 +59,8 @@ def test_approval_starts_exactly_one_day_and_legacy_entitlements_survive():
 
 
 def test_new_writes_cannot_select_future_or_legacy_packages():
-    payload = dict(title='Local service', description='Local community advertising', imageAssetId=uuid4(),
-                   destinationType='website', destination='https://example.org/')
+    payload = {'title': 'Local service', 'description': 'Local community advertising', 'imageAssetId': uuid4(),
+               'destinationType': 'website', 'destination': 'https://example.org/'}
     assert AdvertisementWrite(**payload).packageId == 'homepage_1d'
     with pytest.raises(ValueError):
         AdvertisementWrite(**payload, packageId='test_homepage_30d')
@@ -135,7 +135,7 @@ async def test_worker_delivers_push_or_retries_without_losing_subscription(monke
     alert = SimpleNamespace(subscription=subscription(), language='en', notified_at=None,
                             created_at=datetime.now(UTC), next_attempt_at=None)
     session = SimpleNamespace(execute=AsyncMock(side_effect=[Mock(), Mock(), SimpleNamespace(all=lambda: [(alert, SimpleNamespace(id=uuid4()))])]),
-                              scalars=AsyncMock(return_value=SimpleNamespace(all=lambda: [])),
+                              scalars=AsyncMock(return_value=SimpleNamespace(all=list)),
                               scalar=AsyncMock(return_value=alert), flush=AsyncMock(), commit=AsyncMock())
     send = AsyncMock(side_effect=OSError('network unavailable') if fails else None)
     monkeypatch.setattr(alerts, 'occupied_slots', AsyncMock(return_value=6))
@@ -156,7 +156,9 @@ async def test_worker_delivers_push_or_retries_without_losing_subscription(monke
 
 def test_generated_vapid_keys_can_be_loaded_by_push_library(monkeypatch, tmp_path):
     import sys
+
     from py_vapid import Vapid
+
     from app.commands.web_push_keys import main
     output = tmp_path / 'webpush.local.env'
     monkeypatch.setattr(sys, 'argv', ['web_push_keys', '--output', str(output)])

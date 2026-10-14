@@ -2,15 +2,17 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
+import test_banner_payment_lifecycle as payment_lifecycle
 from sqlalchemy import select
-
-from test_banner_payment_lifecycle import provider, webhook
+from test_banner_payment_lifecycle import webhook
 from test_homepage_purchase import listing
+
 from app.db.session import SessionLocal
 from app.models import Listing, ListingImage
 from app.models.moderation import ListingPromotion
 from app.models.payment_order import PaymentOrder
-from app.services.homepage_purchase import one_month_after
+
+provider = payment_lifecycle.provider
 
 pytestmark = pytest.mark.integration
 
