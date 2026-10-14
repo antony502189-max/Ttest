@@ -451,3 +451,4 @@ from .moderation import (  # noqa: F401
 )
 from .room_details import ListingRoomDetails  # noqa: F401
 from .storage_deletion import StorageDeletionJob  # noqa: F401
+from .payment_event import PaymentEvent  # noqa: F401

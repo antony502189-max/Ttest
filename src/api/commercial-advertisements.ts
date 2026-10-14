@@ -27,6 +27,7 @@ export type AdvertisementDetail = Omit<AdvertisementWrite, 'packageId'> & {
   imageUrl: string
   status: string
   paymentStatus: string
+  paymentOrderId?: string | null
   paymentReviewRequired?: boolean
   placement: string
   createdAt: string
@@ -53,8 +54,9 @@ export const subscribeAdvertisingVacancy = (language: string, subscription: Push
 export const unsubscribeAdvertisingVacancy = () => api<void>('/advertisements/waitlist', { method: 'DELETE' })
 export const getAdvertisingWaitlistStatus = () => api<{ subscribed: boolean; channel: 'push' | 'site' }>('/advertisements/waitlist')
 export const getAdminAdvertisements = (status?: string) => api<AdminAdvertisement[]>(`/admin/advertisements${status ? `?status_filter=${encodeURIComponent(status)}` : ''}`)
-export type PaymentReview = { id: string; kind: string; targetId: string; amountCents: number; paidAt: string; note: string }
+export type PaymentReview = { id: string; kind: string; targetId: string; amountCents: number; paidAt: string | null; note: string; status?: string; financialStatus?: string; stripeSessionId?: string | null }
 export const getPaymentReviews = () => api<PaymentReview[]>('/payments/admin/review-required')
+export const resolvePayment = (id: string, action: 'refund' | 'restore' | 'reconcile', reason: string, stripeSessionId?: string) => api<{ resolved: boolean; financialStatus?: string }>(`/payments/admin/orders/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action, reason, stripeSessionId }) })
 export const moderateAdvertisement = (id: string, action: 'approve' | 'reject' | 'deactivate', note?: string) => api<AdvertisementDetail>(`/admin/advertisements/${id}/${action}`, { method: 'POST', body: JSON.stringify({ note: note || null }) })
 
 export async function uploadAdvertisementImage(file: File) {

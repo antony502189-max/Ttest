@@ -30,6 +30,7 @@ from ..core.config import get_settings
 from ..core.media_limits import MAX_LISTING_PHOTOS
 from ..models import Listing, ListingImage, ListingView, MediaAsset, User
 from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
+from ..models.payment_order import PaymentOrder
 from ..models.room_details import ListingRoomDetails
 from ..schemas.listings import (
     ClusterMarker,
@@ -85,12 +86,20 @@ def cover_asset_id_subquery():
 
 
 def active_promotion_expression():
+    paid_interval = select(PaymentOrder.id).where(
+        PaymentOrder.kind == "listing_top", PaymentOrder.target_id == Listing.id,
+        PaymentOrder.status == "paid", PaymentOrder.fulfillment_status == "fulfilled",
+        PaymentOrder.financial_status == "normal", PaymentOrder.service_starts_at <= func.now(),
+        PaymentOrder.service_ends_at > func.now(),
+    ).correlate(Listing).exists()
     return (
         select(ListingPromotion.listing_id)
         .where(
             ListingPromotion.listing_id == Listing.id,
             ListingPromotion.starts_at <= func.now(),
             or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
+            or_(ListingPromotion.payment_managed.is_(False), paid_interval,
+                and_(ListingPromotion.baseline_starts_at <= func.now(), ListingPromotion.baseline_ends_at > func.now())),
         )
         .correlate(Listing)
         .exists()
@@ -104,6 +113,7 @@ def promotion_boosted_at_expression():
             ListingPromotion.listing_id == Listing.id,
             ListingPromotion.starts_at <= func.now(),
             or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
+            active_promotion_expression(),
         )
         .correlate(Listing)
         .scalar_subquery()
@@ -117,6 +127,7 @@ def promotion_ends_at_expression():
             ListingPromotion.listing_id == Listing.id,
             ListingPromotion.starts_at <= func.now(),
             or_(ListingPromotion.ends_at.is_(None), ListingPromotion.ends_at > func.now()),
+            active_promotion_expression(),
         )
         .correlate(Listing)
         .scalar_subquery()

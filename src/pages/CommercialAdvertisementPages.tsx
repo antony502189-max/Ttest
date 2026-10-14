@@ -100,6 +100,7 @@ export function AdvertisementCheckoutPage() {
   const [error, setError] = useState('')
   const [reviewRequired, setReviewRequired] = useState(false)
   const [cancelled, setCancelled] = useState(false)
+  const [failed, setFailed] = useState(false)
   useEffect(() => {
     if (!id) return
     let active = true
@@ -110,7 +111,8 @@ export function AdvertisementCheckoutPage() {
         const status = await getAdPaymentStatus(id)
         if (!active) return
         setReviewRequired(status.fulfillmentStatus === 'review_required')
-        if (status.orderStatus === 'paid' || status.orderStatus === 'expired') window.clearInterval(timer)
+        setFailed(status.orderStatus === 'failed')
+        if (['paid', 'expired', 'failed'].includes(status.orderStatus ?? '')) window.clearInterval(timer)
       }
       const item = await getAdvertisement(id)
       if (!active) return
@@ -168,8 +170,9 @@ export function AdvertisementCheckoutPage() {
       {ad.status === 'pending_payment' ? <p>{t('1 € al día · mínimo 10 días')}{quote ? ` · ${quote.days} ${t('días')} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)}` : ''}</p> : null}
       <p>{t('El plazo empieza cuando se aprueba tu campaña.')}</p>
       {cancelled ? <p role="status">{t('Pago cancelado. El espacio reservado se ha liberado.')}</p> : null}
+      {failed ? <p role="status">{t('Pago fallido. Puedes volver a intentarlo.')}</p> : null}
       {reviewRequired ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p>
-        : ad.status === 'pending_payment' && paymentReturn && !cancelled ? <><p role="status">{t('Estamos confirmando el pago. Puedes consultar tus campañas en unos segundos.')}</p><button type="button" disabled={busy} onClick={() => void cancel()}>{t('Cancelar pago')}</button></>
+        : ad.status === 'pending_payment' && paymentReturn && !cancelled && !failed ? <><p role="status">{t('Estamos confirmando el pago. Puedes consultar tus campañas en unos segundos.')}</p><button type="button" disabled={busy} onClick={() => void cancel()}>{t('Cancelar pago')}</button></>
         : ad.status === 'pending_payment' ? <><div className="ad-flow__actions"><button type="button" disabled={busy || !quote || full} onClick={() => void pay()}>{t('Pagar con Stripe')}</button><button type="button" disabled={busy} className="ad-flow__secondary" onClick={() => void cancel()}>{t('Cancelar pago')}</button></div>{full ? <AdvertisingVacancy /> : null}</>
         : <p role="status">{t(ad.paymentStatus === 'paid' && ad.status === 'pending_review' ? 'Pago confirmado · pendiente de revisión' : advertisementStatusSource(ad.status))}</p>}
     </section> : <p role="status">{t('Cargando publicidad…')}</p>}

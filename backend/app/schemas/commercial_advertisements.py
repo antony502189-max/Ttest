@@ -63,6 +63,7 @@ class AdvertisementDetail(BaseModel):
     endsAt: datetime | None
     moderationNote: str | None
     paymentReviewRequired: bool = False
+    paymentOrderId: UUID | None = None
 
 
 class AdvertisementAdminDetail(AdvertisementDetail):

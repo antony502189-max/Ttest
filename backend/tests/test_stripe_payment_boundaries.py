@@ -138,7 +138,7 @@ async def test_pending_checkout_is_reused(configured, monkeypatch):
     user = SimpleNamespace(id=uuid4())
     previous = SimpleNamespace(checkout_url="https://checkout.stripe.com/test", days=1,
                                stripe_session_id="cs_test_audit", amount_cents=100, created_at=datetime.now(UTC))
-    session = SimpleNamespace(scalar=AsyncMock(return_value=previous))
+    session = SimpleNamespace(scalar=AsyncMock(return_value=previous), commit=AsyncMock())
     provider = AsyncMock()
     monkeypatch.setattr(payments, "create_stripe_session", provider)
     result = await payments.checkout(session, user, "listing_top", uuid4(), 1, 100, "TOP", "/mis-anuncios")
@@ -150,7 +150,7 @@ async def test_pending_checkout_is_reused(configured, monkeypatch):
 async def test_different_package_during_pending_checkout_is_conflict(configured):
     previous = SimpleNamespace(checkout_url="https://checkout.stripe.com/test", days=1,
                                stripe_session_id="cs_test_audit", amount_cents=100, created_at=datetime.now(UTC))
-    session = SimpleNamespace(scalar=AsyncMock(return_value=previous))
+    session = SimpleNamespace(scalar=AsyncMock(return_value=previous), commit=AsyncMock())
     with pytest.raises(HTTPException) as error:
         await payments.checkout(session, SimpleNamespace(id=uuid4()), "listing_top", uuid4(),
                                 7, 500, "TOP", "/mis-anuncios")
@@ -182,7 +182,7 @@ def test_live_key_requires_explicit_enablement():
 @pytest.mark.asyncio
 async def test_completed_session_blocks_another_charge(configured, monkeypatch):
     previous = SimpleNamespace(checkout_url="https://checkout.stripe.com/test", stripe_session_id="cs_test_audit")
-    session = SimpleNamespace(scalar=AsyncMock(return_value=previous))
+    session = SimpleNamespace(scalar=AsyncMock(return_value=previous), commit=AsyncMock())
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"complete"}))
     provider = AsyncMock()
     monkeypatch.setattr(payments, "create_stripe_session", provider)
@@ -196,7 +196,7 @@ async def test_completed_session_blocks_another_charge(configured, monkeypatch):
 @pytest.mark.asyncio
 async def test_provider_outage_does_not_create_another_charge(configured, monkeypatch):
     previous = SimpleNamespace(checkout_url="https://checkout.stripe.com/test", stripe_session_id="cs_test_audit")
-    session = SimpleNamespace(scalar=AsyncMock(return_value=previous))
+    session = SimpleNamespace(scalar=AsyncMock(return_value=previous), commit=AsyncMock())
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(side_effect=HTTPException(502)))
     provider = AsyncMock()
     monkeypatch.setattr(payments, "create_stripe_session", provider)
@@ -215,6 +215,10 @@ async def test_expired_provider_session_can_be_replaced(configured, monkeypatch)
                               flush=AsyncMock(), commit=AsyncMock())
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"expired"}))
     monkeypatch.setattr(payments, "create_stripe_session", AsyncMock(return_value=("cs_test_new", "https://checkout.stripe.com/new")))
+    async def expire(*_):
+        previous.status = "expired"
+    monkeypatch.setattr(payments, "apply_stripe_session", expire)
+    monkeypatch.setattr(payments, "finish_creation", AsyncMock(return_value="https://checkout.stripe.com/new"))
     result = await payments.checkout(session, SimpleNamespace(id=uuid4()), "listing_top", uuid4(), 1, 100,
                                     "TOP", "/mis-anuncios")
     assert result.url == "https://checkout.stripe.com/new" and previous.status == "expired"

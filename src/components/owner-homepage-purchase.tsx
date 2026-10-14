@@ -80,6 +80,8 @@ export function OwnerHomepagePurchase() {
     {error && !open ? <p role="alert">{t(error)}</p> : null}
     {review ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p> : null}
     {status?.orderStatus === 'pending' ? <p role="status">{t('Estamos confirmando el pago de portada.')}</p> : null}
+    {status?.orderStatus === 'failed' ? <p role="status">{t('Pago fallido. Puedes volver a intentarlo.')}</p> : null}
+    {status?.fulfillmentStatus === 'revoked' ? <p role="status">{t('Pago devuelto · servicio finalizado')}</p> : null}
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="owner-top-dialog"><DialogHeader><DialogTitle>{t('Tu anuncio en portada')}</DialogTitle><DialogDescription>{t('Selecciona tu anuncio. Su foto aparecerá en la portada durante un mes con un enlace al anuncio.')}</DialogDescription></DialogHeader>
       <div className="owner-top-dialog__list" role="list">{listings.map((listing) => <button key={listing.id} type="button" aria-pressed={selected === listing.id} className={`owner-top-dialog__option ${selected === listing.id ? 'is-selected' : ''}`} onClick={() => setSelected(listing.id)}><MediaImage src={listing.images[0]} variant="thumb" alt="" /><span><strong>{listing.title}</strong><small>{listing.area} · {listing.price} €</small></span></button>)}</div>
       <div className="owner-top-dialog__next"><strong>{t('60 € · 1 mes · enlace directo a tu anuncio')}</strong><span>{t('El mes empieza cuando se confirma el pago.')}</span>

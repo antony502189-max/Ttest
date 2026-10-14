@@ -66,6 +66,7 @@ def detail(ad: Ad) -> AdvertisementDetail:
         paymentStatus=ad.payment_status, packageId=ad.package_id, placement=ad.placement,
         createdAt=ad.created_at, startsAt=ad.starts_at, endsAt=ad.ends_at,
         moderationNote=ad.moderation_note,
+        paymentOrderId=ad.current_payment_order_id,
     )
 
 
@@ -224,6 +225,10 @@ async def edit_advertisement(
     ad = await owned_ad(session, ad_id, user, lock=True)
     if ad.status == "cancelled":
         raise HTTPException(409, "Cancelled advertisement cannot be edited")
+    if ad.current_payment_order_id:
+        current_payment = await session.get(PaymentOrder, ad.current_payment_order_id)
+        if current_payment and current_payment.financial_status != "normal":
+            raise HTTPException(409, "A refund or dispute must be settled before editing")
     await valid_asset(session, payload.imageAssetId, user.id)
     old_image_id = ad.image_asset_id
     changed = any((ad.title != payload.title, ad.description != payload.description,
@@ -233,7 +238,7 @@ async def edit_advertisement(
     if changed or expired:
         pending = await session.scalar(select(PaymentOrder.id).where(
             PaymentOrder.target_id == ad.id, PaymentOrder.kind == "advertisement",
-            PaymentOrder.status == "pending",
+            PaymentOrder.status.in_(["creating", "pending"]),
         ).limit(1))
         if pending:
             raise HTTPException(409, "Finish or wait for the current payment before editing")
@@ -249,6 +254,7 @@ async def edit_advertisement(
             ad.payment_status = "unpaid"
             ad.package_id = PACKAGE_ID
             ad.duration_days = None
+            ad.current_payment_order_id = None
         # A paid edit keeps its original expiry instead of granting a new day.
         if ad.payment_status != "paid":
             ad.starts_at = None
@@ -270,10 +276,12 @@ async def cancel_advertisement(ad_id: UUID, user: User = Depends(current_user), 
     await lock_advertising_capacity(session)
     if await session.scalar(select(PaymentOrder.id).where(
         PaymentOrder.target_id == ad_id, PaymentOrder.owner_user_id == user.id,
-        PaymentOrder.kind == "advertisement", PaymentOrder.status == "pending",
+        PaymentOrder.kind == "advertisement", PaymentOrder.status.in_(["creating", "pending"]),
     ).limit(1)):
         raise HTTPException(409, "Finish or wait for the current payment before editing")
     ad = await owned_ad(session, ad_id, user, lock=True)
+    from ...services.payment_guards import protect_payment_deletion
+    await protect_payment_deletion(session, target_id=ad.id)
     ad.status = "cancelled"
     await session.commit()
 
@@ -341,6 +349,10 @@ async def approve_advertisement(
     if owner_is_active is None or image_is_active is None:
         raise HTTPException(409, "Advertisement owner and image must still be active")
     await require_free_slot(session, exclude_id=ad.id)
+    if ad.current_payment_order_id:
+        order = await session.get(PaymentOrder, ad.current_payment_order_id)
+        if order and order.financial_status != "normal":
+            raise HTTPException(409, "A refund or dispute must be settled before approval")
     now = datetime.now(UTC)
     proposed_start = decision.startsAt or ad.starts_at or now
     duration = ad.duration_days or (30 if ad.package_id == "test_homepage_30d" else 1)
@@ -368,6 +380,10 @@ async def approve_advertisement(
     if (overlapping or 0) >= MAX_ACTIVE_HOMEPAGE_ADS:
         raise HTTPException(409, f"Homepage advertising is limited to {MAX_ACTIVE_HOMEPAGE_ADS} simultaneous campaigns")
     approve(ad, proposed_start, proposed_end)
+    if ad.current_payment_order_id:
+        order = await session.get(PaymentOrder, ad.current_payment_order_id)
+        if order:
+            order.service_starts_at, order.service_ends_at = ad.starts_at, ad.ends_at
     await notify_advertiser(session, ad, "advertisement_approved", "Tu publicidad está publicada",
                             "Tu publicidad ha sido aprobada. Puedes consultar su fecha de finalización en Mis campañas.")
     await session.commit()
@@ -404,6 +420,15 @@ async def deactivate_advertisement(
     if ad.status != "active":
         raise HTTPException(409, "Active advertisement required")
     ad.status = "cancelled"
+    if ad.current_payment_order_id:
+        order = await session.get(PaymentOrder, ad.current_payment_order_id)
+        if order and order.status == "paid" and order.financial_status == "normal":
+            order.paused_ad_status = "active"
+            order.fulfillment_status = "review_required"
+            order.fulfillment_note = "Paid campaign was deactivated by moderation; restore or refund."
+            ad.payment_status = "paid"
+            # Keep its sold capacity until the refund/restore decision.
+            ad.status = "rejected"
     await session.commit()
     await session.refresh(ad)
     logger.info("commercial_advertisement_deactivated")

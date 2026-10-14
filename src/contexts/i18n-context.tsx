@@ -6,6 +6,19 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Motivo de resolución': { ru: 'Причина урегулирования', en: 'Resolution reason' },
+  'Sesión Stripe verificada': { ru: 'Проверенная сессия Stripe', en: 'Verified Stripe session' },
+  'Conciliar pago': { ru: 'Сверить оплату', en: 'Reconcile payment' },
+  'Restaurar servicio': { ru: 'Восстановить услугу', en: 'Restore service' },
+  'Devolver pago': { ru: 'Вернуть оплату', en: 'Refund payment' },
+  'Indica un motivo de al menos 10 caracteres.': { ru: 'Укажите причину длиной минимум 10 символов.', en: 'Enter a reason of at least 10 characters.' },
+  '¿Devolver el importe pendiente y finalizar el servicio de este pago?': { ru: 'Вернуть оставшуюся сумму и завершить услугу по этой оплате?', en: 'Refund the remaining amount and end the service for this payment?' },
+  'Settle pending payments or refunds before deleting': { ru: 'Перед удалением нужно завершить или отменить оплаты и урегулировать возвраты.', en: 'Complete or cancel payments and settle refunds before deleting.' },
+  'Active paid services must expire or be refunded before deleting': { ru: 'Перед удалением дождитесь окончания оплаченных услуг или обратитесь за возвратом.', en: 'Let paid services expire or request a refund before deleting.' },
+  'A refund or dispute must be settled before editing': { ru: 'Сначала нужно урегулировать возврат или спор по оплате.', en: 'Settle the refund or dispute before editing.' },
+  'Payment creation needs review; do not pay again': { ru: 'Создание оплаты требует проверки. Не оплачивайте повторно.', en: 'Payment creation needs review. Do not pay again.' },
+  'Pago fallido. Puedes volver a intentarlo.': { ru: 'Оплата не прошла. Вы можете попробовать снова.', en: 'Payment failed. You can try again.' },
+  'Pago devuelto · servicio finalizado': { ru: 'Оплата возвращена · услуга завершена', en: 'Payment refunded · service ended' },
   '30 € · 1 mes en TOP': { ru: '30 € · 1 месяц в TOP', en: '€30 · 1 month in TOP' },
   'Selecciona tu anuncio. TOP cuesta 30 € por un mes y lo sitúa antes que los anuncios sin TOP.': { ru: 'Выберите объявление. TOP стоит 30 € за месяц и поднимает его выше объявлений без TOP.', en: 'Choose your listing. TOP costs €30 for one month and places it before listings without TOP.' },
   'El mes empieza cuando se confirma el pago. Si ya tienes TOP, se añade un mes al plazo actual.': { ru: 'Месяц начинается после подтверждения оплаты. Если TOP уже активен, к его сроку добавится месяц.', en: 'The month starts when payment is confirmed. If TOP is already active, one month is added to its current period.' },

@@ -591,7 +591,7 @@ export function MyListingsPage() {
       {searchParams.get("payment") === "return" && !returnedTopId && !searchParams.get("homepage") ? (
         <p role="status">{t("Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p>
       ) : null}
-      {returnedTopId ? <p role={topPaymentStatus?.fulfillmentStatus === "review_required" ? "alert" : "status"}>{t(topPaymentStatus?.fulfillmentStatus === "review_required" ? "El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar." : topPaymentStatus?.fulfillmentStatus === "fulfilled" ? "Pago confirmado · tu anuncio está en TOP" : topPaymentStatus?.orderStatus === "expired" ? "Pago cancelado. Puedes volver a comprar TOP." : "Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p> : null}
+      {returnedTopId ? <p role={topPaymentStatus?.fulfillmentStatus === "review_required" ? "alert" : "status"}>{t(topPaymentStatus?.fulfillmentStatus === "review_required" ? "El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar." : topPaymentStatus?.fulfillmentStatus === "revoked" ? "Pago devuelto · servicio finalizado" : topPaymentStatus?.fulfillmentStatus === "fulfilled" ? "Pago confirmado · tu anuncio está en TOP" : topPaymentStatus?.orderStatus === "failed" ? "Pago fallido. Puedes volver a intentarlo." : topPaymentStatus?.orderStatus === "expired" ? "Pago cancelado. Puedes volver a comprar TOP." : "Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p> : null}
       {topPaymentError && !topDialogOpen ? <p role="alert">{t(topPaymentError)}</p> : null}
       <OwnerHomepagePurchase />
       <div className="account-toolbar">

@@ -30,6 +30,7 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
         "line_items[0][price_data][product_data][name]": name,
         "line_items[0][quantity]": "1",
         "metadata[order_id]": str(order.id),
+        "payment_intent_data[metadata][order_id]": str(order.id),
     }
     if getattr(order, "kind", None) in {"advertisement", "homepage_hero"}:
         # Only immediate card payments can reserve this scarce inventory.
@@ -90,6 +91,41 @@ async def expire_stripe_session(session_id: str) -> dict:
         return payload
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(502, "Could not cancel Stripe Checkout") from exc
+
+
+async def stripe_object(path: str) -> dict:
+    """Only fixed Stripe resource paths chosen by server code are allowed."""
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get("https://api.stripe.com/v1/" + path,
+                headers={"Authorization": f"Bearer {settings.stripe_secret_key}"})
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict):
+            raise ValueError("Invalid Stripe object")
+        return result
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(502, "Could not verify Stripe financial state") from exc
+
+
+async def create_stripe_refund(order) -> dict:
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post("https://api.stripe.com/v1/refunds", data={
+                "payment_intent": order.stripe_payment_intent_id,
+                "metadata[order_id]": str(order.id),
+                "metadata[attempt]": str(order.refund_attempt),
+            }, headers={"Authorization": f"Bearer {settings.stripe_secret_key}",
+                        "Idempotency-Key": f"refund-order:{order.id}:{order.refund_attempt}"})
+        response.raise_for_status()
+        result = response.json()
+        if result.get("payment_intent") != order.stripe_payment_intent_id or result.get("currency") != "eur":
+            raise ValueError("Refund does not match order")
+        return result
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(502, "Could not confirm Stripe refund; retry the same request") from exc
 
 
 def verified_stripe_event(body: bytes, signature: str) -> dict:

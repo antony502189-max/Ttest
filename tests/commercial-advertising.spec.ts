@@ -5,6 +5,7 @@ const assetId = '00000000-0000-4000-8000-000000000732'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
 
 test.beforeEach(async ({ page }) => {
+  await page.route('https://images.unsplash.com/**', route => route.fulfill({ body: png, contentType: 'image/png' }))
   await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
   await page.route('**/api/v1/advertisements/waitlist', route => route.fulfill({ json: { subscribed: false, channel: 'site' } }))
   await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { total: 7, available: 7, dailyPriceCents: 100, currency: 'EUR', pushEnabled: false, pushPublicKey: null } }))

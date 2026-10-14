@@ -1,6 +1,7 @@
 import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Query
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ from ...services.commercial_advertisements import (
     require_free_slot,
 )
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
+from ...services.payment_sessions import finish_creation, reconcile_order
 from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
 from ...models.moderation import HomepageHeroPromotion, ListingPromotion
 from ...services.stripe_checkout import (
@@ -62,7 +64,7 @@ async def advertisement_quote(
     legacy = ad.package_id == "test_homepage_30d"
     reserved_days = await session.scalar(select(PaymentOrder.days).where(
         PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
-        PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "pending",
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.status.in_(["creating", "pending"]),
     ).order_by(PaymentOrder.created_at.desc()).limit(1))
     return {"days": 30 if legacy else days,
             "reservedDays": reserved_days,
@@ -82,10 +84,11 @@ async def checkout(
             PaymentOrder.owner_user_id == user.id,
             PaymentOrder.kind == kind,
             PaymentOrder.target_id == target_id,
-            PaymentOrder.status == "pending",
+            PaymentOrder.status.in_(["creating", "pending"]),
         ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update()
     )
     if previous and previous.checkout_url and previous.stripe_session_id:
+        await session.commit()
         remote = await retrieve_stripe_session(previous.stripe_session_id)
         if remote["status"] == "complete":
             if remote.get("payment_status") == "paid":
@@ -95,18 +98,30 @@ async def checkout(
             if previous.days == days and previous.amount_cents == amount and getattr(previous, "duration_months", None) == months:
                 return CheckoutResponse(url=previous.checkout_url, amountCents=amount)
             raise HTTPException(409, "An unfinished payment already exists for this item")
+        await apply_stripe_session(remote, "checkout.session.expired", session)
+        # The old reservation was released; validate capacity again before replacing it.
+        await lock_advertising_capacity(session)
+        if kind == "advertisement":
+            await require_free_slot(session, exclude_id=target_id)
+        elif kind == "homepage_hero" and not await slot_available(session):
+            raise HTTPException(409, "Homepage placement is currently unavailable")
+    elif previous:
+        if previous.days != days or previous.amount_cents != amount:
+            raise HTTPException(409, "An unfinished payment already exists for this item")
+        url = await finish_creation(previous, session, create=create_stripe_session)
+        return CheckoutResponse(url=url, amountCents=amount)
     if previous:
         previous.status = "expired"
     order = PaymentOrder(
         owner_user_id=user.id, kind=kind, target_id=target_id,
-        days=days, amount_cents=amount, status="pending", advertisement_fingerprint=fingerprint,
+        days=days, amount_cents=amount, status="creating", advertisement_fingerprint=fingerprint,
         duration_months=months,
+        checkout_name=name, return_path=return_path,
     )
     session.add(order)
     await session.flush()
-    order.stripe_session_id, order.checkout_url = await create_stripe_session(order, name, return_path)
-    await session.commit()
-    return CheckoutResponse(url=order.checkout_url, amountCents=amount)
+    url = await finish_creation(order, session, create=create_stripe_session)
+    return CheckoutResponse(url=url, amountCents=amount)
 
 
 @router.post("/advertisements/{ad_id}/checkout", response_model=CheckoutResponse)
@@ -145,7 +160,7 @@ async def advertisement_checkout(
 async def homepage_quote(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     hero = await session.get(HomepageHeroPromotion, 1)
     reservation = await session.scalar(select(PaymentOrder.target_id).where(
-        PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "pending",
+        PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id, PaymentOrder.status.in_(["creating", "pending"]),
     ).limit(1))
     own_hero = await session.scalar(select(Listing.id).where(Listing.id == hero.listing_id, Listing.owner_user_id == user.id)) if hero else None
     return {"amountCents": PRICE_CENTS, "currency": "EUR", "months": 1,
@@ -172,7 +187,7 @@ async def homepage_checkout(listing_id: UUID, user: User = Depends(current_user)
         raise HTTPException(409, "Your homepage payment needs review; do not pay again")
     previous = await session.scalar(select(PaymentOrder).where(
         PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id,
-        PaymentOrder.target_id == listing_id, PaymentOrder.status == "pending",
+        PaymentOrder.target_id == listing_id, PaymentOrder.status.in_(["creating", "pending"]),
     ).limit(1))
     if not await slot_available(session, exclude_order=previous.id if previous else None):
         raise HTTPException(409, "Homepage placement is currently unavailable")
@@ -191,14 +206,10 @@ async def homepage_status(listing_id: UUID, user: User = Depends(current_user), 
         PaymentOrder.target_id == listing_id,
     ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
     now = datetime.now(UTC)
-    if order and order.status == "pending" and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
+    if order and order.status in {"creating", "pending"} and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
         order.last_reconciled_at = now
-        remote = await retrieve_stripe_session(order.stripe_session_id)
-        if remote["status"] == "complete" and remote.get("payment_status") == "paid":
-            await apply_stripe_session(remote, "checkout.session.completed", session)
-        elif remote["status"] == "expired":
-            order.status = "expired"
         await session.commit()
+        await reconcile_order(order, session, retrieve=retrieve_stripe_session, create=create_stripe_session)
     hero = await session.get(HomepageHeroPromotion, 1)
     return {"orderStatus": order.status if order else None,
             "fulfillmentStatus": order.fulfillment_status if order else None,
@@ -210,17 +221,19 @@ async def cancel_homepage_checkout(listing_id: UUID, user: User = Depends(curren
     await lock_advertising_capacity(session)
     order = await session.scalar(select(PaymentOrder).where(
         PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id,
-        PaymentOrder.target_id == listing_id, PaymentOrder.status == "pending",
+        PaymentOrder.target_id == listing_id, PaymentOrder.status.in_(["creating", "pending"]),
     ).limit(1).with_for_update())
     if order:
+        if not order.stripe_session_id:
+            await finish_creation(order, session, create=create_stripe_session)
+        await session.commit()
         remote = await expire_stripe_session(order.stripe_session_id)
         if remote["status"] == "complete" and remote.get("payment_status") == "paid":
             await apply_stripe_session(remote, "checkout.session.completed", session)
             return {"cancelled": False}
         if remote["status"] != "expired":
             raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
-        order.status = "expired"
-        await session.commit()
+        await apply_stripe_session(remote, "checkout.session.expired", session)
     return {"cancelled": True}
 
 
@@ -261,14 +274,10 @@ async def top_payment_status(listing_id: UUID, user: User = Depends(current_user
         PaymentOrder.kind == "listing_top", PaymentOrder.target_id == listing_id, PaymentOrder.owner_user_id == user.id,
     ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
     now = datetime.now(UTC)
-    if order and order.status == "pending" and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
+    if order and order.status in {"creating", "pending"} and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
         order.last_reconciled_at = now
-        remote = await retrieve_stripe_session(order.stripe_session_id)
-        if remote["status"] == "complete" and remote.get("payment_status") == "paid":
-            await apply_stripe_session(remote, "checkout.session.completed", session)
-        elif remote["status"] == "expired":
-            order.status = "expired"
         await session.commit()
+        await reconcile_order(order, session, retrieve=retrieve_stripe_session, create=create_stripe_session)
     promotion = await session.get(ListingPromotion, listing_id)
     return {"orderStatus": order.status if order else None,
             "fulfillmentStatus": order.fulfillment_status if order else None,
@@ -280,17 +289,19 @@ async def cancel_top_checkout(listing_id: UUID, user: User = Depends(current_use
     await lock_advertising_capacity(session)
     order = await session.scalar(select(PaymentOrder).where(
         PaymentOrder.kind == "listing_top", PaymentOrder.target_id == listing_id,
-        PaymentOrder.owner_user_id == user.id, PaymentOrder.status == "pending",
+        PaymentOrder.owner_user_id == user.id, PaymentOrder.status.in_(["creating", "pending"]),
     ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
     if order:
+        if not order.stripe_session_id:
+            await finish_creation(order, session, create=create_stripe_session)
+        await session.commit()
         remote = await expire_stripe_session(order.stripe_session_id)
         if remote["status"] == "complete" and remote.get("payment_status") == "paid":
             await apply_stripe_session(remote, "checkout.session.completed", session)
             return {"cancelled": False}
         if remote["status"] != "expired":
             raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
-        order.status = "expired"
-        await session.commit()
+        await apply_stripe_session(remote, "checkout.session.expired", session)
     return {"cancelled": True}
 
 
@@ -301,14 +312,17 @@ async def stripe_webhook(
 ):
     event = verified_stripe_event(await request.body(), stripe_signature)
     event_type = event.get("type")
+    if event_type.startswith("charge.") or event_type in {"refund.created", "refund.updated", "refund.failed"}:
+        from ...services.payment_finances import financial_webhook
+        return await financial_webhook(event, session)
     if event_type not in {"checkout.session.completed", "checkout.session.async_payment_succeeded",
-                          "checkout.session.expired"}:
+                          "checkout.session.async_payment_failed", "checkout.session.expired"}:
         return {"received": True}
     data = event.get("data")
     if not isinstance(data, dict) or not isinstance(data.get("object"), dict):
         raise HTTPException(400, "Invalid Stripe event")
     checkout_session = data["object"]
-    if event_type != "checkout.session.expired" and checkout_session.get("payment_status") != "paid":
+    if event_type not in {"checkout.session.expired", "checkout.session.async_payment_failed"} and checkout_session.get("payment_status") != "paid":
         return {"received": True}
     return await apply_stripe_session(checkout_session, event_type, session)
 
@@ -325,14 +339,11 @@ async def advertisement_payment_status(ad_id: UUID, user: User = Depends(current
         PaymentOrder.target_id == ad.id, PaymentOrder.owner_user_id == user.id, PaymentOrder.kind == "advertisement",
     ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
     now = datetime.now(UTC)
-    if order and order.status == "pending" and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
+    if order and order.status in {"creating", "pending"} and (order.last_reconciled_at is None or order.last_reconciled_at < now - timedelta(seconds=10)):
         order.last_reconciled_at = now
+        await session.commit()
         try:
-            remote = await retrieve_stripe_session(order.stripe_session_id)
-            if remote["status"] == "complete" and remote.get("payment_status") == "paid":
-                await apply_stripe_session(remote, "checkout.session.completed", session)
-            elif remote["status"] == "expired":
-                order.status = "expired"
+            await reconcile_order(order, session, retrieve=retrieve_stripe_session, create=create_stripe_session)
         except HTTPException:
             logger.warning("advertising_payment_status_temporarily_unavailable")
         await session.commit()
@@ -351,25 +362,44 @@ async def cancel_advertisement_checkout(ad_id: UUID, user: User = Depends(curren
         raise HTTPException(404, "Advertisement not found")
     order = await session.scalar(select(PaymentOrder).where(
         PaymentOrder.target_id == ad.id, PaymentOrder.owner_user_id == user.id,
-        PaymentOrder.kind == "advertisement", PaymentOrder.status == "pending",
+        PaymentOrder.kind == "advertisement", PaymentOrder.status.in_(["creating", "pending"]),
     ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update())
     if order:
+        if not order.stripe_session_id:
+            await finish_creation(order, session, create=create_stripe_session)
+        await session.commit()
         remote = await expire_stripe_session(order.stripe_session_id)
         if remote["status"] == "complete" and remote.get("payment_status") == "paid":
             await apply_stripe_session(remote, "checkout.session.completed", session)
             return {"cancelled": False, "paid": True}
         if remote["status"] != "expired":
             raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
-        order.status = "expired"
-        await session.commit()
+        await apply_stripe_session(remote, "checkout.session.expired", session)
     return {"cancelled": True, "paid": ad.payment_status == "paid"}
 
 
 @router.get("/admin/review-required")
 async def payment_review_queue(user: User = Depends(require_admin), session: AsyncSession = Depends(get_session)):
     orders = (await session.scalars(select(PaymentOrder).where(
-        PaymentOrder.status == "paid", PaymentOrder.fulfillment_status == "review_required",
+        PaymentOrder.fulfillment_status == "review_required",
     ).order_by(PaymentOrder.paid_at.desc()).limit(100))).all()
     return [{"id": str(order.id), "kind": order.kind, "targetId": str(order.target_id),
-             "amountCents": order.amount_cents, "paidAt": order.paid_at, "note": order.fulfillment_note}
+             "amountCents": order.amount_cents, "paidAt": order.paid_at, "note": order.fulfillment_note,
+             "status":order.status,"financialStatus":order.financial_status,"stripeSessionId":order.stripe_session_id}
             for order in orders]
+
+
+class PaymentResolutionRequest(BaseModel):
+    action: Literal["refund", "restore", "reconcile"]
+    reason: str = Field(min_length=10, max_length=1000)
+    stripeSessionId: str | None = Field(default=None, max_length=255)
+
+
+@router.post("/admin/orders/{order_id}/resolve")
+async def resolve_order(order_id: UUID, payload: PaymentResolutionRequest, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session)):
+    from ...services.payment_finances import resolve_payment, reconcile_unknown_session
+    if len(payload.reason.strip()) < 10:
+        raise HTTPException(422, "A resolution reason of at least 10 characters is required")
+    if payload.action == "reconcile":
+        return await reconcile_unknown_session(order_id, user, payload.reason.strip(), payload.stripeSessionId, session)
+    return await resolve_payment(order_id, user, payload.reason.strip(), payload.action, session)

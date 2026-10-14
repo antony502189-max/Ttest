@@ -71,20 +71,16 @@ async def process_advertising_alerts(session) -> int:
     await lock_advertising_capacity(session)
     now = datetime.now(UTC)
     orders = (await session.scalars(select(PaymentOrder).where(
-        PaymentOrder.kind.in_(["advertisement", "homepage_hero", "listing_top"]), PaymentOrder.status == "pending",
+        PaymentOrder.kind.in_(["advertisement", "homepage_hero", "listing_top"]), PaymentOrder.status.in_(["creating", "pending"]),
         PaymentOrder.created_at < now - timedelta(seconds=30),
         PaymentOrder.last_reconciled_at.is_(None) | (PaymentOrder.last_reconciled_at < now - timedelta(seconds=30)),
     ).order_by(PaymentOrder.last_reconciled_at.asc().nulls_first(), PaymentOrder.created_at).limit(2).with_for_update())).all()
     for order in orders:
         order.last_reconciled_at = now
-        if not order.stripe_session_id:
-            continue
+        await session.commit()
         try:
-            remote = await asyncio.wait_for(retrieve_stripe_session(order.stripe_session_id), timeout=3)
-            if remote["status"] == "expired":
-                await apply_stripe_session(remote, "checkout.session.expired", session)
-            elif remote["status"] == "complete" and remote.get("payment_status") == "paid":
-                await apply_stripe_session(remote, "checkout.session.completed", session)
+            from .payment_sessions import reconcile_order
+            await asyncio.wait_for(reconcile_order(order, session, retrieve=retrieve_stripe_session), timeout=18)
         except (HTTPException, TimeoutError):
             logger.warning("advertising_reservation_reconciliation_failed")
     # Recovery may commit fulfillment. Reacquire capacity before taking claims.

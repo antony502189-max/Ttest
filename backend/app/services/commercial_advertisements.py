@@ -35,12 +35,12 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
     ad = CommercialAdvertisement
     pending_payment = select(PaymentOrder.id).where(
         PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
-        PaymentOrder.status == "pending",
+        PaymentOrder.status.in_(["creating", "pending"]),
     ).exists()
     query = select(func.count(ad.id)).where(ad.placement == "homepage_bottom", or_(
         and_(ad.status == "active", ad.payment_status == "paid",
              or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
-        and_(ad.status == "pending_review", ad.payment_status == "paid",
+        and_(ad.status.in_(["pending_review", "rejected"]), ad.payment_status == "paid",
              or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
         pending_payment,
     ))

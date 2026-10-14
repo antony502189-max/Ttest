@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Listing, ListingImage, User
 from ..models.moderation import HomepageHeroPromotion
+from ..models.payment_order import PaymentOrder
 from ..repositories.listings import response_from, visible_query
 from ..schemas.admin import HomepageHeroPromotionResponse, PromotionState
 from ..schemas.listings import ListingResponse
@@ -157,6 +158,10 @@ async def get_active_homepage_hero_listing(session: AsyncSession) -> ListingResp
     )
     if promotion is None:
         return None
+    if promotion.payment_order_id:
+        order = await session.get(PaymentOrder, promotion.payment_order_id)
+        if not order or order.financial_status != "normal" or order.fulfillment_status != "fulfilled":
+            return None
     row = (await session.execute(visible_query().where(Listing.id == promotion.listing_id))).one_or_none()
     if row is None:
         return None

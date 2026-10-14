@@ -40,7 +40,7 @@ async def slot_available(session, *, exclude_order=None):
     hero = await session.get(HomepageHeroPromotion, 1)
     if hero and hero.ends_at > datetime.now(UTC):
         return False
-    query = select(PaymentOrder.id).where(PaymentOrder.kind == "homepage_hero", PaymentOrder.status == "pending")
+    query = select(PaymentOrder.id).where(PaymentOrder.kind == "homepage_hero", PaymentOrder.status.in_(["creating", "pending"]))
     if exclude_order is not None:
         query = query.where(PaymentOrder.id != exclude_order)
     return await session.scalar(query.limit(1)) is None
@@ -49,7 +49,7 @@ async def slot_available(session, *, exclude_order=None):
 async def protect_purchased_slot(session):
     await lock_advertising_capacity(session)
     pending = await session.scalar(select(PaymentOrder.id).where(
-        PaymentOrder.kind == "homepage_hero", PaymentOrder.status == "pending",
+        PaymentOrder.kind == "homepage_hero", PaymentOrder.status.in_(["creating", "pending"]),
     ).limit(1))
     hero = await session.get(HomepageHeroPromotion, 1)
     paid = None

@@ -44,8 +44,8 @@ async def test_capacity_counts_paid_review_and_pending_orders_once():
     session = SimpleNamespace(scalar=AsyncMock(return_value=7))
     assert await ads.occupied_slots(session, exclude_id=uuid4()) == 7
     sql = str(session.scalar.await_args.args[0].compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))
-    assert 'EXISTS' in sql and "payment_orders.status = 'pending'" in sql
-    assert "commercial_advertisements.status = 'pending_review'" in sql
+    assert 'EXISTS' in sql and "payment_orders.status IN ('creating', 'pending')" in sql
+    assert "commercial_advertisements.status IN ('pending_review', 'rejected')" in sql
     assert 'commercial_advertisements.id !=' in sql
 
 
@@ -120,7 +120,8 @@ async def test_worker_releases_only_stripe_confirmed_expiry_and_stays_quiet_when
     monkeypatch.setattr(alerts, 'occupied_slots', AsyncMock(return_value=7))
     async def confirmed_expiry(*_):
         order.status = 'expired'
-    monkeypatch.setattr(alerts, 'apply_stripe_session', confirmed_expiry)
+    from app.services import payment_fulfillment
+    monkeypatch.setattr(payment_fulfillment, 'apply_stripe_session', confirmed_expiry)
     monkeypatch.setattr(alerts, 'retrieve_stripe_session', AsyncMock(return_value={'status': 'expired'}))
     monkeypatch.setattr(alerts, 'create_notification', notify)
     assert await alerts.process_advertising_alerts(session) == 0

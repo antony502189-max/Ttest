@@ -36,14 +36,14 @@ async def notify_payment(session, order, kind: str, title: str, body: str) -> No
                                   idempotency_key=f"payment:{order.id}:{kind}")
 
 
-async def apply_stripe_session(checkout_session: dict, event_type: str, session) -> dict:
+async def apply_stripe_session(checkout_session: dict, event_type: str, session, *, retry=False, actor=None, reason=None) -> dict:
     try:
         order_uuid = UUID(checkout_session.get("client_reference_id"))
     except (ValueError, TypeError, AttributeError):
         raise HTTPException(400, "Unknown payment order") from None
     await lock_advertising_capacity(session)
     order = await session.scalar(select(PaymentOrder).where(PaymentOrder.id == order_uuid).with_for_update().execution_options(populate_existing=True))
-    if not order or order.stripe_session_id != checkout_session.get("id"):
+    if not order or (order.stripe_session_id != checkout_session.get("id") and not (order.status == "creating" and order.stripe_session_id is None)):
         raise HTTPException(400, "Unknown payment order")
     expected_live = get_settings().stripe_secret_key.startswith("sk_live_")
     if (type(checkout_session.get("amount_total")) is not int
@@ -51,18 +51,38 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
             or checkout_session.get("currency") != "eur"
             or checkout_session.get("livemode") is not expected_live):
         raise HTTPException(400, "Payment does not match order")
-    if order.status == "paid":
+    if order.stripe_session_id is None:
+        order.stripe_session_id = checkout_session["id"]
+    intent_id = checkout_session.get("payment_intent")
+    if isinstance(intent_id, str):
+        if order.stripe_payment_intent_id and order.stripe_payment_intent_id != intent_id:
+            raise HTTPException(400, "Payment intent does not match order")
+        order.stripe_payment_intent_id = intent_id
+    if order.status == "paid" and not retry:
+        if intent_id:
+            from .payment_finances import replay_financial_inbox
+            await replay_financial_inbox(order, session)
+            await session.commit()
         return {"received": True}
-    if event_type == "checkout.session.expired":
-        if order.status == "pending":
-            order.status = "expired"
+    if event_type in {"checkout.session.expired", "checkout.session.async_payment_failed"}:
+        if order.status in {"creating", "pending"}:
+            order.status = "failed" if event_type.endswith("failed") else "expired"
             await session.commit()
         return {"received": True}
     if checkout_session.get("payment_status") != "paid":
         return {"received": True}
-    was_expired = order.status == "expired"
+    was_expired = order.status in {"expired", "failed"}
     order.status = "paid"
-    order.paid_at = datetime.now(UTC)
+    order.paid_at = order.paid_at or datetime.now(UTC)
+    order.fulfillment_status = "fulfilled"
+    service_start = datetime.now(UTC) if retry else order.paid_at
+    if intent_id:
+        from .payment_finances import replay_financial_inbox
+        await replay_financial_inbox(order, session)
+    if getattr(order, "financial_status", "normal") != "normal":
+        order.fulfillment_status = "revoked" if order.financial_status in {"refunded", "dispute_lost"} else "review_required"
+        await session.commit()
+        return {"received": True}
     order.fulfillment_status = "fulfilled"
     if order.kind == "advertisement":
         ad = await session.scalar(select(CommercialAdvertisement).where(
@@ -79,6 +99,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
             )
         if valid:
             ad.duration_days = order.days
+            ad.current_payment_order_id = order.id
             ad.payment_status = "paid"
             ad.status = "pending_review"
             ad.submitted_at = order.paid_at
@@ -97,8 +118,10 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
                 hero = HomepageHeroPromotion(id=1)
                 session.add(hero)
             hero.listing_id = listing.id
-            hero.starts_at = order.paid_at
-            hero.ends_at = one_month_after(order.paid_at)
+            hero.starts_at = service_start
+            hero.ends_at = one_month_after(service_start)
+            hero.payment_order_id = order.id
+            order.service_starts_at, order.service_ends_at = hero.starts_at, hero.ends_at
             hero.configured_by = None
             hero.configured_at = order.paid_at
             await touch_catalog(session)
@@ -117,24 +140,34 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
             promotion = await session.scalar(select(ListingPromotion).where(
                 ListingPromotion.listing_id == listing.id,
             ).with_for_update())
-            start = max(order.paid_at, promotion.ends_at) if promotion and promotion.ends_at else order.paid_at
+            start = max(service_start, promotion.ends_at) if promotion and promotion.ends_at else service_start
             if promotion and promotion.ends_at is None:
                 order.fulfillment_status = "review_required"
                 order.fulfillment_note = "Legacy permanent TOP requires manual reconciliation."
             elif promotion:
-                if promotion.ends_at <= order.paid_at or promotion.starts_at > order.paid_at:
-                    promotion.starts_at = order.paid_at
+                if not promotion.payment_managed and promotion.ends_at > service_start:
+                    # Preserve an admin/legacy baseline as a separate read-only interval.
+                    # New refund operations must never silently remove that baseline.
+                    order.fulfillment_note = "Includes a legacy or administrator TOP baseline; financial changes require reconciliation."
+                    promotion.baseline_starts_at, promotion.baseline_ends_at = promotion.starts_at, promotion.ends_at
+                if promotion.ends_at <= service_start or promotion.starts_at > service_start:
+                    promotion.starts_at = service_start
                 promotion.ends_at = one_month_after(start) if monthly else start + timedelta(days=order.days)
-                promotion.boosted_at = order.paid_at
+                promotion.boosted_at = service_start
+                promotion.payment_managed = True
+                order.service_starts_at, order.service_ends_at = start, promotion.ends_at
                 promotion.daily_price_cents = None
                 promotion.total_price_cents = (promotion.total_price_cents or 0) + order.amount_cents
             else:
                 session.add(ListingPromotion(
-                    listing_id=listing.id, boosted_at=order.paid_at, boosted_by=None,
-                    starts_at=order.paid_at, ends_at=one_month_after(order.paid_at) if monthly else order.paid_at + timedelta(days=order.days),
+                    listing_id=listing.id, boosted_at=service_start, boosted_by=None,
+                    starts_at=service_start, ends_at=one_month_after(service_start) if monthly else service_start + timedelta(days=order.days),
                     daily_price_cents=order.amount_cents if order.days == 1 else None,
                     total_price_cents=order.amount_cents,
+                    payment_managed=True,
                 ))
+                order.service_starts_at = service_start
+                order.service_ends_at = one_month_after(service_start) if monthly else service_start + timedelta(days=order.days)
             if order.fulfillment_status == "fulfilled":
                 await touch_catalog(session)
                 await notify_payment(session, order, "listing_top_paid", "Tu anuncio está en TOP",
@@ -146,5 +179,10 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session)
         logger.error("stripe_paid_order_requires_review order_id=%s", order.id)
         await notify_payment(session, order, "payment_review_required", "Tu pago necesita una revisión",
                              "El pago se ha recibido, pero no hemos podido activar el servicio. Contacta con soporte; no vuelvas a pagar.")
+    if retry and order.fulfillment_status == "fulfilled":
+        from .admin import audit
+        order.resolution_actor_id, order.resolution_reason, order.resolved_at = actor.id, reason, datetime.now(UTC)
+        order.fulfillment_note = None
+        session.add(audit(actor.id, "payment.restored", "payment", order.id, {"reason":reason}))
     await session.commit()
     return {"received": True}

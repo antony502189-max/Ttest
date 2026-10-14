@@ -8,6 +8,7 @@ const availability = (available = 7) => ({ total: 7, available, dailyPriceCents:
 const ads = Array.from({ length: 8 }, (_, index) => ({ id: `${adId}-${index}`, title: `Service ${index + 1}`, description: 'A local service for our community.', imageUrl: `/api/v1/media/${assetId}?variant=card`, imageWidth: 800, imageHeight: 450, destinationType: 'website', destinationUrl: 'https://example.org/', placement: 'homepage_bottom' }))
 
 test.beforeEach(async ({ page }) => {
+  await page.route('https://images.unsplash.com/**', route => route.fulfill({ body: png, contentType: 'image/jpeg' }))
   await page.addInitScript(() => {
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
