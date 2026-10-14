@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from sqlalchemy import text
 
 import app.models  # noqa: F401
 from app.db.base import Base
@@ -112,6 +113,10 @@ async def test_migrated_postgresql_schema_matches_application_column_contract() 
 
     async with engine.connect() as connection:
         def compare(sync_connection):
+            # PostGIS images may add tiger/topology to the database search path.
+            # Match Alembic's public-schema reflection rather than treating
+            # extension-owned tables as application tables in the default schema.
+            sync_connection.execute(text("SET LOCAL search_path TO public"))
             context = MigrationContext.configure(
                 sync_connection,
                 opts={

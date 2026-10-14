@@ -50,6 +50,18 @@ for item in runs:
         for job in jobs['jobs']:
             print(json.dumps({'id':job['id'],'job':job['name'],'status':job['status'],'conclusion':job['conclusion'],
                 'steps':[{'name':step['name'],'conclusion':step.get('conclusion'),'status':step['status']} for step in job.get('steps',[])]}))
+            if '--logs' in sys.argv and job['name'] == 'backend-payments' and job['conclusion'] == 'failure':
+                connection.request('GET',f"/repos/antony502189-max/Ttest/actions/jobs/{job['id']}/logs",
+                    headers={'Authorization':'Bearer '+token,'User-Agent':'Ttest-payment-CI'})
+                job_response = connection.getresponse()
+                job_location = job_response.getheader('Location')
+                job_response.read()
+                if job_response.status == 302 and job_location:
+                    content = urllib.request.urlopen(job_location,timeout=30).read().decode('utf-8','replace')
+                    output = Path('output/payment-audit/ci/backend-job.txt')
+                    output.parent.mkdir(parents=True,exist_ok=True)
+                    output.write_text(content,encoding='utf-8')
+                    print(content[-22000:])
     else:
         result.read()
 connection.close()
