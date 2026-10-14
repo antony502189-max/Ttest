@@ -101,16 +101,25 @@ for (const width of [320, 390, 480]) {
       const next = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next')!.getBoundingClientRect()
       const photo = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-next .m2-map-listing-preview__media-shell')!.getBoundingClientRect()
       const arrow = stage.querySelector<HTMLElement>('.m2-map-listing-carousel__arrow--next')!.getBoundingClientRect()
+      const description = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current .m2-map-listing-preview__body > h2')!.getBoundingClientRect()
+      const address = stage.querySelector<HTMLElement>('.m2-map-listing-card.is-current .m2-map-listing-preview__body > p')!.getBoundingClientRect()
       const boundary = stage.getBoundingClientRect()
       return {
         currentRight: current.right, nextRight: next.right,
         photoRight: photo.right, arrowLeft: arrow.left, arrowRight: arrow.right,
+        addressRight: address.right, descriptionRight: description.right,
         stageRight: boundary.right,
       }
     })
-    // The entire button must remain outside the current listing (not just
-    // outside its text lines), and inside the exposed neighbor photograph.
-    expect(geometry.arrowLeft).toBeGreaterThanOrEqual(geometry.currentRight + 8)
+    // The button straddles the exact border of the active and adjacent cards:
+    // its center is the border, with one half on each side. Preserve
+    // clearance from the title/address, even when the text is long.
+    const arrowCenter = (geometry.arrowLeft + geometry.arrowRight) / 2
+    expect(Math.abs(arrowCenter - geometry.currentRight)).toBeLessThanOrEqual(2)
+    expect(geometry.arrowLeft).toBeLessThan(geometry.currentRight - 10)
+    expect(geometry.arrowRight).toBeGreaterThan(geometry.currentRight + 10)
+    expect(geometry.arrowLeft - geometry.descriptionRight).toBeGreaterThanOrEqual(4)
+    expect(geometry.arrowLeft - geometry.addressRight).toBeGreaterThanOrEqual(4)
     expect(geometry.arrowRight).toBeLessThanOrEqual(geometry.photoRight - 2)
     expect(geometry.stageRight - geometry.currentRight).toBeGreaterThan(width <= 340 ? 58 : width <= 400 ? 72 : 85)
     expect(geometry.nextRight).toBeGreaterThan(geometry.currentRight)
@@ -138,8 +147,10 @@ test('both production and mock right-hand carousel controls render genuine left 
   expect(styles).toContain('.m2-map-listing-carousel__arrow--next > svg')
   expect(styles).toContain('transform: none !important')
   expect(styles).toContain('transform: translate(30%, -50%) scale(.94) !important')
-  // Old inset put the forward arrow directly on listing copy.
-  expect(styles).toContain('right: 1.25rem !important')
+  // Position is derived from the current card's inset/shift minus half
+  // the button diameter, so its center stays on the card edge.
+  expect(styles).toContain('right: calc(clamp(2.875rem, 14.5vw, 4.125rem) + clamp(1.35rem, 5.5vw, 2rem) - 1.175rem) !important')
+  expect(styles).not.toContain('right: 1.25rem !important')
   expect(styles).not.toContain('right: clamp(4.4rem, 22.5vw, 7.25rem) !important')
 })
 
