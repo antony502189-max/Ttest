@@ -21,8 +21,9 @@ Production test-key purchases previously could grant real entitlements without
 real funds once configured. New `STRIPE_TEST_PAYMENTS_ENABLED=false` blocks new
 Checkout by default in production. Explicit sandbox acceptance is required to
 opt in; it is not isolation. Development tests remain usable. Existing signed
-payment events, reconciliation and refunds continue to process so the gate
-cannot strand previously accepted payments. Live checkout also checks the live
+events, known-session reconciliation and refunds continue to process. An unknown
+creating attempt cannot retry session creation while Checkout is disabled and
+must use the existing audited manual session-reconciliation path. Live checkout also checks the live
 flag at creation, in addition to startup validation.
 
 ## Session, webhook and finances

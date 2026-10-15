@@ -50,8 +50,8 @@ automatic consequence of this report.
 
 ## Validation and review
 
-Updated constrained Linux suite: 748 unit tests passed (three conditional skips)
-and 258 real PostgreSQL/PostGIS/Redis integration tests passed. Targeted native
+Updated constrained Linux suite: 753 unit tests passed (three conditional skips)
+and 258 real PostgreSQL/PostGIS/Redis plus one MinIO integration test passed. Targeted native
 video/HTTP regressions and 30 Chromium payment scenarios passed. Frontend
 static/build/bundle/dependency checks and backend lint/type checks passed.
 Dependency scans report zero known findings after the narrow pin updates.
@@ -61,8 +61,11 @@ See TEST-EVIDENCE.md for tool versions, repaired environment failures and limits
 Repository: https://github.com/antony502189-max/Ttest.
 Dependency branch: `codex/security-dependency-pins-2026-10-15`, commit
 `ab1867a2`, [PR #345](https://github.com/antony502189-max/Ttest/pull/345).
-Boundary branch: `codex/security-boundaries-2026-10-15`; final commit/PR head
-and live checks are the authoritative review target. No merge/deploy approval
+Boundary branch: `codex/security-boundaries-2026-10-15`, implementation commit
+`573e0c6f815fd5906c7c12d3ccfdbe803248300e`,
+[PR #346](https://github.com/antony502189-max/Ttest/pull/346). Subsequent validation
+and documentation revisions may follow; the final PR head and its live checks
+are the authoritative review target. No merge/deploy approval
 has been granted. CI success is not evidence of production deployment.
 
 Recommended next actions: review/merge only with explicit owner approval and

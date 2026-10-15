@@ -8,9 +8,11 @@ artifacts where applicable; no production env file or credentials are included.
 | Check | Observed result |
 |---|---|
 | Baseline Windows unit suite before source remediation | 724 passed, 3 skipped |
-| Updated pinned Python 3.13/Linux unit suite | 748 passed, 3 skipped; 259 integration cases deselected |
+| Updated pinned Python 3.13/Linux unit suite | 753 passed, 3 skipped; 259 integration cases deselected |
 | Updated Python 3.13/Linux Postgres/PostGIS + Redis integration | 258 passed; includes payments, deletion, ownership, refresh/session, moderation, media, schema and importer tests |
 | Targeted Linux native video/HTTP/Checkout/Compose regressions | 42 passed, including real MP4/MOV/WebM and local decoy-server rejection |
+| Final focused token/DNS/media/migration rerun | 40 passed, including the final five added time/purpose/DNS cases |
+| Real isolated MinIO integration | One passed against the dedicated synthetic bucket |
 | Migration static guard tests | Six passed; future constraint changes to released tables remain rejected |
 | Migration governance after extending released freeze | Three passed; all 0057–0063 bytes match read-only production SHA-256 observations |
 | Browser payment/advertising/homepage/TOP scenarios | 30 passed in Chromium against local app and mock API/provider |
@@ -32,10 +34,11 @@ test dependencies resolved collection. An early frontend command's unrelated
 Ruff invocation used the wrong directory; backend Ruff was rerun correctly.
 These were environment/invocation failures, not suppressed test failures.
 
-Three conditional unit skips remain in existing tests. Browser scenarios verify
+Three existing unit skips are opt-in public route/source research and live
+source-discovery smoke checks; they were not enabled against third-party sites.
+Browser scenarios verify
 the app/browser flows with synthetic API/provider behavior; they are not live
-Stripe tests. Local MinIO integration is not yet recorded here; required CI
-runs the real MinIO suite. Full visual/a11y/fullstack results must be read from
+Stripe tests. Full visual/a11y/fullstack results must be read from
 the final PR head's CI, not inferred from these 30 browser scenarios.
 
 No aggressive DAST, unrestricted port scan, credential guessing, live financial

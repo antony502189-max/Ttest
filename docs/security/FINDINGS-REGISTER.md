@@ -219,7 +219,8 @@ Not implemented; requires product and recovery approval before rollout.
 ## SEC-015 — Scanner false positive
 
 Bandit B105 at `backend/app/services/mail.py:160` flags a sentinel string `None`,
-not a hardcoded credential. Source inspection is the evidence. CWE-798 is not
+not a hardcoded credential. The value is Python None, not a credential string.
+Source inspection is the evidence. CWE-798 is not
 applicable. No remediation or deployment; do not suppress the rule globally.
 Other subprocess alerts are reviewed in SEC-002, not dismissed as proof of
 safety merely because arguments are lists.

@@ -4,6 +4,8 @@ Target: risk-based ASVS 5.0.0 Level 2, with selected L3 media/quota controls.
 This is an internal verification framework, **not certification**. The CSV
 inventories all 345 official requirements, their level, applicability,
 procedure, evidence, result, remediation and residual uncertainty. Requirement
+results: 10 PASS, 14 PARTIAL, 7 FAIL, 15 NOT APPLICABLE and 299 NOT TESTED.
+This explicitly leaves the full ASVS assessment unfinished. Requirement
 descriptions are from the [tagged OWASP ASVS 5.0.0 source](https://github.com/OWASP/ASVS/tree/v5.0.0/5.0/en),
 licensed under CC BY-SA 4.0; attribution and that license apply to those rows.
 
