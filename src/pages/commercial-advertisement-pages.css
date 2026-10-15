@@ -39,4 +39,5 @@
 .ad-flow__list { display: grid; gap: 1rem; margin-top: 1.5rem; }
 .ad-flow__error { padding: .8rem; border-radius: .5rem; background: #ffe2e2; color: #7c1616; }
 .ad-flow__notice { padding: .8rem; border-radius: .5rem; background: color-mix(in srgb, #d8ff4b 20%, transparent); }
+.ad-flow__price { margin: 1.25rem 0 .75rem; font-size: 1.5rem; font-weight: 800; }
 @media (max-width: 650px) { .ad-flow__preview, .ad-flow__row { grid-template-columns: 1fr; } .ad-flow { width: calc(100% - 1.5rem); margin-top: 1.25rem; } }

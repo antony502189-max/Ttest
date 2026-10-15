@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { Home } from 'lucide-react'
 import { api } from '@/api/client'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
@@ -9,23 +8,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { MediaImage } from '@/components/media-image'
 import './owner-homepage-purchase.css'
 
-type Quote = { available: boolean; endsAt: string | null; reservedListingId: string | null; featuredListingId: string | null }
+type Quote = { amountCents: number; currency: string; months: number; available: boolean; endsAt: string | null; reservedListingId: string | null; featuredListingId: string | null }
 type Status = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null }
 
-export function OwnerHomepagePurchase() {
+export function OwnerHomepagePurchase({ listingId = '', onClose, onBack }: { listingId?: string; onClose: () => void; onBack: () => void }) {
   const { ownedListings, currentUser } = useApp()
   const { t, locale } = useI18n()
   const [params] = useSearchParams()
   const returnedId = params.get('homepage')
   const payment = params.get('payment')
   const listings = ownedListings.filter((item) => item.ownerUserId === currentUser?.id && item.status === 'Publicado' && !item.isExternal && item.images.length > 0)
-  const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState('')
+  const open = Boolean(listingId)
+  const selected = listingId
   const [quote, setQuote] = useState<Quote | null>(null)
   const [status, setStatus] = useState<Status | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => {
+    if (!listingId && !returnedId) return
+    setQuote(null); setStatus(null); setError('')
     let active = true
     let timer: ReturnType<typeof setTimeout>
     let attempts = 0
@@ -52,7 +53,7 @@ export function OwnerHomepagePurchase() {
     }
     void initialize()
     return () => { active = false; clearTimeout(timer) }
-  }, [returnedId, payment, open])
+  }, [returnedId, payment, listingId])
   const pay = async () => {
     setBusy(true); setError('')
     try {
@@ -73,21 +74,19 @@ export function OwnerHomepagePurchase() {
   }
   const review = status?.fulfillmentStatus === 'review_required'
   return <>
-    <section className="owner-top-cta owner-homepage-cta" aria-label={t('Tu anuncio en portada')}>
-      <div className="owner-top-cta__copy"><span className="owner-top-cta__eyebrow"><Home aria-hidden="true" /></span><div><strong>{t('Tu anuncio en portada')}</strong><p>{t('60 € · 1 mes · enlace directo a tu anuncio')}</p>{status?.endsAt ? <small>{t('En portada hasta')} {new Date(status.endsAt).toLocaleDateString(locale)}</small> : null}</div></div>
-      <Button className="owner-top-cta__button" disabled={!listings.length || busy || review || Boolean(status?.endsAt)} onClick={() => { setSelected(quote?.reservedListingId || ''); setError(''); setOpen(true) }}>{t('Destacar en portada')}</Button>
-    </section>
-    {error && !open ? <p role="alert">{t(error)}</p> : null}
+    {returnedId && status?.endsAt ? <p role="status">{t('En portada hasta')} {new Date(status.endsAt).toLocaleDateString(locale)}</p> : null}
+    {error && !open && returnedId ? <p role="alert">{t(error)}</p> : null}
     {review ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p> : null}
     {status?.orderStatus === 'pending' ? <p role="status">{t('Estamos confirmando el pago de portada.')}</p> : null}
     {status?.orderStatus === 'failed' ? <p role="status">{t('Pago fallido. Puedes volver a intentarlo.')}</p> : null}
     {status?.fulfillmentStatus === 'revoked' ? <p role="status">{t('Pago devuelto · servicio finalizado')}</p> : null}
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="owner-top-dialog"><DialogHeader><DialogTitle>{t('Tu anuncio en portada')}</DialogTitle><DialogDescription>{t('Selecciona tu anuncio. Su foto aparecerá en la portada durante un mes con un enlace al anuncio.')}</DialogDescription></DialogHeader>
-      <div className="owner-top-dialog__list" role="list">{listings.map((listing) => <button key={listing.id} type="button" aria-pressed={selected === listing.id} className={`owner-top-dialog__option ${selected === listing.id ? 'is-selected' : ''}`} onClick={() => setSelected(listing.id)}><MediaImage src={listing.images[0]} variant="thumb" alt="" /><span><strong>{listing.title}</strong><small>{listing.area} · {listing.price} €</small></span></button>)}</div>
-      <div className="owner-top-dialog__next"><strong>{t('60 € · 1 mes · enlace directo a tu anuncio')}</strong><span>{t('El mes empieza cuando se confirma el pago.')}</span>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}><DialogContent className="owner-top-dialog"><DialogHeader><DialogTitle>{t('Tu anuncio en portada')}</DialogTitle><DialogDescription>{t('Su foto aparecerá en la portada con un enlace al anuncio.')}</DialogDescription></DialogHeader>
+      <div className="owner-top-dialog__list" role="list">{listings.filter((listing) => listing.id === selected).map((listing) => <div key={listing.id} className="owner-top-dialog__option is-selected" data-listing-id={listing.id}><MediaImage src={listing.images[0]} variant="thumb" alt="" /><span><strong>{listing.title}</strong><small>{listing.area} · {listing.price} €</small></span></div>)}</div>
+      <div className="owner-top-dialog__next">{quote ? <strong className="owner-promotion-price">{new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)} · {t('1 mes')}</strong> : <span role="status">{t('Cargando…')}</span>}<span>{t('El mes empieza cuando se confirma el pago.')}</span>
         {quote && !quote.available && quote.reservedListingId !== selected ? <span role="status">{t('La portada está ocupada. Vuelve a intentarlo cuando quede libre.')}{quote.endsAt ? ` ${new Date(quote.endsAt).toLocaleDateString(locale)}` : ''}</span> : null}
         {error ? <span role="alert">{t(error)}</span> : null}
         <Button disabled={busy || !selected || !quote || review || (!quote.available && quote.reservedListingId !== selected)} onClick={() => void pay()}>{t('Pagar con Stripe')}</Button>
+        <Button variant="outline" disabled={busy} onClick={onBack}>{t('Volver')}</Button>
         {quote?.reservedListingId ? <Button variant="outline" disabled={busy} onClick={() => void cancel()}>{t('Cancelar pago')}</Button> : null}
       </div>
     </DialogContent></Dialog>

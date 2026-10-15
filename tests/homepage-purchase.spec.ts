@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 test('homepage purchase selects an owned listing and opens Stripe only after explicit payment', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.route('**/payments/homepage/quote', route => route.fulfill({ json: { available: true, endsAt: null, reservedListingId: null, featuredListingId: null, amountCents: 6000, months: 1 } }))
+  await page.route('**/payments/homepage/quote', route => route.fulfill({ json: { available: true, endsAt: null, reservedListingId: null, featuredListingId: null, amountCents: 6000, currency: 'EUR', months: 1 } }))
   let count = 0
   let target = ''
   await page.route('**/payments/listings/*/homepage/checkout', route => {
@@ -18,18 +18,23 @@ test('homepage purchase selects an owned listing and opens Stripe only after exp
     return route.fulfill({ status: 503, json: { detail: 'Stripe is not configured' } })
   })
   await page.goto('/#/mis-anuncios', { waitUntil: 'domcontentloaded' })
-  const entry = page.getByRole('region', { name: 'Tu anuncio en portada' })
-  await expect(entry.getByText('60 € · 1 mes · enlace directo a tu anuncio')).toBeVisible()
-  await entry.getByRole('button', { name: 'Destacar en portada' }).click()
+  await expect(page.locator('.owner-homepage-cta')).toHaveCount(0)
+  await expect(page.getByTestId('owner-top-cta')).toHaveCount(0)
+  const card = page.locator('.manage-card').filter({ has: page.getByTestId('owner-top-promote-button') }).first()
+  const listingId = await card.getAttribute('data-listing-id')
+  await card.getByTestId('owner-top-promote-button').click()
+  await expect(page.getByRole('dialog')).not.toContainText('60 €')
+  await page.getByRole('button', { name: /Destacar en portada/ }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('heading', { name: 'Tu anuncio en portada' })).toBeVisible()
+  await expect(dialog.locator('.owner-promotion-price')).toContainText('60,00')
+  await expect(dialog.locator(`[data-listing-id="${listingId}"]`)).toBeVisible()
   expect(count).toBe(0)
-  await expect(dialog.getByRole('button', { name: 'Pagar con Stripe' })).toBeDisabled()
-  await dialog.locator('.owner-top-dialog__option').last().click()
+  await expect(dialog.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(dialog.getByRole('alert')).toBeVisible()
   expect(count).toBe(1)
-  expect(target).toBeTruthy()
+  expect(decodeURIComponent(target)).toBe(listingId)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
@@ -41,6 +46,7 @@ test('banner monthly total is visible before payment', async ({ page }) => {
   })
   await page.goto(`/#/publicidad/${id}/checkout`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByLabel('Duración (mínimo 10 días)')).toHaveCount(0)
-  await expect(page.getByText(/30 € · 1 mes.*30,00/)).toBeVisible()
+  await expect(page.locator('.ad-flow__price')).toContainText('30,00')
+  await expect(page.locator('.ad-flow__price')).toContainText('30 días')
   await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()
 })

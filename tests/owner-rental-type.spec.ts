@@ -26,7 +26,7 @@ test('owner cards show the existing rental labels without adding them to public 
   expect(badgeBox!.y).toBeGreaterThan(priceBox!.y)
 
   const topCta = page.getByTestId('owner-top-cta')
-  await expect(topCta).toBeVisible()
+  await expect(topCta).toHaveCount(0)
   const firstCard = cards.first()
   await expect(firstCard.getByTestId('owner-top-status')).toHaveAttribute('data-top-active', 'false')
   await expect(firstCard.getByTestId('owner-top-status')).toContainText('No estás en TOP')
@@ -37,18 +37,14 @@ test('owner cards show the existing rental labels without adding them to public 
   const firstListingId = await firstCard.getAttribute('data-listing-id')
   expect(firstListingId).toBeTruthy()
 
-  const ctaBox = await topCta.boundingBox()
-  const firstCardBox = await cards.first().boundingBox()
-  expect(ctaBox).not.toBeNull()
-  expect(firstCardBox).not.toBeNull()
-  expect(ctaBox!.y).toBeLessThan(firstCardBox!.y)
-
   await promoteButton.click()
   await expect(page.locator(`[data-testid="owner-top-option"][data-listing-id="${firstListingId}"]`)).toHaveClass(/is-selected/)
+  await expect(page.getByTestId('owner-promotion-choices')).toBeVisible()
+  await page.getByRole('button', { name: /Sube tu anuncio a TOP/ }).click()
   await expect(page.getByTestId('owner-top-next-step')).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await topCta.getByRole('button').click()
+  await promoteButton.click()
   await expect(page.getByTestId('owner-top-option')).not.toHaveCount(0)
   await page.keyboard.press('Escape')
 

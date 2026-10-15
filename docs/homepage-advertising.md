@@ -1,10 +1,30 @@
 # Homepage advertising
 
-The homepage has seven advertising cards at the bottom, using the existing fonts,
-white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
+The homepage has a horizontally scrolling advertising carousel at the bottom.
+Published banners appear first in API order, followed by one “Tu anuncio podría
+estar aquí” slide in the selected language while fewer than seven banners exist.
+Thus 0/1/2/6/7 banners produce 1/2/3/7/7 slides. There is no vacancy slide when all
+seven banners are published. The mobile layout shows the edge of the next card
+and supports native touch scrolling with the active card centered. Slides advance smoothly
+every five seconds while visible, pausing during hover, focus or touch interaction.
+There is no pause button; reduced-motion preferences disable autoplay.
+Pricing is shown at the final checkout step, after creating and previewing an ad;
+the homepage and editor do not advertise a price.
+The carousel uses the existing fonts, white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
 campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
 Existing `test_homepage_30d` purchases retain their paid duration and price.
 The paid number of days is recorded on the order and campaign; approval uses that duration.
+
+In **Mis anuncios**, the TOP action on an individual listing opens a choice
+between homepage placement and TOP. The two page-level promotion cards are hidden.
+Both services keep that listing selected. TOP asks for duration before showing
+its total; homepage placement shows its price on the final confirmation dialog.
+Neither opening the choice nor moving between steps creates a payment session.
+TOP duration is selected with an end-date calendar and 10/14/21/30-day presets.
+The displayed start date is fixed because service starts after payment (or extends
+an existing TOP period). The supported duration remains 10–365 days; calendar
+arithmetic uses date-only UTC values so daylight-saving changes do not alter the
+number of paid days. Checkout still submits the duration, not a scheduled start.
 
 The existing homepage photo slot can also be purchased from **Mis anuncios** for
 **€60 for one calendar month**. It shows the selected published listing's photo

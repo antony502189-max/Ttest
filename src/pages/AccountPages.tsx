@@ -7,6 +7,7 @@ import {
   Clock3,
   Edit3,
   Frown,
+  Home,
   Rocket,
   Smile,
   Eye,
@@ -56,6 +57,7 @@ import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-stora
 import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
+import { PromotionPeriod, promotionDate, addPromotionDays, promotionDays } from "@/components/promotion-period";
 
 type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
@@ -520,9 +522,13 @@ export function MyListingsPage() {
   const { ownedListings, deleteListing, setListingStatus, renewListing, closeListing, currentUser, refreshOwnedListings } = useApp();
   const [status, setStatus] = useState("Todos");
   const [topDialogOpen, setTopDialogOpen] = useState(false);
+  const [promotionStep, setPromotionStep] = useState<"choose" | "duration" | "payment">("choose");
+  const [homepageCandidateId, setHomepageCandidateId] = useState("");
   const [topCandidateId, setTopCandidateId] = useState("");
-  const [topDays, setTopDays] = useState("10");
-  const validTopDays = /^\d+$/.test(topDays) && Number(topDays) >= 10 && Number(topDays) <= 365;
+  const [topStartDate, setTopStartDate] = useState(() => promotionDate());
+  const [topEndDate, setTopEndDate] = useState(() => addPromotionDays(promotionDate(), 10));
+  const topDays = promotionDays(topStartDate, topEndDate);
+  const validTopDays = Number.isInteger(topDays) && topDays >= 10 && topDays <= 365;
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -573,7 +579,11 @@ export function MyListingsPage() {
       : undefined;
     if (!promotable.length) return;
     setTopCandidateId(candidate?.id ?? "");
-    setTopDays("10");
+    const currentEnd = candidate?.promotionEndsAt ? new Date(candidate.promotionEndsAt) : null;
+    const startDate = promotionDate(currentEnd && currentEnd.getTime() > Date.now() ? currentEnd : new Date());
+    setTopStartDate(startDate);
+    setTopEndDate(addPromotionDays(startDate, 10));
+    setPromotionStep("choose");
     setTopPaymentError("");
     setTopDialogOpen(true);
   };
@@ -623,7 +633,7 @@ export function MyListingsPage() {
       ) : null}
       {returnedTopId ? <p role={topPaymentStatus?.fulfillmentStatus === "review_required" ? "alert" : "status"}>{t(topPaymentStatus?.fulfillmentStatus === "review_required" ? "El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar." : topPaymentStatus?.fulfillmentStatus === "revoked" ? "Pago devuelto · servicio finalizado" : topPaymentStatus?.fulfillmentStatus === "fulfilled" ? "Pago confirmado · tu anuncio está en TOP" : topPaymentStatus?.orderStatus === "failed" ? "Pago fallido. Puedes volver a intentarlo." : topPaymentStatus?.orderStatus === "expired" ? "Pago cancelado. Puedes volver a comprar TOP." : "Estamos confirmando el pago. El estado de TOP se actualizará en unos segundos.")}</p> : null}
       {topPaymentError && !topDialogOpen ? <p role="alert">{t(topPaymentError)}</p> : null}
-      <OwnerHomepagePurchase />
+      <OwnerHomepagePurchase listingId={homepageCandidateId} onClose={() => setHomepageCandidateId("")} onBack={() => { setHomepageCandidateId(""); setPromotionStep("choose"); setTopDialogOpen(true); }} />
       <div className="account-toolbar">
         <label htmlFor="my-listings-status">Estado</label>
         <select
@@ -661,23 +671,6 @@ export function MyListingsPage() {
               <strong>{mine.length}</strong> anuncios locales
             </span>
           </div>
-          {promotable.length ? (
-            <section className="owner-top-cta" data-testid="owner-top-cta" aria-label={t("Sube tu anuncio a TOP")}>
-              <div className="owner-top-cta__copy">
-                <span className="owner-top-cta__eyebrow">TOP</span>
-                <div>
-                  <strong>{t("Sube tu anuncio a TOP")}</strong>
-                  <p>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</p>
-                </div>
-              </div>
-              <div className="owner-top-cta__action">
-                <span className="owner-top-cta__pointer" aria-hidden="true"><Rocket /></span>
-                <Button type="button" className="owner-top-cta__button" onClick={() => openTopFlow()}>
-                  {t("Llevar a TOP")}
-                </Button>
-              </div>
-            </section>
-          ) : null}
           {items.map((listing) => (
             <article className="manage-card" key={listing.id} data-listing-id={listing.id}>
               <MediaImage
@@ -834,11 +827,11 @@ export function MyListingsPage() {
       <Dialog open={topDialogOpen} onOpenChange={setTopDialogOpen}>
         <DialogContent className="owner-top-dialog">
           <DialogHeader>
-            <DialogTitle>{t("Sube tu anuncio a TOP")}</DialogTitle>
-            <DialogDescription>{t("Selecciona tu anuncio. TOP cuesta 1 € al día, mínimo 10 días, y lo sitúa antes que los anuncios sin TOP.")}</DialogDescription>
+            <DialogTitle>{t(promotionStep === "choose" ? "Promocionar anuncio" : promotionStep === "duration" ? "Sube tu anuncio a TOP" : "Confirmar promoción")}</DialogTitle>
+            <DialogDescription>{t(promotionStep === "choose" ? "Elige cómo quieres promocionar este anuncio." : "TOP sitúa tu anuncio antes que los anuncios sin TOP.")}</DialogDescription>
           </DialogHeader>
           <div className="owner-top-dialog__list" role="list">
-            {promotable.map((listing) => (
+            {promotable.filter((listing) => listing.id === topCandidateId).map((listing) => (
               <button
                 key={listing.id}
                 type="button"
@@ -857,15 +850,28 @@ export function MyListingsPage() {
               </button>
             ))}
           </div>
-          <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
-            <strong>{t("Siguiente: duración y pago")}</strong>
-            <label className="field-label">{t("Duración (mínimo 10 días)")}<input type="number" min={10} max={365} step={1} value={topDays} aria-invalid={!validTopDays} disabled={topPaymentBusy} onChange={(event) => setTopDays(event.target.value)} /></label>
-            <span>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${topDays} ${t('días')} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</span>
-            <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
-            {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
-            <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
-            <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
-          </div>
+          {promotionStep === "choose" ? <div className="owner-top-dialog__list" data-testid="owner-promotion-choices">
+            <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
+              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Destacar en portada")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
+            </button>
+            <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => setPromotionStep("duration")}>
+              <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
+            </button>
+          </div> : <div className={`owner-top-dialog__next ${promotionStep === "duration" ? "owner-top-dialog__next--period" : ""}`} data-testid="owner-top-next-step">
+            {promotionStep === "duration" ? <>
+              <PromotionPeriod start={topStartDate} end={topEndDate} onChange={setTopEndDate} />
+              <Button type="button" disabled={!validTopDays} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
+              <Button type="button" variant="outline" onClick={() => setPromotionStep("choose")}>{t("Volver")}</Button>
+            </> : <>
+              <strong>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${t(`${topDays} días`)} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</strong>
+              <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
+              {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
+              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+              <Button type="button" variant="outline" disabled={topPaymentBusy} onClick={() => setPromotionStep("duration")}>{t("Volver")}</Button>
+              <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
+            </>}
+          </div>}
+
         </DialogContent>
       </Dialog>
     </div>

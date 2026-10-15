@@ -79,7 +79,7 @@ export function AdvertisementEditorPage() {
       <label>{t('Descripción')}<textarea value={form.description} maxLength={300} minLength={10} required rows={4} aria-invalid={Boolean(fieldErrors.description)} aria-describedby={fieldErrors.description ? 'ad-description-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, description: event.target.value }))} />{fieldErrors.description ? <small id="ad-description-error">{t(fieldErrors.description)}</small> : null}</label>
       <label>{t('Tipo de contacto')}<select value={form.destinationType} onChange={(event) => setForm((previous) => ({ ...previous, destinationType: event.target.value as DestinationType, destination: '' }))}><option value="website">{t('Sitio web')}</option><option value="whatsapp">WhatsApp</option><option value="phone">{t('Teléfono')}</option><option value="email">Email</option></select></label>
       <label>{t(form.destinationType === 'website' ? 'Enlace web' : form.destinationType === 'email' ? 'Correo electrónico' : 'Número de teléfono')}<input value={form.destination} type={form.destinationType === 'email' ? 'email' : form.destinationType === 'website' ? 'url' : 'tel'} required placeholder={form.destinationType === 'website' ? 'https://ejemplo.es' : undefined} aria-invalid={Boolean(fieldErrors.destination)} aria-describedby={fieldErrors.destination ? 'ad-destination-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, destination: event.target.value }))} />{fieldErrors.destination ? <small id="ad-destination-error">{t(fieldErrors.destination)}</small> : null}</label>
-      <p className="ad-flow__notice">{t('Publicidad · 30 € por un mes. El plazo empieza cuando se aprueba tu campaña.')}</p><button type="submit" disabled={busy || !form.imageAssetId}>{t('Vista previa')}</button>
+      <p className="ad-flow__notice">{t('El plazo empieza cuando se aprueba tu campaña.')}</p><button type="submit" disabled={busy || !form.imageAssetId}>{t('Vista previa')}</button>
     </form>}
   </div>
 }
@@ -167,7 +167,7 @@ export function AdvertisementCheckoutPage() {
     {error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}
     {ad ? <section className="ad-flow__panel">
       <div className="ad-flow__preview"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><small>{t('Publicidad')}</small><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p></div></div>
-      {ad.status === 'pending_payment' ? <p>{t('30 € · 1 mes')}{quote ? ` · ${new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)}` : ''}</p> : null}
+      {ad.status === 'pending_payment' && quote ? <p className="ad-flow__price">{new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)} · {t(`${quote.days} días`)}</p> : null}
       <p>{t('El plazo empieza cuando se aprueba tu campaña.')}</p>
       {cancelled ? <p role="status">{t('Pago cancelado. El espacio reservado se ha liberado.')}</p> : null}
       {failed ? <p role="status">{t('Pago fallido. Puedes volver a intentarlo.')}</p> : null}

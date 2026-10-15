@@ -21,27 +21,51 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
 })
 
-test('seven cards preserve sponsored links and cap even an oversized response', async ({ page }) => {
+test('carousel preserves sponsored links, loops and caps an oversized response at seven', async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: ads }))
   await page.route('**/api/v1/advertisements/availability', (route) => route.fulfill({ json: availability(0) }))
   await page.goto('/#/')
   const block = page.locator('.commercial-ad')
   await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
   await expect(block.getByRole('heading', { name: 'Service 8' })).toHaveCount(0)
+  await expect(block.locator('[data-testid="advertising-slot"][aria-hidden="false"]')).toHaveCount(1)
+  await expect(block.getByRole('heading', { name: 'Service 1', exact: true })).toBeVisible()
+  await block.getByRole('button', { name: 'Publicidad anterior' }).click()
   await expect(block.getByRole('heading', { name: 'Service 7' })).toBeVisible()
+  await block.getByRole('button', { name: 'Publicidad siguiente' }).click()
+  await expect(block.getByRole('heading', { name: 'Service 1', exact: true })).toBeVisible()
+  await block.getByRole('button', { name: 'Publicidad 4', exact: true }).click()
+  await expect(block.getByRole('heading', { name: 'Service 4' })).toBeVisible()
+  await expect(block.getByRole('button', { name: 'Publicidad 4', exact: true })).toHaveAttribute('aria-current', 'true')
   await expect(block.getByRole('link', { name: 'Más información' }).first()).toHaveAttribute('rel', 'noopener noreferrer sponsored')
-  await expect(block.getByText('30 € · 1 mes')).toBeVisible()
+  await expect(block.getByText('30 € · 1 mes')).toHaveCount(0)
   await block.locator('img').evaluateAll((images) => images.forEach((img) => { (img as HTMLImageElement).loading = 'eager' }))
   await expect.poll(() => block.locator('img').evaluateAll((images) => images.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await block.screenshot({ path: 'output/advertising/seven-desktop.png', style: '.site-header, .skip-link { visibility: hidden !important; }' })
 })
 
-test('mobile seven slots scroll above the fixed navigation without overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+test('mobile carousel supports swiping and fits above fixed navigation at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 })
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: ads.slice(0, 7) }))
   await page.goto('/#/')
   const block = page.locator('.commercial-ad--mobile')
   await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
+  const track = block.locator('.commercial-ad__slides')
+  await track.scrollIntoViewIfNeeded()
+  const bounds = await track.boundingBox()
+  expect(bounds).not.toBeNull()
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true })
+  const x = bounds!.x + bounds!.width * .8
+  const y = bounds!.y + 80
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+  for (let step = 1; step <= 6; step++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - step * bounds!.width * .1, y }] })
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect(block.locator('.commercial-ad__carousel-position')).toHaveText('2 / 7')
+  await expect(block.getByRole('heading', { name: 'Service 2' })).toBeVisible()
+  await expect(block.locator('[data-testid="advertising-slot"][aria-hidden="false"]')).toHaveCount(1)
   await block.getByRole('link', { name: 'Publicar publicidad' }).scrollIntoViewIfNeeded()
   await expect(block.getByRole('link', { name: 'Publicar publicidad' })).toBeInViewport()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -49,6 +73,82 @@ test('mobile seven slots scroll above the fixed navigation without overflow', as
   await expect.poll(() => block.locator('img').evaluateAll((images) => images.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await block.screenshot({ path: 'output/advertising/seven-mobile.png', style: '.m2-bottom-nav, .skip-link { visibility: hidden !important; }' })
 })
+
+test('empty inventory shows one Russian placeholder without carousel controls', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:language:v1', 'ru'))
+  await page.goto('/#/')
+  const block = page.locator('.commercial-ad')
+  await expect(block.getByTestId('advertising-slot')).toHaveCount(1)
+  await expect(block.getByRole('heading', { name: 'Здесь могла быть ваша реклама' })).toBeVisible()
+  await expect(block.locator('.commercial-ad__carousel')).toHaveCount(0)
+})
+
+for (const width of [320, 390, 1280]) {
+  test(`first banner and final placeholder are centered at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: ads.slice(0, 1) }))
+    await page.goto('/#/')
+    const block = page.locator('.commercial-ad')
+    await block.scrollIntoViewIfNeeded()
+    for (let index = 0; index < 2; index++) {
+      await block.getByRole('button', { name: `Publicidad ${index + 1}`, exact: true }).click()
+      await expect.poll(() => block.locator('.commercial-ad__slides').evaluate((element, position) => {
+        const track = element.getBoundingClientRect()
+        const card = element.children[position].getBoundingClientRect()
+        return Math.abs((card.left + card.right) / 2 - (track.left + track.right) / 2)
+      }, index)).toBeLessThanOrEqual(1)
+    }
+    await expect(block.getByRole('button', { name: /Pausar|Reanudar/ })).toHaveCount(0)
+  })
+}
+
+test('visible carousel advances automatically and wraps without a pause button', async ({ page }) => {
+  await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: ads.slice(0, 1) }))
+  await page.goto('/#/')
+  const block = page.locator('.commercial-ad')
+  await block.scrollIntoViewIfNeeded()
+  await page.mouse.move(0, 0)
+  const position = block.locator('.commercial-ad__carousel-position')
+  await expect(position).toHaveText('1 / 2')
+  await expect(position).toHaveText('2 / 2', { timeout: 8000 })
+  await expect(position).toHaveText('1 / 2', { timeout: 8000 })
+  await expect(block.getByRole('button', { name: 'Pausar publicidad' })).toHaveCount(0)
+})
+
+test('reduced motion leaves manual navigation available without autoplay', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: ads.slice(0, 1) }))
+  await page.goto('/#/')
+  const block = page.locator('.commercial-ad')
+  await block.scrollIntoViewIfNeeded()
+  await page.mouse.move(0, 0)
+  await page.waitForTimeout(5500)
+  await expect(block.locator('.commercial-ad__carousel-position')).toHaveText('1 / 2')
+  await expect(block.getByRole('button', { name: 'Pausar publicidad' })).toHaveCount(0)
+  await block.getByRole('button', { name: 'Publicidad siguiente' }).click()
+  await expect(block.locator('.commercial-ad__carousel-position')).toHaveText('2 / 2')
+})
+
+for (const count of [1, 2, 3, 6, 7]) {
+  test(`${count} banners have exactly one vacancy slide until all seven places are filled`, async ({ page }) => {
+    await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: ads.slice(0, count) }))
+    await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: availability(7 - count) }))
+    await page.goto('/#/')
+    const block = page.locator('.commercial-ad')
+    const total = Math.min(count + 1, 7)
+    await expect(block.getByTestId('advertising-slot')).toHaveCount(total)
+    await expect(block.locator('.commercial-ad__slot--empty')).toHaveCount(count < 7 ? 1 : 0)
+    for (let index = 0; index < total; index++) {
+      const visible = block.locator('[data-testid="advertising-slot"][aria-hidden="false"]')
+      await expect(visible).toHaveCount(1)
+      await expect(visible.getByRole('heading')).toHaveText(index < count ? `Service ${index + 1}` : 'Tu anuncio podría estar aquí')
+      await expect(block.locator('.commercial-ad__carousel-position')).toHaveText(`${index + 1} / ${total}`)
+      await block.getByRole('button', { name: 'Publicidad siguiente' }).click()
+    }
+    await expect(block.getByRole('heading', { name: 'Service 1', exact: true })).toBeVisible()
+    await expect(block.getByRole('heading', { name: 'Tu anuncio podría estar aquí' })).toHaveCount(0)
+  })
+}
 
 test('full inventory prevents upload and offers a cancellable persisted alert', async ({ page }) => {
   await page.route('**/api/v1/advertisements/availability', (route) => route.fulfill({ json: availability(0) }))
@@ -94,7 +194,8 @@ test('checkout starts only after an explicit payment click and handles the last 
     return route.fulfill({ status: 409, json: { detail: 'No advertising slots available' } })
   })
   await page.goto(`/#/publicidad/${adId}/checkout`)
-  await expect(page.getByText('30 € · 1 mes', { exact: false })).toBeVisible()
+  await expect(page.locator('.ad-flow__price')).toContainText('30,00')
+  await expect(page.locator('.ad-flow__price')).toContainText('30 días')
   expect(checkouts).toBe(0)
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(page.getByText('No hay espacios publicitarios disponibles en este momento.')).toBeVisible()
