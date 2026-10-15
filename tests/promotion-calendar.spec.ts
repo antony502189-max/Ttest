@@ -66,3 +66,29 @@ test('calendar supports leap day, enforces 10–365 days and preserves selection
   await expect(dialog.getByLabel('До', { exact: true })).toHaveValue('2029-02-19')
   await expect(dialog).not.toContainText('365,00')
 })
+
+for (const timezoneId of ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati']) {
+  test.describe(`calendar integration in ${timezoneId}`, () => {
+    test.use({ timezoneId })
+    test('presets cross the year boundary and an empty date cannot start Checkout', async ({ page }) => {
+      const dialog = await openCalendar(page, '2026-12-27T23:30:00Z')
+      const start = await dialog.getByLabel('От', { exact: true }).inputValue()
+      expect(start).toBe(timezoneId === 'Pacific/Kiritimati' ? '2026-12-28' : '2026-12-27')
+      const until = dialog.getByLabel('До', { exact: true })
+      for (const days of [10, 14, 21, 30]) {
+        await dialog.getByRole('button', { name: `${days} дн.`, exact: true }).click()
+        const expected = new Date(Date.parse(`${start}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
+        await expect(until).toHaveValue(expected)
+        await expect(dialog.locator('.promotion-period__summary strong')).toHaveText(`${days} дн.`)
+      }
+      let purchases = 0
+      await page.route('**/payments/listings/*/top/checkout', route => {
+        purchases++
+        return route.fulfill({ status: 503, json: { detail: 'Synthetic checkout' } })
+      })
+      await until.fill('')
+      await expect(dialog.getByRole('button', { name: 'Продолжить', exact: true })).toBeDisabled()
+      expect(purchases).toBe(0)
+    })
+  })
+}

@@ -26,7 +26,9 @@ def require_global_address(value: str, message: str) -> None:
         address = ip_address(value)
     except ValueError as exc:
         raise httpx.ConnectError(message) from exc
-    if not address.is_global:
+    # is_global also includes multicast ranges; they are not public unicast
+    # HTTP destinations and must be rejected by every HTTP/browser guard.
+    if not address.is_global or address.is_multicast:
         raise httpx.ConnectError(message)
 
 
@@ -142,7 +144,8 @@ class PublicNetworkBackend(httpcore.AsyncNetworkBackend):
     async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
         try:
             async with asyncio.timeout(timeout):
-                addresses = {host} if _is_ip_literal(host) else await resolve_host(host, port)
+                async with asyncio.timeout(PUBLIC_DNS_TIMEOUT_SECONDS):
+                    addresses = {host} if _is_ip_literal(host) else await resolve_host(host, port)
                 if not addresses:
                     raise httpcore.ConnectError("Outbound host has no addresses")
                 for address in addresses:

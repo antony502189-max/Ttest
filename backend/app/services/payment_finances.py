@@ -193,7 +193,8 @@ async def financial_webhook(event, session):
     event_id = stripe_id(event.get("id"), "evt_")
     if await session.get(PaymentEvent, event_id):
         return {"received":True}
-    obj = event.get("data",{}).get("object")
+    data = event.get("data")
+    obj = data.get("object") if isinstance(data, dict) else None
     if not isinstance(obj, dict):
         raise HTTPException(400, "Invalid Stripe financial event")
     charge_id = obj.get("id") if event["type"] == "charge.refunded" else obj.get("charge")
