@@ -22,7 +22,7 @@ artifacts where applicable; no production env file or credentials are included.
 | pip-audit 2.10.1 | Before: 17 advisories/two packages; after: zero |
 | npm audit | Before: one high build dependency; after: zero |
 | Bandit 1.9.4 baseline | Six low alerts / 20,532 source lines; no medium/high. Sentinel false positive and native subprocess boundary reviewed |
-| Gitleaks 8.30.1 | 2,816 commits / ~16.97 MB scanned; 43 fully redacted generic matches; individual credential triage outstanding |
+| Gitleaks 8.30.1 | All fetched branches: 3,801 commits / 31.67 MB; 51 generic matches in reviewed synthetic/public contexts. Current tracked source: 33 overlapping matches; no live service credential established |
 | Production readiness and release identity | Healthy API; main/current/frontend SHA match; importer remains unhealthy |
 | Latest production archive HMAC checks | Postgres PASS, MinIO PASS; no restore performed |
 
@@ -34,7 +34,8 @@ test dependencies resolved collection. An early frontend command's unrelated
 Ruff invocation used the wrong directory; backend Ruff was rerun correctly.
 These were environment/invocation failures, not suppressed test failures.
 
-Three existing unit skips are opt-in public route/source research and live
+Sanitized historical match context and fingerprints are in SECRET-SCAN-TRIAGE.csv.
+Raw reports are fully redacted and remain local. Three existing unit skips are opt-in public route/source research and live
 source-discovery smoke checks; they were not enabled against third-party sites.
 Browser scenarios verify
 the app/browser flows with synthetic API/provider behavior; they are not live

@@ -11,9 +11,9 @@ internal heuristic, not a score representing likelihood of compromise.
 ## Findings and delivered changes
 
 16 registered items: P0=0, P1=4, P2=11, P3=1. Thirteen are confirmed,
-two require investigation, one is a scanner false positive. Six confirmed
+one requires investigation, two are scanner false-positive groups. Six confirmed
 findings have source/config fixes and are awaiting merge; zero are deployed.
-Counts exclude raw 17 dependency advisories and 43 secret candidates from the
+Counts exclude raw 17 dependency advisories and 51 historical generic-secret matches from the
 confirmed-vulnerability total. See FINDINGS-REGISTER.md for preconditions,
 evidence, CWE/ASVS references, regression/deployment risks and exact statuses.
 
@@ -71,7 +71,7 @@ has been granted. CI success is not evidence of production deployment.
 Recommended next actions: review/merge only with explicit owner approval and
 green final-head CI; rehearse least-privilege DB and browser isolation; establish
 console/admin recovery and offhost restore; investigate unhealthy importer and
-secret candidates; stage CSP/MFA and password-blocklist adoption separately.
+any newly discovered secrets; stage CSP/MFA and password-blocklist adoption separately.
 Then submit the immutable release/backup/rollback plan for separate deployment
 approval. Detailed operational steps are in
 REMEDIATION-AND-PRODUCTION-CHANGE-PLAN.md; incident response is in
@@ -91,6 +91,6 @@ consolidated to keep evidence and decisions together.
 Residual limitations include no full per-endpoint role-negative matrix, no
 complete requirement-level ASVS sign-off, unverified Chromium network behavior,
 actual restore/host-loss recovery, provider consoles/edge controls, current
-image OS CVEs, secret-history triage and comprehensive telemetry redaction.
+image OS CVEs, secrets outside fetched branch history and comprehensive telemetry redaction.
 No claim of complete security, payment certification or absence of compromise
 is made.

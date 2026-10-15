@@ -18,7 +18,11 @@ rotation, production restore and deployment need separate explicit approval.
 ## Proposed application rollout
 
 Affected services: backend, mail/reconciliation worker, external importer,
-frontend and Compose log configuration. No database DDL, migration file edit,
+frontend, PostgreSQL, Redis, MinIO and init/operations containers. Logging
+changes Compose configuration hashes; the existing deploy script can recreate
+those data-service containers with the same images and persistent volumes.
+This needs explicit approval of a stateful-service maintenance window.
+No database DDL, migration file edit,
 stateful image change, listing cleanup, gallery repair or financial-history
 rewrite is proposed. Migration freeze was extended only after read-only
 production-byte verification through 0063. Both static guard and frozen hashes
@@ -42,8 +46,10 @@ That is documentation, not a command run by this audit. Do not bypass flock,
 authenticated MinIO freshness, immutable worktree, image or readiness gates.
 The script quiesces application writers and rebuilds/recreates application
 services; expect an availability window. Exact downtime is unmeasured and must
-not be advertised as zero. Template log changes require recreation; do not
-separately recreate stateful services just to change logging during this patch.
+not be advertised as zero. Template log changes require container recreation,
+including data services. Rehearse their restart/recovery and explicitly include
+them in approval; this is not a stateful image upgrade. Rollback may recreate
+them again under the previous logging configuration.
 
 Postchecks: public build SHA matches approved commit; authenticated synthetic
 ownership flows; readiness; mail health; provider/source connectivity using

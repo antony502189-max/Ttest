@@ -22,11 +22,11 @@ source/config changes; runtime remediation is not claimed until deployment.
 | SEC-013 | P1 | Chromium DNS/egress boundary may permit rebinding | Medium | NEEDS INVESTIGATION |
 | SEC-014 | P2 | Administrator authentication lacks MFA/step-up | High | CONFIRMED |
 | SEC-015 | P3 | Bandit treats a sentinel value as a hardcoded password | High | FALSE POSITIVE |
-| SEC-016 | P2 | Historical generic-secret scanner matches require individual triage | Low as real credentials | NEEDS INVESTIGATION |
+| SEC-016 | P2 | Generic-secret matches are synthetic fixtures/public hash metadata | High for reviewed contexts | FALSE POSITIVE |
 
-Counts: 16 registered items; 13 confirmed (including six patched), two needing
-investigation, one false positive. P0=0, P1=4, P2=11, P3=1 (the false positive).
-Excluding false positives: 15 risk/investigation items. Six source fixes await
+Counts: 16 registered items; 13 confirmed (including six patched), one needing
+investigation, two false-positive groups. P0=0, P1=4, P2=11, P3=1. The P2 count
+includes SEC-016; P3 is SEC-015. Excluding false positives: 14 risk/investigation items. Six source fixes await
 merge; zero deployed fixes. Raw advisory/secret-match counts are separate.
 
 ## SEC-001 — Database privilege
@@ -218,21 +218,28 @@ Not implemented; requires product and recovery approval before rollout.
 
 ## SEC-015 — Scanner false positive
 
-Bandit B105 at `backend/app/services/mail.py:160` flags a sentinel string `None`,
+Bandit B105 at `backend/app/services/mail.py:160` flags the sentinel `None`,
 not a hardcoded credential. The value is Python None, not a credential string.
 Source inspection is the evidence. CWE-798 is not
 applicable. No remediation or deployment; do not suppress the rule globally.
 Other subprocess alerts are reviewed in SEC-002, not dismissed as proof of
 safety merely because arguments are lists.
 
-## SEC-016 — Historical secret candidates
+## SEC-016 — Synthetic secret scanner matches
 
-Gitleaks 8.30.1 scanned 2,816 commits reachable from fetched main: 43 generic-key
-matches in tests, mock fixtures, old CI, migration hash manifests and config
-checks. Report was generated with 100% redaction; no matched secret value is
-published. Current worktree and additional remote refs need separate coverage.
-CWE-798/CWE-200; ASVS V13/V14. Candidate presence is confirmed; actual live
-credential leakage is **not** confirmed. Each historical context needs triage;
-do not call every match a leak or assume test-path placement proves safety.
-If any value is real, classify it compromised and have the owner invalidate it.
-Do not rewrite public history or rotate production secrets automatically.
+Gitleaks 8.30.1 first scanned 2,816 main-history commits (43 matches), then all
+fetched branch histories: 3,801 commits / 31.67 MB / 51 generic-key matches.
+The committed current source archive had 33 matches overlapping those contexts.
+Source-context triage identifies 36 synthetic test cases, four public migration
+SHA-256 entries, four synthetic Compose validation settings, three browser mock
+fixtures and four temporary CI mock fixtures. Sanitized fingerprints/locations
+are in SECRET-SCAN-TRIAGE.csv; no matched values are published.
+
+These results do not establish leaked live service credentials; the scanner
+matches are false positives for production-credential disclosure. This does not
+prove that a human has never reused a published fixture or that deleted refs,
+unfetched tags, untracked artifacts or provider secrets are safe. Any evidence
+that a published fixture is reused operationally changes its classification to
+compromised and requires owner-controlled invalidation. Do not rewrite history
+or rotate production secrets automatically. CWE-798/CWE-200 are not confirmed;
+ASVS V13/V14 secret-management review remains broader than this scan.
