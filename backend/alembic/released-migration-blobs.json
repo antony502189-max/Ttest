@@ -1,5 +1,5 @@
 {
-  "frozen_through_revision": "0056_external_scope_checkpoint",
+  "frozen_through_revision": "0063_financial_inbox_receipts",
   "files": {
     "0033_admin_moderation.py": "ec6d4cd0ecf9696cf61e40014105b3d7879625b9",
     "0034_room_first_listing_details.py": "aa681133058ef5ccea0efe55d7bca594523c47c2",
@@ -24,6 +24,13 @@
     "0053_permanent_internal_listings.py": "83ea01dbe72f5d1ce82e4d0e26d38ac63d019916",
     "0054_recover_reexpired_internal_listings.py": "efc2cb33e728dbd2293883c5a18af286d8171fca",
     "0055_external_removal_cursor.py": "cc0cc0cb4f8a4703b6936fe38a613a197227e619",
-    "0056_external_scope_checkpoint.py": "f395e6c05602eb27d117233acd9ca33ea4d61897"
+    "0056_external_scope_checkpoint.py": "f395e6c05602eb27d117233acd9ca33ea4d61897",
+    "0057_payment_orders.py": "9b2e28b1288b1b359d09a16a6f58e32fc8de44ce",
+    "0058_advertising_waitlist.py": "094032c36a1abb10b11a842c275c33aaa01beb5c",
+    "0059_payment_fulfillment.py": "f2387e702b251cbe6360122645000dd22a2a20f4",
+    "0060_homepage_purchases.py": "21c115f6277945c7d303ab6722b173abac1af351",
+    "0061_monthly_top.py": "425d10908898a40221a4232bb9449e0c85569f93",
+    "0062_payment_audit.py": "b817451de868edc80e7d5ddd2ea57cf18ca74790",
+    "0063_financial_inbox_receipts.py": "32adbf7ee049d720004842c9dd436c775e263956"
   }
 }

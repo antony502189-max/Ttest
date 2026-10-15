@@ -27,6 +27,7 @@ from ...services.payment_sessions import finish_creation, reconcile_order
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
+    require_checkout_enabled,
     retrieve_stripe_session,
     verified_stripe_event,
 )
@@ -76,8 +77,7 @@ async def checkout(
     name: str, return_path: str, fingerprint: str | None = None,
     months: int | None = None,
 ) -> CheckoutResponse:
-    if not get_settings().stripe_secret_key or not get_settings().stripe_webhook_secret:
-        raise HTTPException(503, "Stripe is not configured")
+    require_checkout_enabled(get_settings())
     previous = await session.scalar(
         select(PaymentOrder).where(
             PaymentOrder.owner_user_id == user.id,

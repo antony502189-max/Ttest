@@ -44,6 +44,7 @@ x-backend-env: &backend-env
   STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
   STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
   STRIPE_LIVE_PAYMENTS_ENABLED: ${STRIPE_LIVE_PAYMENTS_ENABLED:-false}
+  STRIPE_TEST_PAYMENTS_ENABLED: ${STRIPE_TEST_PAYMENTS_ENABLED:-false}
   ADVERTISEMENT_30D_PRICE_CENTS: ${ADVERTISEMENT_30D_PRICE_CENTS:-3000}
   WEB_PUSH_PUBLIC_KEY: ${WEB_PUSH_PUBLIC_KEY:-}
   WEB_PUSH_PRIVATE_KEY: ${WEB_PUSH_PRIVATE_KEY:-}
@@ -90,7 +91,14 @@ x-backend-env: &backend-env
   EXTERNAL_REMOVAL_CHECK_INTERVAL_SECONDS: ${EXTERNAL_REMOVAL_CHECK_INTERVAL_SECONDS:-21600}
   EXTERNAL_WORKER_STALE_AFTER_SECONDS: ${EXTERNAL_WORKER_STALE_AFTER_SECONDS:-300}
 
+x-service-logging: &service-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 x-python-hardening: &python-hardening
+  logging: *service-logging
   init: true
   cap_drop: [ALL]
   security_opt:
@@ -99,6 +107,7 @@ x-python-hardening: &python-hardening
 
 services:
   postgres:
+    logging: *service-logging
     image: postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
     restart: unless-stopped
     environment:
@@ -114,6 +123,7 @@ services:
     networks: [data]
 
   redis:
+    logging: *service-logging
     image: redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
@@ -126,6 +136,7 @@ services:
     networks: [data]
 
   minio:
+    logging: *service-logging
     image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     restart: unless-stopped
     command: server /data
@@ -141,6 +152,7 @@ services:
     networks: [data]
 
   minio-init:
+    logging: *service-logging
     build:
       context: .
       dockerfile: deploy/Dockerfile.minio-tools
@@ -169,6 +181,7 @@ services:
     networks: [data]
 
   migrate:
+    logging: *service-logging
     build: { context: ./backend }
     restart: "no"
     command: ["alembic", "upgrade", "head"]
@@ -245,6 +258,7 @@ services:
     networks: [data, egress]
 
   frontend:
+    logging: *service-logging
     build:
       context: .
       args:

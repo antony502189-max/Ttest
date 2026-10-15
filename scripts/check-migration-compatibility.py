@@ -297,6 +297,15 @@ def new_ancestor_tables(migrations: dict[str, Migration], revision: str, release
     return tables
 
 
+def inspect_unreleased_migrations(migrations: dict[str, Migration], released: set[str]) -> list[str]:
+    violations: list[str] = []
+    for revision, migration in sorted(migrations.items()):
+        if revision not in released:
+            tables = new_ancestor_tables(migrations, revision, released)
+            violations.extend(inspect_future_migration(migration, tables))
+    return violations
+
+
 def main() -> None:
     manifest = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     baseline = manifest.get("baseline_revision")
@@ -306,11 +315,10 @@ def main() -> None:
     historical = historical_revisions(migrations, baseline)
     verify_historical_hashes(migrations, historical, manifest)
     released = verify_released_history(migrations, historical)
-    violations: list[str] = []
-    for revision, migration in sorted(migrations.items()):
-        if revision not in historical:
-            tables = new_ancestor_tables(migrations, revision, released)
-            violations.extend(inspect_future_migration(migration, tables))
+    # Both historical sets were hash-verified above. Reapplying future-DDL
+    # policy to those immutable, already-deployed bytes prevents promotion of
+    # the release manifest after a new table's constraints have been deployed.
+    violations = inspect_unreleased_migrations(migrations, released)
     if violations:
         raise SystemExit("\n".join(violations))
     print(f"deployed migration history is immutable; future upgrades after {baseline} are expand-compatible")

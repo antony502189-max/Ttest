@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_live_payments_enabled: bool = False
+    # Test payments issue real marketplace entitlements. Public production
+    # Checkout therefore requires explicit acceptance even with test keys.
+    stripe_test_payments_enabled: bool = False
     advertisement_30d_price_cents: int = 3000
     web_push_public_key: str = ""
     web_push_private_key: str = ""
