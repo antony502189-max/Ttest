@@ -15,6 +15,12 @@ campaign costs **€1 per day**, with a selectable duration of **10–365 days**
 Existing `test_homepage_30d` purchases retain their paid duration and price.
 The paid number of days is recorded on the order and campaign; approval uses that duration.
 
+In **Mis anuncios**, the TOP action on an individual listing opens a choice
+between homepage placement and TOP. The two page-level promotion cards are hidden.
+Both services keep that listing selected. TOP asks for duration before showing
+its total; homepage placement shows its price on the final confirmation dialog.
+Neither opening the choice nor moving between steps creates a payment session.
+
 The existing homepage photo slot can also be purchased from **Mis anuncios** for
 **€60 for one calendar month**. It shows the selected published listing's photo
 and a direct link, in the existing homepage layout. Checkout reserves the single

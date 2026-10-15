@@ -1,4 +1,9 @@
 .owner-homepage-cta { margin-bottom: 1rem; }
+.owner-promotion-choice__icon { width: 4.6rem; height: 3.7rem; align-items: center; justify-content: center; border-radius: var(--radius-sm); background: #f0f9c9; color: #496000; }
+.owner-promotion-choice__icon svg { width: 1.75rem; height: 1.75rem; }
+.owner-promotion-choice strong { white-space: normal; }
+.owner-promotion-choice:focus-visible { outline: 3px solid #96ad18; outline-offset: 2px; }
+.owner-promotion-choice:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 767px) {
   .owner-listings-page .owner-homepage-cta { flex-wrap: wrap; }
   .owner-homepage-cta .owner-top-cta__copy { flex: 1 1 100%; }
