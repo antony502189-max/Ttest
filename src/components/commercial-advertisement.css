@@ -21,9 +21,9 @@
 .commercial-ad--slots { border-color: var(--market-border, #e5e7eb); border-radius: 1rem; color: var(--foreground, #263321); }
 .commercial-ad__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .commercial-ad__header .commercial-ad__eyebrow { margin-bottom: 0; }
-.commercial-ad__header > span { font-weight: 700; white-space: nowrap; }
-.commercial-ad__slides { min-width: 0; }
-.commercial-ad__slides > [hidden] { display: none; }
+.commercial-ad__slides { position: relative; min-width: 0; display: flex; gap: 1rem; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.commercial-ad__slides::-webkit-scrollbar { display: none; }
+.commercial-ad__slides > .commercial-ad__slot { flex: 0 0 100%; scroll-snap-align: center; box-sizing: border-box; }
 .commercial-ad__slot { min-width: 0; display: grid; grid-template-columns: 32% minmax(0, 1fr); gap: 1rem; align-items: center; padding: 1rem; border: 1px solid var(--market-border, #e5e7eb); border-radius: .65rem; background: #fff; }
 .commercial-ad__slot .commercial-ad__visual { min-height: 100px; aspect-ratio: 1; background: #f7f7f5; }
 .commercial-ad__slot .commercial-ad__copy h2 { font-size: 1.1rem; }
@@ -94,9 +94,18 @@
 
 @media (max-width: 700px) {
   .commercial-ad__carousel {
-    grid-template-columns: 2.75rem auto minmax(0, 1fr) 2.75rem;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: .45rem;
   }
+  .commercial-ad__carousel-arrow:first-child, .commercial-ad__carousel-arrow:last-child { display: none; }
+  .commercial-ad__slides > .commercial-ad__slot { flex-basis: 86%; grid-template-columns: 1fr; align-content: start; padding: 0; gap: 0; overflow: hidden; }
+  .commercial-ad__slides::before, .commercial-ad__slides::after { content: ''; flex: 0 0 calc(7% - 1rem); }
+  .commercial-ad__slides[data-single="true"] > .commercial-ad__slot { flex-basis: 100%; }
+  .commercial-ad__slides[data-single="true"]::before, .commercial-ad__slides[data-single="true"]::after { display: none; }
+  .commercial-ad__slot .commercial-ad__visual { aspect-ratio: 4 / 3; border-radius: 0; }
+  .commercial-ad__slot .commercial-ad__visual img { object-fit: cover; }
+  .commercial-ad__slot .commercial-ad__copy { padding: 1rem; }
+  .commercial-ad__slides > .commercial-ad__slot--empty { align-items: center; justify-content: center; padding: 1rem; }
   .commercial-ad__carousel-dots { gap: 0; }
   .commercial-ad__carousel-dots button { width: 1rem; }
 }

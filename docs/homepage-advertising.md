@@ -1,10 +1,15 @@
 # Homepage advertising
 
-The homepage has a carousel of seven advertising slots at the bottom, showing one
-slide at a time. Published banners appear first in API order; every remaining slot
-shows “Tu anuncio podría estar aquí” in the selected language. With no banners,
-only one placeholder appears and navigation is hidden. Arrows and slide selectors
-loop through all seven slots; mobile visitors can also swipe horizontally.
+The homepage has a horizontally scrolling advertising carousel at the bottom.
+Published banners appear first in API order, followed by one “Tu anuncio podría
+estar aquí” slide in the selected language while fewer than seven banners exist.
+Thus 0/1/2/6/7 banners produce 1/2/3/7/7 slides. There is no vacancy slide when all
+seven banners are published. The mobile layout shows the edge of the next card
+and supports native touch scrolling with the active card centered. Slides advance smoothly
+every five seconds while visible, pausing during hover, focus or touch interaction.
+There is no pause button; reduced-motion preferences disable autoplay.
+Pricing is shown at the final checkout step, after creating and previewing an ad;
+the homepage and editor do not advertise a price.
 The carousel uses the existing fonts, white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
 campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
 Existing `test_homepage_30d` purchases retain their paid duration and price.
