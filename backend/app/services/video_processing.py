@@ -35,6 +35,12 @@ SUPPORTED_VIDEO_EXTENSIONS = {
     ".webm",
 }
 VIDEO_TRANSCODE_TIMEOUT_SECONDS = 480
+# Uploaded bytes must never select a network protocol or playlist demuxer.
+# Extensions/MIME types are only picker hints; FFmpeg probes the actual bytes.
+SAFE_INPUT_OPTIONS = [
+    "-protocol_whitelist", "file",
+    "-format_whitelist", "mov,matroska,webm,avi,mpeg,mpegts,asf,flv,mxf,ogg",
+]
 
 
 def is_supported_video_upload(content_type: str, filename: str = "") -> bool:
@@ -58,6 +64,7 @@ def _probe(path: Path) -> tuple[int, int, float]:
                 "ffprobe",
                 "-v",
                 "error",
+                *SAFE_INPUT_OPTIONS,
                 "-select_streams",
                 "v:0",
                 "-show_entries",
@@ -138,6 +145,7 @@ def prepare_video(content: bytes | BinaryIO, content_type: str, filename: str = 
                     "-loglevel",
                     "error",
                     "-y",
+                    *SAFE_INPUT_OPTIONS,
                     "-i",
                     str(source),
                     "-map",

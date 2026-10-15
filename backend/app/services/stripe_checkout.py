@@ -8,14 +8,25 @@ import time
 import httpx
 from fastapi import HTTPException
 
-from ..core.config import get_settings
+from ..core.config import Settings, get_settings
 from ..models.payment_order import PaymentOrder
 
 
-async def create_stripe_session(order: PaymentOrder, name: str, return_path: str) -> tuple[str, str]:
-    settings = get_settings()
+def require_checkout_enabled(settings: Settings | None = None) -> None:
+    settings = settings or get_settings()
     if not settings.stripe_secret_key or not settings.stripe_webhook_secret:
         raise HTTPException(503, "Stripe is not configured")
+    if settings.stripe_secret_key.startswith("sk_live_") and not getattr(settings, "stripe_live_payments_enabled", False):
+        raise HTTPException(503, "Live Stripe payments are disabled")
+    if (getattr(settings, "is_production", False)
+            and settings.stripe_secret_key.startswith("sk_test_")
+            and not getattr(settings, "stripe_test_payments_enabled", False)):
+        raise HTTPException(503, "Test Stripe purchases are disabled in production")
+
+
+async def create_stripe_session(order: PaymentOrder, name: str, return_path: str) -> tuple[str, str]:
+    require_checkout_enabled()
+    settings = get_settings()
     # The SPA uses HashRouter, so Stripe must return to a route in the fragment.
     base = settings.frontend_app_url.rstrip("/")
     route_base = f"{base}/#"
@@ -48,7 +59,9 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
             )
         response.raise_for_status()
         payload = response.json()
-        if not payload.get("id") or not payload.get("url"):
+        if (not isinstance(payload, dict)
+                or not isinstance(payload.get("id"), str) or not payload["id"]
+                or not isinstance(payload.get("url"), str) or not payload["url"]):
             raise ValueError("Stripe did not return a hosted Checkout URL")
         return payload["id"], payload["url"]
     except (httpx.HTTPError, ValueError) as exc:
@@ -140,10 +153,12 @@ def verified_stripe_event(body: bytes, signature: str) -> dict:
         timestamp = int(values["t"][0])
     except (KeyError, ValueError, IndexError) as exc:
         raise HTTPException(400, "Invalid Stripe signature") from exc
-    if abs(time.time() - timestamp) > 300:
+    # Keep arithmetic integral: an unsigned, attacker-controlled timestamp may
+    # exceed float range before HMAC verification has taken place.
+    if abs(int(time.time()) - timestamp) > 300:
         raise HTTPException(400, "Expired Stripe signature")
     digest = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
-    if not any(hmac.compare_digest(digest, value) for value in values.get("v1", [])):
+    if not any(value.isascii() and hmac.compare_digest(digest, value) for value in values.get("v1", [])):
         raise HTTPException(400, "Invalid Stripe signature")
     try:
         event = json.loads(body)

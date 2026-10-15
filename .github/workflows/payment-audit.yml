@@ -55,6 +55,13 @@ jobs:
       - name: Apply all migrations
         working-directory: backend
         run: alembic upgrade head
+      - name: Install native video regression tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+
       - name: Server unit and contract regression tests
         working-directory: backend
         run: pytest -q -m 'not integration' --junitxml=../output/payment-unit.xml
@@ -99,6 +106,7 @@ jobs:
           tests/advertising-seven-slots.spec.ts tests/commercial-advertising.spec.ts
           tests/homepage-purchase.spec.ts tests/monthly-top-purchase.spec.ts
           tests/homepage-hero-promotion-contract.spec.ts
+          tests/owner-promotion-flow.spec.ts tests/promotion-calendar.spec.ts
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

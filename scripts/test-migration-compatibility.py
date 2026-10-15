@@ -16,6 +16,17 @@ def migration(revision, parent, operations):
 
 
 class RollbackProtectionTests(unittest.TestCase):
+    def test_frozen_history_is_not_reinterpreted_as_future_ddl(self):
+        migrations = {
+            'old': migration('old', None, "op.create_table('payment_orders')"),
+            'deployed': migration('deployed', 'old', "op.drop_constraint('ck', 'payment_orders')"),
+            'future': migration('future', 'deployed', "op.drop_constraint('ck', 'payment_orders')"),
+        }
+        errors = guard['inspect_unreleased_migrations'](migrations, {'old', 'deployed'})
+        self.assertEqual(len(errors), 1)
+        self.assertIn('future.py', errors[0])
+        self.assertEqual(guard['inspect_unreleased_migrations'](migrations, set(migrations)), [])
+
     def test_constraints_on_unreleased_ancestor_table_are_allowed(self):
         for operation in (
             "op.drop_constraint('ck', 'payment_orders', type_='check')",
