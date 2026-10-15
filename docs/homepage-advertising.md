@@ -1,7 +1,11 @@
 # Homepage advertising
 
-The homepage has seven advertising cards at the bottom, using the existing fonts,
-white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
+The homepage has a carousel of seven advertising slots at the bottom, showing one
+slide at a time. Published banners appear first in API order; every remaining slot
+shows “Tu anuncio podría estar aquí” in the selected language. With no banners,
+only one placeholder appears and navigation is hidden. Arrows and slide selectors
+loop through all seven slots; mobile visitors can also swipe horizontally.
+The carousel uses the existing fonts, white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
 campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
 Existing `test_homepage_30d` purchases retain their paid duration and price.
 The paid number of days is recorded on the order and campaign; approval uses that duration.

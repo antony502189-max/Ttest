@@ -21,14 +21,22 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/payments/admin/review-required', route => route.fulfill({ json: [] }))
 })
 
-test('seven cards preserve sponsored links and cap even an oversized response', async ({ page }) => {
+test('carousel preserves sponsored links, loops and caps an oversized response at seven', async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: ads }))
   await page.route('**/api/v1/advertisements/availability', (route) => route.fulfill({ json: availability(0) }))
   await page.goto('/#/')
   const block = page.locator('.commercial-ad')
   await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
   await expect(block.getByRole('heading', { name: 'Service 8' })).toHaveCount(0)
+  await expect(block.locator('[data-testid="advertising-slot"]:visible')).toHaveCount(1)
+  await expect(block.getByRole('heading', { name: 'Service 1', exact: true })).toBeVisible()
+  await block.getByRole('button', { name: 'Publicidad anterior' }).click()
   await expect(block.getByRole('heading', { name: 'Service 7' })).toBeVisible()
+  await block.getByRole('button', { name: 'Publicidad siguiente' }).click()
+  await expect(block.getByRole('heading', { name: 'Service 1', exact: true })).toBeVisible()
+  await block.getByRole('button', { name: 'Publicidad 4', exact: true }).click()
+  await expect(block.getByRole('heading', { name: 'Service 4' })).toBeVisible()
+  await expect(block.getByRole('button', { name: 'Publicidad 4', exact: true })).toHaveAttribute('aria-current', 'true')
   await expect(block.getByRole('link', { name: 'Más información' }).first()).toHaveAttribute('rel', 'noopener noreferrer sponsored')
   await expect(block.getByText('30 € · 1 mes')).toBeVisible()
   await block.locator('img').evaluateAll((images) => images.forEach((img) => { (img as HTMLImageElement).loading = 'eager' }))
@@ -36,12 +44,18 @@ test('seven cards preserve sponsored links and cap even an oversized response', 
   await block.screenshot({ path: 'output/advertising/seven-desktop.png', style: '.site-header, .skip-link { visibility: hidden !important; }' })
 })
 
-test('mobile seven slots scroll above the fixed navigation without overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+test('mobile carousel supports swiping and fits above fixed navigation at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 })
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: ads.slice(0, 7) }))
   await page.goto('/#/')
   const block = page.locator('.commercial-ad--mobile')
   await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
+  await block.locator('.commercial-ad__slides').evaluate((element) => {
+    element.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [new Touch({ identifier: 1, target: element, clientX: 260, clientY: 200 })] }))
+    element.dispatchEvent(new TouchEvent('touchend', { bubbles: true, changedTouches: [new Touch({ identifier: 1, target: element, clientX: 60, clientY: 210 })] }))
+  })
+  await expect(block.getByRole('heading', { name: 'Service 2' })).toBeVisible()
+  await expect(block.locator('[data-testid="advertising-slot"]:visible')).toHaveCount(1)
   await block.getByRole('link', { name: 'Publicar publicidad' }).scrollIntoViewIfNeeded()
   await expect(block.getByRole('link', { name: 'Publicar publicidad' })).toBeInViewport()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -49,6 +63,35 @@ test('mobile seven slots scroll above the fixed navigation without overflow', as
   await expect.poll(() => block.locator('img').evaluateAll((images) => images.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await block.screenshot({ path: 'output/advertising/seven-mobile.png', style: '.m2-bottom-nav, .skip-link { visibility: hidden !important; }' })
 })
+
+test('empty inventory shows one Russian placeholder without carousel controls', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:language:v1', 'ru'))
+  await page.goto('/#/')
+  const block = page.locator('.commercial-ad')
+  await expect(block.getByTestId('advertising-slot')).toHaveCount(1)
+  await expect(block.getByRole('heading', { name: 'Здесь могла быть ваша реклама' })).toBeVisible()
+  await expect(block.locator('.commercial-ad__carousel')).toHaveCount(0)
+})
+
+for (const count of [1, 3, 6, 7]) {
+  test(`${count} banners fill the carousel in order with placeholders for remaining slots`, async ({ page }) => {
+    await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: ads.slice(0, count) }))
+    await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: availability(7 - count) }))
+    await page.goto('/#/')
+    const block = page.locator('.commercial-ad')
+    await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
+    await expect(block.locator('.commercial-ad__slot--empty')).toHaveCount(7 - count)
+    for (let index = 0; index < 7; index++) {
+      const visible = block.locator('[data-testid="advertising-slot"]:visible')
+      await expect(visible).toHaveCount(1)
+      await expect(visible.getByRole('heading')).toHaveText(index < count ? `Service ${index + 1}` : 'Tu anuncio podría estar aquí')
+      await expect(block.locator('.commercial-ad__carousel-position')).toHaveText(`${index + 1} / 7`)
+      await block.getByRole('button', { name: 'Publicidad siguiente' }).click()
+    }
+    await expect(block.getByRole('heading', { name: 'Service 1', exact: true })).toBeVisible()
+    await expect(block.getByRole('heading', { name: 'Tu anuncio podría estar aquí' })).toHaveCount(0)
+  })
+}
 
 test('full inventory prevents upload and offers a cancellable persisted alert', async ({ page }) => {
   await page.route('**/api/v1/advertisements/availability', (route) => route.fulfill({ json: availability(0) }))
