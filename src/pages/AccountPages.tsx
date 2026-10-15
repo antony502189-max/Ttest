@@ -57,6 +57,7 @@ import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-stora
 import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
+import { PromotionPeriod, promotionDate, addPromotionDays, promotionDays } from "@/components/promotion-period";
 
 type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
@@ -524,8 +525,10 @@ export function MyListingsPage() {
   const [promotionStep, setPromotionStep] = useState<"choose" | "duration" | "payment">("choose");
   const [homepageCandidateId, setHomepageCandidateId] = useState("");
   const [topCandidateId, setTopCandidateId] = useState("");
-  const [topDays, setTopDays] = useState("10");
-  const validTopDays = /^\d+$/.test(topDays) && Number(topDays) >= 10 && Number(topDays) <= 365;
+  const [topStartDate, setTopStartDate] = useState(() => promotionDate());
+  const [topEndDate, setTopEndDate] = useState(() => addPromotionDays(promotionDate(), 10));
+  const topDays = promotionDays(topStartDate, topEndDate);
+  const validTopDays = Number.isInteger(topDays) && topDays >= 10 && topDays <= 365;
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -576,7 +579,10 @@ export function MyListingsPage() {
       : undefined;
     if (!promotable.length) return;
     setTopCandidateId(candidate?.id ?? "");
-    setTopDays("10");
+    const currentEnd = candidate?.promotionEndsAt ? new Date(candidate.promotionEndsAt) : null;
+    const startDate = promotionDate(currentEnd && currentEnd.getTime() > Date.now() ? currentEnd : new Date());
+    setTopStartDate(startDate);
+    setTopEndDate(addPromotionDays(startDate, 10));
     setPromotionStep("choose");
     setTopPaymentError("");
     setTopDialogOpen(true);
@@ -851,9 +857,9 @@ export function MyListingsPage() {
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => setPromotionStep("duration")}>
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
             </button>
-          </div> : <div className="owner-top-dialog__next" data-testid="owner-top-next-step">
+          </div> : <div className={`owner-top-dialog__next ${promotionStep === "duration" ? "owner-top-dialog__next--period" : ""}`} data-testid="owner-top-next-step">
             {promotionStep === "duration" ? <>
-              <label className="field-label">{t("Duración (mínimo 10 días)")}<input type="number" min={10} max={365} step={1} value={topDays} aria-invalid={!validTopDays} disabled={topPaymentBusy} onChange={(event) => setTopDays(event.target.value)} /></label>
+              <PromotionPeriod start={topStartDate} end={topEndDate} onChange={setTopEndDate} />
               <Button type="button" disabled={!validTopDays} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
               <Button type="button" variant="outline" onClick={() => setPromotionStep("choose")}>{t("Volver")}</Button>
             </> : <>

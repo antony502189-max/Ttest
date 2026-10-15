@@ -20,6 +20,11 @@ between homepage placement and TOP. The two page-level promotion cards are hidde
 Both services keep that listing selected. TOP asks for duration before showing
 its total; homepage placement shows its price on the final confirmation dialog.
 Neither opening the choice nor moving between steps creates a payment session.
+TOP duration is selected with an end-date calendar and 10/14/21/30-day presets.
+The displayed start date is fixed because service starts after payment (or extends
+an existing TOP period). The supported duration remains 10–365 days; calendar
+arithmetic uses date-only UTC values so daylight-saving changes do not alter the
+number of paid days. Checkout still submits the duration, not a scheduled start.
 
 The existing homepage photo slot can also be purchased from **Mis anuncios** for
 **€60 for one calendar month**. It shows the selected published listing's photo
