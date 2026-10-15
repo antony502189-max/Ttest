@@ -6,9 +6,12 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from ipaddress import ip_address
 from typing import Any
 
+import httpcore
 import httpx
+from httpcore._backends.auto import AutoBackend
 
 MAX_PUBLIC_RESPONSE_BYTES = 16 * 1024 * 1024
+PUBLIC_DNS_TIMEOUT_SECONDS = 5
 _ORIGINAL_ASYNC_CLIENT = httpx.AsyncClient
 
 
@@ -33,7 +36,8 @@ async def validate_public_url(url: httpx.URL) -> None:
         raise httpx.InvalidURL("Only public HTTP(S) URLs are allowed")
     port = url.port or (443 if url.scheme == "https" else 80)
     try:
-        addresses = {url.host} if _is_ip_literal(url.host) else await resolve_host(url.host, port)
+        async with asyncio.timeout(PUBLIC_DNS_TIMEOUT_SECONDS):
+            addresses = {url.host} if _is_ip_literal(url.host) else await resolve_host(url.host, port)
     except OSError as exc:
         raise httpx.ConnectError("Unable to resolve outbound host") from exc
     if not addresses:
@@ -124,6 +128,54 @@ def _append_hook(
     hooks.setdefault(name, []).append(hook)
 
 
+class PublicNetworkBackend(httpcore.AsyncNetworkBackend):
+    """Resolve once and connect to a validated literal before sending any bytes.
+
+    Request hooks and response peer checks alone cannot prevent DNS rebinding:
+    an HTTP request has already reached its destination by the response hook.
+    HTTPcore still uses the original origin for Host and TLS SNI/verification.
+    """
+
+    def __init__(self):
+        self.backend = AutoBackend()
+
+    async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        try:
+            async with asyncio.timeout(timeout):
+                addresses = {host} if _is_ip_literal(host) else await resolve_host(host, port)
+                if not addresses:
+                    raise httpcore.ConnectError("Outbound host has no addresses")
+                for address in addresses:
+                    require_global_address(address, "Outbound connection to a non-public address is blocked")
+                last_error = None
+                for address in sorted(addresses):
+                    try:
+                        return await self.backend.connect_tcp(
+                            address, port, timeout=timeout, local_address=local_address, socket_options=socket_options,
+                        )
+                    except (httpcore.ConnectError, httpcore.ConnectTimeout) as exc:
+                        last_error = exc
+                raise httpcore.ConnectError("Unable to connect to outbound host") from last_error
+        except TimeoutError as exc:
+            raise httpcore.ConnectTimeout("Outbound connection timed out") from exc
+        except OSError as exc:
+            raise httpcore.ConnectError("Unable to resolve outbound host") from exc
+
+    async def connect_unix_socket(self, *args, **kwargs):
+        raise httpcore.ConnectError("Unix sockets are not public network destinations")
+
+    async def sleep(self, seconds):
+        await self.backend.sleep(seconds)
+
+
+class PublicNetworkTransport(httpx.AsyncHTTPTransport):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # HTTPX 0.28.1 does not expose HTTPcore's network_backend argument.
+        # Both versions are pinned; regression tests exercise the real pool.
+        self._pool._network_backend = PublicNetworkBackend()
+
+
 class PublicNetworkAsyncClient(_ORIGINAL_ASYNC_CLIENT):
     """HTTPX client with public-network and response-size guards.
 
@@ -145,6 +197,13 @@ class PublicNetworkAsyncClient(_ORIGINAL_ASYNC_CLIENT):
             # Do not allow HTTP(S)_PROXY environment variables to turn a
             # validated direct destination into an unvalidated proxy request.
             kwargs["trust_env"] = False
+            if kwargs.get("proxy") or kwargs.get("mounts"):
+                raise ValueError("Public network clients cannot override the guarded connection policy")
+            kwargs["transport"] = PublicNetworkTransport(
+                verify=kwargs.get("verify", True), cert=kwargs.get("cert"),
+                http1=kwargs.get("http1", True), http2=kwargs.get("http2", False),
+                limits=kwargs.get("limits", httpx.Limits()), trust_env=False,
+            )
         super().__init__(*args, **kwargs)
 
 
