@@ -176,7 +176,7 @@ test('checkout starts only after an explicit payment click and handles the last 
   })
   await page.goto(`/#/publicidad/${adId}/checkout`)
   await expect(page.locator('.ad-flow__price')).toContainText('30,00')
-  await expect(page.locator('.ad-flow__price')).toContainText('30 días')
+  await expect(page.locator('.ad-flow__price')).toContainText('1 mes')
   expect(checkouts).toBe(0)
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(page.getByText('No hay espacios publicitarios disponibles en este momento.')).toBeVisible()
