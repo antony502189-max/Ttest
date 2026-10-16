@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy.dialects import postgresql
 
 from app.api.v1 import payments
+from app.api.v1 import commercial_advertisements as advertising_api
 from app.schemas.commercial_advertisements import AdvertisementWrite
 from app.services import advertising_alerts as alerts
 from app.services import commercial_advertisements as ads
@@ -64,6 +65,18 @@ def test_new_writes_cannot_select_future_or_legacy_packages():
     assert AdvertisementWrite(**payload).packageId == 'homepage_1d'
     with pytest.raises(ValueError):
         AdvertisementWrite(**payload, packageId='test_homepage_30d')
+
+
+@pytest.mark.asyncio
+async def test_public_monthly_advertising_price_matches_server_checkout(monkeypatch):
+    monkeypatch.setattr(advertising_api, 'occupied_slots', AsyncMock(return_value=5))
+    monkeypatch.setattr(advertising_api, 'get_settings', lambda: SimpleNamespace(web_push_public_key=''))
+    monkeypatch.setattr(advertising_api, 'push_configured', lambda: False)
+    status = await advertising_api.advertising_availability(SimpleNamespace())
+    assert status['monthlyPriceCents'] == ads.PACKAGE_PRICE_CENTS == 3000
+    assert status['months'] == 1
+    assert status['currency'] == 'EUR'
+    assert status['total'] == 7 and status['available'] == 2
 
 
 def subscription(endpoint='https://fcm.googleapis.com/fcm/send/token'):
