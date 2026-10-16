@@ -34,24 +34,40 @@ The historical package identifier `homepage_1d` is retained to preserve
 existing data and API compatibility; it does **not** offer one-day purchases.
 Legacy `test_homepage_30d` entitlements retain their original paid terms.
 
-In **Mis anuncios**, the TOP action on an individual listing opens a choice
-between homepage placement and TOP. The two page-level promotion cards are hidden.
-Both services keep that listing selected. TOP asks for duration before showing
-its total; homepage placement shows its price on the final confirmation dialog.
-Neither opening the choice nor moving between steps creates a payment session.
-TOP duration is selected with an end-date calendar and 10/14/21/30-day presets.
-The displayed start date is fixed because service starts after payment (or extends
-an existing TOP period). The supported duration remains 10–365 days; calendar
-arithmetic uses date-only UTC values so daylight-saving changes do not alter the
-number of paid days. Checkout still submits the duration, not a scheduled start.
+In **Mis anuncios**, the TOP action on each eligible owned listing offers two
+independent paid products. The buyer selects a fixed period and sees the
+price before explicitly confirming Stripe Checkout:
 
-The existing homepage photo slot can also be purchased from **Mis anuncios** for
-**€60 for one calendar month**. It shows the selected published listing's photo
-and a direct link, in the existing homepage layout. Checkout reserves the single
-slot; concurrent purchases and administrator replacement of a purchased slot
-are blocked. It starts on confirmed payment and ends at the same UTC time on the
-next month's corresponding day (clamped to the last day for shorter months).
-There is no recurring subscription. A new purchase is possible after expiry.
+| Purchased period | Listing TOP | Single homepage featured listing |
+| --- | ---: | ---: |
+| **12 hours** | **€0.99** | **€4.95** |
+| **24 hours** | **€1.70** | **€8.50** |
+| **72 hours (3 days)** | **€4.50** | **€22.50** |
+
+The homepage featured listing is the **single large main photo / booking
+hero slot**, not one of the seven commercial advertising banners. Its tariff
+is exactly five times the corresponding TOP tier. These are **one-time
+purchases**, not subscriptions. No other time selections are accepted by the
+new checkout API; the server computes the Stripe amount using a fixed
+integer-cent tariff table and persists `duration_hours` on new orders.
+
+TOP brings the selected property ahead of ordinary listings in search and
+map results for exactly the purchased number of UTC hours. An additional
+TOP purchase extends the existing unexpired TOP end time by the purchased
+hours, without truncating the old paid period.
+
+The single featured-listing slot becomes active only on verified payment,
+shows the selected listing photo and direct link, and expires exactly
+12, 24 or 72 hours from confirmed payment. Concurrent purchases and manual
+administrator replacement of a paid slot remain blocked. Buy again only
+after capacity becomes free.
+
+**Historical protection:** `payment_orders.duration_hours` is nullable;
+NULL denotes an existing order under the old days/calendar-month tariff.
+Previous purchased durations, prices and fulfillment remain intact.
+Migration `0064_hourly_promotion_orders` is additive and does not rewrite
+earlier paid orders. The seven commercial advertising banners retain their
+independent **€30 per calendar month** price and approval workflow.
 
 Apply migration `0060_homepage_purchases` before deploying the new backend.
 It adds the homepage order kind and nullable banner duration while preserving
