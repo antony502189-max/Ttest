@@ -118,8 +118,8 @@ The repository includes three Stripe Checkout purchase flows. **Availability in 
 
 | Product | Purchase model | After payment verification |
 | --- | --- | --- |
-| **⭐ Listing TOP** | Selected duration for a published property | Activate or extend its paid promotion period |
-| **🏠 Featured listing** | One shared homepage position, one calendar month | Activate the reserved featured-photo placement |
+| **⭐ Listing TOP** | 12h €0.99 · 24h €1.70 · 72h €4.50 | Activate/extend paid TOP for the exact purchased hours |
+| **🏠 Featured listing** | One shared homepage position: 12h €4.95 · 24h €8.50 · 72h €22.50 | Activate the reserved featured-photo placement for exact paid hours |
 | **📣 Advertising banners** | Up to seven slots, day-based campaigns | Enter administrator review; the approved period starts on approval |
 
 **Financial safeguards in the implementation**
