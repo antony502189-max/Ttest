@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowUpRight, Megaphone } from 'lucide-react'
 import { Link } from 'react-router'
-import { adImageUrl, getAdvertisingAvailability, getHomepageAdvertisements, type PublicAdvertisement } from '@/api/commercial-advertisements'
+import { adImageUrl, getAdvertisingAvailability, getHomepageAdvertisements, type AdvertisingAvailability, type PublicAdvertisement } from '@/api/commercial-advertisements'
 import { useI18n } from '@/contexts/i18n-context'
 import { AdvertisingVacancy } from './advertising-vacancy'
 import './commercial-advertisement.css'
@@ -10,9 +10,10 @@ const SLOTS = 7
 
 /** Historical seven-slot grid (66fca55f): preserve live inventory and paid banner behavior. */
 export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: boolean }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [ads, setAds] = useState<PublicAdvertisement[]>([])
   const [available, setAvailable] = useState<number | null>(null)
+  const [monthlyPrice, setMonthlyPrice] = useState<Pick<AdvertisingAvailability, 'monthlyPriceCents' | 'months' | 'currency'> | null>(null)
   const [imageFailures, setImageFailures] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
@@ -28,6 +29,12 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
         setFailed(false)
       } else setFailed(true)
       setAvailable(capacity.status === 'fulfilled' ? capacity.value.available : null)
+      // Display only the price of the backend-confirmed, one-month banner package.
+      // Never guess a price when the availability endpoint is unavailable.
+      setMonthlyPrice(capacity.status === 'fulfilled' && capacity.value.months === 1
+        && Number.isSafeInteger(capacity.value.monthlyPriceCents) && capacity.value.monthlyPriceCents > 0
+        && capacity.value.currency === 'EUR'
+        ? capacity.value : null)
       setLoading(false)
     }
     void load()
@@ -36,7 +43,13 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
   }, [])
 
   return <section className={`commercial-ad commercial-ad--slots ${mobile ? 'commercial-ad--mobile' : ''}`} aria-label={t('Publicidad comercial')}>
-    <div className="commercial-ad__header"><div className="commercial-ad__eyebrow"><Megaphone aria-hidden="true" />{t('Publicidad')}</div></div>
+    <div className="commercial-ad__header">
+      <div className="commercial-ad__eyebrow"><Megaphone aria-hidden="true" />{t('Publicidad')}</div>
+      {monthlyPrice ? <div className="commercial-ad__monthly-price" data-testid="advertising-monthly-price">
+        <span>{new Intl.NumberFormat(locale, { style: 'currency', currency: monthlyPrice.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(monthlyPrice.monthlyPriceCents / 100)}</span>
+        <span className="commercial-ad__monthly-price-unit">/ {t('Mes').toLocaleLowerCase(locale)}</span>
+      </div> : null}
+    </div>
     {loading ? <p role="status">{t('Cargando publicidad…')}</p> : failed ? <p role="status">{t('No se pudo cargar la publicidad. Inténtalo más tarde.')}</p> : <div className="commercial-ad__slots">
       {Array.from({ length: SLOTS }, (_, index) => {
         const ad = ads[index]

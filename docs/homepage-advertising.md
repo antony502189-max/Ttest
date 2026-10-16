@@ -15,13 +15,24 @@ the existing availability/waitlist functionality replaces the purchase
 call to action. Placeholders do not count as paid inventory; slot capacity
 is still enforced by the backend and provider-confirmed reservations.
 
-Pricing is shown at the final checkout step, after creating and previewing
-an ad; the homepage and editor do not advertise a price.
-The grid uses the existing fonts, pale placeholder cards, magenta sponsored
-links, and lime purchase buttons. Each new `homepage_1d`
-campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
-Existing `test_homepage_30d` purchases retain their paid duration and price.
-The paid number of days is recorded on the order and campaign; approval uses that duration.
+The homepage advertising header displays **€30.00 / month** (localized for
+Spanish, Russian and English) next to the megaphone label, using the public
+`GET /advertisements/availability` quote rather than a hardcoded frontend
+price. This endpoint reads the same `PACKAGE_PRICE_CENTS` as Stripe Checkout,
+and reports `monthlyPriceCents=3000`, `months=1`, `currency=EUR`.
+If the public quote fails, the header omits the price instead of making one up.
+
+The grid preserves its fonts, pale placeholder cards, sponsored links and
+lime purchase button. **New homepage-bottom advertising banners cost €30 for
+exactly one calendar month**, starting on administrator approval; users cannot
+choose a shorter or longer duration. The backend still stores a 30-day order
+compatibility field, but the actual purchased calendar month ends on the
+corresponding day of the next month (clamped when needed). This is a
+one-time purchase, not a recurring subscription.
+
+The historical package identifier `homepage_1d` is retained to preserve
+existing data and API compatibility; it does **not** offer one-day purchases.
+Legacy `test_homepage_30d` entitlements retain their original paid terms.
 
 In **Mis anuncios**, the TOP action on an individual listing opens a choice
 between homepage placement and TOP. The two page-level promotion cards are hidden.
@@ -53,15 +64,16 @@ media delivery, moderation and campaign management paths remain in use.
 
 ## Payments and seven-slot capacity
 
-`GET /payments/advertisements/{id}/quote?days=21` returns the owner’s price and availability
-without reserving a place. The explicit payment click calls the existing Stripe
-Checkout endpoint. A shared PostgreSQL transaction advisory lock serializes
-checkout, moderation, editing, cancellation and webhook state changes.
-
-The banner Checkout body is `{ "days": 21 }`; totals are computed on the server.
-Changing an existing open payment's duration requires cancelling that payment
-first. Homepage endpoints are `/payments/homepage/quote` and
-`/payments/listings/{id}/homepage/checkout`, `/status`, and `/checkout/cancel`.
+`GET /payments/advertisements/{id}/quote` returns one month, €30 and current
+capacity without reserving a place. The explicit payment click calls Stripe
+Checkout; the browser sends `{ "days": 30 }` for legacy API compatibility.
+Other values of `days` are rejected by the API (HTTP 422), and the price
+is always calculated by the backend. Existing open sessions must be cancelled
+before creating another order. A shared PostgreSQL transaction advisory lock
+serializes checkout, moderation, editing, cancellation and webhook state
+changes. Homepage featured-listing endpoints are
+`/payments/homepage/quote` and `/payments/listings/{id}/homepage/checkout`,
+`/status`, and `/checkout/cancel`.
 
 Active unexpired campaigns, paid review submissions, and pending Stripe orders
 reserve capacity. Pending orders count once per campaign. New purchases are

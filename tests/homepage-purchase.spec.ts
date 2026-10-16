@@ -47,6 +47,7 @@ test('banner monthly total is visible before payment', async ({ page }) => {
   await page.goto(`/#/publicidad/${id}/checkout`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByLabel('Duración (mínimo 10 días)')).toHaveCount(0)
   await expect(page.locator('.ad-flow__price')).toContainText('30,00')
-  await expect(page.locator('.ad-flow__price')).toContainText('30 días')
+  await expect(page.locator('.ad-flow__price')).toContainText('1 mes')
+  await expect(page.locator('.ad-flow__price')).not.toContainText('30 días')
   await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()
 })

@@ -35,7 +35,8 @@ test('seven banner positions are a grid with genuine sponsored links and bounded
   const firstLink = block.getByRole('link', { name: 'Más información' }).first()
   await expect(firstLink).toHaveAttribute('rel', 'noopener noreferrer sponsored')
   await expect(firstLink).toHaveAttribute('href', 'https://example.org/')
-  await expect(block.getByText('30 € · 1 mes')).toHaveCount(0)
+  await expect(block.getByTestId('advertising-monthly-price')).toContainText(/30[.,]00/)
+  await expect(block.getByTestId('advertising-monthly-price')).toContainText('/ mes')
   await block.locator('img').evaluateAll(images => images.forEach(img => { (img as HTMLImageElement).loading = 'eager' }))
   await expect.poll(() => block.locator('img').evaluateAll(images => images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
   await block.screenshot({ path: 'output/advertising/seven-desktop.png', style: '.site-header, .skip-link { visibility: hidden !important; }' })
@@ -48,6 +49,8 @@ for (const width of [320, 390, 480]) {
     await page.goto('/#/')
     const block = page.locator('.commercial-ad--mobile')
     await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
+    await expect(block.getByTestId('advertising-monthly-price')).toContainText(/30[.,]00/)
+    await expect(block.getByTestId('advertising-monthly-price')).toContainText('/ месяц')
     const slots = block.locator('.commercial-ad__slot--empty')
     await expect(slots).toHaveCount(7)
     await expect(slots.first()).toContainText('Рекламное место')
@@ -76,6 +79,22 @@ for (const width of [320, 390, 480]) {
     await block.screenshot({ path: `output/advertising/reference-mobile-${width}.png`, style: '.m2-bottom-nav, .skip-link { visibility: hidden !important; }' })
   })
 }
+
+test('advertising price is taken from server availability, not a hardcoded client amount', async ({ page }) => {
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ json: { ...availability(4), monthlyPriceCents: 4500 } }))
+  await page.goto('/#/')
+  const price = page.locator('.commercial-ad').getByTestId('advertising-monthly-price')
+  await expect(price).toContainText('45,00')
+  await expect(price).toContainText('/ mes')
+})
+
+test('no public price is invented when the pricing endpoint is unavailable', async ({ page }) => {
+  await page.route('**/api/v1/advertisements/availability', route => route.fulfill({ status: 503, json: { detail: 'Unavailable' } }))
+  await page.goto('/#/')
+  const block = page.locator('.commercial-ad')
+  await expect(block.getByTestId('advertising-monthly-price')).toHaveCount(0)
+  await expect(block.getByTestId('advertising-slot')).toHaveCount(7)
+})
 
 test('desktop advertising uses two columns and keeps the original CTA', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 960 })
@@ -157,7 +176,7 @@ test('checkout starts only after an explicit payment click and handles the last 
   })
   await page.goto(`/#/publicidad/${adId}/checkout`)
   await expect(page.locator('.ad-flow__price')).toContainText('30,00')
-  await expect(page.locator('.ad-flow__price')).toContainText('30 días')
+  await expect(page.locator('.ad-flow__price')).toContainText('1 mes')
   expect(checkouts).toBe(0)
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(page.getByText('No hay espacios publicitarios disponibles en este momento.')).toBeVisible()
