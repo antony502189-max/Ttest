@@ -29,6 +29,22 @@
   margin-bottom: 1rem;
 }
 .commercial-ad__header .commercial-ad__eyebrow { margin-bottom: 0; }
+.commercial-ad__monthly-price {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: .2em;
+  margin-left: auto;
+  color: #222;
+  font-size: clamp(1.125rem, 2.6vw, 1.65rem);
+  font-weight: 650;
+  letter-spacing: -.025em;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.commercial-ad__monthly-price-unit { font-weight: 500; }
+
 .commercial-ad__slots {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -135,6 +151,8 @@
 @media (max-width: 700px) {
   .commercial-ad { width: calc(100% - 1.5rem); margin: 1.5rem auto 2rem; padding: 1rem; }
   .commercial-ad--mobile { width: 100%; margin: 1.25rem 0 calc(var(--m2-nav-height, 4rem) + 1.5rem); }
+  .commercial-ad__header { gap: .35rem; flex-wrap: nowrap; }
+  .commercial-ad__monthly-price { font-size: clamp(1rem, 5.4vw, 1.5rem); letter-spacing: -.035em; }
   .commercial-ad__slots { grid-template-columns: 1fr; gap: 1.25rem; }
   .commercial-ad__slot { gap: .8rem; padding: .9rem; }
   .commercial-ad__slot--empty { min-height: 128px; }
