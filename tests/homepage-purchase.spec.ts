@@ -9,11 +9,13 @@ test.beforeEach(async ({ page }) => {
 
 test('homepage purchase selects an owned listing and opens Stripe only after explicit payment', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.route('**/payments/homepage/quote', route => route.fulfill({ json: { available: true, endsAt: null, reservedListingId: null, featuredListingId: null, amountCents: 6000, currency: 'EUR', months: 1 } }))
+  await page.route('**/payments/homepage/quote', route => route.fulfill({ json: { available: true, endsAt: null, reservedListingId: null, featuredListingId: null, amountCents: 495, currency: 'EUR', offers: [{ durationHours: 12, amountCents: 495 }, { durationHours: 24, amountCents: 850 }, { durationHours: 72, amountCents: 2250 }] } }))
   let count = 0
   let target = ''
+  let duration = 0
   await page.route('**/payments/listings/*/homepage/checkout', route => {
     count++
+    duration = route.request().postDataJSON().durationHours
     target = route.request().url().split('/listings/')[1].split('/')[0]
     return route.fulfill({ status: 503, json: { detail: 'Stripe is not configured' } })
   })
@@ -27,7 +29,9 @@ test('homepage purchase selects an owned listing and opens Stripe only after exp
   await page.getByRole('button', { name: /Destacar en portada/ }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('heading', { name: 'Tu anuncio en portada' })).toBeVisible()
-  await expect(dialog.locator('.owner-promotion-price')).toContainText('60,00')
+  await expect(dialog.locator('.owner-promotion-price')).toContainText('4,95')
+  await dialog.getByRole('button', { name: /24 horas/ }).click()
+  await expect(dialog.locator('.owner-promotion-price')).toContainText('8,50')
   await expect(dialog.locator(`[data-listing-id="${listingId}"]`)).toBeVisible()
   expect(count).toBe(0)
   await expect(dialog.getByRole('button', { name: 'Pagar con Stripe' })).toBeEnabled()
@@ -35,6 +39,7 @@ test('homepage purchase selects an owned listing and opens Stripe only after exp
   await expect(dialog.getByRole('alert')).toBeVisible()
   expect(count).toBe(1)
   expect(decodeURIComponent(target)).toBe(listingId)
+  expect(duration).toBe(24)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
