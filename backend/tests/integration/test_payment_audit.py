@@ -259,7 +259,7 @@ async def test_bug007_review_can_restore_once_with_operator_audit(client,registe
 
 async def test_partial_refund_is_reviewed_and_remaining_balance_refunded_once(client,register_user,provider,finances):
     _target, _, _, charge, order_id = await checkout_top(client,register_user,provider,finances)
-    finances[0]['charges/'+charge]['amount_refunded'] = 1000
+    finances[0]['charges/'+charge]['amount_refunded'] = 100
     assert (await financial_event(client,'charge.refunded',{'id':charge})).status_code == 200
     admin = await admin_headers(client,register_user)
     queue = (await client.get('/api/v1/payments/admin/review-required',headers=admin)).json()
@@ -267,7 +267,7 @@ async def test_partial_refund_is_reviewed_and_remaining_balance_refunded_once(cl
     assert (await resolve(client,admin,order_id,'restore')).status_code == 409
     result = await resolve(client,admin,order_id)
     assert result.status_code == 200 and result.json()['resolved'], result.text
-    assert next(iter(finances[1].values()))['amount'] == 2000
+    assert next(iter(finances[1].values()))['amount'] == 350
     assert (await resolve(client,admin,order_id)).json()['resolved'] and len(finances[2]) == 1
 
 
