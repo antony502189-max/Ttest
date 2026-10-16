@@ -7,7 +7,7 @@ Historical payment orders are never repriced.
 from typing import Literal
 
 PromotionHours = Literal[12, 24, 72]
-TOP_PRICES_CENTS: dict[int, int] = {12: 99, 24: 170, 72: 450}
+TOP_PRICES_CENTS: dict[PromotionHours, int] = {12: 99, 24: 170, 72: 450}
 HOMEPAGE_MULTIPLIER = 5
 
 
