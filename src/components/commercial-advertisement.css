@@ -140,5 +140,5 @@
   .commercial-ad__slot--empty { min-height: 128px; }
   .commercial-ad__visual { min-height: 150px; }
   .commercial-ad__house { grid-template-columns: 1fr; gap: .85rem; }
-  .commercial-ad__cta { width: 100%; min-height: 56px; }
+  .commercial-ad__cta { width: 100%; min-height: 56px; background: #e5fb5f; }
 }
