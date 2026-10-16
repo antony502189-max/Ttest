@@ -73,7 +73,7 @@ async def financial_event(client, kind, obj, event_id=None):
 
 async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
     target, headers = await listing(client,register_user,email)
-    response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+    response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'durationHours':72})
     assert response.status_code == 200, response.text
     key = response.json()['url'].rsplit('/',1)[-1]
     remote = provider[key]
@@ -82,7 +82,7 @@ async def checkout_top(client, register_user, provider, finances, email='audit-t
     remote['payment_intent'] = intent
     objects, _, _ = finances
     objects['payment_intents/'+intent] = {'id':intent,'metadata':{'order_id':order_id},'status':'succeeded'}
-    objects['charges/'+charge] = {'id':charge,'payment_intent':intent,'amount':3000,'amount_refunded':0,'disputed':False,'currency':'eur','livemode':False}
+    objects['charges/'+charge] = {'id':charge,'payment_intent':intent,'amount':450,'amount_refunded':0,'disputed':False,'currency':'eur','livemode':False}
     if pay:
         remote.update(status='complete',payment_status='paid')
         result = await webhook(client,remote)
@@ -102,7 +102,7 @@ async def test_bug001_async_failure_releases_retry_without_grant(client,register
     assert (await webhook(client,remote,'checkout.session.async_payment_failed')).status_code == 200
     state = await client.get(f'/api/v1/payments/listings/{target}/top/status',headers=headers)
     assert state.json()['orderStatus'] == 'failed' and state.json()['endsAt'] is None
-    retry = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+    retry = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'durationHours':72})
     assert retry.status_code == 200 and len(provider) == 2
 
 
@@ -148,20 +148,20 @@ async def test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering(cl
     assert (await financial_event(client,'charge.dispute.created',{'id':dispute_id,'charge':charge},event_id)).status_code == 200
     search = await client.post('/api/v1/listings/search',json={'rentalMode':'long'})
     assert search.json()['items'][0]['promoted']
-    objects['charges/'+charge]['amount_refunded'] = 3000
+    objects['charges/'+charge]['amount_refunded'] = 450
     assert (await financial_event(client,'charge.refunded',{'id':charge})).status_code == 200
     assert (await webhook(client,remote)).status_code == 200
     search = await client.post('/api/v1/listings/search',json={'rentalMode':'long'})
     assert not search.json()['items'][0]['promoted']
     async with SessionLocal() as db:
         order = await db.get(PaymentOrder,UUID(order_id))
-        assert order.refunded_amount_cents == 3000 and order.financial_status == 'refunded'
+        assert order.refunded_amount_cents == 450 and order.financial_status == 'refunded'
         assert await db.scalar(select(func.count(PaymentEvent.id))) == 3
 
 
 async def test_bug004_financial_event_before_checkout_never_grants_refunded_top(client,register_user,provider,finances):
     _target, _, remote, charge, _ = await checkout_top(client,register_user,provider,finances,pay=False)
-    finances[0]['charges/'+charge]['amount_refunded'] = 3000
+    finances[0]['charges/'+charge]['amount_refunded'] = 450
     assert (await financial_event(client,'charge.refunded',{'id':charge})).status_code == 200
     remote.update(status='complete',payment_status='paid')
     assert (await webhook(client,remote)).status_code == 200
@@ -201,10 +201,10 @@ async def test_bug006_slow_stripe_does_not_hold_global_sales_lock(client,registe
 
     from unittest.mock import patch
     with patch.object(payments,'create_stripe_session',slow):
-        waiting = asyncio.create_task(client.post(f'/api/v1/payments/listings/{first}/top/checkout',headers=headers,json={'days':30}))
+        waiting = asyncio.create_task(client.post(f'/api/v1/payments/listings/{first}/top/checkout',headers=headers,json={'durationHours':72}))
         await asyncio.wait_for(started.wait(),5)
         try:
-            second = await asyncio.wait_for(client.post(f'/api/v1/payments/listings/{other}/top/checkout',headers=other_headers,json={'days':30}),2)
+            second = await asyncio.wait_for(client.post(f'/api/v1/payments/listings/{other}/top/checkout',headers=other_headers,json={'durationHours':72}),2)
             assert second.status_code == 200, second.text
             # The first durable order must already exist despite delayed provider IO.
             async with SessionLocal() as db:
@@ -229,8 +229,8 @@ async def test_bug006_commit_failure_recovers_same_reserved_order(client,registe
 
     monkeypatch.setattr(AsyncSession,'commit',fail_finalize)
     with pytest.raises(RuntimeError,match='Simulated commit failure'):
-        await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
-    result = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+        await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'durationHours':72})
+    result = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'durationHours':72})
     assert result.status_code == 200 and len(provider) == 1, result.text
     async with SessionLocal() as db:
         assert await db.scalar(select(func.count(PaymentOrder.id)).where(PaymentOrder.target_id == UUID(target))) == 1
@@ -295,10 +295,10 @@ async def test_refund_commit_failure_reuses_provider_receipt(client,register_use
 async def test_pending_failed_refund_does_not_revoke_or_replay_after_restore(client,register_user,provider,finances):
     _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
     receipt = {'id':'re_' + uuid4().hex,'charge':charge,'payment_intent':remote['payment_intent'],
-               'amount':3000,'currency':'eur','status':'pending','metadata':{}}
+               'amount':450,'currency':'eur','status':'pending','metadata':{}}
     finances[1][receipt['id']] = receipt
     finances[0]['refunds/'+receipt['id']] = receipt
-    finances[0]['charges/'+charge]['amount_refunded'] = 3000
+    finances[0]['charges/'+charge]['amount_refunded'] = 450
     assert (await financial_event(client,'refund.created',{'id':receipt['id'],'charge':charge})).status_code == 200
     async with SessionLocal() as db:
         order = await db.get(PaymentOrder,UUID(order_id))
@@ -329,7 +329,7 @@ async def test_unknown_checkout_after_idempotency_window_requires_verified_recon
         order.status, order.stripe_session_id, order.checkout_url = 'creating', None, None
         order.created_at = datetime.now(UTC)-timedelta(hours=24)
         await db.commit()
-    blocked = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+    blocked = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'durationHours':72})
     assert blocked.status_code == 409
     admin = await admin_headers(client,register_user)
     result = await client.post(f'/api/v1/payments/admin/orders/{order_id}/resolve',headers=admin,
@@ -359,12 +359,12 @@ async def test_refund_of_renewal_preserves_original_top_period_and_rank(client,r
     async with SessionLocal() as db:
         first = await db.get(PaymentOrder,UUID(first_id))
         original_end, original_rank = first.service_ends_at, first.paid_at
-    response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+    response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'durationHours':72})
     remote = provider[response.json()['url'].rsplit('/',1)[-1]]
     intent, charge = 'pi_' + uuid4().hex,'ch_' + uuid4().hex
     remote.update(status='complete',payment_status='paid',payment_intent=intent)
     finances[0]['payment_intents/'+intent] = {'id':intent,'metadata':{'order_id':remote['client_reference_id']}}
-    finances[0]['charges/'+charge] = {'id':charge,'payment_intent':intent,'amount':3000,'amount_refunded':0,'disputed':False,'currency':'eur','livemode':False}
+    finances[0]['charges/'+charge] = {'id':charge,'payment_intent':intent,'amount':450,'amount_refunded':0,'disputed':False,'currency':'eur','livemode':False}
     assert (await webhook(client,remote)).status_code == 200
     admin = await admin_headers(client,register_user)
     refunded = await resolve(client,admin,remote['client_reference_id'])
@@ -373,6 +373,6 @@ async def test_refund_of_renewal_preserves_original_top_period_and_rank(client,r
         from app.models.moderation import ListingPromotion
         promotion = await db.get(ListingPromotion,UUID(target))
         assert promotion.ends_at == original_end and promotion.boosted_at == original_rank
-        assert promotion.total_price_cents == 3000
+        assert promotion.total_price_cents == 450
     result = await client.post('/api/v1/listings/search',json={'rentalMode':'long'})
     assert result.json()['items'][0]['promoted']
