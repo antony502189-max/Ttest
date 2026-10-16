@@ -35,16 +35,43 @@ test('client sort keeps the promoted tier ahead of newer and cheaper ordinary li
   for (const ids of results) expect(ids[0]).toBe('promoted')
 })
 
-test('mobile results keep a promoted listing first without showing a TOP badge', async ({ page }) => {
-  const { promotedId, ordinaryId } = await seedStickyPromotion(page)
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/?sticky-promotion=1#/buscar?q=Tenerife&alquiler=long')
+for (const width of [320, 390] as const) {
+  test(`mobile TOP listing has a visible non-interactive thumb at upper-left: ${width}px`, async ({ page }) => {
+    const { promotedId, ordinaryId } = await seedStickyPromotion(page)
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/?sticky-promotion=1#/buscar?q=Tenerife&alquiler=long')
 
-  const cards = page.locator('.m2-result-card')
+    const cards = page.locator('.m2-result-card')
+    await expect(cards).toHaveCount(2)
+    await expect(cards.first()).toHaveAttribute('data-listing-id', promotedId)
+    await expect(cards.nth(1)).toHaveAttribute('data-listing-id', ordinaryId)
+    const topThumb = cards.first().getByTestId('listing-top-thumb')
+    await expect(topThumb).toHaveText('👍')
+    await expect(topThumb).toHaveAttribute('aria-label', 'Anuncio TOP')
+    await expect(topThumb).toBeVisible()
+    await expect(cards.nth(1).getByTestId('listing-top-thumb')).toHaveCount(0)
+    const box = await topThumb.boundingBox()
+    const media = await cards.first().locator('.m2-result-card__media').boundingBox()
+    expect(box).not.toBeNull()
+    expect(media).not.toBeNull()
+    expect(box!.x - media!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x - media!.x).toBeLessThanOrEqual(24)
+    expect(box!.y - media!.y).toBeGreaterThanOrEqual(0)
+    expect(box!.y - media!.y).toBeLessThanOrEqual(24)
+    expect(await topThumb.evaluate(node => getComputedStyle(node).pointerEvents)).toBe('none')
+  })
+}
+
+test('desktop TOP listing uses the same thumb without changing ordinary cards', async ({ page }) => {
+  const { promotedId, ordinaryId } = await seedStickyPromotion(page)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/?sticky-promotion=1#/buscar?q=Tenerife&alquiler=long')
+  const cards = page.locator('.results-list .property-card')
   await expect(cards).toHaveCount(2)
   await expect(cards.first()).toHaveAttribute('data-listing-id', promotedId)
   await expect(cards.nth(1)).toHaveAttribute('data-listing-id', ordinaryId)
-  await expect(page.locator('.m2-result-card__top')).toHaveCount(0)
+  await expect(cards.first().getByTestId('listing-top-thumb')).toHaveText('👍')
+  await expect(cards.nth(1).getByTestId('listing-top-thumb')).toHaveCount(0)
 })
 
 
