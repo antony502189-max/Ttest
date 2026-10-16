@@ -22,9 +22,9 @@ from ...services.commercial_advertisements import (
     require_free_slot,
 )
 from ...services.homepage_purchase import eligible, slot_available
-from ...services.promotion_offers import PromotionHours, amount_cents, offers
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
 from ...services.payment_sessions import finish_creation, reconcile_order
+from ...services.promotion_offers import PromotionHours, amount_cents, offers
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
