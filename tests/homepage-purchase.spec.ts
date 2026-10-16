@@ -24,7 +24,7 @@ test('homepage purchase selects an owned listing and opens Stripe only after exp
   const listingId = await card.getAttribute('data-listing-id')
   await card.getByTestId('owner-top-promote-button').click()
   await expect(page.getByRole('dialog')).not.toContainText('60 €')
-  await page.getByRole('button', { name: /Destacar en portada/ }).click()
+  await page.getByRole('button', { name: /Banner Premium Principal/ }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('heading', { name: 'Tu anuncio en portada' })).toBeVisible()
   await expect(dialog.locator('.owner-promotion-price')).toContainText('60,00')
