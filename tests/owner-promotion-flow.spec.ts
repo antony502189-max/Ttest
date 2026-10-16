@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test'
 
 const quote = { available: true, endsAt: null, reservedListingId: null, featuredListingId: null, amountCents: 6000, currency: 'EUR', months: 1 }
 for (const [language, width, labels] of [
-  ['ru', 320, { top: 'Поднять свое объявление в ТОП', home: 'Закрепить на главной', back: 'Назад' }],
-  ['en', 390, { top: 'Move your listing to TOP', home: 'Feature on the homepage', back: 'Back' }],
-  ['es', 1280, { top: 'Sube tu anuncio a TOP', home: 'Destacar en portada', back: 'Volver' }],
+  ['ru', 320, { top: 'Поднять свое объявление в ТОП', home: 'Главный премиум-баннер', back: 'Назад' }],
+  ['en', 390, { top: 'Move your listing to TOP', home: 'Main Premium Banner', back: 'Back' }],
+  ['es', 1280, { top: 'Sube tu anuncio a TOP', home: 'Banner Premium Principal', back: 'Volver' }],
 ] as const) {
   test(`promotion choices retain the site design and return without charging: ${language} at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
@@ -43,7 +43,7 @@ test('occupied homepage keeps the selected listing and prevents checkout', async
   await page.route('**/payments/homepage/quote', route => route.fulfill({ json: { ...quote, available: false, endsAt: '2027-01-01T00:00:00Z' } }))
   await page.goto('/#/mis-anuncios')
   await page.getByTestId('owner-top-promote-button').first().click()
-  await page.getByRole('button', { name: /Destacar en portada/ }).click()
+  await page.getByRole('button', { name: /Banner Premium Principal/ }).click()
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('La portada está ocupada')
   await expect(page.getByRole('button', { name: 'Pagar con Stripe' })).toBeDisabled()
 })
