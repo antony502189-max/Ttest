@@ -8,8 +8,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.dialects import postgresql
 
-from app.api.v1 import payments
 from app.api.v1 import commercial_advertisements as advertising_api
+from app.api.v1 import payments
 from app.schemas.commercial_advertisements import AdvertisementWrite
 from app.services import advertising_alerts as alerts
 from app.services import commercial_advertisements as ads
