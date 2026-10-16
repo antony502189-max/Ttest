@@ -15,7 +15,6 @@ class PaymentOrder(Base):
         CheckConstraint("status IN ('creating','pending','paid','expired','failed')", name="ck_payment_order_status"),
         CheckConstraint("amount_cents > 0", name="ck_payment_order_amount"),
         CheckConstraint("fulfillment_status IN ('pending','fulfilled','review_required','revoked')", name="ck_payment_order_fulfillment"),
-        CheckConstraint("duration_hours IS NULL OR (kind IN ('listing_top','homepage_hero') AND duration_hours IN (12,24,72) AND duration_months IS NULL)", name="ck_payment_order_hourly_promotion"),
     )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
