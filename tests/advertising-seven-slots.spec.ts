@@ -70,7 +70,8 @@ for (const width of [320, 390, 480]) {
     const sample = await slots.first().boundingBox()
     expect(sample).not.toBeNull()
     expect(sample!.height).toBeGreaterThanOrEqual(120)
-    expect(sample!.width).toBeGreaterThanOrEqual(width - 72)
+    // The existing mobile shell is capped at 430px; do not widen unrelated screens.
+    expect(sample!.width).toBeGreaterThanOrEqual(Math.min(width, 430) - 40)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await block.screenshot({ path: `output/advertising/reference-mobile-${width}.png`, style: '.m2-bottom-nav, .skip-link { visibility: hidden !important; }' })
   })
