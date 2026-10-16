@@ -2,13 +2,13 @@
 
 <img src="public/favicon.svg" alt="112233.es logo" width="86" height="86" />
 
-# 112233.es
+<h1>112233.es</h1>
 
-### Find your place in Spain.
+<h3>Find your place in Spain.</h3>
 
-A modern rental marketplace for **Vivienda** (long-term stays) and **Turismo** (holiday rentals), built around geographic discovery, a fast mobile experience, and straightforward listing management.
+<p>A modern rental marketplace for <strong>Vivienda</strong> (long-term stays) and <strong>Turismo</strong> (holiday rentals), built around geographic discovery, a fast mobile experience, and straightforward listing management.</p>
 
-**Mainland Spain · Balearic Islands · Canary Islands**
+<p><strong>Mainland Spain · Balearic Islands · Canary Islands</strong></p>
 
 <p>
   <a href="https://app.112233.es"><strong>🌐 Open the website</strong></a>
