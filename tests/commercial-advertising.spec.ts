@@ -204,7 +204,7 @@ test('advertiser previews, returns from Stripe and sees persisted review state',
   await page.getByRole('button', { name: 'Continuar al pago' }).click()
   await expect(page).toHaveURL(new RegExp(`#/publicidad/${adId}/checkout`))
   await expect(page.locator('.ad-flow__price')).toContainText('30,00')
-  await expect(page.locator('.ad-flow__price')).toContainText('30 días')
+  await expect(page.locator('.ad-flow__price')).toContainText('1 mes')
   await expectDecodedImage(page.locator('.ad-flow__preview .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(page.getByText('Pago confirmado · pendiente de revisión')).toBeVisible()
