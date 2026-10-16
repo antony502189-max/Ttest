@@ -38,7 +38,7 @@ const translations: Record<string, Translation> = {
   'Confirmar promoción': { ru: 'Подтвердить продвижение', en: 'Confirm promotion' },
   'Volver': { ru: 'Назад', en: 'Back' },
   '60 € · 1 mes · enlace directo a tu anuncio': { ru: '60 € · 1 месяц · ссылка на ваше объявление', en: '€60 · 1 month · direct link to your listing' },
-  'Destacar en portada': { ru: 'Закрепить на главной', en: 'Feature on the homepage' },
+  'Banner Premium Principal': { ru: 'Главный премиум-баннер', en: 'Main Premium Banner' },
   'En portada hasta': { ru: 'На главной до', en: 'Featured until' },
   'Selecciona tu anuncio. Su foto aparecerá en la portada durante un mes con un enlace al anuncio.': { ru: 'Выберите объявление. Его фото будет месяц на главной со ссылкой на объявление.', en: 'Choose your listing. Its photo will appear on the homepage for one month with a link to the listing.' },
   'El mes empieza cuando se confirma el pago.': { ru: 'Месяц показа начинается после подтверждения оплаты.', en: 'The month starts when payment is confirmed.' },
