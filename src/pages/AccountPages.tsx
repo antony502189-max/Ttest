@@ -57,7 +57,7 @@ import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-stora
 import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
-import { PromotionPeriod, promotionDate, addPromotionDays, promotionDays } from "@/components/promotion-period";
+import { TOP_PROMOTION_OFFERS, formatPromotionPrice, promotionDurationLabel, type PromotionHours } from "@/lib/promotion-offers";
 
 type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
@@ -520,10 +520,8 @@ export function MyListingsPage() {
   const [promotionStep, setPromotionStep] = useState<"choose" | "duration" | "payment">("choose");
   const [homepageCandidateId, setHomepageCandidateId] = useState("");
   const [topCandidateId, setTopCandidateId] = useState("");
-  const [topStartDate, setTopStartDate] = useState(() => promotionDate());
-  const [topEndDate, setTopEndDate] = useState(() => addPromotionDays(promotionDate(), 10));
-  const topDays = promotionDays(topStartDate, topEndDate);
-  const validTopDays = Number.isInteger(topDays) && topDays >= 10 && topDays <= 365;
+  const [topDurationHours, setTopDurationHours] = useState<PromotionHours>(12);
+  const selectedTopOffer = TOP_PROMOTION_OFFERS.find((offer) => offer.durationHours === topDurationHours)!;
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -574,21 +572,18 @@ export function MyListingsPage() {
       : undefined;
     if (!promotable.length) return;
     setTopCandidateId(candidate?.id ?? "");
-    const currentEnd = candidate?.promotionEndsAt ? new Date(candidate.promotionEndsAt) : null;
-    const startDate = promotionDate(currentEnd && currentEnd.getTime() > Date.now() ? currentEnd : new Date());
-    setTopStartDate(startDate);
-    setTopEndDate(addPromotionDays(startDate, 10));
+    setTopDurationHours(12);
     setPromotionStep("choose");
     setTopPaymentError("");
     setTopDialogOpen(true);
   };
   const payForTop = async () => {
-    if (!topCandidateId || !validTopDays) return;
+    if (!topCandidateId) return;
     setTopPaymentBusy(true);
     setTopPaymentError("");
     try {
       const checkout = await api<{ url: string }>(`/payments/listings/${topCandidateId}/top/checkout`, {
-        method: "POST", body: JSON.stringify({ days: Number(topDays) }),
+        method: "POST", body: JSON.stringify({ durationHours: topDurationHours }),
       });
       window.location.assign(checkout.url);
     } catch (error) {
@@ -854,14 +849,23 @@ export function MyListingsPage() {
             </button>
           </div> : <div className={`owner-top-dialog__next ${promotionStep === "duration" ? "owner-top-dialog__next--period" : ""}`} data-testid="owner-top-next-step">
             {promotionStep === "duration" ? <>
-              <PromotionPeriod start={topStartDate} end={topEndDate} onChange={setTopEndDate} />
-              <Button type="button" disabled={!validTopDays} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
+              <div className="owner-promotion-duration-options" role="group" aria-label={t("Duración de TOP")}>
+                {TOP_PROMOTION_OFFERS.map((offer) => <button type="button" key={offer.durationHours}
+                  className={`owner-promotion-duration-option ${topDurationHours === offer.durationHours ? "is-selected" : ""}`}
+                  aria-pressed={topDurationHours === offer.durationHours}
+                  onClick={() => setTopDurationHours(offer.durationHours)}>
+                  <span>{promotionDurationLabel(offer.durationHours, language)}</span>
+                  <strong>{formatPromotionPrice(offer.amountCents, locale)}</strong>
+                </button>)}
+              </div>
+              <p className="owner-promotion-duration-note">{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.")}</p>
+              <Button type="button" onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
               <Button type="button" variant="outline" onClick={() => setPromotionStep("choose")}>{t("Volver")}</Button>
             </> : <>
-              <strong>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${t(`${topDays} días`)} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</strong>
-              <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
+              <strong>{promotionDurationLabel(topDurationHours, language)} · {formatPromotionPrice(selectedTopOffer.amountCents, locale)}</strong>
+              <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.")}</span>
               {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
-              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+              <Button type="button" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy} onClick={() => setPromotionStep("duration")}>{t("Volver")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
             </>}
