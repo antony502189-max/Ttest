@@ -843,7 +843,7 @@ export function MyListingsPage() {
           </div>
           {promotionStep === "choose" ? <div className="owner-top-dialog__list" data-testid="owner-promotion-choices">
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
-              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Destacar en portada")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
+              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Banner Premium Principal")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
             </button>
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => setPromotionStep("duration")}>
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
