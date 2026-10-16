@@ -78,7 +78,7 @@ export function OwnerHomepagePurchase({ listingId = '', onClose, onBack }: { lis
   }
   const review = status?.fulfillmentStatus === 'review_required'
   return <>
-    {returnedId && status?.endsAt ? <p role="status">{t('En portada hasta')} {new Date(status.endsAt).toLocaleDateString(locale)}</p> : null}
+    {returnedId && status?.endsAt ? <p role="status">{t('En portada hasta')} {new Date(status.endsAt).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p> : null}
     {error && !open && returnedId ? <p role="alert">{t(error)}</p> : null}
     {review ? <p role="alert">{t('El pago se ha recibido, pero necesita revisión. Contacta con soporte; no vuelvas a pagar.')}</p> : null}
     {status?.orderStatus === 'pending' ? <p role="status">{t('Estamos confirmando el pago de portada.')}</p> : null}
