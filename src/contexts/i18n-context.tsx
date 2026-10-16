@@ -6,6 +6,10 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Duración de portada': { ru: 'Срок размещения на главной', en: 'Homepage promotion duration' },
+  'El plazo empieza cuando se confirma el pago.': { ru: 'Срок начинается после подтверждения оплаты.', en: 'The period starts when payment is confirmed.' },
+  'El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.': { ru: 'Срок начинается после подтверждения оплаты. Если TOP уже активен, часы добавятся к текущему сроку.', en: 'The period starts after payment confirmation. If TOP is already active, the purchased hours extend its duration.' },
+
   '30 € · 1 mes': { ru: '30 € · 1 месяц', en: '€30 · 1 month' },
   'Publicidad · 30 € por un mes. El plazo empieza cuando se aprueba tu campaña.': { ru: 'Баннер · 30 € за месяц. Срок показа начинается после одобрения кампании.', en: 'Advertising · €30 per month. The period starts when your campaign is approved.' },
   'Selecciona tu anuncio. TOP cuesta 1 € al día, mínimo 10 días, y lo sitúa antes que los anuncios sin TOP.': { ru: 'Выберите объявление. TOP стоит 1 € в день, минимум 10 дней, и поднимает его выше объявлений без TOP.', en: 'Choose your listing. TOP costs €1 per day, minimum 10 days, and places it before listings without TOP.' },
