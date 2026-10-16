@@ -27,6 +27,7 @@ from ...services.advertising_alerts import push_configured, validate_subscriptio
 from ...services.commercial_advertisements import (
     MAX_ACTIVE_HOMEPAGE_ADS,
     PACKAGE_ID,
+    PACKAGE_PRICE_CENTS,
     approve,
     destination_url,
     lock_advertising_capacity,
@@ -105,7 +106,7 @@ async def advertising_availability(session: AsyncSession = Depends(get_session))
     used = await occupied_slots(session)
     settings = get_settings()
     return {"total": MAX_ACTIVE_HOMEPAGE_ADS, "available": max(0, MAX_ACTIVE_HOMEPAGE_ADS - used),
-            "monthlyPriceCents": 3000, "months": 1, "currency": "EUR", "pushEnabled": push_configured(),
+            "monthlyPriceCents": PACKAGE_PRICE_CENTS, "months": 1, "currency": "EUR", "pushEnabled": push_configured(),
             "pushPublicKey": settings.web_push_public_key if push_configured() else None}
 
 
