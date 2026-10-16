@@ -497,16 +497,17 @@ function OwnerTopRocket({ active }: { active: boolean }) {
 }
 
 function formatOwnerPromotionEnd(value: string, locale: string, language: string) {
-  const inclusiveEnd = new Date(value);
-  if (Number.isNaN(inclusiveEnd.getTime())) return "";
-  if (inclusiveEnd.getHours() === 0 && inclusiveEnd.getMinutes() === 0 && inclusiveEnd.getSeconds() === 0) {
-    inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
-  }
+  const endsAt = new Date(value);
+  if (Number.isNaN(endsAt.getTime())) return "";
+  // Hourly paid entitlements can expire at any time, including midnight.
+  // Display their actual exclusive deadline instead of rounding to an earlier day.
   const formatted = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(inclusiveEnd);
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(endsAt);
   return language === "ru" ? `${formatted} г.` : formatted;
 }
 
