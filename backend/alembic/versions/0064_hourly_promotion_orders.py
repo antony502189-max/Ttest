@@ -17,11 +17,6 @@ depends_on = None
 
 def upgrade():
     op.add_column("payment_orders", sa.Column("duration_hours", sa.Integer(), nullable=True))
-    op.create_check_constraint(
-        "ck_payment_order_hourly_promotion",
-        "payment_orders",
-        "duration_hours IS NULL OR (kind IN ('listing_top','homepage_hero') AND duration_hours IN (12,24,72) AND duration_months IS NULL)",
-    )
 
 
 def downgrade():
@@ -31,5 +26,4 @@ def downgrade():
     connection = op.get_bind()
     if connection.execute(text("SELECT 1 FROM payment_orders WHERE duration_hours IS NOT NULL LIMIT 1")).first():
         raise RuntimeError("Cannot discard paid/pending hourly promotion history")
-    op.drop_constraint("ck_payment_order_hourly_promotion", "payment_orders", type_="check")
     op.drop_column("payment_orders", "duration_hours")
