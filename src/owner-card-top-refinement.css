@@ -418,3 +418,12 @@ body .owner-listings-page .owner-top-action--active:hover {
     animation: none;
   }
 }
+
+/* The owner-supplied TOP references are already oriented: upright while
+   inactive, northeast flight + visible flame while active. Never rotate
+   the actual reference artwork, even under old owner-card overrides. */
+body .owner-listings-page .owner-top-action--inactive .owner-top-rocket,
+body .owner-listings-page .owner-top-action--active .owner-top-rocket {
+  transform: none !important;
+  animation: none !important;
+}
