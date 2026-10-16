@@ -118,14 +118,16 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                 session.add(hero)
             hero.listing_id = listing.id
             hero.starts_at = service_start
-            hero.ends_at = one_month_after(service_start)
+            hero.ends_at = (service_start + timedelta(hours=order.duration_hours)
+                            if getattr(order, "duration_hours", None) is not None
+                            else one_month_after(service_start))
             hero.payment_order_id = order.id
             order.service_starts_at, order.service_ends_at = hero.starts_at, hero.ends_at
             hero.configured_by = None
             hero.configured_at = order.paid_at
             await touch_catalog(session)
             await notify_payment(session, order, "homepage_hero_paid", "Tu anuncio está en portada",
-                                 "El pago está confirmado. Tu anuncio aparecerá en la portada durante un mes.")
+                                 "El pago está confirmado. Tu anuncio aparecerá en la portada durante el plazo comprado.")
         else:
             order.fulfillment_status = "review_required"
             order.fulfillment_note = "Paid homepage placement no longer eligible or slot occupied; reconcile or refund."
@@ -134,6 +136,8 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
             Listing.id == order.target_id, Listing.owner_user_id == order.owner_user_id,
         ).with_for_update())
         monthly = getattr(order, "duration_months", None) == 1
+        hours = getattr(order, "duration_hours", None)
+        paid_duration = timedelta(hours=hours) if hours is not None else timedelta(days=order.days)
         valid = await eligible(listing, session) if monthly else bool(listing and listing.status == "published" and not listing.is_external and listing.deleted_at is None)
         if valid:
             promotion = await session.scalar(select(ListingPromotion).where(
@@ -151,22 +155,22 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                     promotion.baseline_starts_at, promotion.baseline_ends_at = promotion.starts_at, promotion.ends_at
                 if promotion.ends_at <= service_start or promotion.starts_at > service_start:
                     promotion.starts_at = service_start
-                promotion.ends_at = one_month_after(start) if monthly else start + timedelta(days=order.days)
+                promotion.ends_at = one_month_after(start) if monthly else start + paid_duration
                 promotion.boosted_at = service_start
                 promotion.payment_managed = True
                 order.service_starts_at, order.service_ends_at = start, promotion.ends_at
-                promotion.daily_price_cents = None if monthly else order.amount_cents // order.days
+                promotion.daily_price_cents = None if monthly or hours is not None else order.amount_cents // order.days
                 promotion.total_price_cents = (promotion.total_price_cents or 0) + order.amount_cents
             else:
                 session.add(ListingPromotion(
                     listing_id=listing.id, boosted_at=service_start, boosted_by=None,
-                    starts_at=service_start, ends_at=one_month_after(service_start) if monthly else service_start + timedelta(days=order.days),
-                    daily_price_cents=None if monthly else order.amount_cents // order.days,
+                    starts_at=service_start, ends_at=one_month_after(service_start) if monthly else service_start + paid_duration,
+                    daily_price_cents=None if monthly or hours is not None else order.amount_cents // order.days,
                     total_price_cents=order.amount_cents,
                     payment_managed=True,
                 ))
                 order.service_starts_at = service_start
-                order.service_ends_at = one_month_after(service_start) if monthly else service_start + timedelta(days=order.days)
+                order.service_ends_at = one_month_after(service_start) if monthly else service_start + paid_duration
             if order.fulfillment_status == "fulfilled":
                 await touch_catalog(session)
                 await notify_payment(session, order, "listing_top_paid", "Tu anuncio está en TOP",

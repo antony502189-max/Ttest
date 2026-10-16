@@ -21,9 +21,10 @@ from ...services.commercial_advertisements import (
     occupied_slots,
     require_free_slot,
 )
-from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
+from ...services.homepage_purchase import eligible, slot_available
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
 from ...services.payment_sessions import finish_creation, reconcile_order
+from ...services.promotion_offers import PromotionHours, amount_cents, offers
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
@@ -35,11 +36,12 @@ from ..dependencies import current_user, require_admin
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 logger = logging.getLogger(__name__)
-TOP_DAY_PRICE_CENTS = 100
-
-
 class TopCheckoutRequest(BaseModel):
-    days: int = Field(default=10, ge=10, le=365, strict=True)
+    durationHours: PromotionHours
+
+
+class HomepageCheckoutRequest(BaseModel):
+    durationHours: PromotionHours
 
 
 class BannerCheckoutRequest(BaseModel):
@@ -75,7 +77,7 @@ async def advertisement_quote(
 async def checkout(
     session: AsyncSession, user: User, kind: str, target_id: UUID, days: int, amount: int,
     name: str, return_path: str, fingerprint: str | None = None,
-    months: int | None = None,
+    months: int | None = None, duration_hours: int | None = None,
 ) -> CheckoutResponse:
     require_checkout_enabled(get_settings())
     previous = await session.scalar(
@@ -94,7 +96,9 @@ async def checkout(
                 await apply_stripe_session(remote, "checkout.session.completed", session)
             raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
         if remote["status"] == "open":
-            if previous.days == days and previous.amount_cents == amount and getattr(previous, "duration_months", None) == months:
+            if (previous.days == days and previous.amount_cents == amount
+                    and getattr(previous, "duration_months", None) == months
+                    and getattr(previous, "duration_hours", None) == duration_hours):
                 return CheckoutResponse(url=previous.checkout_url, amountCents=amount)
             raise HTTPException(409, "An unfinished payment already exists for this item")
         await apply_stripe_session(remote, "checkout.session.expired", session)
@@ -105,7 +109,8 @@ async def checkout(
         elif kind == "homepage_hero" and not await slot_available(session):
             raise HTTPException(409, "Homepage placement is currently unavailable")
     elif previous:
-        if previous.days != days or previous.amount_cents != amount or previous.duration_months != months:
+        if (previous.days != days or previous.amount_cents != amount
+                or previous.duration_months != months or previous.duration_hours != duration_hours):
             raise HTTPException(409, "An unfinished payment already exists for this item")
         url = await finish_creation(previous, session, create=create_stripe_session)
         return CheckoutResponse(url=url, amountCents=amount)
@@ -114,7 +119,7 @@ async def checkout(
     order = PaymentOrder(
         owner_user_id=user.id, kind=kind, target_id=target_id,
         days=days, amount_cents=amount, status="creating", advertisement_fingerprint=fingerprint,
-        duration_months=months,
+        duration_months=months, duration_hours=duration_hours,
         checkout_name=name, return_path=return_path,
     )
     session.add(order)
@@ -159,14 +164,18 @@ async def homepage_quote(user: User = Depends(current_user), session: AsyncSessi
         PaymentOrder.kind == "homepage_hero", PaymentOrder.owner_user_id == user.id, PaymentOrder.status.in_(["creating", "pending"]),
     ).limit(1))
     own_hero = await session.scalar(select(Listing.id).where(Listing.id == hero.listing_id, Listing.owner_user_id == user.id)) if hero else None
-    return {"amountCents": PRICE_CENTS, "currency": "EUR", "months": 1,
+    return {"amountCents": amount_cents("homepage_hero", 12), "currency": "EUR",
+            "offers": offers("homepage_hero"),
             "available": await slot_available(session),
             "reservedListingId": reservation, "featuredListingId": own_hero,
             "endsAt": hero.ends_at if hero and hero.ends_at > datetime.now(UTC) else None}
 
 
 @router.post("/listings/{listing_id}/homepage/checkout", response_model=CheckoutResponse)
-async def homepage_checkout(listing_id: UUID, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def homepage_checkout(
+    listing_id: UUID, payload: HomepageCheckoutRequest, user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
     await lock_advertising_capacity(session)
     listing = await session.scalar(select(Listing).where(
         Listing.id == listing_id, Listing.owner_user_id == user.id,
@@ -187,8 +196,11 @@ async def homepage_checkout(listing_id: UUID, user: User = Depends(current_user)
     ).limit(1))
     if not await slot_available(session, exclude_order=previous.id if previous else None):
         raise HTTPException(409, "Homepage placement is currently unavailable")
-    return await checkout(session, user, "homepage_hero", listing.id, 30, PRICE_CENTS,
-                          "Portada 112233.es · 1 mes", f"/mis-anuncios?homepage={listing.id}")
+    hours = payload.durationHours
+    return await checkout(session, user, "homepage_hero", listing.id, (hours + 23) // 24,
+                          amount_cents("homepage_hero", hours),
+                          f"Portada 112233.es · {hours} horas", f"/mis-anuncios?homepage={listing.id}",
+                          duration_hours=hours)
 
 
 @router.get("/listings/{listing_id}/homepage/status")
@@ -256,8 +268,11 @@ async def listing_top_checkout(
     ).limit(1))
     if unresolved:
         raise HTTPException(409, "Your TOP payment needs review; do not pay again")
-    return await checkout(session, user, "listing_top", listing.id, payload.days, TOP_DAY_PRICE_CENTS * payload.days,
-                          f"TOP 112233.es · {payload.days} días", f"/mis-anuncios?top={listing.id}")
+    hours = payload.durationHours
+    return await checkout(session, user, "listing_top", listing.id, (hours + 23) // 24,
+                          amount_cents("listing_top", hours),
+                          f"TOP 112233.es · {hours} horas", f"/mis-anuncios?top={listing.id}",
+                          duration_hours=hours)
 
 
 @router.get("/listings/{listing_id}/top/status")

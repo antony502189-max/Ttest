@@ -18,10 +18,26 @@ def test_calendar_month(start, end):
     assert one_month_after(datetime.fromisoformat(start).replace(tzinfo=UTC)).date().isoformat() == end
 
 
-@pytest.mark.parametrize("days", [0, 1, 9, 366, 10.5, "10", True])
-def test_top_rejects_invalid_duration(days):
+@pytest.mark.parametrize("hours", [0, 1, 10, 13, 30, 48, 73, 10.5, "12", True])
+def test_top_and_homepage_reject_non_tier_duration(hours):
     with pytest.raises(ValidationError):
-        TopCheckoutRequest(days=days)
+        TopCheckoutRequest(durationHours=hours)
+    with pytest.raises(ValidationError):
+        payments.HomepageCheckoutRequest(durationHours=hours)
+
+
+def test_hourly_prices_are_server_owned_and_homepage_is_exactly_five_times_top():
+    from app.services.promotion_offers import amount_cents, offers
+    assert offers("listing_top") == [
+        {"durationHours": 12, "amountCents": 99},
+        {"durationHours": 24, "amountCents": 170},
+        {"durationHours": 72, "amountCents": 450},
+    ]
+    for offer in offers("listing_top"):
+        hours = offer["durationHours"]
+        assert amount_cents("homepage_hero", hours) == 5 * offer["amountCents"]
+        assert TopCheckoutRequest(durationHours=hours).durationHours == hours
+        assert payments.HomepageCheckoutRequest(durationHours=hours).durationHours == hours
 
 
 @pytest.mark.asyncio

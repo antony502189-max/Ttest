@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-test.use({ timezoneId: 'Europe/Madrid' })
-async function openCalendar(page: Page, time: string) {
+async function openHourlyOffers(page: Page, time: string) {
   await page.addInitScript(() => {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
@@ -15,80 +14,61 @@ async function openCalendar(page: Page, time: string) {
     localStorage.setItem('112233:listings:v3', JSON.stringify(stored))
   })
   await page.clock.install({ time: new Date(time) })
-  await page.goto('/?calendar-check=1#/mis-anuncios')
+  await page.goto('/?hourly-check=1#/mis-anuncios')
   await page.getByTestId('owner-top-promote-button').first().click()
   await page.getByRole('button', { name: /Поднять свое объявление в TOP/ }).click()
   return page.getByRole('dialog')
 }
 
-test('native calendar crosses daylight saving without changing the paid day count', async ({ page }) => {
+test('hourly promotion tiers do not expose legacy date or day-range controls across DST', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 })
-  const dialog = await openCalendar(page, '2026-03-28T12:00:00Z')
-  await expect(dialog.getByLabel('От', { exact: true })).toHaveAttribute('readonly', '')
-  await expect(dialog.getByLabel('От', { exact: true })).toHaveValue('2026-03-28')
-  const until = dialog.getByLabel('До', { exact: true })
-  await expect(until).toHaveAttribute('type', 'date')
-  await expect(until).toHaveValue('2026-04-07')
-  await dialog.getByRole('button', { name: '14 дн.', exact: true }).click()
-  await expect(until).toHaveValue('2026-04-11')
-  await until.fill('2026-04-20')
-  await expect(dialog.locator('.promotion-period__summary strong')).toHaveText('23 дн.')
-  await expect(dialog).not.toContainText('1 €')
-  await dialog.screenshot({ path: 'output/advertising/top-calendar-ru-320.png' })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  let paid = 0
-  await page.route('**/payments/listings/*/top/checkout', async route => {
-    expect(route.request().postDataJSON()).toEqual({ days: 23 })
-    paid++
+  const dialog = await openHourlyOffers(page, '2026-03-28T12:00:00Z')
+  await expect(dialog.locator('input[type="date"]')).toHaveCount(0)
+  const choices = dialog.locator('.owner-promotion-duration-option')
+  await expect(choices).toHaveCount(3)
+  for (const [index, label, amount] of [[0, '12 часов', '0,99'], [1, '24 часа', '1,70'], [2, '3 дня', '4,50']] as const) {
+    await expect(choices.nth(index)).toContainText(label)
+    await expect(choices.nth(index)).toContainText(amount)
+  }
+  await choices.nth(1).click()
+  await expect(choices.nth(1)).toHaveAttribute('aria-pressed', 'true')
+  let checkouts = 0
+  await page.route('**/payments/listings/*/top/checkout', route => {
+    expect(route.request().postDataJSON()).toEqual({ durationHours: 24 })
+    checkouts++
     return route.fulfill({ status: 503, json: { detail: 'Test checkout' } })
   })
   await dialog.getByRole('button', { name: 'Продолжить', exact: true }).click()
-  await expect(dialog).toContainText('23,00')
-  expect(paid).toBe(0)
+  await expect(dialog).toContainText('1,70')
+  expect(checkouts).toBe(0)
   await dialog.getByRole('button', { name: 'Pagar con Stripe' }).click()
   await expect(dialog.getByRole('alert')).toHaveText('Test checkout')
-  expect(paid).toBe(1)
+  expect(checkouts).toBe(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('calendar supports leap day, enforces 10–365 days and preserves selection on Back', async ({ page }) => {
-  const dialog = await openCalendar(page, '2028-02-20T12:00:00Z')
-  const until = dialog.getByLabel('До', { exact: true })
-  await expect(until).toHaveValue('2028-03-01')
-  await until.fill('2028-02-29')
-  await expect(dialog.getByRole('button', { name: 'Продолжить', exact: true })).toBeDisabled()
-  await until.fill('2029-02-20')
-  await expect(dialog.getByRole('button', { name: 'Продолжить', exact: true })).toBeDisabled()
-  await until.fill('2029-02-19')
-  await expect(dialog.locator('.promotion-period__summary strong')).toHaveText('365 дн.')
+test('going back preserves the chosen duration without creating Stripe checkout', async ({ page }) => {
+  const dialog = await openHourlyOffers(page, '2028-02-29T12:00:00Z')
+  const choices = dialog.locator('.owner-promotion-duration-option')
+  await choices.nth(2).click()
   await dialog.getByRole('button', { name: 'Продолжить', exact: true }).click()
-  await expect(dialog).toContainText('365,00')
+  await expect(dialog).toContainText('4,50')
   await dialog.getByRole('button', { name: 'Назад', exact: true }).click()
-  await expect(dialog.getByLabel('До', { exact: true })).toHaveValue('2029-02-19')
-  await expect(dialog).not.toContainText('365,00')
+  await expect(choices.nth(2)).toHaveAttribute('aria-pressed', 'true')
+  await expect(dialog.getByRole('button', { name: 'Pagar con Stripe' })).toHaveCount(0)
 })
 
 for (const timezoneId of ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati']) {
-  test.describe(`calendar integration in ${timezoneId}`, () => {
+  test.describe(`hourly packages in ${timezoneId}`, () => {
     test.use({ timezoneId })
-    test('presets cross the year boundary and an empty date cannot start Checkout', async ({ page }) => {
-      const dialog = await openCalendar(page, '2026-12-27T23:30:00Z')
-      const start = await dialog.getByLabel('От', { exact: true }).inputValue()
-      expect(start).toBe(timezoneId === 'Pacific/Kiritimati' ? '2026-12-28' : '2026-12-27')
-      const until = dialog.getByLabel('До', { exact: true })
-      for (const days of [10, 14, 21, 30]) {
-        await dialog.getByRole('button', { name: `${days} дн.`, exact: true }).click()
-        const expected = new Date(Date.parse(`${start}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
-        await expect(until).toHaveValue(expected)
-        await expect(dialog.locator('.promotion-period__summary strong')).toHaveText(`${days} дн.`)
+    test('12, 24 and 72-hour choices are date independent', async ({ page }) => {
+      const dialog = await openHourlyOffers(page, '2026-12-27T23:30:00Z')
+      const choices = dialog.locator('.owner-promotion-duration-option')
+      for (const i of [0, 1, 2]) {
+        await choices.nth(i).click()
+        await expect(choices.nth(i)).toHaveAttribute('aria-pressed', 'true')
       }
-      let purchases = 0
-      await page.route('**/payments/listings/*/top/checkout', route => {
-        purchases++
-        return route.fulfill({ status: 503, json: { detail: 'Synthetic checkout' } })
-      })
-      await until.fill('')
-      await expect(dialog.getByRole('button', { name: 'Продолжить', exact: true })).toBeDisabled()
-      expect(purchases).toBe(0)
+      await expect(dialog.locator('input[type="date"]')).toHaveCount(0)
     })
   })
 }

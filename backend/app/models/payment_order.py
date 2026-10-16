@@ -23,6 +23,8 @@ class PaymentOrder(Base):
     target_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True)
     days: Mapped[int] = mapped_column(Integer)
     duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # NULL marks historical day/month orders. Hour-based promotions use 12/24/72.
+    duration_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
     amount_cents: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default="pending")
     stripe_session_id: Mapped[str | None] = mapped_column(String(255), unique=True)
