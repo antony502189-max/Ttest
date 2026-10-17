@@ -35,6 +35,34 @@ test.describe('mobile history', () => {
   })
 
 
+  test('mobile pinch camera cannot jump to the Arctic or poison map history', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
+    await page.goto('/#/buscar?q=Canarias&comunidad=05&vista=mapa')
+    const map = page.getByTestId('google-map')
+    await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
+    const restriction = await page.evaluate(() => window.__googleMapsTestLastMap?.get('restriction'))
+    expect(restriction).toEqual({
+      latLngBounds: { north: 60, south: 10, east: 25, west: -35 },
+      strictBounds: true,
+    })
+    await map.dispatchEvent('pointerdown')
+    await page.evaluate(() => {
+      window.__googleMapsTestLastMap?.panTo({ lat: 28.12, lng: -16.72 })
+      window.__googleMapsTestLastMap?.setZoom(10)
+    })
+    await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center))
+      .toEqual({ lat: 28.12, lng: -16.72 })
+    await page.evaluate(() => window.__googleMapsTestLastMap?.panTo({ lat: 80, lng: 105 }))
+    await expect(map).toHaveAttribute('data-map-center', '28.120000,-16.720000')
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center))
+      .toEqual({ lat: 28.12, lng: -16.72 })
+    await expect(page).not.toHaveURL(/mapLat=80|mapLng=105/)
+    // A legitimate pan across Spain remains possible after recovery.
+    await page.evaluate(() => window.__googleMapsTestLastMap?.panTo({ lat: 40.42, lng: -3.70 }))
+    await expect(map).toHaveAttribute('data-map-center', '40.420000,-3.700000')
+  })
+
   test('a new visit fits the 70 km cell containing the last explored point', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
     await page.goto('/#/buscar?q=Tenerife&vista=mapa')
