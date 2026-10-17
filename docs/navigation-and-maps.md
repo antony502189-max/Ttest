@@ -10,6 +10,20 @@
 
 The 70 km circles are virtual; **no circle overlays** are shown by this feature. This is separate from users drawing custom search polygons.
 
+### Mobile map drift protection
+
+The customer-supplied Android recording (Canary Islands results → map → two-finger gestures)
+shows intermittent jumps to polar terrain. Mobile Google Maps now has a **wide**
+exploration restriction (10–60°N, 35°W–25°E), covering Tenerife, all Canaries,
+mainland Spain and the Balearics with generous surrounding Atlantic space. It
+is intentionally not Tenerife-only. An out-of-range SDK idle camera is restored
+to its last valid position rather than written to map URL or device history.
+Historical records and bookmarked camera coordinates outside that region are
+ignored; normal 70 km recall and manual exploration within the region remain
+unchanged. This bounds abnormal viewport shifts but cannot diagnose Android GPU
+rendering artifacts if they persist without a camera-position change.
+
+
 ## Source of truth and math
 
 `src/lib/map-visit-history.ts` exports:

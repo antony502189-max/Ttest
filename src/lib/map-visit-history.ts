@@ -16,6 +16,13 @@ export const FIRST_MAP_VIEWPORT: Readonly<MapViewport> = {
   // First-time Atlantic overview including both Tenerife and mainland Spain.
   lat: 32.45, lng: -11.2, zoom: 5.25,
 }
+// A generous navigable envelope around mainland Spain, the Balearics and the
+// Canary Islands. The extra Atlantic margin keeps the first wide-angle
+// overview usable on tall phones, but excludes accidental polar/world jumps.
+export const MAP_EXPLORATION_BOUNDS = {
+  north: 60, south: 10, east: 25, west: -35,
+} as const
+
 const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 const EARTH_RADIUS_KM = 6371.0088
 const MAX_MERCATOR_LAT = 85.05112878
@@ -87,6 +94,14 @@ function validMapCenter(value: unknown): value is MapCenter {
     && center.lng >= -180 && center.lng <= 180
 }
 
+export function isExplorableMapCenter(point: unknown): point is MapCenter {
+  return validMapCenter(point)
+    && point.lat >= MAP_EXPLORATION_BOUNDS.south
+    && point.lat <= MAP_EXPLORATION_BOUNDS.north
+    && point.lng >= MAP_EXPLORATION_BOUNDS.west
+    && point.lng <= MAP_EXPLORATION_BOUNDS.east
+}
+
 export function validMapViewport(value: unknown): value is MapViewport {
   if (!validMapCenter(value)) return false
   const { zoom } = value as MapViewport
@@ -100,7 +115,7 @@ export function mapViewportFromParams(params: URLSearchParams): MapViewport | nu
     lng: Number(params.get('mapLng')),
     zoom: Number(params.get('mapZoom')),
   }
-  return validMapViewport(camera) ? camera : null
+  return validMapViewport(camera) && isExplorableMapCenter(camera) ? camera : null
 }
 
 export function readLastMapCenter(): MapCenter | null {
@@ -112,7 +127,7 @@ export function readLastMapCenter(): MapCenter | null {
     const { center, savedAt } = record as { center?: unknown; savedAt?: unknown }
     if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)
       || savedAt > Date.now() + 60_000 || Date.now() - savedAt > MAX_AGE_MS
-      || !validMapCenter(center)) return null
+      || !isExplorableMapCenter(center)) return null
     // Transparent migration of the previous exact-coordinate v2 history:
     // retain its timestamp and point, but display the nearest 70 km zone.
     return mapZoneForCenter(center)
@@ -158,7 +173,7 @@ export function readLastMapViewport(width = 390, height = 600): MapViewport | nu
  * Initialization/automatic marker fitting MUST NOT write map history.
  */
 export function rememberMapViewport(camera: MapViewport): void {
-  if (!validMapViewport(camera)) return
+  if (!validMapViewport(camera) || !isExplorableMapCenter(camera)) return
   try {
     const previousZone = readLastMapCenter()
     const newZone = mapZoneForCenter(camera)
