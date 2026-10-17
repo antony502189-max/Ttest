@@ -9,8 +9,9 @@ Marketplace inmobiliario de alquiler en España / Spanish rental marketplace. **
 ## Capabilities
 
 - Browse public property listings in scrolling cards and a Google Maps view; images, videos, favorites, discarded items, saved searches, notifications, account and owner publication flows.
-- Mobile location picker covering **17 autonomous communities**: Spanish/Russian/English names, autocomplete against approximately 8,130 municipality names and catalog cities, region-specific published-listing counts, and regional scrolling results. Selecting `Barcelona` ranks **Cataluña** first; `comunidad=09` is the canonical region filter.
-- Database-side geography filtering with PostGIS. `POST /api/v1/listings/regions/counts` uses the same published-visibility and other active search filters as card results.
+- Province search with published-listing counts and scrolling results; `provincia=08` selects Barcelona province. Publication derives the province from the listing address without a municipality dropdown. Existing autonomous-community deep links remain compatible.
+- Three TOP listings per province, with checkout reservations, server-side capacity checks and a live availability countdown in the existing promotion dialog. [Province search and TOP rules](docs/province-search-and-top.md).
+- Database-side geography filtering with PostGIS. `POST /api/v1/listings/provinces/counts` uses the same published-visibility and other active search filters as card results.
 - Map state: first visit shows an Atlantic overview of mainland Spain and the Canary Islands. Subsequent fresh visits use the last explored **virtual 70 km-radius zone**, fitted to the current screen; opening a listing is unnecessary. An exact map bookmark or returning via in-app Back is handled separately.
 - Long-term listings obey the inclusive **€1,000/month** cap; the holiday mode has separate pricing rules and is **not removed or redirected**.
 - Authenticated host publication, geocoding/address editing, moderated listings, commercial homepage campaigns, external-listing import, a transactional email outbox, and admin controls.

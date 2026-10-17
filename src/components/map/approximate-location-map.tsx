@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
 import { GOOGLE_MAPS_AUTH_FAILURE_EVENT, googleMapsAuthErrorMessage, googleMapsConfig, googleMapsErrorMessage, GoogleMapsSetupError, loadGoogleMaps } from '@/lib/google-maps/loader'
-import { TENERIFE_BOUNDS, TENERIFE_CENTER, isInsideTenerife } from '@/lib/tenerife'
+import { TENERIFE_CENTER } from '@/lib/tenerife'
+import { isInsideSpain } from '@/lib/geolocation'
 import type { Coordinates } from '@/types'
 import { createRequestVersionGate, parseGoogleAddress, type ResolvedGoogleAddress } from '@/lib/google-maps/address'
 
@@ -19,6 +20,7 @@ type ApproximateLocationMapProps = {
 }
 
 type SelectedLocationDetail = {
+  address?: ResolvedGoogleAddress
   coordinates?: Coordinates
   zoom?: number
   clearDetectedAddress?: boolean
@@ -71,7 +73,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
     const handleSelectedLocation = (event: Event) => {
       const detail = (event as CustomEvent<SelectedLocationDetail>).detail ?? {}
       const point = detail.coordinates
-      if (!point || !isInsideTenerife(point)) return
+      if (!point || !isInsideSpain(point)) return
       if (applySelectedLocationRef.current) {
         applySelectedLocationRef.current(detail)
       } else {
@@ -97,7 +99,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       if (cancelled || !containerRef.current) return
       if (!googleMapsConfig.mapId) throw new GoogleMapsSetupError('missing-map-id')
       const requestedInitial = initialCoordinatesRef.current
-      const initial = isInsideTenerife(requestedInitial) ? requestedInitial : TENERIFE_CENTER
+      const initial = isInsideSpain(requestedInitial) ? requestedInitial : TENERIFE_CENTER
       const mapInstance = new maps.Map(containerRef.current, {
         center: initial,
         zoom: DEFAULT_PUBLICATION_ZOOM,
@@ -110,7 +112,6 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         clickableIcons: false,
         gestureHandling: 'greedy',
         disableDoubleClickZoom: true,
-        restriction: { latLngBounds: TENERIFE_BOUNDS, strictBounds: true },
       })
       mapInstance.setCenter(initial)
       mapInstance.setZoom(DEFAULT_PUBLICATION_ZOOM)
@@ -144,7 +145,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
       }
 
       const commitPoint = (point: Coordinates, detectAddress = true) => {
-        if (!isInsideTenerife(point)) return
+        if (!isInsideSpain(point)) return
         publicMarker.position = point
         internalChangeRef.current = true
         onChangeRef.current(point)
@@ -185,13 +186,14 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
 
       const applySelectedLocation = (detail: SelectedLocationDetail) => {
         const point = detail.coordinates
-        if (!point || !isInsideTenerife(point)) return
+        if (!point || !isInsideSpain(point)) return
         requestGateRef.current.next()
         if (detail.clearDetectedAddress) setDetectedAddress('')
         const zoom = Math.max(9, Math.min(20, detail.zoom ?? ADDRESS_SELECTION_ZOOM))
         mapInstance.panTo(point)
         mapInstance.setZoom(zoom)
-        commitPoint(point, false)
+        commitPoint(point, !detail.address)
+        if (detail.address) onAddressResolvedRef.current?.(detail.address)
       }
       applySelectedLocationRef.current = applySelectedLocation
       const pendingSelection = pendingSelectedLocationRef.current
@@ -252,7 +254,7 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
   }, [])
 
   useEffect(() => {
-    if (!isInsideTenerife(coordinates)) return
+    if (!isInsideSpain(coordinates)) return
     if (markerRef.current) markerRef.current.position = coordinates
     if (internalChangeRef.current) { internalChangeRef.current = false; return }
     requestGateRef.current.next()

@@ -121,8 +121,22 @@ async def change_service_finances(order, session):
         order.fulfillment_status = "review_required"
         order.fulfillment_note = "Financial payment state: " + order.financial_status
     elif order.service_ends_at and order.fulfillment_status == "review_required":
-        order.fulfillment_status = "fulfilled"
-        order.fulfillment_note = None
+        can_restore = True
+        if order.kind == "listing_top" and order.service_ends_at > datetime.now(UTC):
+            from ..models import Listing
+            from .province_top import top_availability
+            listing = await session.get(Listing, order.target_id)
+            try:
+                can_restore = bool(listing) and (await top_availability(
+                    session, listing, ends_at=order.service_ends_at,
+                ))["available"]
+            except HTTPException:
+                can_restore = False
+        if can_restore:
+            order.fulfillment_status = "fulfilled"
+            order.fulfillment_note = None
+        else:
+            order.fulfillment_note = "TOP province capacity unavailable; reconcile or refund."
     if order.kind == "listing_top":
         promotion = await session.get(ListingPromotion,order.target_id)
         if promotion and promotion.payment_managed:
@@ -303,6 +317,13 @@ async def resolve_payment(order_id, actor, reason, action, session):
                 if not owner or owner.deleted_at or owner.blocked or not image or image.deleted_at:
                     raise HTTPException(409,"The campaign is not eligible for restoration")
             else:
+                from ..models import Listing
+                from .province_top import require_province_top_slot
+                listing = await session.get(Listing, order.target_id)
+                if not listing:
+                    raise HTTPException(409, "Listing not found")
+                if order.service_ends_at and order.service_ends_at > datetime.now(UTC):
+                    await require_province_top_slot(session, listing, ends_at=order.service_ends_at)
                 promotion = await session.get(ListingPromotion,order.target_id)
                 if not promotion:
                     session.add(ListingPromotion(listing_id=order.target_id,boosted_at=order.paid_at,
@@ -313,7 +334,7 @@ async def resolve_payment(order_id, actor, reason, action, session):
             order.resolution_actor_id, order.resolution_reason, order.resolved_at = actor.id,reason,datetime.now(UTC)
             session.add(audit(actor.id,"payment.restored","payment",order.id,{"reason":reason,"originalPeriod":True}))
             await session.commit()
-            return {"resolved":True}
+            return {"resolved": order.fulfillment_status == "fulfilled"}
         await apply_stripe_session(remote, "checkout.session.completed", session, retry=True, actor=actor, reason=reason)
         return {"resolved":order.fulfillment_status == "fulfilled"}
     if order.financial_status == "refunded":

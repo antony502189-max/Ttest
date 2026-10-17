@@ -1,9 +1,10 @@
+import { resolveProvince } from '@/lib/spain-provinces'
 import type { ListingSearchInput } from '@/api/listings'
 
 // The URL represents an explicitly applied map search, not merely the last
 // camera position remembered for the next visit.
 type SearchGeography = Pick<ListingSearchInput,
-  'query' | 'autonomousCommunity' | 'bounds' | 'polygon' | 'center' | 'radiusKm'
+  'query' | 'autonomousCommunity' | 'provinceCode' | 'bounds' | 'polygon' | 'center' | 'radiusKm'
 >
 
 function validCoordinate(value: string, limit: number): number | null {
@@ -59,6 +60,7 @@ export function searchGeographyFromParams(params: URLSearchParams): SearchGeogra
 
   return {
     query: params.get('q')?.trim() || 'España',
+    provinceCode: params.get('provincia') || (!params.has('comunidad') ? resolveProvince(params.get('q') ?? '')?.id : undefined),
     autonomousCommunity: params.get('comunidad') || undefined,
   }
 }

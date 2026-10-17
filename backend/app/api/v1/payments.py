@@ -24,6 +24,7 @@ from ...services.commercial_advertisements import (
 from ...services.homepage_purchase import PRICE_CENTS, eligible, slot_available
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
 from ...services.payment_sessions import finish_creation, reconcile_order
+from ...services.province_top import require_province_top_slot, top_availability
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
@@ -104,6 +105,9 @@ async def checkout(
             await require_free_slot(session, exclude_id=target_id)
         elif kind == "homepage_hero" and not await slot_available(session):
             raise HTTPException(409, "Homepage placement is currently unavailable")
+        elif kind == "listing_top":
+            listing = await session.get(Listing, target_id)
+            await require_province_top_slot(session, listing, days=days)
     elif previous:
         if previous.days != days or previous.amount_cents != amount or previous.duration_months != months:
             raise HTTPException(409, "An unfinished payment already exists for this item")
@@ -256,8 +260,20 @@ async def listing_top_checkout(
     ).limit(1))
     if unresolved:
         raise HTTPException(409, "Your TOP payment needs review; do not pay again")
+    await require_province_top_slot(session, listing, days=payload.days)
     return await checkout(session, user, "listing_top", listing.id, payload.days, TOP_DAY_PRICE_CENTS * payload.days,
                           f"TOP 112233.es · {payload.days} días", f"/mis-anuncios?top={listing.id}")
+
+
+@router.get("/listings/{listing_id}/top/availability")
+async def listing_top_availability(
+    listing_id: UUID, days: int = Query(default=10, ge=10, le=365),
+    user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+):
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.owner_user_id == user.id))
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    return await top_availability(session, listing, days=days)
 
 
 @router.get("/listings/{listing_id}/top/status")

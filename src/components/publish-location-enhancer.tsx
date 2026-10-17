@@ -1,9 +1,10 @@
+import { isInsideSpain } from '@/lib/geolocation'
 import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { getMunicipalityId, getRootMunicipalityId, getZoneFeature, type TenerifeZoneCollection, type TenerifeZoneFeature, type TenerifeZoneGeometry } from '@/lib/map/zones'
 import { TENERIFE_BOUNDS, isInsideTenerife, normalizeTenerifeText, resolveTenerifeLocation } from '@/lib/tenerife'
-import { createRequestVersionGate } from '@/lib/google-maps/address'
+import { createRequestVersionGate, parseGoogleAddress } from '@/lib/google-maps/address'
 import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
 import type { Coordinates } from '@/types'
 import '@/publish-location-enhancer.css'
@@ -41,17 +42,6 @@ function setNativeValue(element: HTMLInputElement | HTMLSelectElement | null, va
   }
 }
 
-function matchingSelectValue(element: HTMLSelectElement | null, candidates: string[]) {
-  if (!element) return ''
-  const options = Array.from(element.options)
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    const normalized = normalizeTenerifeText(candidate)
-    const match = options.find((option) => normalizeTenerifeText(option.value) === normalized)
-    if (match) return match.value
-  }
-  return ''
-}
 
 function pointInRing(point: Coordinates, ring: number[][]) {
   let inside = false
@@ -172,8 +162,8 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
   const postalTown = component(components, 'postal_town')
   const municipality = component(components, 'administrative_area_level_3')
   const municipalFallback = component(components, 'administrative_area_level_4')
-  const citySelect = document.querySelector<HTMLSelectElement>('#publish-city')
-  const city = matchingSelectValue(citySelect, [municipality, municipalFallback, locality, postalTown])
+  const citySelect = document.querySelector<HTMLInputElement>('#publish-city')
+  const city = municipality || municipalFallback || locality || postalTown
   const area = component(components, 'sublocality_level_1')
     || component(components, 'sublocality')
     || component(components, 'neighborhood')
@@ -192,9 +182,9 @@ export function PublishLocationEnhancer() {
   const { language } = useI18n()
   const placeholder = language === 'ru' ? 'Начните вводить улицу и номер…' : language === 'en' ? 'Start typing street and number…' : 'Empieza a escribir Calle, número…'
   const ariaLabel = language === 'ru' ? 'Улица и номер' : language === 'en' ? 'Street and number' : 'Calle y número'
-  const streetRequiredMessage = language === 'ru' ? 'Выберите улицу или полный адрес на Тенерифе.' : language === 'en' ? 'Choose a street or complete address in Tenerife.' : 'Selecciona una calle o una dirección completa de Tenerife.'
+  const streetRequiredMessage = language === 'ru' ? 'Выберите улицу или полный адрес в Испании.' : language === 'en' ? 'Choose a street or complete address in Spain.' : 'Selecciona una calle o una dirección completa de España.'
   const addressNotFoundMessage = language === 'ru' ? 'Не удалось найти выбранный адрес.' : language === 'en' ? 'The selected address could not be found.' : 'No se pudo encontrar la dirección seleccionada.'
-  const outsideTenerifeMessage = language === 'ru' ? 'Адрес должен находиться на Тенерифе.' : language === 'en' ? 'The address must be in Tenerife.' : 'La dirección debe estar en Tenerife.'
+  const outsideTenerifeMessage = language === 'ru' ? 'Адрес должен находиться в Испании.' : language === 'en' ? 'The address must be in Spain.' : 'La dirección debe estar en España.'
   const municipalityNotFoundMessage = language === 'ru' ? 'Не удалось переместить карту в выбранный муниципалитет. Предыдущее местоположение сохранено.' : language === 'en' ? 'The map could not move to the selected municipality. The previous location was kept.' : 'No se pudo mover el mapa al municipio seleccionado. Se ha conservado la ubicación anterior.'
   const areaNotFoundMessage = language === 'ru' ? 'Не удалось определить этот район внутри выбранного муниципалитета.' : language === 'en' ? 'This area could not be located inside the selected municipality.' : 'No se pudo localizar esta zona dentro del municipio seleccionado.'
   const selectorTitle = language === 'ru' ? 'Выберите примерную точку' : language === 'en' ? 'Select an approximate point' : 'Selecciona un punto aproximado'
@@ -330,7 +320,7 @@ export function PublishLocationEnhancer() {
       const area = input.value.trim()
       if (area.length < 2) return
       const city = document.querySelector<HTMLSelectElement>('#publish-city')?.value ?? ''
-      if (!city) return
+      if (!city || !getMunicipalityId(city)) return
       const version = locationGate.next()
       const coordinates = await resolveAreaCoordinates(area, city, version)
       if (cancelled || !locationGate.isCurrent(version) || input.value.trim() !== area) return
@@ -443,7 +433,6 @@ export function PublishLocationEnhancer() {
         autocomplete.classList.add('publish-place-autocomplete')
         autocomplete.placeholder = placeholder
         autocomplete.includedRegionCodes = ['es']
-        autocomplete.locationRestriction = TENERIFE_BOUNDS
         autocomplete.includedPrimaryTypes = ['street_address', 'route', 'premise', 'subpremise']
         autocomplete.setAttribute('aria-label', ariaLabel)
         autocomplete.addEventListener('gmp-select', async (rawEvent) => {
@@ -458,7 +447,7 @@ export function PublishLocationEnhancer() {
             return
           }
           const coordinates = { lat: place.location.lat(), lng: place.location.lng() }
-          if (!isInsideTenerife(coordinates)) {
+          if (!isInsideSpain(coordinates)) {
             window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: outsideTenerifeMessage } }))
             return
           }
@@ -467,7 +456,8 @@ export function PublishLocationEnhancer() {
             window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: streetRequiredMessage } }))
             return
           }
-          window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates } }))
+          const address = parseGoogleAddress(place.addressComponents, place.formattedAddress ?? '', coordinates)
+          window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates, address } }))
         })
         input.insertAdjacentElement('beforebegin', autocomplete)
         input.classList.add('publish-street-source-input')

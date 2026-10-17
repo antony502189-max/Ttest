@@ -58,6 +58,7 @@ import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
 import { PromotionPeriod, promotionDate, addPromotionDays, promotionDays } from "@/components/promotion-period";
+import { ProvinceTopAvailability, useProvinceTopAvailability } from "@/components/province-top-availability";
 
 type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
@@ -529,6 +530,7 @@ export function MyListingsPage() {
   const [topEndDate, setTopEndDate] = useState(() => addPromotionDays(promotionDate(), 10));
   const topDays = promotionDays(topStartDate, topEndDate);
   const validTopDays = Number.isInteger(topDays) && topDays >= 10 && topDays <= 365;
+  const provinceTop = useProvinceTopAvailability(topCandidateId, topDays, topDialogOpen && promotionStep !== "choose");
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -588,7 +590,7 @@ export function MyListingsPage() {
     setTopDialogOpen(true);
   };
   const payForTop = async () => {
-    if (!topCandidateId || !validTopDays) return;
+    if (!topCandidateId || !validTopDays || !provinceTop.canBuy) return;
     setTopPaymentBusy(true);
     setTopPaymentError("");
     try {
@@ -598,6 +600,7 @@ export function MyListingsPage() {
       window.location.assign(checkout.url);
     } catch (error) {
       setTopPaymentError((error as Error).message);
+      provinceTop.refresh();
       setTopPaymentBusy(false);
     }
   };
@@ -858,15 +861,16 @@ export function MyListingsPage() {
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
             </button>
           </div> : <div className={`owner-top-dialog__next ${promotionStep === "duration" ? "owner-top-dialog__next--period" : ""}`} data-testid="owner-top-next-step">
+            <ProvinceTopAvailability state={provinceTop} />
             {promotionStep === "duration" ? <>
               <PromotionPeriod start={topStartDate} end={topEndDate} onChange={setTopEndDate} />
-              <Button type="button" disabled={!validTopDays} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
+              <Button type="button" disabled={!validTopDays || !provinceTop.canBuy} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
               <Button type="button" variant="outline" onClick={() => setPromotionStep("choose")}>{t("Volver")}</Button>
             </> : <>
               <strong>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${t(`${topDays} días`)} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</strong>
               <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
               {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
-              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays || !provinceTop.canBuy} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy} onClick={() => setPromotionStep("duration")}>{t("Volver")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
             </>}

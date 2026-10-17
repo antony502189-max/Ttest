@@ -32,6 +32,7 @@ from ..models import Listing, ListingImage, ListingView, MediaAsset, User
 from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
 from ..models.payment_order import PaymentOrder
 from ..models.room_details import ListingRoomDetails
+from ..spain_provinces import address_province_code, province_code_expression
 from ..schemas.listings import (
     ClusterMarker,
     ListingCardResponse,
@@ -180,6 +181,7 @@ def response_from(row: Any) -> ListingResponse:
         ),
         title=listing.title,
         city=listing.city,
+        provinceCode=address_province_code(listing.postcode),
         area=listing.area,
         approximateAddress=listing.approximate_address,
         rentalMode=listing.rental_mode,
@@ -338,7 +340,10 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     bedrooms = bedroom_count_expression()
     # Autonomous-community queries are spatial; never use the display name
     # as a literal city/area substring (Cataluña must include Barcelona).
-    if payload.autonomousCommunity:
+    if payload.provinceCode:
+        from ..spain_provinces import province_code_expression
+        query = query.where(province_code_expression() == payload.provinceCode)
+    elif payload.autonomousCommunity:
         query = query.where(community_contains_location(payload.autonomousCommunity, Listing.location))
     elif payload.query and payload.query.casefold() not in {"tenerife", "isla de tenerife", "espana", "españa", "spain", "es"}:
         term = f"%{payload.query}%"
@@ -589,7 +594,7 @@ def _card_sort_components(sort: str, favorite_ids: list[UUID]):
 
 def card_from_detail(detail: ListingResponse) -> ListingCardResponse:
     return ListingCardResponse(
-        id=detail.id, title=detail.title, city=detail.city, area=detail.area,
+        id=detail.id, title=detail.title, city=detail.city, area=detail.area, provinceCode=detail.provinceCode,
         approximateAddress=detail.approximateAddress, rentalMode=detail.rentalMode,
         price=detail.price, roomType=detail.roomType, currentResidents=detail.currentResidents,
         roomCapacity=detail.roomCapacity, bedroomCount=detail.bedroomCount,
@@ -646,6 +651,7 @@ async def search_public_cards(session: AsyncSession, payload: ListingCardSearchR
     gallery_asset_ids = image_asset_ids_subquery()
     columns = [
         Listing.id.label("id"), Listing.title.label("title"), Listing.city.label("city"),
+        province_code_expression().label("provinceCode"),
         Listing.area.label("area"), Listing.approximate_address.label("approximateAddress"),
         Listing.rental_mode.label("rentalMode"), primary_price_expression().label("price"),
         Listing.room_type.label("roomType"), Listing.current_residents.label("currentResidents"),

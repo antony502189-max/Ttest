@@ -66,6 +66,20 @@ from ..dependencies import current_user, optional_user
 router = APIRouter(prefix="/listings", tags=["listings"])
 logger = logging.getLogger(__name__)
 
+
+@router.post("/provinces/counts")
+async def province_counts(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session)):
+    from ...repositories.listings import apply_search_filters
+    from ...spain_provinces import PROVINCE_CODES, province_code_expression
+    code = province_code_expression()
+    filtered = apply_search_filters(visible_query(), payload.model_copy(update={
+        "query": None, "provinceCode": None, "autonomousCommunity": None,
+    })).with_only_columns(code.label("province"), Listing.id, maintain_column_froms=True).subquery()
+    result = await session.execute(select(filtered.c.province, func.count()).where(
+        filtered.c.province.is_not(None)).group_by(filtered.c.province))
+    counts = dict(result.all())
+    return {"items": [{"id": key, "count": counts.get(key, 0)} for key in PROVINCE_CODES]}
+
 IDEMPOTENCY_CONTACT_FIELDS = {
     "contactName": "name",
     "contactPhone": "phone",

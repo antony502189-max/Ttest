@@ -6,6 +6,32 @@ from typing import Any
 
 from .rental_classification import folded
 
+# INE province codes; also the first two digits of Spanish postcodes.
+# https://www.ine.es/daco/daco42/codmun/cod_provincia.htm
+PROVINCE_CODES = dict(zip(
+    (f"{code:02d}" for code in range(1, 53)),
+    ("Álava", "Albacete", "Alicante", "Almería", "Ávila", "Badajoz", "Illes Balears", "Barcelona",
+     "Burgos", "Cáceres", "Cádiz", "Castellón", "Ciudad Real", "Córdoba", "A Coruña", "Cuenca",
+     "Girona", "Granada", "Guadalajara", "Gipuzkoa", "Huelva", "Huesca", "Jaén", "León", "Lleida",
+     "La Rioja", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Ourense", "Asturias", "Palencia",
+     "Las Palmas", "Pontevedra", "Salamanca", "Santa Cruz de Tenerife", "Cantabria", "Segovia",
+     "Sevilla", "Soria", "Tarragona", "Teruel", "Toledo", "Valencia", "Valladolid", "Bizkaia",
+     "Zamora", "Zaragoza", "Ceuta", "Melilla"), strict=True,
+))
+
+
+def address_province_code(postcode: str | None) -> str | None:
+    import re
+    value = (postcode or "").strip()
+    return value[:2] if re.fullmatch(r"[0-9]{5}", value) and value[:2] in PROVINCE_CODES else None
+
+
+def province_code_expression():
+    from sqlalchemy import case, func
+    from .models import Listing
+    value = func.trim(Listing.postcode)
+    return case((value.op("~")(r"^(0[1-9]|[1-4][0-9]|5[0-2])[0-9]{3}$"), func.substr(value, 1, 2)), else_=None)
+
 PROVINCES = (
     "A Coruña",
     "Álava",

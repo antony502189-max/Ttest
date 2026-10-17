@@ -292,6 +292,9 @@ async def promote_listing(
     starts_at: datetime | None = None,
     ends_at: datetime | None = None,
 ) -> AdminListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .province_top import require_province_top_slot
+    await lock_advertising_capacity(session)
     listing, owner = await _actionable_listing(listing_id, session)
     require_listing_price(listing)
     if listing.status != "published":
@@ -327,6 +330,7 @@ async def promote_listing(
         raise HTTPException(422, "Promotion end date must be after its start date")
 
     promotion_days = max(1, ceil((ends_at - starts_at).total_seconds() / 86_400))
+    await require_province_top_slot(session, listing, starts_at=starts_at, ends_at=ends_at)
     total_price_cents = promotion_days * PROMOTION_DAILY_PRICE_CENTS
     row = await session.scalar(
         select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()

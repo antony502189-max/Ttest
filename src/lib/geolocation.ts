@@ -13,6 +13,12 @@ const TENERIFE_BOUNDS = {
   west: -16.96,
 }
 
+export function isInsideSpain({ lat, lng }: Coordinates) {
+  return Boolean(communityAtCoordinates(lat, lng))
+    || (lat >= 35.85 && lat <= 35.93 && lng >= -5.4 && lng <= -5.27)
+    || (lat >= 35.26 && lat <= 35.33 && lng >= -2.99 && lng <= -2.91)
+}
+
 const FALLBACK_OPTIONS: PositionOptions = {
   enableHighAccuracy: false,
   timeout: 15_000,

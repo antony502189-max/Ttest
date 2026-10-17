@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-// The community selector is part of the existing location page: it does not
+// The province selector is part of the existing location page: it does not
 // navigate to a second suggestions screen, and counts come from the same
 // geographic filter that is applied to the results.
-test.describe('mobile Spain community search', () => {
+test.describe('mobile Spain province search', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   test.beforeEach(async ({ page }) => {
@@ -21,45 +21,43 @@ test.describe('mobile Spain community search', () => {
     await expect(page.getByTestId('draw-zone')).toBeVisible()
     await expect(page.getByTestId('search-map')).toBeVisible()
     await expect(page.getByTestId('search-nearby')).toBeVisible()
-    await expect(page.getByTestId('community-suggestions')).toHaveCount(0)
-    await page.getByTestId('community-search-input').focus()
-    await expect(page.getByTestId('community-suggestions')).toBeVisible()
-    await expect(page.locator('.m2-community-option')).toHaveCount(17)
+    await expect(page.getByTestId('province-suggestions')).toBeVisible()
+    await expect(page.locator('.m2-community-option')).toHaveCount(52)
     await expect(page.getByTestId('location-screen')).toBeVisible()
   })
 
-  test('typing Barcelona offers Cataluña inline then opens region-specific scrolling results', async ({ page }) => {
+  test('typing Barcelona offers its province and opens provincial results', async ({ page }) => {
     await page.locator('.m2-select-row').click()
-    const input = page.getByTestId('community-search-input')
+    const input = page.getByRole('searchbox')
     await input.fill('barce')
-    const suggestions = page.getByTestId('community-suggestions')
+    const suggestions = page.getByTestId('province-suggestions')
     await expect(suggestions).toBeVisible()
-    // "barce" also matches Barceo in Castilla y León: Barcelona must rank first.
-    await expect(page.locator('.m2-community-option').first()).toHaveAttribute('data-testid', 'community-option-09')
-    await expect(page.getByTestId('community-option-09')).toContainText(/Catalu|Каталон/i)
-    await expect(page.getByTestId('community-option-09')).toContainText(/anuncios|listings|объявлений/i)
-    await page.getByTestId('community-option-09').click()
-    await expect(page).toHaveURL(/comunidad=09/)
+    // Search offers the province itself, without selecting a municipality.
+    await expect(page.locator('.m2-community-option').first()).toHaveAttribute('data-testid', 'province-option-08')
+    await expect(page.getByTestId('province-option-08')).toContainText(/Barcelona/i)
+    await expect(page.getByTestId('province-option-08')).toContainText(/anuncios|listings|объявлений/i)
+    await page.getByTestId('province-option-08').click()
+    await expect(page).toHaveURL(/provincia=08/)
     await expect(page).not.toHaveURL(/vista=mapa/)
     await expect(page.getByTestId('mobile-results')).toBeVisible()
     const header = page.locator('.m2-results__header')
-    await expect(header).toContainText(/Catalu|Каталон/i)
+    await expect(header).toContainText(/Barcelona/i)
     await expect(header).not.toContainText('Tenerife')
   })
 
   test('Madrid and Canary Islands choose distinct spatial searches', async ({ page }) => {
     await page.locator('.m2-select-row').click()
-    await page.getByTestId('community-search-input').fill('madrid')
-    await expect(page.getByTestId('community-option-13')).toBeVisible()
-    await page.getByTestId('community-option-13').click()
-    await expect(page).toHaveURL(/comunidad=13/)
+    await page.getByRole('searchbox').fill('madrid')
+    await expect(page.getByTestId('province-option-28')).toBeVisible()
+    await page.getByTestId('province-option-28').click()
+    await expect(page).toHaveURL(/provincia=28/)
     await expect(page.locator('.m2-results__header')).toContainText(/Madrid|Мадрид/i)
     await page.goto('/#/?panel=ubicacion')
-    await page.getByTestId('community-search-input').fill('Tenerife')
-    await expect(page.getByTestId('community-option-05')).toBeVisible()
-    await page.getByTestId('community-option-05').click()
-    await expect(page).toHaveURL(/comunidad=05/)
-    await expect(page.locator('.m2-results__header')).toContainText(/Canarias|Canary|Канар/i)
+    await page.getByRole('searchbox').fill('Tenerife')
+    await expect(page.getByTestId('province-option-38')).toBeVisible()
+    await page.getByTestId('province-option-38').click()
+    await expect(page).toHaveURL(/provincia=38/)
+    await expect(page.locator('.m2-results__header')).toContainText(/Santa Cruz de Tenerife/i)
   })
 })
 

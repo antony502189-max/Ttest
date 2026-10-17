@@ -6,6 +6,11 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Pagar con Stripe': { ru: 'Оплатить через Stripe', en: 'Pay with Stripe' },
+  'All TOP places in this province are occupied': { ru: 'Все места TOP в этой провинции заняты.', en: 'All TOP places in this province are occupied.' },
+  'A valid Spanish postcode is required to determine the listing province': { ru: 'Укажите корректный почтовый индекс в адресе объявления для определения провинции.', en: 'Enter a valid Spanish postcode in the listing address to determine its province.' },
+  'The province cannot change while this listing has TOP': { ru: 'Нельзя изменить провинцию, пока у объявления действует TOP.', en: 'The province cannot change while this listing has TOP.' },
+  'Cancel the pending TOP payment before changing province': { ru: 'Отмените незавершённую оплату TOP перед изменением провинции.', en: 'Cancel the pending TOP payment before changing province.' },
   '30 € · 1 mes': { ru: '30 € · 1 месяц', en: '€30 · 1 month' },
   'Publicidad · 30 € por un mes. El plazo empieza cuando se aprueba tu campaña.': { ru: 'Баннер · 30 € за месяц. Срок показа начинается после одобрения кампании.', en: 'Advertising · €30 per month. The period starts when your campaign is approved.' },
   'Selecciona tu anuncio. TOP cuesta 1 € al día, mínimo 10 días, y lo sitúa antes que los anuncios sin TOP.': { ru: 'Выберите объявление. TOP стоит 1 € в день, минимум 10 дней, и поднимает его выше объявлений без TOP.', en: 'Choose your listing. TOP costs €1 per day, minimum 10 days, and places it before listings without TOP.' },

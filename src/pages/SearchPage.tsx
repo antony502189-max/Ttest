@@ -39,6 +39,7 @@ import {
 } from "@/lib/search";
 import { filtersForRentalMode } from "@/lib/price-filter-controls";
 import { searchGeographyFromParams } from "@/lib/search-geography";
+import { listingInProvince, provinceName } from "@/lib/spain-provinces";
 import {
   EmptyState,
   ErrorState,
@@ -254,6 +255,8 @@ export function SearchPage() {
         zoneHierarchy,
       ).filter((listing) => !invalidLocation && (searchInput.polygon || searchInput.bounds || searchInput.center
         ? true
+        : searchInput.provinceCode
+          ? listingInProvince(listing, searchInput.provinceCode)
         : communityId
           ? listingInCommunity(listing, communityId)
           : ['españa', 'espana', 'spain'].includes(query.toLowerCase()) || listingMatchesTenerifeLocation(listing, location)))
@@ -334,6 +337,7 @@ export function SearchPage() {
       if (bounds) {
         next.set('q', 'España');
         next.delete('comunidad');
+    next.delete('provincia');
         next.delete('poligono');
         next.delete('zonas');
         next.set('norte', bounds.north.toFixed(5));
@@ -355,6 +359,7 @@ export function SearchPage() {
     if (polygon.length >= 3) {
       next.set('q', 'España');
       next.delete('comunidad');
+    next.delete('provincia');
       boundKeys.forEach((key) => next.delete(key));
       next.set("poligono", polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(";"));
     }
@@ -381,6 +386,7 @@ export function SearchPage() {
     const next = filtersToParams(nextFilters, new URLSearchParams(params));
     next.set('q', selectedQuery);
     next.delete('comunidad');
+    next.delete('provincia');
     next.delete('poligono');
     boundKeys.forEach((key) => next.delete(key));
     next.delete('pagina');
@@ -399,6 +405,7 @@ export function SearchPage() {
       next.set('q', nextQuery);
       if (selectedAreas.length) {
         next.delete('comunidad');
+    next.delete('provincia');
         next.delete('poligono');
         boundKeys.forEach((key) => next.delete(key));
       }
@@ -460,7 +467,7 @@ export function SearchPage() {
     const next = filtersToParams(defaultFilters, new URLSearchParams(params));
     ["pagina", "cursor", "poligono", "zonas", ...boundKeys].forEach((name) => next.delete(name));
     next.set('q', 'España');
-    ['comunidad', 'cerca', 'lat', 'lng', 'radio'].forEach((key) => next.delete(key));
+    ['provincia', 'comunidad', 'cerca', 'lat', 'lng', 'radio'].forEach((key) => next.delete(key));
     setParams(next);
   };
 
@@ -666,7 +673,7 @@ export function SearchPage() {
           <header className="results-head idealista-results-head">
             <div>
               <h1 id="results-title">
-                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${communityId ? communityName(communityId) : query || "España"}`)}
+                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${searchInput.provinceCode ? provinceName(searchInput.provinceCode) : communityId ? communityName(communityId) : query || "España"}`)}
               </h1>
               <p>
                 <CalendarDays aria-hidden="true" />

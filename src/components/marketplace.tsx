@@ -1,3 +1,5 @@
+import { provinceSuggestions } from '@/lib/spain-provinces'
+import { ProvinceLocationSearch } from '@/components/province-location-search'
 import {
   lazy,
   Suspense,
@@ -9,7 +11,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   ArrowLeft,
   Bath,
@@ -92,7 +94,6 @@ import {
 } from "@/components/ui/empty";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { getMunicipalityLabel } from "@/lib/map/zones";
 import { MediaImage, preloadMediaImages } from "@/components/media-image";
 import { useCardGalleryFailover } from "@/hooks/use-card-gallery-failover";
 import {
@@ -183,64 +184,30 @@ export function RentalTypeSwitch({
   );
 }
 
-export function SearchLocationInput({
-  value,
-  onChange,
-  error,
-  home = false,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  home?: boolean;
+export function SearchLocationInput({ value, onChange, error }: {
+  value: string; onChange: (value: string) => void; error?: string; home?: boolean;
 }) {
   const id = useId();
   const listId = useId();
-  const { searchHistory, filters, setFilters } = useApp();
-  const { t } = useI18n();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const suggestions = [...new Set([...searchHistory, ...TENERIFE_LOCATIONS.map((location) => location.normalizedValue)])];
-  return (
-    <div className="search-location">
-      <label htmlFor={id}>{t(home ? "¿Dónde buscas habitación?" : "Ciudad, barrio o zona")}</label>
-      <div className="search-location-row">
-        <MapPin className="search-location-row__icon" aria-hidden="true" />
-        <Input
-          id={id}
-          list={listId}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={t("Municipio, barrio o zona de Tenerife")}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
-        />
-        <datalist id={listId}>
-          {suggestions.map((suggestion) => (
-            <option key={suggestion} value={suggestion} />
-          ))}
-        </datalist>
-        <LocationSelector
-          selected={filters.areas}
-          currentQuery={value}
-          onLocationSelect={onChange}
-          onApply={(selected) => {
-            const nextFilters = { ...filters, areas: selected };
-            const nextQuery = selected.length === 1 ? getMunicipalityLabel(selected[0]) ?? selected[0] : "Tenerife";
-            setFilters(nextFilters);
-            onChange(nextQuery);
-            if (!home) {
-              const params = filtersToParams(nextFilters, new URLSearchParams(location.search));
-              params.set("q", nextQuery);
-              params.delete("pagina");
-              navigate(`/buscar?${params.toString()}`);
-            }
-          }}
-        />
-      </div>
-      {error ? <span id={`${id}-error`} className="location-validation" role="alert">{error}</span> : null}
+  const { rentalMode } = useApp();
+  const { language } = useI18n();
+  const [open, setOpen] = useState(false);
+  const label = language === 'ru' ? 'Провинция' : language === 'en' ? 'Province' : 'Provincia';
+  return <div className="search-location">
+    <label htmlFor={id}>{label}</label>
+    <div className="search-location-row">
+      <MapPin className="search-location-row__icon" aria-hidden="true" />
+      <Input id={id} list={listId} value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} />
+      <datalist id={listId}>{provinceSuggestions('').map((province) => <option key={province.id} value={province.es} />)}</datalist>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild><Button type="button" variant="ghost" size="sm" className="location-selector-trigger" aria-label={label}><SlidersHorizontal data-icon="inline-start" /><span>{label}</span></Button></DialogTrigger>
+        <DialogContent className="m2-location"><DialogHeader><DialogTitle>{label}</DialogTitle><DialogDescription className="sr-only">{label}</DialogDescription></DialogHeader>
+          <ProvinceLocationSearch language={language} rentalMode={rentalMode} onSelect={(code) => { const province = provinceSuggestions('').find((item) => item.id === code); if (province) onChange(province.es); setOpen(false); }} />
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+    {error ? <span id={`${id}-error`} className="location-validation" role="alert">{error}</span> : null}
+  </div>;
 }
 
 export function SearchBar({ compact = false, home = false }: { compact?: boolean; home?: boolean }) {

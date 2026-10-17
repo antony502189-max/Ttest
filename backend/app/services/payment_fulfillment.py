@@ -17,6 +17,7 @@ from .catalog import touch_catalog
 from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
 from .homepage_purchase import eligible, one_month_after, slot_available
 from .notifications import create_notification
+from .province_top import top_availability
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +136,12 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
         ).with_for_update())
         monthly = getattr(order, "duration_months", None) == 1
         valid = await eligible(listing, session) if monthly else bool(listing and listing.status == "published" and not listing.is_external and listing.deleted_at is None)
+        if valid:
+            try:
+                valid = (await top_availability(session, listing, days=order.days,
+                                                months=1 if monthly else None, exclude_order=order.id))["available"]
+            except HTTPException:
+                valid = False
         if valid:
             promotion = await session.scalar(select(ListingPromotion).where(
                 ListingPromotion.listing_id == listing.id,

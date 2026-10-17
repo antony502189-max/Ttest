@@ -115,7 +115,8 @@ async def test_ad_payment_and_duplicate_webhook(configured):
 
 
 @pytest.mark.asyncio
-async def test_top_records_initial_total_and_duplicate_is_ignored(configured):
+async def test_top_records_initial_total_and_duplicate_is_ignored(configured, monkeypatch):
+    monkeypatch.setattr(payment_fulfillment, "top_availability", AsyncMock(return_value={"available": True}))
     order, event = order_event("listing_top")
     listing = SimpleNamespace(status="published", is_external=False, deleted_at=None, id=order.target_id)
     added = []
@@ -130,6 +131,20 @@ async def test_top_records_initial_total_and_duplicate_is_ignored(configured):
     await payments.stripe_webhook(request, signature, session)
     assert len(added) == 1
     assert session.commit.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_late_top_payment_cannot_displace_three_province_slots(configured, monkeypatch):
+    monkeypatch.setattr(payment_fulfillment, "top_availability", AsyncMock(return_value={"available": False}))
+    order, event = order_event("listing_top")
+    listing = SimpleNamespace(status="published", is_external=False, deleted_at=None, id=order.target_id)
+    added = []
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, listing]), commit=AsyncMock(), add=added.append)
+    request, signature = signed_request(event)
+    await payments.stripe_webhook(request, signature, session)
+    assert order.status == "paid"
+    assert order.fulfillment_status == "review_required"
+    assert added == []
 
 
 @pytest.mark.asyncio
@@ -208,9 +223,10 @@ async def test_provider_outage_does_not_create_another_charge(configured, monkey
 
 @pytest.mark.asyncio
 async def test_expired_provider_session_can_be_replaced(configured, monkeypatch):
+    monkeypatch.setattr(payments, "require_province_top_slot", AsyncMock())
     previous = SimpleNamespace(checkout_url="https://checkout.stripe.com/test", stripe_session_id="cs_test_old",
                                status="pending")
-    session = SimpleNamespace(scalar=AsyncMock(return_value=previous), add=lambda _: None,
+    session = SimpleNamespace(scalar=AsyncMock(return_value=previous), get=AsyncMock(), add=lambda _: None,
                               flush=AsyncMock(), commit=AsyncMock())
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"expired"}))
     monkeypatch.setattr(payments, "create_stripe_session", AsyncMock(return_value=("cs_test_new", "https://checkout.stripe.com/new")))

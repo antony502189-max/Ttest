@@ -1,3 +1,4 @@
+import { provinceFromPostcode } from '@/lib/spain-provinces'
 import { MAX_LONG_TERM_RENT_EUR, longTermPriceError } from '@/lib/rental-price-limit'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, RotateCcw, Save } from 'lucide-react'
@@ -44,7 +45,7 @@ import {
 import { validatePublicationContact } from '@/lib/publication-contact'
 import { containsBlockedListingLink, listingLinkBlockedMessage } from '@/lib/listing-content-safety'
 import { bedTypeOptionLabel } from '@/lib/bed-type-label'
-import { municipalityAreaError, municipalities, municipalitySet } from '@/lib/tenerife-address'
+import { municipalityAreaError } from '@/lib/tenerife-address'
 import { getEmailVerificationStatus, requestEmailVerification, verifyEmail } from '@/api/auth'
 import { cleanupUploadedMediaReference } from '@/api/media'
 import { useI18n } from '@/contexts/i18n-context'
@@ -278,8 +279,8 @@ export function ListingCreatePage() {
         locationManuallyMoved: true,
         locationNeedsConfirmation: false,
         ...(address.street ? { street: address.street } : {}),
-        ...(address.postcode ? { postcode: address.postcode } : {}),
-        ...(address.city && municipalitySet.has(address.city) ? { city: address.city } : {}),
+        postcode: address.postcode ?? '',
+        city: address.city ?? '',
         ...(address.area ? { area: address.area } : {}),
       }
       return next
@@ -297,7 +298,7 @@ export function ListingCreatePage() {
 
   const validate = () => {
     const next: Record<string, string> = {}
-    if (!municipalitySet.has(draft.city)) next.city = 'Selecciona un municipio válido.'
+    if (!draft.city.trim()) next.city = 'Selecciona la dirección del anuncio.'
     if (draft.locationNeedsConfirmation) next.location = 'La dirección ha cambiado. Comprueba que el marcador señale el lugar correcto antes de guardar.'
     if (!draft.area.trim()) next.area = 'Indica la zona o barrio.'
     else if (draft.area.trim().length > 120) next.area = 'La zona no puede superar 120 caracteres.'
@@ -307,7 +308,7 @@ export function ListingCreatePage() {
       if (mismatch) next.area = mismatch
     }
     if (draft.street.trim().length > 160) next.street = 'La calle no puede superar 160 caracteres.'
-    if (draft.postcode.trim() && !/^\d{5}$/.test(draft.postcode.trim())) next.postcode = 'El código postal debe tener exactamente 5 dígitos.'
+    if (!provinceFromPostcode(draft.postcode)) next.postcode = 'El código postal debe tener exactamente 5 dígitos.'
     if (!Number.isInteger(draft.roomSizeM2) || draft.roomSizeM2 < 1 || draft.roomSizeM2 > 200) next.roomSizeM2 = 'Indica entre 1 y 200 m².'
     if (!Number.isInteger(draft.homeSizeM2) || draft.homeSizeM2 < draft.roomSizeM2 || draft.homeSizeM2 > 10_000) next.homeSizeM2 = 'Debe ser igual o mayor que la habitación.'
     if (!Number.isInteger(draft.bedroomCount) || draft.bedroomCount < 1 || draft.bedroomCount > 99) next.bedroomCount = 'Indica al menos una habitación.'
@@ -436,7 +437,7 @@ export function ListingCreatePage() {
 
       <Section disabled={recoveringImages} id="publish-location" title="Ubicación" hint="La dirección exacta no se muestra públicamente.">
         <div className="listing-edit-grid">
-          <FormField label="Municipio" htmlFor="publish-city" error={errors.city}><select id="publish-city" value={draft.city} aria-invalid={Boolean(errors.city)} onChange={(e) => set('city', e.target.value)}>{municipalities.map((city) => <option key={city}>{city}</option>)}</select></FormField>
+          <FormField label="Provincia" htmlFor="publish-province" error={errors.city}><Input id="publish-province" value={provinceFromPostcode(draft.postcode)?.es ?? ''} readOnly placeholder="Se determina por la dirección" /><input id="publish-city" type="hidden" value={draft.city} readOnly /></FormField>
           <FormField label="Zona o barrio" htmlFor="publish-area" error={errors.area}><Input id="publish-area" value={draft.area} aria-invalid={Boolean(errors.area)} onChange={(e) => set('area', e.target.value)} /></FormField>
           <FormField label="Calle" htmlFor="publish-street"><Input id="publish-street" value={draft.street} onChange={(e) => set('street', e.target.value)} /></FormField>
           <FormField label="Código postal" htmlFor="publish-postcode" error={errors.postcode}><Input id="publish-postcode" inputMode="numeric" value={draft.postcode} aria-invalid={Boolean(errors.postcode)} onChange={(e) => set('postcode', e.target.value)} /></FormField>

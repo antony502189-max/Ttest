@@ -145,6 +145,8 @@ async def _sync_matching_owner_listing_locations(
     for sibling in siblings:
         if _private_address_group_key(sibling.street, sibling.postcode) != previous_group:
             continue
+        from .province_top import require_top_address_mutable
+        await require_top_address_mutable(session, sibling, listing.postcode)
         sibling.city = listing.city
         sibling.area = listing.area
         sibling.street = listing.street
@@ -567,8 +569,13 @@ async def update_listing(
     user: User,
     session: AsyncSession,
 ) -> OwnedListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .province_top import require_top_address_mutable
+    await lock_advertising_capacity(session)
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
+    if payload.postcode is not None:
+        await require_top_address_mutable(session, listing, payload.postcode)
     changes = payload.model_dump(exclude_unset=True)
     changes.pop("expiresAt", None)  # Retired field accepted only for old-client compatibility.
     asset_ids = changes.pop("assetIds", None)
