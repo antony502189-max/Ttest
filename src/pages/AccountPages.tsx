@@ -1,3 +1,4 @@
+import { OwnerAddressForm } from '@/components/owner-address';
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -158,6 +159,7 @@ export function SavedSearchesPage() {
                   new URLSearchParams({
                     q: item.query,
                     alquiler: item.rentalMode,
+                    ...(item.provinceCode ? { provincia: item.provinceCode } : { ubicacion: "ciudad" }),
                   }),
                 );
                 return (
@@ -320,6 +322,7 @@ export function ProfilePage() {
           </Button>
         }
       />
+      {currentUser.role === "host" || currentUser.role === "admin" ? <OwnerAddressForm /> : null}
       <div className="profile-layout">
         <aside className="profile-card">
           <Avatar className="profile-avatar">

@@ -1,3 +1,5 @@
+import { resolveProvince } from '@/lib/spain-provinces'
+import { searchGeographyFromParams } from '@/lib/search-geography'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { hydrateSession, loginWithGoogle, loginWithPassword, logoutSession, registerAccount, selectGoogleRole as saveGoogleRole } from '@/api/auth'
@@ -13,7 +15,7 @@ import { MockAppProvider } from '@/contexts/mock-app-provider'
 import { defaultFilters } from '@/data/listings'
 import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateAddressGroup } from '@/lib/listing-address-group'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
-import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
+import { resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import { isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
 import { currentLocale } from '@/lib/i18n-locale'
@@ -22,6 +24,7 @@ import type { DemoUser, Filters, Listing, ListingStatus, LocalListingComment, Ma
 export interface SavedSearch {
   id: string
   query: string
+  provinceCode?: string | null
   rentalMode: RentalMode
   filters: Filters
   alerts: boolean
@@ -495,6 +498,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
     const guestSavedSearches = (savedSearchScopes.guest ?? []).map((search) => ({
       name: search.query,
       query: search.query,
+      provinceCode: search.provinceCode ?? null,
       rentalMode: search.rentalMode,
       filters: search.filters as unknown as Record<string, unknown>,
       polygon: search.polygon,
@@ -510,6 +514,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         [currentUserId]: remoteSearches.map((search) => ({
           id: search.id,
           query: search.query,
+      provinceCode: search.provinceCode ?? null,
           rentalMode: search.rentalMode,
           filters: normalizeFilters({ ...defaultFilters, ...search.filters }),
           alerts: search.alertsEnabled,
@@ -578,10 +583,10 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }), [currentUserId, updateScope])
   const resetFilters = useCallback(() => setFilters({ ...defaultFilters }), [])
   const addSearchHistory = useCallback((nextQuery: string) => updateScope(setHistoryScopes, (current) => {
-    const location = resolveTenerifeLocation(nextQuery)
-    if (!location || !isSupportedTenerifeQuery(nextQuery)) return sanitizeTenerifeHistory(current ?? [])
-    if (currentUserId) void addRemoteSearchHistory(location.normalizedValue).catch(() => toast.error('No se pudo guardar el historial de búsqueda.'))
-    return sanitizeTenerifeHistory([location.normalizedValue, ...(current ?? [])])
+    const normalizedValue = resolveProvince(nextQuery)?.es ?? resolveTenerifeLocation(nextQuery)?.normalizedValue
+    if (!normalizedValue) return sanitizeTenerifeHistory(current ?? [])
+    if (currentUserId) void addRemoteSearchHistory(normalizedValue).catch(() => toast.error('No se pudo guardar el historial de búsqueda.'))
+    return sanitizeTenerifeHistory([normalizedValue, ...(current ?? [])])
   }), [currentUserId, updateScope])
   const clearSearchHistory = useCallback(() => updateScope<string[]>(setHistoryScopes, () => {
     if (currentUserId) void clearRemoteSearchHistory().catch(() => toast.error('No se pudo borrar el historial de búsqueda.'))
@@ -589,11 +594,13 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   }), [currentUserId, updateScope])
   const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
     const searches = current ?? []
-    const duplicate = searches.some((item) => item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
+    const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '')
+    const provinceCode = searchGeographyFromParams(params).provinceCode ?? null
+    const duplicate = searches.some((item) => (item.provinceCode ?? null) === provinceCode && item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
     if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
-    const optimistic = { id: `search-${Date.now()}`, query, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
+    const optimistic = { id: `search-${Date.now()}`, query, provinceCode, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
     if (currentUserId) {
-      void createSavedSearch({ name: query, query, rentalMode, filters: filters as unknown as Record<string, unknown>, polygon: mapPolygon, alertsEnabled: true }).then((saved) => {
+      void createSavedSearch({ name: query, query, provinceCode, rentalMode, filters: filters as unknown as Record<string, unknown>, polygon: mapPolygon, alertsEnabled: true }).then((saved) => {
         updateScope(setSavedSearchScopes, (latest) => (latest ?? []).map((item) => item.id === optimistic.id ? { ...item, id: saved.id, createdAt: saved.createdAt } : item))
       }).catch(() => {
         updateScope(setSavedSearchScopes, (latest) => (latest ?? []).filter((item) => item.id !== optimistic.id))

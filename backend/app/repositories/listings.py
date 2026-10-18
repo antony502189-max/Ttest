@@ -32,7 +32,6 @@ from ..models import Listing, ListingImage, ListingView, MediaAsset, User
 from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
 from ..models.payment_order import PaymentOrder
 from ..models.room_details import ListingRoomDetails
-from ..spain_provinces import address_province_code, province_code_expression
 from ..schemas.listings import (
     ClusterMarker,
     ListingCardResponse,
@@ -49,6 +48,7 @@ from ..schemas.listings import (
 )
 from ..services.rental_price_limit import public_price_limit_clause
 from ..spain_communities import community_contains_location, community_geometries
+from ..spain_provinces import listing_province_code, province_code_expression
 
 
 def point(longitude: float, latitude: float):
@@ -181,7 +181,7 @@ def response_from(row: Any) -> ListingResponse:
         ),
         title=listing.title,
         city=listing.city,
-        provinceCode=address_province_code(listing.postcode),
+        provinceCode=listing_province_code(listing),
         area=listing.area,
         approximateAddress=listing.approximate_address,
         rentalMode=listing.rental_mode,

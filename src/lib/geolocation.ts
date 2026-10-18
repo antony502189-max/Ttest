@@ -6,6 +6,8 @@ export type GeolocationResult =
   | { ok: true; coordinates: Coordinates }
   | { ok: false; reason: GeolocationFailure }
 
+export const SPAIN_BOUNDS = { north: 43.9, south: 27.5, east: 4.5, west: -18.3 }
+
 const TENERIFE_BOUNDS = {
   north: 28.62,
   south: 27.95,

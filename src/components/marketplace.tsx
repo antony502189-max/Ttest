@@ -116,7 +116,7 @@ import {
   unknownListingFact,
 } from "@/lib/listings";
 import { priceControlValues } from "@/lib/price-filter-controls";
-import { TENERIFE_LOCATIONS, resolveTenerifeLocation } from "@/lib/tenerife";
+import { resolveTenerifeLocation } from "@/lib/tenerife";
 import type {
   Filters,
   Listing,
@@ -189,9 +189,8 @@ export function SearchLocationInput({ value, onChange, error }: {
 }) {
   const id = useId();
   const listId = useId();
-  const { rentalMode } = useApp();
+  const { filters, setFilters } = useApp();
   const { language } = useI18n();
-  const [open, setOpen] = useState(false);
   const label = language === 'ru' ? 'Провинция' : language === 'en' ? 'Province' : 'Provincia';
   return <div className="search-location">
     <label htmlFor={id}>{label}</label>
@@ -199,12 +198,8 @@ export function SearchLocationInput({ value, onChange, error }: {
       <MapPin className="search-location-row__icon" aria-hidden="true" />
       <Input id={id} list={listId} value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} />
       <datalist id={listId}>{provinceSuggestions('').map((province) => <option key={province.id} value={province.es} />)}</datalist>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild><Button type="button" variant="ghost" size="sm" className="location-selector-trigger" aria-label={label}><SlidersHorizontal data-icon="inline-start" /><span>{label}</span></Button></DialogTrigger>
-        <DialogContent className="m2-location"><DialogHeader><DialogTitle>{label}</DialogTitle><DialogDescription className="sr-only">{label}</DialogDescription></DialogHeader>
-          <ProvinceLocationSearch language={language} rentalMode={rentalMode} onSelect={(code) => { const province = provinceSuggestions('').find((item) => item.id === code); if (province) onChange(province.es); setOpen(false); }} />
-        </DialogContent>
-      </Dialog>
+      <LocationSelector selected={filters.areas} currentQuery={value} onLocationSelect={onChange}
+        onApply={(selected) => { setFilters({ ...filters, areas: selected }); onChange(selected.length === 1 ? selected[0] : 'España'); }} />
     </div>
     {error ? <span id={`${id}-error`} className="location-validation" role="alert">{error}</span> : null}
   </div>;
@@ -297,20 +292,14 @@ export function LocationSelector({
   onLocationSelect?: (query: string) => void;
 }) {
   const { allListings, rentalMode, mapPolygon, clearMapPolygon } = useApp();
+  const { language } = useI18n();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
-  const [term, setTerm] = useState("");
   const [showZoneList, setShowZoneList] = useState(false);
-  const catalogResults = TENERIFE_LOCATIONS.filter((location) => {
-    if (!term.trim()) return location.type === "island" || location.type === "municipality" && ['Adeje', 'Arona', 'Granadilla de Abona', 'San Cristóbal de La Laguna', 'Santa Cruz de Tenerife'].includes(location.label)
-    const needle = term.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
-    return [location.label, ...(location.aliases ?? [])].some((value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(needle))
-  }).slice(0, 8);
   useEffect(() => {
     if (open) {
       setDraft(selected);
-      setTerm("");
       setShowZoneList(false);
     }
   }, [open, selected]);
@@ -330,28 +319,21 @@ export function LocationSelector({
           <span className="location-trigger-desktop-copy">Zonas{selected.length ? ` (${selected.length})` : ""}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="location-selector-dialog" showCloseButton={false}>
+      <DialogContent className="location-selector-dialog location-selector-dialog--provinces" showCloseButton={false}>
         <DialogHeader className="location-selector-dialog__header">
           {showZoneList ? <Button type="button" variant="ghost" size="icon" onClick={() => setShowZoneList(false)} aria-label="Volver a las opciones de ubicación"><ArrowLeft /></Button> : <DialogClose asChild><Button type="button" variant="ghost" size="icon" aria-label="Volver"><ArrowLeft /></Button></DialogClose>}
           <div>
             <DialogTitle>{showZoneList ? "Seleccionar zonas" : "¿Dónde buscas?"}</DialogTitle>
-            <DialogDescription>{showZoneList ? "Explora municipios, distritos y barrios con límites oficiales disponibles." : "Busca en Tenerife por municipio, barrio o zona."}</DialogDescription>
+            <DialogDescription>{showZoneList ? "Explora municipios, distritos y barrios con límites oficiales disponibles." : "Busca en España por provincia."}</DialogDescription>
           </div>
         </DialogHeader>
         <div className={cn("location-dialog-primary", showZoneList && "is-hidden")}>
-          <div className="location-market-row"><span>Buscar en</span><strong>Tenerife</strong></div>
-          <label className="location-selector-search">
-            <span className="sr-only">Buscar zona</span>
-            <Search aria-hidden="true" />
-            <Input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Municipio, barrio, zona o dirección" autoComplete="off" autoFocus />
-          </label>
-          {term.trim() ? <div className="location-catalog-list" aria-label="Lugares de Tenerife">
-            {catalogResults.map((location) => <button type="button" key={`${location.type}-${location.label}`} onClick={() => {
-              onLocationSelect?.(location.normalizedValue);
-              setDraft(location.type === 'area' || location.type === 'district' ? [location.normalizedValue] : []);
-              setOpen(false);
-            }}><MapPin aria-hidden="true" /><span><strong>{location.label}</strong><small>{location.type === 'island' ? 'Isla' : location.type === 'municipality' ? 'Municipio' : location.type === 'district' ? 'Distrito' : 'Zona'}</small></span></button>)}
-          </div> : null}
+          <div className="location-market-row"><span>Buscar en</span><strong>España</strong></div>
+          <ProvinceLocationSearch desktop language={language} rentalMode={rentalMode} onSelect={(code) => {
+            const province = provinceSuggestions('').find((item) => item.id === code);
+            if (province) onLocationSelect?.(province.es);
+            setOpen(false);
+          }} />
           <div className="location-action-list" aria-label="También puedes">
             <span>También puedes:</span>
             <button type="button" onClick={() => setShowZoneList(true)}><MapIcon aria-hidden="true" /><strong>Seleccionar zonas en el mapa</strong><ChevronRight aria-hidden="true" /></button>

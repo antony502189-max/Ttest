@@ -202,6 +202,9 @@ async def change_listing_status(
     actor: User,
     session: AsyncSession,
 ) -> AdminListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_review import review_paid_top
+    await lock_advertising_capacity(session)
     if new_status not in ADMIN_STATUS_TRANSITIONS:
         raise HTTPException(422, "Invalid listing status")
     listing, owner = await _actionable_listing(listing_id, session)
@@ -272,6 +275,7 @@ async def change_listing_status(
         if new_status == "published":
             await notify_saved_search_matches(session, listing)
         elif previous == "published" and new_status in {"hidden", "closed", "rejected"}:
+            await review_paid_top(session, listing_id=listing.id, reason="Listing removed from public catalogue; reconcile paid TOP.")
             await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
         await touch_catalog(session)
 
@@ -293,9 +297,10 @@ async def promote_listing(
     ends_at: datetime | None = None,
 ) -> AdminListingResponse:
     from .commercial_advertisements import lock_advertising_capacity
-    from .province_top import require_province_top_slot
+    from .province_top import protect_purchased_top, require_province_top_slot
     await lock_advertising_capacity(session)
     listing, owner = await _actionable_listing(listing_id, session)
+    await protect_purchased_top(session, listing_id)
     require_listing_price(listing)
     if listing.status != "published":
         raise HTTPException(409, "Only published listings can be promoted")
@@ -330,7 +335,7 @@ async def promote_listing(
         raise HTTPException(422, "Promotion end date must be after its start date")
 
     promotion_days = max(1, ceil((ends_at - starts_at).total_seconds() / 86_400))
-    await require_province_top_slot(session, listing, starts_at=starts_at, ends_at=ends_at)
+    availability = await require_province_top_slot(session, listing, starts_at=starts_at, ends_at=ends_at)
     total_price_cents = promotion_days * PROMOTION_DAILY_PRICE_CENTS
     row = await session.scalar(
         select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()
@@ -358,6 +363,8 @@ async def promote_listing(
         row.daily_price_cents = PROMOTION_DAILY_PRICE_CENTS
         row.total_price_cents = total_price_cents
 
+    row.top_municipality_code = availability["municipalityCode"]
+
     session.add(
         audit(
             actor.id,
@@ -383,7 +390,11 @@ async def promote_listing(
 
 
 async def remove_listing_promotion(listing_id: UUID, actor: User, session: AsyncSession) -> AdminListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .province_top import protect_purchased_top
+    await lock_advertising_capacity(session)
     listing, owner = await _actionable_listing(listing_id, session)
+    await protect_purchased_top(session, listing_id)
     row = await session.scalar(
         select(ListingPromotion).where(ListingPromotion.listing_id == listing.id).with_for_update()
     )
@@ -419,6 +430,9 @@ async def restrict_listing(
     actor: User,
     session: AsyncSession,
 ) -> AdminListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_review import review_paid_top
+    await lock_advertising_capacity(session)
     listing, owner = await _actionable_listing(listing_id, session)
     if until and until.tzinfo is None:
         until = until.replace(tzinfo=UTC)
@@ -441,6 +455,7 @@ async def restrict_listing(
     )
     session.add(row)
     await session.flush()
+    await review_paid_top(session, listing_id=listing.id, reason="Listing moderation restriction; original TOP period retained for review.")
     add_notice(
         session,
         owner.id,

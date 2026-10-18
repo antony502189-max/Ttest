@@ -1,3 +1,5 @@
+import { resolveProvince } from '@/lib/spain-provinces'
+import { searchGeographyFromParams } from '@/lib/search-geography'
 import { rentalPriceAllowed, longTermPriceError } from '@/lib/rental-price-limit'
 import {
   useCallback,
@@ -15,7 +17,7 @@ import { applySharedListingLocation, ownerListingLocationChanged, sharesPrivateA
 import { cleanupOrphanedMedia, isMediaReference, removeUnusedMediaReferences } from '@/lib/media-storage'
 import { getActiveFilterKeys, normalizeFilters } from '@/lib/search'
 import { parseJson, persistJson, persistVersioned, readJson, readVersioned, type StorageFailure } from '@/lib/storage'
-import { isSupportedTenerifeQuery, resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
+import { resolveTenerifeLocation, sanitizeTenerifeHistory } from '@/lib/tenerife'
 import type {
   DemoUser,
   Filters,
@@ -275,18 +277,19 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
   const resetFilters = useCallback(() => setFilters({ ...defaultFilters }), [])
 
   const addSearchHistory = useCallback((nextQuery: string) => updateScope(setHistoryScopes, (current) => {
-    const location = resolveTenerifeLocation(nextQuery)
-    if (!location || !isSupportedTenerifeQuery(nextQuery)) return sanitizeTenerifeHistory(current ?? [])
-    return sanitizeTenerifeHistory([location.normalizedValue, ...(current ?? [])])
+    const normalizedValue = resolveProvince(nextQuery)?.es ?? resolveTenerifeLocation(nextQuery)?.normalizedValue
+    if (!normalizedValue) return sanitizeTenerifeHistory(current ?? [])
+    return sanitizeTenerifeHistory([normalizedValue, ...(current ?? [])])
   }), [updateScope])
 
   const clearSearchHistory = useCallback(() => updateScope<string[]>(setHistoryScopes, () => []), [updateScope])
 
   const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
     const searches = current ?? []
-    const duplicate = searches.some((item) => item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
+    const provinceCode = searchGeographyFromParams(new URLSearchParams(window.location.hash.split('?')[1] ?? '')).provinceCode ?? null
+    const duplicate = searches.some((item) => (item.provinceCode ?? null) === provinceCode && item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
     if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
-    const saved = { id: `search-${Date.now()}`, query, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
+    const saved = { id: `search-${Date.now()}`, query, provinceCode, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
     toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
     return [saved, ...searches]
   }), [filters, mapPolygon, query, rentalMode, updateScope])

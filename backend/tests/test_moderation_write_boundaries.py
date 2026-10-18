@@ -18,7 +18,7 @@ async def test_published_listing_edit_enforces_publish_restriction(monkeypatch: 
         deleted_at=None,
         status="published",
     )
-    session = SimpleNamespace()
+    session = SimpleNamespace(execute=AsyncMock())
     monkeypatch.setattr(listings, "_lock_mutable_listing", AsyncMock(return_value=(listing, user)))
     monkeypatch.setattr(listings, "ensure_owner_or_admin", AsyncMock(return_value=False))
     enforce_publish = AsyncMock(side_effect=HTTPException(403, "Publishing restricted"))
@@ -45,7 +45,7 @@ async def test_published_listing_image_edit_enforces_publish_restriction(monkeyp
         deleted_at=None,
         status="published",
     )
-    session = SimpleNamespace()
+    session = SimpleNamespace(execute=AsyncMock())
     monkeypatch.setattr(listings, "_lock_mutable_listing", AsyncMock(return_value=(listing, user)))
     monkeypatch.setattr(listings, "ensure_owner_or_admin", AsyncMock(return_value=False))
     enforce_publish = AsyncMock(side_effect=HTTPException(403, "Publishing restricted"))

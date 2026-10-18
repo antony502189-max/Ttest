@@ -210,6 +210,7 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
                 SavedSearch.rental_mode == item.rentalMode,
                 SavedSearch.filters == item.filters,
                 SavedSearch.polygon == polygon,
+                SavedSearch.province_code == item.provinceCode,
             )
         )
         if not duplicate:
@@ -222,6 +223,7 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
                     filters=item.filters,
                     polygon=polygon,
                     alerts_enabled=item.alertsEnabled,
+                    province_code=item.provinceCode,
                 )
             )
             current_count += 1
@@ -231,6 +233,7 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
 def public_search(search: SavedSearch) -> SavedSearchResponse:
     return SavedSearchResponse(
         id=search.id,
+        provinceCode=search.province_code,
         name=search.name,
         query=search.query,
         rentalMode=search.rental_mode,
@@ -271,6 +274,7 @@ async def create_saved_search(
         filters=payload.filters,
         polygon=[point.model_dump() for point in payload.polygon],
         alerts_enabled=payload.alertsEnabled,
+        province_code=payload.provinceCode,
     )
     session.add(search)
     await session.commit()
@@ -289,7 +293,7 @@ async def update_saved_search(
     )
     if not search:
         raise HTTPException(404, "Saved search not found")
-    mapping = {"alertsEnabled": "alerts_enabled"}
+    mapping = {"alertsEnabled": "alerts_enabled", "provinceCode": "province_code"}
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key == "polygon" and value is not None:
             search.polygon = [point if isinstance(point, dict) else point.model_dump() for point in value]

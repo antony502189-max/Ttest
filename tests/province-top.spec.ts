@@ -13,7 +13,7 @@ for (const width of [320, 1280]) {
     await page.route('**/payments/listings/*/top/availability?*', (route) => {
       requests++
       const now = new Date()
-      return route.fulfill({ json: { provinceCode: '28', province: 'Madrid', capacity: 3,
+      return route.fulfill({ json: { municipalityCode: '28079', municipality: 'Madrid', capacity: 3,
         available: released, availableSlots: released ? 1 : 0, serverNow: now.toISOString(),
         availableAt: new Date(now.getTime() + (released ? 0 : 3665000)).toISOString() } })
     })

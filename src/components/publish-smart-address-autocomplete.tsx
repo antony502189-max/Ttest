@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
-import { TENERIFE_BOUNDS, isInsideTenerife } from '@/lib/tenerife'
+import { SPAIN_BOUNDS, isInsideSpain } from '@/lib/geolocation'
+import { parseGoogleAddress } from '@/lib/google-maps/address'
 import type { Coordinates } from '@/types'
 
 type AddressComponent = { longText?: string; long_name?: string; types: string[] }
@@ -37,39 +38,39 @@ type Copy = {
 
 const COPY: Record<Language, Copy> = {
   es: {
-    idle: 'Escribe una calle, número o dirección completa. Las sugerencias se limitan a Tenerife.',
-    nearby: 'Buscaremos primero cerca de la zona seleccionada y siempre dentro de Tenerife.',
-    loading: 'Buscando direcciones en Tenerife…',
+    idle: 'Escribe una calle, número o dirección completa. Las sugerencias se limitan a España.',
+    nearby: 'Buscaremos primero cerca de la zona seleccionada y siempre dentro de España.',
+    loading: 'Buscando direcciones en España…',
     empty: 'No hay sugerencias. Puedes escribir la dirección completa y la comprobaremos igualmente.',
     fallback: 'Usamos el buscador compatible de Google Maps para encontrar esta dirección.',
     unavailable: 'Las sugerencias no están disponibles ahora. Puedes escribir la dirección completa igualmente.',
-    outside: 'Tu ubicación está fuera de Tenerife; la búsqueda sigue limitada a la isla.',
+    outside: 'Tu ubicación está fuera de España; la búsqueda sigue limitada a España.',
     selectedError: 'No pudimos resolver esa sugerencia. Prueba otra o escribe la dirección completa.',
     button: 'Usar mi ubicación',
     locating: 'Buscando tu ubicación…',
     attribution: 'Google Maps',
   },
   en: {
-    idle: 'Type a street, number, or full address. Suggestions are limited to Tenerife.',
-    nearby: 'We will search near the selected area first and always stay within Tenerife.',
-    loading: 'Searching addresses in Tenerife…',
+    idle: 'Type a street, number, or full address. Suggestions are limited to Spain.',
+    nearby: 'We will search near the selected area first and always stay within Spain.',
+    loading: 'Searching addresses in Spain…',
     empty: 'No suggestions found. You can still type the full address and we will verify it.',
     fallback: 'Using the compatible Google Maps address search for this query.',
     unavailable: 'Suggestions are unavailable right now. You can still type the full address.',
-    outside: 'Your location is outside Tenerife; search remains limited to the island.',
+    outside: 'Your location is outside Spain; search remains limited to Spain.',
     selectedError: 'We could not resolve that suggestion. Choose another or type the full address.',
     button: 'Use my location',
     locating: 'Finding your location…',
     attribution: 'Google Maps',
   },
   ru: {
-    idle: 'Введите улицу, номер дома или полный адрес. Подсказки ограничены Тенерифе.',
-    nearby: 'Сначала ищем рядом с выбранной зоной и в любом случае только на Тенерифе.',
-    loading: 'Ищем адреса на Тенерифе…',
+    idle: 'Введите улицу, номер дома или полный адрес. Подсказки ограничены Испанией.',
+    nearby: 'Сначала ищем рядом с выбранной зоной и в любом случае только в Испании.',
+    loading: 'Ищем адреса в Испании…',
     empty: 'Подсказок не найдено. Можно ввести полный адрес — мы всё равно проверим его.',
     fallback: 'Используем совместимый поиск адресов Google Maps для этого запроса.',
     unavailable: 'Подсказки сейчас недоступны. Полный адрес всё равно можно ввести вручную.',
-    outside: 'Ваше местоположение вне Тенерифе — поиск по-прежнему ограничен островом.',
+    outside: 'Ваше местоположение вне Испании — поиск ограничен Испанией.',
     selectedError: 'Не удалось открыть эту подсказку. Выберите другую или введите полный адрес.',
     button: 'Использовать моё местоположение',
     locating: 'Определяем местоположение…',
@@ -134,7 +135,7 @@ function dedupePredictions(predictions: Prediction[]) {
 
 function detailFromGeocoderResult(result: google.maps.GeocoderResult): AddressDetail | null {
   const coordinates = coordinatesFromResult(result)
-  if (!coordinates || !isInsideTenerife(coordinates)) return null
+  if (!coordinates || !isInsideSpain(coordinates)) return null
   return {
     formattedAddress: result.formatted_address,
     addressComponents: (result.address_components ?? []) as AddressComponent[],
@@ -198,7 +199,7 @@ export function PublishSmartAddressAutocomplete() {
         lat: Number(shell.dataset.locationLat),
         lng: Number(shell.dataset.locationLng),
       }
-      if (Number.isFinite(coordinates.lat) && Number.isFinite(coordinates.lng) && isInsideTenerife(coordinates)) {
+      if (Number.isFinite(coordinates.lat) && Number.isFinite(coordinates.lng) && isInsideSpain(coordinates)) {
         preferredOrigin = coordinates
       }
     }
@@ -268,13 +269,16 @@ export function PublishSmartAddressAutocomplete() {
     }
 
     const dispatchResolved = (detail: AddressDetail, requestedValue: string) => {
-      if (!detail.coordinates || !isInsideTenerife(detail.coordinates) || !hasRoute(detail.addressComponents) || !matchesRequestedBuilding(detail, requestedValue)) {
+      if (!detail.coordinates || !isInsideSpain(detail.coordinates) || !hasRoute(detail.addressComponents) || !matchesRequestedBuilding(detail, requestedValue)) {
         setStatus(copy.selectedError, 'error')
         return false
       }
       window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: '' } }))
       window.dispatchEvent(new CustomEvent('112233:map-address-resolved', { detail }))
-      window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: { coordinates: detail.coordinates } }))
+      window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: {
+        coordinates: detail.coordinates,
+        address: parseGoogleAddress(detail.addressComponents, detail.formattedAddress ?? '', detail.coordinates),
+      } }))
       setStatus(preferredOrigin ? copy.nearby : copy.idle, preferredOrigin ? 'nearby' : 'island')
       closeList()
       return true
@@ -301,7 +305,7 @@ export function PublishSmartAddressAutocomplete() {
         const request: google.maps.places.AutocompleteRequest = {
           input: query,
           includedRegionCodes: ['es'],
-          locationRestriction: TENERIFE_BOUNDS,
+          locationRestriction: SPAIN_BOUNDS,
           language,
           region: 'es',
           sessionToken: token,
@@ -326,7 +330,7 @@ export function PublishSmartAddressAutocomplete() {
         legacyService ??= new places.AutocompleteService()
         const response = await legacyService.getPlacePredictions({
           input: query,
-          bounds: TENERIFE_BOUNDS,
+          bounds: SPAIN_BOUNDS,
           componentRestrictions: { country: 'es' },
           types: ['geocode'],
         })
@@ -356,8 +360,8 @@ export function PublishSmartAddressAutocomplete() {
         await loadGoogleMapsOnDemand()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
         const response = await new geocoding.Geocoder().geocode({
-          address: `${query}, Tenerife, Spain`,
-          bounds: TENERIFE_BOUNDS,
+          address: `${query}, Spain`,
+          bounds: SPAIN_BOUNDS,
           componentRestrictions: { country: 'ES' },
         })
         return dedupePredictions(response.results.flatMap((result, index) => {
@@ -581,7 +585,7 @@ export function PublishSmartAddressAutocomplete() {
             (position) => {
               if (cancelled || activeInput !== input) return
               const coordinates = browserCoordinates(position)
-              if (isInsideTenerife(coordinates)) {
+              if (isInsideSpain(coordinates)) {
                 preferredOrigin = coordinates
                 setStatus(copy.nearby, 'nearby')
               } else {
@@ -617,7 +621,7 @@ export function PublishSmartAddressAutocomplete() {
 
     const onLocationSelected = (event: Event) => {
       const coordinates = (event as CustomEvent<SelectedLocationDetail>).detail?.coordinates
-      if (!coordinates || !isInsideTenerife(coordinates)) return
+      if (!coordinates || !isInsideSpain(coordinates)) return
       cancelPendingQuery()
       closeList()
       preferredOrigin = coordinates

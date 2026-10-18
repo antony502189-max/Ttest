@@ -135,7 +135,11 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
             Listing.id == order.target_id, Listing.owner_user_id == order.owner_user_id,
         ).with_for_update())
         monthly = getattr(order, "duration_months", None) == 1
-        valid = await eligible(listing, session) if monthly else bool(listing and listing.status == "published" and not listing.is_external and listing.deleted_at is None)
+        valid = await eligible(listing, session)
+        if valid:
+            owner = await session.get(User, order.owner_user_id)
+            valid = bool(order.top_municipality_code and owner.address_verified_at
+                         and owner.municipality_code == order.top_municipality_code)
         if valid:
             try:
                 valid = (await top_availability(session, listing, days=order.days,
@@ -151,6 +155,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                 order.fulfillment_status = "review_required"
                 order.fulfillment_note = "Legacy permanent TOP requires manual reconciliation."
             elif promotion:
+                promotion.top_municipality_code = order.top_municipality_code
                 if not promotion.payment_managed and promotion.ends_at > service_start:
                     # Preserve an admin/legacy baseline as a separate read-only interval.
                     # New refund operations must never silently remove that baseline.
@@ -171,6 +176,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                     daily_price_cents=None if monthly else order.amount_cents // order.days,
                     total_price_cents=order.amount_cents,
                     payment_managed=True,
+                    top_municipality_code=order.top_municipality_code,
                 ))
                 order.service_starts_at = service_start
                 order.service_ends_at = one_month_after(service_start) if monthly else service_start + timedelta(days=order.days)

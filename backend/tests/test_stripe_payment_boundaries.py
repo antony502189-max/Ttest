@@ -32,6 +32,7 @@ def configured(monkeypatch):
     monkeypatch.setattr(payment_fulfillment, "get_settings", lambda: settings)
     monkeypatch.setattr(payment_fulfillment, "lock_advertising_capacity", AsyncMock())
     monkeypatch.setattr(payment_fulfillment, "notify_payment", AsyncMock())
+    monkeypatch.setattr(payment_fulfillment, "eligible", AsyncMock(return_value=True))
     monkeypatch.setattr(payment_fulfillment, "touch_catalog", AsyncMock())
     monkeypatch.setattr(stripe_checkout, "get_settings", lambda: settings)
     monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"open"}))
@@ -65,7 +66,7 @@ async def test_invalid_checkout_event_is_400(configured, data):
 
 def order_event(kind="advertisement"):
     order = SimpleNamespace(id=uuid4(), owner_user_id=uuid4(), target_id=uuid4(),
-                            kind=kind, stripe_session_id="cs_test_audit", status="pending",
+                            kind=kind, top_municipality_code="28079", stripe_session_id="cs_test_audit", status="pending",
                             amount_cents=3000 if kind == "advertisement" else 100, days=1, paid_at=None)
     obj = {"id": order.stripe_session_id, "client_reference_id": str(order.id),
            "amount_total": order.amount_cents, "currency": "eur", "livemode": False,
@@ -121,7 +122,7 @@ async def test_top_records_initial_total_and_duplicate_is_ignored(configured, mo
     listing = SimpleNamespace(status="published", is_external=False, deleted_at=None, id=order.target_id)
     added = []
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, listing, None, order]),
-                              commit=AsyncMock(), add=added.append)
+                              commit=AsyncMock(), add=added.append, get=AsyncMock(return_value=SimpleNamespace(address_verified_at=datetime.now(UTC), municipality_code="28079")))
     request, signature = signed_request(event)
     await payments.stripe_webhook(request, signature, session)
     assert len(added) == 1
@@ -139,7 +140,7 @@ async def test_late_top_payment_cannot_displace_three_province_slots(configured,
     order, event = order_event("listing_top")
     listing = SimpleNamespace(status="published", is_external=False, deleted_at=None, id=order.target_id)
     added = []
-    session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, listing]), commit=AsyncMock(), add=added.append)
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, listing]), commit=AsyncMock(), add=added.append, get=AsyncMock(return_value=SimpleNamespace(address_verified_at=datetime.now(UTC), municipality_code="28079")))
     request, signature = signed_request(event)
     await payments.stripe_webhook(request, signature, session)
     assert order.status == "paid"
@@ -234,6 +235,6 @@ async def test_expired_provider_session_can_be_replaced(configured, monkeypatch)
         previous.status = "expired"
     monkeypatch.setattr(payments, "apply_stripe_session", expire)
     monkeypatch.setattr(payments, "finish_creation", AsyncMock(return_value="https://checkout.stripe.com/new"))
-    result = await payments.checkout(session, SimpleNamespace(id=uuid4()), "listing_top", uuid4(), 1, 100,
+    result = await payments.checkout(session, SimpleNamespace(id=uuid4(), municipality_code="28079"), "listing_top", uuid4(), 1, 100,
                                     "TOP", "/mis-anuncios")
     assert result.url == "https://checkout.stripe.com/new" and previous.status == "expired"

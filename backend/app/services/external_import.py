@@ -621,6 +621,8 @@ async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing,
     listing.home_description = item.description
     listing.city = item.city
     listing.area = item.area
+    from ..spain_provinces import imported_province_code
+    listing.province_code = imported_province_code(item)
     listing.approximate_address = item.public_address or item.area
     listing.rental_mode = item.rental_mode
     listing.room_type = item.room_type
@@ -667,6 +669,7 @@ async def apply_primary_source_snapshot(session: AsyncSession, listing: Listing,
 
 
 async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primary: bool = False, scope_key: str = "santa_cruz") -> str:
+    from ..spain_provinces import imported_province_code
     now = datetime.now(UTC)
     room_capacity = item.room_capacity if item.room_capacity is not None and 1 <= item.room_capacity <= 10 else None
     source = await session.scalar(
@@ -846,6 +849,8 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
     if (
         source
         and previous_fingerprint == item.fingerprint
+        and listing is not None
+        and listing.province_code == imported_province_code(item)
         and not force_primary
         and source.current_status == "active"
         and listing is not None
@@ -870,6 +875,7 @@ async def upsert(session: AsyncSession, item: NormalizedListing, *, force_primar
             title=item.title,
             city=item.city,
             area=item.area,
+            province_code=None,
             approximate_address=item.public_address or item.area,
             rental_mode=item.rental_mode,
             monthly_price=item.price_amount if item.rental_mode == "long" else None,

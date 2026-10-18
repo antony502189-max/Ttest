@@ -212,3 +212,11 @@ def test_admin_allowlist_grant_does_not_change_product_role() -> None:
     assert "AdminAccess(" in add_admin_body
     assert "target.role" not in add_admin_body
     assert ".role =" not in add_admin_body
+
+
+@pytest.fixture(autouse=True)
+def payment_review_dependencies(monkeypatch):
+    # These unit tests isolate identity/notification behavior. Advisory locking
+    # and paid-service review are exercised by real PostgreSQL regressions.
+    monkeypatch.setattr("app.services.commercial_advertisements.lock_advertising_capacity", AsyncMock())
+    monkeypatch.setattr("app.services.payment_review.review_paid_top", AsyncMock())

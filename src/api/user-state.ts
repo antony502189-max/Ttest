@@ -4,6 +4,7 @@ export type RemoteSavedSearch = {
   id: string
   name: string
   query: string
+  provinceCode?: string | null
   rentalMode: 'long' | 'holiday'
   filters: Record<string, unknown>
   polygon: Array<{ lat: number; lng: number }>

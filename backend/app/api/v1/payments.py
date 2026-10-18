@@ -120,6 +120,7 @@ async def checkout(
         days=days, amount_cents=amount, status="creating", advertisement_fingerprint=fingerprint,
         duration_months=months,
         checkout_name=name, return_path=return_path,
+        top_municipality_code=user.municipality_code if kind == "listing_top" else None,
     )
     session.add(order)
     await session.flush()

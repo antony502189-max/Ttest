@@ -60,7 +60,7 @@ export function searchGeographyFromParams(params: URLSearchParams): SearchGeogra
 
   return {
     query: params.get('q')?.trim() || 'España',
-    provinceCode: params.get('provincia') || (!params.has('comunidad') ? resolveProvince(params.get('q') ?? '')?.id : undefined),
+    provinceCode: params.get('provincia') || (!params.has('comunidad') && params.get('ubicacion') !== 'ciudad' ? resolveProvince(params.get('q') ?? '')?.id : undefined),
     autonomousCommunity: params.get('comunidad') || undefined,
   }
 }

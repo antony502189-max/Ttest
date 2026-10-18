@@ -208,6 +208,9 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     locked_user.password_hash = None
     locked_user.name = "Deleted user"
     locked_user.phone = locked_user.whatsapp = locked_user.telegram = locked_user.about = ""
+    locked_user.verified_address = None
+    locked_user.municipality_code = None
+    locked_user.address_verified_at = None
     locked_user.show_phone = locked_user.show_whatsapp = False
     locked_user.avatar_asset_id = None
     if matching_grant:

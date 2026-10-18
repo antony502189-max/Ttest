@@ -68,7 +68,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/provinces/counts")
-async def province_counts(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session)):
+async def province_counts(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session),
+                          user: User | None = Depends(optional_user)):
+    await enforce_listing_view_access(user, session)
     from ...repositories.listings import apply_search_filters
     from ...spain_provinces import PROVINCE_CODES, province_code_expression
     code = province_code_expression()
@@ -77,7 +79,7 @@ async def province_counts(payload: ListingSearchRequest, session: AsyncSession =
     })).with_only_columns(code.label("province"), Listing.id, maintain_column_froms=True).subquery()
     result = await session.execute(select(filtered.c.province, func.count()).where(
         filtered.c.province.is_not(None)).group_by(filtered.c.province))
-    counts = dict(result.all())
+    counts = {row[0]: row[1] for row in result.all()}
     return {"items": [{"id": key, "count": counts.get(key, 0)} for key in PROVINCE_CODES]}
 
 IDEMPOTENCY_CONTACT_FIELDS = {

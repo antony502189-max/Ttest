@@ -44,7 +44,7 @@ import { filtersFromParams, filtersToParams } from '@/lib/search'
 import { searchGeographyFromParams } from '@/lib/search-geography'
 import { communityMapCamera, communityName } from '@/lib/spain-communities'
 import { ProvinceLocationSearch } from '@/components/province-location-search'
-import { getProvince, provinceName } from '@/lib/spain-provinces'
+import { getProvince, provinceName, provinceMapCamera, resolveProvince } from '@/lib/spain-provinces'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
 import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport, type MapViewport } from '@/lib/map-visit-history'
@@ -960,7 +960,9 @@ export function MobileAppV2() {
     && Math.abs(Number(cameraParams.get('lat'))) <= 85 && Math.abs(Number(cameraParams.get('lng'))) <= 180
   const chosenLocation = resolveTenerifeLocation(cameraParams.get('q') ?? '')
   const selectedRouteCommunity = cameraParams.get('comunidad')
-  const selectedRegionCamera = selectedRouteCommunity ? communityMapCamera(selectedRouteCommunity, window.innerWidth, window.innerHeight) : undefined
+  const selectedProvince = cameraParams.get('provincia') || (!selectedRouteCommunity && cameraParams.get('ubicacion') !== 'ciudad' ? resolveProvince(cameraParams.get('q') ?? '')?.id : undefined)
+  const selectedRegionCamera = selectedProvince ? provinceMapCamera(selectedProvince, window.innerWidth, window.innerHeight)
+    : selectedRouteCommunity ? communityMapCamera(selectedRouteCommunity, window.innerWidth, window.innerHeight) : undefined
   const namedLocation = chosenLocation?.type !== 'island' ? chosenLocation?.coordinates : undefined
   const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
   const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasActivePolygon ? undefined
@@ -977,7 +979,7 @@ export function MobileAppV2() {
     if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
     navigate(`/habitacion/${listing.id}`)
   } })), [markRecent, navigate, recentlyViewedListings])
-  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
+  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}&${search.provinceCode ? `provincia=${search.provinceCode}` : 'ubicacion=ciudad'}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')

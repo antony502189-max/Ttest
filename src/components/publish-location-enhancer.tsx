@@ -1,9 +1,9 @@
-import { isInsideSpain } from '@/lib/geolocation'
+import { SPAIN_BOUNDS, isInsideSpain } from '@/lib/geolocation'
 import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
 import { loadTenerifeZoneHierarchy, loadTenerifeZones } from '@/lib/map/geojson'
 import { getMunicipalityId, getRootMunicipalityId, getZoneFeature, type TenerifeZoneCollection, type TenerifeZoneFeature, type TenerifeZoneGeometry } from '@/lib/map/zones'
-import { TENERIFE_BOUNDS, isInsideTenerife, normalizeTenerifeText, resolveTenerifeLocation } from '@/lib/tenerife'
+import { normalizeTenerifeText, resolveTenerifeLocation } from '@/lib/tenerife'
 import { createRequestVersionGate, parseGoogleAddress } from '@/lib/google-maps/address'
 import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
 import type { Coordinates } from '@/types'
@@ -242,23 +242,23 @@ export function PublishLocationEnhancer() {
         if (cancelled || !locationGate.isCurrent(version)) return null
         const feature = municipalityFeature(city, collection)
         const center = feature ? geometryRepresentativeCenter(feature.geometry) : null
-        if (center && isInsideTenerife(center)) return center
+        if (center && isInsideSpain(center)) return center
       } catch {
         // Fall through to stable known centers and Google geocoding.
       }
 
       const known = resolveTenerifeLocation(city)?.coordinates
-      if (known && isInsideTenerife(known)) return known
+      if (known && isInsideSpain(known)) return known
 
       try {
         await loadGoogleMapsOnDemand()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
-        const response = await new geocoding.Geocoder().geocode({ address: `${city}, Tenerife, Spain`, bounds: TENERIFE_BOUNDS, componentRestrictions: { country: 'ES' } })
+        const response = await new geocoding.Geocoder().geocode({ address: `${city}, Spain`, bounds: SPAIN_BOUNDS, componentRestrictions: { country: 'ES' } })
         if (cancelled || !locationGate.isCurrent(version)) return null
         const location = response.results[0]?.geometry.location
         if (!location) return null
         const coordinates = { lat: location.lat(), lng: location.lng() }
-        return isInsideTenerife(coordinates) ? coordinates : null
+        return isInsideSpain(coordinates) ? coordinates : null
       } catch {
         return null
       }
@@ -283,21 +283,21 @@ export function PublishLocationEnhancer() {
         if (cancelled || !locationGate.isCurrent(version)) return null
         const feature = hierarchy.features.find((candidate) => featureMatchesArea(candidate, trimmedArea, city, hierarchy))
         const center = feature ? geometryRepresentativeCenter(feature.geometry) : null
-        if (center && isInsideTenerife(center) && (!municipality || pointInGeometry(center, municipality.geometry))) return center
+        if (center && isInsideSpain(center) && (!municipality || pointInGeometry(center, municipality.geometry))) return center
       } catch {
         // Not every municipality has a bundled barrio/district layer. Continue.
       }
 
       const known = resolveTenerifeLocation(trimmedArea)
-      if (known?.coordinates && known.type !== 'municipality' && isInsideTenerife(known.coordinates)
+      if (known?.coordinates && known.type !== 'municipality' && isInsideSpain(known.coordinates)
         && (!municipality || pointInGeometry(known.coordinates, municipality.geometry))) return known.coordinates
 
       try {
         await loadGoogleMapsOnDemand()
         const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
         const response = await new geocoding.Geocoder().geocode({
-          address: `${trimmedArea}, ${city}, Tenerife, Spain`,
-          bounds: TENERIFE_BOUNDS,
+          address: `${trimmedArea}, ${city}, Spain`,
+          bounds: SPAIN_BOUNDS,
           componentRestrictions: { country: 'ES' },
         })
         if (cancelled || !locationGate.isCurrent(version)) return null
@@ -305,7 +305,7 @@ export function PublishLocationEnhancer() {
           const location = result.geometry.location
           if (!location) continue
           const coordinates = { lat: location.lat(), lng: location.lng() }
-          if (!isInsideTenerife(coordinates)) continue
+          if (!isInsideSpain(coordinates)) continue
           if (municipality && !pointInGeometry(coordinates, municipality.geometry)) continue
           return coordinates
         }

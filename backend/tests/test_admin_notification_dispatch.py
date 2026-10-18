@@ -173,3 +173,11 @@ async def test_admin_cannot_publish_a_listing_while_it_is_moderation_restricted(
     create_notification.assert_not_awaited()
     saved_search.assert_not_awaited()
     session.commit.assert_not_awaited()
+
+
+@pytest.fixture(autouse=True)
+def payment_review_dependencies(monkeypatch):
+    # These unit tests isolate identity/notification behavior. Advisory locking
+    # and paid-service review are exercised by real PostgreSQL regressions.
+    monkeypatch.setattr("app.services.commercial_advertisements.lock_advertising_capacity", AsyncMock())
+    monkeypatch.setattr("app.services.payment_review.review_paid_top", AsyncMock())

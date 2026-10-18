@@ -15,6 +15,8 @@ def listing_payload(title: str, asset_ids: list[str]) -> dict:
         "title": title,
         "city": "Adeje",
         "area": "Centro",
+        "street": "Calle Prueba 1",
+        "postcode": "38670",
         "approximateAddress": "Centro de Adeje",
         "rentalMode": "long",
         "monthlyPrice": 700,
