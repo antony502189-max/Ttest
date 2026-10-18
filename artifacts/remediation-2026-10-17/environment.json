@@ -1,0 +1,19 @@
+{
+  "python": "3.12.14",
+  "backend": {
+    "fastapi": "0.141.1",
+    "sqlalchemy": "2.0.51",
+    "pydantic": "2.13.4",
+    "pytest": "9.1.1",
+    "ruff": "0.16.1",
+    "mypy": "2.3.0"
+  },
+  "frontend": {
+    "vite": "8.1.5",
+    "oxlint": "1.74.0",
+    "@playwright/test": "1.61.1",
+    "typescript": "6.0.3"
+  },
+  "rootLockfileSha256": "def01a7b64bd08828283719d7e27e52e86962520cc02ba7e2a740fc9b1ad676f",
+  "isolatedLockfileSha256": "def01a7b64bd08828283719d7e27e52e86962520cc02ba7e2a740fc9b1ad676f"
+}

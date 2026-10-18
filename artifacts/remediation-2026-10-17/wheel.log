@@ -1,0 +1,397 @@
+running bdist_wheel
+running build
+running build_py
+creating build\lib\app
+copying app\content_safety.py -> build\lib\app
+copying app\external_sources.py -> build\lib\app
+copying app\habitaclia_source.py -> build\lib\app
+copying app\main.py -> build\lib\app
+copying app\rental_classification.py -> build\lib\app
+copying app\spain_communities.py -> build\lib\app
+copying app\spain_provinces.py -> build\lib\app
+copying app\storage.py -> build\lib\app
+copying app\__init__.py -> build\lib\app
+creating build\lib\app\api
+copying app\api\dependencies.py -> build\lib\app\api
+copying app\api\public_pages.py -> build\lib\app\api
+creating build\lib\app\commands
+copying app\commands\audit_external_sources.py -> build\lib\app\commands
+copying app\commands\audit_habitaclia_source.py -> build\lib\app\commands
+copying app\commands\audit_long_term_policy.py -> build\lib\app\commands
+copying app\commands\audit_media.py -> build\lib\app\commands
+copying app\commands\backfill_geography.py -> build\lib\app\commands
+copying app\commands\bootstrap_external_spain.py -> build\lib\app\commands
+copying app\commands\deduplicate_listings.py -> build\lib\app\commands
+copying app\commands\deliver_outbox.py -> build\lib\app\commands
+copying app\commands\outbox_worker.py -> build\lib\app\commands
+copying app\commands\provision_external_spain.py -> build\lib\app\commands
+copying app\commands\repair_listing_galleries.py -> build\lib\app\commands
+copying app\commands\seed.py -> build\lib\app\commands
+copying app\commands\web_push_keys.py -> build\lib\app\commands
+copying app\commands\__init__.py -> build\lib\app\commands
+creating build\lib\app\core
+copying app\core\browser_network.py -> build\lib\app\core
+copying app\core\config.py -> build\lib\app\core
+copying app\core\http.py -> build\lib\app\core
+copying app\core\media_keys.py -> build\lib\app\core
+copying app\core\media_limits.py -> build\lib\app\core
+copying app\core\observability.py -> build\lib\app\core
+copying app\core\public_http.py -> build\lib\app\core
+copying app\core\security.py -> build\lib\app\core
+copying app\core\storage_failure_buffer.py -> build\lib\app\core
+creating build\lib\app\db
+copying app\db\base.py -> build\lib\app\db
+copying app\db\session.py -> build\lib\app\db
+creating build\lib\app\models
+copying app\models\advertising_waitlist.py -> build\lib\app\models
+copying app\models\commercial_advertisement.py -> build\lib\app\models
+copying app\models\moderation.py -> build\lib\app\models
+copying app\models\payment_event.py -> build\lib\app\models
+copying app\models\payment_order.py -> build\lib\app\models
+copying app\models\room_details.py -> build\lib\app\models
+copying app\models\storage_deletion.py -> build\lib\app\models
+copying app\models\__init__.py -> build\lib\app\models
+creating build\lib\app\repositories
+copying app\repositories\listings.py -> build\lib\app\repositories
+copying app\repositories\__init__.py -> build\lib\app\repositories
+creating build\lib\app\schemas
+copying app\schemas\admin.py -> build\lib\app\schemas
+copying app\schemas\auth.py -> build\lib\app\schemas
+copying app\schemas\commercial_advertisements.py -> build\lib\app\schemas
+copying app\schemas\history.py -> build\lib\app\schemas
+copying app\schemas\listings.py -> build\lib\app\schemas
+copying app\schemas\media.py -> build\lib\app\schemas
+copying app\schemas\moderation.py -> build\lib\app\schemas
+copying app\schemas\notifications.py -> build\lib\app\schemas
+copying app\schemas\reports.py -> build\lib\app\schemas
+copying app\schemas\searches.py -> build\lib\app\schemas
+creating build\lib\app\services
+copying app\services\address_geography.py -> build\lib\app\services
+copying app\services\admin.py -> build\lib\app\services
+copying app\services\admin_audit.py -> build\lib\app\services
+copying app\services\admin_listings.py -> build\lib\app\services
+copying app\services\admin_users.py -> build\lib\app\services
+copying app\services\advertising_alerts.py -> build\lib\app\services
+copying app\services\auth.py -> build\lib\app\services
+copying app\services\catalog.py -> build\lib\app\services
+copying app\services\commercial_advertisements.py -> build\lib\app\services
+copying app\services\data_retention.py -> build\lib\app\services
+copying app\services\duplicate_cleanup.py -> build\lib\app\services
+copying app\services\external_import.py -> build\lib\app\services
+copying app\services\external_removal.py -> build\lib\app\services
+copying app\services\external_scopes.py -> build\lib\app\services
+copying app\services\homepage_hero.py -> build\lib\app\services
+copying app\services\homepage_purchase.py -> build\lib\app\services
+copying app\services\listings.py -> build\lib\app\services
+copying app\services\listing_deduplication.py -> build\lib\app\services
+copying app\services\listing_gallery_integrity.py -> build\lib\app\services
+copying app\services\listing_limits.py -> build\lib\app\services
+copying app\services\listing_views.py -> build\lib\app\services
+copying app\services\mail.py -> build\lib\app\services
+copying app\services\media_lifecycle.py -> build\lib\app\services
+copying app\services\media_processing.py -> build\lib\app\services
+copying app\services\moderation.py -> build\lib\app\services
+copying app\services\moderation_expiry.py -> build\lib\app\services
+copying app\services\notifications.py -> build\lib\app\services
+copying app\services\payment_finances.py -> build\lib\app\services
+copying app\services\payment_fulfillment.py -> build\lib\app\services
+copying app\services\payment_guards.py -> build\lib\app\services
+copying app\services\payment_review.py -> build\lib\app\services
+copying app\services\payment_sessions.py -> build\lib\app\services
+copying app\services\province_top.py -> build\lib\app\services
+copying app\services\rate_limit.py -> build\lib\app\services
+copying app\services\rental_price_limit.py -> build\lib\app\services
+copying app\services\reports.py -> build\lib\app\services
+copying app\services\search_state.py -> build\lib\app\services
+copying app\services\storage_deletions.py -> build\lib\app\services
+copying app\services\stripe_checkout.py -> build\lib\app\services
+copying app\services\users.py -> build\lib\app\services
+copying app\services\video_processing.py -> build\lib\app\services
+copying app\services\__init__.py -> build\lib\app\services
+creating build\lib\app\workers
+copying app\workers\external_listings.py -> build\lib\app\workers
+copying app\workers\__init__.py -> build\lib\app\workers
+creating build\lib\app\api\v1
+copying app\api\v1\admin.py -> build\lib\app\api\v1
+copying app\api\v1\auth.py -> build\lib\app\api\v1
+copying app\api\v1\commercial_advertisements.py -> build\lib\app\api\v1
+copying app\api\v1\favorites.py -> build\lib\app\api\v1
+copying app\api\v1\listings.py -> build\lib\app\api\v1
+copying app\api\v1\notifications.py -> build\lib\app\api\v1
+copying app\api\v1\payments.py -> build\lib\app\api\v1
+copying app\api\v1\reports.py -> build\lib\app\api\v1
+copying app\api\v1\saved_searches.py -> build\lib\app\api\v1
+copying app\api\v1\search_history.py -> build\lib\app\api\v1
+copying app\api\v1\uploads.py -> build\lib\app\api\v1
+copying app\api\v1\users.py -> build\lib\app\api\v1
+running egg_info
+writing ttest_backend.egg-info\PKG-INFO
+writing dependency_links to ttest_backend.egg-info\dependency_links.txt
+writing requirements to ttest_backend.egg-info\requires.txt
+writing top-level names to ttest_backend.egg-info\top_level.txt
+reading manifest file 'ttest_backend.egg-info\SOURCES.txt'
+writing manifest file 'ttest_backend.egg-info\SOURCES.txt'
+copying app\spain_communities.json -> build\lib\app
+copying app\spain_communities_LICENSE.txt -> build\lib\app
+creating build\lib\app\data
+copying app\data\spain-municipalities.json -> build\lib\app\data
+copying app\data\spain-province-geometries.json -> build\lib\app\data
+installing to build\bdist.win-amd64\wheel
+running install
+running install_lib
+creating build\bdist.win-amd64\wheel
+creating build\bdist.win-amd64\wheel\app
+creating build\bdist.win-amd64\wheel\app\api
+copying build\lib\app\api\dependencies.py -> build\bdist.win-amd64\wheel\.\app\api
+copying build\lib\app\api\public_pages.py -> build\bdist.win-amd64\wheel\.\app\api
+creating build\bdist.win-amd64\wheel\app\api\v1
+copying build\lib\app\api\v1\admin.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\auth.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\commercial_advertisements.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\favorites.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\listings.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\notifications.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\payments.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\reports.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\saved_searches.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\search_history.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\uploads.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+copying build\lib\app\api\v1\users.py -> build\bdist.win-amd64\wheel\.\app\api\v1
+creating build\bdist.win-amd64\wheel\app\commands
+copying build\lib\app\commands\audit_external_sources.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\audit_habitaclia_source.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\audit_long_term_policy.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\audit_media.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\backfill_geography.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\bootstrap_external_spain.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\deduplicate_listings.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\deliver_outbox.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\outbox_worker.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\provision_external_spain.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\repair_listing_galleries.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\seed.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\web_push_keys.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\commands\__init__.py -> build\bdist.win-amd64\wheel\.\app\commands
+copying build\lib\app\content_safety.py -> build\bdist.win-amd64\wheel\.\app
+creating build\bdist.win-amd64\wheel\app\core
+copying build\lib\app\core\browser_network.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\config.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\http.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\media_keys.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\media_limits.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\observability.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\public_http.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\security.py -> build\bdist.win-amd64\wheel\.\app\core
+copying build\lib\app\core\storage_failure_buffer.py -> build\bdist.win-amd64\wheel\.\app\core
+creating build\bdist.win-amd64\wheel\app\data
+copying build\lib\app\data\spain-municipalities.json -> build\bdist.win-amd64\wheel\.\app\data
+copying build\lib\app\data\spain-province-geometries.json -> build\bdist.win-amd64\wheel\.\app\data
+creating build\bdist.win-amd64\wheel\app\db
+copying build\lib\app\db\base.py -> build\bdist.win-amd64\wheel\.\app\db
+copying build\lib\app\db\session.py -> build\bdist.win-amd64\wheel\.\app\db
+copying build\lib\app\external_sources.py -> build\bdist.win-amd64\wheel\.\app
+copying build\lib\app\habitaclia_source.py -> build\bdist.win-amd64\wheel\.\app
+copying build\lib\app\main.py -> build\bdist.win-amd64\wheel\.\app
+creating build\bdist.win-amd64\wheel\app\models
+copying build\lib\app\models\advertising_waitlist.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\commercial_advertisement.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\moderation.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\payment_event.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\payment_order.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\room_details.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\storage_deletion.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\models\__init__.py -> build\bdist.win-amd64\wheel\.\app\models
+copying build\lib\app\rental_classification.py -> build\bdist.win-amd64\wheel\.\app
+creating build\bdist.win-amd64\wheel\app\repositories
+copying build\lib\app\repositories\listings.py -> build\bdist.win-amd64\wheel\.\app\repositories
+copying build\lib\app\repositories\__init__.py -> build\bdist.win-amd64\wheel\.\app\repositories
+creating build\bdist.win-amd64\wheel\app\schemas
+copying build\lib\app\schemas\admin.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\auth.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\commercial_advertisements.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\history.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\listings.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\media.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\moderation.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\notifications.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\reports.py -> build\bdist.win-amd64\wheel\.\app\schemas
+copying build\lib\app\schemas\searches.py -> build\bdist.win-amd64\wheel\.\app\schemas
+creating build\bdist.win-amd64\wheel\app\services
+copying build\lib\app\services\address_geography.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\admin.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\admin_audit.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\admin_listings.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\admin_users.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\advertising_alerts.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\auth.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\catalog.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\commercial_advertisements.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\data_retention.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\duplicate_cleanup.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\external_import.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\external_removal.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\external_scopes.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\homepage_hero.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\homepage_purchase.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\listings.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\listing_deduplication.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\listing_gallery_integrity.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\listing_limits.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\listing_views.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\mail.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\media_lifecycle.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\media_processing.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\moderation.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\moderation_expiry.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\notifications.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\payment_finances.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\payment_fulfillment.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\payment_guards.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\payment_review.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\payment_sessions.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\province_top.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\rate_limit.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\rental_price_limit.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\reports.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\search_state.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\storage_deletions.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\stripe_checkout.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\users.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\video_processing.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\services\__init__.py -> build\bdist.win-amd64\wheel\.\app\services
+copying build\lib\app\spain_communities.json -> build\bdist.win-amd64\wheel\.\app
+copying build\lib\app\spain_communities.py -> build\bdist.win-amd64\wheel\.\app
+copying build\lib\app\spain_communities_LICENSE.txt -> build\bdist.win-amd64\wheel\.\app
+copying build\lib\app\spain_provinces.py -> build\bdist.win-amd64\wheel\.\app
+copying build\lib\app\storage.py -> build\bdist.win-amd64\wheel\.\app
+creating build\bdist.win-amd64\wheel\app\workers
+copying build\lib\app\workers\external_listings.py -> build\bdist.win-amd64\wheel\.\app\workers
+copying build\lib\app\workers\__init__.py -> build\bdist.win-amd64\wheel\.\app\workers
+copying build\lib\app\__init__.py -> build\bdist.win-amd64\wheel\.\app
+running install_egg_info
+Copying ttest_backend.egg-info to build\bdist.win-amd64\wheel\.\ttest_backend-0.2.0-py3.12.egg-info
+running install_scripts
+creating build\bdist.win-amd64\wheel\ttest_backend-0.2.0.dist-info\WHEEL
+creating 'C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\output\\remediation-wheels\\.tmp-o472sh0z\\ttest_backend-0.2.0-py3-none-any.whl' and adding 'build\\bdist.win-amd64\\wheel' to it
+adding 'app/__init__.py'
+adding 'app/content_safety.py'
+adding 'app/external_sources.py'
+adding 'app/habitaclia_source.py'
+adding 'app/main.py'
+adding 'app/rental_classification.py'
+adding 'app/spain_communities.json'
+adding 'app/spain_communities.py'
+adding 'app/spain_communities_LICENSE.txt'
+adding 'app/spain_provinces.py'
+adding 'app/storage.py'
+adding 'app/api/dependencies.py'
+adding 'app/api/public_pages.py'
+adding 'app/api/v1/admin.py'
+adding 'app/api/v1/auth.py'
+adding 'app/api/v1/commercial_advertisements.py'
+adding 'app/api/v1/favorites.py'
+adding 'app/api/v1/listings.py'
+adding 'app/api/v1/notifications.py'
+adding 'app/api/v1/payments.py'
+adding 'app/api/v1/reports.py'
+adding 'app/api/v1/saved_searches.py'
+adding 'app/api/v1/search_history.py'
+adding 'app/api/v1/uploads.py'
+adding 'app/api/v1/users.py'
+adding 'app/commands/__init__.py'
+adding 'app/commands/audit_external_sources.py'
+adding 'app/commands/audit_habitaclia_source.py'
+adding 'app/commands/audit_long_term_policy.py'
+adding 'app/commands/audit_media.py'
+adding 'app/commands/backfill_geography.py'
+adding 'app/commands/bootstrap_external_spain.py'
+adding 'app/commands/deduplicate_listings.py'
+adding 'app/commands/deliver_outbox.py'
+adding 'app/commands/outbox_worker.py'
+adding 'app/commands/provision_external_spain.py'
+adding 'app/commands/repair_listing_galleries.py'
+adding 'app/commands/seed.py'
+adding 'app/commands/web_push_keys.py'
+adding 'app/core/browser_network.py'
+adding 'app/core/config.py'
+adding 'app/core/http.py'
+adding 'app/core/media_keys.py'
+adding 'app/core/media_limits.py'
+adding 'app/core/observability.py'
+adding 'app/core/public_http.py'
+adding 'app/core/security.py'
+adding 'app/core/storage_failure_buffer.py'
+adding 'app/data/spain-municipalities.json'
+adding 'app/data/spain-province-geometries.json'
+adding 'app/db/base.py'
+adding 'app/db/session.py'
+adding 'app/models/__init__.py'
+adding 'app/models/advertising_waitlist.py'
+adding 'app/models/commercial_advertisement.py'
+adding 'app/models/moderation.py'
+adding 'app/models/payment_event.py'
+adding 'app/models/payment_order.py'
+adding 'app/models/room_details.py'
+adding 'app/models/storage_deletion.py'
+adding 'app/repositories/__init__.py'
+adding 'app/repositories/listings.py'
+adding 'app/schemas/admin.py'
+adding 'app/schemas/auth.py'
+adding 'app/schemas/commercial_advertisements.py'
+adding 'app/schemas/history.py'
+adding 'app/schemas/listings.py'
+adding 'app/schemas/media.py'
+adding 'app/schemas/moderation.py'
+adding 'app/schemas/notifications.py'
+adding 'app/schemas/reports.py'
+adding 'app/schemas/searches.py'
+adding 'app/services/__init__.py'
+adding 'app/services/address_geography.py'
+adding 'app/services/admin.py'
+adding 'app/services/admin_audit.py'
+adding 'app/services/admin_listings.py'
+adding 'app/services/admin_users.py'
+adding 'app/services/advertising_alerts.py'
+adding 'app/services/auth.py'
+adding 'app/services/catalog.py'
+adding 'app/services/commercial_advertisements.py'
+adding 'app/services/data_retention.py'
+adding 'app/services/duplicate_cleanup.py'
+adding 'app/services/external_import.py'
+adding 'app/services/external_removal.py'
+adding 'app/services/external_scopes.py'
+adding 'app/services/homepage_hero.py'
+adding 'app/services/homepage_purchase.py'
+adding 'app/services/listing_deduplication.py'
+adding 'app/services/listing_gallery_integrity.py'
+adding 'app/services/listing_limits.py'
+adding 'app/services/listing_views.py'
+adding 'app/services/listings.py'
+adding 'app/services/mail.py'
+adding 'app/services/media_lifecycle.py'
+adding 'app/services/media_processing.py'
+adding 'app/services/moderation.py'
+adding 'app/services/moderation_expiry.py'
+adding 'app/services/notifications.py'
+adding 'app/services/payment_finances.py'
+adding 'app/services/payment_fulfillment.py'
+adding 'app/services/payment_guards.py'
+adding 'app/services/payment_review.py'
+adding 'app/services/payment_sessions.py'
+adding 'app/services/province_top.py'
+adding 'app/services/rate_limit.py'
+adding 'app/services/rental_price_limit.py'
+adding 'app/services/reports.py'
+adding 'app/services/search_state.py'
+adding 'app/services/storage_deletions.py'
+adding 'app/services/stripe_checkout.py'
+adding 'app/services/users.py'
+adding 'app/services/video_processing.py'
+adding 'app/workers/__init__.py'
+adding 'app/workers/external_listings.py'
+adding 'ttest_backend-0.2.0.dist-info/METADATA'
+adding 'ttest_backend-0.2.0.dist-info/WHEEL'
+adding 'ttest_backend-0.2.0.dist-info/top_level.txt'
+adding 'ttest_backend-0.2.0.dist-info/RECORD'
+removing build\bdist.win-amd64\wheel
+Verified: wheel contains both runtime geography datasets

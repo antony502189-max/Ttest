@@ -1,0 +1,10 @@
+{
+  "mode": "dry-run",
+  "provinces": [],
+  "topBindings": [],
+  "unknown": [],
+  "capacityConflicts": [],
+  "ownerAddressesInferred": 0,
+  "topBindingsApplied": false,
+  "localAddressVerificationRequired": []
+}

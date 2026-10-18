@@ -1,0 +1,194 @@
+........................................................................ [  9%]
+........................................................................ [ 18%]
+.............................................ss......................... [ 27%]
+..................................................s..................... [ 36%]
+........................................................................ [ 45%]
+........................................................................ [ 54%]
+........................................................................ [ 63%]
+........................................................................ [ 72%]
+........................................................................ [ 81%]
+.......................................................ssss............. [ 90%]
+.............................FF........F................................ [ 99%]
+...                                                                      [100%]
+================================== FAILURES ===================================
+___________ test_top_records_initial_total_and_duplicate_is_ignored ___________
+
+configured = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000020909027FE0>
+
+    @pytest.mark.asyncio
+    async def test_top_records_initial_total_and_duplicate_is_ignored(configured, monkeypatch):
+        monkeypatch.setattr(payment_fulfillment, "top_availability", AsyncMock(return_value={"available": True}))
+        order, event = order_event("listing_top")
+        listing = SimpleNamespace(status="published", is_external=False, deleted_at=None, id=order.target_id)
+        added = []
+        session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, listing, None, order]),
+                                  commit=AsyncMock(), add=added.append)
+        request, signature = signed_request(event)
+>       await payments.stripe_webhook(request, signature, session)
+
+tests\test_stripe_payment_boundaries.py:126: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\api\v1\payments.py:340: in stripe_webhook
+    return await apply_stripe_session(checkout_session, event_type, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\services\payment_fulfillment.py:138: in apply_stripe_session
+    valid = await eligible(listing, session)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+listing = namespace(status='published', is_external=False, deleted_at=None, id=UUID('2729d897-b740-4417-bc51-36a64552c720'))
+session = namespace(scalar=<AsyncMock id='2237820599184'>, commit=<AsyncMock id='2237820599232'>, add=<built-in method append of list object at 0x0000020908D04480>)
+
+    async def eligible(listing, session):
+        if listing is None:
+            return False
+        try:
+            require_listing_price(listing)
+        except HTTPException:
+            return False
+>       owner = await session.get(User, listing.owner_user_id)
+                      ^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'get'
+
+app\services\homepage_purchase.py:30: AttributeError
+_________ test_late_top_payment_cannot_displace_three_province_slots __________
+
+configured = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000209089558B0>
+
+    @pytest.mark.asyncio
+    async def test_late_top_payment_cannot_displace_three_province_slots(configured, monkeypatch):
+        monkeypatch.setattr(payment_fulfillment, "top_availability", AsyncMock(return_value={"available": False}))
+        order, event = order_event("listing_top")
+        listing = SimpleNamespace(status="published", is_external=False, deleted_at=None, id=order.target_id)
+        added = []
+        session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, listing]), commit=AsyncMock(), add=added.append)
+        request, signature = signed_request(event)
+>       await payments.stripe_webhook(request, signature, session)
+
+tests\test_stripe_payment_boundaries.py:144: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\api\v1\payments.py:340: in stripe_webhook
+    return await apply_stripe_session(checkout_session, event_type, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\services\payment_fulfillment.py:138: in apply_stripe_session
+    valid = await eligible(listing, session)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+listing = namespace(status='published', is_external=False, deleted_at=None, id=UUID('5067c675-95f0-4031-81dd-38727be785e3'))
+session = namespace(scalar=<AsyncMock id='2237820360544'>, commit=<AsyncMock id='2237822020032'>, add=<built-in method append of list object at 0x00000209089F9E00>)
+
+    async def eligible(listing, session):
+        if listing is None:
+            return False
+        try:
+            require_listing_price(listing)
+        except HTTPException:
+            return False
+>       owner = await session.get(User, listing.owner_user_id)
+                      ^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'get'
+
+app\services\homepage_purchase.py:30: AttributeError
+________________ test_expired_provider_session_can_be_replaced ________________
+
+configured = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000020907285AC0>
+
+    @pytest.mark.asyncio
+    async def test_expired_provider_session_can_be_replaced(configured, monkeypatch):
+        monkeypatch.setattr(payments, "require_province_top_slot", AsyncMock())
+        previous = SimpleNamespace(checkout_url="https://checkout.stripe.com/test", stripe_session_id="cs_test_old",
+                                   status="pending")
+        session = SimpleNamespace(scalar=AsyncMock(return_value=previous), get=AsyncMock(), add=lambda _: None,
+                                  flush=AsyncMock(), commit=AsyncMock())
+        monkeypatch.setattr(payments, "retrieve_stripe_session", AsyncMock(return_value={"status":"expired"}))
+        monkeypatch.setattr(payments, "create_stripe_session", AsyncMock(return_value=("cs_test_new", "https://checkout.stripe.com/new")))
+        async def expire(*_):
+            previous.status = "expired"
+        monkeypatch.setattr(payments, "apply_stripe_session", expire)
+        monkeypatch.setattr(payments, "finish_creation", AsyncMock(return_value="https://checkout.stripe.com/new"))
+>       result = await payments.checkout(session, SimpleNamespace(id=uuid4()), "listing_top", uuid4(), 1, 100,
+                                        "TOP", "/mis-anuncios")
+
+tests\test_stripe_payment_boundaries.py:237: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+session = namespace(scalar=<AsyncMock id='2237820965072'>, get=<AsyncMock id='2237820961424'>, add=<function test_expired_provid....<locals>.<lambda> at 0x00000209089134C0>, flush=<AsyncMock id='2237820975296'>, commit=<AsyncMock id='2237821918704'>)
+user = namespace(id=UUID('21e73b5a-4491-40ff-b605-9d4969a364c9'))
+kind = 'listing_top', target_id = UUID('f63c6854-ed3d-49e6-bbb2-20be65315d68')
+days = 1, amount = 100, name = 'TOP', return_path = '/mis-anuncios'
+fingerprint = None, months = None
+
+    async def checkout(
+        session: AsyncSession, user: User, kind: str, target_id: UUID, days: int, amount: int,
+        name: str, return_path: str, fingerprint: str | None = None,
+        months: int | None = None,
+    ) -> CheckoutResponse:
+        require_checkout_enabled(get_settings())
+        previous = await session.scalar(
+            select(PaymentOrder).where(
+                PaymentOrder.owner_user_id == user.id,
+                PaymentOrder.kind == kind,
+                PaymentOrder.target_id == target_id,
+                PaymentOrder.status.in_(["creating", "pending"]),
+            ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update()
+        )
+        if previous and previous.checkout_url and previous.stripe_session_id:
+            await session.commit()
+            remote = await retrieve_stripe_session(previous.stripe_session_id)
+            if remote["status"] == "complete":
+                if remote.get("payment_status") == "paid":
+                    await apply_stripe_session(remote, "checkout.session.completed", session)
+                raise HTTPException(409, "Payment is awaiting confirmation; do not pay again")
+            if remote["status"] == "open":
+                if previous.days == days and previous.amount_cents == amount and getattr(previous, "duration_months", None) == months:
+                    return CheckoutResponse(url=previous.checkout_url, amountCents=amount)
+                raise HTTPException(409, "An unfinished payment already exists for this item")
+            await apply_stripe_session(remote, "checkout.session.expired", session)
+            # The old reservation was released; validate capacity again before replacing it.
+            await lock_advertising_capacity(session)
+            if kind == "advertisement":
+                await require_free_slot(session, exclude_id=target_id)
+            elif kind == "homepage_hero" and not await slot_available(session):
+                raise HTTPException(409, "Homepage placement is currently unavailable")
+            elif kind == "listing_top":
+                listing = await session.get(Listing, target_id)
+                await require_province_top_slot(session, listing, days=days)
+        elif previous:
+            if previous.days != days or previous.amount_cents != amount or previous.duration_months != months:
+                raise HTTPException(409, "An unfinished payment already exists for this item")
+            url = await finish_creation(previous, session, create=create_stripe_session)
+            return CheckoutResponse(url=url, amountCents=amount)
+        if previous:
+            previous.status = "expired"
+        order = PaymentOrder(
+            owner_user_id=user.id, kind=kind, target_id=target_id,
+            days=days, amount_cents=amount, status="creating", advertisement_fingerprint=fingerprint,
+            duration_months=months,
+            checkout_name=name, return_path=return_path,
+>           top_municipality_code=user.municipality_code if kind == "listing_top" else None,
+                                  ^^^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'municipality_code'
+
+app\api\v1\payments.py:123: AttributeError
+============================== warnings summary ===============================
+..\output\release-venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_migration_governance.py::test_alembic_graph_is_one_complete_linear_chain
+tests/test_migration_governance.py::test_rollback_baseline_is_an_immutable_ancestor_of_head
+tests/test_migration_governance.py::test_released_post_baseline_migrations_are_immutable
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\alembic\config.py:612: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_stripe_payment_boundaries.py::test_top_records_initial_total_and_duplicate_is_ignored
+FAILED tests/test_stripe_payment_boundaries.py::test_late_top_payment_cannot_displace_three_province_slots
+FAILED tests/test_stripe_payment_boundaries.py::test_expired_provider_session_can_be_replaced
+3 failed, 785 passed, 7 skipped, 259 deselected, 4 warnings in 8.58s

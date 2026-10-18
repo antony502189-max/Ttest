@@ -1,0 +1,3 @@
+Cleanup of remediation-owned temporary services only.
+Verified: remediation Vite ports 4192/4193/4194 have no listeners.
+Verified cleanup of only remediation-owned container names; ttest-* containers were not cleanup targets.

@@ -1,0 +1,60 @@
+[
+  {
+    "name": "Madrid-real-user-autocomplete",
+    "province": "Santa Cruz de Tenerife",
+    "postcode": "38678",
+    "city": "Adeje",
+    "status": "Не удалось открыть эту подсказку. Выберите другую или введите полный адрес.",
+    "center": {
+      "lat": 28.12976,
+      "lng": -16.75563
+    }
+  },
+  {
+    "name": "approved-parent-desktop-selector",
+    "rect": {
+      "x": 32,
+      "y": 34,
+      "width": 1216,
+      "height": 832,
+      "top": 34,
+      "right": 1248,
+      "bottom": 866,
+      "left": 32
+    },
+    "className": "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 location-selector-dialog",
+    "text": "Где вы ищете?Ищите на Тенерифе по городу, району или зоне.Искать наTenerifeНайти районТакже можно:Выбрать зоны на картеНарисовать зонуИскать на картеИскать рядомВыбрать районы Найти муниципалитет, округ или районАдминистративные районы и нарисованная зона являются альтернативами. Выбор одного заменяет другое.AdejeМуниципалитет · 11 комнатArafoМуниципалитет · 0 комнатAricoМуниципалитет · 0 комнатAronaМуниципалитет · 5 комнатBuenavista del NorteМуниципалитет · 0 комнатCandelariaМуниципалитет · 0 комнатEl RosarioМуниципалитет · 0 комнатEl SauzalМуниципалитет · 0 комнатEl TanqueМуниципалитет · 0 комнатFasniaМуниципалитет · 0 комнатGarachicoМуниципалитет · 0 комнатGranadilla de AbonaМуниципалитет · 4 комнатGuía de IsoraМуниципалитет · 0 комнатGüímarМуниципалитет · 0 комнатIcod de los VinosМуниципалитет · 0 комнатLa GuanchaМуниципалитет · 0 комнатLa Matanza de AcentejoМуниципалитет · 0 комнатLa OrotavaМуниципалитет · 0 комнатLa Victoria de AcentejoМуниципалитет · 0 комнатLos RealejosМуниципа"
+  },
+  {
+    "name": "current-desktop-selector",
+    "rect": {
+      "x": 448,
+      "y": 0,
+      "width": 384,
+      "height": 900,
+      "top": 0,
+      "right": 832,
+      "bottom": 900,
+      "left": 448
+    },
+    "className": "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 m2-location",
+    "rowBackground": "rgba(0, 0, 0, 0)",
+    "listBackground": "rgb(32, 32, 32)"
+  },
+  {
+    "name": "Madrid-map-camera",
+    "header": "MadridMadridСохранить",
+    "center": {
+      "lat": 32.45,
+      "lng": -11.2
+    },
+    "zoom": 5.25
+  },
+  {
+    "name": "countdown-reload-minus-24h",
+    "before": "01:01:05",
+    "after": "01:01:05",
+    "requests": 2,
+    "note": "API fixture sends unchanged authoritative time on every request; proves browser wall clock offset does not alter timer and reload fetches API."
+  }
+]

@@ -1,0 +1,34 @@
+...........................F................                             [100%]
+================================== FAILURES ===================================
+_____ test_import_without_postcode_participates_in_all_province_surfaces ______
+tests\integration\test_verified_geography.py:96: in test_import_without_postcode_participates_in_all_province_surfaces
+    assert listing_id in str(result.json())
+E   assert 'b7fce146-254a-414a-bf0d-806a014a43cb' in "{'items': [{'type': 'cluster', 'id': '11:8', 'latitude': 40.4168, 'longitude': -3.7038, 'count': 1, 'promoted': False}]}"
+E    +  where "{'items': [{'type': 'cluster', 'id': '11:8', 'latitude': 40.4168, 'longitude': -3.7038, 'count': 1, 'promoted': False}]}" = str({'items': [{'type': 'cluster', 'id': '11:8', 'latitude': 40.4168, 'longitude': -3.7038, ...}]})
+E    +    where {'items': [{'type': 'cluster', 'id': '11:8', 'latitude': 40.4168, 'longitude': -3.7038, ...}]} = json()
+E    +      where json = <Response [200 OK]>.json
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-18T16:25:50.088464+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "a0091c21-1624-4a04-b561-465162a00b5b", "method": "POST", "path": "/api/v1/listings/search", "status": 200, "duration_ms": 36.46}
+{"timestamp": "2026-10-18T16:25:50.091125+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-18T16:25:50.119045+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "43ad4dcd-e6dc-4ba7-979a-efc99a565154", "method": "POST", "path": "/api/v1/listings/search", "status": 200, "duration_ms": 26.34}
+{"timestamp": "2026-10-18T16:25:50.121191+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-18T16:25:50.156559+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "f29cbb6d-63d8-43cf-96a1-52fe3110a57b", "method": "POST", "path": "/api/v1/listings/search/cards", "status": 200, "duration_ms": 34.07}
+{"timestamp": "2026-10-18T16:25:50.159258+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search/cards \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-18T16:25:50.184331+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "62103790-39b0-409a-bf8c-e06972bc71e9", "method": "POST", "path": "/api/v1/listings/search/cards", "status": 200, "duration_ms": 23.63}
+{"timestamp": "2026-10-18T16:25:50.185928+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search/cards \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-18T16:25:50.221856+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "c7e03ad6-3264-4b76-956f-804c3348acdb", "method": "POST", "path": "/api/v1/listings/map", "status": 200, "duration_ms": 34.58}
+{"timestamp": "2026-10-18T16:25:50.224917+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/map \"HTTP/1.1 200 OK\""}
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings/search "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings/search "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings/search/cards "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings/search/cards "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings/map "HTTP/1.1 200 OK"
+=========================== short test summary info ===========================
+FAILED tests/integration/test_verified_geography.py::test_import_without_postcode_participates_in_all_province_surfaces
+1 failed, 43 passed in 43.65s

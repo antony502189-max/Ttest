@@ -1,0 +1,19 @@
+
+Running 12 tests using 1 worker
+
+(node:35124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 320px (16.9s)
+  ok  2 [chromium] › tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 1280px (16.8s)
+  ok  3 [chromium] › tests\province-top.spec.ts:46:1 › province search keeps the existing location rows and separates both Canary provinces (1.5s)
+  ok  4 [chromium] › tests\province-top.spec.ts:64:1 › publication derives the province from the selected address without a manual city selector (2.0s)
+  ok  5 [chromium] › tests\spain-community-search.spec.ts:14:3 › mobile Spain province search › home location starts unselected and location page has no Tenerife banner (1.2s)
+  ok  6 [chromium] › tests\spain-community-search.spec.ts:29:3 › mobile Spain province search › typing Barcelona offers its province and opens provincial results (1.4s)
+  ok  7 [chromium] › tests\spain-community-search.spec.ts:48:3 › mobile Spain province search › Madrid and Canary Islands choose distinct spatial searches (1.6s)
+  ok  8 [chromium] › tests\spain-community-search.spec.ts:64:1 › Spanish autonomous communities have correct point-in-boundary assignments and 17 regions (821ms)
+  ok  9 [chromium] › tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: ru at 320px (1.8s)
+  ok 10 [chromium] › tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: en at 390px (1.8s)
+  ok 11 [chromium] › tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: es at 1280px (1.9s)
+  ok 12 [chromium] › tests\owner-promotion-flow.spec.ts:38:1 › occupied homepage keeps the selected listing and prevents checkout (1.4s)
+
+  12 passed (50.3s)

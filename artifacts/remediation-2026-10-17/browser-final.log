@@ -1,0 +1,31 @@
+
+Running 24 tests using 1 worker
+
+(node:14536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 320px (18.9s)
+  ok  2 tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 1280px (16.8s)
+  ok  3 tests\province-top.spec.ts:46:1 › province search keeps the existing location rows and separates both Canary provinces (1.7s)
+  ok  4 tests\province-top.spec.ts:64:1 › publication derives the province from the selected address without a manual city selector (2.2s)
+  ok  5 tests\spain-community-search.spec.ts:14:3 › mobile Spain province search › home location starts unselected and location page has no Tenerife banner (1.4s)
+  ok  6 tests\spain-community-search.spec.ts:29:3 › mobile Spain province search › typing Barcelona offers its province and opens provincial results (1.6s)
+  ok  7 tests\spain-community-search.spec.ts:48:3 › mobile Spain province search › Madrid and Canary Islands choose distinct spatial searches (2.0s)
+  ok  8 tests\spain-community-search.spec.ts:64:1 › Spanish autonomous communities have correct point-in-boundary assignments and 17 regions (1.1s)
+  ok  9 tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: ru at 320px (2.0s)
+  ok 10 tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: en at 390px (1.9s)
+  ok 11 tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: es at 1280px (1.8s)
+  ok 12 tests\owner-promotion-flow.spec.ts:38:1 › occupied homepage keeps the selected listing and prevents checkout (1.5s)
+  ok 13 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Madrid (2.2s)
+  ok 14 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Las Palmas de Gran Canaria (2.2s)
+  ok 15 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Palma (2.3s)
+  ok 16 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Ceuta (1.8s)
+  ok 17 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Melilla (2.3s)
+  ok 18 tests\audit-remediation.spec.ts:40:1 › explicit Madrid province outranks remembered Tenerife camera (1.2s)
+  ok 19 tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 320 (1.2s)
+  ok 20 tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 768 (1.8s)
+  ok 21 tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 1280 (1.5s)
+  ok 22 tests\audit-remediation.spec.ts:79:1 › countdown zero waits for authoritative response, survives reload and clock skew (2.8s)
+  ok 23 tests\audit-remediation.spec.ts:106:1 › unknown release, malformed time and transient failure never enable a purchase (1.6s)
+  ok 24 tests\audit-remediation.spec.ts:129:1 › saved code-only provincial scope round-trips and legacy city scope stays a city (2.7s)
+
+  24 passed (1.3m)

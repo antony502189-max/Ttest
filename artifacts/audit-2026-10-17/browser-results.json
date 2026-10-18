@@ -1,0 +1,562 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Users\\HONOR\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+      "C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "--config",
+      "artifacts/audit-2026-10-17/playwright.audit.config.ts"
+    ],
+    "configFile": "C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\artifacts\\audit-2026-10-17\\playwright.audit.config.ts",
+    "rootDir": "C:/Users/HONOR/Documents/Codex/Ttest/artifacts/audit-2026-10-17",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/HONOR/Documents/Codex/Ttest/artifacts/audit-2026-10-17/browser-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/HONOR/Documents/Codex/Ttest/artifacts/audit-2026-10-17",
+        "testIgnore": [
+          "full-stack/**",
+          "phase1/**",
+          "**/tests/admin-performance/**",
+          "**/google-auth.spec.ts",
+          "**/listing-publication-errors.spec.ts"
+        ],
+        "testMatch": [
+          "province-suite.audit.spec.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\artifacts\\audit-2026-10-17\\browser-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "chromium",
+        "testDir": "C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\artifacts\\audit-2026-10-17",
+        "snapshotDir": "C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\artifacts\\audit-2026-10-17",
+        "testIgnore": [
+          "full-stack/**",
+          "phase1/**",
+          "**/tests/admin-performance/**",
+          "**/google-auth.spec.ts",
+          "**/listing-publication-errors.spec.ts"
+        ],
+        "testMatch": [
+          "province-suite.audit.spec.ts"
+        ],
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4174",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "video": "off",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          },
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": false,
+          "hasTouch": false,
+          "defaultBrowserType": "chromium",
+          "launchOptions": {
+            "executablePath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "./artifacts/audit-2026-10-17/browser-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "province-suite.audit.spec.ts",
+      "file": "province-suite.audit.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "full province blocks payment and counts down without changing the dialog at 320px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 16936,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:31:20.134Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-8096686cdee3ca04b89d",
+          "file": "../../tests/province-top.spec.ts",
+          "line": 4,
+          "column": 3
+        },
+        {
+          "title": "full province blocks payment and counts down without changing the dialog at 1280px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 16788,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:31:37.348Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-3bbe0b0f0050492bfb3d",
+          "file": "../../tests/province-top.spec.ts",
+          "line": 4,
+          "column": 3
+        },
+        {
+          "title": "province search keeps the existing location rows and separates both Canary provinces",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1514,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:31:54.147Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-cf20e033e8e20fdbed5c",
+          "file": "../../tests/province-top.spec.ts",
+          "line": 46,
+          "column": 1
+        },
+        {
+          "title": "publication derives the province from the selected address without a manual city selector",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2004,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:31:55.671Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-7bd18326cd6a9e59b32b",
+          "file": "../../tests/province-top.spec.ts",
+          "line": 64,
+          "column": 1
+        },
+        {
+          "title": "Spanish autonomous communities have correct point-in-boundary assignments and 17 regions",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 821,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:32:01.921Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-00a6e2faf6c14b7256e7",
+          "file": "../../tests/spain-community-search.spec.ts",
+          "line": 64,
+          "column": 1
+        },
+        {
+          "title": "promotion choices retain the site design and return without charging: ru at 320px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1754,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:32:02.751Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-91b67a8be931992d41a7",
+          "file": "../../tests/owner-promotion-flow.spec.ts",
+          "line": 9,
+          "column": 3
+        },
+        {
+          "title": "promotion choices retain the site design and return without charging: en at 390px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1803,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:32:04.515Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-d0ac08821ce843c3d0df",
+          "file": "../../tests/owner-promotion-flow.spec.ts",
+          "line": 9,
+          "column": 3
+        },
+        {
+          "title": "promotion choices retain the site design and return without charging: es at 1280px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1914,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:32:06.329Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-ca2651b29432a420562a",
+          "file": "../../tests/owner-promotion-flow.spec.ts",
+          "line": 9,
+          "column": 3
+        },
+        {
+          "title": "occupied homepage keeps the selected listing and prevents checkout",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1429,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T18:32:08.251Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7091c3b9b28596536a13-81ee14a45abf49bb12c8",
+          "file": "../../tests/owner-promotion-flow.spec.ts",
+          "line": 38,
+          "column": 1
+        }
+      ],
+      "suites": [
+        {
+          "title": "mobile Spain province search",
+          "file": "../../tests/spain-community-search.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "home location starts unselected and location page has no Tenerife banner",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1201,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-17T18:31:57.684Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7091c3b9b28596536a13-db64be03fde7355671fc",
+              "file": "../../tests/spain-community-search.spec.ts",
+              "line": 14,
+              "column": 3
+            },
+            {
+              "title": "typing Barcelona offers its province and opens provincial results",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1411,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-17T18:31:58.894Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7091c3b9b28596536a13-dc82127e87e5194abeee",
+              "file": "../../tests/spain-community-search.spec.ts",
+              "line": 29,
+              "column": 3
+            },
+            {
+              "title": "Madrid and Canary Islands choose distinct spatial searches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1597,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-17T18:32:00.313Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7091c3b9b28596536a13-8e18418697eee8741bdf",
+              "file": "../../tests/spain-community-search.spec.ts",
+              "line": 48,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-17T18:31:19.675Z",
+    "duration": 50332.543,
+    "expected": 12,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

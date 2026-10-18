@@ -1,0 +1,7 @@
+tests/acceptance-flows.spec.ts:355:9: warning eslint(no-unused-vars): Variable 'bounded' is declared but never used. Unused variables should start with a '_'. help: Consider removing this declaration.
+tests/customer-video-critical-regressions.spec.ts:17:16: warning eslint(no-unused-vars): Function 'fillMissingEquipment' is declared but never used. help: Consider removing this declaration.
+tests/customer-armenime-address.spec.ts:21:10: warning eslint(no-unused-vars): Function 'mockEsproncedaResult' is declared but never used. help: Consider removing this declaration.
+tests/customer-feedback-publish.spec.ts:16:16: warning eslint(no-unused-vars): Function 'continueWizard' is declared but never used. help: Consider removing this declaration.
+src/components/advertising-vacancy.tsx:20:9: warning react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'currentUser' help: Either include it or remove the dependency array.
+src/components/listing-location-section.tsx:83:17: warning react-hooks(exhaustive-deps): React Hook useEffect has a missing dependency: 'coordinates' help: Either include it or remove the dependency array.
+i18n-source-guard: ok

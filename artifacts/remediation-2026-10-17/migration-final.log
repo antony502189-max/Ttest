@@ -1,0 +1,1 @@
+deployed migration history is immutable; future upgrades after 0032_media_reference_guard are expand-compatible

@@ -1,0 +1,12 @@
+.............F.                                                          [100%]
+================================== FAILURES ===================================
+_____ test_import_without_postcode_participates_in_all_province_surfaces ______
+tests\integration\test_verified_geography.py:88: in test_import_without_postcode_participates_in_all_province_surfaces
+    assert await upsert(db, item, scope_key="province:Madrid") == "imported"
+E   AssertionError: assert 'rejected_invalid_price' == 'imported'
+E     
+E     - imported
+E     + rejected_invalid_price
+=========================== short test summary info ===========================
+FAILED tests/integration/test_verified_geography.py::test_import_without_postcode_participates_in_all_province_surfaces
+1 failed, 14 passed in 15.73s

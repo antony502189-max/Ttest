@@ -1,0 +1,38 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Scripts\python.exe
+rootdir: C:\Users\HONOR\Documents\Codex\Ttest
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collecting ... collected 8 items
+
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_A_C_E_I_J_final_slot_and_duplicate_requests_events PASSED [ 12%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_B_late_success_after_expiry_goes_to_review_when_capacity_refilled PASSED [ 25%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_D_H_browser_never_returns_and_callback_retry_recovers PASSED [ 37%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_H_callback_commit_failure_rolls_back_and_retry_grants_once PASSED [ 50%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_F_G_expiry_and_province_mutation_enforced PASSED [ 62%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_confirmed_admin_delete_loses_paid_top_without_review PASSED [ 75%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_confirmed_daily_fulfillment_ignores_new_user_restriction PASSED [ 87%]
+..\artifacts\audit-2026-10-17\payment\integration\test_payment_routes.py::test_confirmed_admin_shortening_then_normal_financial_event_overbooks PASSED [100%]
+
+============================== warnings summary ===============================
+tests\integration\test_commercial_advertisements.py:15
+  C:\Users\HONOR\Documents\Codex\Ttest\backend\tests\integration\test_commercial_advertisements.py:15: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.integration
+
+tests\integration\test_banner_payment_lifecycle.py:22
+  C:\Users\HONOR\Documents\Codex\Ttest\backend\tests\integration\test_banner_payment_lifecycle.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.integration
+
+tests\integration\test_listing_photo_contract.py:10
+  C:\Users\HONOR\Documents\Codex\Ttest\backend\tests\integration\test_listing_photo_contract.py:10: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.integration
+
+tests\integration\test_homepage_purchase.py:16
+  C:\Users\HONOR\Documents\Codex\Ttest\backend\tests\integration\test_homepage_purchase.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.integration
+
+tests\integration\test_payment_audit.py:27
+  C:\Users\HONOR\Documents\Codex\Ttest\backend\tests\integration\test_payment_audit.py:27: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 8 passed, 5 warnings in 13.05s ========================

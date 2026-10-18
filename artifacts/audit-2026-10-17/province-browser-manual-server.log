@@ -1,0 +1,8 @@
+
+Running 12 tests using 1 worker
+
+(node:6720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   1 [chromium] › tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: ru at 320px (1.0m)
+(node:34996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)

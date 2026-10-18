@@ -1,0 +1,3 @@
+app\api\v1\listings.py:80: error: Need type annotation for "counts" (hint: "counts: dict[<type>, <type>] = ...")  [var-annotated]
+app\api\v1\listings.py:80: error: Argument 1 to "dict" has incompatible type "Sequence[Row[Any]]"; expected "Iterable[tuple[Never, Never]]"  [arg-type]
+Found 2 errors in 1 file (checked 109 source files)
