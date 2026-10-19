@@ -2,6 +2,20 @@
 
 **Production:** `https://app.112233.es` on Contabo VPS **`169.58.147.65`** (expected hostname `vmi3640228`). GitHub Pages, Vercel and Netlify are **not** production targets. Source state in `main` is separate from the actually deployed server release.
 
+## GitHub Actions release with manual approval
+
+The preferred operator flow after one-time SSH key and GitHub Environment
+setup is **Actions → Production deployment (manual approval) → Run workflow**,
+select `main` and confirm the production checkbox. If the `production`
+Environment has required reviewers configured, the designated approver must
+also click **Review deployments → Approve and deploy**. There is no automatic
+production deploy on PR merge or a push.
+
+This GitHub Actions workflow delegates to the same reviewed VPS release
+script below: it does **not** replace the encryption, backup, migration,
+release lock or public smoke checks. See
+[Manual production CI/CD setup](manual-production-cicd.md) before first use.
+
 ## Only supported release path
 
 1. Merge a reviewed PR into the protected `main` branch, after **all required CI checks** pass on that PR's latest SHA.
